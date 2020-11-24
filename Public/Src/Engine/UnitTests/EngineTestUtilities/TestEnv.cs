@@ -398,6 +398,12 @@ namespace Test.BuildXL.TestUtilities
             {
                 throw new NotImplementedException();
             }
+
+            /// <inheritdoc />
+            public Pip GetPipFromPipId(PipId pipId) 
+            {
+                return m_pips.FirstOrDefault(pip => pip.PipId == pipId);
+            }
         }
 
         /// <summary>

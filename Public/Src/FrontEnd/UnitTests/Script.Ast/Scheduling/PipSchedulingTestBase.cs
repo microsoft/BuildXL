@@ -119,7 +119,9 @@ namespace Test.DScript.Ast.Scheduling
                 foreach (var rushProject in projects)
                 {
                     var result = pipConstructor.TrySchedulePipForProject(rushProject, currentQualifier);
-                    schedulingResults[rushProject] = (result.Succeeded, result.Succeeded? null : result.Failure.Describe(), result.Succeeded? result.Result : null);
+                    schedulingResults[rushProject] = (
+                        result.Succeeded, result.Succeeded? null : result.Failure.Describe(), 
+                        result.Succeeded? (Process) controller.PipGraph.GetPipFromPipId(result.Result.ProcessPipId) : null);
                 }
 
                 return new SchedulingResult<TProject>(controller.PipGraph, schedulingResults, controller.Configuration);

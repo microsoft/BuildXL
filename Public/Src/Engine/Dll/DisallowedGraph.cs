@@ -177,5 +177,8 @@ namespace BuildXL.Engine
             kind = default(SealDirectoryKind);
             return false;
         }
+
+        /// <inheritdoc />
+        public Pip GetPipFromPipId(PipId pipId) => null;
     }
 }

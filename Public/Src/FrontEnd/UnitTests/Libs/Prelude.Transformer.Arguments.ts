@@ -79,3 +79,13 @@ interface Argument {
     /** Value of the argument. */
     value: ArgumentValue | ArgumentValue[];
 }
+
+/**
+ * The result of executing a process
+ */
+interface TransformerExecuteResult {
+    getOutputFile(output: Path): DerivedFile;
+    getOutputFiles(): DerivedFile[];
+    getRequiredOutputFiles(): DerivedFile[];
+    getOutputDirectory(dir: Directory): OpaqueDirectory;
+}

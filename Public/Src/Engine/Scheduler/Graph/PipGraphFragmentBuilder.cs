@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
@@ -294,6 +295,15 @@ namespace BuildXL.Scheduler.Graph
             }
 
             return false;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Current implementation is O(n) but this method is for now only called in test contexts.
+        /// </remarks>
+        public Pip GetPipFromPipId(PipId pipId)
+        {
+            return m_pips.FirstOrDefault(pip => pip.PipId == pipId);
         }
     }
 }

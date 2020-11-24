@@ -360,6 +360,19 @@ namespace BuildXL.Pips
         /// <nodoc />
         public bool TryAddProcess(ProcessBuilder processBuilder, out ProcessOutputs processOutputs, out Process pip)
         {
+            if (!TryFinishProcessApplyingOSDefaults(processBuilder, out processOutputs, out pip))
+            {
+                return false;
+            }
+
+            return TryAddFinishedProcessToGraph(pip, processOutputs);
+        }
+
+        /// <summary>
+        /// Applies OS defaults and tries to finish the process
+        /// </summary>
+        public bool TryFinishProcessApplyingOSDefaults(ProcessBuilder processBuilder, out ProcessOutputs processOutputs, out Process pip)
+        {
             // Applying defaults can fail if, for example, a source sealed directory cannot be 
             // created because it is not under a mount.  That error must be propagated, because
             // otherwise an error will be logged but the evaluation will succeed.
@@ -375,6 +388,15 @@ namespace BuildXL.Pips
                 return false;
             }
 
+            return true;
+        }
+
+        /// <summary>
+        /// Adds a process finished by <see cref="TryFinishProcessApplyingOSDefaults(ProcessBuilder, out ProcessOutputs, out Process)"/> to 
+        /// the pip graph and updates its process outputs with the pip id that the graph assigns to the added process it
+        /// </summary>
+        public bool TryAddFinishedProcessToGraph(Process pip, ProcessOutputs processOutputs)
+        {
             if (PipGraph != null)
             {
                 var success = PipGraph.AddProcess(pip, GetValuePipId());

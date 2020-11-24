@@ -20,6 +20,7 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -43,7 +44,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private IMsBuildResolverSettings m_msBuildResolverSettings;
 
         private ModuleDefinition ModuleDefinition => m_msBuildWorkspaceResolver.ComputedProjectGraph.Result.ModuleDefinition;
-        private readonly ConcurrentDictionary<(QualifierId, AbsolutePath), List<Process>> m_scheduledProcessesByPath = new ConcurrentDictionary<(QualifierId, AbsolutePath), List<Process>>();
+        private readonly ConcurrentDictionary<(QualifierId, AbsolutePath), List<ProcessOutputs>> m_scheduledProcessOutputsByPath = new ConcurrentDictionary<(QualifierId, AbsolutePath), List<ProcessOutputs>>();
         private readonly SemaphoreSlim m_evaluationSemaphore = new SemaphoreSlim(1);
 
         /// <nodoc />
@@ -193,17 +194,17 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // Make sure we only evaluate once per qualifier/path by waiting on the evaluation semaphore
             await m_evaluationSemaphore.WaitAsync();
-            List<Process> processes = null;
+            List<ProcessOutputs> processOutputs = null;
             try
             {
-                if (!m_scheduledProcessesByPath.TryGetValue((qualifierId, path), out processes))
+                if (!m_scheduledProcessOutputsByPath.TryGetValue((qualifierId, path), out processOutputs))
                 {
                     var success = await EvaluateAllFilesAsync(ModuleDefinition.Specs, qualifierId);
                     if (!success)
                     {
                         return EvaluationResult.Error;
                     }
-                    processes = m_scheduledProcessesByPath[(qualifierId, path)];
+                    processOutputs = m_scheduledProcessOutputsByPath[(qualifierId, path)];
                 }
             }
             finally 
@@ -212,14 +213,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Let's put together all output directories for all pips under this project
-            var sealedDirectories = processes.SelectMany(process => process.DirectoryOutputs.Select(directoryArtifact => {
-                bool success = m_host.PipGraph.TryGetSealDirectoryKind(directoryArtifact, out var kind);
-                Contract.Assert(success);
-                return new EvaluationResult(new StaticDirectory(
-                    directoryArtifact, 
-                    kind, 
-                    CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact,OrdinalPathOnlyFileArtifactComparer>(OrdinalPathOnlyFileArtifactComparer.Instance)));
-            })).ToArray();
+            var sealedDirectories = processOutputs.SelectMany(process => process.GetOutputDirectories().Select(staticDirectory => new EvaluationResult(staticDirectory))).ToArray();
 
             return new EvaluationResult(new EvaluatedArrayLiteral(sealedDirectories, default(TypeScript.Net.Utilities.LineInfo), path));
         }
@@ -304,10 +298,10 @@ namespace BuildXL.FrontEnd.MsBuild
 
             if (maybeScheduleResult.Succeeded)
             {
-                foreach (var kvp in maybeScheduleResult.Result.ScheduledProcesses)
+                foreach (var kvp in maybeScheduleResult.Result.ScheduledProcessOutputs)
                 {
-                    m_scheduledProcessesByPath.AddOrUpdate((qualifierId, kvp.Key.FullPath),
-                        _ => new List<Process>() { kvp.Value },
+                    m_scheduledProcessOutputsByPath.AddOrUpdate((qualifierId, kvp.Key.FullPath),
+                        _ => new List<ProcessOutputs>() { kvp.Value },
                         (key, processes) => { processes.Add(kvp.Value); return processes; });
                 }
             }

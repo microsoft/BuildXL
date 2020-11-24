@@ -8,11 +8,11 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.RuntimeModel;
+using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips.Builders;
@@ -369,6 +369,42 @@ namespace BuildXL.FrontEnd.Utilities
 
             fileModule.AddResolvedEntry(symbol, outputResolvedEntry);
             fileModule.AddResolvedEntry(new FilePosition(position, sourceFilePath), outputResolvedEntry);
+        }
+
+        /// <summary>
+        /// Runs AST conversion on the given target path.
+        /// </summary>
+        /// <remarks>
+        /// The target path is assumed to already be part of the workspace contained by the given host
+        /// </remarks>
+        public static Task<SourceFileParseResult> RunAstConversionAsync(FrontEndHost host, FrontEndContext context, Script.Tracing.Logger logger, IFrontEndStatistics stats, Package package, AbsolutePath conversionTarget)
+        {
+            Contract.RequiresNotNull(host);
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(logger);
+            Contract.RequiresNotNull(stats);
+            Contract.RequiresNotNull(package);
+            Contract.Requires(conversionTarget.IsValid);
+
+            var configuration = AstConversionConfiguration.FromConfiguration(host.Configuration.FrontEnd);
+            var linter = DiagnosticAnalyzer.Create(
+                logger,
+                context.LoggingContext,
+                new HashSet<string>(configuration.PolicyRules),
+                configuration.DisableLanguagePolicies);
+
+            var workspace = (Workspace) host.Workspace;
+            var factory = new RuntimeModelFactory(stats, configuration, linter, workspace);
+            var parserContext = new RuntimeModelContext(
+                host,
+                frontEndContext: context,
+                logger,
+                package: package,
+                origin: default(LocationData));
+
+            var sourceFile = workspace.GetSourceFile(conversionTarget);
+
+            return factory.ConvertSourceFileAsync(parserContext, sourceFile);
         }
 
         /// <summary>

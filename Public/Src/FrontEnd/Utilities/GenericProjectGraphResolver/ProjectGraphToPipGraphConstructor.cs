@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
+using BuildXL.Pips.Builders;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -39,7 +40,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         /// <summary>
         /// Creates a pip graph that corresponds to all the specified projects in the graph
         /// </summary>
-        public async Task<Possible<ProjectGraphSchedulingResult<TProject>>> TrySchedulePipsForFilesAsync(IReadOnlySet<TProject> projectsToEvaluate, QualifierId qualifierId)
+        public async Task<Possible<ProjectGraphSchedulingResult<TProject>>> TrySchedulePipsForFilesAsync(IReadOnlySet<TProject> projectsToEvaluate, QualifierId qualifierId, Func<ProjectCreationResult<TProject>, Possible<ProcessOutputs>> customScheduler = null)
         {
             Contract.Requires(qualifierId.IsValid);
 
@@ -49,28 +50,61 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             }
 
             bool success = true;
+            // Observe in case of multiple failure we non-deterministically report one
             Failure failure = null;
-            var processes = new ConcurrentDictionary<TProject, Pips.Operations.Process>();
+            var processOutputs = new ConcurrentDictionary<TProject, ProcessOutputs>();
 
             ActionBlock<TProject> createActionBlockForTier()
             {
                 return new ActionBlock<TProject>(
                     project =>
                     {
+                        // If a previous tier had any errors (which is guaranteed to be completed before the next tier is scheduled), just return, since the current tier may depend on pips that in the end
+                        // were not scheduled
+                        if (!success)
+                        {
+                            return;
+                        }
+
                         // We only schedule the project if the project does not rule itself out from being added to the graph
                         if (project.CanBeScheduled())
                         {
-                            var maybeProcess = m_pipConstructor.TrySchedulePipForProject(project, qualifierId);
-                            if (!maybeProcess.Succeeded)
+                                var maybeResult = m_pipConstructor.TryCreatePipForProject(project, qualifierId);
+                                if (!maybeResult.Succeeded)
+                                {
+                                    // Error is already logged
+                                    success = false;
+                                    failure = maybeResult.Failure;
+                                    return;
+                                }
+
+                            // If a custom scheduler is not present, or it returns null when called, we add the resulting pip as the pip constructor created it
+                            if (customScheduler == null || 
+                                (customScheduler(maybeResult.Result) is var maybeCustomSchedulingOutputs && maybeCustomSchedulingOutputs.Succeeded && maybeCustomSchedulingOutputs.Result == null))
                             {
-                                // Error is already logged
-                                success = false;
-                                // Observe in case of multiple failure we non-deterministically report one
-                                failure = maybeProcess.Failure;
+                                var maybeOutputs = m_pipConstructor.TrySchedulePipForProject(maybeResult.Result, qualifierId);
+                                if (!maybeOutputs.Succeeded)
+                                {
+                                    // Error is already logged
+                                    success = false;
+                                    failure = maybeOutputs.Failure;
+                                    return;
+                                }
+
+                                processOutputs.TryAdd(project, maybeOutputs.Result);
+                            }
+                            else if (maybeCustomSchedulingOutputs.Succeeded)
+                            {
+                                // In this case the custom scheduler should have already added the pip. Notify the pip constructor and keep track of the project -> output association
+                                m_pipConstructor.NotifyCustomProjectScheduled(project, maybeCustomSchedulingOutputs.Result, qualifierId);
+                                processOutputs.TryAdd(project, maybeCustomSchedulingOutputs.Result);
                             }
                             else
                             {
-                                processes.TryAdd(project, maybeProcess.Result);
+                                // In this case the custom scheduler evaluated to an error
+                                success = false;
+                                failure = maybeCustomSchedulingOutputs.Failure;
+                                return;
                             }
                         }
                         else
@@ -110,7 +144,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             await perTierParallelPipCreator.Completion;
 
             return success? 
-                new ProjectGraphSchedulingResult<TProject>(processes) : 
+                new ProjectGraphSchedulingResult<TProject>(processOutputs) : 
                 (Possible<ProjectGraphSchedulingResult<TProject>>) failure;
         }
 

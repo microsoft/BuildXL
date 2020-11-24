@@ -452,5 +452,11 @@ namespace BuildXL.Scheduler.Graph
         {
             return m_builder.TryGetSealDirectoryKind(directoryArtifact, out kind);
         }
+
+        /// <inheritdoc />
+        public Pip GetPipFromPipId(PipId pipId)
+        {
+            return m_builder.GetPipFromPipId(pipId);
+        }
     }
 }

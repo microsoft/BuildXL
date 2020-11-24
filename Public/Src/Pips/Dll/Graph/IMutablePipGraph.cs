@@ -144,5 +144,10 @@ namespace BuildXL.Pips.Graph
         /// Attempts to return the kind of a directory artifact. Succeeds if the directory has already been added to the graph.
         /// </summary>
         bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind);
+
+        /// <summary>
+        /// Hydrates a pip from a <see cref="PipId"/>
+        /// </summary>
+        Pip GetPipFromPipId(PipId pipId);
     }
 }

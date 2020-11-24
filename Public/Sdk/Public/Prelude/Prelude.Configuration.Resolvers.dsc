@@ -4,6 +4,7 @@
 /// <reference path="Prelude.Core.dsc"/>
 /// <reference path="Prelude.IO.dsc"/>
 /// <reference path="Prelude.Configuration.dsc"/>
+/// <reference path="Prelude.Transformer.Arguments.dsc"/>
 
 /**
  * Source resolver that uses specified source paths for module resolution.
@@ -405,6 +406,31 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * Policy to apply when a double write occurs. By default double writes are only allowed if the produced content is the same.
      */
     doubleWritePolicy?: DoubleWritePolicy;
+
+    /**
+     * When specified, the resolver will give this callback an opportunity to schedule pips based on each project information. The callback
+     * will be executed for every project discovered by this resolver. When the callback is present, the resolver won't schedule the given 
+     * project and the callback is responsible for doing it.
+     * The callback defines the location a function whose expected type is (JavaScriptProject) => TransformerExecuteResult. The
+     * resolver will create an instance of an JavaScriptProject for each discovered project and pass it along.
+     * The callback can decide not to schedule a given project by returning 'undefined', in which case the resolver will schedule it in the
+     * regular way.
+     */
+    customScheduling?: CustomSchedulingCallBack;
+}
+
+/**
+ * Specifies the location of a callback used for scheduling a project in a custom way
+ */
+interface CustomSchedulingCallBack {
+    /** Module name where the callback is defined */
+    module: string;
+    
+    /** 
+     * Function name of the callback. The name can be a dotted identifier specifying a function name nested in namespaces. 
+     * The type of the defined function is expected to be (JavaScriptProject) => TransformerExecuteResult
+     * */
+    schedulingFunction: string;
 }
 
 /**
@@ -436,6 +462,25 @@ interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver
 interface JavaScriptExport {
     symbolName: string;
     content: JavaScriptProjectOutputSelector[];
+}
+
+/**
+ * A JavaScript project as it was discovered by the resolver. An instance of this interface is passed to the custom scheduling
+ * callback.
+ * Some information comes directly from the data provided by the corresponding JS coordinator, such as name, script command etc. Some other
+ * information (such as inputs, outputs, environment variables, etc.) is computed by the resolver as if the project is going to be
+ * scheduled in its usual way, but instead provided to the custom scheduler to be able to make decisions based on it.
+ */
+interface JavaScriptProject {
+    name: string;
+    scriptCommandName: string;
+    scriptCommand: string;
+    projectFolder: Directory;
+    inputs: (File | StaticDirectory)[];
+    outputs: (Path | Directory)[];
+    environmentVariables: {name: string, value: string}[];
+    passThroughEnvironmentVariables: string[];
+    tempDirectory?: Directory;
 }
 
 /**

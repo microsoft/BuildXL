@@ -14,6 +14,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -244,6 +245,62 @@ namespace Test.BuildXL.FrontEnd.Rush
             intermediateDir = Directory.EnumerateDirectories(Path.Combine(SourceRoot, "src", "A"))
                 .First(dir => dir.EndsWith("CamelCasedLib", StringComparison.Ordinal));
             Assert.NotNull(intermediateDir);
+        }
+
+        [Fact]
+        public void CallbackIsHonored()
+        {
+            // Create two JS projects such that A <- B
+            // Configure a custom scheduler that customizes only A to produce a file in the root of the project folder. B is scheduled as usual
+            var config =
+                Build(
+                    schedulingCallback: "{module: 'myModule', schedulingFunction: 'Test.custom'}",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-B", "src/B", dependencies: new[] { "@ms/project-A" }, scriptCommands: new[] { ("build", "echo HelloB") })
+               .AddSpec("module.config.dsc", "module({name: 'myModule'});")
+               .AddSpec(@"
+import {Transformer} from 'Sdk.Transformers';
+
+const tool : Transformer.ToolDefinition = { 
+    exe: Environment.getFileValue('COMSPEC'),
+    dependsOnWindowsDirectories: true
+};
+
+namespace Test {
+    @@public
+    export function custom(project : JavaScriptProject) : Transformer.ExecuteResult {
+        if (project.name === '@ms/project-A') {
+            return Transformer.execute({
+                workingDirectory: project.projectFolder,
+                arguments: [{ value: '/C' }, { value: 'echo HelloA' }, { value: '>' }, { value: 'file.txt' }],
+                tool: tool,
+                outputs: project.outputs.filter(output => typeof output !== 'Path').map(output => <Transformer.DirectoryOutput>{ directory: output, kind: 'shared' })
+            });
+        }
+        else {
+            return undefined;
+        }
+    }
+}")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B")
+            });
+
+            Assert.True(result.IsSuccess);
+
+            var processA = result.EngineState.RetrieveProcess("@ms/project-A");
+            var processB = result.EngineState.RetrieveProcess("@ms/project-B");
+
+            // Let's make sure A was scheduled by the callback and B followed the regular scheduling
+            XAssert.Contains(processA.Arguments.ToString(PathTable), "HelloA");
+            XAssert.Contains(processB.Arguments.ToString(PathTable), "HelloB");
+
+            // The output file should have been produced by A
+            XAssert.IsTrue(File.Exists(config.Layout.SourceDirectory.Combine(PathTable, RelativePath.Create(StringTable, "src/A/file.txt")).ToString(PathTable)));
         }
     }
 }

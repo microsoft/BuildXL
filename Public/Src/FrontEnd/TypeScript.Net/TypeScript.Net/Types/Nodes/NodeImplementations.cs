@@ -1490,10 +1490,11 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        public PropertyAccessExpression(IReadOnlyList<string> parts)
+        public PropertyAccessExpression(IReadOnlyList<string> parts, IReadOnlyList<(int, int)> positions = null)
         {
             Contract.Requires(parts != null);
             Contract.Requires(parts.Count >= 2);
+            Contract.Requires(positions == null || parts.Count == positions.Count);
 
             // This object becomes the last part.
             Kind = SyntaxKind.PropertyAccessExpression;
@@ -1501,16 +1502,28 @@ namespace TypeScript.Net.Types
 
             // The first part
             ILeftHandSideExpression current = new Identifier(parts[0]);
+            setPositions(current, 0);
 
             // Loop from the second part to the one to last part
             for (int i = 1; i < parts.Count - 1; i++)
             {
                 current = new PropertyAccessExpression(current, parts[i]);
+                setPositions(current, i);
             }
 
             // This object becomes the last part.
             Expression = current;
             Name = new Identifier(parts[parts.Count - 1]);
+            setPositions(Name, parts.Count - 1);
+
+            void setPositions(INode node, int index)
+            {
+                if (positions != null)
+                {
+                    node.Pos = positions[index].Item1;
+                    node.Pos = positions[index].Item2;
+                }
+            }
         }
 
         /// <inheritdoc/>

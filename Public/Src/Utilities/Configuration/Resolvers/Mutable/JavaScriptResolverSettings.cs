@@ -39,6 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Exports = resolverSettings.Exports;
             WritingToStandardErrorFailsExecution = resolverSettings.WritingToStandardErrorFailsExecution;
             DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
+            CustomScheduling = resolverSettings.CustomScheduling;
         }
 
         /// <inheritdoc/>
@@ -88,5 +89,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public RewritePolicy? DoubleWritePolicy { get; set; }
+
+        /// <inheritdoc />
+        public ICustomSchedulingCallback CustomScheduling { get; set; }
     }
 }

@@ -51,9 +51,11 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <nodoc/>
         protected PathTable PathTable => m_context.PathTable;
 
-        private readonly ConcurrentDictionary<JavaScriptProject, ProcessOutputs> m_processOutputsPerProject = new ConcurrentDictionary<JavaScriptProject, ProcessOutputs>();
+        private readonly ConcurrentBigMap<JavaScriptProject, ProcessOutputs> m_processOutputsPerProject = new ConcurrentBigMap<JavaScriptProject, ProcessOutputs>();
 
         private readonly ConcurrentBigMap<JavaScriptProject, IReadOnlySet<JavaScriptProject>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<JavaScriptProject, IReadOnlySet<JavaScriptProject>>();
+
+        private readonly ConcurrentBigMap<(JavaScriptProject, QualifierId), PipConstructionHelper> m_pipConstructionHelperPerProject = new ConcurrentBigMap<(JavaScriptProject, QualifierId), PipConstructionHelper>();
 
         /// <summary>
         /// Base directory where all logs are located
@@ -92,33 +94,26 @@ namespace BuildXL.FrontEnd.JavaScript
         }
 
         /// <summary>
-        /// Schedules a pip corresponding to the provided project and qualifier
+        /// Creates a pip corresponding to the provided project and qualifier
         /// </summary>
-        /// <remarks>
-        /// The project is assumed to be scheduled in the right order, where all dependencies are scheduled first.
-        /// See topographical sort performed in <see cref="ProjectGraphToPipGraphConstructor{JavaScriptProject}"/>.
-        /// </remarks>
-        public Possible<Process> TrySchedulePipForProject(JavaScriptProject project, QualifierId qualifierId)
+        public Possible<ProjectCreationResult<JavaScriptProject>> TryCreatePipForProject(JavaScriptProject project, QualifierId qualifierId)
         {
+            // We create a pip construction helper for each project
+            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
+
             try
             {
-                // Create command line and inputs and outputs for pipBuilder.
-                if (!TryExecuteArgumentsToPipBuilder(
-                    project,
-                    qualifierId,
-                    out var failureDetail,
-                    out var process))
+                if (!TryCreateProcess(pipConstructionHelper, project, out string failureDetail, out Process process, out ProcessOutputs processOutputs))
                 {
                     Tracing.Logger.Log.SchedulingPipFailure(
-                        m_context.LoggingContext,
-                        Location.FromFile(project.ProjectFolder.ToString(PathTable)),
-                        failureDetail);
-                    process = default;
+                            m_context.LoggingContext,
+                            Location.FromFile(project.ProjectFolder.ToString(PathTable)),
+                            failureDetail);
 
                     return new JavaScriptProjectSchedulingFailure(project, failureDetail);
                 }
 
-                return process;
+                return new ProjectCreationResult<JavaScriptProject>(project, process, processOutputs);
             }
             catch (Exception ex)
             {
@@ -130,6 +125,62 @@ namespace BuildXL.FrontEnd.JavaScript
 
                 return new JavaScriptProjectSchedulingFailure(project, ex.ToString());
             }
+        }
+
+        /// <summary>
+        /// Adds the created project to the graph
+        /// </summary>
+        /// <remarks>
+        /// The project is assumed to be scheduled in the right order, where all dependencies are scheduled first.
+        /// See topographical sort performed in <see cref="ProjectGraphToPipGraphConstructor{JavaScriptProject}"/>.
+        /// </remarks>
+        public Possible<ProcessOutputs> TrySchedulePipForProject(
+            ProjectCreationResult<JavaScriptProject> creationResult,
+            QualifierId qualifierId)
+        {
+            // We create a pip construction helper for each project
+            var project = creationResult.Project;
+            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
+
+            try
+            {
+                // Try to add the process pip to the graph
+                if (!pipConstructionHelper.TryAddFinishedProcessToGraph(creationResult.Process, creationResult.Outputs))
+                {
+                    string failureDetail = "Failed to add the pip";
+                    Tracing.Logger.Log.SchedulingPipFailure(
+                                m_context.LoggingContext,
+                                Location.FromFile(project.ProjectFolder.ToString(PathTable)),
+                                failureDetail);
+
+                    return new JavaScriptProjectSchedulingFailure(project, failureDetail);
+                }
+
+                m_processOutputsPerProject[creationResult.Project] = creationResult.Outputs;
+
+                return creationResult.Outputs;
+            }
+            catch (Exception ex)
+            {
+                Tracing.Logger.Log.UnexpectedPipBuilderException(
+                    m_context.LoggingContext,
+                    Location.FromFile(project.ProjectFolder.ToString(PathTable)),
+                    ex.GetLogEventMessage(),
+                    ex.StackTrace);
+
+                return new JavaScriptProjectSchedulingFailure(project, ex.ToString());
+            }
+            finally 
+            {
+                // Once the pip is added to the graph it should be safe to remove the pip construction helper from the cache
+                m_pipConstructionHelperPerProject.TryRemove((project, qualifierId), out _);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void NotifyCustomProjectScheduled(JavaScriptProject project, ProcessOutputs outputs, QualifierId qualifierId)
+        {
+            m_processOutputsPerProject[project] = outputs;
         }
 
         private IReadOnlyDictionary<string, string> CreateEnvironment(JavaScriptProject project)
@@ -171,15 +222,13 @@ namespace BuildXL.FrontEnd.JavaScript
             return env;
         }
 
-        private bool TryExecuteArgumentsToPipBuilder(
+        private bool TryCreateProcess(
+            PipConstructionHelper pipConstructionHelper,
             JavaScriptProject project,
-            QualifierId qualifierId,
             out string failureDetail,
-            out Process process)
+            out Process process,
+            out ProcessOutputs processOutputs)
         {
-            // We create a pip construction helper for each project
-            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
-
             using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder(), m_frontEndHost.Configuration))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
@@ -189,14 +238,12 @@ namespace BuildXL.FrontEnd.JavaScript
                 ProcessInputs(project, processBuilder);
                 ProcessOutputs(project, processBuilder);
 
-                // Try to schedule the process pip
-                if (!pipConstructionHelper.TryAddProcess(processBuilder, out ProcessOutputs outputs, out process))
+                // Try to create the process pip
+                if (!pipConstructionHelper.TryFinishProcessApplyingOSDefaults(processBuilder, out processOutputs, out process))
                 {
-                    failureDetail = "Failed to schedule the pip";
+                    failureDetail = "Failed to create the pip";
                     return false;
                 }
-
-                m_processOutputsPerProject[project] = outputs;
 
                 failureDetail = string.Empty;
                 return true;
@@ -476,6 +523,13 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private PipConstructionHelper GetPipConstructionHelperForProject(JavaScriptProject project, QualifierId qualifierId)
         {
+            // Check the cache first
+            var cachedResult = m_pipConstructionHelperPerProject.TryGet((project, qualifierId));
+            if (cachedResult.IsFound)
+            {
+                return cachedResult.Item.Value;
+            }
+
             var pathToProject = project.ProjectFolder;
 
             // We might be adding the same spec file pip more than once when the same project is evaluated
@@ -507,6 +561,9 @@ namespace BuildXL.FrontEnd.JavaScript
                 fullSymbol,
                 new LocationData(pathToProject, 0, 0),
                 qualifierId);
+
+            // Update the pip construction helper cache
+            m_pipConstructionHelperPerProject.TryAdd((project, qualifierId), pipConstructionHelper);
 
             return pipConstructionHelper;
         }

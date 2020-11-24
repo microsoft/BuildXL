@@ -199,12 +199,7 @@ namespace Transformer {
         }
 
         @@public
-        export interface ExecuteResult {
-            getOutputFile(output: Path): DerivedFile;
-            getOutputFiles(): DerivedFile[];
-            getRequiredOutputFiles(): DerivedFile[];
-            getOutputDirectory(dir: Directory): OpaqueDirectory;
-        }
+		export type ExecuteResult = TransformerExecuteResult;
 
         @@public
         export type EnvironmentValueType = string | boolean | number | Path | Path[] | File | File[] | Directory | Directory[] | StaticDirectory | StaticDirectory[];

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -54,6 +55,17 @@ namespace BuildXL.Pips
             Contents = contents;
             SealDirectoryKind = kind;
             Kind = GetScriptRepresentation(SealDirectoryKind);
+        }
+
+        /// <summary>
+        /// Creates a static directory for a directory artifact that is known to be an either shared or exclusive opaque directory
+        /// </summary>
+        public static StaticDirectory CreateForOutputDirectory(DirectoryArtifact outputDirectory)
+        {
+            Contract.Requires(outputDirectory.IsValid);
+            Contract.Requires(outputDirectory.IsOutputDirectory());
+
+            return new StaticDirectory(outputDirectory, outputDirectory.IsSharedOpaque ? SealDirectoryKind.SharedOpaque : SealDirectoryKind.Opaque, PipConstructionHelper.EmptyStaticDirContents);
         }
 
         /// <summary>

@@ -21,6 +21,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
@@ -81,6 +82,22 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </remarks>
         public AbsolutePath ExportsFile { get; private set; }
 
+        /// <summary>
+        /// The path to an 'imports' DScript file, with values that get imported from configured modules
+        /// </summary>
+        /// <remarks>
+        /// This file is added in addition to the current one-file-per-project
+        /// approach, as a single place to contain all imported values.
+        /// </remarks>
+        public AbsolutePath ImportsFile { get; private set; }
+
+        /// <summary>
+        /// If a custom scheduling callback is specified, this is the variable declaration (with function type) that has to be evaluated
+        /// to get the result of the custom scheduling
+        /// </summary>
+        [CanBeNull]
+        public VariableDeclaration CustomSchedulingCallback { get; private set; }
+
         /// <inheritdoc/>
         public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
         {
@@ -95,17 +112,15 @@ namespace BuildXL.FrontEnd.JavaScript
                     m_context.LoggingContext,
                     resolverSettings.Location(m_context.PathTable),
                     ((IJavaScriptResolverSettings)resolverSettings).Execute,
-                    out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> computedCommands,
-                    out IReadOnlyDictionary<string, IReadOnlyList<string>> commandGroups))
+                    out m_computedCommands,
+                    out m_commandGroups))
             {
                 // Error has been logged
                 return false;
             }
 
-            m_computedCommands = computedCommands;
-            m_commandGroups = commandGroups;
-
             ExportsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "exports.dsc");
+            ImportsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "imports.dsc");
             AllProjectsSymbol = FullSymbol.Create(m_context.SymbolTable, "all");
 
             return true;
@@ -239,7 +254,7 @@ namespace BuildXL.FrontEnd.JavaScript
         protected override SourceFile DoCreateSourceFile(AbsolutePath path)
         {
             var sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
-            
+
             // We consider all files to be DScript files, even though the extension might not be '.dsc'
             // And additionally, we consider them to be external modules, so exported stuff is interpreted appropriately
             // by the type checker
@@ -247,6 +262,100 @@ namespace BuildXL.FrontEnd.JavaScript
             sourceFile.ExternalModuleIndicator = sourceFile;
 
             // If we need to generate the export file, add all specified export symbols
+            PopulateExportsFileIfNeeded(path, sourceFile);
+
+            // If a custom scheduling function is referenced, let's add the reference to the imports file
+            PopulateImportsFileIfNeeded(path, sourceFile);
+
+            return sourceFile;
+        }
+
+        private void PopulateImportsFileIfNeeded(AbsolutePath path, SourceFile sourceFile)
+        {
+            // The import file contains a reference to the custom scheduling function, if specified.
+            // The provided DScript callback could be evaluated directly, but instead of that we declare a function in this module
+            // with the proper type and assign it to the referenced callback. Reasons are:
+            // 1) In this way validating the provided callback has the right type is naturally enforced by the type checker (since the function we declare in this module has explicit type
+            // annotations
+            // 2) The module literal and resolved entry to use for evaluation doesn't have to be discovered by asking the type checker and can be pinned directly to this imports.dsc file
+            if (path == ImportsFile && m_resolverSettings.CustomScheduling != null)
+            {
+                // The scheduling function can be a dotted identifier 
+                var schedulingFunction = FullSymbol.Create(m_context.SymbolTable, m_resolverSettings.CustomScheduling.SchedulingFunction);
+                
+                // Add an import to the user defined module and scheduling function by adding  'import { schedulingFunctionRootIdentifier } from "module"'
+                var import = new ImportDeclaration(new[] { schedulingFunction.GetRoot(m_context.SymbolTable).ToString(m_context.StringTable) }, m_resolverSettings.CustomScheduling.Module)
+                {
+                    Pos = 1,
+                    End = 2
+                };
+                sourceFile.Statements.Add(import);
+
+                // Now construct the function type, that needs to be JavaScriptProject => TransformerExecuteResult
+                var evaluatedProjectType = new TypeReferenceNode("JavaScriptProject");
+                evaluatedProjectType.TypeName.Pos = 3;
+                evaluatedProjectType.TypeName.End = 4;
+
+                var executeResult = new TypeReferenceNode("TransformerExecuteResult");
+                executeResult.TypeName.Pos = 3;
+                executeResult.TypeName.End = 4;
+
+                var functionType = new FunctionOrConstructorTypeNode
+                {
+                    Kind = SyntaxKind.FunctionType,
+                    Type = executeResult,
+                    Parameters = new NodeArray<IParameterDeclaration>(new ParameterDeclaration { Name = new IdentifierOrBindingPattern(new Identifier("project")), Type = evaluatedProjectType }),
+                    Pos = 3,
+                    End = 4
+                };
+
+                // The initializer is either a property access expression if a FQN is needed, or a simple identifier in case of referencing a top level value
+                IExpression initializer;
+                if (schedulingFunction.GetParent(m_context.SymbolTable).IsValid)
+                {
+                    IReadOnlyList<string> parts = schedulingFunction.ToReadOnlyList(m_context.SymbolTable).Select(atom => atom.ToString(m_context.StringTable)).ToList();
+                    initializer = new PropertyAccessExpression(parts, Enumerable.Repeat((3, 4), parts.Count).ToList<(int, int)>())
+                    {
+                        Pos = 3,
+                        End = 4
+                    };
+                }
+                else
+                {
+                    initializer = new Identifier(schedulingFunction.ToString(m_context.SymbolTable))
+                    {
+                        Pos = 3,
+                        End = 4
+                    };
+                }
+                
+
+                // Create a const declaration and assign it to the callback: const schedulingFunction : (JavaScriptProject) => TransformerExecuteResult = schedulingFunctionName;
+                // Observe 'schedulingFunction' is an arbitrary name. This is a private value, so it is not visible to other modules.
+                CustomSchedulingCallback = new VariableDeclaration("schedulingFunction", initializer, functionType)
+                {
+                    Pos = 3,
+                    End = 4
+                };
+                CustomSchedulingCallback.Name.Pos = 3;
+                CustomSchedulingCallback.Name.End = 4;
+
+                // Final source file looks like
+                //   import { schedulingFunctionName } from "module";
+                //   const schedulingFunction : (JavaScriptProject) => Result = schedulingFunctionName;
+                sourceFile.Statements.Add(new VariableStatement()
+                {
+                    DeclarationList = new VariableDeclarationList(
+                            NodeFlags.Const,
+                            CustomSchedulingCallback)
+                });
+
+                sourceFile.SetLineMap(new[] { 0, 4 });
+            }
+        }
+
+        private void PopulateExportsFileIfNeeded(AbsolutePath path, SourceFile sourceFile)
+        {
             if (path == ExportsFile)
             {
                 // By forcing the default qualifier declaration to be in the exports file, we save us the work
@@ -278,10 +387,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 // As if all declarations happened on the same line
                 sourceFile.SetLineMap(new[] { 0, Math.Max(pos - 2, 2) });
             }
-
-            return sourceFile;
         }
-        
+
         /// <inheritdoc/>
         protected override Task<Possible<JavaScriptGraphResult<TGraphConfiguration>>> TryComputeBuildGraphAsync()
         {
@@ -337,6 +444,9 @@ namespace BuildXL.FrontEnd.JavaScript
             // Since all the specs are exposed as part of a single module, it actually doesn't matter where
             // all these values are declared, but by defining a fixed source file for it, we keep it deterministic
             projectFiles.Add(ExportsFile);
+
+            // Add an 'imports' source file at the root of the repo that will contain all top-level imported values
+            projectFiles.Add(ImportsFile);
 
             var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
@@ -700,7 +810,15 @@ namespace BuildXL.FrontEnd.JavaScript
             // The script sequence is composed from every script command
             string computedScript = ComputeScriptSequence(members.Select(member => member.ScriptCommand));
             
-            var projectGroup = new JavaScriptProject(projectName, deserializedProject.ProjectFolder, commandName, computedScript, deserializedProject.TempFolder, outputDirectories, sourceFiles);
+            var projectGroup = new JavaScriptProject(
+                projectName, 
+                deserializedProject.ProjectFolder, 
+                commandName, 
+                computedScript, 
+                deserializedProject.TempFolder, 
+                outputDirectories, 
+                sourceFiles);
+
             return projectGroup;
         }
 
@@ -909,7 +1027,10 @@ namespace BuildXL.FrontEnd.JavaScript
             out JavaScriptProject javaScriptProject,
             out Failure failure)
         {
-            javaScriptProject = JavaScriptProject.FromDeserializedProject(command, deserializedProject.AvailableScriptCommands[command], deserializedProject, m_context.PathTable);
+            javaScriptProject = JavaScriptProject.FromDeserializedProject(
+                command, 
+                deserializedProject.AvailableScriptCommands[command], 
+                deserializedProject);
 
             if (!ValidateDeserializedProject(javaScriptProject, out string reason))
             {

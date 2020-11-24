@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
+using BuildXL.Pips.Builders;
 
 namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
 {
@@ -13,15 +14,15 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
     public sealed class ProjectGraphSchedulingResult<TProject> where TProject : IProjectWithDependencies<TProject>
     {
         /// <nodoc/>
-        public ProjectGraphSchedulingResult(IReadOnlyDictionary<TProject, Pips.Operations.Process> scheduledProcesses)
+        public ProjectGraphSchedulingResult(IReadOnlyDictionary<TProject, ProcessOutputs> scheduledProcessOutputs)
         {
-            Contract.RequiresNotNull(scheduledProcesses);
-            ScheduledProcesses = scheduledProcesses;
+            Contract.RequiresNotNull(scheduledProcessOutputs);
+            ScheduledProcessOutputs = scheduledProcessOutputs;
         }
 
         /// <summary>
-        /// Each scheduled process pip, with its corresponding original project
+        /// The outputs of each scheduled process pip, with its corresponding original project
         /// </summary>
-        public IReadOnlyDictionary<TProject, Pips.Operations.Process> ScheduledProcesses { get; }
+        public IReadOnlyDictionary<TProject, ProcessOutputs> ScheduledProcessOutputs { get; }
     }
 }

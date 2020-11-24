@@ -3475,6 +3475,12 @@ namespace BuildXL.Pips.Graph
                     provenanceForRelated.OutputValueSymbol.ToString(Context.SymbolTable));
             }
 
+            /// <inheritdoc/>
+            public Pip GetPipFromPipId(PipId pipId)
+            {
+                return m_immutablePipGraph.GetPipFromPipId(pipId);
+            }
+
             #endregion Event Logging
         }
     }

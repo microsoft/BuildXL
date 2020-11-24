@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -398,6 +399,29 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Returns the first component of the FullSymbol
+        /// </summary>
+        public SymbolAtom GetRoot(SymbolTable table)
+        {
+            Contract.RequiresNotNull(table, "table != null");
+            Contract.Requires(IsValid);
+            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
+
+            FullSymbol current = this;
+            FullSymbol parent = current.GetParent(table);
+            while (true)
+            {
+                if (!parent.IsValid)
+                {
+                    return current.GetName(table);
+                }
+
+                current = parent;
+                parent = current.GetParent(table);
+            }
+        }
+
+        /// <summary>
         /// Relocates an FullSymbol from one subtree to another.
         /// </summary>
         /// <param name="table">The identifier table to operate against.</param>
@@ -614,6 +638,26 @@ namespace BuildXL.Utilities
             }
 
             return dottedIdentifier;
+        }
+
+        /// <summary>
+        /// Returns a read only list with the symbol atoms that constitute the full symbol
+        /// </summary>
+        public IReadOnlyList<SymbolAtom> ToReadOnlyList(SymbolTable table)
+        {
+            Contract.RequiresNotNull(table, "table != null");
+            Contract.Requires(IsValid);
+
+            FullSymbol current = this;
+            var result = new List<SymbolAtom>(table.GetDepth(Value));
+
+            while (current.IsValid)
+            {
+                result.Insert(0, current.GetName(table));
+                current = current.GetParent(table);
+            }
+
+            return result;
         }
 
         /// <summary>

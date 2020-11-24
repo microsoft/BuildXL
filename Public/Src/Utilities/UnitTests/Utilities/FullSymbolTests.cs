@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Linq;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -207,6 +208,24 @@ namespace Test.BuildXL.Utilities
             XAssert.IsFalse(f1.IsWithin(idt, d2));
             FullSymbol f2 = f1.Relocate(idt, d2);
             XAssert.AreEqual(@"c.a.x.cpp", f2.ToString(idt));
+        }
+
+        [Theory]
+        [InlineData("a.b.c.d")]
+        [InlineData("a")]
+        public void GetRoot(string symbol)
+        {
+            var table = new SymbolTable();
+            FullSymbol f = FullSymbol.Create(table, symbol);
+            XAssert.AreEqual("a", f.GetRoot(table).ToString(table));
+        }
+
+        [Fact]
+        public void ToReadOnlyList()
+        {
+            var table = new SymbolTable();
+            FullSymbol f = FullSymbol.Create(table, "a.b.c.d");
+            XAssert.AreEqual("a.b.c.d", string.Join(".", f.ToReadOnlyList(table).Select(atom => atom.ToString(table.StringTable))));
         }
     }
 }

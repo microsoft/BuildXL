@@ -73,6 +73,19 @@ namespace BuildXL.Utilities.Configuration
         /// By default double writes are only allowed if the produced content is the same.
         /// </remarks>
         RewritePolicy? DoubleWritePolicy { get; }
+
+        /// <summary>
+        /// When specified, the resolver will give this callback an opportunity to schedule pips based on each project information. 
+        /// </summary>
+        /// <remarks>
+        /// The callback will be executed for every project discovered by this resolver. When the callback is present, the resolver won't schedule the given 
+        /// project and the callback is responsible for doing it.
+        /// The callback defines the location a function whose expected type is (JavaScriptProject) => TransformerExecuteResult.The
+        /// resolver will create an instance of an JavaScriptProject for each discovered project and pass it along.
+        /// The callback can decide not to schedule a given project by returning 'undefined', in which case the resolver will schedule it in the
+        /// regular way
+        /// </remarks>
+        ICustomSchedulingCallback CustomScheduling { get; }
     }
 
     /// <nodoc/>

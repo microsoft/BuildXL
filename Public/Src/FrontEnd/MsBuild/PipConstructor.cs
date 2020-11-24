@@ -36,6 +36,8 @@ namespace BuildXL.FrontEnd.MsBuild
         // Only used if resolverSettings.EnableTransitiveProjectReferences = true
         private readonly ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>>();
 
+        private readonly ConcurrentBigMap<(ProjectWithPredictions, QualifierId, GlobalProperties), PipConstructionHelper> m_pipConstructionHelperPerProject = new ConcurrentBigMap<(ProjectWithPredictions, QualifierId, GlobalProperties), PipConstructionHelper>();
+
         private readonly FrontEndHost m_frontEndHost;
         private readonly ModuleDefinition m_moduleDefinition;
 
@@ -124,25 +126,26 @@ namespace BuildXL.FrontEnd.MsBuild
         /// The project is assumed to be scheduled in the right order, where all dependencies are scheduled first.
         /// See topographical sort performed in <see cref="ProjectGraphToPipGraphConstructor{TProject}"/>.
         /// </remarks>
-        public Possible<Process> TrySchedulePipForProject(ProjectWithPredictions project, QualifierId qualifierId)
+        public Possible<ProjectCreationResult<ProjectWithPredictions>> TryCreatePipForProject(ProjectWithPredictions project, QualifierId qualifierId)
         {
             try
             {
                 // Create command line and inputs and outputs for pipBuilder.
-                if (!TryExecuteArgumentsToPipBuilder(
+                if (!DoTryCreatePipForProject(
                     project,
                     qualifierId,
                     out var failureDetail,
-                    out var process))
+                    out var process,
+                    out var processOutputs))
                 {
                     Tracing.Logger.Log.SchedulingPipFailure(
                         m_context.LoggingContext,
                         Location.FromFile(project.FullPath.ToString(PathTable)),
                         failureDetail);
-                    return new Possible<Process>(new MsBuildProjectSchedulingFailure(project, failureDetail, m_context.PathTable));
+                    return new MsBuildProjectSchedulingFailure(project, failureDetail, m_context.PathTable);
                 }
 
-                return process;
+                return new ProjectCreationResult<ProjectWithPredictions>(project, process, processOutputs);
             }
             catch (Exception ex)
             {
@@ -152,7 +155,46 @@ namespace BuildXL.FrontEnd.MsBuild
                     ex.GetLogEventMessage(),
                     ex.StackTrace);
 
-                return new Possible<Process>(new MsBuildProjectSchedulingFailure(project, ex.ToString(), m_context.PathTable));
+                return new MsBuildProjectSchedulingFailure(project, ex.ToString(), m_context.PathTable);
+            }
+        }
+
+        public Possible<ProcessOutputs> TrySchedulePipForProject(ProjectCreationResult<ProjectWithPredictions> creationResult, QualifierId qualifierId)
+        {
+            var project = creationResult.Project;
+            var outputs = creationResult.Outputs;
+
+            // Let's compute the project properties that are different from the globally specified ones. This is to avoid unnecesarily long names when computing
+            // the project pip symbol and log directory: we distinguish projects that only differ on global properties by their difference wrt the globally specified ones, and
+            // not by all its properties (which can result in a very long string if many properties are used)
+            var deltaGlobalProperties = ComputeDeltaForGlobalProperties(project.GlobalProperties, m_resolverSettings.GlobalProperties);
+
+            try
+            {
+                // We create a pip construction helper for each project
+                var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId, deltaGlobalProperties);
+
+                if (!pipConstructionHelper.TryAddFinishedProcessToGraph(creationResult.Process, outputs))
+                {
+                    string failureDetail = "Failed to schedule the pip";
+                    Tracing.Logger.Log.SchedulingPipFailure(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            failureDetail);
+                    return new MsBuildProjectSchedulingFailure(project, failureDetail, m_context.PathTable);
+                }
+
+                return outputs;
+            }
+            catch (Exception ex)
+            {
+                Tracing.Logger.Log.UnexpectedPipBuilderException(
+                    m_context.LoggingContext,
+                    Location.FromFile(project.FullPath.ToString(PathTable)),
+                    ex.GetLogEventMessage(),
+                    ex.StackTrace);
+
+                return new MsBuildProjectSchedulingFailure(project, ex.ToString(), m_context.PathTable);
             }
         }
 
@@ -219,17 +261,18 @@ namespace BuildXL.FrontEnd.MsBuild
             return env;
         }
 
-        private bool TryExecuteArgumentsToPipBuilder(
+        private bool DoTryCreatePipForProject(
             ProjectWithPredictions project,
             QualifierId qualifierId,
             out string failureDetail,
-            out Process scheduledProcess)
+            out Process scheduledProcess,
+            out ProcessOutputs processOutputs)
         {
             // Let's compute the project properties that are different from the globally specified ones. This is to avoid unnecesarily long names when computing
             // the project pip symbol and log directory: we distinguish projects that only differ on global properties by their difference wrt the globally specified ones, and
             // not by all its properties (which can result in a very long string if many properties are used)
             var deltaGlobalProperties = ComputeDeltaForGlobalProperties(project.GlobalProperties, m_resolverSettings.GlobalProperties);
-            
+
             // We create a pip construction helper for each project
             var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId, deltaGlobalProperties);
 
@@ -239,6 +282,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, deltaGlobalProperties, out AbsolutePath outputResultCacheFile, out failureDetail))
                 {
                     scheduledProcess = null;
+                    processOutputs = null;
                     return false;
                 }
 
@@ -247,14 +291,14 @@ namespace BuildXL.FrontEnd.MsBuild
                 ProcessInputs(project, processBuilder);
 
                 // Try to schedule the process pip
-                if (!pipConstructionHelper.TryAddProcess(processBuilder, out ProcessOutputs outputs, out scheduledProcess))
+                if (!pipConstructionHelper.TryFinishProcessApplyingOSDefaults(processBuilder, out processOutputs, out scheduledProcess))
                 {
                     failureDetail = "Failed to schedule the pip";
                     return false;
                 }
 
                 // Add the computed outputs for this project, so dependencies can consume it
-                var outputDirectories = outputs.GetOutputDirectories();
+                var outputDirectories = processOutputs.GetOutputDirectories();
 
                 // A valid output cache path indicates that the project is building in isolation
                 MSBuildProjectOutputs projectOutputs;
@@ -264,7 +308,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
                 else
                 {
-                    var success = outputs.TryGetOutputFile(outputResultCacheFile, out FileArtifact cacheFileArtifact);
+                    var success = processOutputs.TryGetOutputFile(outputResultCacheFile, out FileArtifact cacheFileArtifact);
                     if (!success)
                     {
                         Contract.Assert(false, I($"The output cache file {outputResultCacheFile.ToString(PathTable)} should be part of the project {project.FullPath.ToString(PathTable)} outputs."));
@@ -272,6 +316,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
                     projectOutputs = MSBuildProjectOutputs.CreateIsolated(outputDirectories, cacheFileArtifact);
                 }
+
+                m_processOutputsPerProject[project] = projectOutputs;
 
                 // If the project is not implementing the target protocol, emit corresponding warn/verbose
                 if (!project.ImplementsTargetProtocol)
@@ -304,9 +350,6 @@ namespace BuildXL.FrontEnd.MsBuild
                             $"[{string.Join(";", project.PredictedTargetsToExecute.AppendedDefaultTargets)}]");
                 }
 
-                m_processOutputsPerProject[project] = projectOutputs;
-
-                failureDetail = string.Empty;
                 return true;
             }
         }
@@ -839,6 +882,13 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private PipConstructionHelper GetPipConstructionHelperForProject(ProjectWithPredictions project, QualifierId qualifierId, GlobalProperties deltaGlobalProperties)
         {
+            // Check the cache first
+            var cachedResult = m_pipConstructionHelperPerProject.TryGet((project, qualifierId, deltaGlobalProperties));
+            if (cachedResult.IsFound)
+            {
+                return cachedResult.Item.Value;
+            }
+
             var pathToProject = project.FullPath;
 
             // We might be adding the same spec file pip more than once when the same project is evaluated
@@ -870,6 +920,9 @@ namespace BuildXL.FrontEnd.MsBuild
                 fullSymbol,
                 new LocationData(pathToProject, 0, 0),
                 qualifierId);
+
+            // Update the pip construction helper cache
+            m_pipConstructionHelperPerProject.TryAdd((project, qualifierId, deltaGlobalProperties), pipConstructionHelper);
 
             return pipConstructionHelper;
         }
@@ -931,6 +984,12 @@ namespace BuildXL.FrontEnd.MsBuild
                 m_context.LoggingContext,
                 Location.FromFile(project.FullPath.ToString(m_context.PathTable)),
                 project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+        }
+
+        /// <inheritdoc/>
+        public void NotifyCustomProjectScheduled(ProjectWithPredictions<AbsolutePath> project, ProcessOutputs outputs, QualifierId qualifierId)
+        {
+            m_processOutputsPerProject[project] = MSBuildProjectOutputs.CreateLegacy(outputs.GetOutputDirectories());
         }
 
         /// <summary>

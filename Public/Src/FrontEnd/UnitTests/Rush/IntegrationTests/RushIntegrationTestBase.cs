@@ -90,7 +90,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushExports = null,
             string moduleName = "Test",
             bool addDScriptResolver = false,
-            string commonTempFolder = null)
+            string commonTempFolder = null,
+            string schedulingCallback = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -105,7 +106,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 rushExports,
                 moduleName,
                 addDScriptResolver,
-                commonTempFolder);
+                commonTempFolder,
+                schedulingCallback);
         }
 
         /// <inheritdoc/>
@@ -117,7 +119,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushExports = null,
             string moduleName = "Test",
             bool addDScriptResolver = false,
-            string commonTempFolder = null)
+            string commonTempFolder = null,
+            string schedulingCallback = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -143,7 +146,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     addDScriptResolver: addDScriptResolver,
                     // Let's assume for simplicity that if a custom common temp folder is passed, that means
                     // we want to use the shrinkwrap-deps file to track dependencies
-                    trackDependenciesWithShrinkwrapDepsFile: commonTempFolder != null));
+                    trackDependenciesWithShrinkwrapDepsFile: commonTempFolder != null,
+                    schedulingCallback: schedulingCallback));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -231,7 +235,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushExports,
             string moduleName,
             bool addDScriptResolver,
-            bool trackDependenciesWithShrinkwrapDepsFile) => $@"
+            bool trackDependenciesWithShrinkwrapDepsFile,
+            string schedulingCallback) => $@"
 config({{
     resolvers: [
         {{
@@ -245,8 +250,9 @@ config({{
             {(rushBaseLibLocation != null ? $"rushLibBaseLocation: d`{rushBaseLibLocation}`," : string.Empty)}
             {(rushExports != null ? $"exports: {rushExports}," : string.Empty)}
             {(trackDependenciesWithShrinkwrapDepsFile ? $"trackDependenciesWithShrinkwrapDepsFile: true," : string.Empty)}
+            {(schedulingCallback != null? $"customScheduling: {schedulingCallback}," : string.Empty)}
         }},
-        {(addDScriptResolver?  "{kind: 'DScript', modules: [f`module.config.dsc`]}" : string.Empty)}
+        {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],
 }});";
 

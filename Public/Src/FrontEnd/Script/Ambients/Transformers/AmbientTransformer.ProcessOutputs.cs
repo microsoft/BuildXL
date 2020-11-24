@@ -33,6 +33,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom ExecuteResultGetOutputFiles;
         private SymbolAtom ExecuteResultGetRequiredOutputFiles;
         private SymbolAtom CreateServiceResultServiceId;
+        private SymbolAtom ExecuteResultProcessOutputs;
+
+        /// <summary>
+        /// The name of the object literal key where the original ProcessOutputs object, the resulting object literal produced by Execute, is stored.
+        /// </summary>
+        /// <remarks>
+        /// This field is not actually exposed in DScript but added as a handy way to retrieve the original process outputs object.
+        /// The object literal already contains an indirect reference to ProcessOutputs since it is the target of all its closures, so
+        /// this extra field shouldn't be significant from a memory footprint standpoint
+        /// </remarks>
+        public const string ProcessOutputsSymbolName = "processOutputs";
 
         private void InitializeProcessOutputNames()
         {
@@ -42,6 +53,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             ExecuteResultGetOutputFiles = Symbol("getOutputFiles");
             ExecuteResultGetRequiredOutputFiles = Symbol("getRequiredOutputFiles");
             CreateServiceResultServiceId = Symbol("serviceId");
+            ExecuteResultProcessOutputs = Symbol(ProcessOutputsSymbolName);
         }
 
         private void InitializeSignaturesAndStatsForProcessOutputs(StringTable stringTable)
@@ -90,12 +102,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     FunctionLikeExpression.CreateAmbient(ExecuteResultGetRequiredOutputFiles, m_getRequiredOutputFilesSignature, GetRequiredOutputFiles, m_getRequiredOutputFilesStatistic),
                     frame: empty);
 
-                var bindings = new List<Binding>(isService ? 5 : 4)
+                var bindings = new List<Binding>(isService ? 6 : 5)
                     {
                         new Binding(ExecuteResultGetOutputFile, getOutputFile, location: default),
                         new Binding(ExecuteResultGetOutputDirectory, getOutputDirectory, location: default),
                         new Binding(ExecuteResultGetOutputFiles, getOutputFiles, location: default),
                         new Binding(ExecuteResultGetRequiredOutputFiles, getRequiredOutputFiles, location: default),
+                        new Binding(ExecuteResultProcessOutputs, new EvaluationResult(processOutputs), location: default),
                     };
                 if (isService)
                 {

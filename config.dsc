@@ -170,6 +170,7 @@ config({
 
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
+                { id: "Azure.Security.KeyVault.Certificates", version: "4.0.3" },
                 { id: "Azure.Identity", version: "1.1.1" },
                 { id: "Microsoft.Identity.Client", version: "4.16.1" },
                 { id: "Azure.Core", version: "1.3.0" },

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 namespace BuildXL.Cache.Monitor.App.Analysis
@@ -44,9 +45,21 @@ namespace BuildXL.Cache.Monitor.App.Analysis
             public T? Fatal { get; set; } = null;
 
             public void Check(T value, Action<Severity, T> action, IComparer<T>? comparer = null) => Threshold(value, this, action, comparer);
-        };
+        }
 
         public static void Threshold<T>(T value, Thresholds<T> thresholds, Action<Severity, T> action, IComparer<T>? comparer = null)
+            where T : struct
+        {
+            Func<Severity, T, Task> func = (sev, threshold) =>
+            {
+                action(sev, threshold);
+                return Task.FromResult(1);
+            };
+
+            ThresholdAsync(value, thresholds, func, comparer).GetAwaiter().GetResult();
+        }
+
+        public static async Task ThresholdAsync<T>(T value, Thresholds<T> thresholds, Func<Severity, T, Task> action, IComparer<T>? comparer = null)
             where T : struct
         {
             if (comparer == null)
@@ -84,7 +97,51 @@ namespace BuildXL.Cache.Monitor.App.Analysis
             if (severity != null)
             {
                 Contract.AssertNotNull(threshold);
-                action(severity.Value, threshold.Value);
+                await action(severity.Value, threshold.Value);
+            }
+        }
+
+        public class IcmThresholds<T>
+            where T : struct
+        {
+            public T? Sev4 { get; set; } = null;
+
+            public T? Sev3 { get; set; } = null;
+
+            public T? Sev2 { get; set; } = null;
+
+            public T? Sev1 { get; set; } = null;
+
+            public Task CheckAsync(T value, Func<int, T, Task> action, IComparer<T>? comparer = null) => ThresholdAsync(value, this, action, comparer);
+        }
+
+        public static async Task ThresholdAsync<T>(T value, IcmThresholds<T> thresholds, Func<int, T, Task> action, IComparer<T>? comparer = null)
+            where T : struct
+        {
+            // Convert to regular thresholds to avoid having duplicate logic
+
+            var convertedThresholds = new Thresholds<T>
+            {
+                Info = thresholds.Sev4,
+                Warning = thresholds.Sev3,
+                Error = thresholds.Sev2,
+                Fatal = thresholds.Sev1
+            };
+
+            await ThresholdAsync(value, convertedThresholds, convertedAction, comparer);
+
+            Task convertedAction(Severity sev, T value)
+            {
+                var icmSev = sev switch
+                {
+                    Severity.Info => 4,
+                    Severity.Warning => 3,
+                    Severity.Error => 2,
+                    Severity.Fatal => 1,
+                    _ => throw new NotImplementedException()
+                };
+
+                return action(icmSev, value);
             }
         }
 

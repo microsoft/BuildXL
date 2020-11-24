@@ -5,6 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.Monitor.Library.Client;
+using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Rules;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
 using Kusto.Data;
@@ -59,7 +60,7 @@ namespace BuildXL.Cache.Monitor.App
         {
             var tokenCredentials = SdkContext.AzureCredentialsFactory.FromServicePrincipal(azureAppId, azureAppKey, azureTenantId, AzureEnvironment.AzureGlobalCloud);
 
-            return new Result<IAzure>(Azure
+            return new Result<IAzure>(Microsoft.Azure.Management.Fluent.Azure
                 .Configure()
                 .WithLogLevel(HttpLoggingDelegatingHandler.Level.BodyAndHeaders)
                 .Authenticate(tokenCredentials).WithSubscription(azureSubscriptionId));

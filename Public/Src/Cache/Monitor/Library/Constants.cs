@@ -37,6 +37,16 @@ namespace BuildXL.Cache.Monitor.App
 
         public static string DefaultAzureAppId { get; } = "22cabbbb-1f32-4057-b601-225bab98348d";
 
+        public static string DefaultKeyVaultUrl { get; } = "https://cbsecrets.vault.azure.net/";
+
+        public static string DefaultIcmUrl { get; } = "https://prod.microsofticm.com/connector2/ConnectorIncidentManager.svc";
+
+        public static string DefaultIcmCertificateName { get; } = "CacheICMConnector";
+
+        public static Guid DefaultIcmConnectorId { get; } = new Guid("0ec5df2e-e61a-4b79-83cb-51f7adce5a9f");
+
+        public static TimeSpan IcmCertificateCacheTimeToLive { get; } = TimeSpan.FromDays(1);
+
         public static IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> DefaultEnvironments { get; } =
             new Dictionary<CloudBuildEnvironment, EnvironmentConfiguration>
             {

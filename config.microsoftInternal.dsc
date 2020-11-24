@@ -56,6 +56,12 @@ export const pkgs = isMicrosoftInternal ? [
     // Officially mantained CB package that contains Yarn. Used for Yarn tests.
     { id: "Npm.OnCloudBuild", version: "3.1.0" },
 
+    // IcM and dependencies
+    { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },
+    { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
+    { id: "System.ServiceModel.Http", version: "4.7.0" },
+    { id: "System.ServiceModel.Primitives", version: "4.7.0" },
+    { id: "System.Private.ServiceModel", version: "4.7.0" },
 ] : [
 
     // Artifact packages and dependencies in OSS

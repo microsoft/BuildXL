@@ -31,6 +31,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 Error = 0.4,
                 Fatal = 0.5,
             };
+
+            public IcmThresholds<double> FailureRateIcmThresholds = new IcmThresholds<double>()
+            {
+                Sev4 = 0.5,
+            };
         }
 
         private readonly Configuration _configuration;
@@ -67,9 +72,9 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | where not(isnull(Failed))";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, buildFailuresHelper);
+            await GroupByStampAndCallHelperAsync<Result>(results, result => result.Stamp, buildFailuresHelper);
 
-            void buildFailuresHelper(string stamp, List<Result> results)
+            async Task buildFailuresHelper(string stamp, List<Result> results)
             {
                 if (results.Count == 0)
                 {
@@ -88,6 +93,18 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     Emit(context, "FailureRate", severity,
                         $"Build failure rate `{failed}/{total}={Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
                         stamp,
+                        eventTimeUtc: now);
+                });
+
+                await _configuration.FailureRateIcmThresholds.CheckAsync(failureRate, (severity, threshold) =>
+                {
+                    return EmitIcmAsync(
+                        severity,
+                        title: $"{stamp}: High failure rate ({Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%)",
+                        stamp,
+                        machines: null,
+                        correlationIds: null,
+                        description: $"Build failure rate `{failed}/{total}={Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
                         eventTimeUtc: now);
                 });
             }

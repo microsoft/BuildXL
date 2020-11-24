@@ -68,7 +68,7 @@ export interface Arguments extends Managed.Arguments {
     contractsLevel?: Contracts.ContractsLevel;
 
     /** The assemblies that are internal visible for this assembly */
-    internalsVisibleTo?: string[];
+    internalsVisibleTo?: (string|InternalsVisibleToArguments)[];
 
     /**
      * Whether to use the compiler's strict mode or not.
@@ -89,6 +89,12 @@ export interface TestArguments extends Arguments, Managed.TestArguments {
 @@public
 export interface TestResult extends Managed.TestResult {
     adminTestResults?: TestResult;
+}
+
+@@public
+export interface InternalsVisibleToArguments {
+    assembly: string,
+    publicKey?: string,
 }
 
 /**
@@ -672,8 +678,18 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             lines: [
                 "using System.Runtime.CompilerServices;",
                 "",
-                ...args.internalsVisibleTo.map(assemblyName =>
-                    `[assembly: InternalsVisibleTo("${assemblyName}, PublicKey=${publicKey}")]`)
+                ...args.internalsVisibleTo.map(declaration =>
+                {
+                    if (typeof(declaration) === "string")
+                    {
+                        return `[assembly: InternalsVisibleTo("${declaration}, PublicKey=${publicKey}")]`;
+                    }
+                    
+                    let dec = declaration as InternalsVisibleToArguments;
+                    return dec.publicKey === undefined
+                        ? `[assembly: InternalsVisibleTo("${dec.assembly}")]`
+                        : `[assembly: InternalsVisibleTo("${dec.assembly}, PublicKey=${dec.publicKey}")]`;
+                })
             ]
         });
 

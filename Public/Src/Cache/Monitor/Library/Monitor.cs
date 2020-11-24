@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -19,6 +18,7 @@ using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.App.Rules.Kusto;
 using BuildXL.Cache.Monitor.App.Scheduling;
 using BuildXL.Cache.Monitor.Library.Client;
+using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Notifications;
 using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
@@ -37,11 +37,19 @@ namespace BuildXL.Cache.Monitor.App
         {
             public string KustoClusterUrl { get; set; } = Constants.DefaultKustoClusterUrl;
 
+            public string KeyVaultUrl { get; set; } = Constants.DefaultKeyVaultUrl;
+
             public string KustoIngestionClusterUrl { get; set; } = Constants.DefaultKustoClusterUrl;
 
             public string AzureTenantId { get; set; } = Constants.DefaultAzureTenantId;
 
             public string AzureAppId { get; set; } = Constants.DefaultAzureAppId;
+
+            public string IcmUrl { get; set; } = Constants.DefaultIcmUrl;
+
+            public Guid IcmConnectorId { get; set; } = Constants.DefaultIcmConnectorId;
+
+            public string IcmCertificateName { get; set; } = Constants.DefaultIcmCertificateName;
 
             public string AzureAppKey { get; set; } = string.Empty;
 
@@ -99,6 +107,7 @@ namespace BuildXL.Cache.Monitor.App
 
         private readonly IKustoIngestClient _kustoIngestClient;
         private readonly IKustoClient _kustoClient;
+        private readonly IIcmClient _icmClient;
 
         private static Tracer Tracer { get; } = new Tracer(nameof(Monitor));
 
@@ -119,6 +128,31 @@ namespace BuildXL.Cache.Monitor.App
                 configuration.AzureAppId,
                 configuration.AzureAppKey).ThrowIfFailure();
 
+            IIcmClient icmClient;
+            if (!configuration.ReadOnly)
+            {
+                Tracer.Info(context, "Creating KeyVault client");
+                var keyVaultClient = new KeyVaultClient(
+                    configuration.KeyVaultUrl,
+                    configuration.AzureTenantId,
+                    configuration.AzureAppId,
+                    configuration.AzureAppKey,
+                    SystemClock.Instance,
+                    Constants.IcmCertificateCacheTimeToLive);
+
+                Tracer.Info(context, "Creating IcM client");
+                icmClient = new IcmClient(
+                    keyVaultClient,
+                    configuration.IcmUrl,
+                    configuration.IcmConnectorId,
+                    configuration.IcmCertificateName);
+            }
+            else
+            {
+                Tracer.Info(context, "Using mock ICM client");
+                icmClient = new MockIcmClient();
+            }
+
             var environmentResources = new Dictionary<CloudBuildEnvironment, EnvironmentResources>();
 
             // This does a bunch of Azure API calls, which are really slow. Making them a bit faster by doing them
@@ -138,7 +172,7 @@ namespace BuildXL.Cache.Monitor.App
             });
 
             context.Token.ThrowIfCancellationRequested();
-            return new Monitor(configuration, kustoIngestClient, kustoClient, SystemClock.Instance, environmentResources, context.TracingContext.Logger);
+            return new Monitor(configuration, kustoIngestClient, kustoClient, icmClient, SystemClock.Instance, environmentResources, context.TracingContext.Logger);
         }
 
         private static async Task<EnvironmentResources> CreateEnvironmentResourcesAsync(OperationContext context, Configuration configuration, EnvironmentConfiguration environmentConfiguration)
@@ -165,7 +199,7 @@ namespace BuildXL.Cache.Monitor.App
             return new EnvironmentResources(azure, monitorManagementClient, redisCaches);
         }
 
-        private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IKustoClient kustoClient, IClock clock, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentResources> environmentResources, ILogger logger)
+        private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IKustoClient kustoClient, IIcmClient icmClient, IClock clock, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentResources> environmentResources, ILogger logger)
         {
             _configuration = configuration;
 
@@ -173,6 +207,7 @@ namespace BuildXL.Cache.Monitor.App
             _logger = logger;
             _kustoIngestClient = kustoIngestClient;
             _kustoClient = kustoClient;
+            _icmClient = icmClient;
             _environmentResources = environmentResources;
 
             if (configuration.ReadOnly)
@@ -505,6 +540,7 @@ namespace BuildXL.Cache.Monitor.App
                     _logger,
                     _alertNotifier,
                     _kustoClient,
+                    _icmClient,
                     _configuration.Environments[stampId.Environment].KustoDatabaseName,
                     properties.CacheTableName,
                     stampId);
@@ -540,6 +576,7 @@ namespace BuildXL.Cache.Monitor.App
                     _logger,
                     _alertNotifier,
                     _kustoClient,
+                    _icmClient,
                     _configuration.Environments[kvp.Key].KustoDatabaseName,
                     kvp.Value,
                     kvp.Key,

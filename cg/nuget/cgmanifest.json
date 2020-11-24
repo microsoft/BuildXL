@@ -77,6 +77,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Azure.Security.KeyVault.Certificates",
+          "Version": "4.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Azure.Security.KeyVault.Secrets",
           "Version": "4.0.3"
         }
@@ -907,6 +916,24 @@
         "NuGet": {
           "Name": "Microsoft.Azure.Storage.Common",
           "Version": "11.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AzureAd.Icm.Types.amd64",
+          "Version": "2.2.1363.11"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AzureAd.Icm.WebService.Client.amd64",
+          "Version": "2.2.1363.11"
         }
       }
     },
@@ -3101,6 +3128,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Private.ServiceModel",
+          "Version": "4.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Private.Uri",
           "Version": "4.3.2"
         }
@@ -3544,6 +3580,24 @@
         "NuGet": {
           "Name": "System.Security.SecureString",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ServiceModel.Http",
+          "Version": "4.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ServiceModel.Primitives",
+          "Version": "4.7.0"
         }
       }
     },

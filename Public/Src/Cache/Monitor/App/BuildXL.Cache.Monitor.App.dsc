@@ -5,7 +5,7 @@ import * as ContentStore from "BuildXL.Cache.ContentStore";
 
 namespace App {
     @@public
-    export const exe = BuildXLSdk.executable({
+    export const exe = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.executable({
         assemblyName: "BuildXL.Cache.Monitor.App",
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.config`,

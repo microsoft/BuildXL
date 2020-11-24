@@ -7,10 +7,11 @@ import * as ManagedSdk from "Sdk.Managed";
 
 namespace MonitorTest {
     @@public
-    export const dll = BuildXLSdk.cacheTest({
+    export const dll = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.Monitor.Test",
         sources: globR(d`.`, "*.cs"),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         references: [
             // Needed to get Fluent Assertions
             ...BuildXLSdk.fluentAssertionsWorkaround,
@@ -46,5 +47,10 @@ namespace MonitorTest {
         },
         skipDocumentationGeneration: true,
         nullable: true,
+        tools: {
+            csc: {
+                keyFile: undefined, // This must be unsigned so it can consume IcM
+            }
+        },
     });
 }

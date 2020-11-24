@@ -5,6 +5,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.Library.Client;
+using BuildXL.Cache.Monitor.Library.IcM;
 
 namespace BuildXL.Cache.Monitor.App.Rules
 {
@@ -18,11 +19,20 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public IKustoClient KustoClient { get; set; }
 
+        public IIcmClient IcmClient { get; set; }
+
         public string KustoDatabaseName { get; set; }
 
         public string CacheTableName { get; set; }
 
-        public KustoRuleConfiguration(IClock clock, ILogger logger, INotifier<Notification> notifier, IKustoClient kustoClient, string kustoDatabaseName, string cacheTableName)
+        public KustoRuleConfiguration(
+            IClock clock,
+            ILogger logger,
+            INotifier<Notification> notifier,
+            IKustoClient kustoClient,
+            string kustoDatabaseName,
+            string cacheTableName,
+            IIcmClient icmClient)
         {
             Clock = clock;
             Logger = logger;
@@ -30,10 +40,11 @@ namespace BuildXL.Cache.Monitor.App.Rules
             KustoClient = kustoClient;
             KustoDatabaseName = kustoDatabaseName;
             CacheTableName = cacheTableName;
+            IcmClient = icmClient;
         }
 
         public KustoRuleConfiguration(KustoRuleConfiguration other)
-            : this (other.Clock, other.Logger, other.Notifier, other.KustoClient, other.KustoDatabaseName, other.CacheTableName)
+            : this (other.Clock, other.Logger, other.Notifier, other.KustoClient, other.KustoDatabaseName, other.CacheTableName, other.IcmClient)
         {
 
         }

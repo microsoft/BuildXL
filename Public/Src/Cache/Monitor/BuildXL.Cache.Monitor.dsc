@@ -51,7 +51,7 @@ export const azureSdk = [
 
 namespace Default {
     @@public
-    export const deployment: Deployment.Definition =
+    export const deployment: Deployment.Definition = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined :
     {
         contents: [
             {

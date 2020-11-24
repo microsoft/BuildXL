@@ -10,8 +10,9 @@ const qTestToolsStaticDirectory = (() => {
     const qTestToolsDirectory = d`${qTestStaticDirectory.root}/tools`;
     const v150DirectoryPath = p`${qTestToolsDirectory}/V150`;
     const corruptCoverageFileFixerPath = p`${qTestToolsDirectory}/CorruptCoverageFileFixer`;
+    const procDumpPath = p`${qTestToolsDirectory}/QTestProcDump`; 
     const toolsFiles = qTestStaticDirectory.contents.filter(
-        f => f.parent === qTestToolsDirectory.path || f.isWithin(v150DirectoryPath) || f.isWithin(corruptCoverageFileFixerPath)
+        f => f.parent === qTestToolsDirectory.path || f.isWithin(v150DirectoryPath) || f.isWithin(corruptCoverageFileFixerPath) || f.isWithin(procDumpPath)
     );
     return Transformer.sealPartialDirectory(qTestToolsDirectory, toolsFiles);
 }

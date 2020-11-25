@@ -148,7 +148,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private SchedulerState m_schedulerState;
+        private readonly SchedulerState m_schedulerState;
 
         /// <summary>
         /// File content table
@@ -162,7 +162,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private FileContentTable m_fileContentTable;
+        private readonly FileContentTable m_fileContentTable;
 
         /// <summary>
         /// Whether this instance got disposed.
@@ -250,25 +250,75 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Updates the SchedulerState with new RootFilter and FilterPassingNodes
+        /// Returns a new EngineState updating the SchedulerState with new RootFilter and FilterPassingNodes
+        /// The current instance becomes unusable after this call.
         /// </summary>
-        public void UpdateSchedulerState(Scheduler.Scheduler scheduler)
+        /// <returns>The updated engine state </returns>
+        public EngineState WithUpdatedSchedulerState(Scheduler.Scheduler scheduler)
         {
+            Contract.Requires(!IsDisposed);
             m_schedulerState?.Dispose();
-            m_schedulerState = new SchedulerState(scheduler);
+
+            IsDisposed = true;
+            return new EngineState(
+                m_graphId,
+                m_stringTable,
+                m_pathTable,
+                m_symbolTable,
+                m_qualifierTable,
+                m_pipTable,
+                m_pipGraph,
+                m_mountPathExpander,
+                new SchedulerState(scheduler),
+                m_historicTableSizes,
+                m_fileContentTable);
         }
 
         /// <summary>
-        /// Updates file content table if they are not reference equal.
+        /// Returns a new EngineState updating the FileContentTable
+        /// The current instance becomes unusable after this call.
         /// </summary>
-        public void UpdateFileContentTable(FileContentTable fileContentTable)
+        /// <returns>The updated engine state </returns>
+        public EngineState WithUpdatedFileContentTable(FileContentTable fileContentTable)
         {
             Contract.Requires(!IsDisposed);
 
-            if (!ReferenceEquals(m_fileContentTable, fileContentTable))
-            {
-                m_fileContentTable = fileContentTable;
-            }
+            IsDisposed = true;
+            return new EngineState(
+                m_graphId,
+                m_stringTable,
+                m_pathTable,
+                m_symbolTable,
+                m_qualifierTable,
+                m_pipTable,
+                m_pipGraph,
+                m_mountPathExpander,
+                m_schedulerState,
+                m_historicTableSizes,
+                fileContentTable);
+        }
+
+        /// <summary>
+        /// Returns a new EngineState preserving the state except for the replaced FileContentTable.
+        /// The current EngineState becomes unusable after this call.
+        /// </summary>
+        public EngineState WithFileContentTable(FileContentTable fileContentTable)
+        {
+            Contract.Requires(!IsDisposed);
+            
+            IsDisposed = true;
+            return new EngineState(
+                m_graphId,
+                m_stringTable,
+                m_pathTable,
+                m_symbolTable,
+                m_qualifierTable,
+                m_pipTable,
+                m_pipGraph,
+                m_mountPathExpander,
+                m_schedulerState,
+                m_historicTableSizes,
+                fileContentTable);
         }
 
         /// <summary>

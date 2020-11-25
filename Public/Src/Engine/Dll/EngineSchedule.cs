@@ -1832,12 +1832,12 @@ namespace BuildXL.Engine
             }
             else
             {
-                engineState = previousEngineState;
-
-                // Even though there is a graph hit, we update the scheduler state every time
-                // because the developer might pass a different filter.
-                // There is no need to check whether developers used the same filter or not because the operation below is quite lightweight.
-                engineState.UpdateSchedulerState(Scheduler);
+                // Create the new one from the previous state
+                // We update the scheduler state every time because the developer might pass a different filter
+                // and the file content table with the new instance that was created this run.
+                engineState = previousEngineState
+                    .WithUpdatedSchedulerState(Scheduler)
+                    .WithUpdatedFileContentTable(FileContentTable);
             }
 
             bool isPipTableTransferred = TransferPipTableOwnership(engineState.PipTable);

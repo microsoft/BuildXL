@@ -2116,16 +2116,14 @@ namespace BuildXL.Engine
                                     }
                                     else
                                     {
-                                        // If the build is unsuccessful, i.e., engineSchedule is null, and engine state is not disposed, then reuse the existing engine state.
-                                        newEngineState = engineState != null && engineState.IsDisposed ? null : engineState;
+                                        // If the build is unsuccessful, i.e., engineSchedule is null, and engine state is not disposed, 
+                                        // then reuse the existing engine, updating the file content table
+                                        newEngineState = !EngineState.IsUsable(engineState)
+                                            ? null
+                                            : engineState.WithFileContentTable(FileContentTable);
                                     }
 
-                                    if (EngineState.IsUsable(newEngineState))
-                                    {
-                                        // Force update new engine state with the current file content table.
-                                        newEngineState.UpdateFileContentTable(FileContentTable);
-                                    }
-
+                                    Contract.Assert(newEngineState == null || ReferenceEquals(FileContentTable, newEngineState.FileContentTable), "The file content table wasn't correctly updated");
                                     Contract.Assume(EngineState.CorrectEngineStateTransition(engineState, newEngineState, out var incorrectMessage), incorrectMessage);
                                 }
 

@@ -66,6 +66,7 @@ namespace Engine {
             importFrom("BuildXL.Cache.ContentStore").VfsTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").VfsLibrary.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Cache.dll,

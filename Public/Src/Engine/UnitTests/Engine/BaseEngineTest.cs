@@ -42,7 +42,7 @@ namespace Test.BuildXL.Engine
 
         private InitializationLogger InitializationLogger { get; }
 
-        protected List<AbsolutePath> MainSourceResolverModules { get; }
+        protected List<AbsolutePath> MainSourceResolverModules { get; private set; }
 
         private EngineTestHooksData m_testHooks;
 
@@ -50,7 +50,7 @@ namespace Test.BuildXL.Engine
 
         protected ITestOutputHelper TestOutput { get; }
 
-        protected IMutableFileSystem FileSystem { get; }
+        protected IMutableFileSystem FileSystem { get; private set; }
 
         protected bool HasCacheInitializer { get; set; }
 
@@ -70,6 +70,11 @@ namespace Test.BuildXL.Engine
             ParseAndEvaluateLogger = Logger.CreateLoggerWithTracking();
             InitializationLogger = InitializationLogger.CreateLogger();
 
+            RestartEngine();
+        }
+
+        protected void RestartEngine()
+        {
             var pathTable = new PathTable();
             FileSystem = new PassThroughMutableFileSystem(pathTable);
             Context = EngineContext.CreateNew(CancellationToken.None, pathTable, FileSystem);
@@ -264,11 +269,10 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             }
 
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(Configuration, Context.PathTable, bxlExeLocation: null, inTestMode: true);
-            var successfulValdiation = BuildXLEngine.PopulateAndValidateConfiguration(Configuration, Configuration, Context.PathTable, LoggingContext);
-            Assert.True(successfulValdiation);
+            var successfulValidation = BuildXLEngine.PopulateAndValidateConfiguration(Configuration, Configuration, Context.PathTable, LoggingContext);
+            Assert.True(successfulValidation);
 
             var engine = BuildXLEngine.Create(LoggingContext, Context, Configuration, new LambdaBasedFrontEndControllerFactory(Create), new BuildViewModel(), rememberAllChangedTrackedInputs: rememberAllChangedTrackedInputs);
-
             engine.TestHooks = TestHooks;
 
             return engine;
@@ -430,7 +434,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             }
         }
 
-        public void RunEngine(string testMarker = null, bool expectSuccess = true, bool rememberAllChangedTrackedInputs = false, bool captureFrontEndAbstraction = false)
+        public EngineState RunEngine(string testMarker = null, bool expectSuccess = true, bool rememberAllChangedTrackedInputs = false, bool captureFrontEndAbstraction = false, EngineState engineState = null)
         {
             if (!string.IsNullOrEmpty(testMarker))
             {
@@ -448,7 +452,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             }
 
             var engine = CreateEngine(rememberAllChangedTrackedInputs);
-            var result = engine.Run(LoggingContext, engineState: null);
+            var result = engine.Run(LoggingContext, engineState: engineState);
 
 
             var assertMarker =  testMarker == null ? string.Empty : " (" + testMarker + ")";
@@ -464,6 +468,8 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
             // The Engine might have had a graph cache hit, and replaced the context, so swizzle it out as well as the configuration
             Context = engine.Context;
+
+            return result.EngineState;
         }
     }
 }

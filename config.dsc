@@ -480,20 +480,20 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v14.10.0/node-v14.10.0-win-x64.zip",
-                    hash: "VSO0:5497357F4FAE626A8C9FF7D7357E1E2306B7474F7C0E1B43FE40F607D06C920600",
+                    url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-win-x64.zip",
+                    hash: "VSO0:89495668CD87C565889C9439275D232DF4456E1A4AA1F6F587D3674A1BCE3CAD00",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v14.10.0/node-v14.10.0-darwin-x64.tar.gz",
-                    hash: "VSO0:7C30F46229712426F277F0A0C218746DE89C55F8A6F118C478309C7D3F6BFDA600",
+                    url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-darwin-x64.tar.gz",
+                    hash: "VSO0:E5019A97DF2947725E17A6CEB9E2F92EAA490902A51A46A91F4EC37ECFF18A7F00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v14.10.0/node-v14.10.0-linux-x64.tar.gz",
-                    hash: "VSO0:8A920F82F3AE829194EEE5212DF41146971C2277D95ABB3F9D7DB70A4D0089DA00",
+                    url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-linux-x64.tar.gz",
+                    hash: "VSO0:038EB56ECF4C3FEC397E149A91F32DDD0E91E9FB61E7BA064FB9E5E5C0A3779800",
                     archiveType: "tgz",
                 },
                 // Rush tests need an LTS (older) version of NodeJs

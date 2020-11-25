@@ -49,9 +49,10 @@ namespace Node {
         return Transformer.execute(execArgs);
     }
 
-    const nodeWinDir = "node-v14.10.0-win-x64";
-    const nodeOsxDir = "node-v14.10.0-darwin-x64";
-    const nodeLinuxDir = "node-v14.10.0-linux-x64";
+    const nodeVersion = "v15.2.1";
+    const nodeWinDir = `node-${nodeVersion}-win-x64`;
+    const nodeOsxDir = `node-${nodeVersion}-darwin-x64`;
+    const nodeLinuxDir = `node-${nodeVersion}-linux-x64`;
 
     function getNodeTool() : Transformer.ToolDefinition {
         const host = Context.getCurrentHost();
@@ -174,7 +175,7 @@ namespace Node {
         const srcCopy: SharedOpaqueDirectory = Transformer.composeSharedOpaqueDirectories(outputDir, srcCopies);
 
         // Install required npm packages
-        const npmInstall = Npm.npmInstall(srcCopy, args.npmDependencies || []);
+        const npmInstall = Npm.npmInstall(srcCopy, [...(args.npmDependencies || []), ...srcCopies]);
 
         // Compile
         const compileOutDir: SharedOpaqueDirectory = Node.tscCompile(

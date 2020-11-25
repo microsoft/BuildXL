@@ -51,6 +51,7 @@ namespace Npm {
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("install"),
             Cmd.argument("--no-audit"),
+            Cmd.argument("--no-save"),
             Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
         ];
 

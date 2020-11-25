@@ -6,6 +6,7 @@ namespace KeyValueStoreTests {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.KeyValueStore",
         sources: globR(d`.`, "*.cs"),
+        nullable: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,

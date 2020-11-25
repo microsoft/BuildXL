@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using JetBrains.Annotations;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
 {
@@ -22,7 +24,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="columnFamilyName">
         /// The column family to use.
         /// </param>
-        void Put(TKey key, TValue value, string columnFamilyName = null);
+        void Put(TKey key, TValue value, string? columnFamilyName = null);
 
         /// <summary>
         /// Adds (or overwrite) multiple entries in a batch.
@@ -39,7 +41,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="columnFamilyName">
         /// The column family to use.
         /// </param>
-        void Remove(TKey key, string columnFamilyName = null);
+        void Remove(TKey key, string? columnFamilyName = null);
 
         /// <summary>
         /// Removes a batch of entries.
@@ -51,7 +53,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// The column families to remove the keys across. Include a null string to represent the default column.
         /// If not specified, only the default column will be used.
         /// </param>
-        void RemoveBatch(IEnumerable<TKey> keys, IEnumerable<string> columnFamilyNames = null);
+        void RemoveBatch(IEnumerable<TKey> keys, IEnumerable<string?>? columnFamilyNames = null);
 
         /// <summary>
         /// Gets the value associated with the specified key.
@@ -70,7 +72,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Returns true, if the key is found; 
         /// otherwise, false.
         /// </returns>
-        bool TryGetValue(TKey key, out TValue value, string columnFamilyName = null);
+        bool TryGetValue(TKey key, [MaybeNull][NotNullWhen(true)]out TValue value, string? columnFamilyName = null);
 
         /// <summary>
         /// Whether the store contains an entry with the specified key.
@@ -87,7 +89,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Returns true, if the key is found; 
         /// otherwise, false.
         /// </returns>
-        bool Contains(TKey key, string columnFamilyName = null);
+        bool Contains(TKey key, string? columnFamilyName = null);
 
         /// <summary>
         /// Applies a batch Put and Delete operations. Useful only in the case when a large number of operations have 
@@ -101,7 +103,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// The column family to use.
         /// </param>
         /// 
-        void ApplyBatch(IEnumerable<KeyValuePair<TKey, TValue>> keyValuePairs, string columnFamilyName = null);
+        void ApplyBatch(IEnumerable<KeyValuePair<TKey, TValue?>> keyValuePairs, string? columnFamilyName = null);
 
         /// <summary>
         /// Fetches keys and values with the same prefix. Order is dependant on the underlying store's guarantees.
@@ -112,7 +114,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="columnFamilyName">
         /// The column family to use.
         /// </param>
-        IEnumerable<KeyValuePair<TKey, TValue>> PrefixSearch(TKey prefix, string columnFamilyName = null);
+        IEnumerable<KeyValuePair<TKey, TValue>> PrefixSearch([AllowNull]TKey prefix, string? columnFamilyName = null);
 
         /// <summary>
         /// Forces compaction of a range of keys. What exactly this means depends on the underlying store.
@@ -140,6 +142,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         ///       family. For example, "za", "zz", "zzfffff".
         ///  For details, see: https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/534147
         /// </remarks>
-        void CompactRange(TKey start, TKey limit, string columnFamilyName = null);
+        void CompactRange([AllowNull]TKey start, [AllowNull]TKey limit, string? columnFamilyName = null);
     }
 }

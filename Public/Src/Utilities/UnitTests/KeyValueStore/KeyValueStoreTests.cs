@@ -133,15 +133,15 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Fact]
-        public void PutNullValue()
+        public void PutNullValueThrows()
         {
-            string key1 = null, value1 = "value1";
+            string key1 = "key", value1 = null!;
 
             using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
+                    Exception? exception = null;
                     try
                     {
                         store.Put(key1, value1);
@@ -151,21 +151,21 @@ namespace Test.BuildXL.Engine.Cache
                         exception = e;
                     }
 
-                    XAssert.AreNotEqual(null, exception);
+                    XAssert.IsNotNull(exception);
                 }).Succeeded);
             }
         }
 
         [Fact]
-        public void PutNullKey()
+        public void PutNullKeyThrows()
         {
-            string key1 = null, value1 = "value1";
+            string key1 = null!, value1 = "value1";
 
             using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
+                    Exception? exception = null;
                     try
                     {
                         store.Put(key1, value1);
@@ -175,21 +175,21 @@ namespace Test.BuildXL.Engine.Cache
                         exception = e;
                     }
 
-                    XAssert.AreNotEqual(null, exception);
+                    XAssert.IsNotNull(exception);
                 }).Succeeded);
             }
         }
 
         [Fact]
-        public void RemoveNullKey()
+        public void RemoveNullKeyThroows()
         {
-            string key1 = null;
+            string key1 = null!;
 
             using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
+                    Exception? exception = null;
                     try
                     {
                         store.Remove(key1);
@@ -199,22 +199,22 @@ namespace Test.BuildXL.Engine.Cache
                         exception = e;
                     }
 
-                    XAssert.AreNotEqual(null, exception);
+                    XAssert.IsNotNull(exception);
                 }).Succeeded);
             }
         }
 
 
         [Fact]
-        public void GetNullKey()
+        public void GetNullKeyThrows()
         {
-            string key1 = null;
+            string key1 = null!;
 
             using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
+                    Exception? exception = null;
                     try
                     {
                         store.TryGetValue(key1, out var value);
@@ -224,7 +224,7 @@ namespace Test.BuildXL.Engine.Cache
                         exception = e;
                     }
 
-                    XAssert.AreNotEqual(null, exception);
+                    XAssert.IsNotNull(exception);
                 }).Succeeded);
             }
         }
@@ -333,7 +333,7 @@ namespace Test.BuildXL.Engine.Cache
                     column3
             };
 
-            var columnNames = new string[]
+            var columnNames = new string?[]
             {
                 null,
                 column2,
@@ -359,7 +359,7 @@ namespace Test.BuildXL.Engine.Cache
                         key2,
                         key3
                     },
-                    new string[]
+                    new string?[]
                     {
                         null,
                         column2,
@@ -526,7 +526,7 @@ namespace Test.BuildXL.Engine.Cache
                     Func<string, bool> canGarbageCollect = (s) => (s == key1);
 
                     // Garbage collect using default column's keys, but across all column families
-                    var gcStats = store.GarbageCollect(canGarbageCollect, columnFamilyName: column2, additionalColumnFamilies: new string[] { null, column3 });
+                    var gcStats = store.GarbageCollect(canGarbageCollect, columnFamilyName: column2, additionalColumnFamilies: new string?[] { null, column3 });
                     // Stats are for primary column
                     XAssert.AreEqual(1, gcStats.RemovedCount);
                     XAssert.AreEqual(1, gcStats.TotalCount);
@@ -986,7 +986,7 @@ namespace Test.BuildXL.Engine.Cache
                             store.Put(key, value, columnFamilyName: column);
                         }
 
-                        Exception exception = null;
+                        Exception? exception = null;
                         try
                         {
                             store.TryGetValue(key, out var v, columnFamilyName: changingColumn);
@@ -1016,7 +1016,7 @@ namespace Test.BuildXL.Engine.Cache
                             AssertEntryExists(store, key, value, column: column);
                         }
 
-                        Exception exception = null;
+                        Exception? exception = null;
                         try
                         {
                             store.TryGetValue(key, out var v, columnFamilyName: changingKeyColumn);
@@ -1301,7 +1301,7 @@ namespace Test.BuildXL.Engine.Cache
             return Encoding.UTF8.GetString(randomBytes);
         }
 
-        private void AssertEntryExists(IBuildXLKeyValueStore store, byte[] key, byte[] value, string column = null)
+        private void AssertEntryExists(IBuildXLKeyValueStore store, byte[] key, byte[] value, string? column = null)
         {
             XAssert.IsTrue(store.Contains(key, column));
             var keyFound = store.TryGetValue(key, out var result, column);
@@ -1312,7 +1312,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(value, result);
         }
 
-        private void AssertEntryExists(IBuildXLKeyValueStore store, string key, string value, string column = null)
+        private void AssertEntryExists(IBuildXLKeyValueStore store, string key, string value, string? column = null)
         {
             XAssert.IsTrue(store.Contains(key, column));
             var keyFound = store.TryGetValue(key, out var result, column);
@@ -1323,7 +1323,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(value, result);
         }
 
-        private void AssertEntryAbsent(IBuildXLKeyValueStore store, byte[] key, string column = null)
+        private void AssertEntryAbsent(IBuildXLKeyValueStore store, byte[] key, string? column = null)
         {
             var keyFound = store.TryGetValue(key, out var result, column);
 
@@ -1333,7 +1333,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(null, result);
         }
 
-        private void AssertEntryAbsent(IBuildXLKeyValueStore store, string key, string column = null)
+        private void AssertEntryAbsent(IBuildXLKeyValueStore store, string key, string? column = null)
         {
             var keyFound = store.TryGetValue(key, out var result, column);
 

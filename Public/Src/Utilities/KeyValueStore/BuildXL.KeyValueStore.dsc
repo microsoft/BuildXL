@@ -11,6 +11,7 @@ namespace KeyValueStore {
         sources: [
             ...globR(d`.`, "*.cs"),
         ],
+        nullable: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,

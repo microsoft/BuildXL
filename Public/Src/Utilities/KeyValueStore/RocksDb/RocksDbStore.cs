@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -37,7 +38,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// in the default column.
             /// Column families are analogous to tables in relational databases.
             /// </summary>
-            public IEnumerable<string> AdditionalColumns { get; set; }
+            public IEnumerable<string>? AdditionalColumns { get; set; }
 
             /// <summary>
             /// The names of any additional column families in the key-value store that
@@ -45,7 +46,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// one with just keys and the other with key and value.
             /// Column families are analogous to tables in relational databases.
             /// </summary>
-            public IEnumerable<string> AdditionalKeyTrackedColumns { get; set; }
+            public IEnumerable<string>? AdditionalKeyTrackedColumns { get; set; }
 
             /// <summary>
             /// Whether the database should be opened read-only. This prevents modifications and
@@ -177,9 +178,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// </summary>
             private static readonly byte[] s_emptyValue = new byte[0];
 
-            private readonly Snapshot m_snapshot;
+            private readonly Snapshot? m_snapshot;
 
-            private readonly ReadOptions m_readOptions;
+            private readonly ReadOptions? m_readOptions;
 
             private readonly ColumnFamilyInfo m_defaultColumnFamilyInfo;
 
@@ -221,7 +222,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 /// Provides access to the column used for tracking keys.
                 /// Null if <see cref="UseKeyTracking"/> is false.
                 /// </summary>
-                public ColumnFamilyHandle KeyHandle;
+                public ColumnFamilyHandle? KeyHandle;
             }
 
             /// <summary>
@@ -467,13 +468,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
-            public void Put(string key, string value, string columnFamilyName = null)
+            public void Put(string key, string value, string? columnFamilyName = null)
             {
                 Put(StringToBytes(key), StringToBytes(value), columnFamilyName);
             }
 
             /// <inheritdoc />
-            public void Put(byte[] key, byte[] value, string columnFamilyName = null)
+            public void Put(byte[] key, byte[] value, string? columnFamilyName = null)
             {
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -516,7 +517,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
 
-            public void ApplyBatch(IEnumerable<KeyValuePair<byte[], byte[]>> map, string columnFamilyName = null)
+            public void ApplyBatch(IEnumerable<KeyValuePair<byte[], byte[]?>> map, string? columnFamilyName = null)
             {
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
                 using (var writeBatch = new WriteBatch())
@@ -536,13 +537,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
 
-            public void ApplyBatch(IEnumerable<KeyValuePair<string, string>> map, string columnFamilyName = null)
+            public void ApplyBatch(IEnumerable<KeyValuePair<string, string?>> map, string? columnFamilyName = null)
             {
-                ApplyBatch(map.Select(kvp => new KeyValuePair<byte[], byte[]>(StringToBytes(kvp.Key), StringToBytes(kvp.Value))), columnFamilyName);
+                ApplyBatch(map.Select(kvp => new KeyValuePair<byte[], byte[]?>(StringToBytes(kvp.Key), StringToBytes(kvp.Value))), columnFamilyName);
             }
 
             /// <inheritdoc />
-            public bool TryGetValue(string key, out string value, string columnFamilyName = null)
+            public bool TryGetValue(string key, [NotNullWhen(true)]out string? value, string? columnFamilyName = null)
             {
                 bool keyFound = TryGetValue(StringToBytes(key), out var valueInBytes, columnFamilyName);
                 value = BytesToString(valueInBytes);
@@ -550,20 +551,20 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
-            public bool TryGetValue(byte[] key, out byte[] value, string columnFamilyName = null)
+            public bool TryGetValue(byte[] key, [NotNullWhen(true)]out byte[]? value, string? columnFamilyName = null)
             {
                 value = m_store.Get(key, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
                 return value != null;
             }
 
             /// <inheritdoc />
-            public void Remove(string key, string columnFamilyName = null)
+            public void Remove(string key, string? columnFamilyName = null)
             {
                 Remove(StringToBytes(key), columnFamilyName);
             }
 
             /// <inheritdoc />
-            public void Remove(byte[] key, string columnFamilyName = null)
+            public void Remove(byte[] key, string? columnFamilyName = null)
             {
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -575,19 +576,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
-            public void RemoveBatch(IEnumerable<string> keys, IEnumerable<string> columnFamilyNames = null)
+            public void RemoveBatch(IEnumerable<string> keys, IEnumerable<string?>? columnFamilyNames = null)
             {
                 RemoveBatch(keys, key => StringToBytes(key), columnFamilyNames: columnFamilyNames);
             }
 
 
             /// <inheritdoc />
-            public void RemoveBatch(IEnumerable<byte[]> keys, IEnumerable<string> columnFamilyNames = null)
+            public void RemoveBatch(IEnumerable<byte[]> keys, IEnumerable<string?>? columnFamilyNames = null)
             {
                 RemoveBatch(keys, key => key, columnFamilyNames: columnFamilyNames);
             }
 
-            private void RemoveBatch<TKey>(IEnumerable<TKey> keys, Func<TKey, byte[]> convertKey, IEnumerable<string> columnFamilyNames = null)
+            private void RemoveBatch<TKey>(IEnumerable<TKey> keys, Func<TKey, byte[]> convertKey, IEnumerable<string?>? columnFamilyNames = null)
             {
                 var columnsInfo = new List<ColumnFamilyInfo>();
                 if (columnFamilyNames == null)
@@ -632,13 +633,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
-            public bool Contains(string key, string columnFamilyName = null)
+            public bool Contains(string key, string? columnFamilyName = null)
             {
                 return Contains(StringToBytes(key), columnFamilyName);
             }
 
             /// <inheritdoc />
-            public bool Contains(byte[] key, string columnFamilyName = null)
+            public bool Contains(byte[] key, string? columnFamilyName = null)
             {
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -662,13 +663,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <inheritdoc />
             public GarbageCollectResult GarbageCollect(
                 Func<string, bool> canCollect,
-                string columnFamilyName = null,
-                IEnumerable<string> additionalColumnFamilies = null,
+                string? columnFamilyName = null,
+                IEnumerable<string?>? additionalColumnFamilies = null,
                 CancellationToken cancellationToken = default,
-                string startValue = null)
+                string? startValue = null)
             {
                 return GarbageCollect(
-                    canCollect: (key) => canCollect(BytesToString(key)),
+                    // BytesToString 
+                    canCollect: (byte[] key) => canCollect(BytesToString(key)),
                     columnFamilyName: columnFamilyName,
                     additionalColumnFamilies: additionalColumnFamilies,
                     cancellationToken: cancellationToken,
@@ -678,10 +680,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <inheritdoc />
             public GarbageCollectResult GarbageCollect(
                 Func<byte[], bool> canCollect,
-                string columnFamilyName = null,
-                IEnumerable<string> additionalColumnFamilies = null,
+                string? columnFamilyName = null,
+                IEnumerable<string?>? additionalColumnFamilies = null,
                 CancellationToken cancellationToken = default,
-                byte[] startValue = null)
+                byte[]? startValue = null)
             {
                 return GarbageCollectByKeyValue(i => canCollect(i.Key()), columnFamilyName, additionalColumnFamilies, cancellationToken, startValue);
             }
@@ -689,10 +691,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <inheritdoc />
             public GarbageCollectResult GarbageCollectByKeyValue(
                 Func<Iterator, bool> canCollect,
-                string columnFamilyName = null,
-                IEnumerable<string> additionalColumnFamilies = null,
+                string? columnFamilyName = null,
+                IEnumerable<string?>? additionalColumnFamilies = null,
                 CancellationToken cancellationToken = default,
-                byte[] startValue = null)
+                byte[]? startValue = null)
             {
                 var gcResult = new GarbageCollectResult
                 {
@@ -713,7 +715,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
 
                 var keysToRemove = new List<byte[]>();
-                var primaryColumn = new string[] { columnFamilyName };
+                var primaryColumn = new string?[] { columnFamilyName };
                 var columnsToUse = additionalColumnFamilies == null ? primaryColumn : additionalColumnFamilies.Concat(primaryColumn);
                 using (Iterator iterator = m_store.NewIterator(columnFamilyHandleToUse, m_readOptions))
                 {
@@ -767,7 +769,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
-            public GarbageCollectResult GarbageCollect(Func<byte[], byte[], bool> canCollect, string columnFamilyName = null, CancellationToken cancellationToken = default, byte[] startValue = null)
+            public GarbageCollectResult GarbageCollect(Func<byte[], byte[], bool> canCollect, string? columnFamilyName = null, CancellationToken cancellationToken = default, byte[]? startValue = null)
             {
                 var gcResult = new GarbageCollectResult()
                 {
@@ -821,7 +823,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 return gcResult;
             }
 
-            private byte[] StringToBytes(string str)
+            [return:NotNullIfNotNull(parameterName: "str")]
+            private byte[]? StringToBytes(string? str)
             {
                 if (str == null)
                 {
@@ -831,7 +834,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 return Encoding.UTF8.GetBytes(str);
             }
 
-            private string BytesToString(byte[] bytes)
+            [return: NotNullIfNotNull(parameterName: "bytes")]
+            private string? BytesToString(byte[]? bytes)
             {
                 if (bytes == null)
                 {
@@ -841,7 +845,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 return Encoding.UTF8.GetString(bytes);
             }
 
-            private ColumnFamilyInfo GetColumnFamilyInfo(string columnFamilyName)
+            private ColumnFamilyInfo GetColumnFamilyInfo(string? columnFamilyName)
             {
                 if (columnFamilyName == null && m_defaultColumnFamilyInfo.Handle != null)
                 {
@@ -851,7 +855,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 return GetColumnFamilyInfoSlow(columnFamilyName);
             }
 
-            private ColumnFamilyInfo GetColumnFamilyInfoSlow(string columnFamilyName)
+            private ColumnFamilyInfo GetColumnFamilyInfoSlow(string? columnFamilyName)
             {
                 columnFamilyName = columnFamilyName ?? ColumnFamilies.DefaultName;
 
@@ -876,7 +880,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     {
                         foreach (var columnFamilyName in m_columns.Keys)
                         {
-                            CompactRange((byte[])null, null, columnFamilyName);
+                            CompactRange((byte[]?)null, null, columnFamilyName);
                         }
                     }
 
@@ -904,19 +908,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// See https://github.com/facebook/rocksdb/blob/master/include/rocksdb/db.h#L547 for a list of all the
             /// valid properties.
             /// </remarks>
-            public string GetProperty(string propertyName, string columnFamilyName = null)
+            public string GetProperty(string propertyName, string? columnFamilyName = null)
             {
                 return m_store.GetProperty(propertyName, GetColumnFamilyInfo(columnFamilyName).Handle);
             }
 
             /// <inheritdoc />
-            public IEnumerable<KeyValuePair<string, string>> PrefixSearch(string prefix, string columnFamilyName = null)
+            public IEnumerable<KeyValuePair<string, string>> PrefixSearch(string? prefix, string? columnFamilyName = null)
             {
                 return PrefixSearch(StringToBytes(prefix), columnFamilyName).Select(kvp => new KeyValuePair<string, string>(BytesToString(kvp.Key), BytesToString(kvp.Value)));
             }
 
             /// <inheritdoc />
-            public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[] prefix = null, string columnFamilyName = null)
+            public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[]? prefix = null, string? columnFamilyName = null)
             {
                 // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they
                 // have a prefix seek API (see: https://github.com/facebook/rocksdb/wiki/Prefix-Seek-API-Changes ).
@@ -953,7 +957,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <nodoc />
-            private static bool StartsWith(byte[] prefix, byte[] key)
+            private static bool StartsWith(byte[]? prefix, byte[] key)
             {
                 if (prefix == null || prefix.Length == 0)
                 {
@@ -977,13 +981,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
-            public void CompactRange(string start, string limit, string columnFamilyName = null)
+            public void CompactRange(string? start, string? limit, string? columnFamilyName = null)
             {
                 CompactRange(StringToBytes(start), StringToBytes(limit), columnFamilyName);
             }
 
             /// <inheritdoc />
-            public void CompactRange(byte[] start, byte[] limit, string columnFamilyName = null)
+            public void CompactRange(byte[]? start, byte[]? limit, string? columnFamilyName = null)
             {
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 

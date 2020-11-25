@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,6 +31,9 @@ namespace BuildXL.Cache.Roxis.Server
         private readonly RoxisDatabaseConfiguration _configuration;
         private readonly IClock _clock;
         private KeyValueStoreAccessor? _accessor;
+
+        [MemberNotNullWhen(true, nameof(_accessor))]
+        private bool Started => StartupCompleted;
 
         // TODO: Add support for Spans in RocksDbSharp and make entire API surface use Span.
         // TODO: we can remove this lockset if we add support for transactions into RocksDbSharp
@@ -64,6 +68,7 @@ namespace BuildXL.Cache.Roxis.Server
                 EnableWriteAheadLog = _configuration.EnableWriteAheadLog,
                 EnableFSync = _configuration.EnableFSync,
             }).ToResult(isNullAllowed: true).ThrowIfFailure();
+
             Contract.Assert(!_accessor.Disabled);
 
             return BoolResult.SuccessTask;
@@ -109,7 +114,7 @@ namespace BuildXL.Cache.Roxis.Server
         //{
         //    return await context.PerformOperationAsync(Tracer, async () =>
         //    {
-        //        Contract.AssertNotNull(_accessor);
+        //        Contract.Assert(Started);
         //        return _accessor.Use(store =>
         //        {
         //            return store.GarbageCollect((key, value) => {
@@ -124,32 +129,37 @@ namespace BuildXL.Cache.Roxis.Server
         {
             using var lockHandle = await GetLockHandleAsync(command.Key);
 
-            Contract.AssertNotNull(_accessor);
-            return _accessor.Use((store, command) =>
-            {
-                if (command.Overwrite)
-                {
-                    SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
-                    return new SetResult() { Set = true };
-                }
+            Contract.Assert(Started);
 
-                if (!store.TryGetValue(command.Key, out var data, columnFamilyName: nameof(Columns.Registers)))
+            return _accessor.Use(
+                static (store, state) =>
                 {
-                    SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
-                    return new SetResult() { Set = true };
-                }
+                    var command = state.command;
+                    var @this = state.@this;
+                    if (command.Overwrite)
+                    {
+                        @this.SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
+                        return new SetResult() { Set = true };
+                    }
 
-                var register = DeserializeRegister(data);
-                if (register.HasExpired(_clock.UtcNow))
-                {
-                    SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
-                    return new SetResult() { Set = true };
-                }
+                    if (!store.TryGetValue(command.Key, out var data, columnFamilyName: nameof(Columns.Registers)))
+                    {
+                        @this.SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
+                        return new SetResult() { Set = true };
+                    }
 
-                // TODO: perhaps should return the previous value if available? bothersome because we'd have to read in
-                // overwrite mode.
-                return new SetResult() { Set = false };
-            }, command)
+                    var register = @this.DeserializeRegister(data);
+                    if (register.HasExpired(@this._clock.UtcNow))
+                    {
+                        @this.SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
+                        return new SetResult() { Set = true };
+                    }
+
+                    // TODO: perhaps should return the previous value if available? bothersome because we'd have to read in
+                    // overwrite mode.
+                    return new SetResult() { Set = false };
+                },
+                (@this: this, command))
                 .ToResult(isNullAllowed: true)
                 .ThrowIfFailure();
         }
@@ -159,23 +169,27 @@ namespace BuildXL.Cache.Roxis.Server
         {
             using var lockHandle = await GetLockHandleAsync(command.Key);
 
-            Contract.AssertNotNull(_accessor);
-            return _accessor.Use((store, command) =>
-            {
-                if (!store.TryGetValue(command.Key, out var data, columnFamilyName: nameof(Columns.Registers)))
+            Contract.Assert(Started);
+            return _accessor.Use(
+                static (store, state) =>
                 {
-                    return new GetResult() { Value = null };
-                }
+                    var command = state.command;
+                    var @this = state.@this;
+                    if (!store.TryGetValue(command.Key, out var data, columnFamilyName: nameof(Columns.Registers)))
+                    {
+                        return new GetResult() { Value = null };
+                    }
 
-                var register = DeserializeRegister(data);
-                if (register.HasExpired(_clock.UtcNow))
-                {
-                    store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
-                    return new GetResult() { Value = null };
-                }
+                    var register = @this.DeserializeRegister(data);
+                    if (register.HasExpired(@this._clock.UtcNow))
+                    {
+                        store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
+                        return new GetResult() { Value = null };
+                    }
 
-                return new GetResult() { Value = register.Value };
-            }, command)
+                    return new GetResult() { Value = register.Value };
+                },
+                (@this: this, command))
                 .ToResult(isNullAllowed: true)
                 .ThrowIfFailure();
         }
@@ -184,12 +198,14 @@ namespace BuildXL.Cache.Roxis.Server
         {
             using var lockHandle = await GetLockHandleAsync(command.Key);
 
-            Contract.AssertNotNull(_accessor);
-            return _accessor.Use((store, command) =>
-            {
-                store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
-                return new RemoveResult();
-            }, command)
+            Contract.Assert(Started);
+            return _accessor.Use(
+                static (store, command) =>
+                {
+                    store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
+                    return new RemoveResult();
+                },
+                command)
                 .ToResult(isNullAllowed: true)
                 .ThrowIfFailure();
         }
@@ -205,41 +221,46 @@ namespace BuildXL.Cache.Roxis.Server
 
             using var lockHandle = await GetLockHandleAsync(command.Key);
 
-            Contract.AssertNotNull(_accessor);
-            return _accessor.Use((store, command) =>
-            {
-                var compareKey = command.CompareKey ?? command.Key;
+            Contract.Assert(Started);
+            return _accessor.Use(
+                static (store, state) =>
+                {
+                    var command = state.command;
+                    var @this = state.@this;
 
-                if (!store.TryGetValue(compareKey, out byte[]? readCompareKeyValue, columnFamilyName: nameof(Columns.Registers)))
-                {
-                    readCompareKeyValue = null;
-                }
-                else
-                {
-                    var currentRegister = DeserializeRegister(readCompareKeyValue!);
-                    if (currentRegister.HasExpired(_clock.UtcNow))
+                    var compareKey = command.CompareKey ?? command.Key;
+
+                    if (!store.TryGetValue(compareKey, out byte[]? readCompareKeyValue, columnFamilyName: nameof(Columns.Registers)))
                     {
                         readCompareKeyValue = null;
                     }
                     else
                     {
-                        readCompareKeyValue = currentRegister.Value;
+                        var currentRegister = @this.DeserializeRegister(readCompareKeyValue!);
+                        if (currentRegister.HasExpired(@this._clock.UtcNow))
+                        {
+                            readCompareKeyValue = null;
+                        }
+                        else
+                        {
+                            readCompareKeyValue = currentRegister.Value;
+                        }
                     }
-                }
 
-                if (Equals(readCompareKeyValue, command.Comparand))
-                {
-                    if (command.CompareKey != null && command.CompareKeyValue != null)
+                    if (@this.Equals(readCompareKeyValue, command.Comparand))
                     {
-                        SetRegisterInternal(command.CompareKey.Value, command.CompareKeyValue.Value, command.ExpiryTimeUtc, store);
+                        if (command.CompareKey != null && command.CompareKeyValue != null)
+                        {
+                            @this.SetRegisterInternal(command.CompareKey.Value, command.CompareKeyValue.Value, command.ExpiryTimeUtc, store);
+                        }
+
+                        @this.SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
+                        return new CompareExchangeResult(readCompareKeyValue, exchanged: true);
                     }
 
-                    SetRegisterInternal(command.Key, command.Value, command.ExpiryTimeUtc, store);
-                    return new CompareExchangeResult(readCompareKeyValue, exchanged: true);
-                }
-
-                return new CompareExchangeResult(readCompareKeyValue, exchanged: false);
-            }, command)
+                    return new CompareExchangeResult(readCompareKeyValue, exchanged: false);
+                },
+                (@this: this, command))
                 .ToResult(isNullAllowed: true)
                 .ThrowIfFailure();
         }
@@ -268,47 +289,52 @@ namespace BuildXL.Cache.Roxis.Server
         {
             using var lockHandle = await GetLockHandleAsync(command.Key);
 
-            Contract.AssertNotNull(_accessor);
-            return _accessor.Use((store, command) =>
-            {
-                if (!store.TryGetValue(command.Key, out var data, columnFamilyName: nameof(Columns.Registers)))
+            Contract.Assert(Started);
+            return _accessor.Use(
+                static (store, state) =>
                 {
-                    return new CompareRemoveResult() { Value = null };
-                }
+                    var command = state.command;
+                    var @this = state.@this;
 
-                var register = DeserializeRegister(data);
-                if (register.HasExpired(_clock.UtcNow))
-                {
-                    store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
-                    return new CompareRemoveResult() { Value = null };
-                }
+                    if (!store.TryGetValue(command.Key, out var data, columnFamilyName: nameof(Columns.Registers)))
+                    {
+                        return new CompareRemoveResult() { Value = null };
+                    }
 
-                if (register.Value.SequenceEqual((byte[])command.Comparand))
-                {
-                    store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
-                }
+                    var register = @this.DeserializeRegister(data);
+                    if (register.HasExpired(@this._clock.UtcNow))
+                    {
+                        store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
+                        return new CompareRemoveResult() { Value = null };
+                    }
 
-                return new CompareRemoveResult() { Value = register.Value };
-            }, command)
+                    if (register.Value.SequenceEqual((byte[])command.Comparand))
+                    {
+                        store.Remove(command.Key, columnFamilyName: nameof(Columns.Registers));
+                    }
+
+                    return new CompareRemoveResult() { Value = register.Value };
+                },
+                (@this: this, command))
                 .ToResult(isNullAllowed: true)
                 .ThrowIfFailure();
         }
 
         public PrefixEnumerateResult RegisterPrefixEnumerate(PrefixEnumerateCommand command)
         {
-            Contract.AssertNotNull(_accessor);
+            Contract.Assert(Started);
             return _accessor
-                .Use((store, command) => new PrefixEnumerateResult(performSearch(store, command.Key).ToList()), command)
+                .Use(static (store, state) => new PrefixEnumerateResult(performSearch(state.@this, store, state.command.Key).ToList()), (@this: this, command))
                 .ToResult(isNullAllowed: false)
                 .ThrowIfFailure();
 
-            IEnumerable<KeyValuePair<ByteString, ByteString>> performSearch(IBuildXLKeyValueStore store, ByteString prefix)
+            static IEnumerable<KeyValuePair<ByteString, ByteString>> performSearch(RoxisDatabase @this, IBuildXLKeyValueStore store, ByteString prefix)
             {
-                var now = _clock.UtcNow;
+                var now = @this._clock.UtcNow;
 
                 foreach (var kvp in store.PrefixSearch(prefix, columnFamilyName: nameof(Columns.Registers)))
                 {
-                    var register = DeserializeRegister(kvp.Value);
+                    var register = @this.DeserializeRegister(kvp.Value);
 
                     // WARNING: we don't perform any mutation on the database here because we are operating out of a
                     // snapshot, so the data may have changed in the mean time.
@@ -379,7 +405,6 @@ namespace BuildXL.Cache.Roxis.Server
                 return ExpiryTimeUtc <= now;
             }
         }
-
 
         private byte[] SerializeRegister(Register register)
         {

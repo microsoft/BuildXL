@@ -28,9 +28,9 @@ namespace BuildXL.Engine.Cache
         GarbageCollectResult GarbageCollect(
             Func<byte[], bool> canCollect, 
             string primaryColumnFamilyName = null, 
-            IEnumerable<string> additionalColumnFamilyNames = null, 
+            IEnumerable<string>? additionalColumnFamilyNames = null, 
             CancellationToken cancellationToken = default, 
-            byte[] startValue = null);
+            byte[]? startValue = null);
         
         /// <summary>
         /// Iterates through all the keys in a column family and garbage collects.
@@ -45,10 +45,10 @@ namespace BuildXL.Engine.Cache
         /// <param name="startValue">The start value for iterating keys to garbage collect (optional)</param>
         GarbageCollectResult GarbageCollectByKeyValue(
             Func<Iterator, bool> canCollect, 
-            string primaryColumnFamilyName = null, 
-            IEnumerable<string> additionalColumnFamilyNames = null, 
+            string? primaryColumnFamilyName = null, 
+            IEnumerable<string>? additionalColumnFamilyNames = null, 
             CancellationToken cancellationToken = default, 
-            byte[] startValue = null);
+            byte[]? startValue = null);
 
         /// <summary>
         /// Iterates through all the keys in a column family and garbage collects.
@@ -57,7 +57,7 @@ namespace BuildXL.Engine.Cache
         /// <param name="columnFamilyName">The column family to use. If null, the store's default column is used.</param>
         /// <param name="cancellationToken">Cancellation token for terminating garbage collection (optional)</param>
         /// <param name="startValue">the start value for iterating keys to garbage collect (optional)</param>
-        GarbageCollectResult GarbageCollect(Func<byte[], byte[], bool> canCollect, string columnFamilyName = null, CancellationToken cancellationToken = default, byte[] startValue = null);
+        GarbageCollectResult GarbageCollect(Func<byte[], byte[], bool> canCollect, string? columnFamilyName = null, CancellationToken cancellationToken = default, byte[]? startValue = null);
 
         /// <summary>
         /// Iterates through all the keys in a column family and garbage collects.
@@ -73,9 +73,9 @@ namespace BuildXL.Engine.Cache
         GarbageCollectResult GarbageCollect(
             Func<string, bool> canCollect, 
             string columnFamilyName = null, 
-            IEnumerable<string> additionalColumnFamilies = null, 
+            IEnumerable<string?>? additionalColumnFamilies = null, 
             CancellationToken cancellationToken = default, 
-            string startValue = null);
+            string? startValue = null);
 
         /// <summary>
         /// Save a checkpoint into a given directory.
@@ -93,7 +93,7 @@ namespace BuildXL.Engine.Cache
         /// </summary>
         /// <param name="propertyName">Name of the property to fetch</param>
         /// <param name="columnFamilyName">The column family to use. If null, the store's default column is used.</param>
-        string GetProperty(string propertyName, string columnFamilyName = null);
+        string GetProperty(string propertyName, string? columnFamilyName = null);
     }
 
     /// <summary>

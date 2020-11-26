@@ -354,6 +354,7 @@ namespace BuildXL.Pips.Graph
             }
 
             fingerprinter.AddOrderIndependentCollection<int, ReadOnlyArray<int>>(nameof(Process.SuccessExitCodes), process.SuccessExitCodes, (h, i) => h.Add(i), Comparer<int>.Default);
+            fingerprinter.AddOrderIndependentCollection<int, ReadOnlyArray<int>>(nameof(Process.SucceedFastExitCodes), process.SucceedFastExitCodes, (h, i) => h.Add(i), Comparer<int>.Default);
 
             if (process.ChangeAffectedInputListWrittenFile.IsValid)
             {

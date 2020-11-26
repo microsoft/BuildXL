@@ -157,6 +157,7 @@ namespace BuildXL.Scheduler.Distribution
 
             var pipProperties = ReadPipProperties(reader);
             var hasUserRetries = reader.ReadBoolean();
+            var exitCode = reader.ReadInt32Compact();
 
             RetryInfo pipRetryInfo = null;
             if (reader.ReadBoolean())
@@ -188,6 +189,7 @@ namespace BuildXL.Scheduler.Distribution
                 cacheLookupCounters,
                 pipProperties,
                 hasUserRetries,
+                exitCode,
                 createdDirectories,
                 pipRetryInfo);
 
@@ -252,6 +254,7 @@ namespace BuildXL.Scheduler.Distribution
 
             WritePipProperties(writer, result.PipProperties);
             writer.Write(result.HasUserRetries);
+            writer.WriteCompact(result.ExitCode);
 
             writer.Write(result.RetryInfo, (w, ri) => ri.Serialize(w));
             writer.Write(result.CreatedDirectories, WriteAbsolutePath);

@@ -107,6 +107,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_preservePathSetCasing;
         private SymbolAtom m_processRetries;
         private SymbolAtom m_executeKeepOutputsWritable;
+        private SymbolAtom m_succeedFastExitCodes;
         private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_uncancellable;
@@ -255,6 +256,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
+            m_succeedFastExitCodes = Symbol("succeedFastExitCodes");
             m_privilegeLevel = Symbol("privilegeLevel");
             m_disableCacheLookup = Symbol("disableCacheLookup");
             m_uncancellable = Symbol("uncancellable");
@@ -509,7 +511,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // Exit Codes
-            processBuilder.SuccessExitCodes = ProcessOptionalIntArray(obj, m_executeSuccessExitCodes);
+            // If a process exits with one of these codes, skip downstream pips but treat it as a success.
+            processBuilder.SucceedFastExitCodes = ProcessOptionalIntArray(obj, m_succeedFastExitCodes);
+            processBuilder.SuccessExitCodes = ReadOnlyArray<int>.FromWithoutCopy(ProcessOptionalIntArray(obj, m_executeSuccessExitCodes).Concat(processBuilder.SucceedFastExitCodes.ToArray()).ToArray());
             processBuilder.RetryExitCodes = ProcessOptionalIntArray(obj, m_executeRetryExitCodes);
 
             // Retry attempt environment variable.

@@ -99,7 +99,8 @@ namespace Test.BuildXL.Scheduler
                 createdDirectories: new ReadOnlyHashSet<AbsolutePath> {
                     CreateSourceFile().Path
                 },
-                hasUserRetries: true);
+                hasUserRetries: true,
+                exitCode: 0);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -160,7 +161,8 @@ namespace Test.BuildXL.Scheduler
                 r => r.PipProperties.Count,
                 r => r.HasUserRetries,
                 r => r.CreatedDirectories,
-                r => r.RetryInfo
+                r => r.RetryInfo,
+                r => r.ExitCode
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)

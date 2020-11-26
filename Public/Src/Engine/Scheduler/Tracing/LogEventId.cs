@@ -484,6 +484,8 @@ namespace BuildXL.Scheduler.Tracing
         ModuleWorkerMapping = 14519,
         AddedNewWorkerToModuleAffinity = 14520,
 
+        SkippingDownstreamPipsDueToPipSuccess = 14521,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

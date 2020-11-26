@@ -120,7 +120,7 @@ namespace Test.BuildXL.EngineTests
 
             var outputDirectoryPath = Configuration.Layout.OutputDirectory.ToString(Context.PathTable);
             XAssert.IsTrue(File.Exists(Path.Combine(
-                outputDirectoryPath, 
+                outputDirectoryPath,
                 "vs",
                 Configuration.Ide.IsNewEnabled ? "srcNew" : "src",
                 Configuration.Ide.IsNewEnabled ? "srcNew.sln" : "src.sln")));

@@ -302,7 +302,8 @@ namespace BuildXL.Scheduler
                         // report accesses to symlink chain elements
                         symlinkChain,
                         ReadOnlyArray<AbsolutePath>.Empty,
-                        ReadOnlyArray<AbsolutePath>.Empty);
+                        ReadOnlyArray<AbsolutePath>.Empty,
+                        0);
                 }
                 catch (BuildXLException ex)
                 {

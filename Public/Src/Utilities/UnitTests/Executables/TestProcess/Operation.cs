@@ -209,6 +209,11 @@ namespace Test.BuildXL.Executables.TestProcess
             LaunchDebugger,
 
             /// <summary>
+            /// Succeed with a non-zero exit code
+            /// </summary>
+            SucceedWithExitCode,
+
+            /// <summary>
             /// Process that fails on first invocation and then succeeds on the second invocation
             /// </summary>
             SucceedOnRetry,
@@ -487,6 +492,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Fail:
                         DoFail();
+                        return;
+                    case Type.SucceedWithExitCode:
+                        DoSucceedWithExitCode();
                         return;
                     case Type.CrashHardNative:
                         DoCrashHardNative();
@@ -885,6 +893,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Fail(int exitCode = -1)
         {
             return new Operation(Type.Fail, content: exitCode.ToString());
+        }
+
+        /// <summary>
+        /// Exits with a non-zero exit code, but make the exit code a success.
+        /// </summary>
+        public static Operation SucceedWithExitCode(int exitCode = 1)
+        {
+            return new Operation(Type.SucceedWithExitCode, content: exitCode.ToString());
         }
 
         /// <summary>
@@ -1411,6 +1427,12 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         private void DoFail()
+        {
+            int exitCode = int.TryParse(Content, out var result) ? result : -1;
+            Environment.Exit(exitCode);
+        }
+
+        private void DoSucceedWithExitCode()
         {
             int exitCode = int.TryParse(Content, out var result) ? result : -1;
             Environment.Exit(exitCode);

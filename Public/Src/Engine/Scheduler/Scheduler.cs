@@ -520,6 +520,15 @@ namespace BuildXL.Scheduler
         private volatile bool m_scheduleTerminating;
 
         /// <summary>
+        /// Number of pips that ran and exited with sucess fast set, and thus their downstreams were skipped.
+        /// </summary>
+        /// <remarks>
+        /// It is volatile because all threads accessing this variable should read latest values.
+        /// Reading and writing to a boolean are atomic operations.
+        /// </remarks>
+        private volatile int m_pipSkippingDownstreamDueToSuccessFast;
+
+        /// <summary>
         /// Indicates if there are failures in any of the scheduled pips.
         /// </summary>
         /// <remarks>
@@ -1771,6 +1780,7 @@ namespace BuildXL.Scheduler
                 statistics.Add(Statistics.ProcessPipStartOrShutdownService, processPipsStartOrShutdownService);
                 statistics.Add(Statistics.ProcessPipsSkippedDueToFailedDependencies, m_numProcessPipsSkipped);
                 statistics.Add(Statistics.ProcessPipsIncrementalSchedulingPruned, m_numProcessesIncrementalSchedulingPruned);
+                statistics.Add(Statistics.SucceededFast, m_pipSkippingDownstreamDueToSuccessFast);
 
                 // Verify the stats sum correctly
                 long processPipsSum = m_numProcessPipsSatisfiedFromCache + m_numProcessPipsUnsatisfiedFromCache + m_numProcessPipsSkipped;
@@ -3184,6 +3194,13 @@ namespace BuildXL.Scheduler
             var pipId = runnablePip.PipId;
             var nodeId = pipId.ToNodeId();
 
+            bool shouldSkipDownstreamPipsDueToSucccessFast = runnablePip.PipType == PipType.Process && (runnablePip.Pip as Process).SucceedFastExitCodes.Contains(result.ExitCode);
+            if (shouldSkipDownstreamPipsDueToSucccessFast)
+            {
+                Interlocked.Increment(ref m_pipSkippingDownstreamDueToSuccessFast);
+                Logger.Log.SkipDownstreamPipsDueToPipSuccess(m_executePhaseLoggingContext, runnablePip.Description);
+            }
+
             foreach (Edge outEdge in ScheduledGraph.GetOutgoingEdges(nodeId))
             {
                 // Light edges do not propagate failure or ref-count changes.
@@ -3216,7 +3233,7 @@ namespace BuildXL.Scheduler
                     dependentPipRuntimeInfo.IsUncacheableImpacted = true;
                 }
 
-                if (!succeeded || result.Status == PipResultStatus.Skipped)
+                if (!succeeded || result.Status == PipResultStatus.Skipped || shouldSkipDownstreamPipsDueToSucccessFast)
                 {
                     // The current pip failed, so skip the dependent pip.
                     // Note that we decrement the ref count; this dependent pip will eventually have ref count == 0

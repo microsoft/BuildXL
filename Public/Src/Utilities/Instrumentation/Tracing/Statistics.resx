@@ -252,6 +252,9 @@
   <data name="ErrorWasLogged" xml:space="preserve">
     <value>ErrorWasLogged</value>
   </data>
+  <data name="SucceededFast" xml:space="preserve">
+    <value>SucceedFast</value>
+  </data>
   <data name="TimeToEngineRunCompleteMs" xml:space="preserve">
     <value>TimeToEngineRunCompleteMs</value>
   </data>

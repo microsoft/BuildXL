@@ -248,6 +248,13 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<int> RetryExitCodes { get; }
 
         /// <summary>
+        /// Optional list of exit codes that makes BuildXL skip downstream pips after the pip has completed, yet return success..
+        /// </summary>
+        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<int> SucceedFastExitCodes { get; }
+
+        /// <summary>
         /// Optional regular expression to detect warnings in console error / output.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
@@ -418,6 +425,7 @@ namespace BuildXL.Pips.Operations
             bool testRetries = false,
             ServiceInfo serviceInfo = null,
             ReadOnlyArray<int>? retryExitCodes = null,
+            ReadOnlyArray<int>? succeedFastExitCodes = null,
             ReadOnlyArray<PathAtom>? allowedSurvivingChildProcessNames = null,
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
@@ -518,6 +526,7 @@ namespace BuildXL.Pips.Operations
             EnvironmentVariables = environmentVariables;
             SuccessExitCodes = successExitCodes;
             RetryExitCodes = retryExitCodes ?? ReadOnlyArray<int>.Empty;
+            SucceedFastExitCodes = succeedFastExitCodes ?? ReadOnlyArray<int>.Empty;
             WarningRegex = warningRegex;
             ErrorRegex = errorRegex;
             EnableMultiLineErrorScanning = enableMultiLineErrorScanning;
@@ -590,6 +599,7 @@ namespace BuildXL.Pips.Operations
             bool? testRetries = null,
             ServiceInfo serviceInfo = null,
             ReadOnlyArray<int>? retryExitCodes = null,
+            ReadOnlyArray<int>? succeedFastExitCodes = null,
             ReadOnlyArray<PathAtom>? allowedSurvivingChildProcessNames = null,
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
@@ -637,6 +647,7 @@ namespace BuildXL.Pips.Operations
                 testRetries ?? TestRetries,
                 serviceInfo ?? ServiceInfo,
                 retryExitCodes ?? RetryExitCodes,
+                succeedFastExitCodes ?? succeedFastExitCodes,
                 allowedSurvivingChildProcessNames,
                 nestedProcessTerminationTimeout,
                 absentPathProbeMode,
@@ -953,7 +964,8 @@ namespace BuildXL.Pips.Operations
                 childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 processRetries: reader.ReadInt32Compact(),
-                retryAttemptEnvironmentVariable: reader.ReadStringId()
+                retryAttemptEnvironmentVariable: reader.ReadStringId(),
+                succeedFastExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32())
                 );
         }
 
@@ -1008,6 +1020,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(OutputDirectoryExclusions, (w, v) => w.Write(v));
             writer.WriteCompact(ProcessRetries);
             writer.Write(RetryAttemptEnvironmentVariable);
+            writer.Write(SucceedFastExitCodes, (w, v) => w.Write(v));
         }
         #endregion
     }

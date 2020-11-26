@@ -581,7 +581,8 @@ namespace BuildXL.Scheduler
                 result.MustBeConsideredPerpetuallyDirty,
                 result.DynamicallyObservedFiles,
                 result.DynamicallyProbedFiles,
-                result.DynamicallyObservedEnumerations);
+                result.DynamicallyObservedEnumerations,
+                result.ExitCode);
         }
 
         /// <summary>

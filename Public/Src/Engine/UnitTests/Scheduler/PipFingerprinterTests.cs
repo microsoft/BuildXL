@@ -890,6 +890,7 @@ namespace Test.BuildXL.Scheduler
                 untrackedScopes: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.UntrackedScopes)),
                 tags: ReadOnlyArray<StringId>.From(source.Vary(p => p.Tags)),
                 successExitCodes: ReadOnlyArray<int>.From(source.Vary(p => p.SuccessExitCodes)),
+                succeedFastExitCodes: ReadOnlyArray<int>.From(source.Vary(p => p.SucceedFastExitCodes)),
                 semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                 warningRegex: source.Vary(p => p.WarningRegex),
                 errorRegex: source.Vary(p => p.ErrorRegex),

@@ -1370,6 +1370,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleTerminatingDueToPipFailure(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
+            (ushort)LogEventId.SkippingDownstreamPipsDueToPipSuccess,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] This pip exited with a succeed fast exit code for this pip.  Not scheduling downstream pipstream pips.")]
+        internal abstract void SkipDownstreamPipsDueToPipSuccess(LoggingContext loggingContext, string pipDescription);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipSemaphoreQueued,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

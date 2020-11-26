@@ -91,6 +91,9 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public ReadOnlyArray<int> RetryExitCodes { get; set; } = ReadOnlyArray<int>.Empty;
 
+        /// <nodoc />
+        public ReadOnlyArray<int> SucceedFastExitCodes { get; set; } = ReadOnlyArray<int>.Empty;
+
         private Dictionary<StringId, ProcessSemaphoreInfo> m_semaphores;
 
         /// <summary>
@@ -708,6 +711,7 @@ namespace BuildXL.Pips.Builders
 
                 successExitCodes: SuccessExitCodes,
                 retryExitCodes: RetryExitCodes,
+                succeedFastExitCodes: SucceedFastExitCodes,
                 semaphores: m_semaphores != null ? ReadOnlyArray<ProcessSemaphoreInfo>.From(m_semaphores.Values) : ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                 warningTimeout: WarningTimeout,
                 timeout: Timeout,

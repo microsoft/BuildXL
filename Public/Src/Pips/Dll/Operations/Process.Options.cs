@@ -171,7 +171,7 @@ namespace BuildXL.Pips.Operations
             /// <summary>
             /// When set, the pip is considered to have failed executing if it writes to standard error, regardless of the pip exit code.
             /// </summary>
-            WritingToStandardErrorFailsExecution = 1 << 19,
+            WritingToStandardErrorFailsExecution = 1 << 19
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
@@ -58,6 +59,7 @@ namespace BuildXL.Scheduler
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
+        private int m_ExitCode;
         private RetryInfo m_retryInfo;
         private IReadOnlySet<AbsolutePath> m_createdDirectories;
 
@@ -427,6 +429,17 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Exit code
+        /// </summary>
+        public int ExitCode
+        {
+            get
+            {
+                return m_ExitCode;
+            }
+        }
+
+        /// <summary>
         /// Whether the pip was cancelled. Returns the reason for cancellation.
         /// </summary>
         public RetryInfo RetryInfo
@@ -476,6 +489,7 @@ namespace BuildXL.Scheduler
             CacheLookupPerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries,
+            int exitCode,
             IReadOnlySet<AbsolutePath> createdDirectories,
             RetryInfo pipRetryInfo = null)
         {
@@ -506,7 +520,8 @@ namespace BuildXL.Scheduler
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
                     m_retryInfo = pipRetryInfo,
-                    m_createdDirectories = createdDirectories
+                    m_createdDirectories = createdDirectories,
+                    m_ExitCode = exitCode
                 };
             return processExecutionResult;
         }
@@ -549,6 +564,7 @@ namespace BuildXL.Scheduler
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
+                ExitCode,
                 CreatedDirectories,
                 RetryInfo);
         }
@@ -583,6 +599,7 @@ namespace BuildXL.Scheduler
                 CacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
+                ExitCode,
                 CreatedDirectories,
                 RetryInfo);
         }
@@ -634,6 +651,7 @@ namespace BuildXL.Scheduler
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
             CreatedDirectories = executionResult.CreatedDirectories;
+            m_ExitCode = executionResult.ExitCode;
         }
 
         /// <summary>

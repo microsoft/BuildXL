@@ -26,6 +26,9 @@ namespace BuildXL.Pips
         public readonly bool MustBeConsideredPerpetuallyDirty;
 
         /// <nodoc />
+        public readonly int ExitCode;
+
+        /// <nodoc />
         public readonly PipExecutionPerformance PerformanceInfo;
 
         /// <nodoc />
@@ -50,7 +53,8 @@ namespace BuildXL.Pips
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations)
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            int exitCode)
         {
             Contract.Requires(!status.IndicatesExecution() == (performanceInfo == null));
             Contract.Requires(dynamicallyObservedFiles.IsValid);
@@ -63,13 +67,14 @@ namespace BuildXL.Pips
             DynamicallyObservedFiles = dynamicallyObservedFiles;
             DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
+            ExitCode = exitCode;
         }
 
         /// <summary>
         /// Creates a <see cref="PipResult"/> with the given status. The performance info is populated
         /// with zero duration (start / stop right now) and no dynamic observed files or enumerations
         /// </summary>
-        public static PipResult CreateWithPointPerformanceInfo(PipResultStatus status, bool mustBeConsideredPerpetuallyDirty = false)
+        public static PipResult CreateWithPointPerformanceInfo(PipResultStatus status, bool mustBeConsideredPerpetuallyDirty = false, int exitCode = 0)
         {
             Contract.Requires(status.IndicatesExecution());
             return new PipResult(
@@ -78,14 +83,15 @@ namespace BuildXL.Pips
                 mustBeConsideredPerpetuallyDirty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
-                ReadOnlyArray<AbsolutePath>.Empty);
+                ReadOnlyArray<AbsolutePath>.Empty,
+                exitCode);
         }
 
         /// <summary>
         /// Creates a <see cref="PipResult"/> with the given status. The performance info is populated
         /// as a duration from <paramref name="executionStart"/> to now without any dynamic observed files or enumerations
         /// </summary>
-        public static PipResult Create(PipResultStatus status, DateTime executionStart, bool mustBeConsideredPerpetuallyDirty = false)
+        public static PipResult Create(PipResultStatus status, DateTime executionStart, bool mustBeConsideredPerpetuallyDirty = false, int exitCode = 0)
         {
             Contract.Requires(status.IndicatesExecution());
             Contract.Requires(executionStart.Kind == DateTimeKind.Utc);
@@ -95,13 +101,14 @@ namespace BuildXL.Pips
                 mustBeConsideredPerpetuallyDirty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
-                ReadOnlyArray<AbsolutePath>.Empty);
+                ReadOnlyArray<AbsolutePath>.Empty,
+                exitCode);
         }
 
         /// <summary>
         /// Creates a <see cref="PipResult"/> indicating that a pip wasn't actually executed. No performance info is attached.
         /// </summary>
-        public static PipResult CreateForNonExecution(PipResultStatus status, bool mustBeConsideredPerpetuallyDirty = false)
+        public static PipResult CreateForNonExecution(PipResultStatus status, bool mustBeConsideredPerpetuallyDirty = false, int exitCode = 0)
         {
             Contract.Requires(!status.IndicatesExecution());
             return new PipResult(
@@ -110,7 +117,8 @@ namespace BuildXL.Pips
                 mustBeConsideredPerpetuallyDirty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
-                ReadOnlyArray<AbsolutePath>.Empty);
+                ReadOnlyArray<AbsolutePath>.Empty,
+                exitCode);
         }
     }
 

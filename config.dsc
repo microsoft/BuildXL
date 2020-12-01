@@ -495,19 +495,6 @@ config({
                     url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-linux-x64.tar.gz",
                     hash: "VSO0:038EB56ECF4C3FEC397E149A91F32DDD0E91E9FB61E7BA064FB9E5E5C0A3779800",
                     archiveType: "tgz",
-                },
-                // Rush tests need an LTS (older) version of NodeJs
-                {
-                    moduleName: "NodeJs.ForRush.win-x64",
-                    url: "https://nodejs.org/dist/v12.16.1/node-v12.16.1-win-x64.zip",
-                    hash: "VSO0:B65327703FB1775A7ABD637D44816CDE13DFE01BD98FF2B1B1DE8DAC46D1567800",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "NodeJs.ForRush.osx-x64",
-                    url: "https://nodejs.org/dist/v12.16.1/node-v12.16.1-darwin-x64.tar.gz",
-                    hash: "VSO0:A3DEEC9D7C133120F255195146072452C6D06D24E7F97754F342627C53A5008000",
-                    archiveType: "tgz",
                 }
             ],
         },

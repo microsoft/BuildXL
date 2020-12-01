@@ -273,9 +273,14 @@ config({{
                 string rushJson = File.ReadAllText(pathToRushJson);
 
                 // Update the initial template created by 'rush init' to accept a higher version of node
-                var updatedRushJson = rushJson.Replace(
+                // Also update the pnpm version to make it work correctly with node
+                var updatedRushJson = rushJson
+                    .Replace(
                     "\"nodeSupportedVersionRange\": \">=10.13.0 <11.0.0\"",
-                    "\"nodeSupportedVersionRange\": \">=10.13.0 <13.3.1\"");
+                    "\"nodeSupportedVersionRange\": \">=10.13.0 <15.2.2\"")
+                    .Replace(
+                    "\"pnpmVersion\": \"2.15.1\"",
+                    "\"pnpmVersion\": \"5.0.2\"");
 
                 File.WriteAllText(pathToRushJson, updatedRushJson);
             }

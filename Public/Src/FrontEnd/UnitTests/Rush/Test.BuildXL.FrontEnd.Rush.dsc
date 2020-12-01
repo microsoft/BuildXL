@@ -86,31 +86,8 @@ namespace Test.Rush {
             },
             {
                 subfolder: a`node`,
-                contents: [getNodeExeForRushDirectory()]
+                contents: [Node.Node.nodeExecutables]
             },
         ],
     });
-
-    const nodeWinDir = "node-v12.16.1-win-x64";
-    const nodeOsxDir = "node-v12.16.1-darwin-x64";
-
-    function getNodeExeForRushDirectory(): StaticDirectory {
-        Contract.assert(isRunningOnSupportedSystem, "Only 64bit versions of Win and OSX supported.");
-
-        let pkgContents : StaticDirectory = undefined;
-
-        const host = Context.getCurrentHost();
-        switch (host.os) {
-            case "win":
-                pkgContents = Transformer.reSealPartialDirectory(importFrom("NodeJs.ForRush.win-x64").extracted, r`${nodeWinDir}`);
-                break;
-            case "macOS": 
-                pkgContents = Transformer.reSealPartialDirectory(importFrom("NodeJs.ForRush.osx-x64").extracted, r`${nodeOsxDir}\bin`);
-                break;
-            default:
-                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
-        }
-
-        return pkgContents;
-    }
 }

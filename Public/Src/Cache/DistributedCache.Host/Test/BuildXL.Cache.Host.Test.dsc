@@ -16,6 +16,7 @@ namespace Test {
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
             Configuration.dll,
             Service.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

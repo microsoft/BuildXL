@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -120,6 +120,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return PerformAggregateSessionOperationAsync<IReadOnlyContentSession, PinResult>(
+                context,
                 session => session.PinAsync(context, contentHash, cts, urgencyHint),
                 (r1, r2) => r1.Succeeded ? r1 : r2,
                 shouldBreak: r => r.Succeeded);
@@ -133,6 +134,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return PerformAggregateSessionOperationAsync<IReadOnlyContentSession, OpenStreamResult>(
+                context,
                 session => session.OpenStreamAsync(context, contentHash, cts, urgencyHint),
                 (r1, r2) => r1.Succeeded ? r1 : r2,
                 shouldBreak: r => r.Succeeded);
@@ -149,11 +151,44 @@ namespace BuildXL.Cache.Host.Service.Internal
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
+            IContentSession hardlinkSession = null;
+            if (realizationMode == FileRealizationMode.HardLink)
+            {
+                var drive = path.GetPathRoot();
+                if (SessionsByCacheRoot.TryGetValue(drive, out var session) && session is IContentSession writeableSession)
+                {
+                    hardlinkSession = writeableSession;
+                }
+                else
+                {
+                    return Task.FromResult(new PlaceFileResult("Requested hardlink but there is no session on the same drive as destination path."));
+                }
+            }
+
             return PerformAggregateSessionOperationAsync<IReadOnlyContentSession, PlaceFileResult>(
-                session => session.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint),
+                context,
+                executeAsync: placeFileCore,
                 (r1, r2) => r1.Succeeded ? r1 : r2,
                 shouldBreak: r => r.Succeeded,
                 pathHint: path);
+
+            async Task<PlaceFileResult> placeFileCore(IReadOnlyContentSession session)
+            {
+                // If we exclusively want a hardlink, we should make sure that we can copy from other drives to satisfy the request.
+                if (realizationMode != FileRealizationMode.HardLink || session == hardlinkSession)
+                {
+                    return await session.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+                }
+
+                // See if session has the content.
+                var streamResult = await session.OpenStreamAsync(context, contentHash, cts, urgencyHint).ThrowIfFailure();
+
+                // Put it into correct store
+                var putResult = await hardlinkSession.PutStreamAsync(context, contentHash, streamResult.Stream, cts, urgencyHint).ThrowIfFailure();
+
+                // Try the hardlink on the correct drive.
+                return await hardlinkSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+            }
         }
 
         /// <inheritdoc />
@@ -215,7 +250,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <inheritdoc />
         public IEnumerable<ContentHash> EnumeratePinnedContentHashes()
         {
-            return PerformAggregateSessionOperationAsync<IHibernateContentSession, Result<IEnumerable<ContentHash>>>(
+            return PerformAggregateSessionOperationCoreAsync<IHibernateContentSession, Result<IEnumerable<ContentHash>>>(
                 session =>
                 {
                     var hashes = session.EnumeratePinnedContentHashes();
@@ -229,6 +264,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         public Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
         {
             return PerformAggregateSessionOperationAsync<IHibernateContentSession, BoolResult>(
+                context,
                 async session =>
                 {
                     await session.PinBulkAsync(context, contentHashes);
@@ -242,6 +278,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         public Task<BoolResult> ShutdownEvictionAsync(Context context)
         {
             return PerformAggregateSessionOperationAsync<IHibernateContentSession, BoolResult>(
+                context,
                 session => session.ShutdownEvictionAsync(context),
                 (r1, r2) => r1 & r2,
                 shouldBreak: r => false);
@@ -299,12 +336,30 @@ namespace BuildXL.Cache.Host.Service.Internal
             return result ?? new ErrorResult($"Could not find a content session which implements {typeof(TSession).Name} in {nameof(MultiplexedContentSession)}.").AsResult<TResult>();
         }
 
-        private async Task<TResult> PerformAggregateSessionOperationAsync<TSession, TResult>(
+        private Task<TResult> PerformAggregateSessionOperationAsync<TSession, TResult>(
+            Context context,
+            Func<TSession, Task<TResult>> executeAsync,
+            Func<TResult, TResult, TResult> aggregate,
+            Func<TResult, bool> shouldBreak,
+            AbsolutePath pathHint = null,
+            [CallerMemberName] string caller = null)
+            where TResult : ResultBase
+        {
+            var operationContext = context is null ? new OperationContext() : new OperationContext(context);
+            return operationContext.PerformOperationAsync(
+                Tracer,
+                () => PerformAggregateSessionOperationCoreAsync(executeAsync, aggregate, shouldBreak, pathHint),
+                traceOperationStarted: false,
+                traceOperationFinished: false,
+                caller: caller);
+        }
+
+        private async Task<TResult> PerformAggregateSessionOperationCoreAsync<TSession, TResult>(
             Func<TSession, Task<TResult>> executeAsync,
             Func<TResult, TResult, TResult> aggregate,
             Func<TResult, bool> shouldBreak,
             AbsolutePath pathHint = null)
-            where TResult : class
+            where TResult : ResultBase
         {
             TResult result = null;
 
@@ -312,7 +367,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             foreach (var session in GetSessionsInOrder<TSession>(pathHint))
             {
                 var priorResult = result;
-                result = await executeAsync(session);
+
+                try
+                {
+                    result = await executeAsync(session);
+                }
+                catch (Exception e)
+                {
+                    result = new ErrorResult(e).AsResult<TResult>();
+                }
 
                 // Aggregate with previous result
                 if (priorResult != null)

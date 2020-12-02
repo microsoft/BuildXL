@@ -535,7 +535,6 @@ namespace BuildXL.Cache.Host.Service
                                 RunningProcess = Launcher._host.CreateProcess(new ProcessStartInfo()
                                 {
                                     UseShellExecute = false,
-
                                     FileName = executablePath,
                                     Arguments = string.Join(" ", Manifest.Tool.Arguments.Select(arg => QuoteArgumentIfNecessary(ExpandTokens(arg)))),
                                     Environment =
@@ -544,19 +543,12 @@ namespace BuildXL.Cache.Host.Service
                                         Manifest.Tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)),
                                         Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(Manifest.Tool.ServiceId)
                                     }
-                                }); ;
+                                });
 
                                 ProcessExitSource = TaskSourceSlim.Create<bool>();
                                 RunningProcess.Exited += () =>
                                 {
-                                    context.PerformOperation(
-                                        Launcher.Tracer,
-                                        () =>
-                                        {
-                                            return Result.Success(ProcessExitSource.TrySetResult(true));
-                                        },
-                                        caller: "ServiceExited",
-                                        messageFactory: r => $"ProcessId={RunningProcess.Id}, ServiceId={Manifest.Tool.ServiceId}, ExitCode={RunningProcess.ExitCode}").IgnoreFailure();
+                                    OnExited(context, "ProcessExitedEvent");
                                 };
 
                                 RunningProcess.Start(context);
@@ -569,6 +561,19 @@ namespace BuildXL.Cache.Host.Service
                     traceOperationStarted: true,
                     extraStartMessage: $"ServiceId={Manifest.Tool.ServiceId}",
                     extraEndMessage: r => $"ProcessId={processId ?? -1}, ServiceId={Manifest.Tool.ServiceId}");
+            }
+
+            private void OnExited(OperationContext context, string trigger)
+            {
+                context.PerformOperation(
+                    Launcher.Tracer,
+                    () =>
+                    {
+                        ProcessExitSource.TrySetResult(true);
+                        return Result.Success(RunningProcess.ExitCode.ToString());
+                    },
+                    caller: "ServiceExited",
+                    messageFactory: r => $"ProcessId={RunningProcess.Id}, ServiceId={Manifest.Tool.ServiceId}, ExitCode={r.GetValueOrDefault(string.Empty)} Trigger={trigger}").IgnoreFailure();
             }
 
             private static string QuoteArgumentIfNecessary(string arg)
@@ -624,6 +629,11 @@ namespace BuildXL.Cache.Host.Service
                                         },
                                         caller: "GracefulShutdownService").IgnoreFailure();
 
+                                    if (RunningProcess.HasExited)
+                                    {
+                                        OnExited(context, "ShutdownAlreadyExited");
+                                    }
+
                                     await ProcessExitSource.Task;
                                 }
                             }
@@ -651,7 +661,15 @@ namespace BuildXL.Cache.Host.Service
                     Tracer,
                     () =>
                     {
-                        RunningProcess.Kill(context);
+                        if (RunningProcess.HasExited)
+                        {
+                            OnExited(context, "TerminateServiceAlreadyExited");
+                        }
+                        else
+                        {
+                            RunningProcess.Kill(context);
+                        }
+
                         return BoolResult.Success;
                     },
                     extraStartMessage: $"ProcessId={RunningProcess?.Id}, ServiceId={Manifest.Tool.ServiceId}",

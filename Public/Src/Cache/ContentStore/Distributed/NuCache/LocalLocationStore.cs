@@ -120,6 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private MachineId? _localMachineId;
         private ILocalContentStore _localContentStore;
+        private bool _forceRestoreOnNextProcessState;
 
         private DateTime _lastClusterStateUpdate;
 
@@ -456,6 +457,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _pendingProcessCheckpointTaskLock,
                 context.CreateOperation(Tracer, async () =>
                 {
+                    if (_forceRestoreOnNextProcessState)
+                    {
+                        forceRestore = true;
+                        _forceRestoreOnNextProcessState = false;
+                    }
+
                     var oldRole = CurrentRole;
                     var newRole = checkpointState.Role;
                     var switchedRoles = oldRole != newRole;
@@ -500,6 +507,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldRestore || forceRestore)
                     {
+                        // Stop receiving events when restoring checkpoint
+                        EventStore.SuspendProcessing(context).ThrowIfFailure();
+
                         result = await RestoreCheckpointStateAsync(context, checkpointState);
                         if (!result)
                         {
@@ -1988,6 +1998,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
+
+                // Ensure restore is forced even if there is an outstanding heartbeat ongoing and the requested heartbeat on the next
+                // line is skipped
+                _forceRestoreOnNextProcessState = true;
 
                 // We can safely ignore errors, because there is nothing more we can do here.
                 await HeartbeatAsync(context, forceRestore: true).IgnoreFailure();

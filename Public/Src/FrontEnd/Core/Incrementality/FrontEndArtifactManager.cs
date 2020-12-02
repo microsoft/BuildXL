@@ -54,6 +54,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
             {
                 m_publicFacadeAndAstProvider = new FrontEndPublicFacadeAndAstProvider(
                     engine,
+                    logger,
                     loggingContext,
                     frontEndEngineDirectory,
                     configuration.LogStatistics,

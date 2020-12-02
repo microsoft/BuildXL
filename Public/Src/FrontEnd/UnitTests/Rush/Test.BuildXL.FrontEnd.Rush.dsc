@@ -24,7 +24,7 @@ namespace Test.Rush {
     const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64" && !BuildXLSdk.isHostOsLinux;
 
     @@public
-    export const dll = isRunningOnSupportedSystem && BuildXLSdk.test({
+    export const dll = Environment.getFlag("[Sdk.BuildXL]microsoftInternal") && isRunningOnSupportedSystem && BuildXLSdk.test({
         // QTest is not supporting opaque directories as part of the deployment
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         runTestArgs: {

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
@@ -36,6 +37,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         private readonly PathTable m_pathTable;
         private readonly IFrontEndStatistics m_statistics;
         private readonly FileCombiner m_fileCombiner;
+        private readonly Logger m_logger;
+        private readonly LoggingContext m_loggingContext;
         private IReadOnlySet<AbsolutePath> m_dirtySpecs;
 
         private readonly ActionBlock<FileContentWithHash> m_filesToSaveQueue;
@@ -50,6 +53,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <nodoc/>
         public FrontEndPublicFacadeAndAstProvider(
             FrontEndEngineAbstraction engine,
+            Logger logger,
             LoggingContext loggingContext,
             string frontEndEngineDirectory,
             bool logFrontEndStatistics,
@@ -71,6 +75,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
                 SpecCacheFullPath(frontEndEngineDirectory),
                 FileCombiner.FileCombinerUsage.IncrementalScriptFrontEnd,
                 logFrontEndStatistics);
+            m_logger = logger;
+            m_loggingContext = loggingContext;
 
             var queueOptions = new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, CancellationToken = cancellationToken };
 
@@ -234,9 +240,15 @@ namespace BuildXL.FrontEnd.Core.Incrementality
                     return FileContent.Invalid;
                 }
 
-                var content = await FileContent.ReadFromAsync(publicFacade);
-
-                return content;
+                try
+                {
+                    return await FileContent.ReadFromAsync(publicFacade);
+                }
+                catch (Exception e) when (e is IOException || e is FileContent.FileContentException)
+                {
+                    m_logger.FrontEndFailedReadPublicFacade(m_loggingContext, e.Message);
+                    return FileContent.Invalid;
+                }
             }
         }
 

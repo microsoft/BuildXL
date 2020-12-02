@@ -226,6 +226,7 @@ namespace Test.DScript.Ast.Incrementality
         {
             return new FrontEndPublicFacadeAndAstProvider(
                 new BasicFrontEndEngineAbstraction(PathTable, FileSystem),
+                global::BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
                 LoggingContext,
                 config.Layout.EngineCacheDirectory.ToString(PathTable),
                 config.FrontEnd.LogStatistics,

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -34,7 +35,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Invalid instance.
         /// </summary>
-        public static FileContent Invalid { get; } = default(FileContent);
+        public static FileContent Invalid { get; } = default;
 
         /// <summary>
         /// Content of a file.
@@ -109,8 +110,22 @@ namespace BuildXL.FrontEnd.Sdk
 
             stream.Position = 0;
 
-            // The following cast is safe, because we're not planning to support files larger than 2 gigs.
-            char[] charBuffer = new char[(int)stream.Length];
+            char[] charBuffer;
+            try
+            {
+                // Since we are not planning to support files larger that 2G, we throw an exception.
+                // The cast below can result in a negative number, and can throw an Overflow exception.
+                // Also, the allocation can result in OutOfMemoryException when the length is too big.
+                charBuffer = new char[(int)stream.Length];
+            }
+            catch (Exception e) when (e is OverflowException || e is OutOfMemoryException)
+            {
+                throw new BuildXLException(
+                    "Failed to read content from stream",
+                    new FileContentException(
+                        $"Failed to create buffer for reading content from stream. Max buffer size is {int.MaxValue} bytes, but stream length is {stream.Length} bytes.",
+                        e));
+            }
 
             int actualLength;
             const int DefaultBufferSize = 1024;
@@ -133,5 +148,20 @@ namespace BuildXL.FrontEnd.Sdk
         {
             return new FileContent(str.ToCharArray(), str.Length);
         }
+
+        /// <summary>
+        /// Specific exception when reading file content.
+        /// </summary>
+        public class FileContentException : Exception
+        {
+            /// <summary>
+            /// Creates an instance of <see cref="FileContentException"/>.
+            /// </summary>
+            public FileContentException(string message, Exception inner = null)
+                : base(message, inner)
+            {
+            } 
+        }
+
     }
 }

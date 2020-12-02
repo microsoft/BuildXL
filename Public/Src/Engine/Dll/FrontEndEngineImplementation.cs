@@ -583,14 +583,9 @@ namespace BuildXL.Engine
                     return await convertStream(fs);
                 }
             }
-            catch (BuildXLException e)
+            catch (BuildXLException e) when (e.InnerException is IOException || e.InnerException is FileContent.FileContentException)
             {
-                if (e.InnerException is IOException)
-                {
-                    return new RecoverableExceptionFailure(e);
-                }
-
-                throw;
+                return new RecoverableExceptionFailure(e);
             }
         }
 

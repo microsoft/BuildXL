@@ -138,5 +138,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         MaterializingFileToFileDepdencyMap = 2917,
         ErrorMaterializingFileToFileDepdencyMap = 2918,
+
+        FrontEndFailedReadPublicFacade = 11298,
     }
 }

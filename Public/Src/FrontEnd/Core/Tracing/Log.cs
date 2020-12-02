@@ -1003,6 +1003,15 @@ namespace BuildXL.FrontEnd.Core.Tracing
             Message = "Workspace memory was not collected successfully. This indicates a memory leak that drastically increase memory footprint during evaluation phase",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void FrontEndWorkspaceMemoryNotCollected(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FrontEndFailedReadPublicFacade,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Failed to read public facade: {message}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void FrontEndFailedReadPublicFacade(LoggingContext context, string message);
     }
 
     /// <summary>

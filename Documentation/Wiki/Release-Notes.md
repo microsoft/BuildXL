@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20201125.2 (Release [87786](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=87786)) Released 12/02/2020
+- File content table in server process
+- Engine state becoming immutable.
+- Exit-early-on-new-graph feature.
+- Temp cleaner becomes best effort to avoid excessive retries.
+- [QTest] QTestProcDump folder in QTest final outputs.
+- [JS Frontend] Support for customizing scheduling to enable Qtest into JavaScript frontend.
+- [LinuxSandbox] Report new process when libDetours.so is dynamically loaded
+
 # 0.1.0-20201107.0 (Release [85798](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=85798)) Released 11/11/2020
 - Don't delete parents of temp directories during scrubbing
 - Enable GRPC keepalive by default

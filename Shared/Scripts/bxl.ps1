@@ -41,6 +41,13 @@ Uses the LKG deployment to update the Dev deployment with Debug binaries
 
 .EXAMPLE
 
+
+.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net5.0"
+
+Uses the LKG deployment to update the Dev deployment with net5.0 release binaries 
+
+.EXAMPLE
+
 bxl -Deploy Dev -DeployConfig Debug -Minimal
 
 Uses the LKG deployment to update the Dev deployment with Debug binaries, skipping unittest and other tools that are not part of the core deployment.
@@ -65,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "net5.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory=$false)]
@@ -318,6 +325,12 @@ function New-Deployment {
 
     $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $DeployRuntime)
 
+    if ($DeployRuntime -eq "net5.0") {
+        # Handling .net 5 differently, because the old scheme is not suitable for having dev deployments with different qualifiers.
+        $DeployRuntime = "win-x64";
+        $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, "net5.0", $DeployRuntime)
+    }
+
     return @{
         description = $Description;
         dir = $dir;
@@ -489,6 +502,39 @@ $deployments = @{
 
 $shouldDeploy = $Deploy -ne $null -and $Deploy -ne "";
 
+
+# It's important that when neither -DeployConfig nor -DeployRuntime is explicitly provided
+# (i.e., the default values are used) we don't add any additional qualifiers here.  The
+# reason is because we don't want to add extra qualifiers when the user explicitly 
+# specifies which qualifiers to build (using the /q switch).
+#
+# This basically means that the default values for -DeployConfig and -DeployRuntime
+# must correspond to default qualifier in config.dsc.
+if ($DeployConfig -eq "Release") {
+    if ($DeployRuntime -eq "net472") {
+        $AdditionalBuildXLArguments += "/q:ReleaseNet472"
+    }
+    elseif ($DeployRuntime -eq "net5.0") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNet5"
+    }
+    elseif ($DeployRuntime -eq "osx-x64") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
+    }
+    else {
+        $AdditionalBuildXLArguments += "/q:Release"
+    }
+} else {
+    if ($DeployRuntime -eq "net472") {
+        $AdditionalBuildXLArguments += "/q:DebugNet472"
+    }
+    elseif ($DeployRuntime -eq "net5.0") {
+        $AdditionalBuildXLArguments += "/q:DebugDotNet5"
+    }
+    elseif ($DeployRuntime -eq "osx-x64") {
+        $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"
+    }
+}
+
 $useDeployment = Get-Deployment $use;
 Log "> BuildXL Selfhost wrapper - run 'domino -SelfhostHelp' for more info";
 Log -NoNewline "Building using the ";
@@ -533,32 +579,6 @@ if (! (Test-Path -PathType Leaf $useDeployment.domino)) {
     throw "The BuildXL executable was not found at $($useDeployment.domino). Maybe you need to build and deploy with -Deploy $Use first?";
 }
 
-# It's important that when neither -DeployConfig nor -DeployRuntime is explicitly provided
-# (i.e., the default values are used) we don't add any additional qualifiers here.  The
-# reason is because we don't want to add extra qualifiers when the user explicitly 
-# specifies which qualifiers to build (using the /q switch).
-#
-# This basically means that the default values for -DeployConfig and -DeployRuntime
-# must correspond to default qualifier in config.dsc.
-if ($DeployConfig -eq "Release") {
-    if ($DeployRuntime -eq "net472") {
-        $AdditionalBuildXLArguments += "/q:ReleaseNet472"
-    }
-    elseif ($DeployRuntime -eq "osx-x64") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
-    }
-    else {
-        $AdditionalBuildXLArguments += "/q:Release"
-    }
-} else {
-    if ($DeployRuntime -eq "net472") {
-        $AdditionalBuildXLArguments += "/q:DebugNet472"
-    }
-    elseif ($DeployRuntime -eq "osx-x64") {
-        $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"
-    }
-}
-
 if ($shouldDeploy -and $shouldClean) {
     Log "Cleaning output directory (needed to prevent extra files from being deployed)";
     # Note that we are deleting the temporary deployment location (not the one we would execute); otherwise
@@ -581,7 +601,7 @@ for($i = 0; $i -lt $DominoArguments.Count; $i++){
     }
 }
 
-if (!$skipFilter){
+if (!$skipFilter) {
 
     $AllCacheProjectsFilter = "(spec='Public\Src\Cache\ContentStore\*')or(spec='Public\Src\Cache\MemoizationStore\*')or(spec='Public\Src\Cache\DistributedCache.Host\*')or(spec='Public\Src\Cache\Monitor\*')or(spec='Public\Src\Cache\Roxis\*')or(spec='Public\Src\Cache\MultiTool\*')or(spec='Public\Src\Cache\Logging\*')or(spec='Public\Src\Deployment\cache.dsc')";
     $CacheNugetFilter = "spec='Public\Src\Deployment\cache.nugetpackages.dsc'";
@@ -595,7 +615,7 @@ if (!$skipFilter){
 
     if ($Minimal) {
         # filtering by core deployment.
-        $AdditionalBuildXLArguments +=  "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)ortag='protobufgenerator'"
+        $AdditionalBuildXLArguments += "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)ortag='protobufgenerator'"
     }
 
     if ($Cache) {

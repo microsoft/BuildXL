@@ -76,7 +76,7 @@ namespace BuildXL.Cache.Monitor.Library.IcM
                 OccurringLocation = new IncidentLocation
                 {
                     DataCenter = incident.Stamp,
-                    DeviceName = incident.Machines.FirstOrDefault() ?? "Cache Monitor",
+                    DeviceName = incident.Machines?.FirstOrDefault() ?? "Cache Monitor",
                     Environment = incident.Environment,
                 },
                 RaisingLocation = new IncidentLocation

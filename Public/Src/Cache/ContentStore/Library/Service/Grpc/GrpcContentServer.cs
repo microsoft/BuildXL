@@ -377,7 +377,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         await SendErrorResponseAsync(
                             callContext,
                             errorType: "ContentNotFound",
-                            errorMessage: $"Requested content at {hash.ToString()} not found.");
+                            errorMessage: $"Requested content with hash={hash.ToShortString()} not found.");
                         break;
                     case OpenStreamResult.ResultCode.Error:
                         Contract.Assert(result.Exception != null);

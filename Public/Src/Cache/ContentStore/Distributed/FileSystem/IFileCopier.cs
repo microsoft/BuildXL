@@ -56,6 +56,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Machine = machine;
             Hash = hash;
         }
+
+        /// <inheritdoc />
+        public override string ToString() => Machine.ToString();
     }
 
     /// <summary>

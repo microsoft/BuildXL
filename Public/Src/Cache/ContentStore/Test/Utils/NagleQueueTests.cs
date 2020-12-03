@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -135,6 +136,31 @@ namespace ContentStoreTest.Utils
                 batchSize: 10);
             queue.Dispose();
             Assert.Throws<ObjectDisposedException>(() => queue.Enqueue(42));
+        }
+
+
+        [Fact]
+        public async Task DisposeAsyncWaitsForCompletion()
+        {
+            var logger = TestGlobal.Logger;
+            logger.Debug("Starting...");
+            var tcs = TaskSourceSlim.Create<object>();
+            var queue = NagleQueue<int>.Create(
+                processBatch: async data =>
+                              {
+                                  await Task.Delay(1000);
+                                  tcs.SetResult(null);
+                              },
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMilliseconds(1),
+                batchSize: 1);
+            var sw = Stopwatch.StartNew();
+            queue.Enqueue(42);
+
+            await queue.DisposeAsync();
+            tcs.Task.IsCompleted.Should().BeTrue();
+
+            logger.Debug($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
         }
 
         [Fact]

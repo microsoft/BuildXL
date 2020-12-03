@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -1712,34 +1711,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // Only call reconcile if content needs to be updated for machine
                             if (addedContent.Count != 0 || removedContent.Count != 0)
                             {
-                                // Create separate event store for reconciliation events so they are dispatched first before
-                                // events in normal event store which may be queued during reconciliation operation.
-                                var reconciliationEventStore = CreateEventStore(Configuration, subfolder: "reconcile");
-
-                                try
-                                {
-                                    await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
-
-                                    await reconciliationEventStore.ReconcileAsync(
-                                        context,
-                                        machineId,
-                                        addedContent,
-                                        removedContent,
-                                        $".cycle{iteration}").ThrowIfFailure();
-
-                                    if (Configuration.LogReconciliationHashes)
-                                    {
-                                        LogContentLocationOperations(
-                                            context,
-                                            $"{Tracer.Name}.ReconcileAsync",
-                                            addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
-                                                .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
-                                    }
-                                }
-                                finally
-                                {
-                                    await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
-                                }
+                                await SendReconciliationEventsAsync(
+                                    context,
+                                    suffix: $".cycle{iteration}",
+                                    machineId: machineId,
+                                    addedContent: addedContent,
+                                    removedContent: removedContent);
                             }
 
                             // Corner case where they are equal and we have finished should be very unlikely.
@@ -1761,6 +1738,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return result;
+        }
+
+        private async Task SendReconciliationEventsAsync(
+            OperationContext context,
+            string suffix,
+            MachineId machineId,
+            List<ShortHashWithSize> addedContent,
+            List<ShortHash> removedContent)
+        {
+            // Create separate event store for reconciliation events so they are dispatched first before
+            // events in normal event store which may be queued during reconciliation operation.
+            var reconciliationEventStore = CreateEventStore(Configuration, subfolder: "reconcile");
+
+            try
+            {
+                await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
+
+                await reconciliationEventStore.ReconcileAsync(
+                    context,
+                    machineId,
+                    addedContent,
+                    removedContent,
+                    suffix).ThrowIfFailure();
+
+                if (Configuration.LogReconciliationHashes)
+                {
+                    LogContentLocationOperations(
+                        context,
+                        Tracer.Name,
+                        addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
+                            .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
+                }
+
+                // It is very important to wait till all the messages are sent before shutting down the store!
+                await reconciliationEventStore.ShutdownEventQueueAndWaitForCompletionAsync();
+            }
+            finally
+            {
+                await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
+            }
         }
 
         /// <summary>
@@ -1917,35 +1934,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Only call reconcile if content needs to be updated for machine
                 if (addedContent.Count != 0 || removedContent.Count != 0)
                 {
-                    // Create separate event store for reconciliation events so they are dispatched first before
-                    // events in normal event store which may be queued during reconciliation operation.
-                    var reconciliationEventStore = CreateEventStore(Configuration, subfolder: "reconcile");
-
-                    try
-                    {
-                        await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
-
-                        // We add a unique date time for each reconcile event sent to the master
-                        await reconciliationEventStore.ReconcileAsync(
-                            context,
-                            machineId,
-                            addedContent,
-                            removedContent,
-                            $".date({_clock.UtcNow:yyyyMMdd.HHmm})").ThrowIfFailure();
-
-                        if (Configuration.LogReconciliationHashes)
-                        {
-                            LogContentLocationOperations(
-                                context,
-                                $"{Tracer.Name}.ReconcileAsync",
-                                addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
-                                    .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
-                        }
-                    }
-                    finally
-                    {
-                        await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
-                    }
+                    await SendReconciliationEventsAsync(
+                        context,
+                        suffix: $".date({_clock.UtcNow:yyyyMMdd.HHmm})",
+                        machineId: machineId,
+                        addedContent: addedContent,
+                        removedContent: removedContent);
                 }
 
                 // Need to ensure we don't mark the reconcile as complete if canceled (i.e. during shutdown). Cancellation will

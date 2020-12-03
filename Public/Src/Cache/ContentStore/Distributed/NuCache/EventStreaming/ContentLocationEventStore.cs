@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -264,42 +265,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        protected async Task SendEventsAsync(OperationContext context, ContentLocationEventData[] events)
+        protected Task<BoolResult> SendEventsAsync(OperationContext context, ContentLocationEventData[] events)
         {
-            context = context.CreateNested(nameof(ContentLocationEventStore));
-
             Tracer.Info(context, $"{Tracer.Name}: Sending {events.Length} event(s) to event hub.");
-            var operations = events.SelectMany(
-                e =>
-                {
-                    var operation = GetOperation(e);
-                    var reason = e.Reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-                    return e.ContentHashes.Select(hash => (hash, operation, reason));
-                }).ToList();
-            LogContentLocationOperations(context, Tracer.Name, operations);
 
             var counters = new CounterCollection<ContentLocationEventStoreCounters>();
 
-            // Using local counters instance for tracing purposes.
-            counters[SentEventsCount].Add(events.Length);
-
-            updateCountersWith(counters, events);
-
-            var result = await context.PerformOperationAsync(
+            context = context.CreateNested(nameof(ContentLocationEventStore));
+            return context.PerformOperationAsync(
                 Tracer,
-                () => SendEventsCoreAsync(context, events, counters),
-                traceOperationStarted: true,
-                traceOperationFinished: true,
+                async () =>
+                {
+                    var operations = events.SelectMany(
+                        e =>
+                        {
+                            var operation = GetOperation(e);
+                            var reason = e.Reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
+                            return e.ContentHashes.Select(hash => (hash, operation, reason));
+                        }).ToList();
+                    LogContentLocationOperations(context, Tracer.Name, operations);
+
+                    // Using local counters instance for tracing purposes.
+                    counters[SentEventsCount].Add(events.Length);
+
+                    updateCountersWith(counters, events);
+
+                    var result = await SendEventsCoreAsync(context, events, counters);
+
+                    // Updating global counters based on the operation results.
+                    Counters.Append(counters);
+
+                    if (result)
+                    {
+                        // Trace successful case separately.
+                        context.LogSendEventsOverview(counters, (int)counters[SendEvents].TotalMilliseconds);
+                    }
+
+                    return BoolResult.Success;
+                },
                 counter: counters[SendEvents]);
-
-            // Updating global counters based on the operation results.
-            Counters.Append(counters);
-
-            if (result)
-            {
-                // Trace successful case separately.
-                context.LogSendEventsOverview(counters, (int)counters[SendEvents].TotalMilliseconds);
-            }
 
             static void updateCountersWith(CounterCollection<ContentLocationEventStoreCounters> localCounters, ContentLocationEventData[] sentEvents)
             {
@@ -353,6 +357,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 batchSize: _configuration.EventBatchSize);
 
             return BoolResult.SuccessTask;
+        }
+
+        /// <summary>
+        /// Shuts down event queue and waits when all the pending messages are processed
+        /// </summary>
+        /// <remarks>
+        /// This method is used during reconciliation because the reconciliation process should wait for all the events being processed
+        /// before shutting down the store.
+        /// </remarks>
+        public async Task ShutdownEventQueueAndWaitForCompletionAsync()
+        {
+            var queue = Interlocked.Exchange(ref EventNagleQueue, null);
+            if (queue != null)
+            {
+                await queue.DisposeAsync();
+            }
         }
 
         /// <inheritdoc />

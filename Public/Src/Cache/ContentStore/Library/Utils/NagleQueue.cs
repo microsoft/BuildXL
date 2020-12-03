@@ -167,8 +167,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             _batchBlock.PostAll(items);
         }
 
-        /// <inheritdoc />
-        public void Dispose()
+        /// <summary>
+        /// Async version of dispose method.
+        /// </summary>
+        public async Task DisposeAsync()
         {
             if (_disposed)
             {
@@ -182,12 +184,18 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             _batchIsCompleted = true;
 
-            _batchBlock.Completion.GetAwaiter().GetResult();
+            await _batchBlock.Completion;
 
             _actionBlock.Complete();
-            _actionBlock.Completion.GetAwaiter().GetResult();
+            await _actionBlock.Completion;
 
             _intervalTimer.Dispose();
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            DisposeAsync().GetAwaiter().GetResult();
         }
 
         private async Task ProcessBatchAsync(T[] batch)

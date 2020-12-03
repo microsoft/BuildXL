@@ -443,7 +443,7 @@ namespace BuildXL.Engine
         {
             try
             {
-                FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
+                FileUtilities.DeleteFile(path, retryOnFailure: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
 
                 if (logDeletedFile)
                 {

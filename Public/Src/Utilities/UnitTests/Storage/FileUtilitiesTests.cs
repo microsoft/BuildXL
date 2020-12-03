@@ -1002,7 +1002,7 @@ namespace Test.BuildXL.Storage
 
             if (useFileDelete)
             {
-                FileUtilities.DeleteFile(directorySymlinkPath, waitUntilDeletionFinished: true);
+                FileUtilities.DeleteFile(directorySymlinkPath, retryOnFailure: true);
                 XAssert.IsTrue(FileUtilities.DirectoryExistsNoFollow(directoryPath));
                 XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fileInDirectoryPath));
             }

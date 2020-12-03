@@ -1961,7 +1961,7 @@ namespace BuildXL.Scheduler.Artifacts
                         {
                             if (FileUtilities.FileExistsNoFollow(dirOutputPath))
                             {
-                                FileUtilities.DeleteFile(dirOutputPath, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
+                                FileUtilities.DeleteFile(dirOutputPath, retryOnFailure: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
                             }
 
                             // If the directory does not exist, create one. This is to ensure that an opaque directory is always present on disk.

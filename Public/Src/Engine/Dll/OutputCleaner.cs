@@ -63,7 +63,7 @@ namespace BuildXL.Engine
                                 Contract.Assume(fileOrDirectory.FileArtifact.IsOutputFile, "Encountered non-output file");
                                 if (FileUtilities.FileExistsNoFollow(path))
                                 {
-                                    FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: tempDirectoryCleaner);
+                                    FileUtilities.DeleteFile(path, retryOnFailure: true, tempDirectoryCleaner: tempDirectoryCleaner);
                                     Interlocked.Increment(ref fileSuccessCount);
                                 }
                             }

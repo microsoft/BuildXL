@@ -72,7 +72,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.AppendAllText(ArtifactToString(srcA), Guid.NewGuid().ToString());
 
             // Destroy file change tracker.
-            FileUtilities.DeleteFile(result.Config.Layout.SchedulerFileChangeTrackerFile.ToString(Context.PathTable), waitUntilDeletionFinished: true);
+            FileUtilities.DeleteFile(result.Config.Layout.SchedulerFileChangeTrackerFile.ToString(Context.PathTable), retryOnFailure: true);
 
             ResetPipGraphBuilder();
 

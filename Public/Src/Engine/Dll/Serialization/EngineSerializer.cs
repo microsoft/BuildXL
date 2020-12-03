@@ -163,7 +163,7 @@ namespace BuildXL.Engine
         /// </summary>
         internal bool TryDeletePreviousInputsJournalCheckpointFile()
         {
-            return FileUtilities.TryDeleteFile(PreviousInputsJournalCheckpoint, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner).Succeeded;
+            return FileUtilities.TryDeleteFile(PreviousInputsJournalCheckpoint, retryOnFailure: true, tempDirectoryCleaner: m_tempDirectoryCleaner).Succeeded;
         }
 
         internal IList<Task<SerializationResult>> SerializationTasks => m_serializationTasks;

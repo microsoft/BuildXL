@@ -224,8 +224,8 @@ namespace BuildXL.Processes
                 m_activeProcessesChecker.Join();
                 m_pathCache.Clear();
                 m_activeProcesses.Clear();
-                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, waitUntilDeletionFinished: false));
-                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, waitUntilDeletionFinished: false));
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, retryOnFailure: false));
             }
 
             private void ProcessBytes(byte[] bytes)

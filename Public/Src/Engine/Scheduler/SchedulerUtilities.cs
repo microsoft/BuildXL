@@ -81,7 +81,7 @@ namespace BuildXL.Scheduler
             {
                 try
                 {
-                    FileUtilities.DeleteFile(corruptFile, waitUntilDeletionFinished: true);
+                    FileUtilities.DeleteFile(corruptFile, retryOnFailure: true);
                 }
                 catch (Exception deleteException)
                 {

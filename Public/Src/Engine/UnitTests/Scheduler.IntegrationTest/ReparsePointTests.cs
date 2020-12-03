@@ -383,7 +383,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var directorySymlinkPath = ArtifactToString(directorySymlink);
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directorySymlinkPath, ArtifactToString(targetDirForSymlink), isTargetFile: false));
 
-            FileUtilities.DeleteFile(directorySymlinkPath, waitUntilDeletionFinished: true);
+            FileUtilities.DeleteFile(directorySymlinkPath, retryOnFailure: true);
             var symDirExistence = FileUtilities.TryProbePathExistence(directorySymlinkPath, followSymlink: false);
             XAssert.IsTrue(Directory.Exists(ArtifactToString(targetDirForSymlink)) && symDirExistence.Succeeded && symDirExistence.Result == PathExistence.Nonexistent);
 
@@ -394,7 +394,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 var junctionPath = ArtifactToString(junction);
                 FileUtilities.CreateJunction(junctionPath, ArtifactToString(targetDirForSymlink));
 
-                FileUtilities.DeleteFile(junctionPath, waitUntilDeletionFinished: true);
+                FileUtilities.DeleteFile(junctionPath, retryOnFailure: true);
                 var junctionExistence = FileUtilities.TryProbePathExistence(junctionPath, followSymlink: false);
                 XAssert.IsTrue(Directory.Exists(ArtifactToString(targetDirFoJunction)) && junctionExistence.Succeeded && junctionExistence.Result == PathExistence.Nonexistent);
             }

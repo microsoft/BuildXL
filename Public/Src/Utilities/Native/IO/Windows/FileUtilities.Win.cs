@@ -209,7 +209,7 @@ namespace BuildXL.Native.IO.Windows
                             if (shouldDelete(childPath))
                             {
                                 // This method already has retry logic, so no need to do retry in DeleteFile
-                                DeleteFile(childPath, waitUntilDeletionFinished: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
+                                DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
                             }
                             else
                             {
@@ -452,11 +452,11 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
+        public Possible<string, DeletionFailure> TryDeleteFile(string path, bool retryOnFailure = true, ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
-                DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
+                DeleteFile(path, retryOnFailure, tempDirectoryCleaner);
                 return path;
             }
             catch (BuildXLException ex)
@@ -474,14 +474,14 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public void DeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
+        public void DeleteFile(string path, bool retryOnFailure = true, ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
 
             OpenFileResult deleteResult = default(OpenFileResult);
             bool successfullyDeletedFile = false;
 
-            if (waitUntilDeletionFinished)
+            if (retryOnFailure)
             {
                 successfullyDeletedFile = Helpers.RetryOnFailure(
                     lastRound => DeleteFileInternal(path, tempDirectoryCleaner, out deleteResult));
@@ -1285,7 +1285,7 @@ namespace BuildXL.Native.IO.Windows
 
             // We are immediately re-creating this path, therefore it is vital to ensure the delete is totally done
             // (otherwise, we may transiently fail to recreate the path with ERROR_ACCESS_DENIED; see DeleteFile remarks)
-            DeleteFile(path, waitUntilDeletionFinished: true);
+            DeleteFile(path, retryOnFailure: true);
             return openAsync
                 ? CreateAsyncFileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete)
                 : CreateFileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete);

@@ -625,7 +625,7 @@ namespace BuildXL.FrontEnd.Core
                 try
                 {
                     FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
-                    FileUtilities.DeleteFile(targetFilePath, waitUntilDeletionFinished: true);
+                    FileUtilities.DeleteFile(targetFilePath, retryOnFailure: true);
                 }
                 catch (BuildXLException e)
                 {

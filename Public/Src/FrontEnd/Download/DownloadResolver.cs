@@ -299,7 +299,7 @@ namespace BuildXL.FrontEnd.Download
             try
             {
                 FileUtilities.CreateDirectory(Path.GetDirectoryName(downloadFilePathAsString));
-                FileUtilities.DeleteFile(downloadFilePathAsString, waitUntilDeletionFinished: true);
+                FileUtilities.DeleteFile(downloadFilePathAsString, retryOnFailure: true);
             }
             catch (BuildXLException e)
             {

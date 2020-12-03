@@ -82,7 +82,7 @@ namespace BuildXL.Storage
                             }
                             else
                             {
-                                FileUtilities.DeleteFile(redirectedPath, waitUntilDeletionFinished: true);
+                                FileUtilities.DeleteFile(redirectedPath, retryOnFailure: true);
                             }
                         }
                         else if (probeRedirectedPath.Result == PathExistence.ExistsAsDirectory)

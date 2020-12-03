@@ -310,7 +310,7 @@ namespace BuildXL.Processes.Containers
 
             if (shouldDelete)
             {
-                FileUtilities.DeleteFile(fileOutput.ExpandedPath, waitUntilDeletionFinished: true);
+                FileUtilities.DeleteFile(fileOutput.ExpandedPath, retryOnFailure: true);
             }
             else
             {

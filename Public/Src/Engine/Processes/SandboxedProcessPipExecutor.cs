@@ -2865,7 +2865,7 @@ namespace BuildXL.Processes
                 if (FileUtilities.FileExistsNoFollow(path))
                 {
                     // Path exists as a file or a symlink (directory/file symlink).
-                    FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
+                    FileUtilities.DeleteFile(path, retryOnFailure: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
                 }
 
                 if (FileUtilities.DirectoryExistsNoFollow(path))

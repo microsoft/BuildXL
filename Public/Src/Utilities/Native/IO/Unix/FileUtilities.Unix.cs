@@ -102,7 +102,7 @@ namespace BuildXL.Native.IO.Unix
                         if (shouldDelete(childPath))
                         {
                             // This method already has retry logic, so no need to do retry in DeleteFile
-                            DeleteFile(childPath, waitUntilDeletionFinished: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
+                            DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
                         }
                         else
                         {
@@ -141,12 +141,12 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public Possible<string, DeletionFailure> TryDeleteFile(
             string path,
-            bool waitUntilDeletionFinished = true,
+            bool retryOnFailure = true,
             ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
-                DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
+                DeleteFile(path, retryOnFailure, tempDirectoryCleaner);
                 return path;
             }
             catch (BuildXLException ex)
@@ -165,7 +165,7 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public void DeleteFile(
             string path,
-            bool waitUntilDeletionFinished = true,
+            bool retryOnFailure = true,
             ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
@@ -191,7 +191,7 @@ namespace BuildXL.Native.IO.Unix
                     }
                 };
 
-            if (waitUntilDeletionFinished)
+            if (retryOnFailure)
             {
                 successfullyDeletedFile = Helpers.RetryOnFailure(
                     attempt =>
@@ -531,7 +531,7 @@ namespace BuildXL.Native.IO.Unix
             // a new inode and thus have a different identity from the old one (on EXT4 filesystems, a simple
             // "rm file && touch file" is very likely to result in 'file' getting the same inode as it had before)
             var tempFile = FileUtilities.GetTempFileName();
-            DeleteFile(path, waitUntilDeletionFinished: true);
+            DeleteFile(path, retryOnFailure: true);
             MoveFileAsync(tempFile, path).GetAwaiter().GetResult();
 
             return openAsync

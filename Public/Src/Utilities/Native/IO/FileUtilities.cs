@@ -271,8 +271,8 @@ namespace BuildXL.Native.IO
             bool allowExcludeFileShareDelete = false) => s_fileUtilities.CreateReplacementFile(path, fileShare, openAsync, allowExcludeFileShareDelete);
 
         /// <see cref="IFileUtilities.DeleteFile(string, bool, ITempCleaner)"/>
-        public static void DeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
+        public static void DeleteFile(string path, bool retryOnFailure = true, ITempCleaner tempDirectoryCleaner = null) =>
+            s_fileUtilities.DeleteFile(path, retryOnFailure, tempDirectoryCleaner);
 
         /// <see cref="IFileUtilities.PosixDeleteMode"/>
         public static PosixDeleteMode PosixDeleteMode
@@ -306,8 +306,8 @@ namespace BuildXL.Native.IO
         }
 
         /// <see cref="IFileUtilities.TryDeleteFile(string, bool, ITempCleaner)"/>
-        public static Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.TryDeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
+        public static Possible<string, DeletionFailure> TryDeleteFile(string path, bool retryOnFailure = true, ITempCleaner tempDirectoryCleaner = null) =>
+            s_fileUtilities.TryDeleteFile(path, retryOnFailure, tempDirectoryCleaner);
 
         /// <summary>
         /// Tries to delete file or directory if exists.
@@ -320,7 +320,7 @@ namespace BuildXL.Native.IO
             {
                 var possibleDeletion = TryDeleteFile(
                     fileOrDirectoryPath,
-                    waitUntilDeletionFinished: true,
+                    retryOnFailure: true,
                     tempDirectoryCleaner: tempDirectoryCleaner);
 
                 if (!possibleDeletion.Succeeded)
@@ -675,7 +675,7 @@ namespace BuildXL.Native.IO
 
             if (shouldCreate)
             {
-                s_fileUtilities.DeleteFile(reparsePoint, waitUntilDeletionFinished: true);
+                s_fileUtilities.DeleteFile(reparsePoint, retryOnFailure: true);
 
                 if (type == ReparsePointType.Junction)
                 {

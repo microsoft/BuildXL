@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Service
@@ -20,6 +21,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// </summary>
     public sealed class ServiceProcess : IStartupShutdown
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(ServiceProcess));
         private readonly ServiceConfiguration _configuration;
         private readonly LocalServerConfiguration _localContentServerConfiguration;
         private readonly string _scenario;
@@ -69,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             StartupStarted = true;
             BoolResult result = BoolResult.Success;
-            context.Debug("Starting service process");
+            Tracer.Debug(context, "Starting service process");
 
             await Task.Run(() =>
             {
@@ -78,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                 _args = _configuration.GetCommandLineArgs(scenario: _scenario);
 
-                context.Debug($"Running cmd=[{appExePath} {_args}]");
+                Tracer.Debug(context, $"Running cmd=[{appExePath} {_args}]");
 
                 const bool CreateNoWindow = true;
                 _process = new ProcessUtility(appExePath.Path, _args, CreateNoWindow);
@@ -110,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     }
                 }
 
-                context.Debug("Process output: " + processOutput);
+                Tracer.Debug(context, "Process output: " + processOutput);
             });
 
             if (result.Succeeded && !LocalContentServer.EnsureRunning(context, _scenario, _waitForServerReadyTimeoutMs))
@@ -126,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Service
         public async Task<BoolResult> ShutdownAsync(Context context)
         {
             ShutdownStarted = true;
-            context.Debug($"Stopping service process {_process?.Id} for scenario {_scenario}");
+            Tracer.Debug(context, $"Stopping service process {_process?.Id} for scenario {_scenario}");
 
             if (_process == null)
             {
@@ -139,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                 if (!_process.WaitForExit(_waitForExitTimeoutMs))
                 {
-                    context.Warning("Service process failed to exit, killing hard");
+                    Tracer.Warning(context, "Service process failed to exit, killing hard");
                     try
                     {
                         _process.Kill();

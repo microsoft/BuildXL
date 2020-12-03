@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         public OperationContext CreateNested(CancellationToken linkedCancellationToken, [CallerMemberName]string? caller = null)
         {
             var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
-            return new OperationContext(new Context(TracingContext, caller), token);
+            return new OperationContext(new Context(TracingContext, caller!), token);
         }
 
         /// <nodoc />

@@ -13,13 +13,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         public bool IsTransient(Exception ex)
         {
-            var e = ex as ClientCanRetryException;
-            if (e == null)
+            if (ex is not ClientCanRetryException e)
             {
                 return false;
             }
 
-            e.Context?.TraceMessage(Severity.Debug, $"Retryable error: {e.Message}");
+            e.Context?.TraceMessage(Severity.Debug, $"Retryable error: {e.Message}", component: nameof(TransientErrorDetectionStrategy));
             return true;
         }
     }

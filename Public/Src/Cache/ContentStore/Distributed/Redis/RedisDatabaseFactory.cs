@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
 
@@ -22,6 +23,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// </summary>
     public class RedisDatabaseFactory
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(RedisDatabaseFactory));
+
         private readonly SemaphoreSlim _creationSemaphore = new SemaphoreSlim(1, 1);
 
         private readonly Func<Task<IConnectionMultiplexer>> _connectionMultiplexerFactory;
@@ -119,11 +122,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
                     if (_resetConnectionMultiplexerCts.IsCancellationRequested)
                     {
-                        context.Debug("Shutting down current connection multiplexer.");
+                        Tracer.Debug(context, "Shutting down current connection multiplexer.");
 
                         await _connectionMultiplexerShutdownFunc(_connectionMultiplexer);
 
-                        context.Debug("Creating new multiplexer instance.");
+                        Tracer.Debug(context, "Creating new multiplexer instance.");
 
                         var newConnectionMultiplexer = await _connectionMultiplexerFactory();
 

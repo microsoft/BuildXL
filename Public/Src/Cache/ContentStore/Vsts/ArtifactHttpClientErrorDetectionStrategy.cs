@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Vsts
@@ -23,6 +24,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// </remarks>
     public class ArtifactHttpClientErrorDetectionStrategy
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(ArtifactHttpClientErrorDetectionStrategy));
         private static readonly Lazy<IRetryPolicy> LazyRetryPolicyInstance = new Lazy<IRetryPolicy>(() => RetryPolicyFactory.GetExponentialPolicy(shouldRetry: IsTransient));
 
         // The HTTP request time out is 5-minute
@@ -40,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     attemptCount++;
                     if (attemptCount > 1)
                     {
-                        context.TraceMessage(Severity.Debug, $"{operationName} attempt #{attemptCount}...");
+                        _tracer.Debug(context, $"{operationName} attempt #{attemptCount}...");
                     }
 
                     return taskFunc();
@@ -59,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     attemptCount++;
                     if (attemptCount > 1)
                     {
-                        context.TraceMessage(Severity.Debug, $"{operationName} attempt #{attemptCount}...");
+                        _tracer.Debug(context, $"{operationName} attempt #{attemptCount}...");
                     }
 
                     return taskFunc();
@@ -91,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                             attemptCount++;
                             if (attemptCount > 1)
                             {
-                                context.TraceMessage(Severity.Info, $"{operationName} attempt #{attemptCount}...");
+                                _tracer.Info(context, $"{operationName} attempt #{attemptCount}...");
                             }
 
                             return await WithTimeoutAsync(taskFunc(innerCancellationSource.Token), timeout.Value, operationName);

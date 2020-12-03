@@ -53,13 +53,13 @@ namespace BuildXL.Cache.ContentStore.App
                         using (Stream fileStream = await _fileSystem.OpenSafeAsync(path, FileAccess.Write, FileMode.Create, FileShare.None))
                         {
                             await r.Stream.CopyToAsync(fileStream);
-                            context.Always($"Content streamed to file path=[{path}]");
+                            _tracer.Always(context, $"Content streamed to file path=[{path}]");
                         }
                     }
                 }
                 else
                 {
-                    context.Error(r.ToString());
+                    _tracer.Error(context, r.ToString());
                 }
             });
         }

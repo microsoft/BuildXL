@@ -64,13 +64,13 @@ namespace BuildXL.Cache.ContentStore.App
                             using (var fileStream = File.OpenWrite(filePath.Path))
                             {
                                 await r.Stream.CopyToAsync(fileStream);
-                                context.Always("Success");
+                                _tracer.Always(context, "Success");
                             }
                         }
                     }
                     else
                     {
-                        context.Error(r.ToString());
+                        _tracer.Error(context, r.ToString());
                     }
                 }
                 else
@@ -86,11 +86,11 @@ namespace BuildXL.Cache.ContentStore.App
 
                     if (!r.Succeeded)
                     {
-                        context.Error(r.ToString());
+                        _tracer.Error(context, r.ToString());
                     }
                     else
                     {
-                        context.Always("Success");
+                        _tracer.Always(context, "Success");
                     }
                 }
             });

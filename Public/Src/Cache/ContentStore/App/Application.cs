@@ -326,12 +326,12 @@ namespace BuildXL.Cache.ContentStore.App
 
         private static void SetThreadPoolSizes()
         {
-            ThreadPool.GetMaxThreads(out var workerThreads, out var completionPortThreads);
+            ThreadPool.GetMaxThreads(out var workerThreads, out _);
             workerThreads = Math.Max(workerThreads, Environment.ProcessorCount * 16);
-            completionPortThreads = workerThreads;
+            var completionPortThreads = workerThreads;
             ThreadPool.SetMaxThreads(workerThreads, completionPortThreads);
 
-            ThreadPool.GetMinThreads(out workerThreads, out completionPortThreads);
+            ThreadPool.GetMinThreads(out workerThreads, out _);
             workerThreads = Math.Max(workerThreads, Environment.ProcessorCount * 16);
             completionPortThreads = workerThreads;
             ThreadPool.SetMinThreads(workerThreads, completionPortThreads);
@@ -455,10 +455,11 @@ namespace BuildXL.Cache.ContentStore.App
         private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, FileSystemContentStoreInternal, Task> funcAsync)
         {
             Initialize();
+            var context = new Context(_logger);
 
             try
             {
-                var context = new Context(_logger);
+                
                 Validate();
 
                 using (var store = CreateInternal(rootPath))
@@ -479,14 +480,14 @@ namespace BuildXL.Cache.ContentStore.App
                         var result = store.ShutdownAsync(context).Result;
                         if (!result)
                         {
-                            context.Error($"Failed to shutdown store, error=[{result.ErrorMessage}]");
+                            _tracer.Error(context, $"Failed to shutdown store, error=[{result.ErrorMessage}]");
                         }
                     }
                 }
             }
             catch (AggregateException exception)
             {
-                _logger.Error(exception.InnerException?.Message);
+                _tracer.Error(context, exception.InnerException?.Message);
             }
         }
 
@@ -600,8 +601,8 @@ namespace BuildXL.Cache.ContentStore.App
 
         private void Trace(ResultBase result, Context context, string message)
         {
-            context.Error($"{message}, result=[{result}]");
-            context.Debug($"{result.Diagnostics}");
+            _tracer.Error(context, $"{message}, result=[{result}]");
+            _tracer.Debug(context, $"{result.Diagnostics}");
         }
 
         private void VerifyCachePathOrNameProvided(string name, string path)

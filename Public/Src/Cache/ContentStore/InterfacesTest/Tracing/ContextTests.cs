@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Tracing
         public void Info()
         {
             var context = new Context(NullLogger.Instance);
-            context.Info("Referencing this method");
+            context.Info("Referencing this method", component: nameof(ContextTests));
         }
     }
 }

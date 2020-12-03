@@ -18,9 +18,9 @@ namespace BuildXL.Cache.ContentStore.App
         {
             RunFileSystemContentStoreInternal(new AbsolutePath(root), async (context, store) =>
             {
-                context.Always($"Running self-check for '{root}'.");
+                _tracer.Always(context, $"Running self-check for '{root}'.");
                 var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ConfigureAwait(false);
-                context.Always($"Self check completed {result}.");
+                _tracer.Always(context, $"Self check completed {result}.");
             });
         }
     }

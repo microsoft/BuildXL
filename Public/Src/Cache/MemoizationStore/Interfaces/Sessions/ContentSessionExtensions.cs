@@ -18,7 +18,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Ensure the existence of all related content by pinning it.
         /// </summary>
-        public static async Task<bool> EnsureContentIsAvailableAsync(this IContentSession contentSession, Context context, ContentHashList contentHashList, CancellationToken cts)
+        public static async Task<bool> EnsureContentIsAvailableAsync(this IContentSession contentSession, Context context, string componentName, ContentHashList contentHashList, CancellationToken cts)
         {
             // If there is no contentSession in which to find content, then trivially no content is available.
             if (contentSession == null)
@@ -41,7 +41,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 {
                     if (pinResult.Item.Code != PinResult.ResultCode.ContentNotFound)
                     {
-                        context.Warning($"Pinning hash {contentHashList.Hashes[pinResult.Index]} failed with error {pinResult}");
+                        context.Warning($"Pinning hash {contentHashList.Hashes[pinResult.Index]} failed with error {pinResult}", component: componentName);
                     }
 
                     pinSucceeded = false;

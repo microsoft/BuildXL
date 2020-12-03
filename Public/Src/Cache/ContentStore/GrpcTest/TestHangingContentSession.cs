@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -164,7 +163,7 @@ namespace ContentStoreTest.Grpc
             }
             catch (Exception ex)
             {
-                context.TraceMessage(Severity.Debug, $"{operationName} threw an exception during unresponsiveness for a test: {ex}");
+                context.TraceMessage(Severity.Debug, $"{operationName} threw an exception during unresponsiveness for a test: {ex}", component: Name);
                 throw;
             }
 

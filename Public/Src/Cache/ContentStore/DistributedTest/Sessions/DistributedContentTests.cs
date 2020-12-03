@@ -29,6 +29,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Synchronization;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
@@ -44,6 +45,8 @@ namespace ContentStoreTest.Distributed.Sessions
 {
     public abstract class DistributedContentTests : TestBase
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(DistributedContentTests));
+
         // It is very important to use "cancellable" cancellation token instance.
         // This fact can be used by the system and change the behavior based on it.
         protected static readonly CancellationToken Token = new CancellationTokenSource().Token;
@@ -210,7 +213,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
                         {
-                            StoreContexts[storeId].Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
+                            _tracer.Debug(StoreContexts[storeId], $"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
                         }
                     }
                 }
@@ -874,7 +877,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         WorkingDirectory = indexedDirectories[0].Directory.Path
                     };
 
-                    context.Always($"Starting test iteration {iteration}");
+                    _tracer.Always(context, $"Starting test iteration {iteration}");
 
                     var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
 
@@ -969,7 +972,7 @@ namespace ContentStoreTest.Distributed.Sessions
             IReadOnlyContentSession session, Context context, ContentHash hash, byte[] expected)
         {
             OpenStreamResult openResult = await session.OpenStreamAsync(context, hash, Token);
-            context.Debug($"Validating stream for content hash {hash} returned result {openResult.Code} with diagnostics {openResult} with ErrorMessage {openResult.ErrorMessage} diagnostics {openResult.Diagnostics}");
+            _tracer.Debug(context, $"Validating stream for content hash {hash} returned result {openResult.Code} with diagnostics {openResult} with ErrorMessage {openResult.ErrorMessage} diagnostics {openResult.Diagnostics}");
             Assert.Equal<OpenStreamResult.ResultCode>(OpenStreamResult.ResultCode.Success, openResult.Code);
             Assert.True(openResult.Succeeded, $"OpenStream did not succeed for content hash {hash}");
             Assert.NotNull(openResult.Stream);

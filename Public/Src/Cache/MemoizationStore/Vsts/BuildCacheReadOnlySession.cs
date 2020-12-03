@@ -261,7 +261,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 var backingContentSessionResult = await backingContentSessionTask.ConfigureAwait(false);
                 if (backingContentSessionResult.Succeeded && writeThroughContentSessionResult.Succeeded)
                 {
-                    _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested());
+                    _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested(Component));
                     result = BoolResult.Success;
                 }
                 else

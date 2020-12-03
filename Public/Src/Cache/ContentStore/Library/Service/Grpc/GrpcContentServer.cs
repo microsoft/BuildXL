@@ -590,7 +590,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             }
 
                             var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
-                            cacheContext.Debug($"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
+                            
+                            _tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
                             return Unit.Void;
                         }
 

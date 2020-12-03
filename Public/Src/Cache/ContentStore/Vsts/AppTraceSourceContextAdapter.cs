@@ -51,12 +51,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             _severityToContextAction = new Dictionary<Severity, Action<string>>
             {
-                { Severity.Always, msg => _context.Always(msg) },
-                { Severity.Error, msg => _context.Error(msg) },
-                { Severity.Warning, msg => _context.Warning(msg) },
-                { Severity.Info, msg => _context.Info(msg) },
-                { Severity.Diagnostic, msg => _context.Debug(msg) },
-                { Severity.Debug, msg => _context.Debug(msg) }
+                { Severity.Always, msg => _context.Always(msg, name) },
+                { Severity.Error, msg => _context.Error(msg, name) },
+                { Severity.Warning, msg => _context.Warning(msg, name) },
+                { Severity.Info, msg => _context.Info(msg, name) },
+                { Severity.Diagnostic, msg => _context.Debug(msg, name) },
+                { Severity.Debug, msg => _context.Debug(msg, name) }
             };
         }
 

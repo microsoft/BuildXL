@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             if (lifetimeManager == null)
             {
-                context.Warning("Can't teardown the instance because lifetime manager is not available.");
+                context.Warning("Can't teardown the instance because lifetime manager is not available.", component: nameof(LifetimeManager));
             }
             else
             {

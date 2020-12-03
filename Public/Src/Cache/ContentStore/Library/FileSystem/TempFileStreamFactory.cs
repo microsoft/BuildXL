@@ -7,6 +7,7 @@ using System.IO;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
@@ -16,6 +17,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
     /// </summary>
     public sealed class TempFileStreamFactory : IDisposable
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(TempFileStreamFactory));
         private readonly IAbsFileSystem _fileSystem;
         private readonly DisposableDirectory _directory;
 
@@ -56,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
             catch (Exception exception)
             {
-                context.Error($"Failed to create temp file stream for path=[{path}] due to error=[{exception.GetLogEventMessage()}]");
+                _tracer.Error(context, $"Failed to create temp file stream for path=[{path}] due to error=[{exception.GetLogEventMessage()}]");
 
                 try
                 {
@@ -64,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 }
                 catch (Exception e)
                 {
-                    context.Error($"Failed to delete temp file at path=[{path}] due to error=[{e.GetLogEventMessage()}]");
+                    _tracer.Error(context, $"Failed to delete temp file at path=[{path}] due to error=[{e.GetLogEventMessage()}]");
                 }
 
                 throw;

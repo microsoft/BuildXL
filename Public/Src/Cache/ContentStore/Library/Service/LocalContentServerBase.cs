@@ -120,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Service
             Logger = logger;
             Config = localContentServerConfiguration;
 
-            _serviceReadinessChecker = new ServiceReadinessChecker(Tracer, logger, scenario);
+            _serviceReadinessChecker = new ServiceReadinessChecker(logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, SessionHandle<TSession>>();
 
             var storesByName = new Dictionary<string, TStore>();

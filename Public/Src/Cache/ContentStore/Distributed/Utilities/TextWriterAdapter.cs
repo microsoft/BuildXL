@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.IO;
 using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -22,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             _context = context;
             _severity = severity;
-            _component = component ?? string.Empty;
+            _component = component ?? nameof(TextWriterAdapter);
             _operation = operation ?? string.Empty;
         }
 

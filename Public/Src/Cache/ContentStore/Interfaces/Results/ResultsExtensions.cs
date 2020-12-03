@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -15,6 +16,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public static class ResultsExtensions
     {
+        private static readonly string Component = nameof(ResultsExtensions);
+
         /// <nodoc />
         public static string GetDiagnosticsMessageForTracing(this ResultBase result, string prefix = " ")
         {
@@ -34,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             var result = await task;
             if (!result)
             {
-                context.Warning($"Operation '{operationName}' failed with an error={result}", operation: operationName);
+                context.Warning($"Operation '{operationName}' failed with an error={result}", Component, operation: operationName);
             }
 
             return result;
@@ -59,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (!result.Succeeded)
             {
-                context.Warning($"Operation '{operationName}' failed with an error={result}", operation: operationName);
+                context.Warning($"Operation '{operationName}' failed with an error={result}", Component, operation: operationName);
             }
 
             return result;

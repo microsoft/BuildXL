@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             _collection = order == SemaphoreOrder.FIFO
                 ? (IProducerConsumerCollection<TaskSourceSlim<bool>>)new ConcurrentQueue<TaskSourceSlim<bool>>()
                 : new ConcurrentStack<TaskSourceSlim<bool>>();
-            _context = context.CreateNested();
+            _context = context.CreateNested(nameof(OrderedSemaphore));
 
             // Non-deterministic means to skip this as a wrapper and use the underlying Semaphore, so a main loop is not needed.
             if (order != SemaphoreOrder.NonDeterministic)

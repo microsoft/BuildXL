@@ -786,7 +786,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             ContentHashWithSizeAndLocations info = infos[i];
                             ContentLocationEntry entry = entries[i];
 
-                            context.Context.Debug($"Hash: {info.ContentHash}, Size: {info.Size}, LocCount: {info.Locations?.Count}");
+                            Tracer.Debug(context.Context, $"Hash: {info.ContentHash}, Size: {info.Size}, LocCount: {info.Locations?.Count}");
 
                             info.ContentHash.Should().Be(page[i].Hash);
                             info.Size.Should().Be(page[i].Size);
@@ -2543,15 +2543,15 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var lruContent = await dir.GetLruOrderedCacheContentWithTimeAsync();
 
-                    var tracer = context.Context;
+                    var tracingContext = context.Context;
 
-                    tracer.Debug($"LRU content count = {lruContent.Count}");
+                    Tracer.Debug(tracingContext, $"LRU content count = {lruContent.Count}");
                     long lastTime = 0;
                     HashSet<ContentHash> hashes = new HashSet<ContentHash>();
                     foreach (var item in master.GetHashesInEvictionOrder(context, lruContent))
                     {
-                        tracer.Debug($"{item}");
-                        tracer.Debug($"LTO: {item.EffectiveAge.Ticks - lastTime}, LOTO: {item.EffectiveAge.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
+                        Tracer.Debug(tracingContext, $"{item}");
+                        Tracer.Debug(tracingContext, $"LTO: {item.EffectiveAge.Ticks - lastTime}, LOTO: {item.EffectiveAge.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
 
                         lastTime = item.Age.Ticks;
                     }
@@ -2994,22 +2994,22 @@ namespace ContentStoreTest.Distributed.Sessions
                         localOrderedHashes,
                         reverse: false).ToList();
 
-                    context.Context.Debug($"Content listing (out of {localOrderedHashes.Count})");
+                    Tracer.Debug(context.Context, $"Content listing (out of {localOrderedHashes.Count})");
                     foreach (var result in evictionOrderedHashes.Take(10000))
                     {
-                        context.Context.Debug(result.ToString());
+                        Tracer.Debug(context.Context, result.ToString());
                     }
 
-                    context.Context.Debug($"Top effective ages (out of {localOrderedHashes.Count})");
+                    Tracer.Debug(context.Context, $"Top effective ages (out of {localOrderedHashes.Count})");
                     foreach (var result in evictionOrderedHashes.OrderByDescending(e => e.EffectiveAge).Take(1000))
                     {
-                        context.Context.Debug(result.ToString());
+                        Tracer.Debug(context.Context, result.ToString());
                     }
 
-                    context.Context.Debug($"Top local ages (out of {localOrderedHashes.Count})");
+                    Tracer.Debug(context.Context, $"Top local ages (out of {localOrderedHashes.Count})");
                     foreach (var result in evictionOrderedHashes.OrderByDescending(e => e.LocalAge).Take(1000))
                     {
-                        context.Context.Debug(result.ToString());
+                        Tracer.Debug(context.Context, result.ToString());
                     }
                 });
         }

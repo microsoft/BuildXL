@@ -48,11 +48,11 @@ namespace BuildXL.Cache.ContentStore.App
 
                     if (!result.Succeeded)
                     {
-                        context.Error(result.ToString());
+                        _tracer.Error(context, result.ToString());
                     }
                     else
                     {
-                        context.Always($"Content added with hash=[{result.ContentHash}], size=[{result.ContentSize}]");
+                        _tracer.Always(context, $"Content added with hash=[{result.ContentHash}], size=[{result.ContentSize}]");
                     }
                 }
             });

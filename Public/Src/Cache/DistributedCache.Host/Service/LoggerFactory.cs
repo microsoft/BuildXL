@@ -2,31 +2,22 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.Logging;
 using BuildXL.Cache.Logging.External;
-using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -35,6 +26,7 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public static class LoggerFactory
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(LoggerFactory));
         /// <summary>
         ///     This method allows CASaaS to replace the host's logger for our own logger.
         /// </summary>
@@ -66,7 +58,7 @@ namespace BuildXL.Cache.Host.Service
             var context = new Context(logger);
             var operationContext = new OperationContext(context);
 
-            context.Info($"Replacing cache logger for NLog-based implementation using configuration file at `{loggingSettings.NLogConfigurationPath}`");
+            Tracer.Info(context, $"Replacing cache logger for NLog-based implementation using configuration file at `{loggingSettings.NLogConfigurationPath}`");
 
             try
             {
@@ -83,7 +75,7 @@ namespace BuildXL.Cache.Host.Service
             }
             catch (Exception e)
             {
-                context.Error($"Failed to instantiate NLog-based logger with error: {e}");
+                Tracer.Error(context, $"Failed to instantiate NLog-based logger with error: {e}");
                 return (logger, null);
             }
         }

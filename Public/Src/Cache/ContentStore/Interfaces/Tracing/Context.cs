@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 {
     /// <summary>
@@ -42,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, string? componentName = null, [CallerMemberName]string? caller = null)
+        public Context(Context other, string componentName = null, [CallerMemberName]string? caller = null)
             : this(other, Guid.NewGuid(), componentName, caller)
         {
         }
@@ -53,13 +55,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         public Context(Context other, Guid id, [CallerMemberName]string? caller = null)
             : this(id, other.Logger)
         {
-            Debug($"{caller}: {other._idAsString} parent to {_idAsString}", operation: caller);
+            Debug($"{caller}: {other._idAsString} parent to {_idAsString}", operation: caller, component: nameof(Context));
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, Guid id, string? componentName, [CallerMemberName]string? caller = null)
+        public Context(Context other, Guid id, string componentName, [CallerMemberName]string? caller = null)
             : this(id, other.Logger)
         {
             string prefix = caller!;
@@ -72,13 +74,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <nodoc />
-        public Context CreateNested(string? componentName = null, [CallerMemberName]string? caller = null)
+        public Context CreateNested(string componentName, [CallerMemberName]string? caller = null)
         {
             return new Context(this, componentName, caller);
         }
 
         /// <nodoc />
-        public Context CreateNested(Guid id, string? componentName = null, [CallerMemberName]string? caller = null)
+        public Context CreateNested(Guid id, string componentName, [CallerMemberName]string? caller = null)
         {
             return new Context(this, id, componentName, caller);
         }
@@ -109,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Log a message if current severity is set to at least Always.
         /// </summary>
-        public void Always(string message, string? component = null, [CallerMemberName] string? operation = null)
+        public void Always(string message, string component, [CallerMemberName] string? operation = null)
         {
             TraceMessage(Severity.Always, message, component, operation);
         }
@@ -117,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Log a message if current severity is set to at least Error.
         /// </summary>
-        public void Error(string message, string? component = null, [CallerMemberName] string? operation = null)
+        public void Error(string message, string component, [CallerMemberName] string? operation = null)
         {
             TraceMessage(Severity.Error, message, component, operation);
         }
@@ -125,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Log a message if current severity is set to at least Warning.
         /// </summary>
-        public void Warning(string message, string? component = null, [CallerMemberName] string? operation = null)
+        public void Warning(string message, string component, [CallerMemberName] string? operation = null)
         {
             TraceMessage(Severity.Warning, message, component, operation);
         }
@@ -133,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Log a message if current severity is set to at least Info.
         /// </summary>
-        public void Info(string message, string? component = null, [CallerMemberName] string? operation = null)
+        public void Info(string message, string component, [CallerMemberName] string? operation = null)
         {
             TraceMessage(Severity.Info, message, component, operation);
         }
@@ -141,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Log a message if current severity is set to at least Debug.
         /// </summary>
-        public void Debug(string message, string? component = null, [CallerMemberName] string? operation = null)
+        public void Debug(string message, string component, [CallerMemberName] string? operation = null)
         {
             TraceMessage(Severity.Debug, message, component, operation);
         }
@@ -149,14 +151,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Trace a message if current severity is set to at least the given severity.
         /// </summary>
-        public void TraceMessage(Severity severity, string message, string? component = null, [CallerMemberName] string? operation = null)
+        public void TraceMessage(Severity severity, string message, string component, [CallerMemberName] string? operation = null)
         {
             if (Logger == null)
             {
                 return;
             }
 
-            component ??= string.Empty;
             operation ??= string.Empty;
 
             if (Logger is IStructuredLogger structuredLogger)

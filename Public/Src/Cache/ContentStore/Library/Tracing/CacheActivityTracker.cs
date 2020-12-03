@@ -55,6 +55,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
     /// </remarks>
     public class CacheActivityTracker : IDisposable
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(CacheActivityTracker));
         private static object _trackerInitializationLock = new object();
         private static CacheActivityTracker? _tracker;
 
@@ -85,14 +86,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _snapshotTimer = new Timer(_ => CollectSnapshotCore(), state: null, dueTime: period, period: period);
 
             var reportPeriodValue = reportPeriod ?? period;
-            _context = context.CreateNested();
+            _context = context.CreateNested(nameof(CacheActivityTracker));
             _traceTimer = new Timer(_ => TraceCurrentSnapshot(_context), state: null, dueTime: reportPeriodValue, period: reportPeriodValue);
         }
 
         /// <inheritdoc />
         public void Dispose()
         {
-            _context.Info("Disposing Cache activity tracker");
+            Tracer.Info(_context, "Disposing Cache activity tracker");
             _snapshotTimer.Dispose();
             _traceTimer.Dispose();
         }
@@ -111,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </remarks>
         public static void Start(Context context, IClock clock, TimeSpan trackingActivityWindow, TimeSpan? snapshotPeriod, TimeSpan? reportPeriod)
         {
-            context.Info("Starting activity tracker");
+            Tracer.Info(context, "Starting activity tracker");
 
             bool initialized = false;
             LazyInitializer.EnsureInitialized(ref _tracker, ref initialized, ref _trackerInitializationLock, () => new CacheActivityTracker(context, clock, trackingActivityWindow, snapshotPeriod, reportPeriod));

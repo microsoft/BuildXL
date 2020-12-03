@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             }
             catch (Exception exception)
             {
-                _context.Debug($"Unable to cleanup `{Path}` due to exception: {exception}");
+                _context.Debug($"Unable to cleanup `{Path}` due to exception: {exception}", component: nameof(DisposableFile));
             }
         }
     }

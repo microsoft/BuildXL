@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
                     // Intentionally tracing only message, because if the issue is transient, its not very important to see the full stack trace (we never seen them before)
                     // and if the issue is not transient, then the client of this class is responsible for properly tracing the full stack trace.
-                    context.Debug($"RetryPolicy.ExecuteAsync: attempt #{attempt}, Redis operation '{caller}'{databaseText} failed with: {e.Message}.");
+                    context.Debug($"RetryPolicy.ExecuteAsync: attempt #{attempt}, Redis operation '{caller}'{databaseText} failed with: {e.Message}.", component: nameof(RetryPolicyExtensions));
                     ExceptionDispatchInfo.Capture(e).Throw();
                     throw; // unreachable
                 }

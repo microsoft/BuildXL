@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -26,6 +27,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcFileCopier : IRemoteFileCopier, IContentCommunicationManager, IDisposable
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(GrpcFileCopier));
+
         private readonly Context _context;
         private readonly GrpcFileCopierConfiguration _configuration;
 
@@ -73,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
             catch (Exception e)
             {
-                context.Warning($"Failed to get machine name from `Dns.GetHostName`. Falling back to `Environment.MachineName`. {e.ToString()}");
+                Tracer.Warning(context, $"Failed to get machine name from `Dns.GetHostName`. Falling back to `Environment.MachineName`. {e}");
                 _localMachineName = Environment.MachineName;
             }
         }

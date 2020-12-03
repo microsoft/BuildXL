@@ -16,16 +16,18 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Performance;
 using ContentStoreTest.Test;
 using FluentAssertions;
-using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Xunit;
 using Record = BuildXL.Cache.MemoizationStore.Sessions.Record;
+using BuildXL.Cache.ContentStore.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
 {
     public abstract class MemoizationPerformanceTests : TestBase
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(MemoizationPerformanceTests));
+
         protected const int MaxRowCount = 10_000;
         private const string ItemCountEnvironmentVariableName = "MemoizationPerformanceTestsItemCount";
         private const int ItemCountDefault = 1000;
@@ -59,7 +61,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
             _context = new Context(Logger);
             var itemCountEnvironmentVariable = Environment.GetEnvironmentVariable(ItemCountEnvironmentVariableName);
             _itemCount = itemCountEnvironmentVariable == null ? ItemCountDefault : int.Parse(itemCountEnvironmentVariable);
-            _context.Debug($"Using itemCount=[{_itemCount}] (MaxRowCount=[{MaxRowCount}])");
+            _tracer.Debug(_context, $"Using itemCount=[{_itemCount}] (MaxRowCount=[{MaxRowCount}])");
 
             ResultsFixture = resultsFixture;
             _initialDatabaseSize = initialDatabaseSize;
@@ -77,7 +79,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                 return;
             }
 
-            _context.Always($"Creating prepopulated database at path={databaseFilePath}");
+            _tracer.Always(_context, $"Creating prepopulated database at path={databaseFilePath}");
 
             using (var disposableDirectory = new DisposableDirectory(FileSystem))
             {

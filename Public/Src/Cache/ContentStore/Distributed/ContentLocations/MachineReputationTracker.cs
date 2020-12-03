@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
@@ -68,6 +69,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public class MachineReputationTracker
     {
+        private static readonly Tracer Tracer = new Tracer(nameof(MachineReputationTracker));
+
         private readonly Context _context;
         private readonly IClock _clock;
         private readonly MachineReputationTrackerConfiguration _configuration;
@@ -107,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 && _clusterState.TryResolveMachineId(location, out var machineId)
                 && (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId)))
             {
-                _context.Debug($"Marked machine {machineId}='{location}' active due to report of good reputation.");
+                Tracer.Debug(_context, $"Marked machine {machineId}='{location}' active due to report of good reputation.");
                 _clusterState.MarkMachineActive(machineId).IgnoreFailure();
             }
 
@@ -187,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
             if (reputationChanged)
             {
-                _context.Debug($"Changed reputation{reason} (new: {reputation}, old: {oldReputation}) for machine with location {displayLocation}.");
+                Tracer.Debug(_context, $"Changed reputation{reason} (new: {reputation}, old: {oldReputation}) for machine with location {displayLocation}.");
             }
         }
 

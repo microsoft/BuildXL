@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
     /// </summary>
     public class VfsCasRunner
     {
-        private Tracer Tracer { get; } = new Tracer(nameof(VfsCasRunner));
+        private static readonly Tracer Tracer= new Tracer(nameof(VfsCasRunner));
 
         public async Task RunAsync(VfsServiceConfiguration configuration)
         {
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
 
             Console.CancelKeyPress += (sender, args) =>
             {
-                context.Debug("Terminating due to cancellation request on console.");
+                Tracer.Debug(context, "Terminating due to cancellation request on console.");
                 termination.TrySetResult(true);
             };
 
@@ -87,13 +87,13 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 {
                     if (line.Equals("exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        context.Debug("Terminating due to exit request on console.");
+                        Tracer.Debug(context, "Terminating due to exit request on console.");
                         termination.TrySetResult(true);
                         break;
                     }
                 }
 
-                context.Debug("Terminating due to end of standard input.");
+                Tracer.Debug(context, "Terminating due to end of standard input.");
                 termination.TrySetResult(true);
             }).FireAndForget(context);
 

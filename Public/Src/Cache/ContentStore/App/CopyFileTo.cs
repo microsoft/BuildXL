@@ -65,12 +65,12 @@ namespace BuildXL.Cache.ContentStore.App
 
                 if (!copyFileResult.Succeeded)
                 {
-                    context.Error($"{copyFileResult}");
+                    _tracer.Error(context, $"{copyFileResult}");
                     throw new CacheException(copyFileResult.ErrorMessage);
                 }
                 else
                 {
-                    context.Info($"Copy of {sourcePath} was successful");
+                    _tracer.Info(context, $"Copy of {sourcePath} was successful");
                 }
             }
             catch (Exception ex)

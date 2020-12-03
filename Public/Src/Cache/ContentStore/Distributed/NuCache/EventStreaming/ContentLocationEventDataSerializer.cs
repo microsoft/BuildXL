@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
@@ -42,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     {
         private readonly ValidationMode _validationMode;
         private const string Prefix = nameof(ContentLocationEventDataSerializer);
+        private static readonly Tracer Tracer = new Tracer(Prefix);
 
         /// <summary>
         /// Max size of the <see cref="EventData"/> instance.
@@ -200,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 {
                     var start = i * MaxDesiredTraceMessageSize;
                     var length = Math.Min(totalLength - start, MaxDesiredTraceMessageSize);
-                    context.TracingContext.Warning($"{i} of {traceCount}: '{builder.ToString(start, length)}'");
+                    Tracer.Warning(context, $"{i} of {traceCount}: '{builder.ToString(start, length)}'");
                 }
 
                 if (_validationMode == ValidationMode.Fail)

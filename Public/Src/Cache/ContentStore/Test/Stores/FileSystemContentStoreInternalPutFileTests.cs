@@ -4,7 +4,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -45,7 +44,7 @@ namespace ContentStoreTest.Stores
             
             if (!AbsolutePath.LongPathsSupported)
             {
-                context.Debug($"The test '{nameof(PutFileWithLongPath)}' is skipped because long paths are not supported by the current version of .net framework.");
+                context.Debug($"The test '{nameof(PutFileWithLongPath)}' is skipped because long paths are not supported by the current version of .net framework.", component: nameof(FileSystemContentStoreInternalPutFileTests));
                 return Task.FromResult(1);
             }
 
@@ -489,8 +488,7 @@ namespace ContentStoreTest.Stores
             Func<PutResult, bool> checkResult)
         {
             // This only works when we have multiple drives.
-            var memoryFileSystem = FileSystem as MemoryFileSystem;
-            if (memoryFileSystem == null)
+            if (FileSystem is not MemoryFileSystem)
             {
                 return;
             }

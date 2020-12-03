@@ -398,7 +398,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (contextEnabled)
             {
-                context.TraceMessage(severity, message);
+                context.TraceMessage(severity, message, component: Name);
             }
         }
     }

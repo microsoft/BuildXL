@@ -164,7 +164,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                     if (oldContentHashList is null ||
                         oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                        !(await contentSession.EnsureContentIsAvailableAsync(ctx, oldContentHashList, ctx.Token).ConfigureAwait(false)))
+                        !(await contentSession.EnsureContentIsAvailableAsync(ctx, Tracer.Name, oldContentHashList, ctx.Token).ConfigureAwait(false)))
                     {
                         // Replace if incoming has better determinism or some content for the existing
                         // entry is missing. The entry could have changed since we fetched the old value

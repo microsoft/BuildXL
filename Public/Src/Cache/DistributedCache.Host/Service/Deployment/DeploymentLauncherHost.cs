@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
@@ -117,6 +118,8 @@ namespace BuildXL.Cache.Host.Service
 
         private class LauncherProcess : ILauncherProcess
         {
+            private static readonly Tracer _tracer = new Tracer(nameof(LauncherProcess));
+
             private readonly Process _process;
 
             public LauncherProcess(ProcessStartInfo info)
@@ -150,12 +153,12 @@ namespace BuildXL.Cache.Host.Service
             {
                 _process.OutputDataReceived += (s, e) =>
                 {
-                    context.TracingContext.Debug("Service Output: " + e.Data);
+                    _tracer.Debug(context, "Service Output: " + e.Data);
                 };
 
                 _process.ErrorDataReceived += (s, e) =>
                 {
-                    context.TracingContext.Error("Service Error: " + e.Data);
+                    _tracer.Error(context, "Service Error: " + e.Data);
                 };
 
                 _process.Start();

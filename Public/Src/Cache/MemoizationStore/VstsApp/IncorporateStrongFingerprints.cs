@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -93,12 +94,12 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                                 async fingerprints =>
                                 {
                                     var iterationStopwatch = Stopwatch.StartNew();
-                                    var iterationContext = context.CreateNested();
+                                    var iterationContext = context.CreateNested(nameof(IncorporateStrongFingerprints));
                                     CreateSessionResult<ICacheSession> createSessionResult = cache.CreateSession(
                                         iterationContext, sessionName, implicitPin);
                                     if (!createSessionResult.Succeeded)
                                     {
-                                        iterationContext.TraceMessage(Severity.Error, $"Failed to create BuildCache session. Result=[{createSessionResult}]");
+                                        _tracer.Error(iterationContext, $"Failed to create BuildCache session. Result=[{createSessionResult}]");
                                         return;
                                     }
 
@@ -107,7 +108,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                                         BoolResult r = await session.StartupAsync(iterationContext);
                                         if (!r.Succeeded)
                                         {
-                                            iterationContext.TraceMessage(Severity.Error, $"Failed to start up BuildCache client session. Result=[{r}]");
+                                            _tracer.Error(iterationContext, $"Failed to start up BuildCache client session. Result=[{r}]");
                                             return;
                                         }
 
@@ -122,12 +123,12 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                                             r = await session.ShutdownAsync(iterationContext);
                                             if (r.Succeeded)
                                             {
-                                                _logger.Always(
+                                                _tracer.Always(context,
                                                     $"Incorporated {count} fingerprints in {iterationStopwatch.ElapsedMilliseconds / 1000} seconds.");
                                             }
                                             else
                                             {
-                                                iterationContext.TraceMessage(Severity.Error, $"Failed to shut down BuildCache client Session. Result=[{r}]");
+                                                _tracer.Error(iterationContext, $"Failed to shut down BuildCache client Session. Result=[{r}]");
                                             }
                                         }
                                     }
@@ -160,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                 BoolResult r = await cache.StartupAsync(context);
                 if (!r.Succeeded)
                 {
-                    context.TraceMessage(Severity.Error, $"Failed to start up BuildCache client. Result=[{r}]");
+                    _tracer.Error(context, $"Failed to start up BuildCache client. Result=[{r}]");
                     return;
                 }
 
@@ -173,7 +174,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                     r = await cache.ShutdownAsync(context);
                     if (!r.Succeeded)
                     {
-                        context.TraceMessage(Severity.Error, $"Failed to shut down BuildCache client. Result=[{r}]");
+                        _tracer.Error(context, $"Failed to shut down BuildCache client. Result=[{r}]");
                     }
                 }
             }

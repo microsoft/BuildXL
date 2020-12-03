@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
@@ -19,6 +20,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// <inheritdoc />
     public class BackingContentStoreHttpClientFactory : IArtifactHttpClientFactory, IStartup<BoolResult>
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(BackingContentStoreHttpClientFactory));
         private readonly Uri _backingStoreBaseUri;
         private readonly VssCredentialsFactory _vssCredentialsFactory;
         private readonly TimeSpan _httpSendTimeout;
@@ -83,8 +85,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     "VerifyBlobStoreHttpClientConnection",
                     () => _httpClientFactory.VerifyConnectionAsync(client),
                     CancellationToken.None).ConfigureAwait(false);
-                context.TraceMessage(
-                    Severity.Debug, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[Default]");
+                _tracer.Debug(context, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[Default]");
                 return client;
             }
 
@@ -102,8 +103,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     "VerifyDedupStoreHttpClientConnection",
                     () => _httpClientFactory.VerifyConnectionAsync(client),
                     CancellationToken.None).ConfigureAwait(false);
-                context.TraceMessage(
-                    Severity.Debug, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[Default]");
+                _tracer.Debug(context, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[Default]");
                 return client;
             }
 
@@ -118,8 +118,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 "VerifyDomainBlobStoreHttpClientConnection",
                 () => _httpClientFactory.VerifyConnectionAsync(client),
                 CancellationToken.None).ConfigureAwait(false);
-            context.TraceMessage(
-                Severity.Debug, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[{_domain.Serialize()}]");
+            _tracer.Debug(context, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[{_domain.Serialize()}]");
 
             return new DomainBlobHttpClientWrapper(_domain, client);
         }
@@ -132,8 +131,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 "VerifyDomainBlobStoreHttpClientConnection",
                 () => _httpClientFactory.VerifyConnectionAsync(client),
                 CancellationToken.None).ConfigureAwait(false);
-            context.TraceMessage(
-                Severity.Debug, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[{_domain.Serialize()}]");
+            _tracer.Debug(context, $"Verified connection to {_backingStoreBaseUri} with SessionId=[{_httpClientFactory.ClientSettings.SessionId}], Domain=[{_domain.Serialize()}]");
 
             return new DomainHttpClientWrapper(_domain, client);
         }

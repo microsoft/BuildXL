@@ -1749,6 +1749,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Create separate event store for reconciliation events so they are dispatched first before
             // events in normal event store which may be queued during reconciliation operation.
+
+            // Setting 'FailWhenSendEventsFails' to true, to fail reconciliation if we fail to send the events to event hub.
+            // In this case 'ShutdownEventQueueAndWaitForCompletionAsync' will propagate an exception from a failed SendEventsAsync method.
+            var reconciliationStoreConfiguration = Configuration with { EventStore = Configuration.EventStore with { FailWhenSendEventsFails = true } };
             var reconciliationEventStore = CreateEventStore(Configuration, subfolder: "reconcile");
 
             try

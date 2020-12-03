@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Utilities.Collections;
@@ -37,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Configuration properties for <see cref="LocalLocationStore"/>
     /// </summary>
-    public class LocalLocationStoreConfiguration
+    public record LocalLocationStoreConfiguration
     {
         /// <summary>
         /// Indicates whether LLS operates in read-only mode where no writes are performed

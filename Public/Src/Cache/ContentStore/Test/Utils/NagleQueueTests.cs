@@ -153,13 +153,34 @@ namespace ContentStoreTest.Utils
                               },
                 maxDegreeOfParallelism: 1,
                 interval: TimeSpan.FromMilliseconds(1),
-                batchSize: 1);
+                batchSize: 3);
             var sw = Stopwatch.StartNew();
             queue.Enqueue(42);
 
             await queue.DisposeAsync();
             tcs.Task.IsCompleted.Should().BeTrue();
 
+            logger.Debug($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
+        }
+
+        [Fact]
+        public async Task DisposeAsyncShouldFailIfCallbackFails()
+        {
+            var logger = TestGlobal.Logger;
+            logger.Debug("Starting...");
+            var queue = NagleQueue<int>.Create(
+                processBatch: async data =>
+                {
+                    await Task.Yield();
+                    throw new InvalidOperationException("12");
+                },
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMilliseconds(1),
+                batchSize: 3);
+            var sw = Stopwatch.StartNew();
+            queue.Enqueue(42);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => queue.DisposeAsync());
             logger.Debug($"Disposed. Elapsed: {sw.ElapsedMilliseconds}");
         }
 

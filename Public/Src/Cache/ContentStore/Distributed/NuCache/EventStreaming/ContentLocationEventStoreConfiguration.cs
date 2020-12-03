@@ -9,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     /// <summary>
     /// Configuration type for <see cref="ContentLocationEventStore"/> family of types.
     /// </summary>
-    public abstract class ContentLocationEventStoreConfiguration
+    public record ContentLocationEventStoreConfiguration
     {
         /// <summary>
         /// The number of events which forces an event batch to be sent
@@ -55,12 +55,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// The size of the queue used for concurrent event processing.
         /// </summary>
         public int EventProcessingMaxQueueSize { get; set; } = 10000;
+
+        /// <summary>
+        /// If true, the nagle queue used by the event store will stop processing events and the error will be propagated back to the caller in Dispose method.
+        /// </summary>
+        public bool FailWhenSendEventsFails { get; set; } = false;
     }
 
     /// <summary>
     /// Configuration type for <see cref="MemoryEventHubClient"/>.
     /// </summary>
-    public class MemoryContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
+    public record MemoryContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
     {
         /// <nodoc />
         public MemoryContentLocationEventStoreConfiguration()
@@ -83,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     /// <summary>
     /// Configuration type for event hub-based content location event store.
     /// </summary>
-    public sealed class EventHubContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
+    public record EventHubContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
     {
         /// <inheritdoc />
         public EventHubContentLocationEventStoreConfiguration(

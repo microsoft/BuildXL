@@ -185,6 +185,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful but only when <paramref name="throwOnFailure"/> is true.
+        /// </summary>
+        public static Task<T> ThrowIfNeededAsync<T>(this Task<T> task, bool throwOnFailure)
+            where T : ResultBase
+        {
+            return throwOnFailure ? task.ThrowIfFailure() : task;
+        }
+
+        /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
         public static void ThrowIfFailure<TResult>(this IEnumerable<TResult> results) where TResult : ResultBase

@@ -7,7 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
     /// <nodoc />
-    public class RedisMemoizationStoreConfiguration : RedisContentLocationStoreConfiguration
+    public record RedisMemoizationStoreConfiguration : RedisContentLocationStoreConfiguration
     {
         /// <summary>
         /// Time before memoization entries expire.

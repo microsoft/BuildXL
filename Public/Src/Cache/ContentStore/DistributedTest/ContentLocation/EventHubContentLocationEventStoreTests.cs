@@ -147,7 +147,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             };
         }
 
-        private class SlowedContentLocationEventStoreConfiguration : MemoryContentLocationEventStoreConfiguration
+        private record SlowedContentLocationEventStoreConfiguration : MemoryContentLocationEventStoreConfiguration
         {
             public TimeSpan Slowdown { get; set; } = TimeSpan.Zero;
 

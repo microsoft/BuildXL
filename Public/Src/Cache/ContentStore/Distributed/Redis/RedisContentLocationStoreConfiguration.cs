@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// Configuration properties for <see cref="RedisGlobalStore"/>
     /// </summary>
-    public class RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
+    public record RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
     {
         /// <summary>
         /// The keyspace under which all keys in redis are stored

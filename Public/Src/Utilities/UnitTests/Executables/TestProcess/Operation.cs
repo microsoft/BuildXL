@@ -355,7 +355,7 @@ namespace Test.BuildXL.Executables.TestProcess
             FileOrDirectoryArtifact? linkPath = null,
             SymbolicLinkFlag? symLinkFlag = null,
             bool? doNotInfer = null,
-            string additionalArgs = null, 
+            string additionalArgs = null,
             int retriesOnWrite = 5,
             string environmentVariablesToSet = null)
         {
@@ -810,7 +810,7 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <summary>
         /// Like <see cref="SpawnAndWritePidFile"/> except it sets the given environment variables.
         /// </summary>
-        public static Operation SpawnAndWritePidFileWithEnvs(PathTable pathTable, bool waitToFinish, Operation[] childOperations, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, string envs = null )
+        public static Operation SpawnAndWritePidFileWithEnvs(PathTable pathTable, bool waitToFinish, Operation[] childOperations, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, string envs = null)
         {
             var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
             return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null, doNotInfer: doNotInfer, environmentVariablesToSet: envs);
@@ -1027,7 +1027,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 // Ignore tests for denied file access policies
             }
         }
-        
+
         private void DoWriteFileIfInputEqual()
         {
             string[] argument = DecodeList(Content);
@@ -1247,7 +1247,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 throw maybeSymlink.Failure.CreateException();
             }
         }
-        
+
         private void DoCreateJunction()
         {
             Contract.Assert(!OperatingSystemHelper.IsUnixOS);
@@ -1543,11 +1543,11 @@ namespace Test.BuildXL.Executables.TestProcess
             string envToSet = opArgs[6].Length == 0 ? null : opArgs[6];
 
             return Operation.FromCommandLine(
-                type: opType, 
-                path: pathAsString, 
-                content: content, 
-                linkPath: linkPathAsString, 
-                symLinkFlag: symLinkFlag, 
+                type: opType,
+                path: pathAsString,
+                content: content,
+                linkPath: linkPathAsString,
+                symLinkFlag: symLinkFlag,
                 additionalArgs: additionalArgs,
                 environmentVariablesToSet: envToSet);
         }

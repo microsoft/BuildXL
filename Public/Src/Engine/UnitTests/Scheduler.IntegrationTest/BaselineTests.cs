@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -1570,74 +1571,104 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
-            Configuration.Schedule.MaxRetriesDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
+            Configuration.Schedule.MaxRetriesDueToLowMemory = allowLowMemoryRetry ? 100 : 0;
 
-            CreateAndSchedulePipBuilder(new Operation[]
+            var waitFile = CreateOutputFileArtifact(prefix: "wait");
+
+            var builderA = CreatePipBuilder(new Operation[]
             {
-                Operation.Block(),
+                Operation.WaitUntilFileExists(waitFile, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact()),
             });
 
-            CreateAndSchedulePipBuilder(new Operation[]
+            var builderB = CreatePipBuilder(new Operation[]
             {
-                Operation.Block(),
+                Operation.WaitUntilFileExists(waitFile, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact()),
             });
 
-            bool triggeredCancellation = false;
-            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            builderA.AddUntrackedFile(waitFile);
+            builderB.AddUntrackedFile(waitFile);
+            SchedulePipBuilder(builderA);
+            SchedulePipBuilder(builderB);
+
+            var highPressureCycles = 5;
+            var released = false;
+            var highPressurePerf = new PerformanceCollector.MachinePerfInfo()
+            {
+                AvailableRamMb = 100,
+                EffectiveAvailableRamMb = 100,
+                RamUsagePercentage = 99,
+                EffectiveRamUsagePercentage = 99,
+                TotalRamMb = 10000,
+                CommitUsedMb = 5000,
+                CommitUsagePercentage = 50,
+                CommitLimitMb = 10000,
+            };
+
+            var normalPerf = new PerformanceCollector.MachinePerfInfo()
+            {
+                AvailableRamMb = 9000,
+                EffectiveAvailableRamMb = 9000,
+                RamUsagePercentage = 10,
+                EffectiveRamUsagePercentage = 10,
+                TotalRamMb = 10000,
+                CommitUsedMb = 5000,
+                CommitUsagePercentage = 50,
+                CommitLimitMb = 10000,
+            };
+
             var testHook = new SchedulerTestHooks()
             {
                 SimulateHighMemoryPressure = true,
                 GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
                 {
-                    if (triggeredCancellation)
-                    {
-                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
-                        tokenSource.Cancel();
-                    }
-
                     if (scheduler.MaxExternalProcessesRan == 2)
                     {
-                        triggeredCancellation = true;
-                        return new PerformanceCollector.MachinePerfInfo()
+                        // After the two processes are launched
+                        if (highPressureCycles > 0)
                         {
-                            AvailableRamMb = 100,
-                            EffectiveAvailableRamMb = 100,
-                            RamUsagePercentage = 99,
-                            EffectiveRamUsagePercentage = 99,
-                            TotalRamMb = 10000,
-                            CommitUsedMb = 5000,
-                            CommitUsagePercentage = 50,
-                            CommitLimitMb = 10000,
-                        };
-                    }
+                            // Simultate high memory pressure for a while. 
+                            // This will kick off cancellation of one of the pips
+                            --highPressureCycles;
+                            return highPressurePerf;
+                        }
+                        else
+                        {
+                            if (!released)
+                            {
+                                // Ensure that the ongoing processes will now finish 
+                                WriteSourceFile(waitFile);
+                                released = true;
+                            }
 
-                    return new PerformanceCollector.MachinePerfInfo()
+                            // Go back to normal so scheduler can indeed retry (and succeed), 
+                            // or fail anyways if we don't allow retries
+                            return normalPerf;
+                        }
+                    }
+                    else
                     {
-                        AvailableRamMb = 9000,
-                        EffectiveAvailableRamMb = 9000,
-                        RamUsagePercentage = 10,
-                        EffectiveRamUsagePercentage = 10,
-                        TotalRamMb = 10000,
-                        CommitUsedMb = 5000,
-                        CommitUsagePercentage = 50,
-                        CommitLimitMb = 10000,
-                    };
+                        return normalPerf;
+                    }
                 }
             };
 
-            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+            var schedulerResult = RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true);
 
-            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+            if (allowLowMemoryRetry)
+            {
+                schedulerResult.AssertSuccess();
+            }
+            else
+            {
+                schedulerResult.AssertFailure();
+                AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
+            }
+
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
             AssertVerboseEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
             AssertVerboseEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
-
-            if (!allowLowMemoryRetry)
-            {
-                AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
-            }
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // suspend/resume is not available on macOS

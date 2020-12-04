@@ -800,7 +800,7 @@ namespace ContentStoreTest.Stores
 
                 using (var contentStream = new MemoryStream(content))
                 {
-                    ContentHash actualContentHash = await contentStream.HasLength().CalculateHashAsync(ContentHashType);
+                    ContentHash actualContentHash = await contentStream.WithLength().CalculateHashAsync(ContentHashType);
 
                     var context = new Context(Logger);
                     var result = await store.PutFileAsync(context, pathToFile, ingressModes, ContentHashType);

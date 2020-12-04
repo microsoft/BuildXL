@@ -459,7 +459,7 @@ namespace Test.BuildXL.EngineTestUtilities
                             string localPath = GetLocalPath(contentHash);
                             Contract.Assert(File.Exists(localPath));
 
-                            return (new FileStream(localPath, FileMode.Open, FileAccess.Read)).HasLength();
+                            return (new FileStream(localPath, FileMode.Open, FileAccess.Read)).WithLength();
                         }
                         else
                         {

@@ -403,7 +403,7 @@ namespace BuildXL.Scheduler.Cache
             if (TryGetContent(pathSetHash, out var content))
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricPathSetHits);
-                return (new MemoryStream(content.Array, content.Offset, content.Count, writable: false)).HasLength();
+                return (new MemoryStream(content.Array, content.Offset, content.Count, writable: false)).WithLength();
             }
 
             var possiblyOpened = await base.TryLoadAndOpenPathSetStreamAsync(pathSetHash);
@@ -416,7 +416,7 @@ namespace BuildXL.Scheduler.Cache
                     var readCount = await stream.ReadAsync(content.Array, 0, content.Count);
                     Contract.Assert(readCount == content.Count);
                     TryAddContent(pathSetHash, content);
-                    return (new MemoryStream(content.Array, writable: false)).HasLength();
+                    return (new MemoryStream(content.Array, writable: false)).WithLength();
                 }
             }
 

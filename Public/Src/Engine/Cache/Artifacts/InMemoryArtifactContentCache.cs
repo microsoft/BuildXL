@@ -197,7 +197,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                 return new Failure<string>("Content is available in 'remote' cache but is not local. Load it locally first with TryLoadAvailableContentAsync.");
                             }
 
-                            return (new MemoryStream(entry.Content, writable: false)).HasLength();
+                            return (new MemoryStream(entry.Content, writable: false)).WithLength();
                         }
                         else
                         {

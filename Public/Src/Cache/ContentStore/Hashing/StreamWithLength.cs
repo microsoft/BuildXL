@@ -15,22 +15,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// MemoryStream always has a length so it can be automatically wrapped.
         /// </summary>
-        public static implicit operator StreamWithLength(MemoryStream s) => s.HasLength();
+        public static implicit operator StreamWithLength(MemoryStream s) => s.WithLength();
 
         /// <summary>
         /// FileStream always has a length so it can be automatically wrapped.
         /// </summary>
-        public static implicit operator StreamWithLength(FileStream s) => s.HasLength();
+        public static implicit operator StreamWithLength(FileStream s) => s.WithLength();
 
         /// <summary>
         /// MemoryStream always has a length so it can be automatically wrapped.
         /// </summary>
-        public static implicit operator StreamWithLength?(MemoryStream? s) => s?.HasLength();
+        public static implicit operator StreamWithLength?(MemoryStream? s) => s?.WithLength();
 
         /// <summary>
         /// FileStream always has a length so it can be automatically wrapped.
         /// </summary>
-        public static implicit operator StreamWithLength?(FileStream? s) => s?.HasLength();
+        public static implicit operator StreamWithLength?(FileStream? s) => s?.WithLength();
 
         /// <summary>
         /// Implicitly expose stream for all operations on it.
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public Stream Stream { get; }
 
         /// <summary>
-        /// Length of underlying stream.
+        /// Length of the underlying stream.
         /// </summary>
         public long Length { get; }
 
@@ -52,9 +52,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         internal StreamWithLength(Stream stream, long length)
         {
-            Contract.AssertNotNull(stream);
-            Contract.Assert(length >= 0);
-            Contract.Assert(!stream.CanSeek || stream.Length == length);
+            Contract.Requires(stream != null);
+            Contract.Requires(length >= 0);
+            Contract.Check(!stream.CanSeek || stream.Length == length)
+                ?.Requires($"!stream.CanSeek || stream.Length == length fails. stream.CanSeek={stream.CanSeek}, stream.Length={stream.Length}, length={length}");
             Stream = stream;
             Length = length;
         }
@@ -76,7 +77,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static StreamWithLength AssertHasLength(this Stream s)
         {
-            Contract.Assert(s.CanSeek);
+            Contract.Requires(s != null);
+            Contract.Requires(s.CanSeek);
             return new StreamWithLength(s, s.Length);
         }
 
@@ -85,14 +87,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static StreamWithLength WithLength(this Stream s, long length)
         {
-            Contract.AssertNotNull(s);
             return new StreamWithLength(s, length);
         }
 
         /// <summary>
         /// Helper for safely wrapping MemoryStream.
         /// </summary>
-        public static StreamWithLength HasLength(this MemoryStream s)
+        public static StreamWithLength WithLength(this MemoryStream s)
         {
             return new StreamWithLength(s, s.Length);
         }
@@ -100,8 +101,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Helper for safely wrapping FileStream.
         /// </summary>
-        public static StreamWithLength HasLength(this FileStream s)
+        public static StreamWithLength WithLength(this FileStream s)
         {
+            Contract.Requires(s != null);
             return new StreamWithLength(s, s.Length);
         }
     }

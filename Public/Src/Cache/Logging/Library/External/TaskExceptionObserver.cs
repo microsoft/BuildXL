@@ -120,7 +120,10 @@ namespace BuildXL.Cache.Logging.External
             // This was fixed in AzureStorage version 11.1.4.
             // Remove this once the codebase is migrated to that version.
             // Work Item: 1739732
-            AddExceptionHelper("System.Net.WebException", "at Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead(IAsyncResult asyncResult)");
+            const string Message = "at Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead(IAsyncResult asyncResult)";
+            AddExceptionHelper("System.Net.WebException", Message);
+
+
             // Here is an example of a full stack trace:
             //            Exception has occurred in an unobserved task. Process may exit. Exception=[System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. ---> System.Net.WebException: The request was aborted: The request was canceled.
             //   at System.Net.ConnectStream.EndRead(IAsyncResult asyncResult)
@@ -132,6 +135,21 @@ namespace BuildXL.Cache.Logging.External
             //   at Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead(IAsyncResult asyncResult)
             //   at System.Threading.Tasks.TaskFactory`1.FromAsyncTrimPromise`1.Complete(TInstance thisRef, Func`3 endMethod, IAsyncResult asyncResult, Boolean requiresSynchronization)<---
             //]
+
+            AddExceptionHelper("System.ObjectDisposedException", Message);
+
+            //            System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. ---> System.ObjectDisposedException: Cannot access a disposed object.
+            //Object name: 'SslStream'.
+            //   at System.Net.ConnectStream.EndRead(IAsyncResult asyncResult)
+            //   at Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead(IAsyncResult asyncResult) in c:\Program Files (x86)\Jenkins\workspace\release_dotnet_master\Lib\ClassLibraryCommon\Core\ByteCountingStream.cs:line 149
+            //   at System.Threading.Tasks.TaskFactory`1.FromAsyncTrimPromise`1.Complete(TInstance thisRef, Func`3 endMethod, IAsyncResult asyncResult, Boolean requiresSynchronization)
+            //   --- End of inner exception stack trace ---
+            //---> (Inner Exception #0) System.ObjectDisposedException: Cannot access a disposed object.
+            //Object name: 'SslStream'.
+            //   at System.Net.ConnectStream.EndRead(IAsyncResult asyncResult)
+            //   at Microsoft.WindowsAzure.Storage.Core.ByteCountingStream.EndRead(IAsyncResult asyncResult) in c:\Program Files (x86)\Jenkins\workspace\release_dotnet_master\Lib\ClassLibraryCommon\Core\ByteCountingStream.cs:line 149
+            //   at System.Threading.Tasks.TaskFactory`1.FromAsyncTrimPromise`1.Complete(TInstance thisRef, Func`3 endMethod, IAsyncResult asyncResult, Boolean requiresSynchronization)<---
+
         }
 
     }

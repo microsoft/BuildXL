@@ -141,7 +141,7 @@ namespace BuildXL.Cache.Tests
 
                     File.Delete(placedFilePath);
 
-                    return fs.HasLength();
+                    return fs.WithLength();
                 default:
                     throw new NotImplementedException();
             }

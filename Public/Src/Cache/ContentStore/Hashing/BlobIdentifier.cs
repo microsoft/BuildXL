@@ -8,7 +8,7 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 #pragma warning disable CS1591 // disable 'Missing XML comment for publicly visible type' warnings.
-#pragma warning disable SA1600 // Elements must be documented
+#pragma warning disable SA1600 // Elements must be documented.
 
 [assembly:CLSCompliant(true)] // This marks the assembly to be CLS Compliant. Do Not Remove - since it has re-percussions in the ADO repo.
 namespace BuildXL.Cache.ContentStore.Hashing
@@ -22,12 +22,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
     {
         private const int MinimumIdentifierValueByteCount = 4;
         private const int MinimumAlgorithmResultByteCount = MinimumIdentifierValueByteCount - 1;
-        private readonly byte[] _identifierValue;
         private int AlgorithmIdIndex => _identifierValue.Length - 1;
+        private readonly byte[] _identifierValue;
+
         /// <nodoc />
         public static readonly BlobIdentifier MinValue = CreateFromAlgorithmResult(Enumerable.Repeat<byte>(byte.MinValue, 32).ToArray(), algorithmId: byte.MinValue);
         /// <nodoc />
         public static readonly BlobIdentifier MaxValue = CreateFromAlgorithmResult(Enumerable.Repeat<byte>(byte.MaxValue, 32).ToArray(), algorithmId: byte.MaxValue);
+
+        /// <nodoc />
+        public static BlobIdentifier TestInstance() => new BlobIdentifier();
+
+        // Default constructor for test ONLY usage in the ADO repo.
+        private BlobIdentifier()
+        {
+            _identifierValue = null!; // CS8618 - Nullable value initialize, suppressing since the usage is test only.
+        }
 
         public BlobIdentifier(byte[] algorithmResult, byte algorithmId)
         {
@@ -133,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             return BitConverter.ToInt64(_identifierValue, 0);
         }
-        
+
         public ContentHash ToContentHash()
         {
             return BlobIdentifierHelperExtensions.ToContentHash(this);
@@ -209,7 +219,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             return (other is object) && _identifierValue.SequenceEqual(other._identifierValue);
-        } 
+        }
 
         public int CompareTo(object? obj)
         {
@@ -224,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private int CompareTo(BlobIdentifier other)
         {
             return other == null ? 1 : string.Compare(ValueString, other.ValueString, StringComparison.InvariantCultureIgnoreCase);
-        } 
+        }
 
         private void Validate()
         {

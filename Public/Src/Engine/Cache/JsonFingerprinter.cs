@@ -368,6 +368,17 @@ namespace BuildXL.Engine.Cache
                 Contract.Requires(PathTable != null, "Cannot add filename component of an AbsolutePath to a JsonFingerprinter initialized without a PathTable");
                 WriteJson(path.GetName(PathTable).ToString(PathTable.StringTable).ToLowerInvariant());
             }
+
+            /// <inheritdoc />
+            public void AddFileName(StringId fileName)
+            {
+                // CODESYNC: ObservedPathSet.cs (during serialization case preservation is forced on UnixOS)
+                var text = OperatingSystemHelper.IsUnixOS
+                    ? StringIdToString(fileName)
+                    : StringIdToString(fileName).ToUpperInvariant();
+
+                WriteJson(text);
+            }
         }
     }
 }

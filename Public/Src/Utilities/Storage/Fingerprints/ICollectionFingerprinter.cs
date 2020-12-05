@@ -37,8 +37,13 @@ namespace BuildXL.Storage.Fingerprints
         void Add(Fingerprint fingerprint);
 
         /// <summary>
-        /// Add name portion of path to the fingerprint stream.
+        /// Adds name portion of path to the fingerprint stream.
         /// </summary>
         void AddFileName(AbsolutePath path);
+
+        /// <summary>
+        /// Adds a file name to the fingerprint stream.
+        /// </summary>
+        void AddFileName(StringId fileName);
     }
 }

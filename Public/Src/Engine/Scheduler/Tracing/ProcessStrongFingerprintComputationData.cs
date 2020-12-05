@@ -328,7 +328,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.AddCollection<StringId, ReadOnlyArray<StringId>>(
                 ObservedPathSet.Labels.ObservedAccessedFileNames, 
                 ObservedAccessedFileNames, 
-                (w, v) => w.Add(v));
+                (w, v) => w.AddFileName(v));
 
             // Observed inputs are included directly into the strong fingerprint hash computation,
             // so they do not need to be serialized here

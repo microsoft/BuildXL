@@ -135,6 +135,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
+                // CODESYNC: JsonFingerprinter.AddFileName mirrors this logic
                 preserveCasing = true;
             }
 

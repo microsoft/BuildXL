@@ -151,6 +151,9 @@ namespace BuildXL.Storage.Fingerprints
         public void AddFileName(AbsolutePath path) => throw new NotImplementedException();
 
         /// <inheritdoc />
+        public void AddFileName(StringId fileName) => throw new NotImplementedException();
+
+        /// <inheritdoc />
         public void AddNested(string name, Action<IFingerprinter> addOps)
         {
             Add(name);

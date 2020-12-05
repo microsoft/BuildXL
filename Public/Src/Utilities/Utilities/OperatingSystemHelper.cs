@@ -60,7 +60,7 @@ namespace BuildXL.Utilities
 #endif
 
         /// <summary>
-        /// Indicates if BuildXL is running on macOS
+        /// Indicates if BuildXL is running on Linux
         /// </summary>
         public static readonly bool IsLinuxOS =
 #if NET_CORE
@@ -159,7 +159,7 @@ namespace BuildXL.Utilities
         /// </summary>
         /// <remarks>
         /// The canonicalization is only turning the environment variable name into all uppercase letters if the comparison is case insensitive, i.e.,
-        /// <see cref="IsEnvVarComparisonCaseSensitive"/> is false. If the comparsion is case sensitive, then the canonicalization method simply returns
+        /// <see cref="IsEnvVarComparisonCaseSensitive"/> is false. If the comparison is case sensitive, then the canonicalization method simply returns
         /// the string as is.
         /// </remarks>
         public static Func<string, string> CanonicalizeEnvVar { get; } = GetEnvVarCanonicalizer();

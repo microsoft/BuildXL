@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
@@ -86,6 +88,32 @@ namespace Test.BuildXL.Scheduler
 
             ObservedPathSetTestUtilities.AssertPathSetContainsDuplicates(pathSet);
             ObservedPathSetTestUtilities.AssertPathSetDoesNotContainDuplicates(roundtrip);
+        }
+
+        [Fact]
+        public void ObservedFileNamesNormalizedTheSameWayInPathsetAndJsonFingerprinter()
+        {
+            // This test is guarding codesync between JsonFingerprinter.cs and ObservedPathSet.cs
+            var fileNames = new string[] { "a", "b", "C" };
+            var pathTable = new PathTable();
+            var pathSet = ObservedPathSetTestUtilities.CreatePathSet(
+                pathTable,
+                observedAccessedFileNames: fileNames,
+                X("/X/a/b/c"));
+
+            var roundtrip = SerializeRoundTripAndAssertEquivalent(pathTable, pathSet);
+
+            var sb = new StringBuilder();
+            using (var writer = new global::BuildXL.Engine.Cache.JsonFingerprinter(sb, pathTable: pathTable))
+            {
+                writer.AddCollection<StringId, StringId[]>(
+                    "fileNames",
+                    fileNames.Select(fn => StringId.Create(pathTable.StringTable, fn)).ToArray(),
+                    (w, e) => w.AddFileName(e));
+            }
+
+            var fpOutput = sb.ToString();
+            XAssert.IsTrue(roundtrip.ObservedAccessedFileNames.All(fileName => fpOutput.Contains($"\"{fileName.ToString(pathTable.StringTable)}\"")));
         }
 
         [Fact]

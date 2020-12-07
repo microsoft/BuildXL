@@ -407,7 +407,7 @@ export function runQTest(args: QTestArguments): Result {
                 unsafe: unsafeOptions,
                 retryExitCodes: [2, 42],
                 acquireSemaphores: args.qTestAcquireSemaphores,
-                retryAttemptEnvironmentVariable: "QTEST_RETRY_NUMBER",
+                retryAttemptEnvironmentVariable: "QTEST_RETRIES_EXECUTED",
                 processRetries: (args.qTestAttemptCount ? args.qTestAttemptCount : 0) + 3,
                 allowUndeclaredSourceReads: isJSProject,
                 outputs: outputs,

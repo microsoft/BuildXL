@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Linq;
 using BuildXL.FrontEnd.Rush;
+using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -128,6 +130,24 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .DirectoryOutputs;
 
             XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => RushPipConstructor.UserProfile(project, PathTable) ==  outputDirectory.Path));
+        }
+
+        [Theory]
+        [InlineData("buildxl:bundle")]
+        [InlineData("buildxl!@#$%^&*()<>bundle")]
+        [InlineData("[]{};'<>/_+bxl")]
+        public void RedirectedUserProfileSanitizesScriptCommandName(string scriptCommandName)
+        {
+            var project = CreateRushProject(scriptCommandName : scriptCommandName);
+            var processOutputDirectories = Start()
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .DirectoryOutputs;
+
+            string sanitizedPath = PipConstructionUtilities.SanitizeStringForSymbol(scriptCommandName);
+
+            XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => outputDirectory.Path.ToString(PathTable).Contains(sanitizedPath)));
         }
 
         [Theory]

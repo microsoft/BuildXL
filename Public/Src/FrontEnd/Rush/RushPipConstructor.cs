@@ -7,6 +7,7 @@ using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -28,7 +29,7 @@ namespace BuildXL.FrontEnd.Rush
         /// </summary>
         internal static AbsolutePath UserProfile(JavaScriptProject project, PathTable pathTable) => project.TempFolder
             .Combine(pathTable, "USERPROFILE")
-            .Combine(pathTable, project.ScriptCommandName);
+            .Combine(pathTable, PipConstructionUtilities.SanitizeStringForSymbol(project.ScriptCommandName));
 
         /// <nodoc/>
         public RushPipConstructor(

@@ -175,15 +175,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan TouchFrequency { get; set; } = TimeSpan.FromHours(2);
 
         /// <summary>
+        /// Amount of time we mark sent reconcile events as recent, and prevent sending them again.
+        /// </summary>
+        public TimeSpan ReconcileCacheLifetime { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <summary>
         /// The threshold of machine locations over which additions are not sent to the global store but instead.
         /// only sent to event store
         /// </summary>
         public int SafeToLazilyUpdateMachineCountThreshold { get; set; } = 8;
-
-        /// <summary>
-        /// Indicates if redundant registrations of a content locations to be sent (i.e. location is already present in local db).
-        /// </summary>
-        public bool SkipRedundantContentLocationAdd { get; set; } = true;
 
         /// <summary>
         /// Indicates whether content is reconciled between local machine and local db once a checkpoint is restored.
@@ -244,6 +244,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Maximum removes for records without local content in a reconciliaton cycle when <see cref="ReconcileMode"/> is checkpoint mode
         /// </summary>
         public int? ReconciliationRemoveLimit { get; set; } = null;
+
+        /// <summary>
+        /// Limit to the number of reconciled hashes to be logged
+        /// </summary>
+        public int ReconcileHashesLogLimit { get; set; } = 0;
 
         /// <summary>
         /// Threshold under which proactive replication will be activated.

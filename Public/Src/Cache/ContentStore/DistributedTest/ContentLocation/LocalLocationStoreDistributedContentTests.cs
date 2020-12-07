@@ -1417,6 +1417,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.ReconcileMode = ReconciliationMode.Checkpoint.ToString();
                 s.ReconciliationAddLimit = addLimit;
                 s.ReconciliationRemoveLimit = removeLimit;
+                s.ReconcileCacheLifetimeMinutes = 0;
             },
                 r =>
                 {

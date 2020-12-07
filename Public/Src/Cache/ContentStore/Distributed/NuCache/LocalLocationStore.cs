@@ -116,6 +116,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private int _isReconcileCheckpointRunning;
         private ShortHash? _lastProcessedAddHash;
         private ShortHash? _lastProcessedRemoveHash;
+        private readonly VolatileSet<ShortHash> _reconcileAddRecents;
+        private readonly VolatileSet<ShortHash> _reconcileRemoveRecents;
 
         private MachineId? _localMachineId;
         private ILocalContentStore _localContentStore;
@@ -166,6 +168,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _recentlyAddedHashes = new VolatileSet<ContentHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ContentHash>(clock);
             _recentlyRemovedHashes = new VolatileSet<ContentHash>(clock);
+            _reconcileAddRecents = new VolatileSet<ShortHash>(clock);
+            _reconcileRemoveRecents = new VolatileSet<ShortHash>(clock);
 
             ValidateConfiguration(configuration);
 
@@ -1090,7 +1094,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private RegisterAction GetRegisterAction(OperationContext context, MachineId machineId, ContentHash hash, DateTime now)
         {
-            if (Configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
+            if (_recentlyRemovedHashes.Contains(hash))
             {
                 // Content was recently removed. Eagerly register with global store.
                 Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
@@ -1105,7 +1109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RegisterAction.RecentInactiveEagerGlobal;
             }
 
-            if (Configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
+            if (_recentlyAddedHashes.Contains(hash))
             {
                 // Content was recently added for the machine by a prior operation
                 Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
@@ -1117,8 +1121,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // TODO[LLS]: Is it ok to ignore a hash already registered to the machine. There is a subtle race condition (bug 1365340)
                 // here if the hash is deleted and immediately added to the machine
-                if (Configuration.SkipRedundantContentLocationAdd
-                    && entry.Locations[machineId.Index]) // content is registered for this machine
+                if (entry.Locations[machineId.Index]) // content is registered for this machine
                 {
                     // If content was touched recently, we can skip. Otherwise, we touch via event
                     if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, Configuration.TouchFrequency))
@@ -1237,18 +1240,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
-                    if (Configuration.SkipRedundantContentLocationAdd)
+                    foreach (var hash in eventContentHashes)
                     {
-                        foreach (var hash in eventContentHashes)
-                        {
-                            _recentlyAddedHashes.Add(hash.Hash, Configuration.TouchFrequency);
-                        }
+                        _recentlyAddedHashes.Add(hash.Hash, Configuration.TouchFrequency);
+                        AddToRecentReconcileAdds(hash.Hash, Configuration.ReconcileCacheLifetime);
+                    }
 
-                        // Only eagerly added hashes should invalidate recently removed hashes.
-                        foreach (var hash in eagerContentHashes)
-                        {
-                            _recentlyRemovedHashes.Invalidate(hash.Hash);
-                        }
+                    // Only eagerly added hashes should invalidate recently removed hashes.
+                    foreach (var hash in eagerContentHashes)
+                    {
+                        _recentlyRemovedHashes.Invalidate(hash.Hash);
                     }
 
                     return BoolResult.Success;
@@ -1320,14 +1321,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () =>
                 {
-                    if (Configuration.SkipRedundantContentLocationAdd)
+                    foreach (var hash in contentHashes)
                     {
-                        foreach (var hash in contentHashes)
-                        {
-                            // Content has been removed. Ensure that subsequent additions will not be skipped
-                            _recentlyAddedHashes.Invalidate(hash);
-                            _recentlyRemovedHashes.Add(hash, Configuration.TouchFrequency);
-                        }
+                        // Content has been removed. Ensure that subsequent additions will not be skipped
+                        _recentlyAddedHashes.Invalidate(hash);
+                        _recentlyRemovedHashes.Add(hash, Configuration.TouchFrequency);
+                        AddToRecentReconcileRemoves(hash, Configuration.ReconcileCacheLifetime);
                     }
 
                     // Send remove event for hashes
@@ -1858,8 +1857,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Then send changes as events
                 var allDiffContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: allDBContent, t => t.hash);
 
-                var totalAddedContent = 0;
-                var totalRemovedContent = 0;
+                int totalAddedContent = 0, totalRemovedContent = 0, skippedRecentAdds = 0, skippedRecentRemoves = 0;
                 var addedContent = new List<ShortHashWithSize>();
                 var removedContent = new List<ShortHash>();
 
@@ -1873,8 +1871,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var curHash = diffItem.item.hash;
 
                     // If we have no previous last reconciled hashes, set it as the first hash
-                    startingAddHash = startingAddHash ?? curHash;
-                    startingRemoveHash = startingRemoveHash ?? curHash;
+                    startingAddHash ??= curHash;
+                    startingRemoveHash ??= curHash;
 
                     // The amount of added content has to be under the add limit
                     // Also, if there is a previous last reconciled add hash, the current hash has to be greater to be counted in the hash range
@@ -1897,7 +1895,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Only add the content if its in the hash range and below the add limit
                         if (inAddRange)
                         {
-                            addedContent.Add(new ShortHashWithSize(curHash, diffItem.item.size));
+                            if (!_reconcileAddRecents.Contains(curHash))
+                            {
+                                addedContent.Add(new ShortHashWithSize(curHash, diffItem.item.size));
+                            }
+                            else
+                            {
+                                skippedRecentAdds++;
+                            }
                         }
                     }
                     else if (diffItem.mode == MergeMode.RightOnly)
@@ -1905,7 +1910,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         totalRemovedContent += 1;
                         if (inRemoveRange)
                         {
-                            removedContent.Add(curHash);
+                            if (!_reconcileRemoveRecents.Contains(curHash))
+                            {
+                                removedContent.Add(curHash);
+                            }
+                            else
+                            {
+                                skippedRecentRemoves++;
+                            }
                         }
                     }
                 }
@@ -1946,13 +1958,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         removedContent: removedContent);
                 }
 
+                var sampleHashes = new List<ShortHash>();
+
+                // After sending reconcile events, we do not want to repeat add/remove events for hashes
+                // We need to invalidate after adding to the opposing volatile set, so we don't prevent the hash from being added/removed.
+                foreach(var addItem in addedContent)
+                {
+                    AddToRecentReconcileAdds(addItem.Hash, Configuration.ReconcileCacheLifetime);
+                    if (sampleHashes.Count < Configuration.ReconcileHashesLogLimit)
+                    {
+                        sampleHashes.Add(addItem.Hash);
+                    }
+                }
+
+                foreach(var removeItem in removedContent)
+                {
+                    AddToRecentReconcileRemoves(removeItem, Configuration.ReconcileCacheLifetime);
+                    if (sampleHashes.Count < Configuration.ReconcileHashesLogLimit)
+                    {
+                        sampleHashes.Add(removeItem);
+                    }
+                }
+
                 // Need to ensure we don't mark the reconcile as complete if canceled (i.e. during shutdown). Cancellation will
                 // terminate db enumeration without throwing so we need to check explicitly here so we don't think the operation
                 // finished enumerating the db.
                 token.ThrowIfCancellationRequested();
 
-                return ReconciliationPerCheckpointResult.Success(addedContent.Count, removedContent.Count, totalAddedContent, totalRemovedContent, addHashRange, removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash, reachedEnd);
+                return ReconciliationPerCheckpointResult.Success(addedContent.Count, removedContent.Count, totalAddedContent, totalRemovedContent, addHashRange,
+                    removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash, reachedEnd, skippedRecentAdds, skippedRecentRemoves, _reconcileAddRecents.Count, _reconcileRemoveRecents.Count, sampleHashes);
             }
+        }
+
+        private bool AddToRecentReconcileAdds(ShortHash hash, TimeSpan timeToLive)
+        {
+            _reconcileRemoveRecents.Invalidate(hash);
+            return _reconcileAddRecents.Add(hash, timeToLive);
+        }
+
+        private bool AddToRecentReconcileRemoves(ShortHash hash, TimeSpan timeToLive)
+        {
+            _reconcileAddRecents.Invalidate(hash);
+            return _reconcileRemoveRecents.Add(hash, timeToLive);
         }
 
         /// <nodoc />

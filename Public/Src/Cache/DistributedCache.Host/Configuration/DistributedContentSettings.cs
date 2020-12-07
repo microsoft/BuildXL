@@ -658,6 +658,10 @@ namespace BuildXL.Cache.Host.Configuration
         public int ReconciliationRemoveLimit { get; set; } = 1_000_000;
 
         [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? ReconcileHashesLogLimit { get; set; }
+
+        [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
 
         [DataMember]
@@ -834,6 +838,10 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? TouchFrequencyMinutes { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? ReconcileCacheLifetimeMinutes { get; set; }
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

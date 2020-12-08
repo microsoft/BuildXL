@@ -321,7 +321,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <summary>
-        /// Canonically serializes this node to the give writer.
+        /// Canonically serializes this node to the given writer.
         /// </summary>
         private void SerializeNode(BinaryWriter writer)
         {

@@ -7,48 +7,14 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 #pragma warning disable SA1600 // Elements must be documented
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
-    /// <nodoc />
-    public sealed class ChunkDedupIdentifier : DedupIdentifier
-    {
-        /// <nodoc />
-        public const byte ChunkAlgorithmId = 1;
-
-        /// <nodoc />
-        public ChunkDedupIdentifier(byte[] hashResult)
-            : base(hashResult, ChunkAlgorithmId)
-        {
-            if (AlgorithmId != ChunkAlgorithmId)
-            {
-                throw new ArgumentException($"The given hash does not represent a {nameof(ChunkDedupIdentifier)}");
-            }
-        }
-    }
-
-    /// <nodoc />
-    public sealed class NodeDedupIdentifier : DedupIdentifier
-    {
-        /// <nodoc />
-        public NodeDedupIdentifier(byte[] hashResult, NodeAlgorithmId algorithmId)
-            : base(hashResult, (byte)algorithmId)
-        {
-            if (!algorithmId.IsValidNode())
-            {
-                throw new ArgumentException($"The given hash does not represent a {nameof(NodeDedupIdentifier)}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Duplicated relevant sections from Artifact code to avoid introducing dependencies.
-    /// Follows the current pattern of BlobIdentifier, which exists in both repos.
-    /// Original: "http://index/?leftProject=Microsoft.VisualStudio.Services.BlobStore.Common&amp;file=DedupIdentifier.cs"
-    /// </summary>
-    public abstract class DedupIdentifier : IEquatable<DedupIdentifier>, IComparable<DedupIdentifier>
+    public abstract class DedupIdentifier : IEquatable<DedupIdentifier>, IComparable<DedupIdentifier>, ILongHash
     {
         private readonly byte[] _value;
+        private int AlgorithmIdIndex => _value.Length - 1;
 
         /// <nodoc />
         protected DedupIdentifier(byte[] algorithmResult, byte algorithmId)
@@ -61,6 +27,100 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _value[algorithmResult.Length] = algorithmId;
         }
 
+        protected DedupIdentifier(HashAndAlgorithm hashAndAlgorithm)
+        {
+            if (null == hashAndAlgorithm.Bytes)
+            {
+                throw new ArgumentNullException(nameof(hashAndAlgorithm));
+            }
+
+            this._value = hashAndAlgorithm.Bytes;
+        }
+
+        public static DedupIdentifier Create(string valueIncludingAlgorithm)
+        {
+            if (string.IsNullOrWhiteSpace(valueIncludingAlgorithm))
+            {
+                throw new ArgumentNullException(nameof(valueIncludingAlgorithm));
+            }
+
+            byte[] value = HexUtilities.HexToBytes(valueIncludingAlgorithm);
+            return DedupIdentifier.Create(new HashAndAlgorithm(value));
+        }
+
+        public static DedupIdentifier Create(DedupNode node)
+        {
+            Contract.Requires(node != null);
+
+            return Create(
+                node.Hash,
+                (node.Type == DedupNode.NodeType.ChunkLeaf) ?
+                    ChunkDedupIdentifier.ChunkAlgorithmId :
+                    (byte)NodeAlgorithmId.Node64K); // TODO: We need to fix this.
+        }
+
+        public static DedupIdentifier Create(byte[] algorithmResult, byte algorithmId)
+        {
+            Contract.Requires(algorithmResult != null);
+
+            if (algorithmId == ChunkDedupIdentifier.ChunkAlgorithmId)
+            {
+                return new ChunkDedupIdentifier(algorithmResult);
+            }
+            else if (((NodeAlgorithmId)algorithmId).IsValidNode())
+            {
+                return new NodeDedupIdentifier(algorithmResult, (NodeAlgorithmId)algorithmId);
+            }
+
+            throw new NotSupportedException($"Unknown algorithm {algorithmId}");
+        }
+
+        public static DedupIdentifier Create(HashAndAlgorithm hashAndAlgorithm)
+        {
+            Contract.Requires(hashAndAlgorithm.Bytes != null);
+
+            byte algorithmId = hashAndAlgorithm.AlgorithmId;
+            if (algorithmId == ChunkDedupIdentifier.ChunkAlgorithmId)
+            {
+                return new ChunkDedupIdentifier(hashAndAlgorithm);
+            }
+            else if (((NodeAlgorithmId)algorithmId).IsValidNode())
+            {
+                return new NodeDedupIdentifier(hashAndAlgorithm);
+            }
+            else
+            {
+                throw new NotSupportedException($"Unknown algorithm {algorithmId}");
+            }
+        }
+
+        public NodeDedupIdentifier CastToNodeDedupIdentifier()
+        {
+            return new NodeDedupIdentifier(AlgorithmResult, (NodeAlgorithmId)AlgorithmId);
+        }
+
+        public ChunkDedupIdentifier CastToChunkDedupIdentifier()
+        {
+            return new ChunkDedupIdentifier(_value);
+        }
+
+        /// <summary>
+        /// Create a dedup identifier from a string.
+        /// </summary>
+        /// <remarks>
+        /// <pre>
+        /// This method has two purposes:
+        /// 1) Create is overloaded, so any library referencing Create() must be able to resolve all the
+        ///    parameter types across all the overloaded versions, which include
+        ///    BuildXL.Cache.ContentStore.Hashing.DedupNode. This method can help reduce compile-time dependency.
+        /// 2) To add some API consistency, it has the same signature as BlobIdentifier.Deserialize(string).
+        /// </pre>
+        /// </remarks>
+        public static DedupIdentifier Deserialize(string valueIncludingAlgorithm)
+        {
+            return Create(valueIncludingAlgorithm);
+        }
+
         /// <nodoc />
         public BlobIdentifier ToBlobIdentifier() => new BlobIdentifier(AlgorithmResult, AlgorithmId);
 
@@ -70,21 +130,77 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public byte[] AlgorithmResult => _value.Take(AlgorithmIdIndex).ToArray();
 
         /// <summary>
+        /// Dedup identifier string representation without the algorithm Id.
+        /// </summary>
+        public string AlgorithmResultString => this.AlgorithmResult.ToHex();
+
+        /// <summary>
+        /// Dedup identifier string representation with the algorithm Id.
+        /// </summary>
+        public string ValueString => this._value.ToHex();
+
+        /// <summary>
         /// Byte appended to end of identifier to mark the type of hashing algorithm used.
         /// </summary>
         public byte AlgorithmId => _value[AlgorithmIdIndex];
 
-        private int AlgorithmIdIndex => _value.Length - 1;
-
         /// <nodoc />
+        public byte[] Value
+        {
+            get
+            {
+                byte[] copy = new byte[this._value.Length];
+                this._value.CopyTo(copy, 0);
+                return copy;
+            }
+        }
+
         public bool Equals(DedupIdentifier? other)
         {
+            if (object.ReferenceEquals(other, null))
+            {
+                return false;
+            }
+
             if (ReferenceEquals(this, other))
             {
                 return true;
             }
 
-            return (other != null) && _value.SequenceEqual(other._value);
+            return this._value.SequenceEqual(other._value);
+        }
+
+         /// <inheritdoc/>
+        public override bool Equals(Object? obj) => Equals(obj as DedupIdentifier);
+
+        public override string ToString()
+        {
+            return ValueString;
+        }
+
+        public override int GetHashCode()
+        {
+            return BitConverter.ToInt32(this._value, 0);
+        }
+
+        public long GetLongHashCode()
+        {
+            return BitConverter.ToInt64(this._value, 0);
+        }
+
+        public static bool operator ==(DedupIdentifier? x, DedupIdentifier? y)
+        {
+            if (ReferenceEquals(x, null))
+            {
+                return ReferenceEquals(y, null);
+            }
+
+            return x.Equals(y);
+        }
+
+        public static bool operator !=(DedupIdentifier? x, DedupIdentifier? y)
+        {
+            return !(x == y);
         }
 
         /// <nodoc />
@@ -95,7 +211,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return -1;
             }
 
-            return ByteArrayComparer.Instance.Compare(_value, other._value);
+            return ByteArrayComparer.Instance.Compare(this._value, other._value);
+        }
+    }
+
+    public readonly struct HashAndAlgorithm
+    {
+        public readonly byte[] Bytes;
+        public byte AlgorithmId => this.Bytes[this.Bytes.Length - 1];
+        public HashAndAlgorithm(byte[] bytes)
+        {
+            Contract.Requires(bytes != null);
+            Contract.Check(bytes.Length > 32)?.Assert($"Byte representing the hash algorithm id is missing. Actual Hash Length: {bytes.Length}");
+            this.Bytes = bytes;
         }
     }
 }

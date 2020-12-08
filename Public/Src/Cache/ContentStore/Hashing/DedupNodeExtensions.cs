@@ -3,6 +3,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -28,6 +29,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             return new ContentHash(hashType, hash);
+        }
+
+        /// <nodoc />
+        public static NodeDedupIdentifier CalculateNodeDedupIdentifier(this DedupNode node, HashType hashType)
+        {
+            return new NodeDedupIdentifier(node.ToContentHash(hashType).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />
@@ -62,6 +69,21 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             return new ChunkDedupIdentifier(node.Hash);
+        }
+
+        /// <nodoc />
+        [CLSCompliant(false)]
+        public static void AssertFilled(this DedupNode node)
+        {
+            if (node.Type != DedupNode.NodeType.InnerNode)
+            {
+                throw new ArgumentException($"Expected a filled {nameof(DedupNode.NodeType.InnerNode)}, but this is a {node.Type}: {node.HashString}");
+            }
+
+            if (node.ChildNodes == null || node.ChildNodes.Count == 0)
+            {
+                throw new ArgumentException($"Expected a filled {nameof(DedupNode.NodeType.InnerNode)}, but ChildNodes is empty for: {node.HashString}");
+            }
         }
     }
 }

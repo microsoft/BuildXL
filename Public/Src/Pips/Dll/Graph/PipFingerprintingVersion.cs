@@ -67,7 +67,8 @@ namespace BuildXL.Pips.Graph
         /// 90: Add RetryAttempEnvironmentVariable.
         /// 91: Add CreatedDirectories to PipCacheDescriptorV2Metadata.
         /// 92: Add IgnorePreserveOutputsPrivatization in IUnsafeSandboxConfiguration.
+        /// 93: Add succeed fast exit codes.
         /// </remarks>
-        TwoPhaseV2 = 92,
+        TwoPhaseV2 = 93,
     }
 }

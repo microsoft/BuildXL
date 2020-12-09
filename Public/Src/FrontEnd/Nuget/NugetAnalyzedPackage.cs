@@ -63,9 +63,12 @@ namespace BuildXL.FrontEnd.Nuget
         public MultiValueDictionary<PathAtom, NugetTargetFramework> AssemblyToTargetFramework { get; }
 
         /// <summary>
-        /// Indicates if the package contains only .NETStandard comaptible assemblies (this is false if full framework or .NETCoreApp assemblies are present)
+        /// Indicates if the package contains .NETStandard compatible assemblies and therefore has compatibility with full framework
         /// </summary>
-        public bool IsNetStandardPackageOnly { get; private set; }
+        /// <remarks>
+        /// This is false if the package contains full framework assemblies, since no extra full framework compatibility is needed in that case
+        /// </remarks>
+        public bool NeedsCompatibleFullFrameworkSupport { get; private set; }
 
         /// <nodoc />
         public PackageOnDisk PackageOnDisk { get; }
@@ -430,9 +433,10 @@ namespace BuildXL.FrontEnd.Nuget
                 }
             }
 
-            IsNetStandardPackageOnly =
+            NeedsCompatibleFullFrameworkSupport =
                 !TargetFrameworks.Any(tfm => NugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(tfm)) &&
-                !TargetFrameworks.Any(tfm => NugetFrameworkMonikers.NetCoreAppVersionHistory.Contains(tfm));
+                // Since there are no full framework binaries (above condition), a non-netcore app moniker means netstandard
+                TargetFrameworks.Any(tfm => !NugetFrameworkMonikers.NetCoreAppVersionHistory.Contains(tfm));
 
             return true;
         }

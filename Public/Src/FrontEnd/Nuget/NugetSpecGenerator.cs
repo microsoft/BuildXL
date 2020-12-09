@@ -144,7 +144,10 @@ namespace BuildXL.FrontEnd.Nuget
                         return;
                     }
 
-                    if (analyzedPackage.IsNetStandardPackageOnly)
+                    if (analyzedPackage.NeedsCompatibleFullFrameworkSupport &&
+                        // Let's add the full framework compatible cases if we are in the netstandard case only
+                        !m_nugetFrameworkMonikers.NetCoreAppVersionHistory.Contains(monikers.First())
+                      )
                     {
                         cases.AddRange(m_nugetFrameworkMonikers.NetStandardToFullFrameworkCompatibility.Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
                     }
@@ -333,7 +336,7 @@ namespace BuildXL.FrontEnd.Nuget
         {
             List<PathAtom> compatibleTfms = new List<PathAtom>();
 
-            if (analyzedPackage.IsNetStandardPackageOnly)
+            if (analyzedPackage.NeedsCompatibleFullFrameworkSupport)
             {
                 compatibleTfms.AddRange(m_nugetFrameworkMonikers.NetStandardToFullFrameworkCompatibility);
             }

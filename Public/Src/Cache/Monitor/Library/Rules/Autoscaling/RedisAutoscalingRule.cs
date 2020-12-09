@@ -46,46 +46,70 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
         public override async Task Run(RuleContext context)
         {
-            // Short-circuit if either instance is being scaled, as the autoscaling is either externally triggered or a
-            // monitor bug.
-            await Task.WhenAll(_primaryRedisInstance.RefreshAsync(context.CancellationToken), _secondaryRedisInstance.RefreshAsync(context.CancellationToken)).ThrowIfFailureAsync();
-
-            if (!_primaryRedisInstance.IsReadyToScale)
+            var validationOutcome = await ValidateAndScaleAsync(context, _primaryRedisInstance, _secondaryRedisInstance);
+            switch (validationOutcome)
             {
-                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_primaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_primaryRedisInstance.State}]");
-                return;
+                case ValidationOutcome.PrimaryUndergoingAutoscale:
+                case ValidationOutcome.SecondaryUndergoingAutoscale:
+                    // In these two cases, we already know that we won't be able to scale the secondary because
+                    // the information is fresh and validation won't pass.
+                    return;
+                case ValidationOutcome.PrimaryFailed:
+                case ValidationOutcome.Success:
+                    // In these two cases, either we just scaled the primary or we failed to scale it but it was a
+                    // recoverable error. We'll actually try to scale the secondary. Note that it is possible for the
+                    // secondary to be in a failed state, in which case the following autoscale attempt will fail.
+                    break;
             }
 
-            if (!_secondaryRedisInstance.IsReadyToScale)
-            {
-                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_secondaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_secondaryRedisInstance.State}]");
-                return;
-            }
-
-            await AttemptToScaleAsync(context, _primaryRedisInstance, context.CancellationToken);
-
-            // A long time may have passed since the first scale, so we refresh the data and re-check before looking at
-            // the secondary.
-            await Task.WhenAll(_primaryRedisInstance.RefreshAsync(context.CancellationToken), _secondaryRedisInstance.RefreshAsync(context.CancellationToken)).ThrowIfFailureAsync();
-
-            if (!_primaryRedisInstance.IsReadyToScale)
-            {
-                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_primaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_primaryRedisInstance.State}]");
-                return;
-            }
-
-            if (!_secondaryRedisInstance.IsReadyToScale)
-            {
-                Emit(context, "Autoscale", Severity.Warning, $"Instance `{_secondaryRedisInstance.Name}` is undergoing maintenance or autoscaling operation. State=[{_secondaryRedisInstance.State}]");
-                return;
-            }
-
-            await AttemptToScaleAsync(context, _secondaryRedisInstance, context.CancellationToken);
+            await ValidateAndScaleAsync(context, _secondaryRedisInstance, _primaryRedisInstance);
         }
 
-        public async Task<bool> AttemptToScaleAsync(RuleContext context, IRedisInstance redisInstance, CancellationToken cancellationToken)
+        private enum ValidationOutcome
         {
-            Contract.Requires(redisInstance == _primaryRedisInstance || redisInstance == _secondaryRedisInstance);
+            PrimaryUndergoingAutoscale,
+            PrimaryFailed,
+            SecondaryUndergoingAutoscale,
+
+            // Note that this doesn't mean that the autoscale operation itself succeeded, only that validation passed.
+            Success,
+        }
+
+        private async Task<ValidationOutcome> ValidateAndScaleAsync(RuleContext context, IRedisInstance primary, IRedisInstance secondary)
+        {
+            // Last refresh time may be arbitrarily long, either because the rule hasn't been run for a long time, or
+            // because there was an autoscale that happened before. Hence, we need to refresh what we know.
+            await Task.WhenAll(primary.RefreshAsync(context.CancellationToken), secondary.RefreshAsync(context.CancellationToken)).ThrowIfFailureAsync();
+
+            // We are willing to scale iff:
+            //  1. The instance is ready to scale
+            //  2. The other instance is not being scaled, but may be not ready to scale
+            if (!primary.IsReadyToScale)
+            {
+                Emit(context, "Autoscale", Severity.Warning, $"Instance `{primary.Name}` is undergoing maintenance or autoscaling operation. State=[{primary.State}]");
+
+                if (primary.IsFailed)
+                {
+                    return ValidationOutcome.PrimaryFailed;
+                }
+                else
+                {
+                    return ValidationOutcome.PrimaryUndergoingAutoscale;
+                }
+            }
+
+            if (!secondary.IsReadyToScale && !secondary.IsFailed)
+            {
+                Emit(context, "Autoscale", Severity.Warning, $"Instance `{secondary.Name}` is undergoing maintenance or autoscaling operation. State=[{secondary.State}]");
+                return ValidationOutcome.SecondaryUndergoingAutoscale;
+            }
+
+            await AttemptToScaleAsync(context, primary, context.CancellationToken);
+            return ValidationOutcome.Success;
+        }
+
+        private async Task<bool> AttemptToScaleAsync(RuleContext context, IRedisInstance redisInstance, CancellationToken cancellationToken)
+        {
             Contract.Requires(redisInstance.IsReadyToScale);
 
             // Fetch which cluster size we want, and start scaling operation if needed.
@@ -103,7 +127,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             var targetClusterSize = modelOutput.TargetClusterSize;
             if (targetClusterSize.Equals(redisInstance.ClusterSize) || modelOutput.ScalePath.Count == 0)
             {
-                // No autoscale required
                 return false;
             }
 
@@ -113,9 +136,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             if (!scaleResult)
             {
                 Emit(context, "Autoscale", Severity.Error, $"Autoscale attempt from `{currentClusterSize}` to `{targetClusterSize}` for instance `{redisInstance.Name}` failed. Result=[{scaleResult}]");
+                scaleResult.ThrowIfFailure();
             }
-
-            scaleResult.ThrowIfFailure();
 
             return true;
         }

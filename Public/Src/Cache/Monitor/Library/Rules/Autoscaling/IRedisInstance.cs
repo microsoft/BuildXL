@@ -17,6 +17,8 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
 
         string State { get; }
 
+        bool IsFailed { get; }
+
         bool IsReadyToScale { get; }
 
         public RedisClusterSize ClusterSize { get; }

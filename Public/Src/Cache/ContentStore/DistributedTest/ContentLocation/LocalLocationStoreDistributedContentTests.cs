@@ -1418,6 +1418,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.ReconciliationAddLimit = addLimit;
                 s.ReconciliationRemoveLimit = removeLimit;
                 s.ReconcileCacheLifetimeMinutes = 0;
+                s.ReconcileHashesLogLimit = 10;
             },
                 r =>
                 {

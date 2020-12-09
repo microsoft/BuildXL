@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
@@ -129,6 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             SkippedRecentRemoves = skippedRecentRemoves;
             RecentAddCount = recentAddCount;
             RecentRemoveCount = recentRemoveCount;
+            SampleHashes = sampleHashes;
         }
 
         /// <nodoc />
@@ -145,8 +147,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 case ResultCode.Skipped:
                     return $"{base.GetSuccessString()} Code=[{Code}]";
                 case ResultCode.Success:
-                    return $"{base.GetSuccessString()} AddsSent=[{AddsSent}] RemovesSent=[{RemovesSent}] TotalMissingRecord=[{TotalMissingRecord}] TotalMissingContent=[{TotalMissingContent}] " +
-                        $"AddHashRange=[{AddHashRange}] RemoveHashRange[{RemoveHashRange}] SkippedRecentAdds=[{SkippedRecentAdds}] SkippedRecentRemoves=[{SkippedRecentRemoves}] RecentAdds=[{RecentAddCount}] RecentRemoves=[{RecentRemoveCount}] SampleHashes=[{SampleHashes}]";
+                    return $"{base.GetSuccessString()} AddsSent={AddsSent} RemovesSent={RemovesSent} TotalMissingRecord={TotalMissingRecord} TotalMissingContent={TotalMissingContent} " +
+                        $"AddHashRange=[{AddHashRange}] RemoveHashRange[{RemoveHashRange}] SkippedRecentAdds={SkippedRecentAdds} SkippedRecentRemoves={SkippedRecentRemoves} RecentAdds={RecentAddCount} RecentRemoves={RecentRemoveCount} SampleHashes=[{string.Join(", ", SampleHashes.Select(hash => hash.ToString()))}]";
                 default:
                     return $"{base.GetSuccessString()} Code=[{Code}]";
             }

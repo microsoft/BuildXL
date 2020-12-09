@@ -1845,14 +1845,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // in the database would still have missing content [A].
             using (EventStore.PauseSendingEvents())
             {
+                ShortHash? startingPoint = null;
+                if (lastProcessedAddHash.HasValue && lastProcessedRemoveHash.HasValue)
+                {
+                    startingPoint = lastProcessedAddHash < lastProcessedRemoveHash ? lastProcessedAddHash : lastProcessedRemoveHash;
+                }
+                else if (lastProcessedAddHash.HasValue)
+                {
+                    startingPoint = lastProcessedAddHash;
+                }
+                else if (lastProcessedRemoveHash.HasValue)
+                {
+                    startingPoint = lastProcessedRemoveHash;
+                }
+
                 var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
                 token.ThrowIfCancellationRequested();
 
                 var allLocalStoreContent = allLocalStoreContentInfos
                     .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
-                    .OrderBy(c => c.hash);
+                    .OrderBy(c => c.hash)
+                    .SkipWhile(hashWithSize => startingPoint.HasValue && hashWithSize.hash < startingPoint.Value);
 
-                var allDBContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId);
+                var allDBContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId, startingPoint);
                 token.ThrowIfCancellationRequested();
 
                 // Diff the two views of the local machines content (left = local store, right = content location db)
@@ -1863,28 +1878,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var addedContent = new List<ShortHashWithSize>();
                 var removedContent = new List<ShortHash>();
 
-                var startingAddHash = lastProcessedAddHash;
-                var startingRemoveHash = lastProcessedRemoveHash;
-
                 foreach (var diffItem in allDiffContent)
                 {
-                    bool inAddRange = false;
-                    bool inRemoveRange = false;
+                    var inAddRange = false;
+                    var inRemoveRange = false;
                     var curHash = diffItem.item.hash;
 
                     // If we have no previous last reconciled hashes, set it as the first hash
-                    startingAddHash ??= curHash;
-                    startingRemoveHash ??= curHash;
+                    startingPoint ??= curHash;
 
-                    // The amount of added content has to be under the add limit
-                    // Also, if there is a previous last reconciled add hash, the current hash has to be greater to be counted in the hash range
-                    if (addedContent.Count < _configuration.ReconciliationAddLimit && (!lastProcessedAddHash.HasValue || curHash > lastProcessedAddHash.Value))
+                    if (addedContent.Count >= _configuration.ReconciliationAddLimit && removedContent.Count >= _configuration.ReconciliationRemoveLimit)
+                    {
+                        break;
+                    }
+
+                    if (addedContent.Count < _configuration.ReconciliationAddLimit)
                     {
                         lastProcessedAddHash = curHash;
                         inAddRange = true;
                     }
 
-                    if (removedContent.Count < _configuration.ReconciliationRemoveLimit && (!lastProcessedRemoveHash.HasValue || curHash > lastProcessedRemoveHash.Value))
+                    if (removedContent.Count < _configuration.ReconciliationRemoveLimit)
                     {
                         lastProcessedRemoveHash = curHash;
                         inRemoveRange = true;
@@ -1893,8 +1907,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (diffItem.mode == MergeMode.LeftOnly)
                     {
                         totalAddedContent += 1;
-
-                        // Only add the content if its in the hash range and below the add limit
                         if (inAddRange)
                         {
                             if (!_reconcileAddRecents.Contains(curHash))
@@ -1924,8 +1936,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                var addHashRange = $"{startingAddHash}-{lastProcessedAddHash}";
-                var removeHashRange = $"{startingRemoveHash}-{lastProcessedRemoveHash}";
+                var addHashRange = $"{startingPoint}-{lastProcessedAddHash}";
+                var removeHashRange = $"{startingPoint}-{lastProcessedRemoveHash}";
                 var reachedEnd = false;
 
                 // If the add/remove count is below the limits, that means we went through the list looking for add/remove events

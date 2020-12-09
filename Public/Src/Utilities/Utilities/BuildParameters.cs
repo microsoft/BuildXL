@@ -37,8 +37,9 @@ namespace BuildXL.Utilities
         /// <summary>
         /// These environment variables should not be read from config, since
         /// they refer to temporary directories that we reserve the right to redirect.
+        /// Uses only uppercase strings to maintain consistency.
         /// </summary>
-        // TODO: this should have the same value for all platforms
+        // TODO: this should have the same value for all platforms.
         public static readonly IReadOnlyList<string> DisallowedTempVariables = OperatingSystemHelper.IsUnixOS
             ? new[] { "TEMP", "TMP", "TMPDIR" }
             : new[] { "TEMP", "TMP" };

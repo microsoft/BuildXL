@@ -206,8 +206,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 string envVarName = input.Key;
 
                 // Temp directory entries are added at pip creation time.
-                if (string.Equals(envVarName, "TEMP", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(envVarName, "TMP", StringComparison.OrdinalIgnoreCase))
+                if (BuildParameters.DisallowedTempVariables.Contains(envVarName.ToUpper()))
                 {
                     continue;
                 }

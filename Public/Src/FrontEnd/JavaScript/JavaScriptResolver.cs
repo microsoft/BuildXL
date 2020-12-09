@@ -58,7 +58,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private readonly SemaphoreSlim m_evaluationSemaphore = new SemaphoreSlim(1, 1);
         private bool? m_evaluationResult = null;
-        
+
         /// <nodoc />
         public string Name { get; private set; }
 
@@ -480,14 +480,24 @@ namespace BuildXL.FrontEnd.JavaScript
                     .Select(dirOutput => new EvaluationResult(DirectoryArtifact.CreateWithZeroPartialSealId(dirOutput.Path))))
                 .ToArray();
 
-            // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProject)    
-            var envVars = process.EnvironmentVariables.Where(var => !var.IsPassThrough).Select(var =>
-                new EvaluationResult(ObjectLiteral.Create(new List<Binding> {
-                    new Binding(StringId.Create(Context.StringTable, "name"), new EvaluationResult(var.Name.ToString(Context.StringTable)), location: default),
-                    new Binding(StringId.Create(Context.StringTable, "value"), new EvaluationResult(var.Value.ToString(Context.PathTable)), location: default),
-                }, default, m_resolverSettings.File))).ToArray();
+            // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProject)
+            var envVars = process.EnvironmentVariables
+                .Where(var => !var.IsPassThrough)
+                .Select(var => (Name : var.Name.ToString(Context.StringTable), Value: var.Value.ToString(Context.PathTable)))
+                .Where(tuple => !BuildParameters.DisallowedTempVariables.Contains(tuple.Name.ToUpper()))
+                .Select(tuple =>
+                    new EvaluationResult(ObjectLiteral.Create(new List<Binding> {
+                        new Binding(StringId.Create(Context.StringTable, "name"), new EvaluationResult(tuple.Name), location: default),
+                        new Binding(StringId.Create(Context.StringTable, "value"), new EvaluationResult(tuple.Value), location: default),
+                    }, default, m_resolverSettings.File)))
+                .ToArray();
 
-            var passThroughVars = process.EnvironmentVariables.Where(var => var.IsPassThrough).Select(var => new EvaluationResult(var.Name.ToString(Context.StringTable))).ToArray();
+            var passThroughVars = process.EnvironmentVariables
+                .Where(var => var.IsPassThrough)
+                .Select(var => (Name: var.Name.ToString(Context.StringTable), Value: var.Value.ToString(Context.PathTable)))
+                .Where(tuple => !BuildParameters.DisallowedTempVariables.Contains(tuple.Name.ToUpper()))
+                .Select(tuple => new EvaluationResult(tuple.Name))
+                .ToArray();
 
             // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProject)
             var bindings = new List<Binding>

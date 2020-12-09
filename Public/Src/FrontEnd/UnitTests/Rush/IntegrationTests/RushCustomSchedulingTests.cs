@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
@@ -95,6 +96,44 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
     Contract.requires(project.outputs.some(output => output === d`src\A`));
     Contract.requires(project.environmentVariables.some(envVar => envVar.name === 'PATH'));
     Contract.requires(project.passThroughEnvironmentVariables.length === 0);
+    Contract.requires(project.tempDirectory.name === a`t`);
+
+    return undefined;
+}
+")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public void JavaScriptProjectEnvFiltering()
+        {
+            Dictionary<string, string> envVars = new Dictionary<string, string>();
+            envVars.Add("TMP", "/SamplePath");      // Should be filtered
+            envVars.Add("TEMP", "/SamplePath");     // Should be filtered
+            envVars.Add("NOTTEMP", "/SamplePath");  // Should not be filtered
+
+            var config =
+                Build(
+                    schedulingCallback: "{module: 'myModule', schedulingFunction: 'custom'}",
+                    environment: envVars,
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "run") })
+               .AddSpec("module.config.dsc", "module({name: 'myModule'});")
+               .AddSpec(@"
+@@public
+export function custom(project: JavaScriptProject) : TransformerExecuteResult {
+
+    Debug.writeLine(project);
+    Contract.requires(project.environmentVariables.some(envVar => envVar.name === 'PATH'));
+    Contract.requires(project.environmentVariables.some(envVar => envVar.name === 'NOTTEMP'));
+    Contract.requires(!project.environmentVariables.some(envVar => envVar.name === 'TEMP'));
+    Contract.requires(!project.environmentVariables.some(envVar => envVar.name === 'TMP'));
     Contract.requires(project.tempDirectory.name === a`t`);
 
     return undefined;

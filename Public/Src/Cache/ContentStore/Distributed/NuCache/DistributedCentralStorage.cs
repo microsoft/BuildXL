@@ -174,8 +174,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var (hash, fallbackStorageId) = ParseCompositeStorageId(storageId);
             if (hash != null)
             {
-                var fileAccessMode = isImmutable && _configuration.ImmutabilityOptimizations ? FileAccessMode.ReadOnly : FileAccessMode.Write;
-                var fileRealizationMode = isImmutable && _configuration.ImmutabilityOptimizations ? FileRealizationMode.Any : FileRealizationMode.Copy;
+                var fileAccessMode = isImmutable ? FileAccessMode.ReadOnly : FileAccessMode.Write;
+                var fileRealizationMode = isImmutable ? FileRealizationMode.Any : FileRealizationMode.Copy;
 
                 // First attempt to place file from content store
                 var placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, fileAccessMode, FileReplacementMode.ReplaceExisting, fileRealizationMode, pinRequest: null);
@@ -287,7 +287,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // In the success case the content will be put at targetFilePath
             await _fallbackStorage.TryGetFileAsync(context, fallbackStorageId, targetFilePath, isImmutable).ThrowIfFailure();
 
-            var placementFileRealizationMode = isImmutable && _configuration.ImmutabilityOptimizations ? FileRealizationMode.Any : FileRealizationMode.Copy;
+            var placementFileRealizationMode = isImmutable ? FileRealizationMode.Any : FileRealizationMode.Copy;
             var putResult = await _privateCas.PutFileAsync(context, targetFilePath, placementFileRealizationMode, _hashType, pinRequest: null).ThrowIfFailure();
 
             return new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
@@ -295,7 +295,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<ContentHash> PutAndRegisterFileAsync(OperationContext context, AbsolutePath file, ContentHash? hash, bool isImmutable = false)
         {
-            var putFileRealizationMode = isImmutable && _configuration.ImmutabilityOptimizations ? FileRealizationMode.Any : FileRealizationMode.Copy;
+            var putFileRealizationMode = isImmutable ? FileRealizationMode.Any : FileRealizationMode.Copy;
 
             PutResult putResult;
             if (hash != null)

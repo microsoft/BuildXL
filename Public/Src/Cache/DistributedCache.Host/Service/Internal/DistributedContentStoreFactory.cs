@@ -634,8 +634,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 ApplyIfNotNull(_distributedSettings.DistributedCentralStoragePeerToPeerCopyTimeoutSeconds, v => distributedCentralStoreConfiguration.PeerToPeerCopyTimeout = TimeSpan.FromSeconds(v));
 
-                ApplyIfNotNull(_distributedSettings.DistributedCentralStorageImmutabilityOptimizations, v => distributedCentralStoreConfiguration.ImmutabilityOptimizations = v);
-
                 configuration.DistributedCentralStore = distributedCentralStoreConfiguration;
             }
 

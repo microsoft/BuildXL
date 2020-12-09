@@ -622,9 +622,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
         public double? DistributedCentralStoragePeerToPeerCopyTimeoutSeconds { get; set; } = null;
 
-        [DataMember]
-        public bool? DistributedCentralStorageImmutabilityOptimizations { get; set; }
-
         #endregion
 
         [DataMember]

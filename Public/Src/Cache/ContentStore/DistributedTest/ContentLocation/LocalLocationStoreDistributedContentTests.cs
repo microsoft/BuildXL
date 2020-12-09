@@ -1190,13 +1190,13 @@ namespace ContentStoreTest.Distributed.Sessions
                 async context =>
                 {
                     var master = context.GetMaster();
-
+                    
                     int count = 10000;
                     var hashes = Enumerable.Range(0, count).Select(i => (delay: count - i, hash: ContentHash.Random()))
                         .Select(
                             c => new ContentHashWithLastAccessTimeAndReplicaCount(
                                 c.hash,
-                                DateTime.Now + TimeSpan.FromSeconds(2 * c.delay)))
+                                TestClock.UtcNow - TimeSpan.FromSeconds(2 * c.delay)))
                         .ToList();
 
                     if (reverse)

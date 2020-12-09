@@ -193,7 +193,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
                                ProactiveCopyMaxRetries = ProactiveCopyRetries,
 
-                               ContentLocationDatabaseOpenReadOnly = false,
+                               ContentLocationDatabaseOpenReadOnly = true,
                                DistributedCentralStorageImmutabilityOptimizations = true,
                            };
 

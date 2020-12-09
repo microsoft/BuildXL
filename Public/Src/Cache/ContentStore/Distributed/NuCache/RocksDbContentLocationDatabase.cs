@@ -709,7 +709,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var metadata = DeserializeMetadataEntry(data);
                         result = metadata;
 
-                        if (!_configuration.OpenReadOnly && touch)
+                        if (!_configuration.OpenReadOnly && IsDatabaseWriteable && touch)
                         {
                             // Update the time, only if no one else has changed it in the mean time. We don't
                             // really care if this succeeds or not, because if it doesn't it only means someone

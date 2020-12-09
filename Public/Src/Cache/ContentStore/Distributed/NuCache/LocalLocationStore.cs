@@ -802,7 +802,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
         {
-            var latestCheckpoint = CheckpointManager.GetLatestCheckpointInfo(context);
+            // NOTE: latestCheckpoint's checkpointId is only the Guid part of the checkpoint id. Do NOT use it for
+            // anything other than reporting.
+            var latestCheckpoint = CheckpointManager.DatabaseGetLatestCheckpointInfo(context);
             var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
 
             // Only skip if this is the first restore and it is sufficiently recent

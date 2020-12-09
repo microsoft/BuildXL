@@ -174,28 +174,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public string? Epoch { get; set; } = null;
 
         /// <summary>
-        /// Time between full range compactions. These help keep the size of the DB instance down to a minimum.
-        /// 
-        /// Required because of our workload tends to generate a lot of short-lived entries, which clutter the deeper
-        /// levels of the RocksDB LSM tree.
-        /// </summary>
-        public TimeSpan FullRangeCompactionInterval { get; set; } = Timeout.InfiniteTimeSpan;
-
-        /// <summary>
-        /// When <see cref="FullRangeCompactionInterval"/> is enabled, this tunes compactions so that they happen on
-        /// small parts of the range instead of the whole thing at once.
-        ///
-        /// This makes compactions change small subsets of SST files instead of all at once. By doing this, we help
-        /// the incremental checkpointing system by not forcing it to transfer a lot of data at once.
-        /// </summary>
-        public FullRangeCompactionStrategy FullRangeCompactionVariant { get; set; }
-
-        /// <summary>
-        /// When doing <see cref="FullRangeCompactionStrategy.ByteIncrements"/>, how much to increment per compaction.
-        /// </summary>
-        public byte FullRangeCompactionByteIncrementStep { get; set; } = 1;
-
-        /// <summary>
         /// Whether to enable long-term log keeping. Should only be true for servers, where we can keep a lot of logs.
         /// </summary>
         public bool LogsKeepLongTerm { get; set; }
@@ -223,17 +201,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
 
-        /// <summary>
-        /// Enable dynamic level target sizes.
-        /// 
-        /// This helps keep space amplification at a factor of ~1.111 by manipulating the level sizes dynamically.
-        /// 
-        /// See: https://rocksdb.org/blog/2015/07/23/dynamic-level.html
-        /// See: https://rockset.com/blog/how-we-use-rocksdb-at-rockset/ (under Dynamic Level Target Sizes)
-        /// See: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true
-        /// </summary>
-        public bool EnableDynamicLevelTargetSizes { get; set; }
-
         /// <nodoc />
         public Compression? Compression { get; internal set; }
 
@@ -260,31 +227,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyIfNotNull(settings.MaximumNumberOfMetadataEntriesToStore, v => configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
-
-            ApplyIfNotNull(
-                settings.FullRangeCompactionIntervalMinutes,
-                v =>
-                {
-                    if (v < 0)
-                    {
-                        throw new ArgumentException($"`{nameof(settings.FullRangeCompactionIntervalMinutes)}` must be greater than or equal to 0");
-                    }
-
-                    if (v > 0)
-                    {
-                        configuration.FullRangeCompactionInterval = TimeSpan.FromMinutes(v);
-                    }
-                });
-
-            ApplyEnumIfNotNull<FullRangeCompactionStrategy>(
-                settings.FullRangeCompactionVariant,
-                nameof(settings.FullRangeCompactionVariant),
-                v => configuration.FullRangeCompactionVariant = v);
-            ApplyIfNotNull(
-                settings.FullRangeCompactionByteIncrementStep,
-                v => configuration.FullRangeCompactionByteIncrementStep = v);
-
-            ApplyIfNotNull(settings.ContentLocationDatabaseEnableDynamicLevelTargetSizes, v => configuration.EnableDynamicLevelTargetSizes = v);
 
             ApplyEnumIfNotNull<Compression>(settings.ContentLocationDatabaseCompression, v => configuration.Compression = v);
 

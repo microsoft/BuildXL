@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -47,7 +46,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private string? _storeLocation;
         private readonly string _activeSlotFilePath;
-        private Timer? _compactionTimer;
 
         private readonly RocksDbLogsManager? _logManager;
 
@@ -80,7 +78,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// This serves all of CaChaaS' needs for storage, modulo garbage collection.
             /// </summary>
             Metadata,
-            DatabaseManagement,
         }
 
         private enum ClusterStateKeys
@@ -110,12 +107,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            lock (ModeChangeLock)
-            {
-                _compactionTimer?.Dispose();
-                _compactionTimer = null;
-            }
-
             _keyValueStore?.Dispose();
 
             return base.ShutdownCoreAsync(context);
@@ -134,25 +125,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 // We only create the timers within the Startup method. It is expected that users will call
                 // SetDatabaseMode before proceeding to use the database, as that method will actually start the timers.
-                if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
-                {
-                    _compactionTimer = new Timer(
-                        _ => FullRangeCompaction(context.CreateNested(nameof(RocksDbContentLocationDatabase), caller: nameof(FullRangeCompaction))),
-                        null,
-                        Timeout.InfiniteTimeSpan,
-                        Timeout.InfiniteTimeSpan);
-                }
             }
 
             return result;
-        }
-
-        /// <inheritdoc />
-        protected override void ConfigureDatabase(bool isDatabaseWriteable)
-        {
-            // Shutdown can't happen simultaneously, so no need to take the lock
-            var nextCompactionTimeSpan = isDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan;
-            _compactionTimer?.Change(nextCompactionTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
         private BoolResult InitialLoad(OperationContext context, StoreSlot activeSlot)
@@ -230,7 +205,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     new KeyValueStoreAccessor.RocksDbStoreArguments()
                     {
                         StoreDirectory = storeLocation,
-                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata), nameof(Columns.DatabaseManagement) },
+                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
                         RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
                         RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
                         RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
@@ -250,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Since the writes to ClusterState are relatively few, we can make-do with disabling
                         // compaction here and pretending like we are using a read-only database.
                         DisableAutomaticCompactions = !IsDatabaseWriteable,
-                        LeveledCompactionDynamicLevelTargetSizes = _configuration.EnableDynamicLevelTargetSizes,
+                        LeveledCompactionDynamicLevelTargetSizes = true,
                         Compression = _configuration.Compression,
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
@@ -1169,195 +1144,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _keyValueStore.Use(store => GetLongProperty(store, propertyName, columnFamilyName)).Result;
         }
 
-        private void FullRangeCompaction(OperationContext context)
-        {
-            if (ShutdownStarted || !IsDatabaseWriteable)
-            {
-                return;
-            }
-
-            using (var cancellableContext = TrackShutdown(context))
-            {
-                var ctx = (OperationContext)cancellableContext;
-                var killSwitchUsed = false;
-                ctx.PerformOperation<BoolResult>(Tracer, () =>
-                    PossibleExtensions.ToBoolResult(_keyValueStore.Use((store, killSwitch) =>
-                    {
-                        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx.Token, killSwitch))
-                        {
-                            foreach (var columnFamily in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
-                            {
-                                if (cts.IsCancellationRequested)
-                                {
-                                    killSwitchUsed = killSwitch.IsCancellationRequested;
-                                    break;
-                                }
-
-                                var result = CompactColumnFamily(context, store, columnFamily);
-                                if (!result.Succeeded)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                    })),
-                    messageFactory: _ => $"KillSwitch=[{killSwitchUsed}]").IgnoreFailure();
-            }
-
-            if (!ShutdownStarted)
-            {
-                lock (ModeChangeLock)
-                {
-                    if (IsDatabaseWriteable)
-                    {
-                        // No try-catch required here.
-                        _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
-                    }
-                }
-            }
-        }
-
-        private BoolResult CompactColumnFamily(OperationContext context, IBuildXLKeyValueStore store, string columnFamilyName)
-        {
-            uint? startRange = null;
-            uint? endRange = null;
-
-            return context.PerformOperation(Tracer, () =>
-            {
-                switch (_configuration.FullRangeCompactionVariant)
-                {
-                    case FullRangeCompactionStrategy.EntireRange:
-                    {
-                        store.CompactRange((byte[]?)null, null, columnFamilyName);
-                        break;
-                    }
-                    case FullRangeCompactionStrategy.ByteIncrements:
-                    {
-                        var info = GetCompactionInfo(store, columnFamilyName);
-
-                        var compactionEndPrefix = unchecked((byte)(info.LastCompactionEndPrefix + _configuration.FullRangeCompactionByteIncrementStep));
-
-                        startRange = info.LastCompactionEndPrefix;
-                        endRange = compactionEndPrefix;
-
-                        var start = new byte[] { info.LastCompactionEndPrefix };
-                        var limit = new byte[] { compactionEndPrefix };
-                        if (info.LastCompactionEndPrefix > compactionEndPrefix)
-                        {
-                            // We'll wrap around when we add the increment step at the end of the range; hence, we produce two compactions.
-                            store.CompactRange(start, null, columnFamilyName);
-                            store.CompactRange(null, limit, columnFamilyName);
-                        }
-                        else
-                        {
-                            store.CompactRange(start, limit, columnFamilyName);
-                        }
-
-                        StoreCompactionInfo(
-                            store,
-                            new CompactionInfo
-                            {
-                                LastCompactionEndPrefix = compactionEndPrefix,
-                            },
-                            columnFamilyName);
-                        break;
-                    }
-                    case FullRangeCompactionStrategy.WordIncrements:
-                    {
-                        var info = GetCompactionInfo(store, columnFamilyName);
-
-                        var compactionEndPrefix = unchecked((ushort)(info.LastWordCompactionEndPrefix + _configuration.FullRangeCompactionByteIncrementStep));
-
-                        startRange = info.LastWordCompactionEndPrefix;
-                        endRange = compactionEndPrefix;
-
-                        var start = BitConverter.GetBytes(info.LastWordCompactionEndPrefix);
-                        var limit = BitConverter.GetBytes(compactionEndPrefix);
-                        if (info.LastWordCompactionEndPrefix > compactionEndPrefix)
-                        {
-                            // We'll wrap around when we add the increment step at the end of the range; hence, we produce two compactions.
-                            store.CompactRange(start, null, columnFamilyName);
-                            store.CompactRange(null, limit, columnFamilyName);
-                        }
-                        else
-                        {
-                            store.CompactRange(start, limit, columnFamilyName);
-                        }
-
-                        StoreCompactionInfo(
-                            store,
-                            new CompactionInfo
-                            {
-                                LastWordCompactionEndPrefix = compactionEndPrefix,
-                            },
-                            columnFamilyName);
-                        break;
-                    }
-                }
-
-                return BoolResult.Success;
-            }, messageFactory: _ => $"ColumnFamily=[{columnFamilyName}] Variant=[{_configuration.FullRangeCompactionVariant}] Start=[{startRange?.ToString() ?? "NULL"}] End=[{endRange?.ToString() ?? "NULL"}]");
-        }
-
-        private void StoreCompactionInfo(IBuildXLKeyValueStore store, CompactionInfo compactionInfo, string columnFamilyName)
-        {
-            Contract.RequiresNotNull(store);
-            Contract.RequiresNotNullOrEmpty(columnFamilyName);
-
-            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfoV2");
-            var value = SerializeCompactionInfo(compactionInfo);
-            store.Put(key, value, columnFamilyName: nameof(Columns.DatabaseManagement));
-        }
-
-        private CompactionInfo GetCompactionInfo(IBuildXLKeyValueStore store, string columnFamilyName)
-        {
-            Contract.RequiresNotNull(store);
-            Contract.RequiresNotNullOrEmpty(columnFamilyName);
-
-            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfoV2");
-            if (store.TryGetValue(key, out var value, columnFamilyName: nameof(Columns.DatabaseManagement)))
-            {
-                return DeserializeCompactionInfo(value);
-            }
-
-            return new CompactionInfo();
-        }
-
-        private byte[] SerializeCompactionInfo(CompactionInfo strongFingerprint)
-        {
-            return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
-        }
-
-        private CompactionInfo DeserializeCompactionInfo(byte[] bytes)
-        {
-            return SerializationPool.Deserialize(bytes, static reader => CompactionInfo.Deserialize(reader));
-        }
-
-        private struct CompactionInfo
-        {
-            public byte LastCompactionEndPrefix { get; set; }
-
-            public ushort LastWordCompactionEndPrefix { get; set; }
-
-            public void Serialize(BuildXLWriter writer)
-            {
-                writer.Write(LastCompactionEndPrefix);
-                writer.Write(LastWordCompactionEndPrefix);
-            }
-
-            public static CompactionInfo Deserialize(BuildXLReader reader)
-            {
-                var lastCompactionEndPrefix = reader.ReadByte();
-                var lastWordCompactionEndPrefix = reader.ReadUInt16();
-
-                return new CompactionInfo()
-                {
-                    LastCompactionEndPrefix = lastCompactionEndPrefix,
-                    LastWordCompactionEndPrefix = lastWordCompactionEndPrefix,
-                };
-            }
-        }
-
         private class KeyValueStoreGuard : IDisposable
         {
             private KeyValueStoreAccessor _accessor;
@@ -1370,7 +1156,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// Operations that do this will have their database switched under them as they are running. They can
             /// also choose to terminate gracefully if possible. For examples, see:
             ///  - <see cref="GarbageCollectMetadataCore(OperationContext)"/>
-            ///  - <see cref="FullRangeCompaction(OperationContext)"/>
             ///  - Content GC
             /// </summary>
             private CancellationTokenSource _killSwitch = new CancellationTokenSource();

@@ -693,23 +693,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public string ContentLocationDatabaseCompression { get; set; }
 
-        /// <remarks>
-        /// 0 means infinite here (i.e. there won't be any compactions)
-        /// </remarks>
-        [DataMember]
-        [Validation.Range(0, int.MaxValue)]
-        public double? FullRangeCompactionIntervalMinutes { get; set; }
-
-        [DataMember]
-        public string FullRangeCompactionVariant { get; set; }
-
-        [DataMember]
-        [Validation.Range(1, byte.MaxValue)]
-        public byte? FullRangeCompactionByteIncrementStep { get; set; }
-
-        [DataMember]
-        public bool? ContentLocationDatabaseEnableDynamicLevelTargetSizes { get; set; }
-
         [DataMember]
         [Validation.Range(1, long.MaxValue)]
         public long? ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize { get; set; }

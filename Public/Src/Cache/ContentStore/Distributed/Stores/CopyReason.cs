@@ -4,30 +4,36 @@
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <nodoc />
+    /// <remarks>
+    /// This enumeration is sorted ascending priority order for copy scheduling purposes.
+    /// </remarks>
     public enum CopyReason
     {
         /// <nodoc />
         None,
 
         /// <nodoc />
-        Pin,
+        ProactiveBackground,
 
         /// <nodoc />
-        Put,
+        ProactiveCopyOnPut,
 
         /// <nodoc />
-        Replication,
+        AsyncCopyOnPin,
 
         /// <nodoc />
-        Place,
+        CentralStorage,
+
+        /// <nodoc />
+        ProactiveCopyOnPin,
 
         /// <nodoc />
         OpenStream,
 
         /// <nodoc />
-        AsyncPin,
+        Place,
 
         /// <nodoc />
-        CentralStorage,
+        Pin,
     }
 }

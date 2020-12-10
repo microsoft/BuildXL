@@ -8,15 +8,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
     /// </summary>
     public enum SemaphoreOrder
     {
+        /// <summary>
+        /// Implies that the ordered semaphore will use the underlying semaphore's order.
+        /// </summary>
+        NonDeterministic,
+
         /// <nodoc />
         FIFO,
 
         /// <nodoc />
         LIFO,
-
-        /// <summary>
-        /// Implies that the ordered semaphore will use the underlying semaphore's order.
-        /// </summary>
-        NonDeterministic
     }
 }

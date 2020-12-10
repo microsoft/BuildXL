@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         protected readonly IClock Clock;
 
         /// <nodoc />
-        protected readonly IDistributedContentCopier Copier;
+        protected readonly DistributedContentCopier Copier;
 
         /// <nodoc />
         protected string KeySpace => Configuration.Keyspace;
@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public ContentLocationStoreFactory(
             IClock clock,
             RedisContentLocationStoreConfiguration configuration,
-            IDistributedContentCopier copier)
+            DistributedContentCopier copier)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(!string.IsNullOrEmpty(configuration.RedisGlobalStoreConnectionString));

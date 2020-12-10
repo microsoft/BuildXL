@@ -636,7 +636,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var putResult2 = await session1.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
 
                     store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(0);
-                    var result = await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.Replication);
+                    var result = await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.ProactiveBackground);
                     result.Succeeded.Should().BeFalse();
                     store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
 
@@ -649,7 +649,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Copy should not be rejected.
                     store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
-                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.Replication).ShouldBeSuccess();
+                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, CopyReason.ProactiveBackground).ShouldBeSuccess();
                     store1.CounterCollection[DistributedContentStore.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
                 });
         }
@@ -695,7 +695,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                     context,
                                     pr.ContentHash,
                                     tryBuildRing: false,
-                                    CopyReason.Replication);
+                                    CopyReason.ProactiveBackground);
                                 return result.OutsideRingCopyResult;
                             });
                         var results = await Task.WhenAll(tasks);

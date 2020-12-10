@@ -95,23 +95,7 @@ namespace BuildXL.Utilities.Tasks
         {
             var @this = this;
 
-            task.ContinueWith(
-                (Task continuation) =>
-                {
-                    if (continuation.IsFaulted)
-                    {
-                        @this.TrySetException(task.Exception);
-                    }
-                    else if (continuation.IsCanceled)
-                    {
-                        @this.TrySetCanceled();
-                    }
-                    else
-                    {
-                        @this.TrySetResult(task.Result);
-                    }
-                }
-            );
+            task.ContinueWith((Task continuation) => LinkToContinuation(task, continuation, @this));
         }
 
         /// <summary>
@@ -121,23 +105,44 @@ namespace BuildXL.Utilities.Tasks
         {
             var @this = this;
 
-            task.ContinueWith(
-                (Task continuation) =>
-                {
-                    if (continuation.IsFaulted)
-                    {
-                        @this.TrySetException(task.Exception);
-                    }
-                    else if (continuation.IsCanceled)
-                    {
-                        @this.TrySetCanceled();
-                    }
-                    else
-                    {
-                        @this.TrySetResult(getResult(task.Result, data));
-                    }
-                }
-            );
+            task.ContinueWith((Task continuation) => LinkToContinuation(task, data, getResult, continuation, @this));
+        }
+
+        /// <summary>
+        /// Sets the task source to the result of the task
+        /// </summary>
+        public void TrySetFromTask(Task<TResult> task)
+        {
+            LinkToContinuation(task, task, this);
+        }
+
+        /// <summary>
+        /// Sets the task source to the result of the task
+        /// </summary>
+        public void TrySetFromTask<T>(Task<T> task, Func<T, TResult> getResult)
+        {
+            LinkToContinuation(task, getResult, static (result, getResult) => getResult(result), task, this);
+        }
+
+        private static void LinkToContinuation(Task<TResult> task, Task continuation, TaskSourceSlim<TResult> @this)
+        {
+            LinkToContinuation(task, true, static (result, _) => result, continuation, @this);
+        }
+
+        private static void LinkToContinuation<T, TData>(Task<T> task, TData data, Func<T, TData, TResult> getResult, Task continuation, TaskSourceSlim<TResult> @this)
+        {
+            if (continuation.IsFaulted)
+            {
+                @this.TrySetException(task.Exception);
+            }
+            else if (continuation.IsCanceled)
+            {
+                @this.TrySetCanceled();
+            }
+            else
+            {
+                @this.TrySetResult(getResult(task.Result, data));
+            }
         }
 
         private void ChangeState<TResultState>(TResultState state, Action<TaskCompletionSource<TResult>, TResultState> action)

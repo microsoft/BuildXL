@@ -31,7 +31,7 @@ namespace Test.BuildXL.Utilities
            int i = 0;
            int successValue = 42;
 
-           var result = TaskUtilities.AwaitWithProgressReporting(
+           var result = TaskUtilities.AwaitWithProgressReportingAsync(
                task: TestTask(TimeSpan.FromMilliseconds(taskTimeMilliseconds), successValue),
                period: TimeSpan.FromMilliseconds(reportPeriodMilliseconds),
                action: (time) => Interlocked.Increment(ref i),
@@ -55,7 +55,7 @@ namespace Test.BuildXL.Utilities
             int i = 0;
             int successValue = 42;
 
-            var result = TaskUtilities.AwaitWithProgressReporting(
+            var result = TaskUtilities.AwaitWithProgressReportingAsync(
                 task: TestTask(TimeSpan.FromMilliseconds(taskTimeMilliseconds), successValue),
                 period: TimeSpan.FromMilliseconds(reportPeriodMilliseconds),
                 action: (time) => Interlocked.Increment(ref i),
@@ -74,7 +74,7 @@ namespace Test.BuildXL.Utilities
 
            try
            {
-               var result = TaskUtilities.AwaitWithProgressReporting(
+               var result = TaskUtilities.AwaitWithProgressReportingAsync(
                    task: Task.Run(() => TestMethod(exceptionText)),
                    period: TimeSpan.FromHours(24),
                    action: (time) => Interlocked.Increment(ref i),

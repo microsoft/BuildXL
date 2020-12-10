@@ -425,7 +425,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Local pins and distributed pins which are copied locally allow proactive copy
                 if (pinResult.Succeeded && (!(pinResult is DistributedPinResult distributedPinResult) || distributedPinResult.CopyLocally))
                 {
-                    var proactiveCopyResult = await ProactiveCopyIfNeededAsync(opContext, contentHashes[indexedPinResult.Index], tryBuildRing: true, CopyReason.Pin);
+                    var proactiveCopyResult = await ProactiveCopyIfNeededAsync(opContext, contentHashes[indexedPinResult.Index], tryBuildRing: true, CopyReason.ProactiveCopyOnPin);
 
                     // Only fail if all copies failed.
                     if (!proactiveCopyResult.Succeeded)
@@ -1080,7 +1080,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     // but for asynchronous copy we always need to update the tracker with a new location.
                     var task = WithStoreCancellationAsync(
                         operationContext.TracingContext,
-                        opContext => TryCopyAndPutAndUpdateContentTrackerAsync(opContext, remote, updateContentTracker: true, CopyReason.AsyncPin));
+                        opContext => TryCopyAndPutAndUpdateContentTrackerAsync(opContext, remote, updateContentTracker: true, CopyReason.AsyncCopyOnPin));
                     if (Settings.InlineOperationsForTests)
                     {
                         (await task).TraceIfFailure(operationContext);

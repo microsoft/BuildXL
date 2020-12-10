@@ -62,6 +62,7 @@ namespace Distributed {
             "BuildXL.Cache.MemoizationStore.Distributed",
             "BuildXL.Cache.MemoizationStore.Distributed.Test",
             "BuildXL.Cache.MemoizationStore.Vsts.Test",
-        ]
+        ],
+        skipDocumentationGeneration: true,
     });
 }

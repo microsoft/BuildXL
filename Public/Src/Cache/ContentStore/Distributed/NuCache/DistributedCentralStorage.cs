@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string StorageIdSeparator = "||DCS||";
         private readonly DistributedCentralStoreConfiguration _configuration;
         private readonly ILocationStore _locationStore;
-        private readonly IDistributedContentCopier _copier;
+        private readonly DistributedContentCopier _copier;
         private const string CacheSubFolderName = "dcs";
         private const string CacheSubFolderNameWithTrailingSlash = CacheSubFolderName + @"\";
 
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public DistributedCentralStorage(
             DistributedCentralStoreConfiguration configuration,
             ILocationStore locationStore,
-            IDistributedContentCopier copier,
+            DistributedContentCopier copier,
             CentralStorage fallbackStorage)
         {
             _configuration = configuration;

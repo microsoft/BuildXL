@@ -29,9 +29,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private readonly Context _context;
 
+        public int ConcurrencyLimit { get; }
+
         /// <nodoc />
         public OrderedSemaphore(int concurrencyLimit, SemaphoreOrder order, Context context)
         {
+            ConcurrencyLimit = concurrencyLimit;
             _semaphore = new SemaphoreSlim(initialCount: concurrencyLimit);
             _order = order;
             _collection = order == SemaphoreOrder.FIFO
@@ -131,17 +134,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <summary>
         /// Convenience method to allow tracing the time it takes to Wait a semaphore 
         /// </summary>
-        public async Task<TResult> GatedOperationAsync<TResult>(
-            Func<(TimeSpan semaphoreWaitTime, int semaphoreCount), Task<TResult>> operation,
+        public async Task<T> GatedOperationAsync<T>(
+            Func<(TimeSpan semaphoreWaitTime, int semaphoreCount), Task<T>> operation,
             CancellationToken token = default,
-            TimeSpan? ioGateTimeout = null)
+            TimeSpan? timeout = null,
+            Func<TimeSpan, T>? onTimeout = null)
         {
             var sw = Stopwatch.StartNew();
-            var acquired = await WaitAsync(ioGateTimeout ?? Timeout.InfiniteTimeSpan, token);
+            var acquired = await WaitAsync(timeout ?? Timeout.InfiniteTimeSpan, token);
 
             if (!acquired)
             {
-                throw new TimeoutException($"IO gate timed out after {ioGateTimeout}");
+                if (onTimeout is null)
+                {
+                    throw new TimeoutException($"IO gate timed out after `{sw.Elapsed}` (timeout is `{timeout}`)");
+                }
+                else
+                {
+                    return onTimeout(sw.Elapsed);
+                }
             }
 
             try

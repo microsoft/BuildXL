@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -847,14 +848,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;
 
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
-
-        [DataMember]
-        [Validation.Enum(typeof(SemaphoreOrder))]
-        public string OrderForCopies { get; set; } = SemaphoreOrder.NonDeterministic.ToString();
-
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
@@ -938,14 +931,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         #region Proactive Copy / Replication
 
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
-
-        [DataMember]
-        [Validation.Enum(typeof(SemaphoreOrder))]
-        public string OrderForProactiveCopies { get; set; } = SemaphoreOrder.NonDeterministic.ToString();
-
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
         /// </summary>
@@ -991,10 +976,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseBinManager { get; set; } = false;
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int ProactiveCopyIOGateTimeoutSeconds { get; set; } = 900;
-
-        [DataMember]
         [Validation.Enum(typeof(MultiplexMode))]
         public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Unified);
 
@@ -1016,7 +997,37 @@ namespace BuildXL.Cache.Host.Configuration
             return (MultiplexMode)Enum.Parse(typeof(MultiplexMode), MultiplexStoreMode);
         }
 
-        #endregion        
+        #endregion
+
+        #region Copy Scheduler
+        [DataMember]
+        public string CopySchedulerType { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        [DataMember]
+        [Validation.Enum(typeof(SemaphoreOrder))]
+        public string OrderForCopies { get; set; } = SemaphoreOrder.NonDeterministic.ToString();
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        [DataMember]
+        [Validation.Enum(typeof(SemaphoreOrder))]
+        public string OrderForProactiveCopies { get; set; } = SemaphoreOrder.NonDeterministic.ToString();
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int ProactiveCopyIOGateTimeoutSeconds { get; set; } = 900;
+
+        [DataMember]
+        public PrioritizedCopySchedulerConfiguration PrioritizedCopySchedulerConfiguration { get; set; }
+
+        #endregion
+
         /// <summary>
         /// The map of drive paths to alternate paths to access them
         /// </summary>

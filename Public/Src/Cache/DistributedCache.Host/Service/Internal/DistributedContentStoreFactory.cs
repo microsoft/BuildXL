@@ -30,8 +30,8 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
 using static BuildXL.Utilities.ConfigurationHelper;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -349,18 +349,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 TrustedHashFileSizeBoundary = distributedSettings.TrustedHashFileSizeBoundary,
                 ParallelHashingFileSizeBoundary = distributedSettings.ParallelHashingFileSizeBoundary,
-                MaxConcurrentCopyOperations = distributedSettings.MaxConcurrentCopyOperations,
                 PinConfiguration = pinConfiguration,
                 RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
                 BandwidthConfigurations = FromDistributedSettings(distributedSettings.BandwidthConfigurations),
                 MaxRetryCount = distributedSettings.MaxRetryCount,
-                ProactiveCopyIOGateTimeout = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyIOGateTimeoutSeconds),
                 ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
                 PushProactiveCopies = distributedSettings.PushProactiveCopies,
                 ProactiveCopyOnPut = distributedSettings.ProactiveCopyOnPut,
                 ProactiveCopyOnPin = distributedSettings.ProactiveCopyOnPin,
                 ProactiveCopyUsePreferredLocations = distributedSettings.ProactiveCopyUsePreferredLocations,
-                MaxConcurrentProactiveCopyOperations = distributedSettings.MaxConcurrentProactiveCopyOperations,
                 ProactiveCopyLocationsThreshold = distributedSettings.ProactiveCopyLocationsThreshold,
                 ProactiveCopyRejectOldContent = distributedSettings.ProactiveCopyRejectOldContent,
                 ReplicaCreditInMinutes = distributedSettings.IsDistributedEvictionEnabled ? distributedSettings.ReplicaCreditInMinutes : null,
@@ -390,9 +387,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             ApplyIfNotNull(distributedSettings.MaximumConcurrentPutAndPlaceFileOperations, v => distributedContentStoreSettings.MaximumConcurrentPutAndPlaceFileOperations = v);
-            ApplyEnumIfNotNull<SemaphoreOrder>(distributedSettings.OrderForCopies, v => distributedContentStoreSettings.OrderForCopies = v);
-            ApplyEnumIfNotNull<SemaphoreOrder>(distributedSettings.OrderForProactiveCopies, v => distributedContentStoreSettings.OrderForCopies = v);
 
+            distributedContentStoreSettings.CopyScheduler = CopySchedulerConfiguration.FromDistributedContentSettings(distributedSettings);
             arguments.Overrides.Override(distributedContentStoreSettings);
 
             ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, arguments.Logger);

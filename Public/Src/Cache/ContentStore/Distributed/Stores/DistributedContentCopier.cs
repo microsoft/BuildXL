@@ -8,8 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -34,22 +34,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// Handles copies from remote locations to a local store
     /// </summary>
-    public class DistributedContentCopier : IDistributedContentCopier
+    public class DistributedContentCopier
     {
-        // Gate to control the maximum number of simultaneously active IO operations.
-        private readonly OrderedSemaphore _ioGate;
-
-        // Gate to control the maximum number of simultaneously active proactive copies.
-        private readonly OrderedSemaphore _proactiveCopyIoGate;
-
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
-        private readonly TimeSpan _ioGateTimeoutForProactiveCopies;
         private readonly int _maxRetryCount;
         private readonly IRemoteFileCopier _remoteFileCopier;
         private readonly IContentCommunicationManager _copyRequester;
         private readonly IClock _clock;
 
         private readonly DistributedContentStoreSettings _settings;
+
+        private readonly ICopyScheduler _copyScheduler;
 
         /// <inheritdoc />
         public IAbsFileSystem FileSystem { get; }
@@ -76,11 +71,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             FileSystem = fileSystem;
             _clock = clock;
 
-            _ioGate = new OrderedSemaphore(_settings.MaxConcurrentCopyOperations, _settings.OrderForCopies, new Context(logger));
-            _proactiveCopyIoGate = new OrderedSemaphore(_settings.MaxConcurrentProactiveCopyOperations, _settings.OrderForProactiveCopies, new Context(logger));
+            var context = new Context(logger);
+            _copyScheduler = settings.CopyScheduler.Create(context);
+            if (_copyRequester is StartupShutdownSlimBase slimBase)
+            {
+                slimBase.StartupAsync(context).Result.ThrowIfFailure();
+            }
+
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;
-            _ioGateTimeoutForProactiveCopies = settings.ProactiveCopyIOGateTimeout;
         }
 
         /// <inheritdoc />
@@ -246,22 +245,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int attempt,
             Func<TResult, CopyResultCode> statusFunc) where TResult : ResultBase
         {
-            TimeSpan ioGateWaitTime = default;
-            int ioGateCurrentCount = default;
+            CopySchedulingSummary? copySchedulingSummary = null;
             var ioGateTimedOut = true;
 
             return await context.PerformOperationAsync(
                 Tracer,
-                operation: () => _proactiveCopyIoGate.GatedOperationAsync(pair =>
+                operation: async () =>
+                {
+                    var schedulerResult = await _copyScheduler.ScheduleOutboundPushAsync(new OutboundPushCopy<TResult>(
+                        Context: context,
+                        Reason: reason,
+                        Attempt: attempt,
+                        LocationSource: source,
+                        PerformOperationAsync: async (arguments) =>
+                        {
+                            copySchedulingSummary = arguments.Summary;
+                            return await func(arguments.Context);
+                        }));
+
+                    if (!schedulerResult.Succeeded)
                     {
-                        var (timeWaiting, currentCount) = pair;
+                        if (schedulerResult.Reason == SchedulerFailureCode.Timeout)
+                        {
+                            ioGateTimedOut = true;
+                        }
+
+                        throw new ResultPropagationException(schedulerResult);
+                    }
+                    else
+                    {
                         ioGateTimedOut = false;
-                        ioGateWaitTime = timeWaiting;
-                        ioGateCurrentCount = currentCount;
-                        return func(context);
-                    },
-                    context.Token,
-                    _ioGateTimeoutForProactiveCopies),
+
+                        return schedulerResult.Value!;
+                    }
+                },
                 traceOperationStarted: false,
                 extraEndMessage: result =>
                     $"Code={statusFunc(result)} " +
@@ -269,11 +286,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     $"TargetLocation=[{targetLocation}] " +
                     $"InsideRing={isInsideRing} " +
                     $"CopyReason={reason} " +
-                    $"LocationSource={source} " +
-                    $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - ioGateCurrentCount} " +
-                    $"IOGate.Wait={ioGateWaitTime.TotalMilliseconds}ms. " +
-                    $"IOGate.TimedOut={ioGateTimedOut} " +
                     $"Attempt={attempt} " +
+                    $"LocationSource={source} " +
+                    (copySchedulingSummary is null ? string.Empty : $"{copySchedulingSummary} ") +
+                    $"Scheduler.TimedOut={ioGateTimedOut} " +
                     (result is PushFileResult pushResult && pushResult.HeaderResponseTime.HasValue ? $"HeaderResponseTime={pushResult.HeaderResponseTime} " : string.Empty) +
                     (result is ICopyResult copyResult && copyResult.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={copyResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty));
         }
@@ -393,25 +409,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     CopyFileResult? copyFileResult = null;
                     try
                     {
-                        double ioGateWait = 0;
-                        int ioGateCurrentCount = 0;
                         var options = GetCopyOptions(attemptCount);
+                        CopySchedulingSummary? copySchedulingSummary = null;
 
                         copyFileResult = await context.PerformOperationAsync(
                             Tracer,
-                            async () => await _ioGate.GatedOperationAsync(async pair =>
+                            async () =>
                             {
-                                var (timeWaiting, currentCount) = pair;
-                                ioGateWait = timeWaiting.TotalMilliseconds;
-                                    ioGateCurrentCount = currentCount;
+                                var schedulerResult = await _copyScheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(
+                                    Reason: reason,
+                                    Context: context.WithCancellationToken(cts),
+                                    Attempt: attemptCount,
+                                    PerformOperationAsync: async (arguments) =>
+                                    {
+                                        var result = await TaskUtilities.AwaitWithProgressReportingAsync(
+                                                    task: CopyFileAsync(arguments.Context, sourcePath, tempLocation, hashInfo, arguments.Context.Token, options),
+                                                    period: _settings.PeriodicCopyTracingInterval,
+                                                    action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.TotalBytesCopied}]."),
+                                                    reportImmediately: false,
+                                                    reportAtEnd: false);
 
-                                    return await TaskUtilities.AwaitWithProgressReporting(
-                                        task: CopyFileAsync(context, sourcePath, tempLocation, hashInfo, cts, options),
-                                        period: _settings.PeriodicCopyTracingInterval,
-                                        action: timeSpan => Tracer.Debug(context, $"{Tracer.Name}.RemoteCopyFile from[{location}]) via stream in progress {(int)timeSpan.TotalSeconds}s, TotalBytesCopied=[{options.TotalBytesCopied}]."),
-                                        reportImmediately: false,
-                                        reportAtEnd: false);
-                                }, cts),
+                                        copySchedulingSummary = arguments.Summary;
+                                        return result;
+                                    })
+                                {
+                                    ContentHash = hashInfo.ContentHash,
+                                });
+
+                                // The scheduler may have failed, in which case the error is thrown here. If the copy
+                                // fails, we'll pass this success check and return the error below.
+                                if (!schedulerResult.Succeeded)
+                                {
+                                    throw new ResultPropagationException(schedulerResult);
+                                }
+                                else
+                                {
+                                    return schedulerResult.Value!;
+                                }
+                            },
                             traceOperationStarted: false,
                             traceOperationFinished: true,
                             extraEndMessage: (result) =>
@@ -423,15 +458,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"attempt={attemptCount} replica={replicaIndex} " +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 (result.TimeSpentWritingToDisk.HasValue ? $"writeTime={result.TimeSpentWritingToDisk.Value.TotalMilliseconds}ms " : string.Empty) +
-                                $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - ioGateCurrentCount} " +
-                                $"IOGate.Wait={ioGateWait}ms " +
+                                (copySchedulingSummary is null ? string.Empty : $"{copySchedulingSummary} ") +
                                 $"BandwidthOptions=[{options.BandwidthConfiguration?.ToString() ?? "null"}] " +
                                 (result.HeaderResponseTime.HasValue ? $"HeaderResponseTime={result.HeaderResponseTime} " : string.Empty) +
                                 (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty),
                             caller: "RemoteCopyFile",
                             counter: _counters[DistributedContentCopierCounters.RemoteCopyFile]);
 
-                        TrackCopyFileResultMetrics(context, copyFileResult, ioGateWait, attemptCount);
+                        TrackCopyFileResultMetrics(context, copyFileResult, attemptCount, copySchedulingSummary);
                     }
                     catch (Exception e) when (e is OperationCanceledException)
                     {
@@ -570,12 +604,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return (new PutResult(hashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), retry: true);
         }
 
-        private void TrackCopyFileResultMetrics(Context context, CopyFileResult result, double ioGateWait, int attemptCount)
+        private void TrackCopyFileResultMetrics(Context context, CopyFileResult result, int attemptCount, CopySchedulingSummary? summary)
         {
             Tracer.TrackMetric(context, "CopyFile_Duration", result.DurationMs);
             Tracer.TrackMetric(context, "CopyFile_AttemptCount", attemptCount);
-            Tracer.TrackMetric(context, "CopyFile_IOGateWaitTimeMs", (long)ioGateWait);
-            
+
+            if (summary != null)
+            {
+                Tracer.TrackMetric(context, "CopyFile_IOGateWaitTimeMs", (long)summary.QueueWait.TotalMilliseconds);
+            }
+
             ApplyIfNotNull(result.Size, v => Tracer.TrackMetric(context, "CopyFile_Size", v));
             ApplyIfNotNull(result.TimeSpentHashing, v => Tracer.TrackMetric(context, "CopyFile_HashingTimeMs", (long)v.TotalMilliseconds));
             ApplyIfNotNull(result.TimeSpentWritingToDisk, v => Tracer.TrackMetric(context, "CopyFile_WriteToDiskTimeMs", (long)v.TotalMilliseconds));
@@ -762,18 +800,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Absent = absent;
                 Unknown = unknown;
             }
-        }
-
-        /// <summary>
-        /// This gated method attempts to limit the number of simultaneous off-machine file IO.
-        /// It's not clear whether this is really a good idea, since usually IO thread management is best left to the scheduler.
-        /// But if there is a truly enormous amount of external IO, it's not clear that they will all be scheduled in a way
-        /// that will minimize timeouts, so we will try this gate.
-        /// </summary>
-        private Task<FileExistenceResult> GatedCheckFileExistenceAsync(OperationContext context, ContentLocation location)
-        {
-            return _ioGate.GatedOperationAsync(
-                pair => _remoteFileCopier.CheckFileExistsAsync(context, location), context.Token, Timeout.InfiniteTimeSpan);
         }
 
         /// <nodoc />

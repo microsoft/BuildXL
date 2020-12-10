@@ -520,44 +520,35 @@ namespace BuildXL.Utilities.Tasks
         /// <summary>
         /// Awaits for a given task while periodically calling <paramref name="action"/>.
         /// </summary>
-        /// <typeparam name="TResult">Return type of the task</typeparam>
+        /// <typeparam name="T">Return type of the task</typeparam>
         /// <param name="task">The task to await</param>
         /// <param name="period">Period at which to call <paramref name="action"/></param>
         /// <param name="action">Action to periodically call.  The action receives elapsed time since this method was called.</param>
         /// <param name="reportImmediately">Whether <paramref name="action"/> should be called immediately.</param>
         /// <param name="reportAtEnd">Whether <paramref name="action"/> should be called at when </param>
         /// <returns>The result of the task.</returns>
-        public static async Task<TResult> AwaitWithProgressReporting<TResult>(
-            Task<TResult> task,
+        public static async Task<T> AwaitWithProgressReportingAsync<T>(
+            Task<T> task,
             TimeSpan period,
             Action<TimeSpan> action,
             bool reportImmediately = true,
             bool reportAtEnd = true)
         {
             var startTime = DateTime.UtcNow;
-            var timer = new StoppableTimer(
-                () =>
-                {
-                    action(DateTime.UtcNow.Subtract(startTime));
-                },
+            using var timer = new StoppableTimer(
+                () => action(DateTime.UtcNow.Subtract(startTime)),
                 dueTime: reportImmediately ? 0 : (int)period.TotalMilliseconds,
                 period: (int)period.TotalMilliseconds);
 
-            using (timer)
+            await task.ContinueWith(_ => timer.StopAsync()).Unwrap();
+
+            // report once at the end
+            if (reportAtEnd)
             {
-                await task.ContinueWith(t =>
-                {
-                    return timer.StopAsync();
-                }).Unwrap();
-
-                // report once at the end
-                if (reportAtEnd)
-                {
-                    action(DateTime.UtcNow.Subtract(startTime));
-                }
-
-                return await task;
+                action(DateTime.UtcNow.Subtract(startTime));
             }
+
+            return await task;
         }
 
         /// <summary>

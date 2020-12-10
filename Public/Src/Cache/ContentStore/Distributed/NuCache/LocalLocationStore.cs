@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IClock clock,
             IGlobalLocationStore globalStore,
             LocalLocationStoreConfiguration configuration,
-            IDistributedContentCopier copier)
+            DistributedContentCopier copier)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(globalStore);

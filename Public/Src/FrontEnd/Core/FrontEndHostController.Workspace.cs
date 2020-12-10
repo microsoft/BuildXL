@@ -165,7 +165,7 @@ namespace BuildXL.FrontEnd.Core
         private async Task<bool> WithConversionProgressReportingAsync(int totalSpecs, Task<bool[]> task)
         {
             var counter = m_frontEndStatistics.SpecConversion;
-            var results = await TaskUtilities.AwaitWithProgressReporting(
+            var results = await TaskUtilities.AwaitWithProgressReportingAsync(
                 task,
                 period: EvaluationProgressReportingPeriod,
                 action: (elapsed) =>
@@ -183,7 +183,7 @@ namespace BuildXL.FrontEnd.Core
             var numParseTotal = numSpecs?.ToString(CultureInfo.InvariantCulture) ?? "?";
 
             var counter = m_frontEndStatistics.SpecBinding;
-            return TaskUtilities.AwaitWithProgressReporting(
+            return TaskUtilities.AwaitWithProgressReportingAsync(
                 task,
                 EvaluationProgressReportingPeriod,
                 (elapsed) =>
@@ -203,7 +203,7 @@ namespace BuildXL.FrontEnd.Core
         private Task<Workspace> WithAnalysisProgressReportingAsync(int numSpecsTotal, Task<Workspace> task)
         {
             var counter = m_frontEndStatistics.SpecTypeChecking;
-            return TaskUtilities.AwaitWithProgressReporting(
+            return TaskUtilities.AwaitWithProgressReportingAsync(
                 task,
                 EvaluationProgressReportingPeriod,
                 (elapsed) =>

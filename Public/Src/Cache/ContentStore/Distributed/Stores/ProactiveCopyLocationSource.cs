@@ -4,15 +4,18 @@
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <nodoc />
+    /// <remarks>
+    /// This enumeration is sorted ascending priority order for copy scheduling purposes.
+    /// </remarks>
     public enum ProactiveCopyLocationSource
     {
         /// <nodoc />
         None,
 
         /// <nodoc />
-        DesignatedLocation,
+        Random,
 
         /// <nodoc />
-        Random
+        DesignatedLocation,
     }
 }

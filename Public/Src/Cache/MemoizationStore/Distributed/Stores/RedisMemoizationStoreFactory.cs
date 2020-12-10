@@ -21,7 +21,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         public RedisMemoizationStoreFactory(
             IClock clock,
             RedisMemoizationStoreConfiguration configuration,
-            IDistributedContentCopier copier)
+            DistributedContentCopier copier)
             : base(clock, configuration, copier)
         {
         }

@@ -27,6 +27,24 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
+        public static TEnum ParseEnumOrDefault<TEnum>(string value, string propertyName, TEnum defaultValue) where TEnum : struct
+        {
+            if (value != null)
+            {
+                if (!Enum.TryParse<TEnum>(value, out var parsed))
+                {
+                    throw new ArgumentException($"Failed to parse `{propertyName}` setting with value `{value}` into type `{typeof(TEnum)}`");
+                }
+
+                return parsed;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        /// <nodoc />
         public static void ApplyEnumIfNotNull<TEnum>(string value, string propertyName, Action<TEnum> apply) where TEnum : struct
         {
             if (value != null)
@@ -39,7 +57,7 @@ namespace BuildXL.Utilities
                 apply(parsed);
             }
         }
-        
+
         /// <nodoc />
         public static void ApplyEnumIfNotNull<TEnum>(string value, Action<TEnum> apply) where TEnum : struct
         {

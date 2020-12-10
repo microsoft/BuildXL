@@ -96,6 +96,23 @@ config({
                 },
                 { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.5.0" },
 
+                // VBCSCompilerLogger needs the latest version (.net 5), but we haven't completed the migration to net 5 for
+                // the rest of the codebase yet
+                // Note: if any of the CodeAnalysis packages get upgraded, any new
+                // switch introduced in the compiler command line argument supported by
+                // the new version needs to be evaluated and incorporated into VBCSCompilerLogger.cs
+                { id: "Microsoft.CodeAnalysis.Common", version: "3.8.0", alias: "Microsoft.CodeAnalysis.Common.ForVBCS"},
+                { id: "Microsoft.CodeAnalysis.CSharp", version: "3.8.0", alias: "Microsoft.CodeAnalysis.CSharp.ForVBCS",
+                    dependentPackageIdsToSkip: ["Microsoft.CodeAnalysis.Common"] },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.8.0", alias: "Microsoft.CodeAnalysis.VisualBasic.ForVBCS",
+                    dependentPackageIdsToSkip: ["Microsoft.CodeAnalysis.Common"]},
+                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.8.0", alias: "Microsoft.CodeAnalysis.Workspaces.Common.ForVBCS",
+                    dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
+                    dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
+                },
+                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.8.0", alias: "Microsoft.CodeAnalysis.CSharp.Workspaces.ForVBCS" },
+                { id: "Humanizer.Core", version: "2.2.0" },
+
                 // Old code analysis libraries, for tests only
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0", alias: "Microsoft.CodeAnalysis.Common.Old" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0", alias: "Microsoft.CodeAnalysis.CSharp.Old" },
@@ -136,6 +153,7 @@ config({
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
                 { id: "System.Data.SQLite.Core", version: "1.0.109.2" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
+                { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
 
                 // Nuget

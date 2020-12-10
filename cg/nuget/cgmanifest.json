@@ -365,6 +365,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Humanizer.Core",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "ILRepack",
           "Version": "2.0.16"
         }
@@ -1067,8 +1076,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.CSharp",
+          "Version": "3.8.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.CSharp.Workspaces",
           "Version": "3.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.CSharp.Workspaces",
+          "Version": "3.8.0"
         }
       }
     },
@@ -1087,6 +1114,15 @@
         "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Common",
           "Version": "3.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.Common",
+          "Version": "3.8.0"
         }
       }
     },
@@ -1121,8 +1157,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.VisualBasic",
+          "Version": "3.8.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Workspaces.Common",
           "Version": "3.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.Workspaces.Common",
+          "Version": "3.8.0"
         }
       }
     },
@@ -2471,6 +2525,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Collections.Immutable",
+          "Version": "5.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Collections.NonGeneric",
           "Version": "4.3.0"
         }
@@ -3202,6 +3265,15 @@
         "NuGet": {
           "Name": "System.Reflection.Metadata",
           "Version": "1.6.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Metadata",
+          "Version": "5.0.0"
         }
       }
     },

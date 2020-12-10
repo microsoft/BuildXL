@@ -230,6 +230,7 @@ export const pkgs = [
 
     { id: "System.Security.Cryptography.OpenSsl", version: "4.4.0" },
     { id: "System.Collections.Immutable", version: "1.5.0" },
+    { id: "System.Collections.Immutable", version: "5.0.0", alias: "System.Collections.Immutable.ForVBCS" },
 ];
 
 

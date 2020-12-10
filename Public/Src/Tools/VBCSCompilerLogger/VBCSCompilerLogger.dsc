@@ -14,10 +14,10 @@ namespace VBCSCompilerLogger {
         sources: globR(d`.`, "*.cs"),
         references:[
             ...MSBuild.msbuildReferences,
-            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
-            importFrom("Microsoft.CodeAnalysis.VisualBasic").pkg,
-            importFrom("Microsoft.CodeAnalysis.Common").pkg,
-            importFrom("System.Collections.Immutable").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
+            importFrom("Microsoft.CodeAnalysis.VisualBasic.ForVBCS").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
@@ -25,10 +25,14 @@ namespace VBCSCompilerLogger {
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
-            importFrom("System.Reflection.Metadata").pkg,
+            importFrom("System.Reflection.Metadata.ForVBCS").pkg,
             importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("SystemRuntimeCompilerServicesUnsafeForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             importFrom("SystemNumericsVectorsForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        ],
+        runtimeContentToSkip: [
+            importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Memory").pkg
         ]
     });
 

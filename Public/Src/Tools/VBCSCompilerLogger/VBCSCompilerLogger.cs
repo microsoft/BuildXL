@@ -173,8 +173,17 @@ namespace VBCSCompilerLogger
             accessRegister.RegisterInput(results.ParsedArguments.SourceLink);
             accessRegister.RegisterInput(results.ParsedArguments.CompilationOptions.CryptoKeyFile);
 #if !TEST
-            // When building for tests we intentionally use an older version of CommandLineArguments where this field is not available
+            // When building for tests we intentionally use an older version of CommandLineArguments where these fields are not available
             accessRegister.RegisterInputs(results.ParsedArguments.AnalyzerConfigPaths);
+            accessRegister.RegisterOutput(results.ParsedArguments.ErrorLogOptions?.Path);
+
+            // If there is any analyzer configured and the generated output directory is not null, that means some of the configured analyzers could be source generators, and therefore they might
+            // produce files under the generated output directory. We cannot predict those outputs files, so we bail out for this case
+            if (results.ParsedArguments.GeneratedFilesOutputDirectory != null && results.ParsedArguments.AnalyzerReferences.Length > 0 && !results.ParsedArguments.SkipAnalyzers)
+            {
+                throw new InvalidOperationException("The compilation is configured to emit generated sources which cannot be statically predicted. Static predictions are required for managed compilers when shared compilation is enabled. " +
+                            "Please disable shared compilation.");
+            }
 #endif
             // /resource: parameters end up in ParsedArguments.ManifestResources, but the returned class drops the file path. We'll have to get them explicitly.
             // We might be able to simply use ParsedArguments.ManifestResources if this gets resolved: https://github.com/dotnet/roslyn/issues/41372

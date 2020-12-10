@@ -19,7 +19,7 @@ namespace Test.VBCSCompilerLogger
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void NewSwitchMakesLoggerFail() 
         {
-            // AnalyzerConfigFile is an option that the older version of CodeAnalysis does not support. Howeve this is supported
+            // AnalyzerConfigFile is an option that the older version of CodeAnalysis does not support. However this is supported
             // by the csc version in use.
             
             // Create an empty analyzer config file

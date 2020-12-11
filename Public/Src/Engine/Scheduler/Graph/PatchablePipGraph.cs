@@ -368,7 +368,9 @@ namespace BuildXL.Scheduler.Graph
                 info.Kind,
                 TranslatePipIds(info.ServicePipDependencies),
                 TranslatePipId(info.ShutdownPipId),
-                TranslatePipIds(info.FinalizationPipIds));
+                TranslatePipIds(info.FinalizationPipIds),
+                info.TagToTrack,
+                info.DisplayNameForTrackableTag);
         }
 
         private IpcPip TranslatePipIds(IpcPip pip)

@@ -503,7 +503,7 @@ namespace BuildXL.Scheduler
         /// Tracker for drop pips.
         /// </summary>
         [CanBeNull]
-        private readonly DropPipTracker m_dropPipTracker;
+        private readonly ServicePipTracker m_servicePipTracker;
 
         /// <summary>
         /// Pip table holding all known pips.
@@ -1198,13 +1198,13 @@ namespace BuildXL.Scheduler
             // internal cancellation process.
             m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination());
 
-            m_serviceManager = new SchedulerServiceManager(graph, context);
+            m_servicePipTracker = new ServicePipTracker(Context);
+            m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
             m_ipcProvider = new IpcProviderWithMemoization(
                 ipcProvider ?? IpcFactory.GetProvider(),
                 defaultClientLogger: CreateLoggerForIpcClients(loggingContext));
 
-            m_dropPipTracker = new DropPipTracker(Context);
 
             OperationTracker = new OperationTracker(loggingContext, this);
             m_fileContentManager = new FileContentManager(this, OperationTracker);
@@ -1905,15 +1905,15 @@ namespace BuildXL.Scheduler
             m_pipRetryInfo.LogPipRetryInfo(loggingContext, PipExecutionCounters);
 
             m_apiServer?.LogStats(loggingContext);
-            m_dropPipTracker?.LogStats(loggingContext);
+            m_servicePipTracker?.LogStats(loggingContext);
 
             if (m_configuration.InCloudBuild())
             {
-                Contract.Assert(m_dropPipTracker != null, "Must use DropPipTracker when running in CloudBuild");
+                Contract.Assert(m_servicePipTracker != null, "Must use DropPipTracker when running in CloudBuild");
                 CloudBuildEventSource.Log.DominoFinalStatisticsEvent(new DominoFinalStatisticsEvent
                 {
-                    LastDropPipCompletionUtcTicks = m_dropPipTracker.LastDropPipCompletionTime.Ticks,
-                    LastNonDropPipCompletionUtcTicks = m_dropPipTracker.LastNonDropPipCompletionTime.Ticks,
+                    LastDropPipCompletionUtcTicks = m_servicePipTracker.LastServicePipCompletionTime.Ticks,
+                    LastNonDropPipCompletionUtcTicks = m_servicePipTracker.LastNonServicePipCompletionTime.Ticks,
                 });
             }
 
@@ -3167,7 +3167,7 @@ namespace BuildXL.Scheduler
                 }
 
                 // Report pip completed to DropTracker
-                m_dropPipTracker?.ReportPipCompleted(pip);
+                m_servicePipTracker?.ReportPipCompleted(pip);
             }
         }
 

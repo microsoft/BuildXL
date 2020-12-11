@@ -120,6 +120,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeServiceShutdownCmd;
         private SymbolAtom m_executeServiceFinalizationCmds;
         private SymbolAtom m_executeServicePipDependencies;
+        private SymbolAtom m_executeServiceTrackableTag;
+        private SymbolAtom m_executeServiceTrackableTagDisplayName;
         private SymbolAtom m_executeDescription;
         private SymbolAtom m_executeAbsentPathProbeInUndeclaredOpaqueMode;
         private SymbolAtom m_executeAdditionalTempDirectories;
@@ -266,6 +268,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
             m_executeServiceFinalizationCmds = Symbol("serviceFinalizationCmds");
             m_executeServicePipDependencies = Symbol("servicePipDependencies");
+            m_executeServiceTrackableTag = Symbol("serviceTrackableTag");
+            m_executeServiceTrackableTagDisplayName = Symbol("serviceTrackableTagDisplayName");
             m_executeDescription = Symbol("description");
             m_executeAdditionalTempDirectories = Symbol("additionalTempDirectories");
             m_executeWarningRegex = Symbol("warningRegex");
@@ -620,6 +624,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
                     processBuilder.FinalizationPipIds = ReadOnlyArray<PipId>.FromWithoutCopy(finalizationPipIds);
                 }
+
+                var trackableTagString = Converter.ExtractString(obj, m_executeServiceTrackableTag, allowUndefined: true);
+                var trackableTag = string.IsNullOrEmpty(trackableTagString)
+                    ? StringId.Invalid
+                    : StringId.Create(context.StringTable, trackableTagString);
+                var trackableTagDisplayNameString = Converter.ExtractString(obj, m_executeServiceTrackableTagDisplayName, allowUndefined: true);
+                var trackableTagDisplayName = string.IsNullOrEmpty(trackableTagDisplayNameString)
+                    ? StringId.Invalid
+                    : StringId.Create(context.StringTable, trackableTagDisplayNameString);
+
+                processBuilder.SetServiceTrackableTag(trackableTag, trackableTagDisplayName);
             }
 
             // Light process flag.

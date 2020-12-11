@@ -32,6 +32,7 @@ namespace BuildXL.Scheduler
 
         private readonly PipGraph m_pipGraph;
         private readonly PipExecutionContext m_context;
+        private readonly ServicePipTracker m_servicePipTracker;
         private LoggingContext m_executePhaseLoggingContext;
         private OperationTracker m_operationTracker;
         private int m_runningServicesCount;
@@ -54,10 +55,11 @@ namespace BuildXL.Scheduler
         public int TotalServiceShutdownPipsCompleted => m_totalServiceShutdownPipsCompleted;
 
         /// <nodoc />
-        public SchedulerServiceManager(PipGraph pipGraph, PipExecutionContext context)
+        public SchedulerServiceManager(PipGraph pipGraph, PipExecutionContext context, ServicePipTracker pipTracker)
         {
             m_pipGraph = pipGraph;
             m_context = context;
+            m_servicePipTracker = pipTracker;
         }
 
         internal void Start(LoggingContext loggingContext, OperationTracker operationTracker)
@@ -227,6 +229,12 @@ namespace BuildXL.Scheduler
                         serviceProcess.GetDescription(m_context));
 
                     Interlocked.Increment(ref m_runningServicesCount);
+
+                    // if a service has a trackable tag, add it to the tracker
+                    if (serviceProcess.ServiceInfo.TagToTrack.IsValid)
+                    {
+                        m_servicePipTracker.ReportServicePipStarted(serviceProcess.ServiceInfo);
+                    }
                 }
 
                 using (var operationContext = m_operationTracker.StartOperation(

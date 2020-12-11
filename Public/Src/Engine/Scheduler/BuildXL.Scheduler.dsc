@@ -10,10 +10,11 @@ namespace Scheduler {
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
         references: [
-            ...addIf(BuildXLSdk.isFullFramework,
+            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
-                NetFx.System.Text.Encoding.dll
-            ),
+                NetFx.System.Text.Encoding.dll,
+                importFrom("System.Collections.Immutable").pkg
+            ]),
             ...addIfLazy(BuildXLSdk.isDotNetCoreApp, () => [
                 importFrom("BuildXL.Utilities").PackedTable.dll,
                 importFrom("BuildXL.Utilities").PackedExecution.dll

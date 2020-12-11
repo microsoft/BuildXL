@@ -3,6 +3,9 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
+@@public
+export const daemonTag = "materialization-daemon-pip";
+
 // for internal use
 interface CombinedArguments extends ServiceStartArguments, ServiceStartResult {
     ipcServerMoniker?: IpcMoniker;
@@ -52,6 +55,8 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
             unsafe: {
                 hasUntrackedChildProcesses: true,
             },
+            serviceTrackableTag: daemonTag,
+            serviceTrackableTagDisplayName: "MaterializationDaemonTrackerOverhangMs"
         })
     );
     
@@ -178,6 +183,7 @@ function getExecuteArguments(command: string, args: CombinedArguments): Transfor
         tool: overrideToolArguments(selectedTool, args),
         workingDirectory: outDir,
         tags: [
+            daemonTag,
             nametag,
             ...(args.tags || []),
         ],

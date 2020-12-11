@@ -49,42 +49,45 @@ namespace BuildXL.Pips.Operations
         [Pure]
         public ReadOnlyArray<PipId> FinalizationPipIds { get; }
 
+        /// <summary>
+        /// Tag that is used to associate other pips with this service pip. Can only be defined for ServicePipKind.Service.        
+        /// </summary>
+        /// <remarks>
+        /// Currently is used by ServicePipTracker to compute the overhang of service pips.
+        /// </remarks>
+        [Pure]
+        public StringId TagToTrack { get; }
+
+        /// <summary>
+        /// Print-friendly name for the trackable tag.
+        /// </summary>
+        [Pure]
+        public StringId DisplayNameForTrackableTag { get; }
+
         /// <nodoc />
         public ServiceInfo(
             ServicePipKind kind,
             ReadOnlyArray<PipId> servicePipDependencies = default(ReadOnlyArray<PipId>),
             PipId shutdownProcessPipId = default(PipId),
-            ReadOnlyArray<PipId> finalizationPipIds = default(ReadOnlyArray<PipId>))
+            ReadOnlyArray<PipId> finalizationPipIds = default(ReadOnlyArray<PipId>),
+            StringId tagToTrack = default(StringId),
+            StringId displayNameForTag = default(StringId))
         {
             Kind = kind;
             ServicePipDependencies = servicePipDependencies.IsValid ? servicePipDependencies : ReadOnlyArray<PipId>.Empty;
             ShutdownPipId = shutdownProcessPipId;
             FinalizationPipIds = finalizationPipIds.IsValid ? finalizationPipIds : ReadOnlyArray<PipId>.Empty;
+            TagToTrack = tagToTrack;
+            DisplayNameForTrackableTag = displayNameForTag;
 
-            // Calling invariant method explicitely because this is the only way to check it at least once.
-            Invariant();
-        }
+            Contract.Assert(ServicePipDependencies.IsValid);
+            Contract.Assert(FinalizationPipIds.IsValid);
 
-        /// <nodoc />
-        [Pure]
-        public bool IsValid => ServicePipDependencies.IsValid;
-
-        /// <nodoc />
-        [Pure]
-        public bool IsStartOrShutdownKind => Kind.IsStartOrShutdown();
-
-        [ContractInvariantMethod]
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic", Justification = "Method is not empty only when CONTRACTS_LIGHT_INVARIANTS symbol is defined.")]
-        private void Invariant()
-        {
-            Contract.Invariant(ServicePipDependencies.IsValid);
-            Contract.Invariant(FinalizationPipIds.IsValid);
-
-            Contract.Invariant(
+            Contract.Assert(
                 !ShutdownPipId.IsValid || Kind == ServicePipKind.Service,
                 "'ShutdownProcessPipId' may only be specified when the pip is a 'Service'");
 
-            Contract.Invariant(
+            Contract.Assert(
                 !FinalizationPipIds.Any() || Kind == ServicePipKind.Service,
                 "'FinalizationPipids' may only be specified when the pip is a 'Service'");
 
@@ -93,22 +96,34 @@ namespace BuildXL.Pips.Operations
             //       encounter a case where a user will want to schedule a shutdown command from their
             //       own build specs (e.g., so that they can have some other pips depend on it), we can
             //       just lift this constraint.
-            Contract.Invariant(
+            Contract.Assert(
                 Kind != ServicePipKind.Service || ShutdownPipId.IsValid,
                 "A pip that is a 'Service' must have the 'ShutdownProcessPipId' specified");
 
-            Contract.Invariant(
+            Contract.Assert(
                 ServicePipDependencies.All(pipId => pipId.IsValid),
                 "'ServicePipDependencies' must not contain invalid PipIds");
 
-            Contract.Invariant(
+            Contract.Assert(
                 Kind != ServicePipKind.ServiceClient || ServicePipDependencies.Any(),
                 "A pip that is a 'ServiceClient' must have some 'ServicePipDependencies'");
 
-            Contract.Invariant(
+            Contract.Assert(
                 !ServicePipDependencies.Any() || Kind == ServicePipKind.ServiceClient,
                 "'ServicePipDependencies' may only be specified for a pip that is either a 'ServiceClient'");
+
+            Contract.Assert(
+                TagToTrack.IsValid == DisplayNameForTrackableTag.IsValid,
+                "Tag and its display name must be specified at the same time");
+
+            Contract.Assert(
+                !TagToTrack.IsValid || Kind == ServicePipKind.Service,
+                "'TagToTrack' may only be specified when the pip is a 'Service'");
         }
+
+        /// <nodoc />
+        [Pure]
+        public bool IsStartOrShutdownKind => Kind.IsStartOrShutdown();
 
         internal static ServiceInfo Service(PipId shutdownPipId)
         {
@@ -133,7 +148,9 @@ namespace BuildXL.Pips.Operations
             var servicePipDependencies = reader.ReadReadOnlyArray(r => ReadPipId(r));
             var shutdownProcessPipId = reader.ReadBoolean() ? ReadPipId(reader) : PipId.Invalid;
             var finalizationPipIds = reader.ReadReadOnlyArray(r => ReadPipId(r));
-            return new ServiceInfo(kind, servicePipDependencies, shutdownProcessPipId, finalizationPipIds);
+            var tagToTrack = reader.ReadBoolean() ? reader.ReadStringId() : StringId.Invalid;
+            var displayNameForTag = reader.ReadBoolean() ? reader.ReadStringId() : StringId.Invalid;
+            return new ServiceInfo(kind, servicePipDependencies, shutdownProcessPipId, finalizationPipIds, tagToTrack, displayNameForTag);
         }
 
         internal static void InternalSerialize(BuildXLWriter writer, ServiceInfo info)
@@ -152,6 +169,18 @@ namespace BuildXL.Pips.Operations
             }
 
             writer.Write(info.FinalizationPipIds, (w, v) => WritePipId(w, v));
+
+            writer.Write(info.TagToTrack.IsValid);
+            if (info.TagToTrack.IsValid)
+            {
+                writer.Write(info.TagToTrack);
+            }
+
+            writer.Write(info.DisplayNameForTrackableTag.IsValid);
+            if (info.DisplayNameForTrackableTag.IsValid)
+            {
+                writer.Write(info.DisplayNameForTrackableTag);
+            }
         }
 
         private static void WritePipId(BuildXLWriter writer, PipId pipId) => writer.Write(pipId.Value);

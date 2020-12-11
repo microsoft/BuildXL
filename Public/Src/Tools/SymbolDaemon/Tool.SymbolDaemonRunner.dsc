@@ -117,6 +117,8 @@ function startService(args: UberArguments, startCommand: string, shutdownCmdName
                 // only because ArtifactServices may run some external credentials provider
                 hasUntrackedChildProcesses: true,
             },
+            serviceTrackableTag: symbolTag,
+            serviceTrackableTagDisplayName: "SymbolTrackerOverhangMs"
         })
     );
     

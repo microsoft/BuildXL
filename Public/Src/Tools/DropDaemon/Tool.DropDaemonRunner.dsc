@@ -145,6 +145,8 @@ export namespace DropDaemonRunner {
                     // only because ArtifactServices may run some external credentials provider
                     hasUntrackedChildProcesses: true,
                 },
+                serviceTrackableTag: dropTag,
+                serviceTrackableTagDisplayName: "DropTrackerOverhangMs"
             })
         );
         

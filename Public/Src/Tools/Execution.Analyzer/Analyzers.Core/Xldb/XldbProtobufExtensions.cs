@@ -736,19 +736,16 @@ namespace BuildXL.Execution.Analyzer
 
             xldbProcessPip.OutputDirectoryExclusions.AddRange(pip.OutputDirectoryExclusions.Select(p => p.ToAbsolutePath(pathTable, nameExpander)));
 
-            if (pip.ServiceInfo.IsValid)
+            var serviceInfo = new ServiceInfo
             {
-                var serviceInfo = new ServiceInfo
-                {
-                    Kind = (ServicePipKind)(pip.ServiceInfo.Kind + 1),
-                    ShutdownPipId = pip.ServiceInfo.ShutdownPipId.Value,
-                    IsStartOrShutdownKind = pip.ServiceInfo.IsStartOrShutdownKind
-                };
+                Kind = (ServicePipKind)(pip.ServiceInfo.Kind + 1),
+                ShutdownPipId = pip.ServiceInfo.ShutdownPipId.Value,
+                IsStartOrShutdownKind = pip.ServiceInfo.IsStartOrShutdownKind
+            };
 
-                serviceInfo.ServicePipDependencies.AddRange(pip.ServiceInfo.ServicePipDependencies.Select(key => key.Value));
-                serviceInfo.FinalizationPipIds.AddRange(pip.ServiceInfo.FinalizationPipIds.Select(key => key.Value));
-                xldbProcessPip.ServiceInfo = serviceInfo;
-            }
+            serviceInfo.ServicePipDependencies.AddRange(pip.ServiceInfo.ServicePipDependencies.Select(key => key.Value));
+            serviceInfo.FinalizationPipIds.AddRange(pip.ServiceInfo.FinalizationPipIds.Select(key => key.Value));
+            xldbProcessPip.ServiceInfo = serviceInfo;
 
             xldbProcessPip.EnvironmentVariable.AddRange(pip.EnvironmentVariables.Select(
                 envVar => new EnvironmentVariable()

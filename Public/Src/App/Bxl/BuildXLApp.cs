@@ -102,26 +102,24 @@ namespace BuildXL
         public readonly EngineState EngineState;
         public readonly string ErrorBucket;
         public readonly string BucketMessage;
-        public readonly bool KillServer;
 
-        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool killServer)
+        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage)
         {
             ExitKind = exitKind;
             CloudBuildExitKind = cloudBuildExitKind;
             EngineState = engineState;
             ErrorBucket = errorBucket;
             BucketMessage = bucketMessage;
-            KillServer = killServer;
         }
 
-        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool killServer = false)
+        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "")
         {
-            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, killServer);
+            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage);
         }
 
-        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool killServer = false)
+        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "")
         {
-            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, killServer);
+            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage);
         }
     }
 

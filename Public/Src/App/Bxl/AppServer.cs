@@ -136,11 +136,7 @@ namespace BuildXL
                             return ExitKind.BuildSucceeded;
                         }
 
-                        if (!RunAppInstance(bufferedStream))
-                        {
-                            // Server needs to die because there is a potential mismatch in the serverdeployment directory mismatch.
-                            return ExitKind.InfrastructureError;
-                        }
+                        RunAppInstance(bufferedStream);
                         bufferedStream.Flush();
 
                         // RunAppInstance presumably has written some response. We have to call FlushFileBuffers via this wrapper
@@ -199,16 +195,10 @@ namespace BuildXL
         /// Single invocation of a <see cref="BuildXLApp" /> by an app server.
         /// Corresponds to the client-side <see cref="Connection.RunWithArgs" />.
         /// </summary>
-        /// <returns>
-        /// True when the server will continue to respond connection requests.
-        /// </returns>
         [SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        private bool RunAppInstance(BufferedStream bufferedStream)
+        private void RunAppInstance(BufferedStream bufferedStream)
         {
-            // Server need to die in certain error types.
-            bool killServer = false;
-
             // Save off the current directory before performing the build. We want to set the server process'
             // current directory back to this directory while it is dormant in the background so it doesn't hold a
             // lock on the build's current directory after it is completed
@@ -235,7 +225,7 @@ namespace BuildXL
                 catch (Exception ex) when (ex is IOException || ex is EndOfStreamException)
                 {
                     // Client may have terminated abruptly.
-                    return killServer;
+                    return;
                 }
 
                 // Set the environment variables and directory directory before parsing the command line arguments since
@@ -278,7 +268,6 @@ namespace BuildXL
 
                         exit = result.ExitKind;
                         m_engineState = result.EngineState;
-                        killServer = result.KillServer;
                     }
 
                     // Normally each table will get unique static debugging state. But for a long lived server process
@@ -304,8 +293,6 @@ namespace BuildXL
                     m_writer = null;
                 }
             }
-
-            return !killServer;
         }
 
         /// <summary>

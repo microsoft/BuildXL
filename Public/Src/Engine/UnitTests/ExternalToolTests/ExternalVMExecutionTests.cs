@@ -10,6 +10,7 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using System;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
@@ -61,7 +62,12 @@ namespace ExternalToolTest.BuildXL.Scheduler
             Configuration.Schedule.MaxRetriesDueToRetryableFailures = 1;
 
             // Set the test hook and reset the graph bulider so it uses the context with the newly set test hook
-            Context.TestHooks = new TestHooks() { FailVmCommandProxy = true };
+            Context.TestHooks = new TestHooks() {
+                SandboxedProcessExecutorTestHook = new SandboxedProcessExecutorTestHook {
+                    FailVmConnection = true
+                }
+            };
+
             ResetPipGraphBuilder();
 
             var builder = CreatePipBuilder(new Operation[]
@@ -75,6 +81,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.PipRetryDueToRetryableFailures, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnSameWorker, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
             AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnDifferentWorker, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
             AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToRetryableFailures);
         }
@@ -83,7 +90,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
         /// Ensure that logging matches up and no crashes happen when a pip is retried due to Pip failure inside the Vm.
         /// </summary>
         [Fact]
-        public void VmRetryOnUnsuccessfulPipExecution()
+        public void VmNotRetryOnUnsuccessfulPipExecution()
         {
             Configuration.Schedule.MaxRetriesDueToRetryableFailures = 1;
 
@@ -92,7 +99,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
-                Operation.Fail(111)
+                Operation.Fail(global::BuildXL.Processes.ExitCodes.VmInfrastructureFailure)     // To make sure pips failing with an exit code equivalent to VmInfrastructureFailure are not retried
             });
             builder.Options |= Process.Options.RequiresAdmin;
             SchedulePipBuilder(builder);
@@ -100,9 +107,10 @@ namespace ExternalToolTest.BuildXL.Scheduler
             // The build is expected to fail, but all of the error logging consistency checks should pass meaning no crash
             RunScheduler().AssertFailure();
 
-            AssertVerboseEventLogged(LogEventId.PipRetryDueToRetryableFailures, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
-            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnDifferentWorker, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
-            AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToRetryableFailures);
+            AssertVerboseEventLogged(LogEventId.PipRetryDueToRetryableFailures, 0, allowMore: false);       // Should not be retried
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnSameWorker, 0, allowMore: false);        // Should not be retried on same worker
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnDifferentWorker, 0, allowMore: false);   // Should not be retried on different worker
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
         }
     }
 }

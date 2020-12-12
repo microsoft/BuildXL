@@ -24,6 +24,11 @@ namespace BuildXL.SandboxedProcessExecutor
         public bool EnableTelemetry { get; set; }
 
         /// <summary>
+        /// Path to sandboxed process test hooks file.
+        /// </summary>
+        public string SandboxedProcessExecutorTestHookFile { get; set; }
+
+        /// <summary>
         /// Validates configuration.
         /// </summary>
         public bool Validate(out string errorMessage)

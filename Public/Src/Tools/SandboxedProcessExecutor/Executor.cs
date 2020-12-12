@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
@@ -28,6 +29,7 @@ namespace BuildXL.SandboxedProcessExecutor
         private readonly ConsoleLogger m_logger = new ConsoleLogger();
         private ISandboxConnection m_sandboxConnection = null;
         private const int ReportQueueSizeForKextMB = 1024;
+        private readonly bool m_isRunningInVm = false;
 
         /// <summary>
         /// Creates an instance of <see cref="Executor"/>.
@@ -37,6 +39,11 @@ namespace BuildXL.SandboxedProcessExecutor
             Contract.Requires(configuration != null);
 
             m_configuration = configuration;
+
+            if (Environment.GetEnvironmentVariable("CLOUDBUILD_VM") == "1")
+            {
+                m_isRunningInVm = true;
+            }
         }
 
         public int Run()
@@ -91,11 +98,56 @@ namespace BuildXL.SandboxedProcessExecutor
             }
         }
 
+        /// <summary>
+        /// Pings <see cref="Configuration.SandboxedProcessInfoInputFile"/> file periodically to identify connectivity issues between Host and VM.
+        /// </summary>
+        /// <returns>True when an infrastructure issue is detected.</returns>
+        internal void DetectInfrastructureIssuesBetweenHostAndVm()
+        {
+            while (true)
+            {
+                try
+                {
+                    if (File.Exists(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
+                    {
+                        Thread.Sleep(TimeSpan.FromMilliseconds(200));
+                        continue;
+                    }
+                    break;
+                }
+                catch (Exception e) // All exceptions indicate the same result (connectivity issue detected)
+                {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                    Console.Error.WriteLine("Execution error during DetectInfrastructureIssuesBetweenHostAndVm: " + e);
+                    break;
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+                }
+            }
+        }
+
         internal ExitCode RunInternal()
         {
             if (!TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo))
             {
                 return ExitCode.FailedReadInput;
+            }
+
+            if (!TryReadSandboxedProcessExecutorTestHook(out SandboxedProcessExecutorTestHook sandboxedProcessExecutorTestHook))
+            {
+                return ExitCode.FailedReadInput;
+            }
+
+            if (sandboxedProcessExecutorTestHook?.FailVmConnection == true)
+            {
+                return ExitCode.VmInfrastructureFailure;
+            }
+
+            Thread pingHost = null;
+            if (m_isRunningInVm)
+            {
+                pingHost = new Thread(DetectInfrastructureIssuesBetweenHostAndVm);
+                pingHost.IsBackground = true;   // To avoid blocking after current thread completes
+                pingHost.Start();
             }
 
             if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
@@ -108,6 +160,20 @@ namespace BuildXL.SandboxedProcessExecutor
             {
                 executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
                 sandboxedProcessInfo.SidebandWriter?.EnsureHeaderWritten();
+            }
+
+            if (pingHost != null && !pingHost.IsAlive)
+            {
+                return ExitCode.VmInfrastructureFailure;
+            }
+
+            if (pingHost != null && pingHost.IsAlive)
+            {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                try { pingHost.Abort(); }
+                catch (Exception) { }       // Ignoring Exceptions since Thread abort is not supported in .net
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+
             }
 
             if (executeResult.result != null)
@@ -138,6 +204,30 @@ namespace BuildXL.SandboxedProcessExecutor
             sandboxedProcessInfo = localSandboxedProcessInfo;
 
             return success;
+        }
+
+        private bool TryReadSandboxedProcessExecutorTestHook(out SandboxedProcessExecutorTestHook sandboxedProcessExecutorTestHook)
+        {
+            if (string.IsNullOrEmpty(m_configuration.SandboxedProcessExecutorTestHookFile))
+            {
+                sandboxedProcessExecutorTestHook = null;
+                return true;
+            }
+
+            SandboxedProcessExecutorTestHook localSandboxedProcessExecutorTestHook = null;
+
+            bool success = Helpers.RetryOnFailure(
+                attempt => {
+                    using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessExecutorTestHookFile)))
+                    {
+                        // TODO: Custom DetoursEventListener?
+                        localSandboxedProcessExecutorTestHook = SandboxedProcessExecutorTestHook.Deserialize(stream);
+                        return true;
+                    }
+                });
+
+            sandboxedProcessExecutorTestHook = localSandboxedProcessExecutorTestHook;
+            return true;
         }
 
         private bool TryWriteSandboxedProcessResult(PathTable pathTable, SandboxedProcessResult result)

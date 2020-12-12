@@ -750,15 +750,6 @@ namespace BuildXL.Processes
             SidebandWriter sidebandWriter = null,
             ISandboxFileSystemView fileSystemView = null)
         {
-
-            if (m_context?.TestHooks?.FailVmCommandProxy == true)
-            {
-                return SandboxedProcessPipExecutionResult.FailureButRetryAble(
-                    SandboxedProcessPipExecutionStatus.ExecutionFailed,
-                    RetryInfo.GetDefault(RetryReason.VmExecutionError),
-                    primaryProcessTimes: new ProcessTimes(0, 0, 0, 0));
-            }
-
             if (!s_testRetryOccurred)
             {
                 // For the integration test, we simulate a retryable failure here via ProcessStartFailure.
@@ -1115,7 +1106,7 @@ namespace BuildXL.Processes
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
-                        spi => new ExternalVmSandboxedProcess(spi, m_vmInitializer, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory));
+                        spi => new ExternalVmSandboxedProcess(spi, m_vmInitializer, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory, m_context?.TestHooks?.SandboxedProcessExecutorTestHook));
                 }
             }
             catch (BuildXLException ex)
@@ -1210,7 +1201,7 @@ namespace BuildXL.Processes
                                 stdOut,
                                 stdErr);
 
-                            if (externalVmSandboxedProcess.HasVmCommandProxyError)
+                            if (externalVmSandboxedProcess.HasVmInfrastructureError)
                             {
                                 return SandboxedProcessPipExecutionResult.FailureButRetryAble(
                                     SandboxedProcessPipExecutionStatus.ExecutionFailed,
@@ -1674,12 +1665,6 @@ namespace BuildXL.Processes
                                     maxDetoursHeapSize,
                                     m_containerConfiguration,
                                     pipProperties);
-                            }
-                            else if (ShouldSandboxedProcessExecuteInVm && !exitedWithSuccessExitCode) {
-                                return SandboxedProcessPipExecutionResult.FailureButRetryAble(
-                                    SandboxedProcessPipExecutionStatus.ExecutionFailed,
-                                    RetryInfo.GetDefault(RetryReason.VmPipUnsuccessfulExit),
-                                    primaryProcessTimes: result.PrimaryProcessTimes);
                             }
                         }
                     }

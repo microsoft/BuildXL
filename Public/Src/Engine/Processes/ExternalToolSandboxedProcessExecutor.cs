@@ -52,12 +52,21 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates arguments for the tool to execute.
         /// </summary>
-        public string CreateArguments(string sandboxedProcessInfoInputFile, string sandboxedProcessResultOutputFile)
+        public string CreateArguments(
+            string sandboxedProcessInfoInputFile,
+            string sandboxedProcessResultOutputFile,
+            string sandboxedProcessExecutorTestHookFile = null)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessInfoInputFile));
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessResultOutputFile));
 
-            return $"/sandboxedProcessInfo:\"{sandboxedProcessInfoInputFile}\" /sandboxedProcessResult:\"{sandboxedProcessResultOutputFile}\"";
+            string args = $"/sandboxedProcessInfo:\"{sandboxedProcessInfoInputFile}\" /sandboxedProcessResult:\"{sandboxedProcessResultOutputFile}\"";
+
+            args = !string.IsNullOrWhiteSpace(sandboxedProcessExecutorTestHookFile)
+                ? $"{args} /testHook:\"{sandboxedProcessExecutorTestHookFile}\""
+                : args;
+
+            return args;
         }
     }
 }

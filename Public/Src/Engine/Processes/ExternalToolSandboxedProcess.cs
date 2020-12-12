@@ -96,7 +96,7 @@ namespace BuildXL.Processes
         {
             base.Start();
 
-            SerializeSandboxedProcessInfoToFile();
+            SerializeSandboxedProcessInputFile(SandboxedProcessInfoFile, SandboxedProcessInfo.Serialize);
 
             var process = new Process
             {

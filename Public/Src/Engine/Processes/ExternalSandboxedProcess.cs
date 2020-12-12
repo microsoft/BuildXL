@@ -19,6 +19,7 @@ namespace BuildXL.Processes
     public abstract class ExternalSandboxedProcess : ISandboxedProcess
     {
         private const string SandboxedProcessInfoFileName = "SandboxedProcessInfo";
+        private const string SandboxedProcessExecutorTestHookFileName = "SandboxedProcessExecutorTestHook";
         private const string SandboxedProcessResultFileName = "SandboxedProcessResult";
         private const string StdOutFileName = "std.out";
         private const string StdErrFileName = "std.err";
@@ -32,6 +33,11 @@ namespace BuildXL.Processes
         /// Sandboxed process info.
         /// </summary>
         protected SandboxedProcessInfo SandboxedProcessInfo { get; private set; }
+
+        /// <summary>
+        /// SandboxedProcessExecutor Test Hook.
+        /// </summary>
+        protected SandboxedProcessExecutorTestHook SandboxedProcessExecutorTestHook { get; private set; }
 
         /// <summary>
         /// Working directory.
@@ -51,12 +57,16 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an instance of <see cref="ExternalSandboxedProcess"/>.
         /// </summary>
-        protected ExternalSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, string workingDirectoryRoot)
+        protected ExternalSandboxedProcess(
+            SandboxedProcessInfo sandboxedProcessInfo,
+            string workingDirectoryRoot,
+            SandboxedProcessExecutorTestHook sandboxedProcessExecutorTestHook = null)
         {
             Contract.Requires(sandboxedProcessInfo != null);
             Contract.Requires(!string.IsNullOrEmpty(workingDirectoryRoot));
 
             SandboxedProcessInfo = sandboxedProcessInfo;
+            SandboxedProcessExecutorTestHook = sandboxedProcessExecutorTestHook;
             WorkingDirectory = Path.Combine(workingDirectoryRoot, $"Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
         }
 
@@ -125,6 +135,11 @@ namespace BuildXL.Processes
         protected string SandboxedProcessInfoFile => Path.Combine(WorkingDirectory, SandboxedProcessInfoFileName);
 
         /// <summary>
+        /// Gets the file to which SandboxedProcessExecutorTestHook will be written.
+        /// </summary>
+        protected string SandboxedProcessExecutorTestHookFile => Path.Combine(WorkingDirectory, SandboxedProcessExecutorTestHookFileName);
+
+        /// <summary>
         /// Gets the file in which sandboxed process result will be available.
         /// </summary>
         protected string SandboxedProcessResultsFile => Path.Combine(WorkingDirectory, SandboxedProcessResultFileName);
@@ -157,23 +172,23 @@ namespace BuildXL.Processes
         public abstract int? ExitCode { get; }
 
         /// <summary>
-        /// Serializes sandboxed process info to file.
+        /// Serializes sandboxed process input files.
         /// </summary>
-        protected void SerializeSandboxedProcessInfoToFile()
+        protected void SerializeSandboxedProcessInputFile(string path, Action<FileStream> serialize)
         {
             string file = SandboxedProcessInfoFile;
             FileUtilities.CreateDirectory(Path.GetDirectoryName(file));
 
             try
             {
-                using (FileStream stream = File.OpenWrite(file))
+                using (FileStream stream = File.OpenWrite(path))
                 {
-                    SandboxedProcessInfo.Serialize(stream);
+                    serialize(stream);
                 }
             }
             catch (IOException ioException)
             {
-                ThrowBuildXLException($"Failed to serialize sandboxed process info '{file}'", ioException);
+                ThrowBuildXLException($"Failed to serialize sandboxed process input '{file}'", ioException);
             }
         }
 

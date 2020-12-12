@@ -44,5 +44,11 @@ namespace BuildXL.Processes
         /// Value used by Execution Log to indicate that the process exit code has not been initailized.
         /// </summary>
         public const uint UninitializedProcessExitCode = 0xBAAAAAAD;
+
+        /// <summary>
+        /// Value set by SandboxedProcessExecutor when it detects connection issues between VM and Host.
+        /// CODESYNC: Should match BuildXL.SandboxedProcessExecutor.ExitCode.VmInfrastructureFailure
+        /// </summary>
+        public const int VmInfrastructureFailure = 6;
     }
 }

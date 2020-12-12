@@ -44,6 +44,10 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     configuration.EnableTelemetry = ParseBooleanOption(option);
                 }
+                else if (OptionEquals(option, "testHook"))
+                {
+                    configuration.SandboxedProcessExecutorTestHookFile = ParsePathOption(option);
+                }
                 else if (s_helpStrings.Any(s => OptionEquals(option, s)))
                 {
                     // If the analyzer was called with '/help' argument - print help and exit

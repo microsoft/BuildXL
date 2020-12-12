@@ -15,8 +15,8 @@ namespace BuildXL.Utilities
         public bool FailDeletingTempDirectory { get; set; }
 
         /// <summary>
-        /// Causes VmCommandProxy to simulate pip failure
+        /// Causes VmCommandProxy to simulate failures
         /// </summary>
-        public bool FailVmCommandProxy { get; set; }
+        public SandboxedProcessExecutorTestHook SandboxedProcessExecutorTestHook { get; set; }
     }
 }

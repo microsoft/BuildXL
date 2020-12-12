@@ -48,7 +48,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// <see cref="ExitCode"/> represents a VM Command Proxy failure.
         /// </summary>
-        public bool HasVmCommandProxyError { get; private set; }
+        public bool HasVmInfrastructureError { get; private set; }
 
         /// <summary>
         /// Creates an instance of <see cref="ExternalVmSandboxedProcess"/>.
@@ -57,8 +57,9 @@ namespace BuildXL.Processes
             SandboxedProcessInfo sandboxedProcessInfo, 
             VmInitializer vmInitializer, 
             ExternalToolSandboxedProcessExecutor tool,
-            string externalSandboxedProcessDirectory)
-            : base(sandboxedProcessInfo, Path.Combine(externalSandboxedProcessDirectory, nameof(ExternalVmSandboxedProcess)))
+            string externalSandboxedProcessDirectory,
+            SandboxedProcessExecutorTestHook sandboxedProcessExecutorTestHook = null)
+            : base(sandboxedProcessInfo, Path.Combine(externalSandboxedProcessDirectory, nameof(ExternalVmSandboxedProcess)), sandboxedProcessExecutorTestHook)
         {
             Contract.Requires(vmInitializer != null);
             Contract.Requires(tool != null);
@@ -148,14 +149,18 @@ namespace BuildXL.Processes
 
         private void RunInVm()
         {
-            // (1) Serialize sandboxed prosess info.
-            SerializeSandboxedProcessInfoToFile();
+            // (1) Serialize sandboxed prosess info and SandboxedProcessExecutor Test Hooks.
+            SerializeSandboxedProcessInputFile(SandboxedProcessInfoFile, SandboxedProcessInfo.Serialize);
+            if (SandboxedProcessExecutorTestHook != null)
+            {
+                SerializeSandboxedProcessInputFile(SandboxedProcessExecutorTestHookFile, SandboxedProcessInfo.Serialize);
+            }
 
             // (2) Create and serialize run request.
             var runRequest = new RunRequest
             {
                 AbsolutePath = m_tool.ExecutablePath,
-                Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
+                Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile, SandboxedProcessExecutorTestHookFile),
                 WorkingDirectory = WorkingDirectory
             };
 
@@ -209,7 +214,6 @@ namespace BuildXL.Processes
             string error = m_error.ToString();
             string hint = Path.GetFileNameWithoutExtension(m_tool.ExecutablePath);
 
-            HasVmCommandProxyError = true;
             return CreateResultForFailure(
                 exitCode: m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
                 killed: m_processExecutor.Killed,
@@ -222,6 +226,11 @@ namespace BuildXL.Processes
         private SandboxedProcessResult CreateResultForSandboxExecutorFailure(RunResult runVmResult)
         {
             Contract.Requires(runVmResult != null);
+
+            if (runVmResult.ProcessStateInfo.ExitCode == ExitCodes.VmInfrastructureFailure)
+            {
+                HasVmInfrastructureError = true;
+            }
 
             return CreateResultForFailure(
                 exitCode: runVmResult.ProcessStateInfo.ExitCode,

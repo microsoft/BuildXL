@@ -24,10 +24,7 @@ export const qTestTool: Transformer.ToolDefinition = {
         d`${Context.getMount("ProgramFilesX86").path}`,
         d`${Context.getMount("ProgramFiles").path}`,
         d`${Context.getMount("AppData").path}`,
-        d`${Context.getMount("LocalAppData").path}`,
-        // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
-        // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
-        d`C:/Debuggers`
+        d`${Context.getMount("LocalAppData").path}`
     ]),
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
@@ -361,7 +358,12 @@ export function runQTest(args: QTestArguments): Result {
             ...(args.qTestUntrackedScopes || []),
             // Untrack logDir to keep logs intact between multiple retries.
             // This also means that logDir will not be cached between build sessions.
-            ...addIf(isJSProject, logDir)
+            ...addIf(isJSProject, logDir),
+            // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
+            // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
+            // This should technically be part of the tool definition, but we want to make sure
+            // that this scope does not get overridden when customers override qtesttool.
+            d`C:/Debuggers`
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: isJSProject ? jsProject.passThroughEnvironmentVariables : undefined,

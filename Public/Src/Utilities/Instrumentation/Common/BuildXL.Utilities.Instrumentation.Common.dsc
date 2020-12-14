@@ -6,7 +6,7 @@ import * as Managed from "Sdk.Managed";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace Common {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNetStandard20;
+    export declare const qualifier: BuildXLSdk.AllSupportedQualifiers;
     @@public
     export const dll = BuildXLSdk.library({
         allowUnsafeBlocks: true,

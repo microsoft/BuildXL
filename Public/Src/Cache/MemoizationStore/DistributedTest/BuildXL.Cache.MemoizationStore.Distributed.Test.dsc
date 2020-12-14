@@ -4,6 +4,8 @@
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace DistributedTest {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    
     @@public
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStore.Distributed.Test",

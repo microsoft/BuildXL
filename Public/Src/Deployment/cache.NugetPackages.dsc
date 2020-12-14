@@ -33,7 +33,6 @@ namespace Cache.NugetPackages {
     const net5OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net5.0", targetRuntime: "osx-x64" });
 
     const net472CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
-    const net462CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net462", targetRuntime: "win-x64" });
     const netStandardCacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "netstandard2.0", targetRuntime: "win-x64" });
     const winX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" });
     const osxX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" });
@@ -57,7 +56,6 @@ namespace Cache.NugetPackages {
         contents: [
             // ContentStore.Distributed
             Nuget.createAssemblyLayout(net472ContentStore.Distributed.dll),
-            Nuget.createAssemblyLayout(net462ContentStore.Distributed.dll),
             Nuget.createAssemblyLayout(netStandardContentStore.Distributed.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(winX64ContentStore.Distributed.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(osxX64ContentStore.Distributed.dll, "osx-x64", false),
@@ -85,7 +83,6 @@ namespace Cache.NugetPackages {
             // ContentStore.Vsts
             ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [
                 Nuget.createAssemblyLayout(net472ContentStore.Vsts.dll),
-                Nuget.createAssemblyLayout(net462ContentStore.Vsts.dll),
                 Nuget.createAssemblyLayout(netStandardContentStore.Vsts.dll)
             ]),
 
@@ -100,7 +97,6 @@ namespace Cache.NugetPackages {
 
             // MemoizationStore.Distributed
             Nuget.createAssemblyLayout(net472MemoizationStore.Distributed.dll),
-            Nuget.createAssemblyLayout(net462MemoizationStore.Distributed.dll),
             Nuget.createAssemblyLayout(netStandardMemoizationStore.Distributed.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(winX64MemoizationStore.Distributed.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(osxX64MemoizationStore.Distributed.dll, "osx-x64", false),
@@ -109,7 +105,6 @@ namespace Cache.NugetPackages {
             
             // MemoizationStore.Library
             Nuget.createAssemblyLayout(net472MemoizationStore.Library.dll),
-            Nuget.createAssemblyLayout(net462MemoizationStore.Library.dll),
             Nuget.createAssemblyLayout(netStandardMemoizationStore.Library.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(winX64MemoizationStore.Library.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(osxX64MemoizationStore.Library.dll, "osx-x64", false),
@@ -119,7 +114,6 @@ namespace Cache.NugetPackages {
             // MemoizationStore.Vsts
             ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [
                 Nuget.createAssemblyLayout(net472MemoizationStore.Vsts.dll),
-                Nuget.createAssemblyLayout(net462MemoizationStore.Vsts.dll),
                 Nuget.createAssemblyLayout(netStandardMemoizationStore.Vsts.dll)
             ]),
 
@@ -134,7 +128,6 @@ namespace Cache.NugetPackages {
 
             // BuildXL.Cache.Host.Services
             Nuget.createAssemblyLayout(net472DistributedCacheHost.Service.dll),
-            Nuget.createAssemblyLayout(net462DistributedCacheHost.Service.dll),
             Nuget.createAssemblyLayout(netStandardDistributedCacheHost.Service.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(winX64DistributedCacheHost.Service.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(osxX64DistributedCacheHost.Service.dll, "osx-x64", false),
@@ -152,7 +145,6 @@ namespace Cache.NugetPackages {
 
             // BuildXL.Cache.Logging
             Nuget.createAssemblyLayout(net472CacheLogging.dll),
-            Nuget.createAssemblyLayout(net462CacheLogging.dll),
             Nuget.createAssemblyLayout(netStandardCacheLogging.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(winX64CacheLogging.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(osxX64CacheLogging.dll, "osx-x64", false),

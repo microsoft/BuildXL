@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Library {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
+    
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.MemoizationStore",

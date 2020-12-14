@@ -4,6 +4,8 @@ import * as ManagedSdk from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 
 namespace App {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+
     @@public
     export const AppRuleset = f`ContentStoreApp.ruleset`;
 

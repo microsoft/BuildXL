@@ -3,7 +3,7 @@
 
 namespace Library {
 
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
+    export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 
     @@public
     export const systemMemoryPackage = 

@@ -5,6 +5,8 @@ import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as ManagedSdk from "Sdk.Managed";
 
 namespace DistributedTest {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+
     @@public
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.ContentStore.Distributed.Test",
@@ -18,7 +20,7 @@ namespace DistributedTest {
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         appConfig: f`App.config`,
         references: [
-            ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
                 NetFx.System.Net.Primitives.dll,

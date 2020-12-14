@@ -3,6 +3,8 @@
 import * as ManagedSdk from "Sdk.Managed";
 
 namespace Distributed {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
+    
     @@public
     export const eventHubPackages = [
         importFrom("Microsoft.Azure.EventHubs").pkg,

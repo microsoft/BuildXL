@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace VstsTest {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    
     @@public
     export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled || BuildXLSdk.isDotNetCoreBuild ? undefined : BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStore.Vsts.Test",

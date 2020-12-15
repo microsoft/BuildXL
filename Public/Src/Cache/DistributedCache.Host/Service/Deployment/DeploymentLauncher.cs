@@ -220,7 +220,7 @@ namespace BuildXL.Cache.Host.Service
                         return BoolResult.WithSuccessMessage($"Skipped because retrieved content id match matches active run. Id={manifest.ContentId}");
                     }
 
-                    if (_currentRun != null && _currentRun.HasOnlyWatchedFileUpdates(manifest))
+                    if (_currentRun != null && _currentRun.IsActive && _currentRun.HasOnlyWatchedFileUpdates(manifest))
                     {
                         var deployResult = await DownloadAndDeployAsync(context, client, _currentRun, watchedFilesOnly: true);
                         if (deployResult.Succeeded)

@@ -35,7 +35,7 @@ namespace Tool.DropDaemon
     /// <summary>
     ///     Responsible for accepting and handling TCP/IP connections from clients.
     /// </summary>
-    public sealed class DropDaemon : ServicePipDaemon.ServicePipDaemon, IDisposable, IIpcOperationExecutor
+    public sealed class DropDaemon : ServicePipDaemon.EnsuredFinalizationServicePipDaemon, IDisposable, IIpcOperationExecutor
     {
         private const int ServicePointParallelismForDrop = 200;
 
@@ -64,7 +64,6 @@ namespace Tool.DropDaemon
         public string DropName => DropConfig.Name;
 
         private readonly Task<IDropClient> m_dropClientTask;
-
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
         #region Options and commands
@@ -614,19 +613,11 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Synchronous version of <see cref="FinalizeAsync"/>
-        /// </summary>
-        public IIpcResult Finalize()
-        {
-            return FinalizeAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Finalizes the drop.  Handles drop-related exceptions by omitting their stack traces.
         /// In all cases emits an appropriate <see cref="DropFinalizationEvent"/> indicating the
         /// result of this operation.
         /// </summary>
-        public async Task<IIpcResult> FinalizeAsync()
+        protected override async Task<IIpcResult> DoFinalizeAsync()
         {
             var dropFinalizationEvent =
                 await SendDropEtwEvent(

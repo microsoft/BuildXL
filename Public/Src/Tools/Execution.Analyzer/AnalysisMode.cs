@@ -29,6 +29,7 @@ namespace BuildXL.Execution.Analyzer
         EventStats,
         ExportDgml,
         ExportGraph,
+        ExtraDependencies,
         FailedPipInput,
         FailedPipsDump,
         FileChangeTracker,

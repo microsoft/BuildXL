@@ -34,6 +34,7 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Ide").Script.Debugger.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,

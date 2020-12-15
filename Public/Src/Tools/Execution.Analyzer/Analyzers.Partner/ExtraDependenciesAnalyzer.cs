@@ -57,6 +57,24 @@ namespace BuildXL.Execution.Analyzer
         }
     }
 
+    internal sealed class FilePathIdMap
+    {
+        private readonly IDictionary<string, ulong> m_pathToIdMap = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+        private readonly Cache.ContentStore.FileSystem.PassThroughFileSystem m_passThroughFileSystem = new Cache.ContentStore.FileSystem.PassThroughFileSystem();
+
+        public ulong GetFileId(string filePath)
+        {
+            ulong fileId;
+            if (!m_pathToIdMap.TryGetValue(filePath, out fileId))
+            {
+                fileId = m_passThroughFileSystem.GetFileId(new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filePath));
+                m_pathToIdMap.Add(filePath, fileId);
+            }
+
+            return fileId;
+        }
+    }
+
     internal sealed class ExtraDependenciesAnalyzer : Analyzer
     {
         /// <summary>

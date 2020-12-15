@@ -1024,10 +1024,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Tracer.Info(context, $"First pass last access time sketch statistics: Max=[{latSketch.Max}] Min=[{latSketch.Min}] Avg=[{latSketch.Average}] P50=[{latSketch.Quantile(0.5)}] P75=[{latSketch.Quantile(0.75)}] P90=[{latSketch.Quantile(0.90)}] P95=[{latSketch.Quantile(0.95)}]");
 
             ulong sizeDatabaseBytes = firstPassSumKeySize + firstPassSumValueSize;
-            ulong sizeRemovalBytes = sizeDatabaseBytes - sizeTargetBytes;
-            if (sizeRemovalBytes <= 0)
+            if (sizeDatabaseBytes <= sizeTargetBytes)
             {
-                Tracer.Info(context, $"Early stop. SizeBytes=[{sizeDatabaseBytes}] SizeRemovalBytes=[{sizeRemovalBytes}]");
+                Tracer.Info(context, $"Early stop. SizeBytes=[{sizeDatabaseBytes}] SizeTargetBytes=[{sizeTargetBytes}]");
                 return new MetadataGarbageCollectionOutput()
                 {
                     Scanned = (long)firstPassScannedEntries,
@@ -1035,6 +1034,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 };
             }
 
+            ulong sizeRemovalBytes = sizeDatabaseBytes - sizeTargetBytes;
             double fractionToRemove = (double)sizeRemovalBytes / (double)sizeDatabaseBytes;
             double fractionToKeep = 1.0 - fractionToRemove;
 

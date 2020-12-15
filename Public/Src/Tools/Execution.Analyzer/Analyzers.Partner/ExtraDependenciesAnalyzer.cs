@@ -16,6 +16,23 @@ using Newtonsoft.Json.Linq;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using PassThroughFileSystem = BuildXL.Cache.ContentStore.FileSystem.PassThroughFileSystem;
 
+/**
+Sample output of the analyzer:
+[
+  {
+    "Description": "Pip1FE925D181A2CF1A, cl.exe, foo, bar1, {} || {Compiling}",
+    "ExtraDeps": []
+  },
+  {
+    "Description": "Pip21EE1BBEBFC1FD1A, link.exe, foo, bar2, {} || {Linking}",
+    "ExtraDeps": [
+      "E:\\visualcpptools\\lib\\native\\bin\\hostx64\\x64\\lib.exe",
+      "E:\\visualcpptools\\lib\\native\\bin\\hostx64\\x64\\1033\\linkui.dll"
+    ]
+  }
+]
+ */
+
 namespace BuildXL.Execution.Analyzer
 {
     internal partial class Args
@@ -59,6 +76,11 @@ namespace BuildXL.Execution.Analyzer
         }
     }
 
+    /// <summary>
+    /// This represents a map of file path to a number which uniquely identifies that file.
+    /// All hardlinks and softlinks to a file will map to the same number.
+    /// The file ID computation is cached by this class to reduce filesystem API call overhead.
+    /// </summary>
     internal sealed class FilePathIdMap
     {
         private readonly IDictionary<string, ulong> m_pathToIdMap = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
@@ -75,10 +97,14 @@ namespace BuildXL.Execution.Analyzer
                 }
                 catch (ArgumentException)
                 {
+                    // Sometimes paths are malformed, starting with \\?\, and we ignore those paths
+                    // in our analysis
                     fileId = 0;
                 }
                 catch (FileNotFoundException)
                 {
+                    // Sometimes we see temporary files created by BuildXL which get deleted by the time this
+                    // analyzer runs, so we ignore them
                     fileId = 0;
                 }
                 m_pathToIdMap.Add(filePath, fileId);
@@ -133,7 +159,9 @@ namespace BuildXL.Execution.Analyzer
                     var pip = PipGraph.GetPipFromPipId(observedAccess.Key);
 
                     if (pip.PipType != Pips.Operations.PipType.Process)
+                    {
                         continue;
+                    }
 
                     if (TargetPip == null || TargetPip.Value == pip.SemiStableHash)
                     {
@@ -160,6 +188,7 @@ namespace BuildXL.Execution.Analyzer
 
                         var extraDependencies = new List<string>();
 
+                        // extraDependencies = pipInputFiles - observedFileReads
                         foreach (var pipInputFile in pipInputFiles)
                         {
                             if (!observedFileReads.Contains(pipInputFile.Value))

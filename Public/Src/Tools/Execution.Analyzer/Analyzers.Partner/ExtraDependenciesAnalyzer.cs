@@ -11,7 +11,8 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using Microsoft.VisualStudio.Services.Common;
-using Microsoft.VisualStudio.Services.Profile;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -21,8 +22,6 @@ namespace BuildXL.Execution.Analyzer
         {
             string outputFilePath = null;
             long? targetPip = null;
-            bool sortPaths = true;
-            bool verbose = false;
 
             foreach (var opt in AnalyzerOptions)
             {
@@ -36,17 +35,9 @@ namespace BuildXL.Execution.Analyzer
                 {
                     targetPip = ParseSemistableHash(opt);
                 }
-                else if (opt.Name.Equals("v", StringComparison.OrdinalIgnoreCase))
-                {
-                    verbose = true;
-                }
-                else if (opt.Name.TrimEnd('-', '+').Equals("sortPaths", StringComparison.OrdinalIgnoreCase))
-                {
-                    sortPaths = ParseBooleanOption(opt);
-                }
                 else
                 {
-                    throw Error("Unknown option for fingerprint text analysis: {0}", opt.Name);
+                    throw Error("Unknown option: {0}", opt.Name);
                 }
             }
 
@@ -54,24 +45,18 @@ namespace BuildXL.Execution.Analyzer
             {
                 OutputFilePath = outputFilePath,
                 TargetPip = targetPip,
-                SortPaths = sortPaths,
-                Verbose = verbose
             };
         }
 
         private static void WriteExtraDependenciesAnalyzerHelp(HelpWriter writer)
         {
-            writer.WriteBanner("Observed Access Analysis");
-            writer.WriteModeOption(nameof(AnalysisMode.ObservedAccess), "Generates a text file containing observed files accesses when executing pips. NOTE: Requires build with /logObservedFileAccesses.");
+            writer.WriteBanner("Extra Dependencies Analysis");
+            writer.WriteModeOption(nameof(AnalysisMode.ExtraDependencies), "Generates a json file containing extra dependencies specified in pips. NOTE: Requires build with /logObservedFileAccesses.");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
-            writer.WriteOption("pip", "Optional. The pip which file accesses will be dumped", shortName: "p");
-            writer.WriteOption("v", "Optional. Verbose output");
+            writer.WriteOption("pip", "Optional. The pip for which extra dependencies will be dumped", shortName: "p");
         }
     }
 
-    /// <summary>
-    /// Analyzer used to dump observed inputs
-    /// </summary>
     internal sealed class ExtraDependenciesAnalyzer : Analyzer
     {
         /// <summary>
@@ -84,22 +69,12 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public long? TargetPip;
 
-        /// <summary>
-        /// Order accesses by path.
-        /// </summary>
-        public bool SortPaths = true;
-
-        /// <summary>
-        /// Verbose output
-        /// </summary>
-        public bool Verbose = false;
-
         private readonly Dictionary<PipId, IReadOnlyCollection<ReportedFileAccess>> m_observedAccessMap = new Dictionary<PipId, IReadOnlyCollection<ReportedFileAccess>>();
 
         public ExtraDependenciesAnalyzer(AnalysisInput input)
             : base(input)
         {
-            Console.WriteLine($"ObservedAccessAnalyzer: Constructed at {DateTime.Now}.");
+            Console.WriteLine($"ExtraDependenciesAnalyzer: Constructed at {DateTime.Now}.");
         }
 
         private string GetAccessPath(ReportedFileAccess access)
@@ -107,38 +82,34 @@ namespace BuildXL.Execution.Analyzer
             return (access.Path ?? access.ManifestPath.ToString(PathTable)).ToCanonicalizedPath();
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public override int Analyze()
         {
-            Console.WriteLine($"ObservedAccessAnalyzer: Starting analysis of {m_observedAccessMap.Count} observed access map entries at {DateTime.Now}.");
+            Console.WriteLine($"ExtraDependenciesAnalyzer: Starting analysis of {m_observedAccessMap.Count} observed access map entries at {DateTime.Now}.");
 
-            var jsonPips = new Newtonsoft.Json.Linq.JArray();
+            var jsonPips = new JArray();
             var pathTable = PipGraph.Context.PathTable;
-            var serializer = new Newtonsoft.Json.JsonSerializer();
-            serializer.Formatting = Newtonsoft.Json.Formatting.Indented;
+            var jsonSerializer = new JsonSerializer();
+            jsonSerializer.Formatting = Formatting.Indented;
 
-            using (var outputStream = File.Create(OutputFilePath, bufferSize: 64 << 10 /* 64 KB */))
-            using (var writer = new StreamWriter(outputStream))
-            using (var jsonTextWriter = new Newtonsoft.Json.JsonTextWriter(writer))
+            using (var outputFileStream = File.Create(OutputFilePath, bufferSize: 64 << 10 /* 64 KB */))
+            using (var outputFileStreamWriter = new StreamWriter(outputFileStream))
+            using (var jsonTextWriter = new JsonTextWriter(outputFileStreamWriter))
             {
                 foreach (var observedAccess in m_observedAccessMap.OrderBy(kvp => PipGraph.GetPipFromPipId(kvp.Key).SemiStableHash))
                 {
                     var pip = PipGraph.GetPipFromPipId(observedAccess.Key);
 
+                    if (pip.PipType != Pips.Operations.PipType.Process)
+                        continue;
+
                     if (TargetPip == null || TargetPip.Value == pip.SemiStableHash)
                     {
-                        var jsonPip = new Newtonsoft.Json.Linq.JObject();
+                        var jsonPip = new JObject();
                         jsonPip.Add("Description", pip.GetDescription(PipGraph.Context));
 
-                        var jsonExtraDeps = new Newtonsoft.Json.Linq.JArray();
+                        var jsonExtraDeps = new JArray();
 
-                        var accesses = SortPaths
-                            ? observedAccess.Value.OrderBy(item => item.GetPath(PathTable))
-                            : (IEnumerable<ReportedFileAccess>)observedAccess.Value;
-
-                        if (pip.PipType != Pips.Operations.PipType.Process)
-                            continue;
+                        var accesses = observedAccess.Value;
 
                         var extraDependencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -157,9 +128,12 @@ namespace BuildXL.Execution.Analyzer
                             extraDependencies.Remove(accessPath);
                         }
 
-                        foreach (var inputFile in extraDependencies)
+                        var extraDepsSorted = extraDependencies.ToList();
+                        extraDepsSorted.Sort(StringComparer.OrdinalIgnoreCase);
+
+                        foreach (var depFile in extraDepsSorted)
                         {
-                            jsonExtraDeps.Add(inputFile);
+                            jsonExtraDeps.Add(depFile);
                         }
 
                         jsonPip.Add("ExtraDeps", jsonExtraDeps);
@@ -167,8 +141,10 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
 
-                serializer.Serialize(jsonTextWriter, jsonPips);
+                jsonSerializer.Serialize(jsonTextWriter, jsonPips);
             }
+
+            Console.WriteLine($"ExtraDependenciesAnalyzer: Finished analysis at {DateTime.Now}.");
 
             return 0;
         }

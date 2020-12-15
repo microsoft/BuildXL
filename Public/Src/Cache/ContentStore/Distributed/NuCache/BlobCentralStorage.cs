@@ -268,15 +268,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<BoolResult> UploadShardFileAsync(OperationContext context, CloudBlobContainer container, int shardId, AbsolutePath file, string blobName, bool garbageCollect)
         {
+            long fileSize = -1;
             return context.PerformOperationWithTimeoutAsync(Tracer, async nestedContext =>
             {
-                var fileSize = new System.IO.FileInfo(file.ToString()).Length;
-
-                Tracer.Debug(nestedContext, $@"Uploading blob '{_configuration.ContainerName}\{blobName}' of size {fileSize} from {file} into shard #{shardId}.");
+                fileSize = new System.IO.FileInfo(file.ToString()).Length;
 
                 var blob = await GetBlockBlobReferenceAsync(container, shardId, blobName, nestedContext.Token);
 
-                await blob.UploadFromFileAsync(file.ToString(), null, DefaultBlobStorageRequestOptions, null, nestedContext.Token);
+                // WARNING: There is a TOCTOU issue here. If there are multiple concurrent writers to a single blob,
+                // there's no way to tell which upload will win the race. Moreover, it is possible for a blob to be
+                // overwritten.
+                // Since BlobCentralStorage is meant to upload files with unique names only, we don't care about this
+                // particular use-case: it should basically never happen, and when it does, it shouldn't matter because
+                // the file should be the same.
+                var exists = await blob.ExistsAsync(null, null, context.Token);
+                if (!exists)
+                {
+                    await blob.UploadFromFileAsync(file.ToString(), null, DefaultBlobStorageRequestOptions, null, nestedContext.Token);
+                }
 
                 if (garbageCollect && _configuration.EnableGarbageCollect)
                 {
@@ -290,6 +299,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             },
             counter: Counters[CentralStorageCounters.UploadShardFile],
+            traceOperationStarted: false,
+            extraEndMessage: _ => $"ShardId=[{shardId}] BlobName=[{_configuration.ContainerName}/{blobName}] FilePath=[{file}] FileSize=[{fileSize}]",
             timeout: _configuration.OperationTimeout);
         }
 

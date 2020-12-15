@@ -666,9 +666,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsMachineReputationEnabled { get; set; } = true;
 
         [DataMember]
-        public bool? UseIncrementalCheckpointing { get; set; }
-
-        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
 

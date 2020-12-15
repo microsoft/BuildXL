@@ -263,17 +263,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Serialize to a string.
         /// </summary>
-        public string Serialize()
+        public string Serialize(char delimiter = SerializedDelimiter)
         {
-            return $"{HashType.Serialize()}{SerializedDelimiter.ToString()}{ToHex()}";
+            return HashType.Serialize() + delimiter + ToHex();
         }
 
         /// <summary>
         ///     Serialize to a string.
         /// </summary>
-        public string SerializeReverse()
+        public string SerializeReverse(char delimiter = SerializedDelimiter)
         {
-            return $"{ToHex()}{SerializedDelimiter.ToString()}{HashType.Serialize()}";
+            return ToHex() + delimiter + HashType.Serialize();
         }
 
         /// <summary>

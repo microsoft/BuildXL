@@ -1592,6 +1592,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     token.ThrowIfCancellationRequested();
 
+                    var cycleGuid = Guid.NewGuid();
+
                     var totalAddedContent = 0;
                     var totalRemovedContent = 0;
                     var allLocalStoreContentCount = 0;
@@ -1714,7 +1716,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             {
                                 await SendReconciliationEventsAsync(
                                     context,
-                                    suffix: $".cycle{iteration}",
+                                    suffix: $".{cycleGuid}.iter{iteration}",
                                     machineId: machineId,
                                     addedContent: addedContent,
                                     removedContent: removedContent);
@@ -1966,7 +1968,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     await SendReconciliationEventsAsync(
                         context,
-                        suffix: $".date({_clock.UtcNow:yyyyMMdd.HHmm})",
+                        suffix: $".{_clock.UtcNow:yyyyMMdd.HHmm}.{Guid.NewGuid()}",
                         machineId: machineId,
                         addedContent: addedContent,
                         removedContent: removedContent);

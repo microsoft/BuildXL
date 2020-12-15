@@ -171,14 +171,14 @@ namespace BuildXL.Cache.MultiTool.App
                 {
                     return new BoolResult($"Checkpoint info file at `{checkpointInfoFilePath}` does not exist");
                 }
-                var checkpointInfo = CheckpointManager.ParseCheckpointInfo(checkpointInfoFilePath);
+                var checkpointInfo = CheckpointManager.LoadCheckpointManifest(checkpointInfoFilePath);
                 await DownloadCheckpointAsync(context, fileSystem, centralStorage, checkpointInfo, outputDirectoryPath, downloadParallelism);
 
                 return BoolResult.Success;
             });
         }
 
-        private static async Task DownloadCheckpointAsync(OperationContext context, PassThroughFileSystem fileSystem, BlobCentralStorage centralStorage, Dictionary<string, string> checkpointInfo, AbsolutePath outputDirectoryPath, int downloadParallelism)
+        private static async Task DownloadCheckpointAsync(OperationContext context, PassThroughFileSystem fileSystem, BlobCentralStorage centralStorage, IReadOnlyDictionary<string, string> checkpointInfo, AbsolutePath outputDirectoryPath, int downloadParallelism)
         {
             fileSystem.CreateDirectory(outputDirectoryPath);
 

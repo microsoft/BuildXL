@@ -217,7 +217,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                           + $"ReconciliationEnabled={configuration.ReconcileMode > ReconciliationMode.None}, "
                           + $"MachineReputationEnabled={configuration.ReputationTrackerConfiguration?.Enabled ?? false}, "
                           + $"Checkpoint={configuration.Checkpoint != null}, "
-                          + $"IncrementalCheckpointing={configuration.Checkpoint?.UseIncrementalCheckpointing == true}, "
                           + $"RaidedRedis={configuration.RedisGlobalStoreSecondaryConnectionString != null}, "
                           + $"SmallFilesInRedis={configuration.AreBlobsSupported}, "
                           + $"DistributedCentralStore={configuration.DistributedCentralStore != null}, "

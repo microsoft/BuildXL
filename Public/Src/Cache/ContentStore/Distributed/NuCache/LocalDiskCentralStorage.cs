@@ -51,12 +51,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 return Task.FromResult(BoolResult.Success);
             }
 
-            return Task.FromResult(new BoolResult($"Can't find checkpoint '{storageId}'."));
+            return Task.FromResult(new BoolResult($"File with blob name '{storageId}' does not exist and hence can't be placed into {targetFilePath}``"));
         }
 
         protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool isUploader, bool isImmutable)
         {
-            return BoolResult.SuccessTask;
+            var destination = _workingDirectory / blobName;
+            if (File.Exists(destination.ToString()))
+            {
+                return BoolResult.SuccessTask;
+            }
+            else
+            {
+                return Task.FromResult(new BoolResult($"File `{file}` with blob name `{blobName}` does not exist and hence can't be touched"));
+            }
         }
     }
 }

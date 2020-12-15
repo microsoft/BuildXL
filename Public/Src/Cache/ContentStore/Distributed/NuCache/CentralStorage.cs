@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () => UploadFileCoreAsync(context, file, name, garbageCollect),
                 counter: Counters[CentralStorageCounters.TryGetFile],
-                extraStartMessage: $"[{name}|{file}]");
+                extraEndMessage: _ => $"File=[{file}] Name=[{name}]");
         }
 
         /// <summary>
@@ -53,7 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () => TouchBlobCoreAsync(context, file, storageId, isUploader, isImmutable),
                 counter: Counters[CentralStorageCounters.TouchBlob],
-                extraStartMessage: $"[{storageId}]");
+                extraEndMessage: _ => $"File=[{file}] StorageId=[{storageId}]",
+                traceOperationStarted: false);
         }
 
         /// <summary>
@@ -66,7 +67,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () => TryGetFileCoreAsync(context, storageId, targetFilePath, isImmutable),
                 counter: Counters[CentralStorageCounters.TryGetFile],
-                extraStartMessage: $"[{storageId}]");
+                extraEndMessage: _ => $"StorageId=[{storageId}] TargetFilePath=[{targetFilePath}]",
+                traceOperationStarted: false);
         }
 
         /// <summary>
@@ -79,7 +81,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return context.PerformOperationAsync(
                 Tracer,
                 () => TryGetSasUrlCore(context, storageId, expiry),
-                extraStartMessage: $"[{storageId}]");
+                extraEndMessage: _ => $"[{storageId}]",
+                traceOperationStarted: false);
         }
 
         /// <summary>

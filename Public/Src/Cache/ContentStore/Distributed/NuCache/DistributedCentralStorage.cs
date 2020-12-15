@@ -156,17 +156,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<Result<string>> UploadFileCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool garbageCollect = false)
         {
             // Add the file to CAS and register with global content location store.
-            var hashTask = PutAndRegisterFileAsync(context, file, hash: null);
+            var putResult = await PutAndRegisterFileAsync(context, file, hash: null);
 
-            // Upload to fallback storage so file is available if needed from there
-            var innerStorageIdTask = _fallbackStorage.UploadFileAsync(context, file, blobName, garbageCollect).ThrowIfFailureAsync();
+            string fallbackStorageId = await _fallbackStorage.UploadFileAsync(
+                context,
+                file,
+                name: $"{blobName}.{putResult.ContentHash.Serialize(delimiter: '.')}",
+                garbageCollect).ThrowIfFailureAsync();
 
-            await Task.WhenAll(hashTask, innerStorageIdTask);
-
-            var hash = await hashTask;
-            var innerStorageId = await innerStorageIdTask;
-
-            return CreateCompositeStorageId(hash, innerStorageId);
+            return CreateCompositeStorageId(putResult.ContentHash, fallbackStorageId);
         }
 
         private async Task<Result<ContentHashWithSize>> TryGetAndPutFileAsync(OperationContext context, string storageId, AbsolutePath targetFilePath, bool isImmutable)
@@ -293,7 +291,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
         }
 
-        private async Task<ContentHash> PutAndRegisterFileAsync(OperationContext context, AbsolutePath file, ContentHash? hash, bool isImmutable = false)
+        private async Task<PutResult> PutAndRegisterFileAsync(OperationContext context, AbsolutePath file, ContentHash? hash, bool isImmutable = false)
         {
             var putFileRealizationMode = isImmutable ? FileRealizationMode.Any : FileRealizationMode.Copy;
 
@@ -310,7 +308,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var contentInfo = new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
             await RegisterContent(context, contentInfo);
 
-            return putResult.ContentHash;
+            return putResult;
         }
 
         private async Task<(ContentHashWithSizeAndLocations info, int pendingCopies)> GetFileLocationsAsync(OperationContext context, ContentHash hash, ContentHash startedCopyHash)

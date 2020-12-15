@@ -502,11 +502,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public AbsolutePath WorkingDirectory { get; }
 
-        /// <summary>
-        /// Indicates whether incremental checkpointing is used
-        /// </summary>
-        public bool UseIncrementalCheckpointing { get; set; }
-
         /// <nodoc />
         public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
 

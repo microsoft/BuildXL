@@ -89,6 +89,8 @@ namespace BuildXL.Execution.Analyzer
 
         private readonly Dictionary<PipId, IReadOnlyCollection<ReportedFileAccess>> m_observedAccessMap = new Dictionary<PipId, IReadOnlyCollection<ReportedFileAccess>>();
 
+        private readonly FilePathIdMap m_filePathIdMap = new FilePathIdMap();
+
         public ExtraDependenciesAnalyzer(AnalysisInput input)
             : base(input)
         {
@@ -128,30 +130,36 @@ namespace BuildXL.Execution.Analyzer
                         var jsonExtraDeps = new JArray();
 
                         var accesses = observedAccess.Value;
-
-                        var extraDependencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
                         var processPip = (Pips.Operations.Process)pip;
-                        processPip.Dependencies
-                            .Select(file => file.Path.ToString(pathTable))
-                            .ForEach(path => extraDependencies.Add(path));
 
-                        var observedInputs = accesses
+                        var pipInputFiles = processPip.Dependencies
+                            .Select(file =>
+                            {
+                                var filePath = file.Path.ToString(pathTable);
+                                return new KeyValuePair<string, ulong>(filePath, m_filePathIdMap.GetFileId(filePath));
+                            });
+
+                        var observedFileReads = accesses
                             .Where(access => access.RequestedAccess.HasFlag(RequestedAccess.Read))
-                            .ToList();
+                            .Select(GetAccessPath)
+                            .Select(m_filePathIdMap.GetFileId)
+                            .ToHashSet();
 
-                        foreach (var observedInput in observedInputs)
+                        var extraDependencies = new List<string>();
+
+                        foreach (var pipInputFile in pipInputFiles)
                         {
-                            var accessPath = GetAccessPath(observedInput);
-                            extraDependencies.Remove(accessPath);
+                            if (!observedFileReads.Contains(pipInputFile.Value))
+                            {
+                                extraDependencies.Add(pipInputFile.Key);
+                            }
                         }
 
-                        var extraDepsSorted = extraDependencies.ToList();
-                        extraDepsSorted.Sort(StringComparer.OrdinalIgnoreCase);
+                        extraDependencies.Sort(StringComparer.OrdinalIgnoreCase);
 
-                        foreach (var depFile in extraDepsSorted)
+                        foreach (var extraDep in extraDependencies)
                         {
-                            jsonExtraDeps.Add(depFile);
+                            jsonExtraDeps.Add(extraDep);
                         }
 
                         jsonPip.Add("ExtraDeps", jsonExtraDeps);

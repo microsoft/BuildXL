@@ -13,6 +13,8 @@ using BuildXL.Utilities;
 using Microsoft.VisualStudio.Services.Common;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using PassThroughFileSystem = BuildXL.Cache.ContentStore.FileSystem.PassThroughFileSystem;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -60,14 +62,25 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class FilePathIdMap
     {
         private readonly IDictionary<string, ulong> m_pathToIdMap = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
-        private readonly Cache.ContentStore.FileSystem.PassThroughFileSystem m_passThroughFileSystem = new Cache.ContentStore.FileSystem.PassThroughFileSystem();
+        private readonly PassThroughFileSystem m_passThroughFileSystem = new PassThroughFileSystem();
 
         public ulong GetFileId(string filePath)
         {
             ulong fileId;
             if (!m_pathToIdMap.TryGetValue(filePath, out fileId))
             {
-                fileId = m_passThroughFileSystem.GetFileId(new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filePath));
+                try
+                {
+                    fileId = m_passThroughFileSystem.GetFileId(new AbsolutePath(filePath));
+                }
+                catch (ArgumentException)
+                {
+                    fileId = 0;
+                }
+                catch (FileNotFoundException)
+                {
+                    fileId = 0;
+                }
                 m_pathToIdMap.Add(filePath, fileId);
             }
 

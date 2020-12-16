@@ -121,7 +121,6 @@ namespace BuildXL.Scheduler
                 return result.Result?.MetadataHash;
             }
 
-            Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromCacheFailed(m_loggingContext, hash.Serialize(), result.Failure.DescribeIncludingInnerFailures());
             return null;
         }
 

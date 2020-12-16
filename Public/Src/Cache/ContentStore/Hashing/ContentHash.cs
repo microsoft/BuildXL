@@ -249,8 +249,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public string ToShortString()
         {
-            return new ShortHash(this).ToString();
+            return AsShortHash().ToString();
         }
+
+        /// <nodoc />
+        public ShortHash AsShortHash() => new ShortHash(this);
 
         /// <summary>
         ///     Give the hash bytes as a hex string.

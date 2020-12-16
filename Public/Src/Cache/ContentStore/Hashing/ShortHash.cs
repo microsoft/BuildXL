@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -59,6 +60,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public override int GetHashCode() => Value.GetHashCode();
 
+        /// <summary>
+        /// Attempts to create a <see cref="ShortHash"/> instance from a given string.
+        /// </summary>
+        public static bool TryParse(string str, out ShortHash result)
+        {
+            var longHashAsString = str.PadRight(ContentHash.SerializedLength * 2 + 3, '0');
+            if (ContentHash.TryParse(longHashAsString, out var longHash))
+            {
+                result = longHash.AsShortHash();
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
         /// <nodoc />
         public static bool operator ==(ShortHash left, ShortHash right) => left.Equals(right);
 
@@ -101,7 +118,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, HashLength)}";
+            return ToString(HashLength);
+        }
+
+        /// <summary>
+        /// Gets string representation of the short hash with a given length.
+        /// </summary>
+        public string ToString(int hashLength)
+        {
+            Contract.Check(hashLength <= HashLength)?.Requires($"hashLength should be <= HashLength. hashLength={hashLength}, HashLength={HashLength}");
+            return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, hashLength)}";
         }
 
         /// <nodoc />

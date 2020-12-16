@@ -291,14 +291,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             fixed (byte* p = &_bytes.FixedElementField)
             {
-                for (var i = offset; i < length; i++)
+                for (var i = offset; i < length + offset; i++)
                 {
                     buffer[j++] = NybbleHex[(p[i] & 0xF0) >> 4];
                     buffer[j++] = NybbleHex[p[i] & 0x0F];
                 }
             }
 
-            Contract.Assert(j == (2 * (length - offset)));
+            Contract.Assert(j == 2 * length);
             buffer[j] = '\0';
         }
 
@@ -310,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(length >= 0);
             Contract.Requires(length + offset <= MaxLength);
 
-            int bufferLength = (2 * (length - offset)) + 1;
+            int bufferLength = (2 * length) + 1;
             char* buffer = stackalloc char[bufferLength];
             FillBuffer(buffer, offset, length);
 

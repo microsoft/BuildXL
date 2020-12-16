@@ -355,7 +355,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal static string GetRedisKey(ContentHash hash)
         {
             // Use the string representation short hash used in other parts of the system (db and event stream) as the redis key
-            return new ShortHash(hash).ToString();
+            // ShortHash.ToString had a bug when only 10 bytes of the hash were printed.
+            // Even though the bug is fixed, this method should return the same (old, i.e. shorter) representation
+            // to avoid braking the world after the new version is deployed.
+            return new ShortHash(hash).ToString(ShortHash.HashLength - 1);
         }
 
         #endregion Operations

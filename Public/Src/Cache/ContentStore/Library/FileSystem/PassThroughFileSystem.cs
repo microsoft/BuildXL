@@ -37,11 +37,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         private const long DefaultSequentialScanOnOpenThreshold = 100 * 1024 * 1024;
 
         /// <summary>
-        ///     Semaphore to throttle concurrent disk accesses.
-        /// </summary>
-        public static SemaphoreSlim ConcurrentAccess = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
-
-        /// <summary>
         ///     File size, over which FileOptions.SequentialScan is used to open files.
         /// </summary>
         private readonly long _sequentialScanOnOpenThreshold = DefaultSequentialScanOnOpenThreshold;
@@ -351,7 +346,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public async Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        public Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
         {
             path.ThrowIfPathTooLong();
 
@@ -360,10 +355,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 throw new NotImplementedException($"The mode '{fileMode}' is not supported by the {nameof(PassThroughFileSystem)}.");
             }
 
-            using (await ConcurrentAccess.WaitTokenAsync())
-            {
-                return TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize);
-            }
+            return Task.FromResult(TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize));
         }
 
         /// <inheritdoc />
@@ -595,21 +587,18 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             sourcePath.ThrowIfPathTooLong();
             destinationPath.ThrowIfPathTooLong();
 
-            using (await ConcurrentAccess.WaitTokenAsync())
+            if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
             {
-                if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+                if (await TryCopyOnWriteFileInsideSemaphoreAsync(
+                    sourcePath,
+                    destinationPath,
+                    replaceExisting))
                 {
-                    if (await TryCopyOnWriteFileInsideSemaphoreAsync(
-                        sourcePath,
-                        destinationPath,
-                        replaceExisting))
-                    {
-                        return;
-                    }
+                    return;
                 }
-
-                await CopyFileInsideSemaphoreAsync(sourcePath, destinationPath, replaceExisting);;
             }
+
+            await CopyFileInsideSemaphoreAsync(sourcePath, destinationPath, replaceExisting);
         }
 
         /// <inheritdoc />

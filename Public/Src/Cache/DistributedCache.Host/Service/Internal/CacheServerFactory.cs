@@ -273,11 +273,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 GrpcExtensions.UnsafeByteStringOptimizations = value;
             });
 
-            ApplyIfNotNull(distributedSettings?.Unsafe_DisableDeprecatedConcurrentAccessLock, value =>
-            {
-                PassThroughFileSystem.ConcurrentAccess = new System.Threading.SemaphoreSlim(int.MaxValue);
-            });
-
             ApplyIfNotNull(distributedSettings?.ShutdownEvictionBeforeHibernation, value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 
             return localContentServerConfiguration;

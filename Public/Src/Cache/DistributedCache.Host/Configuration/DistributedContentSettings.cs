@@ -440,13 +440,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseUnsafeByteStringConstruction { get; set; } = false;
 
-        /// <summary>
-        /// This flag is meant to test whether we can remove an old lock that has no telemetry as to usage but is in a
-        /// very hot path.
-        /// </summary>
-        [DataMember]
-        public bool Unsafe_DisableDeprecatedConcurrentAccessLock { get; set; } = false;
-
         #region Grpc File Copier
 
         [DataMember]

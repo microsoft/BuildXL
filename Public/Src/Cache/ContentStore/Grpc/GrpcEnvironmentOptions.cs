@@ -34,26 +34,17 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// <summary>
         /// <see cref="global::Grpc.Core.GrpcEnvironment.SetThreadPoolSize(int)"/>
         /// </summary>
-        /// <remarks>
-        /// Default is set due to this being the legacy default. Does not mean it's actually safe to use.
-        /// </remarks>
-        public int? ThreadPoolSize { get; set; } = 70;
+        public int? ThreadPoolSize { get; set; }
 
         /// <summary>
         /// <see cref="global::Grpc.Core.GrpcEnvironment.SetCompletionQueueCount(int)"/>
         /// </summary>
-        /// <remarks>
-        /// Default is set due to this being the legacy default. Does not mean it's actually safe to use.
-        /// </remarks>
-        public int? CompletionQueueCount { get; set; } = 70;
+        public int? CompletionQueueCount { get; set; }
 
         /// <summary>
         /// <see cref="global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(bool)"/>
         /// </summary>
-        /// <remarks>
-        /// Default is set due to this being the legacy default. Does not mean it's actually safe to use.
-        /// </remarks>
-        public bool? HandlerInlining { get; set; } = true;
+        public bool? HandlerInlining { get; set; }
 
         /// <summary>
         /// gRPC Logging Verbosity

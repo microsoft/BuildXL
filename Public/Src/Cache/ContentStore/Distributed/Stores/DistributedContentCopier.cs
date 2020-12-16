@@ -320,8 +320,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 result => result.Status);
         }
 
-        private CopyOptions GetCopyOptions(int attempt)
+        private CopyOptions GetCopyOptions(int attempt, int currentRetryNumber = 0)
         {
+            // Using more optimal bandwidth configuration only for the first half of the attempts.
+            // This is needed for the cases when the hash is popular and we never reach the second attempt.
+            // In this case, we'll be using a more aggressive configuration for the first 16 (by default) locations.
+            if (currentRetryNumber > (_maxRetryCount / 2) - 1)
+            {
+                // if the index is negative, ElementAtOrDefault returns the default value.
+                attempt = -1;
+            }
+
             var bandwidthConfig = _settings.BandwidthConfigurations?.ElementAtOrDefault(attempt);
             return new CopyOptions(bandwidthConfig);
         }
@@ -409,9 +418,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     CopyFileResult? copyFileResult = null;
                     try
                     {
-                        var options = GetCopyOptions(attemptCount);
+                        var options = GetCopyOptions(attemptCount, totalRetryCount);
                         CopySchedulingSummary? copySchedulingSummary = null;
-
                         copyFileResult = await context.PerformOperationAsync(
                             Tracer,
                             async () =>

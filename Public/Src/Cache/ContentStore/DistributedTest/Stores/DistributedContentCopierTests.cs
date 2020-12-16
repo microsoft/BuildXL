@@ -20,6 +20,7 @@ using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Stores
 {
@@ -27,8 +28,8 @@ namespace ContentStoreTest.Distributed.Stores
 
     public class DistributedContentCopierTests : TestBase
     {
-        public DistributedContentCopierTests()
-            : base(() => new MemoryFileSystem(TestSystemClock.Instance), TestGlobal.Logger)
+        public DistributedContentCopierTests(ITestOutputHelper output)
+            : base(() => new MemoryFileSystem(TestSystemClock.Instance), TestGlobal.Logger, output)
         {
         }
 
@@ -109,7 +110,6 @@ namespace ContentStoreTest.Distributed.Stores
                     new OperationContext(context),
                     hashWithLocations,
                     handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 99)));
-
                 result.ShouldBeError();
                 mockFileCopier.CopyAttempts.Should().Be(retries);
             }
@@ -125,7 +125,14 @@ namespace ContentStoreTest.Distributed.Stores
             var restrictedCopyReplicaCount = 3;
             using (var directory = new DisposableDirectory(FileSystem))
             {
-                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero, retries, copyAttemptsWithRestrictedReplicas, restrictedCopyReplicaCount);
+                var (distributedCopier, mockFileCopier) = CreateMocks(
+                    FileSystem,
+                    directory.Path,
+                    TimeSpan.Zero,
+                    retries,
+                    copyAttemptsWithRestrictedReplicas,
+                    restrictedCopyReplicaCount,
+                    maxRetryCount: retries + 1);
                 var machineLocations = new MachineLocation[] { new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation("") };
 
                 var hash = ContentHash.Random();
@@ -210,7 +217,8 @@ namespace ContentStoreTest.Distributed.Stores
             TimeSpan retryInterval,
             int retries = 1,
             int copyAttemptsWithRestrictedReplicas = 0,
-            int restrictedCopyReplicaCount = 3)
+            int restrictedCopyReplicaCount = 3,
+            int maxRetryCount = 32)
         {
             var mockFileCopier = new MockFileCopier();
             var contentCopier = new TestDistributedContentCopier(
@@ -221,7 +229,8 @@ namespace ContentStoreTest.Distributed.Stores
                     RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => retryInterval).ToArray(),
                     CopyAttemptsWithRestrictedReplicas = copyAttemptsWithRestrictedReplicas,
                     RestrictedCopyReplicaCount = restrictedCopyReplicaCount,
-                    TrustedHashFileSizeBoundary = long.MaxValue // Disable trusted hash because we never actually move bytes and thus the hasher thinks there is a mismatch.
+                    TrustedHashFileSizeBoundary = long.MaxValue, // Disable trusted hash because we never actually move bytes and thus the hasher thinks there is a mismatch.
+                    MaxRetryCount = maxRetryCount,
                 },
                 fileSystem,
                 mockFileCopier,

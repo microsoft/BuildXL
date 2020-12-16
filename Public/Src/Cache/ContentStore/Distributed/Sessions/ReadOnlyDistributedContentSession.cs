@@ -361,7 +361,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
                 // Fire off the default pin action, but do not await the result.
-                operationContext.PerformNonResultOperationAsync(
+                //
+                // Creating a new OperationContext instance without existing 'CancellationToken',
+                // because the operation we triggerred that stored in 'pinTask' can outlive the lifetime of the current instance.
+                // And we don't want the PerformNonResultOperationAsync to fail because the current instance is shut down (or disposed).
+                new OperationContext(operationContext.TracingContext).PerformNonResultOperationAsync(
                     Tracer,
                     () => pinTask,
                     extraEndMessage: results =>

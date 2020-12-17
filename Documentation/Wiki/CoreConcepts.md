@@ -38,7 +38,7 @@ Executing build tools such as compilers and linkers tends to be much more expens
 
 When a process pip is executed, all declared input files to the process are available (since all dependencies must have finished executing) with known content hashes. First, BuildXL computes a _fingerprint_ for the process by hashing its static description (command-line, environment block, etc.) and input hashes (content hashes of declared inputs, such as source files). The fingerprint acts as a key to lookup a _cache descriptor_, which (if found) details the results some prior and equivalent execution - primarily, a cache descriptor records the hashes of prior outputs.
 
-If a cache descriptor is found, and all of its required output content is available, then the prior execution as described by the descriptor is reusable. This is a _cache hit_. The actual two phase cache lookup algorithm is slightly more complicated in practice, but at a high level this is how caching in BuildXL works.
+If a cache descriptor is found, and all of its required output content is available, then the prior execution as described by the descriptor is reusable. This is a _cache hit_. [The actual two phase cache lookup algorithm](Advanced-Features/Two-Phase-Cache-Lookup.md) is slightly more complicated in practice, but at a high level this is how caching in BuildXL works.
 
 ## Sandboxing
 A cornerstone of BuildXL is reliable caching. This as achieved through an observation based sandbox. This allows BuildXL to verify that all of a pip's filesystem based dependencies are tracked during fingerprinting. Pips observed to consume files that are not declared as dependencies will not be eligible for caching and produce an error or warning depending on configuration.

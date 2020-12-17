@@ -22,6 +22,9 @@ In some contexts BuildXL needs to signal to the cache that it _intends_ to use a
 The **Memoization Store** is used to look up a set of blobs, based on an arbitrary **lookup fingerprint**.  This implementation is embodied by the [`IMemoizationStore`](MemoizationStore\Interfaces\Sessions) interface, with a [`IMemoizationSession`](MemoizationStore\Interfaces\Sessions\IMemoizationSession.cs) providing methods to insert and look up a content-set based on its fingerprint.  Fingerprints are domain-dependent, and handled opaquely by the Memoization Store.  
 
 #### Two-Phase Cache Lookup
+
+BuildXL uses a two-phase caching algorithm to deal with underdetermined or nondeterministic inputs to build graphs. It may be helpful to read [the description of that algorithm](../../../Documentation/Wiki/Advanced-Features/Two-Phase-Cache-Lookup.md) as context for this description of the BuildXL cache.
+
 The Memoization Store APIs were designed to address BuildXL's unique cache lookup requirements.  To understand how, one needs to first review what BuildXL has to work with, in order to determine whether to reuse cached outputs for previously executed build tasks:   
 
 - Before executing a build, BuildXL parses build specs, which include: (a) the tasks involved in the build; (b) dependencies amongst such tasks; and (c) the inputs used by each task. Such inputs are inferrable from build specs and are called **static inputs**. 

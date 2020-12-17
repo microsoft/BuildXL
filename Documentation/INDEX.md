@@ -36,6 +36,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Filtering](Wiki/How-To-Run-BuildXL/Filtering.md)
 * [Graph Reuse](Wiki/Advanced-Features/Graph-Reuse.md)
 * [Content and Metadata Cache](../Public/Src/Cache/README.md)
+* [Two Phase Cache Lookup](Wiki/Advanced-Features/Two-Phase-Cache-Lookup.md)
 * [Paged Hashes](Specs/PagedHash.md)
 * [Filesystem modes and enumerations](Wiki/Advanced-Features/Filesystem-modes-and-Enumerations.md)
 * [Incremental Scheduling](Wiki/Advanced-Features/Incremental-Scheduling.md)

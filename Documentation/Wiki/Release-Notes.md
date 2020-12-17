@@ -1,6 +1,21 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20201211.3.1 (Release [89756](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=89756)) Released 12/16/2020
+- Updated QTest nuget version
+- Verifying VolatileSet before sending reconcile events
+- Re-enable ChangingColumnFamilies KeyValueStoreTest
+- Expanding the full framework compatible support in the NuGet resolver
+- Made DropPipTracker track any service pip
+- Detect connectivity issues between VM and Host (Improved VM retry logic)
+- Some code clean-up. Removed some features that were unused for a long time.
+
+# 0.1.0-20201204.5.1 (Release [88993](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=88993)) Released 12/9/2020
+- Added succeed fast pips
+- Better handling of frontend errors
+- [QTest] Update QTest SDK to facilitate JavaScript integration
+- Various fixes and improvements
+
 # 0.1.0-20201125.2 (Release [87786](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=87786)) Released 12/02/2020
 - File content table in server process
 - Engine state becoming immutable.

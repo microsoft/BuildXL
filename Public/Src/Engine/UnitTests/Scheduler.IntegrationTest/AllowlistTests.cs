@@ -7,6 +7,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler;
@@ -358,11 +359,10 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false)]
         public void AllowlistOnSpawnProcess(bool includeExecutableLink)
         {
-            FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe));
-            FileArtifact exeLink = FileArtifact.CreateSourceFile(CreateUniqueSourcePath());
-            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(exeLink.Path.ToString(Context.PathTable), exe.Path.ToString(Context.PathTable), true).Succeeded);
+            FileArtifact exeLink = CreateOsShellExecutableSymbolicLink();
+            var exeLinkUnion = new DiscriminatingUnion<FileArtifact, PathAtom>(exeLink);
 
-            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLink, PathRegex = ".*" });
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLinkUnion, PathRegex = ".*" });
 
             FileArtifact output = CreateOutputFileArtifact();
 
@@ -411,7 +411,103 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Verifies file read/write operations on a spawned process using a full path to an allowlisted tool.
+        /// </summary>
+        /// <remarks>
+        /// Note that this is not run on Linux due to difficulty determning the proper full path to allowlist when using a test process.
+        /// Instead we run the executable name test for this.
+        /// </remarks>
+        [FactIfSupported(requiresWindowsOrMacOperatingSystem: true)]
+        public void ValidateAllowlistWithFullPathOnSpawnedProcess()
+        {
+            FileArtifact exe = GetOsShell();
+            var exeLinkUnion= new DiscriminatingUnion<FileArtifact, PathAtom>(exe);
 
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLinkUnion, PathRegex = ".*" });
+
+            FileArtifact output = CreateOutputFileArtifact();
+
+            CreateAndScheduleOsShellPip(exe, output);
+
+            RunScheduler().AssertSuccess();
+            XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
+        }
+
+        /// <summary>
+        /// Verifies file read/write operations on a spawned process using the executable name to an allowlisted tool.
+        /// </summary>
+        [Fact]
+        public void ValidateAllowlistWithExecutableNameOnlyOnSpawnedProcess()
+        {
+            FileArtifact exe = GetOsShell();
+            PathAtom executableName = exe.Path.GetName(Context.PathTable);
+            var exeLinkUnion = new DiscriminatingUnion<FileArtifact, PathAtom>(executableName);
+
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLinkUnion, PathRegex = ".*" });
+
+            FileArtifact output = CreateOutputFileArtifact();
+
+            CreateAndScheduleOsShellPip(exe, output);
+
+            RunScheduler().AssertSuccess();
+            XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
+        }
+
+        /// <summary>
+        /// Verifies that executable names should do case insensitive comparisons when on an OS that requires case sensitive path comparisons
+        /// The name of the spawned process (shell) will be converted to uppercase before being added to the allowlist and will be compared to
+        /// the lowercase version during runtime by the allowlist.
+        /// </summary>
+        [Fact]
+        public void ValidateAllowlistCaseSensitivity()
+        {
+            FileArtifact exe = GetOsShell();
+            PathAtom exeNameUpperCase = PathAtom.Create(Context.StringTable, exe.Path.GetName(Context.PathTable).ToString(Context.StringTable).ToUpper());
+            var exeLinkUnion = new DiscriminatingUnion<FileArtifact, PathAtom>(exeNameUpperCase);
+
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLinkUnion, PathRegex = ".*" });
+
+            FileArtifact output = CreateOutputFileArtifact();
+
+            CreateAndScheduleOsShellPip(exe, output);
+
+            if(OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                // This should fail on an OS that has case sensitive paths because we converted the process name to uppercase
+                RunScheduler().AssertFailure();
+                AssertLogContains(true, $"W  {output.Path.ToString(Context.PathTable)}");
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 1);
+            }
+            else
+            {
+                RunScheduler().AssertSuccess();
+                XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that having an tool executable name allowlist entry that is the same as another full path entry is still matched to
+        /// a running process and allows allowlisted file operations.
+        /// </summary>
+        [Fact]
+        public void ValidateOverlappingAllowlistToolPaths()
+        {
+            FileArtifact exe = GetOsShell();
+            var exeLinkFullPath = new DiscriminatingUnion<FileArtifact, PathAtom>(exe);
+            var exeLinkNameOnly = new DiscriminatingUnion<FileArtifact, PathAtom>(exe.Path.GetName(Context.PathTable));
+
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLinkFullPath, PathRegex = ".*" });
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLinkNameOnly, PathRegex = ".*" });
+
+            FileArtifact output = CreateOutputFileArtifact();
+
+            CreateAndScheduleOsShellPip(exe, output);
+
+            RunScheduler().AssertSuccess();
+            XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
+        }
 
         /// <summary>
         /// Creates and schedules a pip that either consumes or outputs a (default) non-cacheable allowlist file
@@ -473,6 +569,70 @@ namespace IntegrationTest.BuildXL.Scheduler
                     Configuration.FileAccessAllowList.Add(entry);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates a symbolic link to a shell executable and returns a FileArtifact with a path to the executable
+        /// </summary>
+        protected FileArtifact CreateOsShellExecutableSymbolicLink()
+        {
+            FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe));
+            FileArtifact exeLink = FileArtifact.CreateSourceFile(CreateUniqueSourcePath());
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(exeLink.Path.ToString(Context.PathTable), exe.Path.ToString(Context.PathTable), true).Succeeded);
+
+            return exeLink;
+        }
+
+        /// <summary>
+        /// Returns a file artifact with a path to the OS shell
+        /// </summary>
+        protected FileArtifact GetOsShell()
+        {
+            FileArtifact exe;
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // /bin/sh appears to be a hardlinked to /bin/bash on some platforms, 
+                // and the exact name is required for allowlists, so use /bin/bash instead
+                exe = new FileArtifact(AbsolutePath.Create(Context.PathTable, CmdHelper.Bash));
+            }
+            else
+            {
+                exe = new FileArtifact(AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe));
+            }
+
+            return exe;
+        }
+
+        /// <summary>
+        /// Spawns an OS shell, echos some output to an output file to test whether the files touched by the executable are matched on the allowlist.
+        /// </summary>
+        /// <param name="exeLink"> FileArtifact with a path to the executable to be run.</param>
+        /// <param name="output"> FileArtifact with a path to the output file to write the shell output. </param>
+        /// <remarks> Ensure that the allowlist entries are already created before calling this function. </remarks>
+        protected void CreateAndScheduleOsShellPip(FileArtifact exeLink, FileArtifact output)
+        {
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.SpawnExe(
+                    Context.PathTable,
+                    exeLink,
+                    string.Format(OperatingSystemHelper.IsUnixOS ? "-c \"echo 'hi' > {0}\"" : "/d /c echo 'hi' > {0}", output.Path.ToString(Context.PathTable))),
+                Operation.WriteFile(CreateOutputFileArtifact()) //this is a dummy output file because at least one output file is required to create this pip
+            });
+            builder.AddInputFile(exeLink);
+
+            foreach (var dep in CmdHelper.GetCmdDependencies(Context.PathTable))
+            {
+                builder.AddUntrackedFile(dep);
+            }
+
+            foreach (var dep in CmdHelper.GetCmdDependencyScopes(Context.PathTable))
+            {
+                builder.AddUntrackedDirectoryScope(dep);
+            }
+
+            SchedulePipBuilder(builder);
         }
     }
 }

@@ -46,6 +46,7 @@ namespace BuildXL.Processes
 
         private readonly MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry> m_valuePathEntries;
         private readonly MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry> m_executablePathEntries;
+        private readonly MultiValueDictionary<StringId, ExecutablePathAllowlistEntry> m_executableToolExeEntries;
 
         /// <summary>
         /// The parent allowlist
@@ -71,10 +72,11 @@ namespace BuildXL.Processes
         {
             Contract.Requires(context != null);
 
-            m_context = context;
+            m_context = context;    
 
             m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry>();
             m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry>();
+            m_executableToolExeEntries = InitializeExecutableToolEntries();
             m_counts = new ConcurrentDictionary<string, int>();
             m_moduleAllowlists = new Dictionary<ModuleId, FileAccessAllowlist>();
         }
@@ -90,9 +92,30 @@ namespace BuildXL.Processes
 
             m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry>();
             m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry>();
+            m_executableToolExeEntries = InitializeExecutableToolEntries();
             m_counts = new ConcurrentDictionary<string, int>();
             m_moduleAllowlists = null;
             m_parent = parent;
+        }
+
+        /// <summary>
+        /// Determines whether to use a case sensitive comparer for a StringId multivalue dictionary based on whether
+        /// the OS uses case sensitive paths
+        /// </summary>
+        private MultiValueDictionary<StringId, ExecutablePathAllowlistEntry> InitializeExecutableToolEntries()
+        {
+            MultiValueDictionary<StringId, ExecutablePathAllowlistEntry> entries;
+
+            if (!OperatingSystemHelper.IsPathComparisonCaseSensitive)
+            {
+                entries = new MultiValueDictionary<StringId, ExecutablePathAllowlistEntry>(m_context.StringTable.CaseInsensitiveEqualityComparer);
+            }
+            else
+            {
+                entries = new MultiValueDictionary<StringId, ExecutablePathAllowlistEntry>();
+            }
+
+            return entries;
         }
 
         /// <summary>
@@ -189,9 +212,20 @@ namespace BuildXL.Processes
             }
             else
             {
+                object toolPath = allowlistEntry.ToolPath.GetValue();
+                var executablePath =
+                    toolPath switch 
+                    {
+                        FileArtifact file => new DiscriminatingUnion<AbsolutePath, PathAtom>(file.Path),
+                        PathAtom toolName => new DiscriminatingUnion<AbsolutePath, PathAtom>(toolName),
+                        _ => null,
+                    };
+
+                Contract.RequiresNotNull(executablePath);
+
                 Add(
                     new ExecutablePathAllowlistEntry(
-                        executablePath: allowlistEntry.ToolPath,
+                        executable: executablePath,
                         pathRegex: pathRegex,
                         allowsCaching: allowsCaching,
                         name: allowlistEntry.Name));
@@ -217,7 +251,17 @@ namespace BuildXL.Processes
         {
             Contract.Requires(entry != null);
 
-            m_executablePathEntries.Add(entry.ExecutablePath, entry);
+            var toolPath = entry.Executable.GetValue();
+
+            if (toolPath is AbsolutePath absolutePath)
+            {
+                m_executablePathEntries.Add(absolutePath, entry);
+            }
+            else if (toolPath is PathAtom pathAtom)
+            {
+                m_executableToolExeEntries.Add(pathAtom.StringId, entry);
+            }
+
             m_counts.AddOrUpdate(entry.Name, 0, (k, v) => v);
             HasEntries = true;
         }
@@ -290,8 +334,11 @@ namespace BuildXL.Processes
             }
             else
             {
+                PathAtom toolExecutableName = toolPath.GetName(m_context.PathTable);
                 IReadOnlyList<ExecutablePathAllowlistEntry> executablePathAllowlistList;
-                if (m_executablePathEntries.TryGetValue(toolPath, out executablePathAllowlistList))
+
+                if (m_executablePathEntries.TryGetValue(toolPath, out executablePathAllowlistList) || 
+                    m_executableToolExeEntries.TryGetValue(toolExecutableName.StringId, out executablePathAllowlistList))
                 {
                     possibleEntries = possibleEntries.Concat(executablePathAllowlistList);
                 }
@@ -324,9 +371,11 @@ namespace BuildXL.Processes
                 entry.Serialize(writer);
             }
 
-            ExecutablePathAllowlistEntry[] executablePathEntries = m_executablePathEntries.Values.SelectMany((e) => { return e; }).ToArray();
-            writer.WriteCompact(executablePathEntries.Length);
-            foreach (ExecutablePathAllowlistEntry entry in executablePathEntries)
+            var pathEntries = m_executablePathEntries.Values.SelectMany((e) => { return e; });
+            var toolEntries = m_executableToolExeEntries.Values.SelectMany((e) => { return e; });
+            ExecutablePathAllowlistEntry[] entries = pathEntries.Concat(toolEntries).ToArray();
+            writer.WriteCompact(entries.Length);
+            foreach (ExecutablePathAllowlistEntry entry in entries)
             {
                 entry.Serialize(writer);
             }
@@ -372,8 +421,9 @@ namespace BuildXL.Processes
                 allowlist.Add(ValuePathFileAccessAllowlistEntry.Deserialize(reader));
             }
 
+            // Execute this part twice, first time for m_executablePathEntries (Absolute Path) and a second time for m_executablePathAtomEntries (Path Atom)
             var executablePathEntryCount = reader.ReadInt32Compact();
-            for (int i = 0; i < executablePathEntryCount; i++)
+            for (int j = 0; j < executablePathEntryCount; j++)
             {
                 allowlist.Add(ExecutablePathAllowlistEntry.Deserialize(reader));
             }
@@ -476,7 +526,8 @@ namespace BuildXL.Processes
             get
             {
                 return m_valuePathEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count() +
-                    m_executablePathEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count();
+                    m_executablePathEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count() +
+                    m_executableToolExeEntries.SelectMany(e => e.Value.Where(e2 => e2.AllowsCaching)).Count();
             }
         }
 
@@ -488,7 +539,8 @@ namespace BuildXL.Processes
             get
             {
                 return m_valuePathEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count() +
-                    m_executablePathEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count();
+                    m_executablePathEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count() +
+                    m_executableToolExeEntries.SelectMany(e => e.Value.Where(e2 => !e2.AllowsCaching)).Count();
             }
         }
 
@@ -506,6 +558,11 @@ namespace BuildXL.Processes
         /// ExecutablePathEntries collection. For testing only
         /// </summary>
         internal IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExecutablePathAllowlistEntry>> ExecutablePathEntries => m_executablePathEntries;
+
+        /// <summary>
+        /// ExecutablePathAtomEntries collection. For testing only
+        /// </summary>
+        internal IReadOnlyDictionary<StringId, IReadOnlyList<ExecutablePathAllowlistEntry>> ToolExecutableNameEntries => m_executableToolExeEntries;
 
         /// <summary>
         /// The per-module allowlists (may be null)

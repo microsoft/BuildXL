@@ -54,6 +54,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresHeliumDriversAvailable = false,
             bool requiresHeliumDriversNotAvailable = false,
             bool requiresMacOperatingSystem = false,
+            bool requiresWindowsOrMacOperatingSystem = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             var requirements = additionalRequirements;
@@ -65,6 +66,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             AddRequirement(ref requirements, requiresHeliumDriversAvailable, TestRequirements.HeliumDriversAvailable);
             AddRequirement(ref requirements, requiresHeliumDriversNotAvailable, TestRequirements.HeliumDriversNotAvailable);
             AddRequirement(ref requirements, requiresMacOperatingSystem, TestRequirements.MacOs);
+            AddRequirement(ref requirements, requiresWindowsOrMacOperatingSystem, TestRequirements.WindowsOrMacOs);
 
             Requirements = requirements;
 
@@ -190,6 +192,18 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     if (!foundGvfsService)
                     {
                         return "Could not find GVFS.Service. Is Windows Projected FileSystem enabled?";
+                    }
+
+                    return null;
+                });
+
+            CheckRequirement(
+                TestRequirements.WindowsOrMacOs,
+                () =>
+                {
+                    if (OperatingSystemHelper.IsLinuxOS)
+                    {
+                        return "Test must be run on Windows or macOS";
                     }
 
                     return null;

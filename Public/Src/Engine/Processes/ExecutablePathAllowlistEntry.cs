@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Processes
 {
@@ -12,10 +13,32 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class ExecutablePathAllowlistEntry : FileAccessAllowlistEntry
     {
-        private readonly AbsolutePath m_executablePath;
+        /// <summary>
+        /// Absolute path or executable name of the tool that is allowed to perform this access.
+        /// </summary>
+        public readonly DiscriminatingUnion<AbsolutePath, PathAtom> Executable;
 
         /// <summary>
         /// Construct a new allowlist entry that will match based on tool and path.
+        /// </summary>
+        /// <param name="executable">The exact full path or the executable name to the tool that does the bad access.</param>
+        /// <param name="pathRegex">The ECMAScript regex pattern that will be used as the basis for the match.</param>
+        /// <param name="allowsCaching">
+        /// Whether this allowlist rule should be interpreted to allow caching of a pip that matches
+        /// it.
+        /// </param>
+        /// <param name="name">Name of the allowlist entry. Defaults to 'Unnamed' if null/empty.</param>
+        public ExecutablePathAllowlistEntry(DiscriminatingUnion<AbsolutePath, PathAtom> executable, SerializableRegex pathRegex, bool allowsCaching, string name)
+            : base(pathRegex, allowsCaching, name)
+        {
+            Contract.RequiresNotNull(executable);
+            Contract.Requires(pathRegex != null);
+
+            Executable = executable;
+        }
+
+        /// <summary>
+        /// Construct a new allowlist entry that will match based on tool and full path
         /// </summary>
         /// <param name="executablePath">The exact full path to the tool that does the bad access.</param>
         /// <param name="pathRegex">The ECMAScript regex pattern that will be used as the basis for the match.</param>
@@ -25,20 +48,25 @@ namespace BuildXL.Processes
         /// </param>
         /// <param name="name">Name of the allowlist entry. Defaults to 'Unnamed' if null/empty.</param>
         public ExecutablePathAllowlistEntry(AbsolutePath executablePath, SerializableRegex pathRegex, bool allowsCaching, string name)
-            : base(pathRegex, allowsCaching, name)
+            : this(new DiscriminatingUnion<AbsolutePath, PathAtom>(executablePath), pathRegex, allowsCaching, name)
         {
             Contract.Requires(executablePath.IsValid);
-            Contract.Requires(pathRegex != null);
-
-            m_executablePath = executablePath;
         }
 
         /// <summary>
-        /// Absolute path of the tool that is allowed to perform this access.
+        /// Construct a new allowlist entry that will match based on tool and full path
         /// </summary>
-        public AbsolutePath ExecutablePath
+        /// <param name="executableName">The executable name of the tool that does the bad access.</param>
+        /// <param name="pathRegex">The ECMAScript regex pattern that will be used as the basis for the match.</param>
+        /// <param name="allowsCaching">
+        /// Whether this allowlist rule should be interpreted to allow caching of a pip that matches
+        /// it.
+        /// </param>
+        /// <param name="name">Name of the allowlist entry. Defaults to 'Unnamed' if null/empty.</param>
+        public ExecutablePathAllowlistEntry(PathAtom executableName, SerializableRegex pathRegex, bool allowsCaching, string name)
+            : this(new DiscriminatingUnion<AbsolutePath, PathAtom>(executableName), pathRegex, allowsCaching, name)
         {
-            get { return m_executablePath; }
+            Contract.Requires(executableName.IsValid);
         }
 
         /// <inheritdoc />
@@ -59,7 +87,17 @@ namespace BuildXL.Processes
             Contract.Requires(writer != null);
 
             WriteState(writer);
-            writer.Write(m_executablePath);
+            object executableValue = Executable.GetValue();
+            if (executableValue is AbsolutePath absolutePath)
+            {
+                writer.Write(true);
+                writer.Write(absolutePath);
+            }
+            else if (executableValue is PathAtom pathAtom)
+            {
+                writer.Write(false);
+                writer.Write(pathAtom);
+            }
         }
 
         /// <summary>
@@ -70,13 +108,29 @@ namespace BuildXL.Processes
             Contract.Requires(reader != null);
 
             var state = ReadState(reader);
-            AbsolutePath path = reader.ReadAbsolutePath();
+            var isAbsolutePath = reader.ReadBoolean();
+            ExecutablePathAllowlistEntry listEntry;
 
-            return new ExecutablePathAllowlistEntry(
-                path,
-                state.PathRegex,
-                state.AllowsCaching,
-                state.Name);
+            if (isAbsolutePath)
+            {
+                AbsolutePath path = reader.ReadAbsolutePath();
+                listEntry = new ExecutablePathAllowlistEntry(
+                                    new DiscriminatingUnion<AbsolutePath, PathAtom>(path),
+                                    state.PathRegex,
+                                    state.AllowsCaching,
+                                    state.Name);
+            }
+            else
+            {
+                PathAtom path = reader.ReadPathAtom();
+                listEntry = new ExecutablePathAllowlistEntry(
+                                    new DiscriminatingUnion<AbsolutePath, PathAtom>(path),
+                                    state.PathRegex,
+                                    state.AllowsCaching,
+                                    state.Name);
+            }
+            
+            return listEntry;
         }
     }
 }

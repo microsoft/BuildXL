@@ -41,8 +41,8 @@ interface FileAccessAllowlistEntry {
     /** Name of the allowlist exception rule. */
     name?: string;
 
-    /** Path to misbehaving tool allowed to have an exception.  Cannot be combined with Value. */
-    toolPath?: Path | File;
+    /** Path or executable name to misbehaving tool allowed to have an exception.  Cannot be combined with Value. */
+    toolPath?: Path | File | PathAtom;
 
     /** Value allowed to have an exception.  Cannot be combined with ToolPath. */
     value?: string;

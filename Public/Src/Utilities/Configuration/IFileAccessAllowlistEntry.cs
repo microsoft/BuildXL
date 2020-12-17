@@ -19,9 +19,9 @@ namespace BuildXL.Utilities.Configuration
         string Value { get; }
 
         /// <summary>
-        /// Path to misbehaving tool allowed to have an exception.  Cannot be combined with Value.
+        /// Full path or executable name to misbehaving tool allowed to have an exception.  Cannot be combined with Value.
         /// </summary>
-        FileArtifact ToolPath { get; }
+        DiscriminatingUnion<FileArtifact, PathAtom> ToolPath { get; }
 
         /// <summary>
         /// Fragment of a path to match.

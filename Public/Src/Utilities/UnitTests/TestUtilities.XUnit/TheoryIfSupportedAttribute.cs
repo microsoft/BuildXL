@@ -45,6 +45,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresUnixBasedOperatingSystem = false, 
             bool requiresHeliumDriversAvailable = false,
             bool requiresMacOperatingSystem = false,
+            bool requiresWindowsOrMacOperatingSystem = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             // Use same logic and underlying static state to determine wheter to Skip tests
@@ -56,6 +57,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem,
                 requiresHeliumDriversAvailable: requiresHeliumDriversAvailable,
                 requiresMacOperatingSystem: requiresMacOperatingSystem,
+                requiresWindowsOrMacOperatingSystem: requiresWindowsOrMacOperatingSystem,
                 additionalRequirements: additionalRequirements
             );
 

@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public string Value { get; set; }
 
         /// <inheritdoc />
-        public FileArtifact ToolPath { get; set; }
+        public DiscriminatingUnion<FileArtifact, PathAtom> ToolPath { get; set; }
 
         /// <inheritdoc />
         public string PathFragment { get; set; }

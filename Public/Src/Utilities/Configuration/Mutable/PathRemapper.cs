@@ -119,5 +119,28 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             return file.HasValue ? (FileArtifact?)Remap(file.Value) : null;
         }
+
+        /// <nodoc />
+        public DiscriminatingUnion<FileArtifact, PathAtom> Remap(DiscriminatingUnion<FileArtifact, PathAtom> fileUnion)
+        {
+            DiscriminatingUnion<FileArtifact, PathAtom> remappedPath = null;
+
+            if (fileUnion != null)
+            {
+                var fileValue = fileUnion.GetValue();
+                remappedPath = new DiscriminatingUnion<FileArtifact, PathAtom>();
+
+                if (fileValue is FileArtifact file)
+                {
+                    remappedPath.SetValue(Remap(file));
+                }
+                else if (fileValue is PathAtom pathAtom)
+                {
+                    remappedPath.SetValue(Remap(pathAtom));
+                }
+            }
+
+            return remappedPath;
+        }
     }
 }

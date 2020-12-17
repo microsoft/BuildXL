@@ -62,5 +62,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// (also includes symlink permission as this is required by current VFS implementation)
         /// </summary>
         WindowsProjFs = 1 << 8 | WindowsOs | SymlinkPermission,
+
+        /// <summary>
+        /// Requires running on either Windows or Mac operating system (excluding Linux)
+        /// </summary>
+        WindowsOrMacOs = 1 << 9,
     }
 }

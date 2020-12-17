@@ -42,6 +42,11 @@ namespace Test.BuildXL.Processes
         public static string OsShellExe => OperatingSystemHelper.IsUnixOS ? BinSh : s_cmdX64;
 
         /// <summary>
+        /// File name of bash on unix
+        /// </summary>
+        public static string Bash => BinBash;
+
+        /// <summary>
         /// Gets list of files used by cmd.exe
         /// </summary>
         public static IEnumerable<AbsolutePath> GetCmdDependencies(PathTable pathTable)

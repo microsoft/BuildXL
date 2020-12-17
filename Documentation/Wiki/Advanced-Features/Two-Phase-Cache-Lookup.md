@@ -1,16 +1,8 @@
 # Two Phase Cache Lookup
 
-The BuildXL name means build accelerator. In particular, BuildXL seeks to accelerate existing builds.
-
-Existing build technologies (nmake, msbuild, etc.) are not deterministic nor hermetic -- they may produce
-different outputs given the same input, and they do not exhaustively describe their inputs and outputs.
-The ideal BuildXL scenario is a purely functional DScript program constructing a fully deterministic
-build graph with all inputs and outputs hermetically specified. Unfortunately, many projects are not in a
-position to do a large-scale conversion to full deterministic hermetic DScript.
-
-Hence BuildXL needs to support non-deterministic, non-hermetic build systems as well. In order to do this,
-BuildXL has a two-phase caching algorithm for dealing with underspecified and nondeterministic inputs
-and outputs.
+BuildXL needs to support non-deterministic build systems with weakly specified dependencies.
+In order to do this, BuildXL has a two-phase caching algorithm. This page walks through the
+behavior of this algorithm.
 
 For more information on the technical implementation of this design, see [this documentation of the
 BuildXL caching system implementation](../../../Public/Src/Cache/README.md).
@@ -21,15 +13,16 @@ For precision, here are the terms used in describing the design.
 
 ### Deterministic & Hermetic BuildXL
 
-First, the terms that apply to fully deterministic and hermetic BuildXL graphs:
+First, the terms that apply to fully deterministic BuildXL graphs with fully specified dependencies:
 
 - Pip: a single build step (for purposes of this discussion, a single process execution)
 - Declared input / output files: files statically declared at BuildXL graph construction time as being
   inputs or outputs of the pip
-- Fingerprint: the hashes of all declared input files consumed by a pip
+- Fingerprint: the hashes of the command line, declared input file paths and contents, and declared
+  output file paths for a pip
 
-In a fully deterministic and hermetic build, the fingerprint of each pip only needs to be computed from
-the fully statically known (e.g. fully hermetic) inputs to the pip. So in this setting, there is only
+In a fully deterministic build with fully specified dependencies, the fingerprint of each pip only needs
+to be computed from the fully statically known information about to the pip. So in this setting, there is only
 one kind of fingerprint, which can ignore everything that was actually done by the pip -- since we know
 upfront everything the pip will do.
 
@@ -43,8 +36,8 @@ To work with legacy build systems, BuildXL introduces several new concepts.
   with other pips, such that the directory contents are dynamically populated, and not known at
   build graph construction time.
 - Observed input / output file accesses: When writing to opaque directories, BuildXL must now track exactly
-  which files were read or written. These sets of accesses are recorded.
-- Pathsets: Specifically, pathsets record sets of observed file reads made by a specific pip.
+  which files were read or written. These sets of accesses are recorded by pathsets.
+- Pathsets: Pathsets record sets of observed file accesses (reads, probes, directory enumerations) made by a specific pip.
 - Weak fingerprint: The statically known inputs and outputs of the pip.
 - Strong fingerprint: A combination of the pip's weak fingerprint's hash, and the hashes of the files read by that pip's pathset
   when it executed.
@@ -95,6 +88,7 @@ WF1:
 - Hash(burger/bread.cpp#1)
 - Hash(burger/patty.cpp#1)
 - Hash(burger/sauce.cpp#1)
+- Hash("CommandLine:cl.exe /option1 /option2")
 - Hash("InputDirectory:/proteins")
 - Hash("Output:/dinner/burger.exe")
 ```
@@ -156,7 +150,7 @@ If we go to re-execute a build, BuildXL will do the following:
 - Process the build graph to compute `WF1`. (This is always deterministic so it gets the same answer on the same input.)
 - Look up all known pathsets for `WF1`
   - Find `PS1`
-- Determine whether that pathset matches the current known inputs (e.g. does `proteins\grnd_beef.h` exist in the current build)
+- Determine whether that pathset matches the current known inputs (e.g. does `proteins/grnd_beef.h` exist in the current build)
   - In this case, it still does exist, so the pathset is a match
 - Look up strong fingerprints based on the hashes of `WF1` and the matching pathset `PS1`
   - Match `SF1` because `proteins/grnd_beef.h#1` is still the version of that header file in this build
@@ -219,6 +213,7 @@ WF2:
 - Hash(burger/bread.cpp#1)
 - Hash(burger/patty.cpp#1)
 - Hash(burger/sauce.cpp#1)
+- Hash("CommandLine:cl.exe /option1 /option2")
 - Hash("InputDirectory:/organics")
 - Hash("InputDirectory:/proteins")
 - Hash("Output:/dinner/burger.exe")
@@ -363,4 +358,6 @@ potentially matching pathsets grows to a point that it degrades performance.
 
 The primary fix for this issue (beyond tuning some pathset-related parameters in BuildXL's
 configuration) is to make the weak fingerprints stronger, by adding more statically known inputs.
-This results in fewer pathsets per weak fingerprint.
+This results in fewer pathsets per weak fingerprint. BuildXL has also implemented an 'augmented
+weak fingerprint' mechanism which associates common pathsets with weak fingerprints, for optimized
+lookup.

@@ -163,66 +163,6 @@ namespace Test.Tool.DropDaemon
         }
 
         [Fact]
-        public void TestMultipleFinalizationBehavior()
-        {
-            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
-            {
-                AssertRpcResult(true, daemon.Finalize());
-                AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropFinalization);
-
-                // Subsequent finalizations are ignored by the daemon 
-                AssertRpcResult(false, daemon.Finalize());
-                AssertRpcResult(false, daemon.Finalize());
-                Assert.True(etwListener.IsEmpty);            // We failed by design, there's no ETW event
-            });
-        }
-
-        [Fact]
-        public void FinalizeIsCalledOnStop()
-        {
-            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
-            {
-                daemon.RequestStop();
-
-                // Stop called for finalization
-                AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropFinalization);
-
-                AssertRpcResult(false, daemon.Finalize());
-                Assert.True(etwListener.IsEmpty);            // We failed by design, there's no ETW event
-            });
-        }
-
-        [Fact]
-        public void FinalizeOnStopAfterNormalFinalizationIsOk()
-        {
-            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
-            {
-                AssertRpcResult(true, daemon.Finalize());
-                AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropFinalization);
-
-                daemon.RequestStop();
-                
-                // Stop called for finalization, 
-                // but nothing happens because finalize was called before 
-                Assert.True(etwListener.IsEmpty);            
-            });
-        }
-
-        [Fact]
-        public void TestFinalizeOnStopErrorsAreQueued()
-        {
-            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: false);
-            WithSetup(dropClient, (daemon, etwListener) =>
-            {
-                daemon.RequestStop();
-                AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropFinalization);
-            });
-        }
-
-        [Fact]
         public void TestAddFile_AssociateDoesntNeedServer()
         {
             // this client only touches item.BlobIdentifier and returns 'Associated'

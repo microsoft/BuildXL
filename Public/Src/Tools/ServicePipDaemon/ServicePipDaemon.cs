@@ -402,8 +402,8 @@ namespace Tool.ServicePipDaemon
         /// Requests shut down, causing this daemon to immediately stop listening for TCP/IP
         /// connections. Any pending requests, however, will be processed to completion.
         /// </summary>
-        public virtual void RequestStop()
-        { 
+        public void RequestStop()
+        {
             m_server.RequestStop();
         }
 

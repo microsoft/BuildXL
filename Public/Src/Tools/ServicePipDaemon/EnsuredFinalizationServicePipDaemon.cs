@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
@@ -60,16 +61,20 @@ namespace Tool.ServicePipDaemon
         /// </summary>
         public override void RequestStop()
         {
-            // We finalize the drop regardless of the build result
-            // If finalization was already requested before, this call we be ignored.
+            base.RequestStop(); // Stop listening
             try
             {
+                // We finalize the drop regardless of the build result
+                // If finalization was already requested before, this call we be ignored.
                 Finalize();
             }
-            finally
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            catch (Exception)
+
             {
-                base.RequestStop();
+                // Ignore
             }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
     }

@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly Func<IReadOnlyList<MachineId>> _getInactiveMachines;
 
         private Timer? _gcTimer;
-        private NagleQueue<(Context, ShortHash hash, EntryOperation op, OperationReason reason)>? _nagleOperationTracer;
+        protected NagleQueue<(Context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>? NagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
         /// <nodoc />
@@ -179,12 +180,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Timeout.InfiniteTimeSpan);
             }
 
-            _nagleOperationTracer = NagleQueue<(Context context, ShortHash hash, EntryOperation op, OperationReason reason)>.Create(
+            NagleOperationTracer = NagleQueue<(Context context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>.Create(
                 ops =>
                 {
                     if (_configuration.UseContextualEntryOperationLogging)
                     {
-                        foreach (var group in ops.GroupBy(t => t.context, t => (t.hash, t.op, t.reason)))
+                        foreach (var group in ops.GroupBy(t => t.context, t => (t.entry, t.op, t.reason)))
                         {
                             LogContentLocationOperations(
                                 group.Key,
@@ -197,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         LogContentLocationOperations(
                             context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: "LogContentLocationOperations"),
                             Tracer.Name,
-                            ops.Select(t => (t.hash, t.op, t.reason)));
+                            ops.Select(t => (t.entry, t.op, t.reason)));
                     }
 
                     return Unit.VoidTask;
@@ -212,7 +213,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            _nagleOperationTracer?.Dispose();
+            NagleOperationTracer?.Dispose();
 
             lock (ModeChangeLock)
             {
@@ -431,7 +432,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // If there are some bad locations, remove them.
                             Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Increment();
                             Store(context, hash, filteredEntry);
-                            _nagleOperationTracer?.Enqueue((context, hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect));
+                            NagleOperationTracer?.Enqueue((context, hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect));
                         }
                     }
                 }
@@ -667,7 +668,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Not tracing touches if configured.
                     if (_configuration.TraceTouches || entryOperation != EntryOperation.Touch)
                     {
-                        _nagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
+                        NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
                     }
 
                 }
@@ -714,7 +715,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Increment();
                         Counters[ContentLocationDatabaseCounters.UniqueContentAddedSize].Add(entry.ContentSize);
-                        _nagleOperationTracer?.Enqueue((context, hash, EntryOperation.Create, reason));
+                        NagleOperationTracer?.Enqueue((context, hash, EntryOperation.Create, reason));
                     }
                 }
 
@@ -726,7 +727,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Increment();
             Counters[ContentLocationDatabaseCounters.UniqueContentRemovedSize].Add(size);
-            _nagleOperationTracer?.Enqueue((context, hash, EntryOperation.Delete, reason));
+            NagleOperationTracer?.Enqueue((context, hash, EntryOperation.Delete, reason));
         }
 
         /// <summary>

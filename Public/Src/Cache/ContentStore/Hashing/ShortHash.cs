@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Text;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -14,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// byte[0]: HashType
     /// byte[1-11]: ContentHash[0-10]
     /// </summary>
-    public readonly struct ShortHash : IEquatable<ShortHash>, IComparable<ShortHash>
+    public readonly struct ShortHash : IEquatable<ShortHash>, IComparable<ShortHash>, IToStringConvertible
     {
         /// <summary>
         /// The length in bytes of a short hash. NOTE: This DOES include the byte for the hash type

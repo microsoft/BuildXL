@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
     /// <summary>
     /// Contains a set of extension methods for <see cref="Tracer"/> type with high-level logging operations for the current project.
     /// </summary>
-    internal static class TracingStructuredExtensions
+    public static class TracingStructuredExtensions
     {
         public const int ShortHashTracingDefaultBatchSize = 100;
 
@@ -90,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         public static void LogContentLocationOperations(
             Context context,
             string tracerName,
-            IEnumerable<(ShortHash hash, EntryOperation op, OperationReason reason)> operations)
+            IEnumerable<(IToStringConvertible hash, EntryOperation op, OperationReason reason)> operations)
         {
             foreach (var group in operations.GroupBy(t => (t.op, t.reason)))
             {
@@ -241,14 +242,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             return $"{t.reason}_{t.op}";
         }
 
-        internal enum OperationReason
+        public enum OperationReason
         {
             Unknown,
             Reconcile,
             GarbageCollect
         }
 
-        internal enum EntryOperation
+        public enum EntryOperation
         {
             Invalid,
             AddMachine,
@@ -256,7 +257,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             Touch,
             Create,
             Delete,
-            UpdateMetadataEntry
+            UpdateMetadataEntry,
+            RemoveMetadataEntry,
         }
     }
 }

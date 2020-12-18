@@ -3,7 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
@@ -12,7 +14,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     A fingerprint fully qualifying an execution.
     /// </summary>
-    public readonly struct StrongFingerprint : IEquatable<StrongFingerprint>
+    public readonly struct StrongFingerprint : IEquatable<StrongFingerprint>, IToStringConvertible
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="StrongFingerprint" /> struct.
@@ -82,6 +84,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public override string ToString()
         {
             return $"WeakFingerprint=[{WeakFingerprint}],Selector=[{Selector}]";
+        }
+
+        /// <inheritdoc />
+        public void ToString(StringBuilder sb) {
+            _ = sb.Append(ToString());
         }
 
         /// <nodoc />

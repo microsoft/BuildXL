@@ -281,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         {
                             var operation = GetOperation(e);
                             var reason = e.Reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-                            return e.ContentHashes.Select(hash => (hash, operation, reason));
+                            return e.ContentHashes.Select(hash => ((IToStringConvertible)hash, operation, reason));
                         }).ToList();
                     LogContentLocationOperations(context, Tracer.Name, operations);
 

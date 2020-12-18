@@ -28,6 +28,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
+using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
@@ -958,6 +959,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
                     removedEntries++;
+
+                    if (_configuration.MetadataGarbageCollectionLogEnabled)
+                    {
+                        var strongFingerprint = DeserializeStrongFingerprint(strongFingerprintToRemove);
+                        NagleOperationTracer?.Enqueue((context, strongFingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
+                    }
                 }
 
                 scannedEntries++;
@@ -1070,6 +1077,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     secondPassRemovedKeySize += (ulong)keyValuePair.Key.Length;
                     secondPassRemovedValueSize += (ulong)keyValuePair.Value.Length;
                     secondPassRemovedEntries++;
+
+                    if (_configuration.MetadataGarbageCollectionLogEnabled)
+                    {
+                        var strongFingerprint = DeserializeStrongFingerprint(entry.strongFingerprint);
+                        NagleOperationTracer?.Enqueue((context, strongFingerprint, EntryOperation.RemoveMetadataEntry, OperationReason.GarbageCollect));
+                    }
                 }
 
                 secondPassSumKeySize += (ulong)keyValuePair.Key.Length;
@@ -1077,7 +1090,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 secondPassScannedEntries++;
             }
 
-            Tracer.Info(context, $"Second pass complete. ScannedEntries=[{secondPassScannedEntries}] RemovedEntries=[{secondPassRemovedEntries}] SumKeySize=[{secondPassSumKeySize}] SumValueSize=[{secondPassSumValueSize}] RemovedKeySize=[{secondPassRemovedValueSize}] RemovedValueSize=[{secondPassRemovedValueSize}] ");
+            Tracer.Info(context, $"Second pass complete. ScannedEntries=[{secondPassScannedEntries}] RemovedEntries=[{secondPassRemovedEntries}] SumKeySize=[{secondPassSumKeySize}] SumValueSize=[{secondPassSumValueSize}] RemovedKeySize=[{secondPassRemovedValueSize}] RemovedValueSize=[{secondPassRemovedValueSize}] SizeBytes=[{sizeDatabaseBytes}] SizeRemovalBytes=[{sizeRemovalBytes}] FractionToKeep=[{fractionToKeep}] KeepCutOffMinutes=[{keepCutOffMinutes}] KeepCutOffDateTime=[{keepCutOffDateTime}]");
 
             
             var removedSizeBytes = secondPassRemovedKeySize + secondPassRemovedValueSize;

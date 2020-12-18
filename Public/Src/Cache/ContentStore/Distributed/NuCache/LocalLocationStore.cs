@@ -1774,8 +1774,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     LogContentLocationOperations(
                         context,
                         Tracer.Name,
-                        addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
-                            .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
+                        addedContent.Select(s => ((IToStringConvertible)s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
+                            .Concat(removedContent.Select(s => ((IToStringConvertible)s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
                 }
 
                 // It is very important to wait till all the messages are sent before shutting down the store!

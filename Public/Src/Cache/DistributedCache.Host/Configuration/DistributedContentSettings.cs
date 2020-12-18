@@ -700,6 +700,9 @@ namespace BuildXL.Cache.Host.Configuration
         public double? ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb { get; set; }
 
         [DataMember]
+        public bool? ContentLocationDatabaseMetadataGarbageCollectionLogEnabled { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? MaximumNumberOfMetadataEntriesToStore { get; set; }
 

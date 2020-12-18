@@ -57,6 +57,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool MetadataGarbageCollectionEnabled { get; set; } = false;
 
         /// <summary>
+        /// Whether to log evicted content
+        /// </summary>
+        public bool MetadataGarbageCollectionLogEnabled { get; set; } = false;
+
+        /// <summary>
         /// Maximum number of metadata entries to keep after garbage collection.
         ///
         /// Only useful when:
@@ -225,6 +230,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ApplyEnumIfNotNull<MetadataGarbageCollectionStrategy>(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy, nameof(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy), v => configuration.MetadataGarbageCollectionStrategy = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb, v => configuration.MetadataGarbageCollectionMaximumSizeMb = v);
             ApplyIfNotNull(settings.MaximumNumberOfMetadataEntriesToStore, v => configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = v);
+            ApplyIfNotNull(settings.ContentLocationDatabaseMetadataGarbageCollectionLogEnabled, v => configuration.MetadataGarbageCollectionLogEnabled = v);
 
             ApplyIfNotNull(settings.ContentLocationDatabaseOpenReadOnly, v => configuration.OpenReadOnly = v && !settings.IsMasterEligible);
 

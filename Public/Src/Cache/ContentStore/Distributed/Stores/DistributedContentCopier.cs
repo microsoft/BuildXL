@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -34,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// Handles copies from remote locations to a local store
     /// </summary>
-    public class DistributedContentCopier
+    public class DistributedContentCopier: StartupShutdownSlimBase
     {
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly int _maxRetryCount;
@@ -51,7 +52,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
 
-        private Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier));
+
+        /// <summary>
+        /// Unfortunately, tests do not use this component very cleanly, so it may be started-up and shutdown multiple times
+        /// </summary>
+        public override bool AllowMultipleStartupAndShutdowns { get; } = true;
 
         /// <nodoc />
         public DistributedContentCopier(
@@ -73,13 +79,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             var context = new Context(logger);
             _copyScheduler = settings.CopyScheduler.Create(context);
-            if (_copyRequester is StartupShutdownSlimBase slimBase)
-            {
-                slimBase.StartupAsync(context).Result.ThrowIfFailure();
-            }
 
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;
+        }
+
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            if (_copyScheduler is IStartupShutdownSlim slimBase)
+            {
+                await slimBase.StartupAsync(context).ThrowIfFailure();
+            }
+
+            return BoolResult.Success;
+        }
+
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            if (_copyScheduler is IStartupShutdownSlim slimBase)
+            {
+                await slimBase.ShutdownAsync(context).ThrowIfFailure();
+            }
+
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />

@@ -266,6 +266,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             }
             finally
             {
+                // We do shut it down, so that any ongoing copies get cancelled
                 await scheduler.ShutdownAsync(context).ShouldBeSuccess();
             }
 

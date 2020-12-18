@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                         WaitTimeout = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyIOGateTimeoutSeconds),
                     },
                 },
-                PrioritizedCopySchedulerConfiguration = distributedSettings.PrioritizedCopySchedulerConfiguration,
+                PrioritizedCopySchedulerConfiguration = distributedSettings.PrioritizedCopySchedulerConfiguration ?? new PrioritizedCopySchedulerConfiguration(),
             };
         }
 

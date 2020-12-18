@@ -156,6 +156,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            await _distributedCopier.StartupAsync(context).ThrowIfFailure();
+
             // NOTE: We create and start the content location store before the inner content store just in case the
             // inner content store starts background eviction after startup. We need the content store to be initialized
             // so that it can be queried and used to unregister content.
@@ -350,6 +352,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             results.Add((nameof(_contentLocationStoreFactory), factoryResult));
 
             _copierWorkingDirectory.Dispose();
+
+            var copierResult = await _distributedCopier.ShutdownAsync(context);
+            results.Add((nameof(_distributedCopier), copierResult));
 
             return ShutdownErrorCompiler(results);
         }

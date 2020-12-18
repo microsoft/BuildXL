@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
@@ -39,7 +40,8 @@ namespace ContentStoreTest.Distributed.Stores
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
             {
-                var(distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero);
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
 
                 var hash = VsoHashInfo.Instance.EmptyHash;
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
@@ -66,7 +68,8 @@ namespace ContentStoreTest.Distributed.Stores
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
             {
-                var(distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero);
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
 
                 var hash = ContentHash.Random();
                 var wrongHash = VsoHashInfo.Instance.EmptyHash;
@@ -97,6 +100,8 @@ namespace ContentStoreTest.Distributed.Stores
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path,TimeSpan.Zero, retries);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
+
                 var machineLocations = new MachineLocation[] {new MachineLocation("")};
 
                 var hash = ContentHash.Random();
@@ -133,6 +138,8 @@ namespace ContentStoreTest.Distributed.Stores
                     copyAttemptsWithRestrictedReplicas,
                     restrictedCopyReplicaCount,
                     maxRetryCount: retries + 1);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
+
                 var machineLocations = new MachineLocation[] { new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation(""), new MachineLocation("") };
 
                 var hash = ContentHash.Random();
@@ -185,6 +192,8 @@ namespace ContentStoreTest.Distributed.Stores
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.FromMilliseconds((10)), retries);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
+
                 var machineLocations = new MachineLocation[] { new MachineLocation(""), new MachineLocation("") };
 
                 var hash = ContentHash.Random();

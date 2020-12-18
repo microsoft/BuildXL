@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -30,6 +31,35 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             }
 
             return startupShutdown.ShutdownAsync(context);
+        }
+
+        /// <summary>
+        /// Creates a lexically scoped guard to shutdown a component
+        /// </summary>
+        public static async Task<IAsyncDisposable> StartupWithAutoShutdownAsync(this IStartupShutdownSlim component, Context context)
+        {
+            await component.StartupAsync(context).ThrowIfFailureAsync();
+
+            return new ShutdownGuard(component, context);
+        }
+
+        private class ShutdownGuard : IAsyncDisposable
+        {
+            private readonly IStartupShutdownSlim _component;
+            private readonly Context _context;
+
+            public ShutdownGuard(IStartupShutdownSlim component, Context context)
+            {
+                _component = component;
+                _context = context;
+            }
+
+#pragma warning disable AsyncFixer01 // Unnecessary async/await usage
+            public async ValueTask DisposeAsync()
+            {
+                await _component.ShutdownAsync(_context).ThrowIfFailureAsync();
+            }
+#pragma warning restore AsyncFixer01 // Unnecessary async/await usage
         }
     }
 }

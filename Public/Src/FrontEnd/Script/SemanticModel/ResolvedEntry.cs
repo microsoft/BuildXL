@@ -221,7 +221,7 @@ namespace BuildXL.FrontEnd.Script.Values
             }
         }
 
-        private ResolvedEntryKind Kind
+        internal ResolvedEntryKind Kind
         {
             get
             {

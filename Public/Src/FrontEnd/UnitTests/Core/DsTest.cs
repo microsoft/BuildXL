@@ -49,6 +49,7 @@ using LogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
 using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
 using Test.DScript.Workspaces.Utilities;
 using BuildXL.ViewModel;
+using BuildXL.FrontEnd.Download;
 
 namespace Test.BuildXL.FrontEnd.Core
 {
@@ -756,6 +757,13 @@ namespace Test.BuildXL.FrontEnd.Core
 
         private void CloneModuleRegistry(ModuleRegistry sharedModuleRegistry)
         {
+
+            // If any of the file modules is not serializable, don't test the roundtrip
+            if (sharedModuleRegistry.UninstantiatedModules.Values.Where(m => m.FileModuleLiteral != null).Any(fileModule => !fileModule.FileModuleLiteral.IsSerializable))
+            {
+                return;
+            }
+
             using (var memoryStream = new MemoryStream())
             {
                 var serializer = new ModuleRegistrySerializer(sharedModuleRegistry.GlobalLiteral, PathTable);
@@ -833,7 +841,8 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             return FrontEndFactory.CreateInstanceForTesting(
                 () => new ConfigurationProcessor(new FrontEndStatistics(), logger),
-                new DScriptFrontEnd(FrontEndStatistics, logger, decorator));
+                new DScriptFrontEnd(FrontEndStatistics, logger, decorator),
+                new DownloadFrontEnd());
         }
 
         private bool TryFindNamedQualifier(FrontEndHostController frontEndHost, string qualifier, IConfiguration finalConfig, out QualifierId qualifierId)

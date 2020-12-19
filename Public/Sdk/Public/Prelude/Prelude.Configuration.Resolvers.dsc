@@ -99,6 +99,20 @@ interface DownloadSettings {
      * Optional hash of the downloaded file to ensure safe robust builds and correctness. When specified the download is validated against this hash.
      */
     hash?: string,
+
+    /**
+     * The name of the value that points to the downloaded content for other resolvers to consume.
+     * Defaults to 'download' if not specified.
+     * This value will be exposed with type 'File'
+     */
+    downloadedValueName?: string,
+
+    /**
+     * The name of the value that points to the extracted content of the downloaded content for other resolvers to consume.
+     * Defaults to 'extracted' if not specified.
+     * This value will be exposed with type 'StaticDirectory'
+     */
+    extractedValueName?: string,
 }
 
 /** We represent a passthrough environment variable with the value unit */ 

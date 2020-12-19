@@ -133,7 +133,20 @@ namespace BuildXL.FrontEnd.Download
                 contentHash = hash;
             }
 
-            downloadData = new DownloadData(context, downloadSettings, downloadLocation, resolverFolder, contentHash);
+            // For these last two validations, the TS parser would also complain, but we just give a more targeted error before that happens.
+            if (!string.IsNullOrEmpty(downloadSettings.DownloadedValueName) && !SymbolAtom.TryCreate(context.StringTable, downloadSettings.DownloadedValueName, out _))
+            {
+                Logger.Log.NameContainsInvalidCharacters(m_context.LoggingContext, "downloadedValueName", downloadSettings.DownloadedValueName);
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(downloadSettings.ExtractedValueName) && !SymbolAtom.TryCreate(context.StringTable, downloadSettings.ExtractedValueName, out _))
+            {
+                Logger.Log.NameContainsInvalidCharacters(m_context.LoggingContext, "extractedValueName", downloadSettings.ExtractedValueName);
+                return false;
+            }
+
+            downloadData = new DownloadData(context, downloadSettings, downloadLocation, resolverFolder, contentHash, downloadSettings.DownloadedValueName, downloadSettings.ExtractedValueName);
             return true;
         }
 
@@ -240,12 +253,18 @@ namespace BuildXL.FrontEnd.Download
 
             var sourceFile = SourceFile.Create(pathToParseAsString);
 
-            var downloadDeclaration = new VariableDeclaration("download", Identifier.CreateUndefined(), new TypeReferenceNode("File"));
+            var downloadDeclarationType = new TypeReferenceNode("File");
+            downloadDeclarationType.TypeName.Pos = 1;
+            downloadDeclarationType.TypeName.End = 2;
+            var downloadDeclaration = new VariableDeclaration(downloadData.DownloadedValueName, Identifier.CreateUndefined(), downloadDeclarationType);
             downloadDeclaration.Flags |= NodeFlags.Export | NodeFlags.Public | NodeFlags.ScriptPublic;
             downloadDeclaration.Pos = 1;
             downloadDeclaration.End = 2;
 
-            var extractedDeclaration = new VariableDeclaration("extracted", Identifier.CreateUndefined(), new TypeReferenceNode("StaticDirectory"));
+            var extractedDeclarationType = new TypeReferenceNode("StaticDirectory");
+            extractedDeclarationType.TypeName.Pos = 3;
+            extractedDeclarationType.TypeName.Pos = 4;
+            var extractedDeclaration = new VariableDeclaration(downloadData.ExtractedValueName, Identifier.CreateUndefined(), extractedDeclarationType);
             extractedDeclaration.Flags |= NodeFlags.Export | NodeFlags.Public | NodeFlags.ScriptPublic;
             extractedDeclaration.Pos = 3;
             extractedDeclaration.End = 4;

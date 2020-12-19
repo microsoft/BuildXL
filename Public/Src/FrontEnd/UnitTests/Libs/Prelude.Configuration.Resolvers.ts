@@ -204,4 +204,62 @@ interface NuGetConfiguration extends ToolConfiguration {
     credentialProviders?: ToolConfiguration[];
 }
 
-type Resolver = DScriptResolver | NuGetResolver | MsBuildResolver;
+interface DownloadResolver extends ResolverBase {
+    kind: "Download",
+    downloads: DownloadSettings[]
+}
+
+interface ResolverBase {
+    /**
+     * Optional name of the resolver
+     * When provided BuildXL will give better error messages and
+     * allows grouping in the viewer
+     **/
+    name?: string;
+}
+
+/**
+ * Setings for a download
+ */
+interface DownloadSettings {
+    /**
+     * The name of the module to expose
+     */
+    moduleName: string,
+
+    /**
+     * Url of the download
+     */
+    url: string,
+
+    /**
+     * Optional filename. By default the filename for the download is determined from the URL, but can be overridden when the url is obscure.
+     */
+    fileName?: string,
+
+    /**
+     * Optional declaration of the archive type to indicate how the file should be extracted.
+     */
+    archiveType?: "file" | "zip" | "gzip" | "tgz" | "tar"
+
+    /**
+     * Optional hash of the downloaded file to ensure safe robust builds and correctness. When specified the download is validated against this hash.
+     */
+    hash?: string,
+
+    /**
+     * The name of the value that points to the downloaded content for other resolvers to consume.
+     * Defaults to 'download' if not specified.
+     * This value will be exposed with type 'File'
+     */
+    downloadedValueName?: string,
+
+    /**
+     * The name of the value that points to the extracted content of the downloaded content for other resolvers to consume.
+     * Defaults to 'extracted' if not specified.
+     * This value will be exposed with type 'StaticDirectory'
+     */
+    extractedValueName?: string,
+}
+
+type Resolver = DScriptResolver | NuGetResolver | MsBuildResolver | DownloadResolver;

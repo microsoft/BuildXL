@@ -19,6 +19,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileName = template.FileName;
             ArchiveType = template.ArchiveType;
             Hash = template.Hash;
+            DownloadedValueName = template.DownloadedValueName;
+            ExtractedValueName = template.ExtractedValueName;
         }
 
         /// <inheritdoc />
@@ -36,5 +38,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public string Hash { get; set; }
 
+        /// <inheritdoc />
+        public string DownloadedValueName { get; set; }
+
+        /// <inheritdoc />
+        public string ExtractedValueName { get; set; }
     }
 }

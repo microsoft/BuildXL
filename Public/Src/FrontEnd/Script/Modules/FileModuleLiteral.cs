@@ -130,6 +130,14 @@ namespace BuildXL.FrontEnd.Script.Values
             : this(reader, pathTable, reader.ReadAbsolutePath(), ReadPackage(reader, pathTable), outerScope, moduleRegistry, lineMap)
         { }
 
+        /// <summary>
+        /// Whether all entries in this file module literal can be serialized
+        /// </summary>
+        /// <remarks>
+        /// For tests only
+        /// </remarks>
+        internal bool IsSerializable => m_resolvedEntries.Values.All(resolvedEntry => resolvedEntry.Kind != ResolvedEntryKind.ResolverCallback);
+
         internal static FileModuleLiteral Read(
             BuildXLReader reader,
             PathTable pathTable,

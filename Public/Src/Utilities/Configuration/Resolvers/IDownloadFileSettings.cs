@@ -14,6 +14,22 @@ namespace BuildXL.Utilities.Configuration
         string ModuleName { get; }
 
         /// <summary>
+        /// The name of the value that points to the downloaded content for other resolvers to consume
+        /// </summary>
+        /// <remarks>
+        /// Defaults to 'download' if not specified. This value will be exposed with type 'File'.
+        /// </remarks>
+        string DownloadedValueName { get; }
+
+        /// <summary>
+        /// The name of the value that points to the extracted content of the downloaded file for other resolvers to consume
+        /// </summary>
+        /// <remarks>
+        /// Defaults to 'extracted' if not specified. This value will be exposed with type 'StaticDirectory'. 
+        /// </remarks>
+        string ExtractedValueName { get; }
+
+        /// <summary>
         /// Url of the download
         /// </summary>
         string Url { get; }

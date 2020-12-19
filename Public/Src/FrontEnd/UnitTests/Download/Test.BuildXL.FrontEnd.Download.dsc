@@ -8,6 +8,8 @@ namespace Download {
         sources: globR(d`.`, "*.cs"),
         references: [
             Core.dll,
+            Script.dll,
+            Script.TestBase.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Engine.dll,
@@ -25,6 +27,10 @@ namespace Download {
             importFrom("SharpZipLib").pkg,
         ],
         runTestArgs: {
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true,
+            },
             tools: {
                 exec: {
                     acquireMutexes: ["Test.BuildXL.FrontEnd.Download.HttpServer"]

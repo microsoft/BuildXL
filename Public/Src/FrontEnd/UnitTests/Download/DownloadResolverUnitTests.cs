@@ -34,8 +34,8 @@ namespace Test.BuildXL.FrontEnd.Download
     {
         private const string TestServer = "http://localhost:9753/";
 
-        private int m_webRequestCount = 0;
-        private bool m_useGalaxyInsteadOfWorldFromServer = false;
+        private readonly RequestCount m_webRequestCount = new RequestCount();
+        private readonly AlternativeDataIndicator m_alternativeDataIndicator = new AlternativeDataIndicator();
 
         private string m_uniqueTestFolder = Guid.NewGuid().ToString();
 
@@ -59,7 +59,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.True(result.IsErrorValue);
                     Assert.Equal(1, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(1, resolver.Statistics.Downloads.Failures.Count);
-                    Assert.Equal(0, m_webRequestCount);
+                    Assert.Equal(0, m_webRequestCount.Count);
 
                     SetExpectedFailures(1, 0, "Failed to download id 'TestDownload'");
                 },
@@ -81,7 +81,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.True(result.IsErrorValue);
                     Assert.Equal(1, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(1, resolver.Statistics.Downloads.Failures.Count);
-                    Assert.Equal(1, m_webRequestCount);
+                    Assert.Equal(1, m_webRequestCount.Count);
 
                     SetExpectedFailures(1, 0, "404 (Not Found)");
                 }
@@ -105,7 +105,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.Equal(1, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.Failures.Count);
                     Assert.Equal(0, resolver.Statistics.Extractions.Total.Count);
-                    Assert.Equal(1, m_webRequestCount);
+                    Assert.Equal(1, m_webRequestCount.Count);
                 }
             );
         }
@@ -186,7 +186,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.Equal(0, resolver.Statistics.Downloads.Failures.Count);
                     Assert.Equal(1, resolver.Statistics.Extractions.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Extractions.Failures.Count);
-                    Assert.Equal(1, m_webRequestCount);
+                    Assert.Equal(1, m_webRequestCount.Count);
                 }
             );
         }
@@ -225,7 +225,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.Equal(1, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.Failures.Count);
-                    Assert.Equal(1, m_webRequestCount);
+                    Assert.Equal(1, m_webRequestCount.Count);
 
                     Assert.True(File.Exists(downloadedFile));
                     Assert.Equal("Hello World", File.ReadAllText(downloadedFile));
@@ -236,10 +236,10 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.Equal(2, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(1, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.Failures.Count);
-                    Assert.Equal(1, m_webRequestCount);
+                    Assert.Equal(1, m_webRequestCount.Count);
 
                     // Force update to server
-                    m_useGalaxyInsteadOfWorldFromServer = true;
+                    m_alternativeDataIndicator.UseAlternativeData = true;
                     var newData = GetSampleData(TestServer + "file.txt", DownloadArchiveType.File, helloGalaxyHash);
 
                     await resolver.PerformDownloadOrIncrementalCheckAsync(newData);
@@ -248,13 +248,13 @@ namespace Test.BuildXL.FrontEnd.Download
                     Assert.Equal("Hello Galaxy", File.ReadAllText(downloadedFile));
                     Assert.Equal(3, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(1, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
-                    Assert.Equal(2, m_webRequestCount);
+                    Assert.Equal(2, m_webRequestCount.Count);
 
                     await resolver.PerformDownloadOrIncrementalCheckAsync(newData);
 
                     Assert.Equal(4, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(2, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
-                    Assert.Equal(2, m_webRequestCount);
+                    Assert.Equal(2, m_webRequestCount.Count);
                 }
             );
         }
@@ -276,7 +276,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     await resolver.PerformDownloadOrIncrementalCheckAsync(data);
                     expectedCount++;
 
-                    Assert.Equal(expectedCount, m_webRequestCount);
+                    Assert.Equal(expectedCount, m_webRequestCount.Count);
                     Assert.Equal(expectedCount, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
 
@@ -285,7 +285,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     await resolver.PerformDownloadOrIncrementalCheckAsync(data);
                     expectedCount++;
 
-                    Assert.Equal(expectedCount, m_webRequestCount);
+                    Assert.Equal(expectedCount, m_webRequestCount.Count);
                     Assert.Equal(expectedCount, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
 
@@ -299,7 +299,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     await resolver.PerformDownloadOrIncrementalCheckAsync(data);
                     expectedCount++;
 
-                    Assert.Equal(expectedCount, m_webRequestCount);
+                    Assert.Equal(expectedCount, m_webRequestCount.Count);
                     Assert.Equal(expectedCount, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
 
@@ -308,11 +308,11 @@ namespace Test.BuildXL.FrontEnd.Download
                     await resolver.PerformDownloadOrIncrementalCheckAsync(data);
                     expectedCount++;
 
-                    Assert.Equal(expectedCount, m_webRequestCount);
+                    Assert.Equal(expectedCount, m_webRequestCount.Count);
                     Assert.Equal(expectedCount, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
 
-                    Assert.Equal(expectedCount, m_webRequestCount);
+                    Assert.Equal(expectedCount, m_webRequestCount.Count);
                     Assert.Equal(expectedCount, resolver.Statistics.Downloads.Total.Count);
                     Assert.Equal(0, resolver.Statistics.Downloads.SkippedDueToManifest.Count);
 
@@ -439,7 +439,7 @@ namespace Test.BuildXL.FrontEnd.Download
                         listener.Prefixes.Add(TestServer);
                         listener.Start();
 
-                        StartRequestHandler(listener);
+                        TestRequestHandler.StartRequestHandler(listener, m_alternativeDataIndicator, m_webRequestCount);
 
                         await performTest(resolver);
 
@@ -452,82 +452,6 @@ namespace Test.BuildXL.FrontEnd.Download
                     await performTest(resolver);
                 }
             }
-        }
-
-        private void StartRequestHandler(HttpListener listener)
-        {
-#pragma warning disable EPC13 // Suspiciously unobserved result.
-            Task.Run(
-                () =>
-                {
-                    while (listener.IsListening)
-                    {
-                        // Note: The GetContext method blocks while waiting for a request. 
-                        var context = listener.GetContext();
-                        var fileName = Path.GetFileName(context.Request.Url.LocalPath);
-                        var response = context.Response;
-
-                        byte[] worldBuffer = System.Text.Encoding.UTF8.GetBytes("Hello World");
-                        byte[] galaxyBuffer = System.Text.Encoding.UTF8.GetBytes("Hello Galaxy");
-                        byte[] universeBuffer = System.Text.Encoding.UTF8.GetBytes("Hello Universe");
-
-                        switch (Path.GetExtension(fileName))
-                        {
-                            case ".zip":
-                                MemoryStream outputMemStream = new MemoryStream();
-                                ZipOutputStream zipStream = new ZipOutputStream(outputMemStream);
-
-                                zipStream.SetLevel(5);
-
-                                AddFile(zipStream, "world", worldBuffer);
-                                AddFile(zipStream, "galaxy", galaxyBuffer);
-                                AddFile(zipStream, "multi/universe", universeBuffer);
-
-                                zipStream.IsStreamOwner = false;
-                                zipStream.Close();
-
-                                outputMemStream.Position = 0;
-                                response.ContentLength64 = outputMemStream.Length;
-                                StreamUtils.Copy(outputMemStream, response.OutputStream, new byte[4096]);
-                                break;
-                            case ".404":
-                                response.StatusCode = 404;
-                                response.ContentLength64 = worldBuffer.Length;
-                                response.OutputStream.Write(worldBuffer, 0, worldBuffer.Length);
-                                break;
-                            case ".txt":
-                                var buffer = m_useGalaxyInsteadOfWorldFromServer
-                                    ? galaxyBuffer
-                                    : worldBuffer;
-                                response.ContentLength64 = buffer.Length;
-                                response.OutputStream.Write(buffer, 0, buffer.Length);
-                                break;
-                            default:
-                                Assert.True(false, "Unexpected http request..");
-                                break;
-                        }
-
-
-                        // Write buffer and close request
-                        response.Headers.Add("Content-type: application/octet-stream");
-                        response.Headers.Add("Content-Description: File Transfer");
-                        response.Headers.Add($"Content-Disposition: attachment; filename=\"{fileName}\")");
-                        response.OutputStream.Close();
-
-                        m_webRequestCount++;
-                    }
-                });
-#pragma warning restore EPC13 // Suspiciously unobserved result.
-        }
-
-        private static void AddFile(ZipOutputStream zipStream, string name, byte[] buffer)
-        {
-            var newEntry = new ZipEntry(name);
-            newEntry.DateTime = DateTime.Now;
-            zipStream.PutNextEntry(newEntry);
-
-            zipStream.Write(buffer, 0, buffer.Length);
-            zipStream.CloseEntry();
         }
 
         private DownloadData GetSampleData(string url, DownloadArchiveType archiveType, ContentHash? contentHash = null)

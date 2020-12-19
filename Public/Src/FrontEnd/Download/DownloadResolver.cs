@@ -129,7 +129,7 @@ namespace BuildXL.FrontEnd.Download
                 sourceFile.LineMap);
 
             // Download
-            var downloadSymbol = FullSymbol.Create(m_context.SymbolTable, "download");
+            var downloadSymbol = FullSymbol.Create(m_context.SymbolTable, downloadData.DownloadedValueName);
             var downloadResolvedEntry = new ResolvedEntry(
                 downloadSymbol,
                 (Context context, ModuleLiteral env, EvaluationStackFrame args) => DownloadFile(downloadData),
@@ -141,7 +141,7 @@ namespace BuildXL.FrontEnd.Download
             currentFileModule.AddResolvedEntry(new FilePosition(1, sourceFilePath), downloadResolvedEntry);
 
             // Contents.All
-            var extractedSymbol = FullSymbol.Create(m_context.SymbolTable, "extracted");
+            var extractedSymbol = FullSymbol.Create(m_context.SymbolTable, downloadData.ExtractedValueName);
             var contentsResolvedEntry = new ResolvedEntry(
                 extractedSymbol,
                 (Context context, ModuleLiteral env, EvaluationStackFrame args) => ExtractFile(downloadData),
@@ -459,7 +459,7 @@ namespace BuildXL.FrontEnd.Download
                 moduleDescriptor.Id,
                 moduleDescriptor.Name,
                 RelativePath.Create(downloadData.ModuleSpecFile.GetName(m_context.PathTable)),
-                FullSymbol.Create(m_context.SymbolTable, "extracted"),
+                FullSymbol.Create(m_context.SymbolTable, downloadData.ExtractedValueName),
                 new LocationData(downloadData.ModuleSpecFile, 0, 0),
                 m_context.QualifierTable.EmptyQualifierId);
 

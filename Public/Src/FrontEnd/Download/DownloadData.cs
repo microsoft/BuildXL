@@ -14,7 +14,7 @@ namespace BuildXL.FrontEnd.Download
     /// <summary>
     /// Extracted data of items to download
     /// </summary>
-    public class DownloadData
+    public sealed class DownloadData
     {
         /// <summary>
         /// The settings as defined in the resolver
@@ -27,12 +27,18 @@ namespace BuildXL.FrontEnd.Download
             IDownloadFileSettings settings,
             Uri downloadUri,
             AbsolutePath resolverRoot,
-            ContentHash? contentHash)
+            ContentHash? contentHash,
+            string downloadedValueName = null,
+            string extractedValueName = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(settings != null);
             Contract.Requires(downloadUri != null);
             Contract.Requires(resolverRoot.IsValid);
+
+            // Apply defaults if not specified
+            downloadedValueName ??= "download";
+            extractedValueName ??= "extracted";
 
             Settings = settings;
             DownloadUri = downloadUri;
@@ -55,6 +61,9 @@ namespace BuildXL.FrontEnd.Download
             ExtractManifestFile = ModuleRoot.Combine(context.PathTable, "manifest.extract.txt");
 
             ContentHash = contentHash;
+
+            DownloadedValueName = downloadedValueName;
+            ExtractedValueName = extractedValueName;
         }
 
         /// <nodoc />
@@ -90,5 +99,11 @@ namespace BuildXL.FrontEnd.Download
         /// The optional parsed contenthash of the hash on the DownloadSettings
         /// </summary>
         public ContentHash? ContentHash { get; }
+
+        /// <nodoc />
+        public string DownloadedValueName { get; }
+
+        /// <nodoc />
+        public string ExtractedValueName { get; }
     }
 }

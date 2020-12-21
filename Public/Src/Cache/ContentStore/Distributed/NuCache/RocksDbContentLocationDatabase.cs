@@ -203,9 +203,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, Configured Epoch='{_configuration.Epoch}'");
 
                 var possibleStore = KeyValueStoreAccessor.Open(
-                    new KeyValueStoreAccessor.RocksDbStoreArguments()
+                    new RocksDbStoreConfiguration(storeLocation)
                     {
-                        StoreDirectory = storeLocation,
                         AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
                         RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
                         RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
@@ -228,6 +227,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         DisableAutomaticCompactions = !IsDatabaseWriteable,
                         LeveledCompactionDynamicLevelTargetSizes = true,
                         Compression = _configuration.Compression,
+                        UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
+                        UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our
@@ -502,8 +503,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeysFromStorage(
             OperationContext context,
-            EnumerationFilter? valueFilter,
-            bool returnKeysOnly)
+            EnumerationFilter? valueFilter = null,
+            bool returnKeysOnly = false)
         {
             var token = context.Token;
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry? entry)>();
@@ -529,14 +530,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             using (var cts = new CancellationTokenSource())
                             using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token, killSwitch))
                             {
-                                var gcResult = store.GarbageCollectByKeyValue(
-                                    canCollect: (iterator) =>
+                                var iterationResult = store.IterateDbContent(
+                                    onNextItem: iterator =>
                                     {
                                         var key = iterator.Key();
                                         if (processedKeys == 0 && ByteArrayComparer.Instance.Equals(startValue, key))
                                         {
                                             // Start value is the same as the key. Skip it to keep from double processing the start value.
-                                            return false;
+                                            return;
                                         }
 
                                         if (returnKeysOnly)
@@ -562,13 +563,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                             // which will set reachedEnd to false.
                                             cts.Cancel();
                                         }
-
-                                        return false;
                                     },
-                                    cancellationToken: cancellation.Token,
-                                    startValue: startValue);
+                                    columnFamilyName: null,
+                                    startValue: startValue,
+                                    token: cancellation.Token);
 
-                                reachedEnd = gcResult.ReachedEnd;
+                                reachedEnd = iterationResult.ReachedEnd;
                             }
 
                             killSwitchUsed = killSwitch.IsCancellationRequested;

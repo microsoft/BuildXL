@@ -56,9 +56,8 @@ namespace BuildXL.Cache.Roxis.Server
 
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _accessor = KeyValueStoreAccessor.Open(new KeyValueStoreAccessor.RocksDbStoreArguments()
+            _accessor = KeyValueStoreAccessor.Open(new RocksDbStoreConfiguration(_configuration.Path)
             {
-                StoreDirectory = _configuration.Path,
                 AdditionalColumns = new[] { nameof(Columns.Registers) },
                 DropMismatchingColumns = true,
                 EnableStatistics = true,

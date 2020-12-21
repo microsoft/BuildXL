@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -699,6 +699,12 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, double.MaxValue)]
         public double? ContentLocationDatabaseMetadataGarbageCollectionMaximumSizeMb { get; set; }
 
+        [DataMember]
+        public bool? ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInDbEnumeration { get; set; }
+
+        [DataMember]
+        public bool? ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; }
+        
         [DataMember]
         public bool? ContentLocationDatabaseMetadataGarbageCollectionLogEnabled { get; set; }
 

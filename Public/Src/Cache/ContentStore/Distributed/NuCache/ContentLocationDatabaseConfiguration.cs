@@ -209,6 +209,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public Compression? Compression { get; internal set; }
 
+        /// <summary>
+        /// Whether to use 'SetTotalOrderSeek' option during database enumeration.
+        /// </summary>
+        /// <remarks>
+        /// Setting this flag is important in order to get the correct behavior for content enumeration of the database.
+        /// When the prefix extractor is used by calling SetIndexType(BlockBasedTableIndexType.Hash) and SetPrefixExtractor(SliceTransform.CreateNoOp())
+        /// then the full database enumeration may return already removed keys or the previous version for some values.
+        ///
+        /// Not setting this flag was causing issues during reconciliation because the database enumeration was producing values for already removed keys
+        /// and some keys were missing.
+        /// </remarks>
+        public bool UseReadOptionsWithSetTotalOrderSeekInDbEnumeration { get; set; } = true;
+
+        /// <summary>
+        /// Whether to use 'SetTotalOrderSeek' option during database garbage collection.
+        /// </summary>
+        /// <remarks>
+        /// See the remarks section for <see cref="UseReadOptionsWithSetTotalOrderSeekInDbEnumeration"/>.
+        /// </remarks>
+        public bool UseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; } = true;
+
         /// <nodoc />
         public static RocksDbContentLocationDatabaseConfiguration FromDistributedContentSettings(
             DistributedContentSettings settings,
@@ -244,6 +265,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => configuration.EnumerateSortedKeysFromStorageBufferSize = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => configuration.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);
+
+            ApplyIfNotNull(settings.ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInDbEnumeration, v => configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = v);
+            ApplyIfNotNull(settings.ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInGarbageCollection, v => configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = v);
 
             return configuration;
         }

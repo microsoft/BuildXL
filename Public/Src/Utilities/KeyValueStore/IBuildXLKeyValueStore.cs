@@ -27,7 +27,7 @@ namespace BuildXL.Engine.Cache
         /// <param name="startValue">The start value for iterating keys to garbage collect (optional)</param>
         GarbageCollectResult GarbageCollect(
             Func<byte[], bool> canCollect, 
-            string primaryColumnFamilyName = null, 
+            string? primaryColumnFamilyName = null, 
             IEnumerable<string>? additionalColumnFamilyNames = null, 
             CancellationToken cancellationToken = default, 
             byte[]? startValue = null);
@@ -72,7 +72,7 @@ namespace BuildXL.Engine.Cache
         /// <param name="startValue">The start value for iterating keys to garbage collect (optional)</param>
         GarbageCollectResult GarbageCollect(
             Func<string, bool> canCollect, 
-            string columnFamilyName = null, 
+            string? columnFamilyName = null, 
             IEnumerable<string?>? additionalColumnFamilies = null, 
             CancellationToken cancellationToken = default, 
             string? startValue = null);

@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -358,9 +358,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Action<Failure>? onStoreReset = null)
         {
             return OpenWithVersioning(
-                new RocksDbStoreArguments()
+                new RocksDbStoreConfiguration(storeDirectory)
                 {
-                    StoreDirectory = storeDirectory,
                     DefaultColumnKeyTracked = defaultColumnKeyTracked,
                     AdditionalColumns = additionalColumns,
                     AdditionalKeyTrackedColumns = additionalKeyTrackedColumns,
@@ -378,7 +377,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Opens or creates a unversioned key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
         /// </summary>
-        /// <param name="storeArguments">
+        /// <param name="storeConfiguration">
         /// Arguments for the underlying key value store.
         /// </param>
         /// <param name="failureHandler">
@@ -395,14 +394,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
         /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
-            RocksDbStoreArguments storeArguments,
+            RocksDbStoreConfiguration storeConfiguration,
             Action<RocksDbFailureEvent>? failureHandler = null,
             bool onFailureDeleteExistingStoreAndRetry = false,
             Action<Failure<Exception>>? invalidationHandler = null,
             Action<Failure>? onStoreReset = null)
         {
             return OpenWithVersioning(
-                storeArguments,
+                storeConfiguration,
                 VersionConstants.UnversionedStore,
                 failureHandler,
                 onFailureDeleteExistingStoreAndRetry,
@@ -413,7 +412,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Opens or creates a versioned key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
         /// </summary>
-        /// <param name="storeArguments">
+        /// <param name="storeConfiguration">
         /// Arguments for the underlying key value store.
         /// </param>
         /// <param name="storeVersion">
@@ -433,7 +432,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
         /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
-            RocksDbStoreArguments storeArguments,
+            RocksDbStoreConfiguration storeConfiguration,
             int storeVersion,
             Action<RocksDbFailureEvent>? failureHandler = null,
             bool onFailureDeleteExistingStoreAndRetry = false,
@@ -442,20 +441,20 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             // First attempt
             var possibleAccessor = OpenInternal(
-                    storeArguments,
+                    storeConfiguration,
                     storeVersion,
                     failureHandler,
-                    createNewStore: !FileUtilities.DirectoryExistsNoFollow(storeArguments.StoreDirectory),
+                    createNewStore: !FileUtilities.DirectoryExistsNoFollow(storeConfiguration.StoreDirectory),
                     invalidationHandler);
 
             if (!possibleAccessor.Succeeded
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
-                && !storeArguments.ReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
+                && !storeConfiguration.ReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
             {
                 onStoreReset?.Invoke(possibleAccessor.Failure);
 
                 possibleAccessor = OpenInternal(
-                    storeArguments,
+                    storeConfiguration,
                     storeVersion,
                     failureHandler,
                     createNewStore: true,
@@ -466,7 +465,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         private static Possible<KeyValueStoreAccessor> OpenInternal(
-            RocksDbStoreArguments storeArguments,
+            RocksDbStoreConfiguration storeConfiguration,
             int storeVersion,
             Action<RocksDbFailureEvent>? failureHandler,
             bool createNewStore,
@@ -480,27 +479,27 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var persistedStoreVersion = -1;
                 if (createNewStore)
                 {
-                    if (FileUtilities.FileExistsNoFollow(storeArguments.StoreDirectory))
+                    if (FileUtilities.FileExistsNoFollow(storeConfiguration.StoreDirectory))
                     {
-                        FileUtilities.DeleteFile(storeArguments.StoreDirectory);
+                        FileUtilities.DeleteFile(storeConfiguration.StoreDirectory);
                     }
-                    else if (FileUtilities.DirectoryExistsNoFollow(storeArguments.StoreDirectory))
+                    else if (FileUtilities.DirectoryExistsNoFollow(storeConfiguration.StoreDirectory))
                     {
-                        FileUtilities.DeleteDirectoryContents(storeArguments.StoreDirectory);
+                        FileUtilities.DeleteDirectoryContents(storeConfiguration.StoreDirectory);
                     }
 
-                    FileUtilities.CreateDirectory(storeArguments.StoreDirectory);
+                    FileUtilities.CreateDirectory(storeConfiguration.StoreDirectory);
 
                     if (useVersioning)
                     {
-                        WriteVersionFile(storeArguments.StoreDirectory, storeVersion);
+                        WriteVersionFile(storeConfiguration.StoreDirectory, storeVersion);
                     }
 
                     persistedStoreVersion = storeVersion;
                 }
                 else
                 {
-                    var possibleStoreVersion = ReadStoreVersion(storeArguments.StoreDirectory);
+                    var possibleStoreVersion = ReadStoreVersion(storeConfiguration.StoreDirectory);
                     if (possibleStoreVersion.Succeeded)
                     {
                         persistedStoreVersion = possibleStoreVersion.Result;
@@ -523,7 +522,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
 
                 accessor = new KeyValueStoreAccessor(
-                    storeArguments,
+                    storeConfiguration,
                     persistedStoreVersion,
                     failureHandler,
                     createNewStore,
@@ -644,19 +643,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         private KeyValueStoreAccessor(
-            RocksDbStoreArguments storeArguments,
+            RocksDbStoreConfiguration storeConfiguration,
             int storeVersion,
             Action<RocksDbFailureEvent>? failureHandler,
             bool createdNewStore,
             Action<Failure<Exception>>? invalidationHandler)
         {
             Contract.Assert(storeVersion != VersionConstants.InvalidStore, "No store should pass the invalid store version since it is not safe to open an invalid store.");
-            StoreDirectory = storeArguments.StoreDirectory;
-            ReadOnly = storeArguments.ReadOnly;
+            StoreDirectory = storeConfiguration.StoreDirectory;
+            ReadOnly = storeConfiguration.ReadOnly;
             StoreVersion = storeVersion;
             CreatedNewStore = createdNewStore;
 
-            m_store = new RocksDbStore(storeArguments);
+            m_store = new RocksDbStore(storeConfiguration);
 
             m_failureHandler = failureHandler;
             m_invalidationHandler = invalidationHandler;
@@ -681,7 +680,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 // The handler decides whether the store should be permanently invalidated or not. It also has the
                 // opportunity to do whatever side-effects the user needs. If the store is invalidated, the 
                 // invalidation handler is called after the store has been invalidated.
-                // The default policy is to alwyas invalidate the store if an exception happens, as it is the safest
+                // The default policy is to always invalidate the store if an exception happens, as it is the safest
                 // option.
                 if (Disabled)
                 {
@@ -743,17 +742,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         private void StrictFailureHandler(RocksDbFailureEvent failure)
         {
-            Contract.Requires(failure != null);
-
             var ex = failure.Failure.Content;
-            var isUserError = true;
-            if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException)
-            {
-                // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
-                // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
-                // class also corresponds to the HRESULT E_FAIL (0x80004005).
-                isUserError = false;
-            }
+            
+            // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
+            // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
+            // class also corresponds to the HRESULT E_FAIL (0x80004005).
+            bool isUserError = ex is not RocksDbSharpException && ex is not SEHException;
 
             failure.Invalidate = true;
             failure.Rethrow = isUserError;
@@ -761,8 +755,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         private Failure<Exception> HandleException(Exception exception, out bool rethrow)
         {
-            Contract.Requires(exception != null);
-
             var failure = new RocksDbFailureEvent(exception);
 
             // This defaults the behavior to the safest one. This is done for backwards-compatibility with existing 

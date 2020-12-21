@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using JetBrains.Annotations;
+using System.Threading;
+using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
 {
@@ -106,7 +108,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         void ApplyBatch(IEnumerable<KeyValuePair<TKey, TValue?>> keyValuePairs, string? columnFamilyName = null);
 
         /// <summary>
-        /// Fetches keys and values with the same prefix. Order is dependant on the underlying store's guarantees.
+        /// Fetches keys and values with the same prefix. Order is dependent on the underlying store's guarantees.
         /// </summary>
         /// <param name="prefix">
         /// Common prefix
@@ -115,6 +117,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// The column family to use.
         /// </param>
         IEnumerable<KeyValuePair<TKey, TValue>> PrefixSearch([AllowNull]TKey prefix, string? columnFamilyName = null);
+
+        /// <summary>
+        /// Calls a given <paramref name="onNextItem"/> callback on every item from the database.
+        /// </summary>
+        /// <remarks>
+        /// This method uses a callback instead of returning <see cref="IEnumerable{KeyValuePair}"/> because with the current version is much easier
+        /// to abort the iteration when the store is closed.
+        /// </remarks>
+        IterateDbContentResult IterateDbContent(
+            Action<Iterator> onNextItem,
+            string? columnFamilyName = null,
+            [AllowNull]TKey? startValue = default,
+            CancellationToken token = default);
 
         /// <summary>
         /// Forces compaction of a range of keys. What exactly this means depends on the underlying store.
@@ -143,5 +158,21 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         ///  For details, see: https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/534147
         /// </remarks>
         void CompactRange([AllowNull]TKey start, [AllowNull]TKey limit, string? columnFamilyName = null);
+    }
+
+    /// <summary>
+    /// Result of <see cref="IKeyValueStore{TKey,TValue}.IterateDbContent"/>
+    /// </summary>
+    public record IterateDbContentResult
+    {
+        /// <summary>
+        /// Whether the database iteration was canceled or not.
+        /// </summary>
+        public bool Canceled { get; init; }
+
+        /// <summary>
+        /// Whether the database iteration reached the end of the column family.
+        /// </summary>
+        public bool ReachedEnd { get; init; }
     }
 }

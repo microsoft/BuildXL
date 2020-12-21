@@ -16,136 +16,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
     public partial class KeyValueStoreAccessor : IDisposable
     {
         /// <summary>
-        /// Wrapper for instance's options
-        /// </summary>
-        public struct RocksDbStoreArguments
-        {
-            /// <summary>
-            /// The directory containing the key-value store.
-            /// </summary>
-            public string StoreDirectory { get; set; }
-
-            /// <summary>
-            /// Whether the default column should be key-tracked.
-            /// This will create two columns for the same data,
-            /// one with just keys and the other with key and value.
-            /// </summary>
-            public bool DefaultColumnKeyTracked { get; set; }
-
-            /// <summary>
-            /// The names of any additional column families in the key-value store.
-            /// If no additional column families are provided, all entries will be stored
-            /// in the default column.
-            /// Column families are analogous to tables in relational databases.
-            /// </summary>
-            public IEnumerable<string>? AdditionalColumns { get; set; }
-
-            /// <summary>
-            /// The names of any additional column families in the key-value store that
-            /// should also be key-tracked. This will create two columns for the same data,
-            /// one with just keys and the other with key and value.
-            /// Column families are analogous to tables in relational databases.
-            /// </summary>
-            public IEnumerable<string>? AdditionalKeyTrackedColumns { get; set; }
-
-            /// <summary>
-            /// Whether the database should be opened read-only. This prevents modifications and
-            /// creating unnecessary metadata files related to write sessions.
-            /// </summary>
-            public bool ReadOnly { get; set; }
-
-            /// <summary>
-            /// If a store already exists at the given directory, whether any columns that mismatch the the columns that were passed into the constructor
-            /// should be dropped. This will cause data loss and can only be applied in read-write mode.
-            /// </summary>
-            public bool DropMismatchingColumns { get; set; }
-
-            /// <summary>
-            /// Number of files to keep before deletion when rotating logs.
-            /// </summary>
-            public ulong? RotateLogsNumFiles { get; set; }
-
-            /// <summary>
-            /// Maximum log file size before rotating.
-            /// </summary>
-            public ulong? RotateLogsMaxFileSizeBytes { get; set; }
-
-            /// <summary>
-            /// Maximum log age before rotating.
-            /// </summary>
-            public TimeSpan? RotateLogsMaxAge { get; set; }
-
-            /// <summary>
-            /// Opens RocksDb for bulk data loading.
-            /// </summary>
-            /// <remarks>
-            /// This does the following (see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ):
-            /// 
-            ///  1) Uses vector memtable
-            ///  2) Sets options.max_background_flushes to at least 4
-            ///  3) Disables automatic compaction, sets options.level0_file_num_compaction_trigger, 
-            ///     options.level0_slowdown_writes_trigger and options.level0_stop_writes_trigger to very large numbers
-            ///     
-            /// Note that a manual compaction <see cref="RocksDbStore.CompactRange(byte[], byte[], string)"/> needs to 
-            /// be triggered afterwards. If not, reads will be extremely slow. Keep in mind that the manual compaction
-            /// that should follow will likely take a long time, so this may not be useful for some applications.
-            /// </remarks>
-            public bool OpenBulkLoad { get; set; }
-
-            /// <summary>
-            /// Applies the options mentioned in https://github.com/facebook/rocksdb/wiki/Speed-Up-DB-Open.
-            /// </summary>
-            public bool FastOpen { get; set; }
-
-            /// <summary>
-            /// Enables RocksDb statistics getting dumped to the LOG. Useful only for performance debugging.
-            /// </summary>
-            public bool EnableStatistics { get; set; }
-
-            /// <summary>
-            /// Disables automatic background compactions.
-            /// </summary>
-            public bool DisableAutomaticCompactions { get; set; }
-
-            /// <summary>
-            /// Disabled by default due to performance impact.
-            /// 
-            /// Disable the write ahead log to reduce disk IO. The write ahead log is used to recover the store on 
-            /// crashes, so a crash will lose some writes. Writes will be made in-memory only until the write buffer
-            /// size is reached and then they will be flushed to storage files.
-            /// 
-            /// See: https://github.com/facebook/rocksdb/wiki/Write-Ahead-Log
-            /// </summary>
-            public bool EnableWriteAheadLog { get; set; }
-
-            /// <summary>
-            /// Disabled by default due to performance impact.
-            /// 
-            /// The DB won't wait for fsync return before acknowledging the write as successful. This affects
-            /// correctness, because a write may be ACKd before it is actually on disk, but it is much faster.
-            /// </summary>
-            public bool EnableFSync { get; set; }
-
-            /// <summary>
-            /// Enable dynamic level target sizes.
-            /// 
-            /// This helps keep space amplification at a factor of ~1.111 by manipulating the level sizes dynamically.
-            /// 
-            /// See: https://rocksdb.org/blog/2015/07/23/dynamic-level.html
-            /// See: https://rockset.com/blog/how-we-use-rocksdb-at-rockset/ (under Dynamic Level Target Sizes)
-            /// See: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction#level_compaction_dynamic_level_bytes-is-true
-            /// </summary>
-            public bool LeveledCompactionDynamicLevelTargetSizes { get; set; }
-
-            /// <summary>
-            /// Enable RocksDb compression.
-            ///
-            /// The same compression algorithm is applied to all column families, across all levels.
-            /// </summary>
-            public Compression? Compression { get; set; }
-        }
-
-        /// <summary>
         /// Persistent key-value store built on <see cref="RocksDb"/>.
         /// Only accessible through <see cref="KeyValueStoreAccessor"/> to enforce exception handling and safe disposal.
         /// </summary>
@@ -230,6 +100,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// </summary>
             private readonly DefaultOptions m_defaults;
 
+            private readonly RocksDbStoreConfiguration? m_options;
+
             /// <summary>
             /// Encapsulates <see cref="RocksDb"/> options that should be set.
             /// </summary>
@@ -245,10 +117,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <summary>
             /// Provides access to and/or creates a RocksDb persistent key-value store.
             /// </summary>
-            public RocksDbStore(RocksDbStoreArguments arguments)
+            public RocksDbStore(RocksDbStoreConfiguration configuration)
             {
-                m_storeDirectory = arguments.StoreDirectory;
-                m_openBulkLoad = arguments.OpenBulkLoad;
+                m_storeDirectory = configuration.StoreDirectory;
+                m_openBulkLoad = configuration.OpenBulkLoad;
 
                 m_defaults.DbOptions = new DbOptions()
                     .SetCreateIfMissing(true)
@@ -270,41 +142,41 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 #endif
                     .IncreaseParallelism(Environment.ProcessorCount / 2);
 
-                if (arguments.EnableStatistics)
+                if (configuration.EnableStatistics)
                 {
                     m_defaults.DbOptions.EnableStatistics();
                 }
 
-                if (arguments.OpenBulkLoad)
+                if (configuration.OpenBulkLoad)
                 {
                     m_defaults.DbOptions.PrepareForBulkLoad();
                 }
 
                 // Maximum number of information log files
-                if (arguments.RotateLogsNumFiles != null)
+                if (configuration.RotateLogsNumFiles != null)
                 {
-                    m_defaults.DbOptions.SetKeepLogFileNum(arguments.RotateLogsNumFiles.Value);
+                    m_defaults.DbOptions.SetKeepLogFileNum(configuration.RotateLogsNumFiles.Value);
                 }
 
                 // Do not rotate information logs based on file size
-                if (arguments.RotateLogsMaxFileSizeBytes != null)
+                if (configuration.RotateLogsMaxFileSizeBytes != null)
                 {
-                    m_defaults.DbOptions.SetMaxLogFileSize(arguments.RotateLogsMaxFileSizeBytes.Value);
+                    m_defaults.DbOptions.SetMaxLogFileSize(configuration.RotateLogsMaxFileSizeBytes.Value);
                 }
 
                 // How long before we rotate the current information log file
-                if (arguments.RotateLogsMaxAge != null)
+                if (configuration.RotateLogsMaxAge != null)
                 {
-                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)arguments.RotateLogsMaxAge.Value.Seconds);
+                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)configuration.RotateLogsMaxAge.Value.Seconds);
                 }
 
-                if (arguments.FastOpen)
+                if (configuration.FastOpen)
                 {
                     // max_file_opening_threads is defaulted to 16, so no need to update here.
                     RocksDbSharp.Native.Instance.rocksdb_options_set_skip_stats_update_on_db_open(m_defaults.DbOptions.Handle, true);
                 }
 
-                if (arguments.DisableAutomaticCompactions)
+                if (configuration.DisableAutomaticCompactions)
                 {
                     m_defaults.DbOptions.SetDisableAutoCompactions(1);
                 }
@@ -315,8 +187,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 //    it produces a dramatic performance drop otherwise.
 
                 m_defaults.WriteOptions = new WriteOptions()
-                    .DisableWal(arguments.EnableWriteAheadLog ? 0 : 1)
-                    .SetSync(arguments.EnableFSync);
+                    .DisableWal(configuration.EnableWriteAheadLog ? 0 : 1)
+                    .SetSync(configuration.EnableFSync);
 
                 var blockBasedTableOptions = new BlockBasedTableOptions()
                     // Use a bloom filter to help reduce read amplification on point lookups. 10 bits per key yields a
@@ -343,11 +215,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 #endif
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp())
-                    .SetLevelCompactionDynamicLevelBytes(arguments.LeveledCompactionDynamicLevelTargetSizes);
+                    .SetLevelCompactionDynamicLevelBytes(configuration.LeveledCompactionDynamicLevelTargetSizes);
 
-                if (arguments.Compression != null)
+                if (configuration.Compression != null)
                 {
-                    m_defaults.ColumnFamilyOptions.SetCompression(arguments.Compression.Value);
+                    m_defaults.ColumnFamilyOptions.SetCompression(configuration.Compression.Value);
                 }
 
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
@@ -365,7 +237,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
 
                 // In read-only mode, open all existing columns in the store without attempting to validate it against the expected column families
-                if (arguments.ReadOnly)
+                if (configuration.ReadOnly)
                 {
                     var columnFamilies = new ColumnFamilies();
                     foreach (var name in existingColumns)
@@ -378,23 +250,23 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 else
                 {
                     // For read-write mode, column families may be added, so set up column families schema
-                    var additionalColumns = arguments.AdditionalColumns ?? CollectionUtilities.EmptyArray<string>();
+                    var additionalColumns = configuration.AdditionalColumns ?? CollectionUtilities.EmptyArray<string>();
                     var columnsSchema = new HashSet<string>(additionalColumns);
 
                     // Default column
                     columnsSchema.Add(ColumnFamilies.DefaultName);
 
-                    // For key-tracked column familiies, create two columns:
+                    // For key-tracked column families, create two columns:
                     // 1: Normal column of { key : value }
                     // 2: Key-tracking column of { key : empty-value }
-                    if (arguments.DefaultColumnKeyTracked)
+                    if (configuration.DefaultColumnKeyTracked)
                     {
                         // To be robust to the RocksDB-selected default column name changing,
                         // just name the default column's key-tracking column KeyColumnSuffix
                         columnsSchema.Add(KeyColumnSuffix);
                     }
 
-                    var additionalKeyTrackedColumns = arguments.AdditionalKeyTrackedColumns ?? CollectionUtilities.EmptyArray<string>();
+                    var additionalKeyTrackedColumns = configuration.AdditionalKeyTrackedColumns ?? CollectionUtilities.EmptyArray<string>();
                     foreach (var name in additionalKeyTrackedColumns)
                     {
                         columnsSchema.Add(name);
@@ -417,7 +289,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     m_store = RocksDb.Open(m_defaults.DbOptions, m_storeDirectory, columnFamilies);
 
                     // Provide an opportunity to update the store to the new column family schema
-                    if (arguments.DropMismatchingColumns)
+                    if (configuration.DropMismatchingColumns)
                     {
                         foreach (var name in outsideSchemaColumns)
                         {
@@ -441,6 +313,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
 
                 m_columns.TryGetValue(ColumnFamilies.DefaultName, out m_defaultColumnFamilyInfo);
+                m_options = configuration;
             }
 
             /// <summary>
@@ -716,8 +589,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 var keysToRemove = new List<byte[]>();
                 var primaryColumn = new string?[] { columnFamilyName };
-                var columnsToUse = additionalColumnFamilies == null ? primaryColumn : additionalColumnFamilies.Concat(primaryColumn);
-                using (Iterator iterator = m_store.NewIterator(columnFamilyHandleToUse, m_readOptions))
+                var columnsToUse = additionalColumnFamilies == null ? primaryColumn : additionalColumnFamilies.Concat(primaryColumn).ToArray();
+
+                using (Iterator iterator = NewIteratorForGarbageCollection(columnFamilyHandleToUse))
                 {
                     if (startValue != null)
                     {
@@ -746,28 +620,48 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         if (keysToRemove.Count == GarbageCollectionBatchSize
                             || (gcResult.ReachedEnd && keysToRemove.Count > 0))
                         {
-                            var startTime = TimestampUtilities.Timestamp;
-                            // Remove the key across all specified columns
-                            RemoveBatch(keysToRemove, columnFamilyNames: columnsToUse);
-
-                            var duration = TimestampUtilities.Timestamp - startTime;
-
-                            if (duration > gcResult.MaxBatchEvictionTime)
-                            {
-                                gcResult.MaxBatchEvictionTime = duration;
-                            }
-
-                            gcResult.LastKey = keysToRemove.Last();
-                            gcResult.RemovedCount += keysToRemove.Count;
-                            keysToRemove.Clear();
+                            removeKeys();
                         }
                     }
                 }
 
+                if (cancellationToken.IsCancellationRequested && keysToRemove.Count > 0)
+                {
+                    // Removing the accumulated keys if the iteration was canceled.
+                    removeKeys();
+                }
+                
                 gcResult.Canceled = cancellationToken.IsCancellationRequested;
                 return gcResult;
+
+                void removeKeys()
+                {
+                    var startTime = TimestampUtilities.Timestamp;
+                    // Remove the key across all specified columns
+                    RemoveBatch(keysToRemove, columnFamilyNames: columnsToUse);
+
+                    var duration = TimestampUtilities.Timestamp - startTime;
+
+                    if (duration > gcResult.MaxBatchEvictionTime)
+                    {
+                        gcResult.MaxBatchEvictionTime = duration;
+                    }
+
+                    gcResult.LastKey = keysToRemove.Last();
+                    gcResult.RemovedCount += keysToRemove.Count;
+                    keysToRemove.Clear();
+                }
             }
 
+            private Iterator NewIteratorForGarbageCollection(ColumnFamilyHandle? columnFamilyHandleToUse)
+            {
+                var readOptions = m_readOptions ?? ((m_options == null || m_options.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection)
+                    ? new ReadOptions().SetTotalOrderSeek(true)
+                    : null);
+                
+                return m_store.NewIterator(columnFamilyHandleToUse, readOptions);
+            }
+            
             /// <inheritdoc />
             public GarbageCollectResult GarbageCollect(Func<byte[], byte[], bool> canCollect, string? columnFamilyName = null, CancellationToken cancellationToken = default, byte[]? startValue = null)
             {
@@ -782,7 +676,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 var columnFamilyHandleToUse = columnFamilyInfo.Handle;
 
-                using (var iterator = m_store.NewIterator(columnFamilyHandleToUse))
+                using (var iterator = NewIteratorForGarbageCollection(columnFamilyHandleToUse))
                 {
                     if (startValue != null)
                     {
@@ -857,7 +751,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             private ColumnFamilyInfo GetColumnFamilyInfoSlow(string? columnFamilyName)
             {
-                columnFamilyName = columnFamilyName ?? ColumnFamilies.DefaultName;
+                columnFamilyName ??= ColumnFamilies.DefaultName;
 
                 if (m_columns.TryGetValue(columnFamilyName, out var result))
                 {
@@ -927,8 +821,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 // However, it requires certain options to be set on the column family, so it could be problematic. We
                 // just use a simpler way. Could change if any performance issues arise out of this decision.
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
-                var readOptions = new ReadOptions();
-                readOptions.SetTotalOrderSeek(true);
+                var readOptions = new ReadOptions().SetTotalOrderSeek(true);
 
                 using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
                 {
@@ -954,6 +847,79 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         iterator.Next();
                     }
                 }
+            }
+
+            /// <inheritdoc />
+            public IterateDbContentResult IterateDbContent(
+                Action<Iterator> onNextItem,
+                string? columnFamilyName,
+                byte[]? startValue,
+                CancellationToken token)
+            {
+                return IterateDbContentCore(
+                    iterator =>
+                    {
+                        if (startValue == null || startValue.Length == 0)
+                        {
+                            iterator.SeekToFirst();
+                        }
+                        else
+                        {
+                            iterator.Seek(startValue);
+                        }
+                    },
+                    onNextItem,
+                    columnFamilyName,
+                    token);
+            }
+
+            /// <inheritdoc />
+            public IterateDbContentResult IterateDbContent(
+                Action<Iterator> onNextItem,
+                string? columnFamilyName,
+                string? startValue,
+                CancellationToken token)
+            {
+                return IterateDbContentCore(
+                    iterator =>
+                    {
+                        if (string.IsNullOrEmpty(startValue))
+                        {
+                            iterator.SeekToFirst();
+                        }
+                        else
+                        {
+                            iterator.Seek(startValue);
+                        }
+                    },
+                    onNextItem,
+                    columnFamilyName,
+                    token);
+            }
+
+            private IterateDbContentResult IterateDbContentCore(
+                Action<Iterator> seekIfNeeded,
+                Action<Iterator> onNextItem,
+                string? columnFamilyName,
+                CancellationToken token)
+            {
+                var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+
+                var readOptions = (m_options == null || m_options.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration) ? new ReadOptions().SetTotalOrderSeek(true) : null;
+
+                using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
+                {
+                    seekIfNeeded(iterator);
+
+                    while (iterator.Valid() && !token.IsCancellationRequested)
+                    {
+                        onNextItem(iterator);
+
+                        iterator.Next();
+                    }
+                }
+
+                return new IterateDbContentResult() { ReachedEnd = !token.IsCancellationRequested, Canceled = token.IsCancellationRequested, };
             }
 
             /// <nodoc />

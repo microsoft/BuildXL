@@ -1419,8 +1419,11 @@ namespace BuildXL.Engine
             }
             else if (r.Result == PathExistence.ExistsAsDirectory)
             {
-                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"'{redirectedProfile}' exists as a directory."));
-                return false;
+                if (!FileUtilities.TryRemoveDirectory(redirectedProfile, out int errorCode))
+                {
+                    Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to delete existing directory '{redirectedProfile}' (error code: '{errorCode}')."));
+                    return false;
+                }
             }
 
             try

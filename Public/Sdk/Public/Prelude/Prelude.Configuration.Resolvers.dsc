@@ -21,11 +21,29 @@ interface DScriptResolver extends ResolverBase {
     //@@obsolete
     packages?: File[];
 
-    /** List of modules with respecting path where to look for this module. */
-    modules?: File[];
+    /** List of modules with respecting path where to look for this module or its inlined version. */
+    modules?: (File | InlineModuleDefinition)[];
 
     /** Weather specs under this resolver's root should be evaluated as part of the build. */
     definesBuildExtent?: boolean;
+}
+
+/**
+ * An inline definition of a DScript module which doesn't require a module file to be created
+ */
+interface InlineModuleDefinition {
+
+    /** The module name.
+     * If not provided an internal identified will be assigned. This means the module name will not be known upfront, and
+     * therefore other modules won't be able to reference it
+     */
+    moduleName?: string;
+    
+    /**
+     * The collection of projects that are owned by the module.
+     * If not provided, all the .dsc files in the same folder as the main configuration file will be included
+     */
+    projects?: (Path | File)[];
 }
 
 /**

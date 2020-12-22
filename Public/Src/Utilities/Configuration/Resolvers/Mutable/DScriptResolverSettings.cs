@@ -41,7 +41,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(pathRemapper != null);
 
             Root = pathRemapper.Remap(template.Root);
-            Modules = template.Modules?.Select(pathRemapper.Remap).ToList();
+            Modules = template.Modules?
+                .Select(fileOrInlineModule => RemapModule(fileOrInlineModule, pathRemapper))
+                .ToList();
             Packages = template.Packages?.Select(pathRemapper.Remap).ToList();
         }
 
@@ -49,9 +51,36 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public AbsolutePath Root { get; set; }
 
         /// <inheritdoc />
-        public IReadOnlyList<AbsolutePath> Modules { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> Modules { get; set; }
 
         /// <inheritdoc />
         public IReadOnlyList<AbsolutePath> Packages { get; set; }
+
+        private static DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition> RemapModule(
+            DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition> fileOrInlineModule, 
+            PathRemapper pathRemapper)
+        {
+            var fileOrInlineModuleValue = fileOrInlineModule?.GetValue();
+
+            if (fileOrInlineModuleValue == null)
+            {
+                return null;
+            }
+
+            if (fileOrInlineModuleValue is AbsolutePath path)
+            {
+                return new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(pathRemapper.Remap(path));
+            }
+
+            var inlineModuleDefinition = (IInlineModuleDefinition)fileOrInlineModuleValue;
+
+            var remappedInlineModuleDefinition = new InlineModuleDefinition
+            {
+                ModuleName = inlineModuleDefinition.ModuleName,
+                Projects = inlineModuleDefinition.Projects?.Select(project => pathRemapper.Remap(project)).ToList()
+            };
+
+            return new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(remappedInlineModuleDefinition);
+        }
     }
 }

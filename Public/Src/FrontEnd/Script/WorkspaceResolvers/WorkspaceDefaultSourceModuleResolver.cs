@@ -80,7 +80,7 @@ namespace BuildXL.FrontEnd.Script
         /// <inheritdoc/>
         protected override async Task<bool> DoResolveModuleAsync()
         {
-            var packagePathsBuilder = new List<AbsolutePath>();
+            var packagePathsBuilder = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>();
             var configDirPath = m_defaultDScriptResolverSettings.ConfigFile.GetParent(Context.PathTable);
             var shouldCollectPackages = true;
             var shouldCollectOrphanProjects = true;
@@ -99,7 +99,9 @@ namespace BuildXL.FrontEnd.Script
                 }
 
                 // If list of packages are explicitly specified by users, then they are the packages owned by the configuration.
-                if (!await CheckUserExplicitlySpecifiedPackagesAsync(m_defaultDScriptResolverSettings.Modules, m_defaultDScriptResolverSettings.Packages,
+                var packages = m_defaultDScriptResolverSettings.Packages?.Select(package => 
+                    new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(package)).ToList();
+                if (!await CheckUserExplicitlySpecifiedPackagesAsync(m_defaultDScriptResolverSettings.Modules, packages,
                     m_defaultDScriptResolverSettings.ConfigFile, m_defaultDScriptResolverSettings.ConfigFile))
                 {
                     // Error has been reported.
@@ -107,7 +109,7 @@ namespace BuildXL.FrontEnd.Script
                 }
 
                 // Both cannot be present, already validated
-                var modules = m_defaultDScriptResolverSettings.Modules ?? m_defaultDScriptResolverSettings.Packages;
+                var modules = m_defaultDScriptResolverSettings.Modules ?? packages;
 
                 if (modules != null)
                 {

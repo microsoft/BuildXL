@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -26,9 +27,9 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath Root { get; }
 
         /// <summary>
-        /// Paths to modules, i.e., paths to project files or folders containing package.dsc.
+        /// Paths to modules, i.e., paths to project files or folders containing package.dsc or its inlined version.
         /// </summary>
-        IReadOnlyList<AbsolutePath> Modules { get; }
+        IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> Modules { get; }
 
         /// <summary>
         /// Paths to packages. Legacy field, see <see cref="Modules"/>

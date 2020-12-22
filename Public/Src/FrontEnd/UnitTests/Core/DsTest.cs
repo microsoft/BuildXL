@@ -11,30 +11,28 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using BuildXL.Engine;
-using BuildXL.Pips;
-using BuildXL.Pips.Filter;
-using BuildXL.Pips.Graph;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script.Incrementality;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
-using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Download;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Expressions;
+using BuildXL.FrontEnd.Script.Incrementality;
 using BuildXL.FrontEnd.Script.RuntimeModel;
+using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Tracing;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Filter;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.ViewModel;
+using JetBrains.Annotations;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Utilities;
@@ -47,9 +45,6 @@ using FileType = BuildXL.FrontEnd.Script.FileType;
 using InitializationLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger;
 using LogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
 using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
-using Test.DScript.Workspaces.Utilities;
-using BuildXL.ViewModel;
-using BuildXL.FrontEnd.Download;
 
 namespace Test.BuildXL.FrontEnd.Core
 {
@@ -1222,7 +1217,7 @@ namespace Test.BuildXL.FrontEnd.Core
             {
                 var sourceResolverSettings = new SourceResolverSettings
                 {
-                    Modules = new List<AbsolutePath>(),
+                    Modules = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>(),
                     Kind = KnownResolverKind.DScriptResolverKind
                 };
                 resolverSettings = sourceResolverSettings;

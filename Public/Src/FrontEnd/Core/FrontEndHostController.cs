@@ -1563,7 +1563,8 @@ namespace BuildXL.FrontEnd.Core
                     Name = KnownResolverKind.DefaultSourceResolverKind,
                     Kind = KnownResolverKind.DefaultSourceResolverKind,
                     Root = configFilePath.GetParent(FrontEndContext.PathTable),
-                    Modules = configObject.Modules == null ? null : new List<AbsolutePath>(configObject.Modules),
+                    Modules = configObject.Modules == null ? null : configObject.Modules.Select(module => 
+                        new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(module)).ToList(),
                     Packages = configObject.Packages == null ? null : new List<AbsolutePath>(configObject.Packages),
                     Projects = configObject.Projects == null ? null : new List<AbsolutePath>(configObject.Projects),
                     ConfigFile = configFilePath,

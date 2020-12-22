@@ -311,11 +311,23 @@ namespace BuildXL.FrontEnd.Script.Util
                 }
             }
 
+            
             if (!union.TrySetValue(val))
             {
-                throw new ConversionException(
-                    I($"Value of type '{val.GetType()}' is not one of the expected values of the discriminating union {resultType}"),
-                    context.ErrorContext);
+                // If setting the value failed, let's check if the target admits an AbsolutePath and some of the conversions work (we do this after failing the first time
+                // to rule out the case of a more specific type that may match). This is equivalent to the treatment given to types convertible to absolute paths outside
+                // discriminating unions.
+                if (union.GetAllowedTypes().Contains(typeof(AbsolutePath)) && 
+                    TypeConverter.TryConvertAbsolutePath(val, m_context.PathTable, out AbsolutePath result))
+                {
+                    Contract.Assert(union.TrySetValue(result));
+                }
+                else
+                {
+                    throw new ConversionException(
+                        I($"Value of type '{val.GetType()}' is not one of the expected values of the discriminating union {resultType}"),
+                        context.ErrorContext);
+                }
             }
 
             return union;

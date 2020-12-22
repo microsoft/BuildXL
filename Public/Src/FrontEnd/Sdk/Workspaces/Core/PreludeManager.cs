@@ -69,7 +69,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public static IResolverSettings GetResolverSettingsForBuiltInPrelude(AbsolutePath mainConfigurationFile, PathTable pathTable)
         {
             return new SourceResolverSettings {
-                Modules = new[] { GetPathToPreludeModuleConfiguration(pathTable) },
+                Modules = new[] { 
+                    new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(GetPathToPreludeModuleConfiguration(pathTable)) 
+                },
                 Kind = KnownResolverKind.DScriptResolverKind,
                 Name = "BuiltInPrelude",
                 Location = default(LineInfo),

@@ -106,7 +106,7 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Parses config only for the purpose of getting the configuration object.
         /// </summary>
-        public async Task<Workspace> ParseAndValidateConfigFileAsync(AbsolutePath configPath, bool typecheck)
+        public async Task<Workspace> ParseAndValidateConfigFileAsync(AbsolutePath configPath, bool typecheck, bool validate = true)
         {
             Contract.Requires(configPath.IsValid);
 
@@ -119,7 +119,10 @@ namespace BuildXL.FrontEnd.Script
                 return null;
             }
 
-            ValidateConfigFile(specFileMap[configPath]);
+            if (validate)
+            {
+                ValidateConfigFile(specFileMap[configPath]);
+            }
 
             if (Logger.HasErrors)
             {

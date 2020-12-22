@@ -14,6 +14,7 @@ using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Workspaces.Core.Failures;
@@ -56,7 +57,7 @@ namespace BuildXL.FrontEnd.Script
         /// Source files obtained during configuration processing.
         /// </summary>
         /// <remarks>
-        /// Not null if <see cref="InitPackageFromDescriptorAsync"/> was called and was successful.
+        /// Not null if <see cref="InitPackageFromDescriptorAsync(DiscriminatingUnion{AbsolutePath, IInlineModuleDefinition}, AbsolutePath)"/> was called and was successful.
         /// </remarks>
         private ISourceFile[] m_configurationFiles;
 
@@ -367,16 +368,18 @@ namespace BuildXL.FrontEnd.Script
         /// <nodoc/>
         protected virtual async Task<bool> DoResolveModuleAsync()
         {
-            var packagePaths = new List<AbsolutePath>();
+            var packagePaths = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>();
+            var packages = m_resolverSettings.Packages?.Select(package => 
+                new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(package)).ToList();
 
-            if (!await CheckUserExplicitlySpecifiedPackagesAsync(m_resolverSettings.Modules, m_resolverSettings.Packages, AbsolutePath.Invalid, m_resolverSettings.File))
+            if (!await CheckUserExplicitlySpecifiedPackagesAsync(m_resolverSettings.Modules, packages, AbsolutePath.Invalid, m_resolverSettings.File))
             {
                 // Error has been reported.
                 return false;
             }
 
             // Both cannot be present, already validated
-            var modules = m_resolverSettings.Modules ?? m_resolverSettings.Packages;
+            var modules = m_resolverSettings.Modules ?? packages;
 
             if (modules != null)
             {
@@ -567,7 +570,11 @@ namespace BuildXL.FrontEnd.Script
         /// Validates that explicitly specified packages are correct wrt names and file system location
         /// </summary>
         /// TODO: configPath is always invalid for the case of a regular source resolver (and it is not for the default source resolver). Revise this logic.
-        protected async Task<bool> CheckUserExplicitlySpecifiedPackagesAsync(IReadOnlyList<AbsolutePath> modules, IReadOnlyList<AbsolutePath> packages, AbsolutePath configPath, AbsolutePath loggingLocation)
+        protected async Task<bool> CheckUserExplicitlySpecifiedPackagesAsync(
+            IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> modules, 
+            IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> packages, 
+            AbsolutePath configPath, 
+            AbsolutePath loggingLocation)
         {
             if (modules == null && packages == null)
             {
@@ -586,9 +593,21 @@ namespace BuildXL.FrontEnd.Script
 
             AbsolutePath configDirPath = configPath.IsValid ? configPath.GetParent(PathTable) : AbsolutePath.Invalid;
 
-            Func<AbsolutePath, bool> checkPath =
-                path =>
+            Func<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>, bool> checkPath =
+                pathOrInlineModule =>
                 {
+                    Contract.RequiresNotNull(pathOrInlineModule);
+                    
+                    var pathOrInlineModuleValue = pathOrInlineModule.GetValue();
+
+                    // The 'module configuration file' for an inline module is the main config.dsc file itself,
+                    // so no need to do any of the validations below
+                    if (pathOrInlineModuleValue is IInlineModuleDefinition)
+                    {
+                        return true;
+                    }
+
+                    AbsolutePath path = (AbsolutePath) pathOrInlineModuleValue;
                     Contract.Requires(path.IsValid);
 
                     AbsolutePath packagePathToCheck = GetPackageConfigPath(path);
@@ -623,9 +642,10 @@ namespace BuildXL.FrontEnd.Script
             return await CheckPathsInParallel(packagePaths, checkPath);
         }
 
-        private static Task<bool> CheckPathsInParallel(IReadOnlyList<AbsolutePath> paths, Func<AbsolutePath, bool> checkFunc)
+        private static Task<bool> CheckPathsInParallel(
+            IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> paths, 
+            Func<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>, bool> checkFunc)
         {
-            // TODO: I'm not sure about this pattern.
             return Task.Run(() => paths.AsParallel().Select(checkFunc).All(b => b));
         }
 
@@ -636,7 +656,7 @@ namespace BuildXL.FrontEnd.Script
             IDScriptResolverSettings resolverSettings,
             bool shouldCollectPackage,
             bool shouldCollectOrphanProjects,
-            List<AbsolutePath> packagesBuilder,
+            List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> packagesBuilder,
             List<AbsolutePath> projectsBuilder,
             AbsolutePath outputDirectory,
             bool skipConfigFile)
@@ -657,6 +677,11 @@ namespace BuildXL.FrontEnd.Script
                 return BoolTask.False;
             }
 
+            var inlineModulesDefined = Configuration.Resolvers?.Any(resolver => 
+                resolver is IDScriptResolverSettings dScriptResolver && 
+                dScriptResolver.Modules != null &&
+                dScriptResolver.Modules.Any(module => module.GetValue() is IInlineModuleDefinition)) == true;
+
             Action<Tuple<AbsolutePath, bool>, Action<Tuple<AbsolutePath, bool>>> collect =
                 (directoryPathAndPackageFoundStatus, adder) =>
                 {
@@ -670,14 +695,16 @@ namespace BuildXL.FrontEnd.Script
 
                     bool packageFound = directoryPathAndPackageFoundStatus.Item2;
 
-                    if (IsWellKnownModuleConfigurationFileExists(currentDir, out var moduleConfigFile))
+                    if (IsWellKnownModuleConfigurationFileExists(currentDir, out var moduleConfigFile) || 
+                        // if inline modules are defined, for determining ownership this is equivalent as having a module configuration file alongside the main configuration file
+                        (inlineModulesDefined && currentDir == Configuration.Layout.PrimaryConfigFile.GetParent(PathTable)))
                     {
                         // Only if package and its config/descriptor exist, then we collect the package.
-                        if (shouldCollectPackage)
+                        if (shouldCollectPackage && moduleConfigFile.IsValid)
                         {
                             lock (packagesBuilder)
                             {
-                                packagesBuilder.Add(moduleConfigFile);
+                                packagesBuilder.Add(new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(moduleConfigFile));
                             }
                         }
 
@@ -749,23 +776,22 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Initializes a list of packages
         /// </summary>
-        protected async Task<bool> InitPackagesAsync(IReadOnlyList<AbsolutePath> packagesPaths, AbsolutePath configPath)
+        protected async Task<bool> InitPackagesAsync(IReadOnlyList<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> packagesPathsOrInlined, AbsolutePath configPath)
         {
-            Contract.Requires(packagesPaths != null);
+            Contract.Requires(packagesPathsOrInlined != null);
 
             // qualifierSpaceId is invalid if unspecified.
-            var packagePathSet = new HashSet<AbsolutePath>(packagesPaths);
 #pragma warning disable SA1009 // Closing parenthesis must be spaced correctly
-            var initTasks = new Task<(bool success, Workspace moduleWorkspace)>[packagePathSet.Count];
+            var initTasks = new Task<(bool success, Workspace moduleWorkspace)>[packagesPathsOrInlined.Count];
 #pragma warning restore SA1009 // Closing parenthesis must be spaced correctly
 
             int i = 0;
-            foreach (var packagePath in packagePathSet)
+            foreach (var packagePathOrInlined in packagesPathsOrInlined)
             {
-                var currentPackagePath = packagePath;
+                var currentPackagePathOrInlined = packagePathOrInlined;
 
                 // Per suggestion, create a task to avoid doing things sequential.
-                initTasks[i] = Task.Run(async () => await InitPackageFromDescriptorAsync(currentPackagePath, configPath));
+                initTasks[i] = Task.Run(async () => await InitPackageFromDescriptorAsync(currentPackagePathOrInlined, configPath));
                 ++i;
             }
 
@@ -773,12 +799,55 @@ namespace BuildXL.FrontEnd.Script
             bool result = results.All(x => x.success);
             if (result && results.Length != 0)
             {
-                // All modules were successfully process,
+                // All modules were successfully processed,
                 // we can create a full workspace for all module configs.
                 m_configurationFiles = results.SelectMany(t => t.moduleWorkspace.GetAllSourceFiles()).ToArray();
             }
 
             return result;
+        }
+
+        private Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptorAsync(DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition> pathOrInlined, AbsolutePath configPath)
+        {
+            Contract.RequiresNotNull(pathOrInlined);
+
+            var value = pathOrInlined.GetValue();
+            return value is AbsolutePath path
+                ? InitPackageFromDescriptorAsync(path, configPath)
+                : InitPackageFromDescriptAsync(configPath, (IInlineModuleDefinition)value);
+        }
+
+        private async Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptAsync(AbsolutePath configPath, IInlineModuleDefinition inlineDefinition)
+        {
+            var packageConfiguration = new PackageDescriptor
+            {
+                // Use a random GUID for the module name if not provided 
+                Name = inlineDefinition.ModuleName ?? Guid.NewGuid().ToString(),
+                // The default is V2
+                NameResolutionSemantics = NameResolutionSemantics.ImplicitProjectReferences,
+                Projects = inlineDefinition.Projects,
+            };
+
+            if (!ValidatePackageConfiguration(packageConfiguration, configPath))
+            {
+                return (success: false, moduleWorkspace: null);
+            }
+
+            PackageId packageId = CreatePackageId(packageConfiguration);
+
+            // V2 / implicit name resolution doesn't require a main file for anything other than
+            // defining the root of the package. For implicitly declared packages, we use as root the main config file folder, and use as file name 
+            // "package.config.dsc.{module name}" to avoid potential conflicts with other inlined packages
+            var packageMainFile = configPath.GetParent(PathTable).Combine(PathTable, Names.PackageConfigDsc + "." + packageConfiguration.Name);
+
+            CreatePackageAndUpdatePackageMaps(packageId, packageMainFile, packageConfiguration);
+
+            // For inline modules, we use the main config file as the configuration file that defines the module
+            // But we skip validation since 1) the config file is already validated and 2) the validation here expects
+            // a module configuration file, and that's not the case
+            var nonTypeCheckedWorkspace = await m_configConversionHelper.ParseAndValidateConfigFileAsync(configPath, typecheck: false, validate: false);
+
+            return (success: nonTypeCheckedWorkspace != null, moduleWorkspace: nonTypeCheckedWorkspace);
         }
 
 #pragma warning disable SA1009 // Closing parenthesis must be spaced correctly

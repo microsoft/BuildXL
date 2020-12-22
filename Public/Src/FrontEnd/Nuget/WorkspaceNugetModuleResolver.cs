@@ -28,7 +28,6 @@ using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
-using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -675,7 +674,8 @@ namespace BuildXL.FrontEnd.Nuget
         {
             // We point the embedded resolver to all the downloaded packages that contain a DScript package config file
             var embeddedSpecs = values.Where(nugetPackage => nugetPackage.PackageOnDisk.ModuleConfigFile.IsValid)
-                .Select(nugetPackage => nugetPackage.PackageOnDisk.ModuleConfigFile).ToArray();
+                .Select(nugetPackage => new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
+                    nugetPackage.PackageOnDisk.ModuleConfigFile)).ToArray();
 
             var settings = new SourceResolverSettings { Modules = embeddedSpecs };
 

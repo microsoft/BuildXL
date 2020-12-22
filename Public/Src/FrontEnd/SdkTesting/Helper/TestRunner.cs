@@ -266,7 +266,8 @@ export function test(args: TestArguments): TestResult {{
                     Directory.EnumerateFiles(folder, Names.PackageConfigDsc, SearchOption.AllDirectories).Concat(
                         Directory.EnumerateFiles(folder, Names.ModuleConfigBm, SearchOption.AllDirectories).Concat(
                             Directory.EnumerateFiles(folder, Names.ModuleConfigDsc, SearchOption.AllDirectories))))
-                .Select(packageFile => AbsolutePath.Create(pathTable, packageFile))
+                .Select(packageFile => 
+                    new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(AbsolutePath.Create(pathTable, packageFile)))
                 .ToList();
 
             var configuration =

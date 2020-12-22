@@ -42,7 +42,7 @@ namespace Test.BuildXL.Engine
 
         private InitializationLogger InitializationLogger { get; }
 
-        protected List<AbsolutePath> MainSourceResolverModules { get; private set; }
+        protected List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>> MainSourceResolverModules { get; private set; }
 
         private EngineTestHooksData m_testHooks;
 
@@ -78,7 +78,7 @@ namespace Test.BuildXL.Engine
             var pathTable = new PathTable();
             FileSystem = new PassThroughMutableFileSystem(pathTable);
             Context = EngineContext.CreateNew(CancellationToken.None, pathTable, FileSystem);
-            MainSourceResolverModules = new List<AbsolutePath>();
+            MainSourceResolverModules = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>();
 
             var rootPath = AbsolutePath.Create(Context.PathTable, TestRoot);
             var logsPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "logs");
@@ -96,11 +96,14 @@ namespace Test.BuildXL.Engine
                             new SourceResolverSettings
                             {
                                 Kind = "SourceResolver",
-                                Modules = new List<AbsolutePath>
+                                Modules = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>
                                 {
-                                    AbsolutePath.Create(Context.PathTable, Path.Combine(GetTestExecutionLocation(), "Sdk", "Prelude", "package.config.dsc")),
-                                    AbsolutePath.Create(Context.PathTable, Path.Combine(GetTestExecutionLocation(), "Sdk", "Transformers", "package.config.dsc")),
-                                    AbsolutePath.Create(Context.PathTable, Path.Combine(GetTestExecutionLocation(), "Sdk", "Deployment", "module.config.dsc")),
+                                    new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
+                                        AbsolutePath.Create(Context.PathTable, Path.Combine(GetTestExecutionLocation(), "Sdk", "Prelude", "package.config.dsc"))),
+                                    new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
+                                        AbsolutePath.Create(Context.PathTable, Path.Combine(GetTestExecutionLocation(), "Sdk", "Transformers", "package.config.dsc"))),
+                                    new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
+                                        AbsolutePath.Create(Context.PathTable, Path.Combine(GetTestExecutionLocation(), "Sdk", "Deployment", "module.config.dsc"))),
                                 },
                             },
                         },
@@ -200,9 +203,10 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 new SourceResolverSettings
                 {
                     Kind = "SourceResolver",
-                    Modules = new List<AbsolutePath>
+                    Modules = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>
                               {
-                                  AbsolutePath.Create(Context.PathTable, sdkLocation),
+                                  new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
+                                      AbsolutePath.Create(Context.PathTable, sdkLocation)),
                               },
                 });
         }
@@ -411,7 +415,8 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 File.WriteAllText(filePath, spec.Content);
             }
 
-            MainSourceResolverModules.Add(AbsolutePath.Create(Context.PathTable, moduleConfigFile));
+            MainSourceResolverModules.Add(new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(
+                AbsolutePath.Create(Context.PathTable, moduleConfigFile)));
         }
 
         public void AddFile(string filePath, string fileContents)

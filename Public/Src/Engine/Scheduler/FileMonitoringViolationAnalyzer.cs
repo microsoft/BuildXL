@@ -455,7 +455,7 @@ namespace BuildXL.Scheduler
                             violation.Type,
                             AccessLevel.Write,
                             violation.Path,
-                            (Process)m_graph.HydratePip(violation.ViolatorPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
+                            m_graph.HydratePip(violation.ViolatorPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                             isAllowlistedViolation: false,
                             (Process)m_graph.HydratePip(violation.RelatedPipId.Value, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                             violation.ProcessPath));
@@ -1263,7 +1263,7 @@ namespace BuildXL.Scheduler
                             DependencyViolationType.WriteInUndeclaredSourceRead,
                             AccessLevel.Read,
                             undeclaredRead,
-                            (Process) maybeProducer,
+                            maybeProducer,
                             isAllowlistedViolation: false,
                             related: pip,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
@@ -1311,7 +1311,7 @@ namespace BuildXL.Scheduler
                         continue;
                     }
 
-                    var writer = (Process)m_graph.HydratePip(writerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    var writer = m_graph.HydratePip(writerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
                     
                     // Log a verbose message explaining why the rewrite is not safe
                     LogDisallowedReasonIfNeeded(disallowedReason, writer, undeclaredRead, racyReader);
@@ -1357,8 +1357,8 @@ namespace BuildXL.Scheduler
                     !m_graph.IsReachableFrom(from: result.Item.Value.processPip, to: pip.PipId))
                 {
                     // The writer is always reported as the violator
-                    var writer = (Process) m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
-
+                    var writer = m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteOnAbsentPathProbe,
@@ -1368,7 +1368,7 @@ namespace BuildXL.Scheduler
                             isAllowlistedViolation: false,
                             related: pip,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
-                            writer.Executable.Path));
+                            GetPipDestinationPath(writer)));
                 }
                 else if (!result.IsFound)
                 {
@@ -1553,7 +1553,7 @@ namespace BuildXL.Scheduler
                                     reportedViolations.Add(
                                         ReportReadUndeclaredOutput(
                                             violation.Path,
-                                            consumer: (Process) m_graph.HydratePip(
+                                            consumer: m_graph.HydratePip(
                                                 undeclaredReader,
                                                 PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                                             producer: pip,
@@ -1715,7 +1715,7 @@ namespace BuildXL.Scheduler
             return reportedViolations.ToArray();
         }
 
-        private void LogDisallowedReasonIfNeeded(SameContentRewriteDisallowedReason disallowedReason, Process writerPip, AbsolutePath undeclaredSource, PipId? racyReaderId)
+        private void LogDisallowedReasonIfNeeded(SameContentRewriteDisallowedReason disallowedReason, Pip writerPip, AbsolutePath undeclaredSource, PipId? racyReaderId)
         {
             Contract.Requires(disallowedReason != SameContentRewriteDisallowedReason.SameContentCannotBeGuaranteed || racyReaderId != null);
 
@@ -1741,8 +1741,8 @@ namespace BuildXL.Scheduler
 
         private ReportedViolation ReportReadUndeclaredOutput(
             AbsolutePath violationPath,
-            Process consumer,
-            Process producer,
+            Pip consumer,
+            Pip producer,
             bool isAllowlistedViolation,
             AbsolutePath processPath)
         {
@@ -1772,7 +1772,7 @@ namespace BuildXL.Scheduler
             DependencyViolationType violationType,
             AccessLevel accessLevel,
             AbsolutePath path,
-            Process violator,
+            Pip violator,
             bool isAllowlistedViolation,
             Pip related,
             AbsolutePath processPath)
@@ -1834,7 +1834,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
                     }
@@ -1850,7 +1850,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
                     }
@@ -1879,7 +1879,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
                     }
@@ -1894,7 +1894,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
                     }
@@ -1926,7 +1926,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
                     }
@@ -1941,7 +1941,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
                             related.GetDescription(Context));
                     }
@@ -1968,7 +1968,7 @@ namespace BuildXL.Scheduler
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
-                            violator.WorkingDirectory.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable));
                     }
 
@@ -2034,17 +2034,20 @@ namespace BuildXL.Scheduler
             return ReportViolation(violationType, path, violator, related, processPath, isError);
         }
 
-        private ReportedViolation ReportViolation(DependencyViolationType violationType, AbsolutePath path, Process violator, Pip related, AbsolutePath processPath, bool isError)
+        private ReportedViolation ReportViolation(DependencyViolationType violationType, AbsolutePath path, Pip violator, Pip related, AbsolutePath processPath, bool isError)
         {
+            bool violationMakesPipUncacheable;
+
             // Double write violations deserve special treatment since there is a policy controlling if those should be treated as warnings vs errors,
             // plus the violation may not make the pip uncacheable if running under containers
-            bool violationMakesPipUncacheable;
-            if (violationType == DependencyViolationType.DoubleWrite)
+            // Non-process pips cannot be run in a container, nor can relaxing policies be configured
+            if (violator.PipType == PipType.Process && violationType == DependencyViolationType.DoubleWrite)
             {
+                var violatorProcess = (Process)violator;
                 // In case of a double write, if the the violation path got redirected, then the pip is still cacheable. It is not otherwise.
-                violationMakesPipUncacheable = !IsOutputPathRedirected(violator, path);
+                violationMakesPipUncacheable = !IsOutputPathRedirected(violatorProcess, path);
                 // If the double write policy doesn't make the double write an error (on both pips), then the overall reported violation is not an error
-                if (violator.RewritePolicy.ImpliesDoubleWriteIsWarning() && (!(related.PipType == PipType.Process) || ((Process) related).RewritePolicy.ImpliesDoubleWriteIsWarning()))
+                if (violatorProcess.RewritePolicy.ImpliesDoubleWriteIsWarning() && (!(related.PipType == PipType.Process) || ((Process) related).RewritePolicy.ImpliesDoubleWriteIsWarning()))
                 {
                     isError = false;
                 }
@@ -2089,6 +2092,37 @@ namespace BuildXL.Scheduler
 
             // The path is a declared output file, so the path is redirected if output files were redirected
             return violator.ContainerIsolationLevel.IsolateOutputFiles();
+        }
+
+        /// <summary> Returns the path that a pip is writing to for pip types that perform write operations (Process, WriteFile, and CopyFile). </summary>
+        /// <returns> The destination path as an absolute path. </returns>
+        private AbsolutePath GetPipDestinationPath(Pip pip)
+        {
+            Contract.RequiresNotNull(pip);
+            AbsolutePath path = pip.PipType switch
+            {
+                PipType.Process => ((Process)pip).Executable.Path,
+                PipType.WriteFile => ((WriteFile)pip).Destination.Path.GetParent(Context.PathTable),
+                PipType.CopyFile => ((CopyFile)pip).Destination.Path.GetParent(Context.PathTable),
+                _ => new AbsolutePath(),
+            };
+
+            return path;
+        }
+
+        /// <summary> Gets the working directory of a process pip. </summary>
+        /// <returns> The working directory as a string if the pip is a process, or an empty string for other pip types. </returns>
+        /// <remarks> Since non-process pips don't have a "working directory" we can log these with an empty string </remarks>
+        private string GetProcessWorkingDirectory(Pip pip)
+        {
+            Contract.RequiresNotNull(pip);
+            string workingDirectory = pip.PipType switch
+            {
+                PipType.Process => ((Process)pip).WorkingDirectory.ToString(Context.PathTable),
+                _ => string.Empty
+            };
+
+            return workingDirectory;
         }
 
         private struct UndeclaredAccessors

@@ -167,6 +167,42 @@ namespace Test.BuildXL.Scheduler
             return process;
         }
 
+        /// <summary>
+        /// Adds a fake write file pip that produces to the given destination path.
+        /// </summary>
+        public WriteFile AddWriteFilePip(AbsolutePath destinationPath)
+        {
+            Contract.Requires(destinationPath != null);
+
+            FileArtifact destinationArtifact = FileArtifact.CreateSourceFile(destinationPath).CreateNextWrittenVersion();
+            PipData contents = PipDataBuilder.CreatePipData(m_context.StringTable, " ", PipDataFragmentEscaping.CRuntimeArgumentRules, "content");
+
+            var writeFile = new WriteFile(destinationArtifact, contents, WriteFileEncoding.Utf8, ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(m_context));
+
+            writeFile.PipId = AllocateNextPipId();
+            m_pips.Add(writeFile.PipId, writeFile);
+            m_pathProducers.Add(destinationArtifact, writeFile);
+
+            return writeFile;
+        }
+
+        /// <summary>
+        /// Adds a fake copy file pip that produces to the given destination path.
+        /// </summary>
+        public CopyFile AddCopyFilePip(FileArtifact source, FileArtifact destination)
+        {
+            Contract.Requires(source != null);
+            Contract.Requires(destination != null);
+
+            var copyFile = new CopyFile(source, destination, ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(m_context));
+
+            copyFile.PipId = AllocateNextPipId();
+            m_pips.Add(copyFile.PipId, copyFile);
+            m_pathProducers.Add(destination.Path, copyFile);
+
+            return copyFile;
+        }
+
         private PipId AllocateNextPipId()
         {
             return new PipId((uint)(m_nextPipIdValue++));

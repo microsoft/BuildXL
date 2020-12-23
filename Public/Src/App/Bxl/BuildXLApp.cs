@@ -2462,7 +2462,7 @@ namespace BuildXL
                 percent = (int)(100.0 * numerator / denominator);
             }
 
-            string time = (int)TimeSpan.FromMilliseconds(numerator).TotalSeconds + "sec";
+            string time = TimeSpan.FromMilliseconds(numerator).TotalSeconds + "sec";
             string combined = percent + "% (" + time + ")";
             return new Tuple<int, string, string>(percent, time, combined);
         }

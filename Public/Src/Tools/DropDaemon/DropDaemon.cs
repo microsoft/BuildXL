@@ -21,6 +21,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using Microsoft.ManifestGenerator;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
@@ -555,14 +556,20 @@ namespace Tool.DropDaemon
         {
             Contract.Requires(daemon.DropConfig.EnableBuildManifestCreation == true, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            var bxlResult = await daemon.ApiClient.GenerateBuildManifestData(daemon.DropName);
+            var bxlResult = await daemon.ApiClient.GenerateBuildManifestData(
+                daemon.DropName,
+                daemon.DropConfig.Repo,
+                daemon.DropConfig.Branch,
+                daemon.DropConfig.CommitId,
+                daemon.DropConfig.CloudBuildId);
+
             if (!bxlResult.Succeeded)
             {
                 return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {daemon.DropName}. Failure: {bxlResult.Failure}");
             }
 
             string localFilePath;
-            string buildManifestJsonStr = GenerateBuildManifestFileViaLibrary(daemon, bxlResult.Result);
+            string buildManifestJsonStr = BuildManifestData.GenerateBuildManifestJsonString(bxlResult.Result);
 
             try
             {

@@ -40,6 +40,7 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
+            importFrom("Microsoft.ManifestGenerator").pkg,
             importFrom("Newtonsoft.Json").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
         ],

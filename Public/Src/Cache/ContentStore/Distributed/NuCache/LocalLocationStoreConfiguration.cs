@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -80,6 +81,22 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Configuration object for a local content location database.
         /// </summary>
         public ContentLocationDatabaseConfiguration? Database { get; set; }
+
+        /// <summary>
+        /// A helper method that provides extra information to the compiler regarding whether some properties are null or not.
+        /// </summary>
+        [MemberNotNullWhen(true, nameof(Database))]
+        [MemberNotNullWhen(true, nameof(EventStore))]
+        [MemberNotNullWhen(true, nameof(Checkpoint))]
+        [MemberNotNullWhen(true, nameof(CentralStore))]
+        public bool IsValidForLls()
+        {
+            Contract.Assert(Database != null, "Database must be provided.");
+            Contract.Assert(EventStore != null, "Event store must be provided.");
+            Contract.Assert(Checkpoint != null, "Checkpointing must be provided.");
+            Contract.Assert(CentralStore != null, "Central store must be provided.");
+            return true;
+        }
 
         /// <summary>
         /// Configuration object for a content location event store.

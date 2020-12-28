@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -39,6 +40,8 @@ using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExt
 using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
+#nullable enable annotations
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
@@ -70,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public IGlobalLocationStore GlobalStore { get; }
 
         /// <nodoc />
-        public LocalLocationStoreConfiguration Configuration => _configuration;
+        public LocalLocationStoreConfiguration Configuration { get; }
 
         /// <nodoc />
         public MachineReputationTracker MachineReputationTracker { get; private set; }
@@ -81,8 +84,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal ClusterState ClusterState => GlobalStore.ClusterState;
 
         private readonly IClock _clock;
-
-        private readonly LocalLocationStoreConfiguration _configuration;
 
         internal CheckpointManager CheckpointManager { get; private set; }
 
@@ -111,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly object _pendingProcessCheckpointTaskLock = new object();
 
         private DateTime _lastRestoreTime;
-        private string _lastCheckpointId;
+        private string? _lastCheckpointId;
 
         private int _isReconcileCheckpointRunning;
         private ShortHash? _lastProcessedAddHash;
@@ -120,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly VolatileSet<ShortHash> _reconcileRemoveRecents;
 
         private MachineId? _localMachineId;
-        private ILocalContentStore _localContentStore;
+        private ILocalContentStore? _localContentStore;
         private bool _forceRestoreOnNextProcessState;
 
         private DateTime _lastClusterStateUpdate;
@@ -135,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// This field has two parts: TaskSourceSlim (TaskCompletionSource under the hood) and a boolean flag that is true when the source is linked to
         /// an actual post-initialization task (the flag is true when the postinialization has started).
         /// This is done to make sure the underlying "post initialization task" is never null and we won't get any errors if the client will wait on
-        /// it by callling EnsureInitialized even before StartupAsync method is done.
+        /// it by calling EnsureInitialized even before StartupAsync method is done.
         /// But in some cases we need to know that the post-initialization has not started yet, for instance, in shutdown logic.
         /// </summary>
         private (TaskSourceSlim<BoolResult> tcs, bool postInitializationStarted) _postInitialization = (TaskSourceSlim.Create<BoolResult>(), false);
@@ -162,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.RequiresNotNull(configuration);
 
             _clock = clock;
-            _configuration = configuration;
+            Configuration = configuration;
             GlobalStore = globalStore;
 
             _recentlyAddedHashes = new VolatileSet<ContentHash>(clock);
@@ -171,14 +172,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _reconcileAddRecents = new VolatileSet<ShortHash>(clock);
             _reconcileRemoveRecents = new VolatileSet<ShortHash>(clock);
 
-            ValidateConfiguration(configuration);
+            Contract.Assert(Configuration.IsValidForLls());
 
-            _innerCentralStorage = CreateCentralStorage(_configuration.CentralStore);
+            _innerCentralStorage = CreateCentralStorage(Configuration.CentralStore);
 
             if (Configuration.DistributedCentralStore != null)
             {
                 DistributedCentralStorage = new DistributedCentralStorage(
-                    _configuration.DistributedCentralStore,
+                    Configuration.DistributedCentralStore,
                     new DistributedCentralStorageLocationStoreAdapter(this),
                     copier,
                     fallbackStorage: _innerCentralStorage);
@@ -189,13 +190,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 CentralStorage = _innerCentralStorage;
             }
 
-            configuration.Database.TouchFrequency = configuration.TouchFrequency;
-            Database = ContentLocationDatabase.Create(clock, configuration.Database, () => ClusterState.InactiveMachines);
+            Configuration.Database.TouchFrequency = configuration.TouchFrequency;
+            Database = ContentLocationDatabase.Create(clock, Configuration.Database, () => ClusterState.InactiveMachines);
 
             _machineListSettings = new MachineList.Settings
             {
-                PrioritizeDesignatedLocations = _configuration.MachineListPrioritizeDesignatedLocations,
-                DeprioritizeMaster = _configuration.MachineListDeprioritizeMaster,
+                PrioritizeDesignatedLocations = Configuration.MachineListPrioritizeDesignatedLocations,
+                DeprioritizeMaster = Configuration.MachineListDeprioritizeMaster,
             };
         }
 
@@ -217,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var contents = File.ReadAllText(GetReconcileFilePath(machineId));
             var parts = contents.Split('|');
-            if (parts.Length != 2 || parts[0] != _configuration.GetCheckpointPrefix())
+            if (parts.Length != 2 || parts[0] != Configuration.GetCheckpointPrefix())
             {
                 return false;
             }
@@ -228,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
-            return reconcileTime.Value.IsRecent(_clock.UtcNow, _configuration.LocationEntryExpiry.Multiply(0.75));
+            return reconcileTime.Value.IsRecent(_clock.UtcNow, Configuration.LocationEntryExpiry.Multiply(0.75));
         }
 
         /// <summary>
@@ -238,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (reconciled)
             {
-                File.WriteAllText(GetReconcileFilePath(machineId), $"{_configuration.GetCheckpointPrefix()}|{_clock.UtcNow.ToReadableString()}");
+                File.WriteAllText(GetReconcileFilePath(machineId), $"{Configuration.GetCheckpointPrefix()}|{_clock.UtcNow.ToReadableString()}");
             }
             else
             {
@@ -248,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private string GetReconcileFilePath(MachineId machineId)
         {
-            return (_configuration.Checkpoint.WorkingDirectory / $"reconcileMarker.{machineId.Index}.txt").Path;
+            return (Configuration.Checkpoint.WorkingDirectory / $"reconcileMarker.{machineId.Index}.txt").Path;
         }
 
         /// <summary>
@@ -270,8 +271,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private CentralStorage CreateCentralStorage(CentralStoreConfiguration configuration)
         {
             // TODO: Validate configuration before construction (bug 1365340)
-            Contract.Requires(configuration != null);
-
             switch (configuration)
             {
                 case LocalDiskCentralStoreConfiguration localDiskConfig:
@@ -281,14 +280,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 default:
                     throw new NotSupportedException();
             }
-        }
-
-        private static void ValidateConfiguration(LocalLocationStoreConfiguration configuration)
-        {
-            Contract.Assert(configuration.Database != null, "Database configuration must be provided.");
-            Contract.Assert(configuration.EventStore != null, "Event store configuration must be provided.");
-            Contract.Assert(configuration.Checkpoint != null, "Checkpointing configuration must be provided.");
-            Contract.Assert(configuration.CentralStore != null, "Central store configuration must be provided.");
         }
 
         /// <summary>
@@ -319,17 +310,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 await DistributedCentralStorage.StartupAsync(context).ThrowIfFailure();
             }
 
-            CheckpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, _configuration.Checkpoint, Counters);
+            CheckpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, Configuration.Checkpoint, Counters);
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
 
-            EventStore = CreateEventStore(_configuration, subfolder: "main");
+            EventStore = CreateEventStore(Configuration, subfolder: "main");
 
             await Database.StartupAsync(context).ThrowIfFailure();
 
             await EventStore.StartupAsync(context).ThrowIfFailure();
 
-            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
+            MachineReputationTracker = new MachineReputationTracker(context, _clock, Configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
 
             // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
             var fetchLastMachineStateResult = await GlobalStore.SetLocalMachineStateAsync(context, MachineState.Unknown);
@@ -364,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _postInitialization.tcs.LinkToTask(postInitializationTask);
             _postInitialization.postInitializationStarted = true;
 
-            await postInitializationTask.FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization);
+            await postInitializationTask.FireAndForgetOrInlineAsync(context, Configuration.InlinePostInitialization);
 
             Analysis.IgnoreResult(
                 postInitializationTask.ContinueWith(
@@ -455,7 +446,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
         {
             var operationResult = await RunOutOfBandAsync(
-                _configuration.InlinePostInitialization || inline,
+                Configuration.InlinePostInitialization || inline,
                 ref _pendingProcessCheckpointTask,
                 _pendingProcessCheckpointTaskLock,
                 context.CreateOperation(Tracer, async () =>
@@ -491,7 +482,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Restore if this is a worker and we should restore
                     shouldRestore |= newRole == Role.Worker && ShouldRestoreCheckpoint(context, checkpointState.CheckpointTime).ThrowIfFailure();
 
-                    if (_configuration.MasterThroughputCheckMode)
+                    if (Configuration.MasterThroughputCheckMode)
                     {
                         // Don't restore the checkpoint in the throughput check mode.
                         shouldRestore = false;
@@ -499,7 +490,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (CurrentRole == Role.Master)
                     {
-                        ClusterState.SetMasterMachine(_configuration.PrimaryMachineLocation);
+                        ClusterState.SetMasterMachine(Configuration.PrimaryMachineLocation);
                     }
                     else
                     {
@@ -525,7 +516,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _lastCheckpointTime = _lastRestoreTime;
                     }
 
-                    if (_configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(_configuration.Checkpoint.UpdateClusterStateInterval.Value, _lastClusterStateUpdate))
+                    if (Configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(Configuration.Checkpoint.UpdateClusterStateInterval.Value, _lastClusterStateUpdate))
                     {
                         var updateResult = await UpdateClusterStateAsync(context, machineState: _heartbeatMachineState);
                         if (!updateResult)
@@ -539,7 +530,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Start receiving events from the given checkpoint
                         result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
                     }
-                    else if (_configuration.MasterThroughputCheckMode)
+                    else if (Configuration.MasterThroughputCheckMode)
                     {
                         var cursor = Configuration.EventHubCursorPosition ?? _clock.UtcNow;
                         result = EventStore.StartProcessing(context, new EventSequencePoint(cursor));
@@ -555,10 +546,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return result;
                     }
 
-                    if (newRole == Role.Master && !_configuration.MasterThroughputCheckMode)
+                    if (newRole == Role.Master && !Configuration.MasterThroughputCheckMode)
                     {
                         // Only create a checkpoint if the machine is currently a master machine and was a master machine
-                        if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
+                        if (ShouldSchedule(Configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
                         {
                             result = await CreateCheckpointAsync(context);
                             if (!result)
@@ -587,12 +578,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var now = _clock.UtcNow;
 
             // If we haven't restored for too long, force a restore.
-            if (ShouldSchedule(_configuration.Checkpoint.RestoreCheckpointInterval, _lastRestoreTime, now))
+            if (ShouldSchedule(Configuration.Checkpoint.RestoreCheckpointInterval, _lastRestoreTime, now))
             {
                 return true;
             }
 
-            if (!_configuration.Checkpoint.PacemakerEnabled)
+            if (!Configuration.Checkpoint.PacemakerEnabled)
             {
                 return false;
             }
@@ -605,11 +596,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Contract.Assert(activeMachines >= 1);
 
                 return Result.Success(RestoreCheckpointPacemaker.ShouldRestoreCheckpoint(
-                    _configuration.PrimaryMachineLocation.Data,
-                    _configuration.Checkpoint.PacemakerNumberOfBuckets ?? 0,
+                    Configuration.PrimaryMachineLocation.Data,
+                    Configuration.Checkpoint.PacemakerNumberOfBuckets ?? 0,
                     activeMachines,
                     checkpointCreationTime,
-                    _configuration.Checkpoint.CreateCheckpointInterval));
+                    Configuration.Checkpoint.CreateCheckpointInterval));
             }, messageFactory: r =>
             {
                 if (!r.Succeeded)
@@ -695,7 +686,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (!ShutdownStarted)
                     {
                         // Reseting the timer at the end to avoid multiple calls if it at the same time.
-                        _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
+                        _heartbeatTimer.Change(Configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
                     }
                 }
             }
@@ -715,9 +706,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState, machineState);
                     postGlobalMaxMachineId = ClusterState.MaxMachineId;
 
-                    if (CurrentRole == Role.Master && _configuration.UseBinManager)
+                    if (CurrentRole == Role.Master && Configuration.UseBinManager)
                     {
-                        ClusterState.InitializeBinManagerIfNeeded(locationsPerBin: _configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: _configuration.PreferredLocationsExpiryTime);
+                        ClusterState.InitializeBinManagerIfNeeded(locationsPerBin: Configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: Configuration.PreferredLocationsExpiryTime);
                     }
 
                     _lastClusterStateUpdate = _clock.UtcNow;
@@ -811,24 +802,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // NOTE: _lastRestoreTime will be set since skipping this operation will return successful result.
             var shouldSkipRestore = _lastRestoreTime == default
                 && latestCheckpoint != null
-                && _configuration.Checkpoint.RestoreCheckpointAgeThreshold != default
-                && latestCheckpoint.Value.checkpointTime.IsRecent(_clock.UtcNow, _configuration.Checkpoint.RestoreCheckpointAgeThreshold);
+                && Configuration.Checkpoint.RestoreCheckpointAgeThreshold != default
+                && latestCheckpoint.Value.checkpointTime.IsRecent(_clock.UtcNow, Configuration.Checkpoint.RestoreCheckpointAgeThreshold);
 
-            if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+            if (latestCheckpointAge > Configuration.LocationEntryExpiry)
             {
-                Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+                Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {Configuration.LocationEntryExpiry}");
             }
 
             var latestCheckpointId = latestCheckpoint?.checkpointId ?? "null";
             if (shouldSkipRestore)
             {
-                Tracer.Debug(context, $"First checkpoint {checkpointState} will be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                Tracer.Debug(context, $"First checkpoint {checkpointState} will be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{Configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
                 Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Increment();
                 return BoolResult.Success;
             }
             else if (_lastRestoreTime == default)
             {
-                Tracer.Debug(context, $"First checkpoint {checkpointState} will not be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                Tracer.Debug(context, $"First checkpoint {checkpointState} will not be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{Configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
             }
 
             if (checkpointState.CheckpointAvailable)
@@ -844,9 +835,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Increment();
                     _lastCheckpointId = checkpointState.CheckpointId;
-                    if (_configuration.ReconcileMode == ReconciliationMode.Checkpoint)
+                    if (Configuration.ReconcileMode == ReconciliationMode.Checkpoint)
                     {
-                        await ReconcilePerCheckpointAsync(context).FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization).ThrowIfFailure();
+                        await ReconcilePerCheckpointAsync(context).FireAndForgetOrInlineAsync(context, Configuration.InlinePostInitialization).ThrowIfFailure();
                     }
                 }
                 else
@@ -855,14 +846,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 // Update bin manager in cluster state.
-                if (_configuration.UseBinManager && Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
+                if (Configuration.UseBinManager && Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
                 {
                     var bytes = Convert.FromBase64String(serializedString);
                     var binManagerResult = BinManager.CreateFromSerialized(
                         bytes,
-                        _configuration.ProactiveCopyLocationsThreshold,
+                        Configuration.ProactiveCopyLocationsThreshold,
                         _clock,
-                        _configuration.PreferredLocationsExpiryTime);
+                        Configuration.PreferredLocationsExpiryTime);
                     binManagerResult.TraceIfFailure(context);
 
                     ClusterState.BinManager = binManagerResult.Succeeded ? binManagerResult.Value : null;
@@ -957,8 +948,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         if (TryGetContentLocations(context, hash, out var entry))
                         {
-                            if ((entry.LastAccessTimeUtc.ToDateTime() + _configuration.TouchFrequency < now)
-                                && _recentlyTouchedHashes.Add(hash, _configuration.TouchFrequency))
+                            if ((entry.LastAccessTimeUtc.ToDateTime() + Configuration.TouchFrequency < now)
+                                && _recentlyTouchedHashes.Add(hash, Configuration.TouchFrequency))
                             {
                                 // Entry was not touched recently so no need to send a touch event
                                 touchEventHashes.Add(hash);
@@ -1044,7 +1035,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets content locations for a given <paramref name="hash"/> from a local database.
         /// </summary>
-        private bool TryGetContentLocations(OperationContext context, ContentHash hash, out ContentLocationEntry entry)
+        private bool TryGetContentLocations(OperationContext context, ContentHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
         {
             using (Counters[ContentLocationStoreCounters.DatabaseGet].Start())
             {
@@ -1155,7 +1146,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _postInitialization.tcs.Task;
         }
 
-        private async Task<BoolResult> PrepareForWriteAsync<T>(IReadOnlyCollection<T> hashes)
+        private async Task<BoolResult?> PrepareForWriteAsync<T>(IReadOnlyCollection<T> hashes)
         {
             var postInitializationResult = await EnsureInitializedAsync();
             if (!postInitializationResult)
@@ -1163,7 +1154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return postInitializationResult;
             }
 
-            if (_configuration.DistributedContentConsumerOnly)
+            if (Configuration.DistributedContentConsumerOnly)
             {
                 return BoolResult.Success;
             }
@@ -1176,10 +1167,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return null;
         }
 
-        private bool HasResult(BoolResult possibleResult, out BoolResult result)
+        private bool HasResult(BoolResult? possibleResult, [NotNullWhen(true)]out BoolResult? result)
         {
             result = possibleResult;
-            return possibleResult != null;
+            return result != null;
         }
 
         /// <summary>
@@ -1585,7 +1576,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new ReconciliationResult(new ErrorResult("Local content store is not provided"));
                     }
 
-                    if (_configuration.DistributedContentConsumerOnly || (_configuration.AllowSkipReconciliation && IsReconcileUpToDate(machineId)))
+                    if (Configuration.DistributedContentConsumerOnly || (Configuration.AllowSkipReconciliation && IsReconcileUpToDate(machineId)))
                     {
                         return new ReconciliationResult(addedCount: 0, removedCount: 0, totalLocalContentCount: -1);
                     }
@@ -1617,8 +1608,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     return string.Empty;
                                 }
 
-                                var c = r.Value;
-                                return $"Limit=[{c[ReconciliationCycleCounters.Limit].Value}] Adds=[{c[ReconciliationCycleCounters.Adds].Value}] Deletes=[{c[ReconciliationCycleCounters.Deletes].Value}]";
+                                var counter = r.Value;
+                                return $"Limit=[{counter[ReconciliationCycleCounters.Limit].Value}] Adds=[{counter[ReconciliationCycleCounters.Adds].Value}] Deletes=[{counter[ReconciliationCycleCounters.Deletes].Value}]";
                             }).ThrowIfFailure();
 
                         if (!isFinished)
@@ -1665,7 +1656,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             var addedContent = new List<ShortHashWithSize>();
                             var removedContent = new List<ShortHash>();
 
-                            var removalsOnlyLimit = Configuration.ReconciliationMaxRemoveHashesCycleSize ?? _configuration.ReconciliationMaxCycleSize;
+                            var removalsOnlyLimit = Configuration.ReconciliationMaxRemoveHashesCycleSize ?? Configuration.ReconciliationMaxCycleSize;
                             var maximumAddsOnRemoveBatch = (removalsOnlyLimit * (Configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0)) / 100;
 
                             var limit = Configuration.ReconciliationMaxCycleSize;
@@ -1695,7 +1686,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     // Or using a "re-imaging" (higher) limit otherwise.
                                     if (addedContent.Count >= maximumAddsOnRemoveBatch )
                                     {
-                                        limit = _configuration.ReconciliationMaxCycleSize;
+                                        limit = Configuration.ReconciliationMaxCycleSize;
                                     }
                                     else
                                     {
@@ -1756,7 +1747,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Setting 'FailWhenSendEventsFails' to true, to fail reconciliation if we fail to send the events to event hub.
             // In this case 'ShutdownEventQueueAndWaitForCompletionAsync' will propagate an exception from a failed SendEventsAsync method.
             var reconciliationStoreConfiguration = Configuration with { EventStore = Configuration.EventStore with { FailWhenSendEventsFails = true } };
-            var reconciliationEventStore = CreateEventStore(Configuration, subfolder: "reconcile");
+            var reconciliationEventStore = CreateEventStore(reconciliationStoreConfiguration, subfolder: "reconcile");
 
             try
             {
@@ -1833,7 +1824,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.RequiresNotNull(_localContentStore);
 
             var token = context.Token;
-            if (_configuration.DistributedContentConsumerOnly)
+            if (Configuration.DistributedContentConsumerOnly)
             {
                 return ReconciliationPerCheckpointResult.Skipped();
             }
@@ -1889,18 +1880,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // If we have no previous last reconciled hashes, set it as the first hash
                     startingPoint ??= curHash;
 
-                    if (addedContent.Count >= _configuration.ReconciliationAddLimit && removedContent.Count >= _configuration.ReconciliationRemoveLimit)
+                    if (addedContent.Count >= Configuration.ReconciliationAddLimit && removedContent.Count >= Configuration.ReconciliationRemoveLimit)
                     {
                         break;
                     }
 
-                    if (addedContent.Count < _configuration.ReconciliationAddLimit)
+                    if (addedContent.Count < Configuration.ReconciliationAddLimit)
                     {
                         lastProcessedAddHash = curHash;
                         inAddRange = true;
                     }
 
-                    if (removedContent.Count < _configuration.ReconciliationRemoveLimit)
+                    if (removedContent.Count < Configuration.ReconciliationRemoveLimit)
                     {
                         lastProcessedRemoveHash = curHash;
                         inRemoveRange = true;
@@ -1944,12 +1935,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 // If the add/remove count is below the limits, that means we went through the list looking for add/remove events
                 // Restart from the start of the list for next iteration of reconciliation
-                if (addedContent.Count < _configuration.ReconciliationAddLimit)
+                if (addedContent.Count < Configuration.ReconciliationAddLimit)
                 {
                     lastProcessedAddHash = null;
                 }
 
-                if (removedContent.Count < _configuration.ReconciliationRemoveLimit)
+                if (removedContent.Count < Configuration.ReconciliationRemoveLimit)
                 {
                     lastProcessedRemoveHash = null;
                 }

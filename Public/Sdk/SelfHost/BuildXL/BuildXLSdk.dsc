@@ -420,6 +420,8 @@ export const notNullAttributesFile = f`NotNullAttributes.cs`;
 
  const isExternalInit = f`IsExternalInit.cs`;
 
+ const emptyAppConfig = f`App.config`;
+
 /**
  * Builds and runs an xunit test
  */
@@ -437,6 +439,18 @@ export function cacheTest(args: TestArguments) : TestResult {
             }
         },
     }, args);
+
+    // Adding binding redirects to allow running the tests in the IDE.
+    if (args.assemblyBindingRedirects === undefined) {
+        args = Object.merge<Managed.TestArguments>({
+            assemblyBindingRedirects: cacheBindingRedirects()
+        }, args);
+    }
+
+    if (args.appConfig === undefined) {
+        // Need to add an empty app.config because otherwise the redirects won't have any effects.
+        args = Object.merge<Managed.TestArguments>({appConfig: emptyAppConfig}, args);
+    }
 
     return test(args);
 }
@@ -769,7 +783,6 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         ]
     }, 
     args);
-
 
     return args;
 }

@@ -495,6 +495,13 @@ export function cacheBindingRedirects() {
                 newVersion: "4.0.2.1", // Corresponds to: { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
             },
             {
+                name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.99.99.99",
+                newVersion: "4.2.0.1", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+            },
+            {
                 name: "System.Memory",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",

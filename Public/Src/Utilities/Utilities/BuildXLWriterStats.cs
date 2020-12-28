@@ -33,7 +33,7 @@ namespace BuildXL.Utilities
         public static int GetTypeId(Type type)
         {
             Contract.RequiresNotNull(type);
-            return s_types.GetOrAdd(type, _ => HashCodeHelper.GetOrdinalHashCode(type.FullName));
+            return s_types.GetOrAdd(type, static t => HashCodeHelper.GetOrdinalHashCode(t.FullName));
         }
 
         /// <summary>

@@ -745,11 +745,13 @@ namespace BuildXL.Storage.ChangeTracking
             Possible<FileChangeTrackingSet.ProbeResult> possibleProbeResult = m_changeTrackingSet.TryProbeAndTrackPath(path, isReadOnly: isReadOnly);
 
             return possibleProbeResult.Then(
-                probeResult =>
+                (@this: this, path),
+                static (tpl, probeResult) =>
                 {
+                    var (@this, path) = tpl;
                     if (!probeResult.PossibleTrackingResult.Succeeded)
                     {
-                        DisableTracking(path, probeResult.PossibleTrackingResult.Failure);
+                        @this.DisableTracking(path, probeResult.PossibleTrackingResult.Failure);
                     }
 
                     return probeResult.Existence;

@@ -32,6 +32,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         }
 
         /// <summary>
+        /// A version of <see cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/> that takes a state to avoid closure allocations.
+        /// </summary>
+        /// <remarks>
+        /// This version will allocate enumerator as a normal Select version will, but it helps avoiding a closure allocation for the selector.
+        /// </remarks>
+        public static IEnumerable<TResult> Select<TInput, TState, TResult>(this IEnumerable<TInput> sequence, Func<TInput, TState, TResult> selector, TState state)
+        {
+            foreach (var e in sequence)
+            {
+                yield return selector(e, state);
+            }
+        }
+
+        /// <summary>
         ///     Write all elements to a HashSet.
         /// </summary>
         public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items, IEqualityComparer<T>? comparer = null)

@@ -354,6 +354,16 @@ namespace BuildXL.Utilities.Collections
 
             return new SelectList<T, TResult>(list, selector);
         }
+        
+        /// <summary>
+        /// Creates a projection list over the list using <paramref name="selector"/>
+        /// </summary>
+        public static IReadOnlyList<TResult> SelectList<T, TResult, TState>(this IReadOnlyList<T> list, Func<T, int, TState, TResult> selector, TState state)
+        {
+            Contract.RequiresNotNull(list);
+
+            return new SelectList<T, TResult, TState>(list, selector, state);
+        }
 
         /// <summary>
         /// Modifies the given array in-place such that true-valued and false-valued items (determined by <paramref name="predicate" />) are contiguous rather than intermixed

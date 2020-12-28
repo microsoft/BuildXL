@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         /// <remarks>
         /// Keeping the result of cluster state and not the cluster state instance itself to avoid extra allocations
-        /// from <see cref="Mutate"/> method.
+        /// from <see cref="Mutate{TState}"/> method.
         /// That method returns a result of cluster state and creating a wrapper each time the method is called
         /// generated hundreds of megabytes of traffic a minute.
         ///
@@ -47,10 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly ReadWriteLock _lock = ReadWriteLock.Create();
 
         /// <nodoc />
-        private ClusterState(ClusterStateInternal clusterStateInternal)
-        {
-            ClusterStateInternal = clusterStateInternal;
-        }
+        private ClusterState(ClusterStateInternal clusterStateInternal) => ClusterStateInternal = clusterStateInternal;
 
         /// <nodoc />
         public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> localMachineMappings)
@@ -65,18 +62,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return new ClusterState(default(MachineId), Array.Empty<MachineMapping>());
         }
-
+        
         /// <summary>
         /// Mutates the current cluster state value and returns the new one produced by the callback.
         /// </summary>
         /// <remarks>
         /// The cluster state field is changed only when the callback provides a successful result.
         /// </remarks>
-        private Result<ClusterStateInternal> Mutate(Func<ClusterStateInternal, Result<ClusterStateInternal>> mutation)
+        private Result<ClusterStateInternal> Mutate<TState>(Func<ClusterStateInternal, TState, Result<ClusterStateInternal>> mutation, TState state)
         {
             using var token = _lock.AcquireWriteLock();
 
-            var newClusterState = mutation(ClusterStateInternal.Value!);
+            var newClusterState = mutation(ClusterStateInternal.Value!, state);
             if (!newClusterState.Succeeded)
             {
                 return newClusterState;
@@ -92,81 +89,87 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return action(ClusterStateInternal.Value!);
         }
 
+        /// <nodoc />
+        private TResult Read<TResult, TState>(Func<ClusterStateInternal, TState, TResult> action, TState state)
+        {
+            return action(ClusterStateInternal.Value!, state);
+        }
+
         /// <summary>
         /// The time at which the machine was last in an inactive state
         /// </summary>
-        public DateTime LastInactiveTime { get => Read(c => c.LastInactiveTime); set => Mutate(c => c.With(lastInactiveTime: value)).ThrowIfFailure(); }
+        public DateTime LastInactiveTime { get => Read(static c => c.LastInactiveTime); set => Mutate(static (c, value) => c.With(lastInactiveTime: value), value).ThrowIfFailure(); }
 
         /// <summary>
         /// Max known machine id.
         /// </summary>
-        public int MaxMachineId { get => Read(c => c.MaxMachineId); set => Mutate(c => c.With(maxMachineId: value)).ThrowIfFailure(); }
+        public int MaxMachineId { get => Read(static c => c.MaxMachineId); set => Mutate(static (c, value) => c.With(maxMachineId: value), value).ThrowIfFailure(); }
 
         /// <summary>
         /// The machine id representing the primary CAS instance on the machine. 
         /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
         /// this should correspond to the SSD CAS instance.
         /// </summary>
-        public MachineId PrimaryMachineId { get => Read(c => c.PrimaryMachineId); set => Mutate(c => c.With(primaryMachineId: value)).ThrowIfFailure(); }
+        public MachineId PrimaryMachineId { get => Read(static c => c.PrimaryMachineId); set => Mutate(static (c, value) => c.With(primaryMachineId: value), value).ThrowIfFailure(); }
 
         /// <summary>
         /// Gets a list of machine ids representing unique CAS instances on the current machine
         /// </summary>
-        public IReadOnlyList<MachineMapping> LocalMachineMappings => Read(c => c.LocalMachineMappings);
+        public IReadOnlyList<MachineMapping> LocalMachineMappings => Read(static c => c.LocalMachineMappings);
 
         /// <nodoc />
-        public bool EnableBinManagerUpdates { get => Read(c => c.EnableBinManagerUpdates); set => Mutate(c => c.With(enableBinManagerUpdates: value)).ThrowIfFailure(); }
+        public bool EnableBinManagerUpdates { get => Read(static c => c.EnableBinManagerUpdates); set => Mutate(static (c, value) => c.With(enableBinManagerUpdates: value), value).ThrowIfFailure(); }
 
         /// <nodoc />
-        public MachineId? MasterMachineId => Read(c => c.MasterMachineId);
+        public MachineId? MasterMachineId => Read(static c => c.MasterMachineId);
 
         /// <summary>
         /// Returns a list of inactive machines.
         /// </summary>
-        public IReadOnlyList<MachineId> InactiveMachines => Read(c => c.InactiveMachines);
+        public IReadOnlyList<MachineId> InactiveMachines => Read(static c => c.InactiveMachines);
 
         /// <summary>
         /// Returns a list of closed machines.
         /// </summary>
-        public IReadOnlyList<MachineId> ClosedMachines => Read(c => c.ClosedMachines);
+        public IReadOnlyList<MachineId> ClosedMachines => Read(static c => c.ClosedMachines);
 
         /// <nodoc />
-        public IReadOnlyList<MachineLocation> Locations => Read(c => c.Locations);
+        public IReadOnlyList<MachineLocation> Locations => Read(static c => c.Locations);
 
         /// <summary>
         /// Gets whether a machine is marked inactive
         /// </summary>
-        public bool IsMachineMarkedInactive(MachineId machineId) => Read((clusterState) => clusterState.IsMachineMarkedInactive(machineId));
+        public bool IsMachineMarkedInactive(MachineId machineId) => Read(static (clusterState, machineId) => clusterState.IsMachineMarkedInactive(machineId), machineId);
 
         /// <summary>
         /// Gets whether a machine is marked closed
         /// </summary>
-        public bool IsMachineMarkedClosed(MachineId machineId) => Read((clusterState) => clusterState.IsMachineMarkedClosed(machineId));
+        public bool IsMachineMarkedClosed(MachineId machineId) => Read(static (clusterState, machineId) => clusterState.IsMachineMarkedClosed(machineId), machineId);
 
         /// <nodoc />
-        public BoolResult SetMachineStates(BitMachineIdSet inactiveMachines, BitMachineIdSet? closedMachines = null) => Mutate((clusterState) => clusterState.SetMachineStates(inactiveMachines, closedMachines));
+        public BoolResult SetMachineStates(BitMachineIdSet inactiveMachines, BitMachineIdSet? closedMachines = null) => Mutate(static (clusterState, tpl) => clusterState.SetMachineStates(tpl.inactiveMachines, tpl.closedMachines), (inactiveMachines, closedMachines));
 
         /// <summary>
         /// Marks that a machine with <paramref name="machineId"/> is Active.
         /// </summary>
-        public BoolResult MarkMachineActive(MachineId machineId) => Mutate((clusterState) => clusterState.MarkMachineActive(machineId));
+        public BoolResult MarkMachineActive(MachineId machineId) => Mutate(static (clusterState, machineId) => clusterState.MarkMachineActive(machineId), machineId);
 
         /// <summary>
         /// Sets max known machine id and unknown machines.
         /// </summary>
-        public void AddUnknownMachines(int maxMachineId, Dictionary<MachineId, MachineLocation> unknownMachines) => Mutate((clusterState) => clusterState.AddUnknownMachines(maxMachineId, unknownMachines)).ThrowIfFailure();
+        public void AddUnknownMachines(int maxMachineId, Dictionary<MachineId, MachineLocation> unknownMachines) => Mutate(static (clusterState, tpl) => clusterState.AddUnknownMachines(tpl.maxMachineId, tpl.unknownMachines), (maxMachineId, unknownMachines)).ThrowIfFailure();
 
         /// <summary>
         /// Add a mapping from <paramref name="machineId"/> to <paramref name="machineLocation"/>.
         /// </summary>
-        internal void AddMachine(MachineId machineId, MachineLocation machineLocation) => Mutate((clusterState) => clusterState.AddMachine(machineId, machineLocation)).ThrowIfFailure();
+        internal void AddMachine(MachineId machineId, MachineLocation machineLocation) => Mutate(static (clusterState, tpl) => clusterState.AddMachine(tpl.machineId, tpl.machineLocation), (machineId, machineLocation)).ThrowIfFailure();
 
         /// <summary>
         /// Tries to resolve <see cref="MachineLocation"/> by a machine id (<paramref name="machine"/>).
         /// </summary>
         public bool TryResolve(MachineId machine, out MachineLocation machineLocation)
         {
-            var result = Read((clusterState) => clusterState.TryResolve(machine));
+            var result = Read(static (clusterState, machine) => clusterState.TryResolve(machine), machine);
             machineLocation = result.MachineLocation;
             return result.Succeeded;
         }
@@ -176,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public bool TryResolveMachineId(MachineLocation machineLocation, out MachineId machineId)
         {
-            var result = Read((clusterState) => clusterState.TryResolveMachineId(machineLocation));
+            var result = Read(static (clusterState, machineLocation) => clusterState.TryResolveMachineId(machineLocation), machineLocation);
             machineId = result.MachineId;
             return result.Succeeded;
         }
@@ -184,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a random locations excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except) => Read((clusterState) => clusterState.GetRandomMachineLocation(except));
+        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except) => Read(static (clusterState, except) => clusterState.GetRandomMachineLocation(except), except);
 
         /// <summary>
         /// This should only be used from the master.
@@ -194,12 +197,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets the set of locations designated for a hash. This is relevant for proactive copies and eviction.
         /// </summary>
-        internal Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash, bool includeExpired) => Read((clusterState) => clusterState.GetDesignatedLocations(hash, includeExpired));
+        internal Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash, bool includeExpired) => Read(static (clusterState, tpl) => clusterState.GetDesignatedLocations(tpl.hash, tpl.includeExpired), (hash, includeExpired));
 
         /// <summary>
         /// Gets whether the given machine is a designated location for the hash
         /// </summary>
-        internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired) => Read((clusterState) => clusterState.IsDesignatedLocation(machineId, hash, includeExpired));
+        internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired) => Read(static (clusterState, tpl) => clusterState.IsDesignatedLocation(tpl.machineId, tpl.hash, tpl.includeExpired), ((machineId, hash, includeExpired)));
 
         /// <summary>
         /// Getting or setting an instance of <see cref="BinManager"/>.
@@ -207,16 +210,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         /// The setter is called by the worker machines.
         /// </remarks>
-        public BinManager? BinManager { get => Read(c => c.BinManager); set => Mutate(c => c.With(binManager: value)).ThrowIfFailure(); }
+        public BinManager? BinManager { get => Read(static c => c.BinManager); set => Mutate(static (c, value) => c.With(binManager: value), value).ThrowIfFailure(); }
 
         /// <summary>
         /// Initializes the BinManager if it is required.
         /// </summary>
         /// <remarks>This operation is used only by the master. The worker still may set BinManager via <see cref="BinManager"/> property.</remarks>
-        internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime) => Mutate((clusterState) => clusterState.InitializeBinManagerIfNeeded(locationsPerBin, clock, expiryTime)).ThrowIfFailure();
+        internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime) => Mutate(static (clusterState, tpl) => clusterState.InitializeBinManagerIfNeeded(tpl.locationsPerBin, tpl.clock, tpl.expiryTime), (locationsPerBin, clock, expiryTime)).ThrowIfFailure();
 
         /// <nodoc />
-        internal void SetMasterMachine(MachineLocation producer) => Mutate((clusterState) => clusterState.SetMasterMachine(producer)).ThrowIfFailure();
+        internal void SetMasterMachine(MachineLocation producer) => Mutate(static (clusterState, producer) => clusterState.SetMasterMachine(producer), producer).ThrowIfFailure();
 
         /// <nodoc />
         public int ApproximateNumberOfMachines() => Read((clusterState) => clusterState.ApproximateNumberOfMachines());

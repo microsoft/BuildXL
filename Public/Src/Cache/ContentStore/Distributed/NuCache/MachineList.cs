@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 
 #nullable enable
 
@@ -54,15 +55,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 ResolveLocations();
 
-                return _cachedResolutions.GetOrAdd(_resolvedMachineIds![index], id =>
+                return _cachedResolutions.GetOrAdd(_resolvedMachineIds![index], static (id, @this) =>
                 {
-                    if (_clusterState.TryResolve(id, out var result))
+                    if (@this._clusterState.TryResolve(id, out var result))
                     {
                         return result;
                     }
 
                     throw new InvalidOperationException($"Unable to resolve machine location for machine id '{id}'.");
-                });
+                }, this);
             }
         }
 

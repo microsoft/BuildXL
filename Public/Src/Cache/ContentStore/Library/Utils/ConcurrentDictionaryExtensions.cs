@@ -7,7 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
-    internal static class ConcurrentDictionaryExtensions
+    /// <nodoc />
+    public static class ConcurrentDictionaryExtensions
     {
         /// <summary>
         /// Extension method that allows adding an element into <paramref name="dictionary"/> without allocating a closure.

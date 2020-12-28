@@ -88,10 +88,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         }
 
         /// <nodoc />
-        public static void LogContentLocationOperations(
+        public static void LogContentLocationOperations<TElement>(
             Context context,
             string tracerName,
-            IEnumerable<(IToStringConvertible hash, EntryOperation op, OperationReason reason)> operations)
+            IEnumerable<(TElement hash, EntryOperation op, OperationReason reason)> operations) where TElement : IToStringConvertible
         {
             foreach (var group in operations.GroupBy(t => (t.op, t.reason)))
             {

@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             _schedulerTask = Task.Factory.StartNew(() =>
             {
                 // We don't use TrackShutdown on the provided context because we want to ensure that the scheduler's
-                // cancellation is only dependant on the class being shutdown instead of some random cancellation token
+                // cancellation is only dependent on the class being shutdown instead of some random cancellation token
                 // that we don't control.
                 var schedulerContext = new OperationContext(context, ShutdownStartedCancellationToken);
                 Scheduler(schedulerContext);

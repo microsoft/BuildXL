@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -147,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         var stateChanges = EventHandler.LocationAdded(
                             context,
                             addContent.Sender,
-                            addContent.ContentHashes.SelectList((hash, index) => new ShortHashWithSize(hash, addContent.ContentSizes[index])),
+                            addContent.ContentHashes.SelectList(static (hash, index, addContent) => new ShortHashWithSize(hash, addContent.ContentSizes[index]), addContent),
                             eventData.Reconciling,
                             updateLastAccessTime: addContent.Touch);
                         counters[DatabaseAddedLocations].Add(stateChanges);
@@ -281,7 +282,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         {
                             var operation = GetOperation(e);
                             var reason = e.Reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-                            return e.ContentHashes.Select(hash => ((IToStringConvertible)hash, operation, reason));
+                            return e.ContentHashes.Select(static (hash, tpl) => (hash, tpl.operation, tpl.reason), (operation, reason));
                         }).ToList();
                     LogContentLocationOperations(context, Tracer.Name, operations);
 

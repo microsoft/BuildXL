@@ -185,7 +185,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     if (_configuration.UseContextualEntryOperationLogging)
                     {
-                        foreach (var group in ops.GroupBy(t => t.context, t => (t.entry, t.op, t.reason)))
+                        foreach (var group in ops.GroupBy(static t => t.context, static t => (t.entry, t.op, t.reason)))
                         {
                             LogContentLocationOperations(
                                 group.Key,
@@ -198,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         LogContentLocationOperations(
                             context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: "LogContentLocationOperations"),
                             Tracer.Name,
-                            ops.Select(t => (t.entry, t.op, t.reason)));
+                            ops.Select(static t => (t.entry, t.op, t.reason)));
                     }
 
                     return Unit.VoidTask;
@@ -525,7 +525,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return context.PerformOperation(Tracer,
                 () => GarbageCollectMetadataCore(context),
                 counter: Counters[ContentLocationDatabaseCounters.GarbageCollectMetadata],
-                messageFactory: r => r.Select(r => r.ToString()).GetValueOrDefault(string.Empty)!,
+                messageFactory: result => result.Select(output => output.ToString()).GetValueOrDefault(string.Empty)!,
                 isCritical: true);
         }
 
@@ -815,7 +815,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         protected byte[] SerializeContentLocationEntry(ContentLocationEntry entry)
         {
-            return SerializationPool.Serialize(entry, (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.Serialize(entry, static (instance, writer) => instance.Serialize(writer));
         }
 
         /// <summary>
@@ -825,7 +825,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Please do not convert the delegate to a method group, because this code is called many times
             // and method group allocates a delegate on each conversion to a delegate.
-            return SerializationPool.Deserialize(bytes, reader => ContentLocationEntry.Deserialize(reader));
+            return SerializationPool.Deserialize(bytes, static reader => ContentLocationEntry.Deserialize(reader));
         }
 
         /// <summary>
@@ -840,7 +840,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return SerializationPool.Deserialize(
                 bytes,
                 machineId,
-                (localIndex, reader) =>
+                static (localIndex, reader) =>
                 {
                     // It is very important for this lambda to be non-capturing, because it will be called
                     // many times.

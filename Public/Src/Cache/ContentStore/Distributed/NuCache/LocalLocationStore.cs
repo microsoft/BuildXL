@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -1035,7 +1036,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets content locations for a given <paramref name="hash"/> from a local database.
         /// </summary>
-        private bool TryGetContentLocations(OperationContext context, ContentHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
+        private bool TryGetContentLocations(OperationContext context, ContentHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
         {
             using (Counters[ContentLocationStoreCounters.DatabaseGet].Start())
             {
@@ -1167,7 +1168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return null;
         }
 
-        private bool HasResult(BoolResult? possibleResult, [NotNullWhen(true)]out BoolResult? result)
+        private bool HasResult(BoolResult? possibleResult, [NotNullWhen(true)] out BoolResult? result)
         {
             result = possibleResult;
             return result != null;
@@ -1684,7 +1685,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 {
                                     // Using normal (lower) limit if the number of adds exceeds the threshold.
                                     // Or using a "re-imaging" (higher) limit otherwise.
-                                    if (addedContent.Count >= maximumAddsOnRemoveBatch )
+                                    if (addedContent.Count >= maximumAddsOnRemoveBatch)
                                     {
                                         limit = Configuration.ReconciliationMaxCycleSize;
                                     }
@@ -1793,27 +1794,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Only one iteration of reconciliation should run at a time. Config should be set where two iterations colliding is a rare case
                     // In the rare case we do collide because the old iteration takes longer to run than our restore checkpoint interval, we continue with the previous iteration, and do not call a new one.
                     return ConcurrencyHelper.RunOnceIfNeeded(ref _isReconcileCheckpointRunning,
-                        func: () => {
-                            return ReconcilePerCheckpointCoreAsync(context, _localMachineId.Value, _localContentStore, _lastProcessedAddHash, _lastProcessedRemoveHash);
-                        },
-                        funcIsRunningResultProvider: () =>
-                        {
-                            return Task.FromResult(ReconciliationPerCheckpointResult.Error(new BoolResult("Previous reconciliation cycle still running, new cycle not queued")));
-                        });
+                        func: () => ReconcilePerCheckpointCoreAsync(context, _localMachineId.Value, _localContentStore, _lastProcessedAddHash, _lastProcessedRemoveHash),
+                        funcIsRunningResultProvider: () => Task.FromResult(ReconciliationPerCheckpointResult.Error(new BoolResult("Previous reconciliation cycle still running, new cycle not queued"))));
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
 
-            // We only change state for lastProcessedAddHash or remove if the result succeeded, incase of cancellation, skips, and errors
-            if (result.Code == ReconciliationPerCheckpointResult.ResultCode.Success)
+            // We only change state for lastProcessedAddHash or remove if the result succeeded, in case of cancellation, skips, and errors
+            if (result.IsSuccessCode)
             {
                 // We do not call MarkReconciled, because we do not check whether reconciliation is up to date to skip reconciliation
-                if (result.ReachedEnd)
+                if (result.SuccessData.ReachedEnd)
                 {
                     _heartbeatMachineState = MachineState.Open;
+                    _lastProcessedAddHash = null;
+                    _lastProcessedRemoveHash = null;
                 }
-
-                _lastProcessedAddHash = result.LastProcessedAddHash;
-                _lastProcessedRemoveHash = result.LastProcessedRemoveHash;
+                else
+                {
+                    _lastProcessedAddHash = result.SuccessData.LastProcessedAddHash;
+                    _lastProcessedRemoveHash = result.SuccessData.LastProcessedRemoveHash;
+                }
             }
 
             return result;
@@ -1852,20 +1852,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     startingPoint = lastProcessedRemoveHash;
                 }
 
+                var originalStartingPoint = startingPoint;
                 var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
                 token.ThrowIfCancellationRequested();
 
                 var allLocalStoreContent = allLocalStoreContentInfos
                     .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
                     .OrderBy(c => c.hash)
-                    .SkipWhile(hashWithSize => startingPoint.HasValue && hashWithSize.hash < startingPoint.Value);
+                    // Linq expressions are lazy, need to capture the original value instead of referencing 'startingPoint' here
+                    // that can be changed during enumeration.
+                    .SkipWhile(hashWithSize => originalStartingPoint.HasValue && hashWithSize.hash < originalStartingPoint.Value);
 
-                var allDBContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId, startingPoint);
+                var allDbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId, startingPoint);
                 token.ThrowIfCancellationRequested();
 
                 // Diff the two views of the local machines content (left = local store, right = content location db)
                 // Then send changes as events
-                var allDiffContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: allDBContent, t => t.hash);
+                var allDiffContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: allDbContent, t => t.hash);
 
                 int totalAddedContent = 0, totalRemovedContent = 0, skippedRecentAdds = 0, skippedRecentRemoves = 0;
                 var addedContent = new List<ShortHashWithSize>();
@@ -1965,25 +1968,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         removedContent: removedContent);
                 }
 
-                var sampleHashes = new List<ShortHash>();
+                var sampleHashes = new List<(ShortHash hash, bool add)>(Configuration.ReconcileHashesLogLimit * 2);
 
                 // After sending reconcile events, we do not want to repeat add/remove events for hashes
                 // We need to invalidate after adding to the opposing volatile set, so we don't prevent the hash from being added/removed.
-                foreach(var addItem in addedContent)
+                foreach (var addItem in addedContent)
                 {
                     AddToRecentReconcileAdds(addItem.Hash, Configuration.ReconcileCacheLifetime);
                     if (sampleHashes.Count < Configuration.ReconcileHashesLogLimit)
                     {
-                        sampleHashes.Add(addItem.Hash);
+                        sampleHashes.Add((addItem.Hash, add: true));
                     }
                 }
 
-                foreach(var removeItem in removedContent)
+                var removeSamples = 0;
+                foreach (var removeItem in removedContent)
                 {
                     AddToRecentReconcileRemoves(removeItem, Configuration.ReconcileCacheLifetime);
-                    if (sampleHashes.Count < Configuration.ReconcileHashesLogLimit)
+                    if (removeSamples < Configuration.ReconcileHashesLogLimit)
                     {
-                        sampleHashes.Add(removeItem);
+                        sampleHashes.Add((removeItem, add: false));
+                        removeSamples++;
                     }
                 }
 
@@ -1992,8 +1997,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // finished enumerating the db.
                 token.ThrowIfCancellationRequested();
 
-                return ReconciliationPerCheckpointResult.Success(addedContent.Count, removedContent.Count, totalAddedContent, totalRemovedContent, addHashRange,
-                    removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash, reachedEnd, skippedRecentAdds, skippedRecentRemoves, _reconcileAddRecents.Count, _reconcileRemoveRecents.Count, sampleHashes);
+                var successData = new ReconciliationPerCheckpointData()
+                {
+                    AddsSent = addedContent.Count,
+                    RemovesSent = removedContent.Count,
+                    TotalMissingRecord = totalAddedContent,
+                    TotalMissingContent = totalRemovedContent,
+                    AddHashRange = addHashRange,
+                    RemoveHashRange = removeHashRange,
+                    LastProcessedAddHash = lastProcessedAddHash,
+                    LastProcessedRemoveHash = lastProcessedRemoveHash,
+                    ReachedEnd = reachedEnd,
+                    SkippedRecentAdds = skippedRecentAdds,
+                    SkippedRecentRemoves = skippedRecentRemoves,
+                    RecentAddCount = _reconcileAddRecents.Count,
+                    RecentRemoveCount = _reconcileRemoveRecents.Count,
+                };
+
+                if (sampleHashes.Count != 0)
+                {
+                    Tracer.Debug(context, "SampleHashes: " + sampleHashesToString());
+                }
+
+                return ReconciliationPerCheckpointResult.Success(successData);
+
+                string sampleHashesToString()
+                {
+                    // This method prints sample hashes in the following way:
+                    // SampleHashes: Adds = [hash1, hash2], Removes = [hash3, hash4]
+                    var sb = new StringBuilder();
+                    sb.Append("SampleHashes: ");
+                    sb.Append($"Adds = [{string.Join(", ", sampleHashes.Where(tpl => tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
+                    sb.Append($"Removes = [{string.Join(", ", sampleHashes.Where(tpl => !tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
+
+                    return sb.ToString();
+                }
             }
         }
 
@@ -2151,8 +2189,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Update the entry if the current entry is newer
                     // TODO: Use real versioning scheme for updates to resolve possible race conditions and
                     // issues with time comparison due to clock skew
-                    shouldReplace: oldEntry => 
-                        entry.ContentHashListWithDeterminism.ContentHashList != null 
+                    shouldReplace: oldEntry =>
+                        entry.ContentHashListWithDeterminism.ContentHashList != null
                         && oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc,
                     lastAccessTimeUtc: entry.LastAccessTimeUtc).ToLong();
             }
@@ -2202,7 +2240,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static long ToLong(this bool boolValue) => boolValue ? 1 : 0;
 
         /// <nodoc />
-        public static long ToLong(this Possible<bool> possibleBoolValue) => possibleBoolValue.Succeeded && possibleBoolValue.Result? 1 : 0;
+        public static long ToLong(this Possible<bool> possibleBoolValue) => possibleBoolValue.Succeeded && possibleBoolValue.Result ? 1 : 0;
     }
-
 }

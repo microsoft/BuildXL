@@ -651,6 +651,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (entry == initialEntry)
                     {
+                        if (_configuration.TraceNoStateChangeOperations)
+                        {
+                            NagleOperationTracer?.Enqueue((context, hash, existsOnMachine ? EntryOperation.AddMachineNoStateChange : EntryOperation.RemoveMachineNoStateChange, reason));
+                        }
+                        
                         // The entry is unchanged.
                         return (initialEntry, entryHasChanged: false);
                     }
@@ -670,12 +675,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         NagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
                     }
-
                 }
                 else
                 {
                     if (!existsOnMachine || machine == null)
                     {
+                        if (_configuration.TraceNoStateChangeOperations)
+                        {
+                            NagleOperationTracer?.Enqueue((context, hash, EntryOperation.RemoveOnUnknownMachine, reason));
+                        }
+
                         // Attempting to remove a machine from or touch a missing entry should result in no changes
                         return (ContentLocationEntry.Missing, entryHasChanged: false);
                     }

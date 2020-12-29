@@ -259,6 +259,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             Delete,
             UpdateMetadataEntry,
             RemoveMetadataEntry,
+            AddMachineNoStateChange,
+            RemoveMachineNoStateChange,
+            RemoveOnUnknownMachine
         }
     }
 }

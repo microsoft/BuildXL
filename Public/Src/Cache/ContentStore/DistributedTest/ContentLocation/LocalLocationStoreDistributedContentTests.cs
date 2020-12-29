@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -1481,7 +1480,9 @@ namespace ContentStoreTest.Distributed.Sessions
                         {
                             await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
                         }
-                        while (worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value != addCount || worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Value != removeCount)
+                        
+                        while (worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Value < addCount ||
+                               worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Value < removeCount)
                         {
                             await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
                         }

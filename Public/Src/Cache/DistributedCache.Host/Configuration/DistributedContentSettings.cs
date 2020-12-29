@@ -284,6 +284,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TraceTouches { get; set; } = true;
 
         [DataMember]
+        public bool? TraceNoStateChangeDatabaseOperations { get; set; }
+
+        [DataMember]
         public bool LogReconciliationHashes { get; set; } = false;
 
         /// <summary>

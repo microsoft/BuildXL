@@ -253,12 +253,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public double? ReconciliationMaxRemoveHashesAddPercentage { get; set; } = null;
 
         /// <summary>
-        /// Maximum adds for local content without a record in a reconciliaton cycle when <see cref="ReconcileMode"/> is checkpoint mode
+        /// Maximum adds for local content without a record in a reconciliation cycle when <see cref="ReconcileMode"/> is checkpoint mode
         /// </summary>
         public int? ReconciliationAddLimit { get; set; } = null;
 
         /// <summary>
-        /// Maximum removes for records without local content in a reconciliaton cycle when <see cref="ReconcileMode"/> is checkpoint mode
+        /// Maximum removes for records without local content in a reconciliation cycle when <see cref="ReconcileMode"/> is checkpoint mode
         /// </summary>
         public int? ReconciliationRemoveLimit { get; set; } = null;
 
@@ -325,7 +325,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// The minimum age a candidate for eviction must be older than to be evicted. If the candidate's age is not older
         /// then we simply ignore it for eviction and trace information to help us determine why the candidate is nominated for eviction
-        /// with such a younge age.
+        /// with such a young age.
         /// <remarks>
         /// Default to zero time to allow all candidates to pass, when we want to test for eviction min age we can configure for it.
         /// </remarks>

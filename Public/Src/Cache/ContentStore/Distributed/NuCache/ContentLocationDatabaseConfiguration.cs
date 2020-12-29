@@ -102,6 +102,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Tracing touches is expensive in terms of the amount of traffic to Kusto and in terms of memory traffic.
         /// </summary>
         public bool TraceTouches { get; set; } = true;
+
+        /// <summary>
+        /// Specifies whether to trace the cases when the call to SetMachineExistence didn't change the database's state.
+        /// </summary>
+        public bool TraceNoStateChangeOperations { get; set; } = false;
     }
 
     /// <summary>
@@ -142,10 +147,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public sealed class RocksDbContentLocationDatabaseConfiguration : ContentLocationDatabaseConfiguration
     {
         /// <inheritdoc />
-        public RocksDbContentLocationDatabaseConfiguration(AbsolutePath storeLocation)
-        {
-            StoreLocation = storeLocation;
-        }
+        public RocksDbContentLocationDatabaseConfiguration(AbsolutePath storeLocation) => StoreLocation = storeLocation;
 
         /// <summary>
         /// The directory containing the key-value store.
@@ -246,6 +248,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 LogsBackupPath = logsBackupPath,
             };
 
+            ApplyIfNotNull(settings.TraceNoStateChangeDatabaseOperations, v => configuration.TraceNoStateChangeOperations = v);
+
             ApplyIfNotNull(settings.ContentLocationDatabaseGcIntervalMinutes, v => configuration.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(settings.ContentLocationDatabaseGarbageCollectionConcurrent, v => configuration.GarbageCollectionConcurrent = v);
             ApplyEnumIfNotNull<MetadataGarbageCollectionStrategy>(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy, nameof(settings.ContentLocationDatabaseMetadataGarbageCollectionStrategy), v => configuration.MetadataGarbageCollectionStrategy = v);
@@ -261,6 +265,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 configuration.LogsBackupPath = logsBackupPath;
             }
+            
             ApplyIfNotNull(settings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => configuration.LogsRetention = TimeSpan.FromMinutes(v));
 
             ApplyIfNotNull(settings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => configuration.EnumerateSortedKeysFromStorageBufferSize = v);

@@ -391,7 +391,7 @@ namespace BuildXL.Engine
                     {
                         ExceptionUtilities.HandleRecoverableIOException(
                             () => performFileOperations(tsvFilePath),
-                            ex => handleFailure(tsvFilePath, ex.Message)
+                            ex => throw new BuildXLException("Encountered error performing file operation", ex)
                         );
                     }
                     catch (BuildXLException e)

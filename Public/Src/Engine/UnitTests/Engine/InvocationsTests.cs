@@ -63,6 +63,19 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        public void TestNoFileAccess()
+        {
+            var testFile = GetFile();
+            var invocations = Invocations.CreateForTesting(3, testFile);
+            
+            // No exception should be thrown even if the invocations file cannot be opened
+            using (var fs = new FileStream(testFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                invocations.RecordInvocation(LoggingContext, CreateTestInvocation(2));
+            }
+        }
+
+        [Fact]
         public void TestShrinking()
         {
             var testFile = GetFile();

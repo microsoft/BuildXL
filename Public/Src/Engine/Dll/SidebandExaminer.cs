@@ -147,7 +147,7 @@ namespace BuildXL.Engine
 
                 return Result.CreateForLazyDeletion(extraneousSidebandFiles);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException || ex is OperationCanceledException)
             {
                 Logger.Log.SidebandFileIntegrityCheckThrewException(LoggingContext, ex.ToString());
                 return Result.CreateForEagerDeletion();
@@ -226,10 +226,18 @@ namespace BuildXL.Engine
         /// </summary>
         internal string[] TryReadAllRecordedWrites(IReadOnlyList<string> sidebandFiles)
         {
-            return sidebandFiles
-                .AsParallel(Context)
-                .SelectMany(tryReadSidebandFile)
-                .ToArray();
+            try
+            {
+                return sidebandFiles
+                    .AsParallel(Context)
+                    .SelectMany(tryReadSidebandFile)
+                    .ToArray();
+            }
+            catch (OperationCanceledException)
+            {
+                // No specific handling needed for cancellations. Build session will terminate
+                return CollectionUtilities.EmptyArray<string>();
+            }
 
             IEnumerable<string> tryReadSidebandFile(string filename)
             {
@@ -252,6 +260,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Sets up <see cref="ParallelQuery"/> for a given array and a given configuration.
         /// </summary>
+        /// <exception cref="OperationCanceledException">When the CancellationToken in the <see cref="PipExecutionContext"/> is triggered.</exception>
         public static IEnumerable<T> AsParallel<T>(this IReadOnlyList<T> @this, PipExecutionContext context)
         {
             return @this

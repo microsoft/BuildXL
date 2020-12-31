@@ -244,7 +244,7 @@ namespace BuildXL.Utilities
                 }
                 else
                 {
-                    diskStats = GetDiskCountersMacOS();
+                    diskStats = GetDiskCounters();
                     machineCpu = GetMachineCpuMacOS();
 
                     RamUsageInfo ramUsageInfo = new RamUsageInfo();
@@ -508,13 +508,18 @@ namespace BuildXL.Utilities
                         // Occasionally the handle is disposed even though it's checked against being closed and valid
                         // above. In those cases, just catch the failure and continue on to avoid crashes.
                     }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // This might occur when trying to read drive.driveInfo.TotalSize or drive.driveInfo.AvailableFreeSpace
+                        // for a drive that we don't have permission to access
+                    }
                 }
             }
 
             return diskStats;
         }
 
-        private DiskStats[] GetDiskCountersMacOS()
+        private DiskStats[] GetDiskCounters()
         {
             DiskStats[] stats = new DiskStats[m_drives.Length];
             for (int i = 0; i < m_drives.Length; i++)
@@ -526,6 +531,11 @@ namespace BuildXL.Utilities
                 catch (IOException)
                 {
                     // No stats for DriveNotFoundException. Leave the struct as uninitialized and it will be marked as invalid.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // This might occur when trying to read drive.driveInfo.TotalSize or drive.driveInfo.AvailableFreeSpace
+                    // for a drive that we don't have permission to access
                 }
             }
             return stats;

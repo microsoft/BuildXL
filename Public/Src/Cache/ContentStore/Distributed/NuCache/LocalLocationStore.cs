@@ -120,6 +120,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private ShortHash? _lastProcessedRemoveHash;
         private readonly VolatileSet<ShortHash> _reconcileAddRecents;
         private readonly VolatileSet<ShortHash> _reconcileRemoveRecents;
+        private Task<ReconciliationPerCheckpointResult> _pendingReconciliationTask = Task.FromResult<ReconciliationPerCheckpointResult>(null);
+        private CancellationTokenSource _reconciliationTokenSource = new CancellationTokenSource();
 
         private MachineId? _localMachineId;
         private ILocalContentStore? _localContentStore;
@@ -402,6 +404,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     result &= postInitializationResult;
                 }
             }
+
+            // Cancel any ongoing reconciliation cycles, and has to be before we set the machine state as closed, because reconciliation completion can set the state as open.
+            await CancelCurrentReconciliationAsync();
 
             _heartbeatMachineState = MachineState.Closed;
 
@@ -838,7 +843,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _lastCheckpointId = checkpointState.CheckpointId;
                     if (Configuration.ReconcileMode == ReconciliationMode.Checkpoint)
                     {
-                        await ReconcilePerCheckpointAsync(context).FireAndForgetOrInlineAsync(context, Configuration.InlinePostInitialization).ThrowIfFailure();
+                        await CancelCurrentReconciliationAsync();
+
+                        if (Configuration.InlinePostInitialization)
+                        {
+                            await ReconcilePerCheckpointAsync(context, _reconciliationTokenSource.Token).ThrowIfFailure();
+                        }
+                        else
+                        {
+                            _pendingReconciliationTask = ReconcilePerCheckpointAsync(context, _reconciliationTokenSource.Token).FireAndForgetAndReturnTask(context);
+                        }
                     }
                 }
                 else
@@ -862,6 +876,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return BoolResult.Success;
+        }
+
+        // We acknowledge this function is not multithread safe, but do not aniticipate this being a problem, since checkpoints should not be restored in multiple occurrences.
+        private async Task CancelCurrentReconciliationAsync()
+        {
+            _reconciliationTokenSource.Cancel();
+
+            // We are aware that if <see cref="_pendingReconciliationTask"/> fails this could throw an exception.
+            // The task shouldn't fail though, a failure would most likely indicate a bug.
+            _ = await _pendingReconciliationTask;
+            Volatile.Write(ref _reconciliationTokenSource, new CancellationTokenSource());
         }
 
         /// <summary>
@@ -1782,7 +1807,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Forces reconciliation process between local content store and LLS.
         /// </summary>
-        public async Task<ReconciliationPerCheckpointResult> ReconcilePerCheckpointAsync(OperationContext context)
+        public async Task<ReconciliationPerCheckpointResult> ReconcilePerCheckpointAsync(OperationContext context, CancellationToken reconcileToken)
         {
             Contract.RequiresNotNull(_localMachineId);
             Contract.RequiresNotNull(_localContentStore);
@@ -1794,7 +1819,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Only one iteration of reconciliation should run at a time. Config should be set where two iterations colliding is a rare case
                     // In the rare case we do collide because the old iteration takes longer to run than our restore checkpoint interval, we continue with the previous iteration, and do not call a new one.
                     return ConcurrencyHelper.RunOnceIfNeeded(ref _isReconcileCheckpointRunning,
-                        func: () => ReconcilePerCheckpointCoreAsync(context, _localMachineId.Value, _localContentStore, _lastProcessedAddHash, _lastProcessedRemoveHash),
+                        func: () => ReconcilePerCheckpointCoreAsync(context, reconcileToken, _localMachineId.Value, _localContentStore, _lastProcessedAddHash, _lastProcessedRemoveHash),
                         funcIsRunningResultProvider: () => Task.FromResult(ReconciliationPerCheckpointResult.Error(new BoolResult("Previous reconciliation cycle still running, new cycle not queued"))));
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
@@ -1819,42 +1844,50 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return result;
         }
 
-        private async Task<ReconciliationPerCheckpointResult> ReconcilePerCheckpointCoreAsync(OperationContext context, MachineId machineId, ILocalContentStore localContentStore, ShortHash? lastProcessedAddHash, ShortHash? lastProcessedRemoveHash)
+        private async Task<ReconciliationPerCheckpointResult> ReconcilePerCheckpointCoreAsync(OperationContext context, CancellationToken reconcileToken, MachineId machineId, ILocalContentStore localContentStore, ShortHash? lastProcessedAddHash, ShortHash? lastProcessedRemoveHash)
         {
             Contract.RequiresNotNull(_localContentStore);
 
-            var token = context.Token;
+            using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, reconcileToken);
+            var token = tokenSource.Token;
             if (Configuration.DistributedContentConsumerOnly)
             {
                 return ReconciliationPerCheckpointResult.Skipped();
             }
 
-            token.ThrowIfCancellationRequested();
+            int totalAddedContent = 0, totalRemovedContent = 0, skippedRecentAdds = 0, skippedRecentRemoves = 0;
+            var addedContent = new List<ShortHashWithSize>();
+            var removedContent = new List<ShortHash>();
+            var reachedEnd = false;
 
-            // Pause events in main event store while sending reconciliation events via temporary event store
-            // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
-            // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
-            // It is possible that remove event could be sent before reconciliation event and the final state
-            // in the database would still have missing content [A].
-            using (EventStore.PauseSendingEvents())
+            ShortHash? startingPoint = null;
+            if (lastProcessedAddHash.HasValue && lastProcessedRemoveHash.HasValue)
             {
-                ShortHash? startingPoint = null;
-                if (lastProcessedAddHash.HasValue && lastProcessedRemoveHash.HasValue)
-                {
-                    startingPoint = lastProcessedAddHash < lastProcessedRemoveHash ? lastProcessedAddHash : lastProcessedRemoveHash;
-                }
-                else if (lastProcessedAddHash.HasValue)
-                {
-                    startingPoint = lastProcessedAddHash;
-                }
-                else if (lastProcessedRemoveHash.HasValue)
-                {
-                    startingPoint = lastProcessedRemoveHash;
-                }
+                startingPoint = lastProcessedAddHash < lastProcessedRemoveHash ? lastProcessedAddHash : lastProcessedRemoveHash;
+            }
+            else if (lastProcessedAddHash.HasValue)
+            {
+                startingPoint = lastProcessedAddHash;
+            }
+            else if (lastProcessedRemoveHash.HasValue)
+            {
+                startingPoint = lastProcessedRemoveHash;
+            }
 
-                var originalStartingPoint = startingPoint;
-                var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
+            try
+            {
                 token.ThrowIfCancellationRequested();
+
+                // Pause events in main event store while sending reconciliation events via temporary event store
+                // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
+                // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
+                // It is possible that remove event could be sent before reconciliation event and the final state
+                // in the database would still have missing content [A].
+                using (EventStore.PauseSendingEvents())
+                {
+                    var originalStartingPoint = startingPoint;
+                    var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
+                    token.ThrowIfCancellationRequested();
 
                 var allLocalStoreContent = allLocalStoreContentInfos
                     .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
@@ -1870,18 +1903,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Then send changes as events
                 var allDiffContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: allDbContent, t => t.hash);
 
-                int totalAddedContent = 0, totalRemovedContent = 0, skippedRecentAdds = 0, skippedRecentRemoves = 0;
-                var addedContent = new List<ShortHashWithSize>();
-                var removedContent = new List<ShortHash>();
+                    foreach (var diffItem in allDiffContent)
+                    {
+                        var inAddRange = false;
+                        var inRemoveRange = false;
+                        var curHash = diffItem.item.hash;
 
-                foreach (var diffItem in allDiffContent)
-                {
-                    var inAddRange = false;
-                    var inRemoveRange = false;
-                    var curHash = diffItem.item.hash;
-
-                    // If we have no previous last reconciled hashes, set it as the first hash
-                    startingPoint ??= curHash;
+                        // If we have no previous last reconciled hashes, set it as the first hash
+                        startingPoint ??= curHash;
 
                     if (addedContent.Count >= Configuration.ReconciliationAddLimit && removedContent.Count >= Configuration.ReconciliationRemoveLimit)
                     {
@@ -1900,138 +1929,162 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         inRemoveRange = true;
                     }
 
-                    if (diffItem.mode == MergeMode.LeftOnly)
-                    {
-                        totalAddedContent += 1;
-                        if (inAddRange)
+                        if (diffItem.mode == MergeMode.LeftOnly)
                         {
-                            if (!_reconcileAddRecents.Contains(curHash))
+                            totalAddedContent += 1;
+                            if (inAddRange)
                             {
-                                addedContent.Add(new ShortHashWithSize(curHash, diffItem.item.size));
-                            }
-                            else
-                            {
-                                skippedRecentAdds++;
+                                if (!_reconcileAddRecents.Contains(curHash))
+                                {
+                                    addedContent.Add(new ShortHashWithSize(curHash, diffItem.item.size));
+                                }
+                                else
+                                {
+                                    skippedRecentAdds++;
+                                }
                             }
                         }
-                    }
-                    else if (diffItem.mode == MergeMode.RightOnly)
-                    {
-                        totalRemovedContent += 1;
-                        if (inRemoveRange)
+                        else if (diffItem.mode == MergeMode.RightOnly)
                         {
-                            if (!_reconcileRemoveRecents.Contains(curHash))
+                            totalRemovedContent += 1;
+                            if (inRemoveRange)
                             {
-                                removedContent.Add(curHash);
-                            }
-                            else
-                            {
-                                skippedRecentRemoves++;
+                                if (!_reconcileRemoveRecents.Contains(curHash))
+                                {
+                                    removedContent.Add(curHash);
+                                }
+                                else
+                                {
+                                    skippedRecentRemoves++;
+                                }
                             }
                         }
+
+                        token.ThrowIfCancellationRequested();
                     }
-                }
 
-                var addHashRange = $"{startingPoint}-{lastProcessedAddHash}";
-                var removeHashRange = $"{startingPoint}-{lastProcessedRemoveHash}";
-                var reachedEnd = false;
+                    (var addHashRange, var removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
 
-                // If the add/remove count is below the limits, that means we went through the list looking for add/remove events
-                // Restart from the start of the list for next iteration of reconciliation
-                if (addedContent.Count < Configuration.ReconciliationAddLimit)
-                {
-                    lastProcessedAddHash = null;
-                }
-
-                if (removedContent.Count < Configuration.ReconciliationRemoveLimit)
-                {
-                    lastProcessedRemoveHash = null;
-                }
-
-                // If we reached the end we will set machine state as available, because we completed add and remove events
-                if (lastProcessedAddHash == null && lastProcessedRemoveHash == null)
-                {
-                    reachedEnd = true;
-                }
-
-                Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
-                Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
-
-                // Only call reconcile if content needs to be updated for machine
-                if (addedContent.Count != 0 || removedContent.Count != 0)
-                {
-                    await SendReconciliationEventsAsync(
-                        context,
-                        suffix: $".{_clock.UtcNow:yyyyMMdd.HHmm}.{Guid.NewGuid()}",
-                        machineId: machineId,
-                        addedContent: addedContent,
-                        removedContent: removedContent);
-                }
-
-                var sampleHashes = new List<(ShortHash hash, bool add)>(Configuration.ReconcileHashesLogLimit * 2);
-
-                // After sending reconcile events, we do not want to repeat add/remove events for hashes
-                // We need to invalidate after adding to the opposing volatile set, so we don't prevent the hash from being added/removed.
-                foreach (var addItem in addedContent)
-                {
-                    AddToRecentReconcileAdds(addItem.Hash, Configuration.ReconcileCacheLifetime);
-                    if (sampleHashes.Count < Configuration.ReconcileHashesLogLimit)
+                    // If the add/remove count is below the limits, that means we went through the list looking for add/remove events
+                    // Restart from the start of the list for next iteration of reconciliation
+                    if (addedContent.Count < Configuration.ReconciliationAddLimit)
                     {
-                        sampleHashes.Add((addItem.Hash, add: true));
+                        lastProcessedAddHash = null;
                     }
-                }
 
-                var removeSamples = 0;
-                foreach (var removeItem in removedContent)
-                {
-                    AddToRecentReconcileRemoves(removeItem, Configuration.ReconcileCacheLifetime);
-                    if (removeSamples < Configuration.ReconcileHashesLogLimit)
+                    if (removedContent.Count < Configuration.ReconciliationRemoveLimit)
                     {
-                        sampleHashes.Add((removeItem, add: false));
-                        removeSamples++;
+                        lastProcessedRemoveHash = null;
                     }
+
+                    // If we reached the end we will set machine state as available, because we completed add and remove events
+                    if (lastProcessedAddHash == null && lastProcessedRemoveHash == null)
+                    {
+                        reachedEnd = true;
+                    }
+
+                    return await SendReconcileEventsAfterEnumerationAsync(context, machineId, addHashRange, removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash,
+                        totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd);
+                }
+            }
+            catch (OperationCanceledException e)
+            {
+                _ = e;
+                if (reconcileToken.IsCancellationRequested)
+                {
+                    (var addHashRange, var removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
+
+                    return await SendReconcileEventsAfterEnumerationAsync(context, machineId, addHashRange, removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash,
+                        totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd, reconcileCancelled: true);
                 }
 
-                // Need to ensure we don't mark the reconcile as complete if canceled (i.e. during shutdown). Cancellation will
-                // terminate db enumeration without throwing so we need to check explicitly here so we don't think the operation
-                // finished enumerating the db.
-                token.ThrowIfCancellationRequested();
+                throw;
+            }
 
-                var successData = new ReconciliationPerCheckpointData()
-                {
-                    AddsSent = addedContent.Count,
-                    RemovesSent = removedContent.Count,
-                    TotalMissingRecord = totalAddedContent,
-                    TotalMissingContent = totalRemovedContent,
-                    AddHashRange = addHashRange,
-                    RemoveHashRange = removeHashRange,
-                    LastProcessedAddHash = lastProcessedAddHash,
-                    LastProcessedRemoveHash = lastProcessedRemoveHash,
-                    ReachedEnd = reachedEnd,
-                    SkippedRecentAdds = skippedRecentAdds,
-                    SkippedRecentRemoves = skippedRecentRemoves,
-                    RecentAddCount = _reconcileAddRecents.Count,
-                    RecentRemoveCount = _reconcileRemoveRecents.Count,
-                };
+            (string addHashRange, string removeHashRange) computeHashRanges(ShortHash? startingPoint, ShortHash? lastProcessedAddHash, ShortHash? lastProcessedRemoveHash)
+            {
+                var addHashRange = $"{startingPoint} - {lastProcessedAddHash}";
+                var removeHashRange = $"{startingPoint} - {lastProcessedRemoveHash}";
+                return (addHashRange, removeHashRange);
+            }
+        }
 
-                if (sampleHashes.Count != 0)
+        private async Task<ReconciliationPerCheckpointResult> SendReconcileEventsAfterEnumerationAsync(OperationContext context, MachineId machineId, string addHashRange, string removeHashRange, ShortHash? lastProcessedAddHash, ShortHash? lastProcessedRemoveHash,
+            int totalAddedContent, int totalRemovedContent, int skippedRecentAdds, int skippedRecentRemoves, List<ShortHashWithSize> addedContent, List<ShortHash> removedContent, bool reachedEnd, bool reconcileCancelled = false)
+        {
+            Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
+            Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
+
+            // Only call reconcile if content needs to be updated for machine
+            if (addedContent.Count != 0 || removedContent.Count != 0)
+            {
+                await SendReconciliationEventsAsync(
+                    context,
+                    suffix: $".{_clock.UtcNow:yyyyMMdd.HHmm}.{Guid.NewGuid()}",
+                    machineId: machineId,
+                    addedContent: addedContent,
+                    removedContent: removedContent);
+            }
+
+            var sampleHashes = new List<(ShortHash hash, bool add)>(Configuration.ReconcileHashesLogLimit * 2);
+
+            // After sending reconcile events, we do not want to repeat add/remove events for hashes
+            // We need to invalidate after adding to the opposing volatile set, so we don't prevent the hash from being added/removed.
+            foreach (var addItem in addedContent)
+            {
+                AddToRecentReconcileAdds(addItem.Hash, Configuration.ReconcileCacheLifetime);
+                if (sampleHashes.Count < Configuration.ReconcileHashesLogLimit)
                 {
-                    Tracer.Debug(context, "SampleHashes: " + sampleHashesToString());
+                    sampleHashes.Add((addItem.Hash, add: true));
                 }
+            }
 
-                return ReconciliationPerCheckpointResult.Success(successData);
-
-                string sampleHashesToString()
+            var removeSamples = 0;
+            foreach (var removeItem in removedContent)
+            {
+                AddToRecentReconcileRemoves(removeItem, Configuration.ReconcileCacheLifetime);
+                if (removeSamples < Configuration.ReconcileHashesLogLimit)
                 {
-                    // This method prints sample hashes in the following way:
-                    // SampleHashes: Adds = [hash1, hash2], Removes = [hash3, hash4]
-                    var sb = new StringBuilder();
-                    sb.Append("SampleHashes: ");
-                    sb.Append($"Adds = [{string.Join(", ", sampleHashes.Where(tpl => tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
-                    sb.Append($"Removes = [{string.Join(", ", sampleHashes.Where(tpl => !tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
-
-                    return sb.ToString();
+                    sampleHashes.Add((removeItem, add: false));
+                    removeSamples++;
                 }
+            }
+
+            var successData = new ReconciliationPerCheckpointData()
+            {
+                AddsSent = addedContent.Count,
+                RemovesSent = removedContent.Count,
+                TotalMissingRecord = totalAddedContent,
+                TotalMissingContent = totalRemovedContent,
+                AddHashRange = addHashRange,
+                RemoveHashRange = removeHashRange,
+                LastProcessedAddHash = lastProcessedAddHash,
+                LastProcessedRemoveHash = lastProcessedRemoveHash,
+                ReachedEnd = reachedEnd,
+                SkippedRecentAdds = skippedRecentAdds,
+                SkippedRecentRemoves = skippedRecentRemoves,
+                RecentAddCount = _reconcileAddRecents.Count,
+                RecentRemoveCount = _reconcileRemoveRecents.Count,
+                Cancelled = reconcileCancelled,
+            };
+
+            if (sampleHashes.Count != 0)
+            {
+                Tracer.Debug(context, "SampleHashes: " + sampleHashesToString());
+            }
+
+            return ReconciliationPerCheckpointResult.Success(successData);
+
+            string sampleHashesToString()
+            {
+                // This method prints sample hashes in the following way:
+                // SampleHashes: Adds = [hash1, hash2], Removes = [hash3, hash4]
+                var sb = new StringBuilder();
+                sb.Append("SampleHashes: ");
+                sb.Append($"Adds = [{string.Join(", ", sampleHashes.Where(tpl => tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
+                sb.Append($"Removes = [{string.Join(", ", sampleHashes.Where(tpl => !tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
+
+                return sb.ToString();
             }
         }
 

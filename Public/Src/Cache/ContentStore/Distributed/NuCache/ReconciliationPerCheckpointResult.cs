@@ -72,6 +72,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public int RecentRemoveCount { get; init; }
 
+        /// <summary>
+        /// Flag of whether we deliberately called cancel on reconciliation due to a new checkpoint arriving.
+        /// </summary>
+        public bool Cancelled { get; init; }
+
         /// <inheritdoc />
         public override string ToString()
         {

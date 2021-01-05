@@ -47,7 +47,7 @@ module({
             var configurationModule = result.ConfigurationModule;
             Assert.NotNull(configurationModule);
 
-            Assert.Equal(4, configurationModule.Specs.Count);
+            Assert.Equal(5, configurationModule.Specs.Count);
             Assert.True(configurationModule.Specs.Any(kv => kv.Value.ToDisplayStringV2().Contains("name: 'Pack1'")));
             Assert.True(configurationModule.Specs.Any(kv => kv.Value.ToDisplayStringV2().Contains("name: 'Pack2'")));
             Assert.True(configurationModule.Specs.Any(kv => kv.Value.ToDisplayStringV2().Contains("name: \"Sdk.Prelude\"")));

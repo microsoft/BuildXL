@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
@@ -1151,7 +1152,15 @@ namespace BuildXL.FrontEnd.Core
                 initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, workspaceResolver);
             }
 
-            var results = await TaskUtilities.SafeWhenAll(initResolverTasks);
+            var results = await TaskUtilities.WithCancellationHandlingAsync(
+                FrontEndContext.LoggingContext,
+                TaskUtilities.SafeWhenAll(initResolverTasks),
+                m_logger.FrontEndBuildWorkspacePhaseCanceled,
+                // If any task gets cancelled, return a single false result just to make sure we exit
+                // properly
+                new[] { false },
+                FrontEndContext.CancellationToken);
+
             if (results.Any(r => !r))
             {
                 // Error should have been reported.
@@ -1274,6 +1283,13 @@ namespace BuildXL.FrontEnd.Core
 
                     i++;
                 }
+            }
+
+            // If configured, add an implicit DScript resolver that owns all in-box SDKs deployed
+            // alongside bxl binaries
+            if (TryCreateInBoxSDKResolver(configFilePath, out IDScriptResolverSettings settings))
+            {
+                resolverSettings.Add(settings);
             }
 
             if (!existExplicitDefaultSourceResolver)
@@ -1572,6 +1588,62 @@ namespace BuildXL.FrontEnd.Core
             }
 
             return m_defaultDScriptResolverSettings;
+        }
+
+        private bool TryCreateInBoxSDKResolver(AbsolutePath configFilePath, out IDScriptResolverSettings settings)
+        {
+            // Check first whether the inbox sdk resolver is disabled
+            // Some tests don't have BuildEngineDirectory properly populated
+            if (Configuration.DisableInBoxSdkSourceResolver() || !Configuration.Layout.BuildEngineDirectory.IsValid)
+            {
+                settings = null;
+                return false;
+            }
+
+            // CODESYNC: Public\Src\App\Deployment.InBoxSdks.dsc
+            string inBoxSdkRoot = Configuration.Layout.BuildEngineDirectory.Combine(PathTable, "Sdk").ToString(PathTable);
+
+            // For some tests the folder does not exist
+            if (!Directory.Exists(inBoxSdkRoot))
+            {
+                settings = null;
+                return false;
+            }
+
+            var modules = new List<DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>>();
+            // Enumerate all top level folders (excluding the prelude)
+            foreach (string sdkFolder in Directory.EnumerateDirectories(inBoxSdkRoot)
+                .Where(sdkFolder => !(Path.GetFileName(sdkFolder).Equals("Sdk.Prelude", OperatingSystemHelper.PathComparison))))
+            {
+                // Enumerate all top level *config* files on each folder and check whether there is a module configuration file
+                foreach (string candidate in Directory.EnumerateFiles(sdkFolder, "*config*", SearchOption.TopDirectoryOnly))
+                {
+                    if (ExtensionUtilities.IsModuleConfigurationFile(Path.GetFileName(candidate)))
+                    {
+                        if (AbsolutePath.TryCreate(PathTable, candidate, out AbsolutePath result))
+                        {
+                            modules.Add(new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(result));
+                        }
+
+                        // These are in-box SDKs, and therefore well constructed, there should only be one module configuration file
+                        // so once we find it, we can move on
+                        break;
+                    }
+                }
+            }
+
+            settings = new DScriptResolverSettings
+            {
+                AllowWritableSourceDirectory = false,
+                File = configFilePath,
+                Kind = KnownResolverKind.DScriptResolverKind,
+                Location = default,
+                Name = "_InBoxSDKResolver_",
+                Root = AbsolutePath.Invalid,
+                Modules = modules
+            };
+
+            return true;
         }
 
         /// <summary>

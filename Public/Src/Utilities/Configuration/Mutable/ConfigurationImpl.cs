@@ -71,6 +71,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Packages = template.Packages?.Select(p => pathRemapper.Remap(p)).ToList();
             Modules = template.Modules?.Select(m => pathRemapper.Remap(m)).ToList();
             DisableDefaultSourceResolver = template.DisableDefaultSourceResolver;
+            DisableInBoxSdkSourceResolver = template.DisableInBoxSdkSourceResolver;
             FrontEnd = new FrontEndConfiguration(template.FrontEnd, pathRemapper);
             CommandLineEnabledUnsafeOptions = new List<string>(template.CommandLineEnabledUnsafeOptions);
             Ide = new IdeConfiguration(template.Ide, pathRemapper);
@@ -505,5 +506,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IResolverDefaults IConfiguration.ResolverDefaults => ResolverDefaults;
+
+        /// <inheritdoc/>
+        public bool? DisableInBoxSdkSourceResolver { get; set; }
     }
 }

@@ -9,6 +9,11 @@ namespace Test.DScript.Ast.Interpretation
 {
     public sealed class InterpretTypeOf : DsTest
     {
+        /// <summary>
+        /// Some of the expressions below use simplified type annotations that don't match with the actual Transformer SDK
+        /// </summary>
+        protected override bool DisableInBoxSDKResolver => true;
+
         public InterpretTypeOf(ITestOutputHelper output)
             : base(output)
         { }

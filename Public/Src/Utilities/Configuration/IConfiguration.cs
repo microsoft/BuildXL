@@ -149,6 +149,16 @@ namespace BuildXL.Utilities.Configuration
         bool? DisableDefaultSourceResolver { get; }
 
         /// <summary>
+        /// Disable the DScript resolver that loads the SDKs shipped in-box with BuildXL
+        /// </summary>
+        /// <remarks>
+        /// This resolver owns any in-box SDK shipped with BuildXL under the SDK folder placed where BuildXL binaries are.
+        /// When enabled, this resolver is implicitly added right after user defined resolvers.
+        /// Defaults to false
+        /// </remarks>
+        bool? DisableInBoxSdkSourceResolver { get; }
+
+        /// <summary>
         /// Configuration for front end.
         /// </summary>
         IFrontEndConfiguration FrontEnd { get; }

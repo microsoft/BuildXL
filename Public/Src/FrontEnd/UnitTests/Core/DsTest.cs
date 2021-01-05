@@ -14,6 +14,7 @@ using BuildXL.Engine;
 using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Download;
 using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Incrementality;
@@ -26,6 +27,7 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -146,10 +148,20 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             // This is not the best solution to rely on the global state, but this is not a long term solution.
             var pathTable = new PathTable();
+
             FileSystem = usePassThroughFileSystem
                 ? (IMutableFileSystem)new PassThroughMutableFileSystem(pathTable)
                 : new InMemoryFileSystem(pathTable);
+
             FrontEndContext = CreateFrontEndContext(pathTable, FileSystem);
+
+            // The in-memory file system needs to be aware of the in-box SDKs since we implicitly add a
+            // DSCript resolver that owns those by default
+            if (!usePassThroughFileSystem)
+            {
+                PopulateInBoxSdksForInMemoryFileSystem();
+            }
+
             Engine = new BasicFrontEndEngineAbstraction(FrontEndContext.PathTable, FileSystem);
             Output = output;
 
@@ -160,6 +172,26 @@ namespace Test.BuildXL.FrontEnd.Core
             // TODO: This should go away when all statics become non-statics.
             FrontEndContext.SetContextForDebugging(FrontEndContext);
 #endif
+        }
+
+        private void PopulateInBoxSdksForInMemoryFileSystem()
+        {
+            // Follow a similar logic than the in-box SDK resolver: grab all DSCript files unders the SDK folder
+            // on the deployment test dir (excluding the prelude)
+            var sdkRoot = Path.Combine(TestDeploymentDir, "Sdk");
+            if (Directory.Exists(sdkRoot))
+            {
+                FileUtilities.EnumerateFiles(sdkRoot, recursive: true, pattern: "*", (filePath, fileName, attributes, fileSize) => 
+                {
+                    if ((attributes & FileAttributes.Directory) == 0 && 
+                        ExtensionUtilities.IsScriptExtension(Path.GetExtension(fileName)) &&
+                        !fileName.Equals("Sdk.Prelude", OperatingSystemHelper.PathComparison))
+                    {
+                        string pathToFile = Path.Combine(filePath, fileName);
+                        FileSystem.WriteAllText(AbsolutePath.Create(PathTable, pathToFile), File.ReadAllText(pathToFile));
+                    }
+                });
+            }
         }
 
         protected virtual FrontEndContext CreateFrontEndContext(PathTable pathTable, IFileSystem fileSystem)
@@ -734,6 +766,7 @@ namespace Test.BuildXL.FrontEnd.Core
                     CacheSpecs = enableSpecCache ? SpecCachingOption.Enabled : SpecCachingOption.Disabled
                 },
                 DisableDefaultSourceResolver = DisableDefaultSourceResolver,
+                DisableInBoxSdkSourceResolver = DisableInBoxSDKResolver,
             };
 
             if (enableSpecCache)
@@ -749,6 +782,11 @@ namespace Test.BuildXL.FrontEnd.Core
         /// The default is true, but many tests rely on automatic spec discovery
         /// </summary>
         protected virtual bool DisableDefaultSourceResolver => false;
+
+        /// <summary>
+        /// The default is false, but some tests need to disable it
+        /// </summary>
+        protected virtual bool DisableInBoxSDKResolver => false;
 
         private void CloneModuleRegistry(ModuleRegistry sharedModuleRegistry)
         {

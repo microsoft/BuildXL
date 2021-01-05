@@ -18,6 +18,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, evaluationOnly
     return {
         contents: [
             {
+                // CODESYNC: Public\Src\FrontEnd\Core\FrontEndHostController.cs (TryCreateInBoxSDKResolver)
                 subfolder: "Sdk",
                 contents: [
                     {

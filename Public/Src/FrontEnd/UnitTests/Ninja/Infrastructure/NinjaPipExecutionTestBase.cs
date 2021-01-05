@@ -75,6 +75,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
                 // Set the specified phase
                 ((CommandLineConfiguration)config).Engine.Phase = Phase;
                 ((CommandLineConfiguration)config).Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+                // Source resolver not properly registered for Ninja tests
+                ((CommandLineConfiguration)config).DisableInBoxSdkSourceResolver = true;
 
                 var engineResult = CreateAndRunEngine(
                     config,

@@ -432,6 +432,14 @@ interface Configuration {
     /** Disable default source resolver. */
     disableDefaultSourceResolver?: boolean;
 
+    /** 
+     * Disable the DScript resolver that loads the SDKs shipped in-box with BuildXL.
+     * This resolver owns any in-box SDK shipped with BuildXL under the SDK folder placed where BuildXL binaries are.
+     * When enabled, this resolver is implicitly added right after user defined resolvers.
+     * Defaults to false.
+     */
+    disableInBoxSdkSourceResolver?: boolean;
+
     /**
      * List of file accesses that are benign and allow the pip that caused them to be cached.
      *

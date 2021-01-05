@@ -36,6 +36,14 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <summary>
+        /// False unless specified otherwise
+        /// </summary>
+        public static bool DisableInBoxSdkSourceResolver(this IConfiguration configuration)
+        {
+            return configuration.DisableInBoxSdkSourceResolver ?? false;
+        }
+
+        /// <summary>
         /// Whether this build should store fingerprints
         /// </summary>
         public static bool FingerprintStoreEnabled(this IConfiguration configuration)

@@ -35,7 +35,8 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             var context = new Context(logger);
 
             using var testDirectory = new DisposableDirectory(_fileSystem);
-            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), testDirectory.Path);
+            // Intentionally using a subfolder:
+            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), testDirectory.Path / "1");
             
             LifetimeTracker.ServiceStarted(context);
             GetFullOutput().Should().NotContain(FullyInitializedMessage);

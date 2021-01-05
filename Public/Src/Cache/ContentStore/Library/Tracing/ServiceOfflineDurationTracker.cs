@@ -158,6 +158,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 result = parseDateTime(lastTime);
                 return true;
             }
+            catch (DirectoryNotFoundException)
+            {
+                // DirectoryNotFoundException is thrown if the part of the path is not available.
+                // This is possible when 'd:\dbs\Cache\ContentAddressableStore folder is not yet created.
+                return false;
+            }
             catch (FileNotFoundException)
             {
                 return false;

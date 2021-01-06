@@ -223,7 +223,8 @@ namespace BuildXL.PipGraphFragmentGenerator
                 Cache =
                 {
                     CacheSpecs = SpecCachingOption.Disabled
-                }
+                },
+                DisableInBoxSdkSourceResolver = true,
             };
         }
 

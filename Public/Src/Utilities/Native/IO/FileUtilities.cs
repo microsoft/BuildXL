@@ -1015,7 +1015,7 @@ namespace BuildXL.Native.IO
         {
             try
             {
-                string pathWithUpperCase = Path.Combine(Path.GetTempPath(), "CASESENSITIVETEST" + Guid.NewGuid().ToString("N"));
+                string pathWithUpperCase = Path.Combine(Path.GetTempPath(), "BUILDXL_CASESENSITIVE_TEST" + Guid.NewGuid().ToString("N"));
                 using (new FileStream(pathWithUpperCase, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 0x1000, FileOptions.DeleteOnClose))
                 {
                     string lowerCased = pathWithUpperCase.ToLowerInvariant();

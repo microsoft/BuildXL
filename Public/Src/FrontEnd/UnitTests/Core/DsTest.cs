@@ -157,7 +157,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
             // The in-memory file system needs to be aware of the in-box SDKs since we implicitly add a
             // DSCript resolver that owns those by default
-            if (!usePassThroughFileSystem)
+            if (!usePassThroughFileSystem && !DisableInBoxSDKResolver)
             {
                 PopulateInBoxSdksForInMemoryFileSystem();
             }

@@ -5,9 +5,11 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Engine.Tracing;
@@ -245,10 +247,8 @@ namespace BuildXL.Engine.Distribution
 
             if (m_remoteWorkers != null)
             {
-                foreach (Worker worker in m_remoteWorkers)
-                {
-                    worker.Dispose();
-                }
+                // Finish and dispose all workers
+                Task.WaitAll(m_remoteWorkers.Select(static w => w.FinishAsync(null).ContinueWith(_ => w.Dispose())).ToArray());
             }
         }
 

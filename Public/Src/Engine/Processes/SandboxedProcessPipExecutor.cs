@@ -982,10 +982,13 @@ namespace BuildXL.Processes
                         {
                             if (ex.LogEventErrorCode == NativeIOConstants.ErrorFileNotFound)
                             {
+                                // The executable for this pip was not found, this is not a retryable failure
                                 LocationData location = m_pip.Provenance.Token;
                                 string specFile = location.Path.ToString(m_pathTable);
 
                                 Tracing.Logger.Log.PipProcessFileNotFound(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, 2, info.FileName, specFile, location.Position);
+
+                                return SandboxedProcessPipExecutionResult.PreparationFailure();
                             }
                             else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processLaunchRetryCount < ProcessLaunchRetryCountMax))
                             {
@@ -1027,6 +1030,8 @@ namespace BuildXL.Processes
                                     ex.LogEventMessage);
                             }
 
+                            // TODO: Implement stricter filters so that we only retry failures that are worth retrying.
+                            // See bug 1800258 for more context.
                             return SandboxedProcessPipExecutionResult.FailureButRetryAble(
                                 SandboxedProcessPipExecutionStatus.ExecutionFailed,
                                 RetryInfo.GetDefault(RetryReason.ProcessStartFailure), maxDetoursHeapSize: maxDetoursHeapSize);

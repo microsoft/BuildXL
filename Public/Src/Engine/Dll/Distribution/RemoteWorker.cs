@@ -949,6 +949,11 @@ namespace BuildXL.Engine.Distribution
             var pipType = runnable.PipType;
             bool isExecuteStep = runnable.Step == PipExecutionStep.ExecuteProcess || runnable.Step == PipExecutionStep.ExecuteNonProcessPip;
 
+            if (isExecuteStep)
+            {
+                runnable.SetExecutionResult(executionResult);
+            }
+
             if (executionResult.Result == PipResultStatus.Canceled)
             {
                 return;
@@ -962,11 +967,6 @@ namespace BuildXL.Engine.Distribution
                 {
                     environment.Counters.IncrementCounter((PipExecutorCounter)perfInfo.CacheMissType);
                 }
-            }
-
-            if (isExecuteStep)
-            {
-                runnable.SetExecutionResult(executionResult);
             }
 
             if (executionResult.Result == PipResultStatus.Failed)

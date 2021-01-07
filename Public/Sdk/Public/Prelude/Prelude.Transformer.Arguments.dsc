@@ -96,4 +96,5 @@ interface TransformerExecuteResult {
     getOutputFiles(): DerivedFile[];
     getRequiredOutputFiles(): DerivedFile[];
     getOutputDirectory(dir: Directory): OpaqueDirectory;
+    getOutputDirectories(): OpaqueDirectory[];
 }

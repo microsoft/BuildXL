@@ -21,15 +21,18 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private CallSignature m_getOutputFileSignature;
         private CallSignature m_getOutputDirectorySignature;
         private CallSignature m_getOutputFilesSignature;
+        private CallSignature m_getOutputDirectoriesSignature;
         private CallSignature m_getRequiredOutputFilesSignature;
 
         private FunctionStatistic m_getOutputFileStatistic;
         private FunctionStatistic m_getOutputDirectoryStatistic;
+        private FunctionStatistic m_getOutputDirectoriesStatistic;
         private FunctionStatistic m_getOutputFilesStatistic;
         private FunctionStatistic m_getRequiredOutputFilesStatistic;
 
         private SymbolAtom ExecuteResultGetOutputFile;
         private SymbolAtom ExecuteResultGetOutputDirectory;
+        private SymbolAtom ExecuteResultGetOutputDirectories;
         private SymbolAtom ExecuteResultGetOutputFiles;
         private SymbolAtom ExecuteResultGetRequiredOutputFiles;
         private SymbolAtom CreateServiceResultServiceId;
@@ -50,6 +53,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // Execute result.
             ExecuteResultGetOutputFile = Symbol("getOutputFile");
             ExecuteResultGetOutputDirectory = Symbol("getOutputDirectory");
+            ExecuteResultGetOutputDirectories = Symbol("getOutputDirectories");
             ExecuteResultGetOutputFiles = Symbol("getOutputFiles");
             ExecuteResultGetRequiredOutputFiles = Symbol("getRequiredOutputFiles");
             CreateServiceResultServiceId = Symbol("serviceId");
@@ -68,6 +72,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             m_getOutputDirectorySignature = CreateSignature(required: RequiredParameters(AmbientTypes.DirectoryType), returnType: AmbientTypes.StaticDirectoryType);
             m_getOutputDirectoryStatistic = new FunctionStatistic(AmbientName, ExecuteResultGetOutputDirectory, m_getOutputDirectorySignature, stringTable);
+
+            m_getOutputDirectoriesSignature = CreateSignature(returnType: AmbientTypes.ArrayType);
+            m_getOutputDirectoriesStatistic = new FunctionStatistic(AmbientName, ExecuteResultGetOutputDirectories, m_getOutputDirectoriesSignature, stringTable);
 
             m_getOutputFilesSignature = CreateSignature(returnType: AmbientTypes.ArrayType);
             m_getOutputFilesStatistic = new FunctionStatistic(AmbientName, ExecuteResultGetOutputFiles, m_getOutputFilesSignature, stringTable);
@@ -92,6 +99,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     FunctionLikeExpression.CreateAmbient(ExecuteResultGetOutputDirectory, m_getOutputDirectorySignature, GetOutputDirectory, m_getOutputDirectoryStatistic),
                     frame: empty);
 
+                var getOutputDirectories = new Closure(
+                    env,
+                    FunctionLikeExpression.CreateAmbient(ExecuteResultGetOutputDirectories, m_getOutputDirectoriesSignature, GetOutputDirectories, m_getOutputDirectoriesStatistic),
+                    frame: empty);
+
                 var getOutputFiles = new Closure(
                     env,
                     FunctionLikeExpression.CreateAmbient(ExecuteResultGetOutputFiles, m_getOutputFilesSignature, GetOutputFiles, m_getOutputFilesStatistic),
@@ -106,6 +118,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     {
                         new Binding(ExecuteResultGetOutputFile, getOutputFile, location: default),
                         new Binding(ExecuteResultGetOutputDirectory, getOutputDirectory, location: default),
+                        new Binding(ExecuteResultGetOutputDirectories, getOutputDirectories, location: default),
                         new Binding(ExecuteResultGetOutputFiles, getOutputFiles, location: default),
                         new Binding(ExecuteResultGetRequiredOutputFiles, getRequiredOutputFiles, location: default),
                         new Binding(ExecuteResultProcessOutputs, new EvaluationResult(processOutputs), location: default),
@@ -140,6 +153,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
 
                 return EvaluationResult.Undefined;
+            }
+
+            EvaluationResult GetOutputDirectories(Context contextArg, ModuleLiteral envArg, EvaluationStackFrame args)
+            {
+                var outputDirectories = processOutputs.GetOutputDirectories().Select(d => EvaluationResult.Create(d)).ToArray();
+                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputDirectories, entry.InvocationLocation, entry.Path));
             }
 
             EvaluationResult GetOutputFiles(Context contextArg, ModuleLiteral envArg, EvaluationStackFrame args)

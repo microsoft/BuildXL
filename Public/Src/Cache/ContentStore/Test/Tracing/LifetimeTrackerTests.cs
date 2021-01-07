@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
 
             using var testDirectory = new DisposableDirectory(_fileSystem);
             // Intentionally using a subfolder:
-            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), testDirectory.Path / "1");
+            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), logFilePath: testDirectory.Path / "1");
             
             LifetimeTracker.ServiceStarted(context);
             GetFullOutput().Should().NotContain(FullyInitializedMessage);
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             using var testDirectory = new DisposableDirectory(_fileSystem);
             try
             {
-                LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), testDirectory.Path);
+                LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), logFilePath: testDirectory.Path);
 
                 LifetimeTracker.ServiceReadyToProcessRequests(context);
             
@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             memoryClock.AddSeconds(10);
 
             using var testDirectory = new DisposableDirectory(_fileSystem);
-            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), testDirectory.Path, memoryClock, process1StartupTime);
+            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), logFilePath: testDirectory.Path, clock: memoryClock, processStartupTime: process1StartupTime);
 
             memoryClock.AddSeconds(10);
             LifetimeTracker.ServiceStarted(context, memoryClock);
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             memoryClock.AddSeconds(300);
             var process2StartupTime = memoryClock.UtcNow;
             memoryClock.AddSeconds(10);
-            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), testDirectory.Path, memoryClock, process2StartupTime);
+            LifetimeTracker.ServiceStarting(context, serviceRunningLogInterval: TimeSpan.FromMinutes(10), logFilePath: testDirectory.Path, clock: memoryClock, processStartupTime: process2StartupTime);
             GetFullOutput().Should().Contain("LastHeartBeatTime");
 
             memoryClock.AddSeconds(10);

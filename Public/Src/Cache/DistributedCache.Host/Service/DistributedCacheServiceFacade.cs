@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -23,9 +24,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
-using BuildXL.Cache.Logging;
-using BuildXL.Cache.Logging.External;
-using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -101,7 +99,7 @@ namespace BuildXL.Cache.Host.Service
                     cts.Cancel();
                 };
             }
-
+            
             // NOTE(jubayard): this is the entry point for running CASaaS. At this point, the Logger inside the
             // arguments holds the client's implementation of our logging interface ILogger. Here, we may override the
             // client's decision with our own.
@@ -118,7 +116,7 @@ namespace BuildXL.Cache.Host.Service
 
             AdjustCopyInfrastructure(arguments);
 
-            await ReportStartingServiceAsync(operationContext, host, arguments.Configuration);
+            await ReportStartingServiceAsync(operationContext, host, arguments);
 
             var factory = new CacheServerFactory(arguments);
 
@@ -174,13 +172,15 @@ namespace BuildXL.Cache.Host.Service
         private static async Task ReportStartingServiceAsync(
             OperationContext context,
             IDistributedCacheServiceHost host,
-            DistributedCacheServiceConfiguration configuration)
+            DistributedCacheServiceArguments arguments)
         {
+            var configuration = arguments.Configuration;
             var logIntervalSeconds = configuration.DistributedContentSettings.ServiceRunningLogInSeconds;
             var logInterval = logIntervalSeconds != null ? (TimeSpan?)TimeSpan.FromSeconds(logIntervalSeconds.Value) : null;
-            var logFilePath = configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName);
-
-            LifetimeTracker.ServiceStarting(context, logInterval, logFilePath);
+            
+            var logFilePath = GetPathForLifetimeTracking(configuration);
+            
+            LifetimeTracker.ServiceStarting(context, logInterval, logFilePath, arguments.TelemetryFieldsProvider.ServiceName);
 
             if (host is IDistributedCacheServiceHostInternal hostInternal)
             {
@@ -189,6 +189,8 @@ namespace BuildXL.Cache.Host.Service
 
             await host.OnStartingServiceAsync();
         }
+
+        private static AbsolutePath GetPathForLifetimeTracking(DistributedCacheServiceConfiguration configuration) => configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName);
 
         private static void ReportServiceStarted(
             OperationContext context,

@@ -154,7 +154,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
     /// </remarks>
     public class LifetimeTracker
     {
-        private const string ComponentName = "LifetimeTracker";
+        /// <nodoc />
+        public const string ComponentName = "LifetimeTracker";
 
         private static readonly Result<ServiceOfflineDurationTracker> ServiceRunningTrackerUnavailableResult = new Result<ServiceOfflineDurationTracker>($"{nameof(ServiceStarting)} method was not called yet.");
         private static readonly Result<LifetimeTrackerHelper> LifetimeTrackerHelperUnavailableResult = new Result<LifetimeTrackerHelper>($"{nameof(ServiceStarted)} method was not called yet.");
@@ -165,7 +166,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Trace that the service is starting.
         /// </summary>
-        public static void ServiceStarting(Context context, TimeSpan? serviceRunningLogInterval, AbsolutePath logFilePath, IClock? clock = null, DateTime? processStartupTime = null)
+        public static void ServiceStarting(
+            Context context,
+            TimeSpan? serviceRunningLogInterval,
+            AbsolutePath logFilePath,
+            string? serviceName = null,
+            IClock? clock = null,
+            DateTime? processStartupTime = null)
         {
             var operationContext = new OperationContext(context);
             ServiceRunningTrackerResult = ServiceOfflineDurationTracker.Create(
@@ -173,7 +180,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 SystemClock.Instance,
                 new PassThroughFileSystem(),
                 serviceRunningLogInterval,
-                logFilePath);
+                logFilePath,
+                serviceName);
 
             var offlineTime = ServiceRunningTrackerResult.Then(r => r.GetLastServiceHeartbeatTime(operationContext));
 

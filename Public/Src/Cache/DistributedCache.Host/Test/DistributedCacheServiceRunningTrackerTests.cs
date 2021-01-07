@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -26,9 +28,25 @@ namespace BuildXL.Cache.Host.Test
         [Fact]
         public void TestDistributedCacheServiceTracker()
         {
-            var context = new OperationContext(new Context(Logger));
             using var testDirectory = new DisposableDirectory(FileSystem);
-            var logFilePath = testDirectory.Path;
+            TestDistributedCacheServiceTrackerCore(testDirectory.Path, serviceName: null);
+        }
+
+        [Fact]
+        public async Task MultipleTrackersCanWorkAtTheSameTime()
+        {
+            int trackerCount = 5;
+            using var testDirectory = new DisposableDirectory(FileSystem);
+            var tasks = Enumerable.Range(1, trackerCount)
+                .Select(n => Task.Run(() => TestDistributedCacheServiceTrackerCore(testDirectory.Path, serviceName:n.ToString()))).ToList();
+            await Task.WhenAll(tasks);
+
+            Output.WriteLine("Done!");
+        }
+
+        private void TestDistributedCacheServiceTrackerCore(AbsolutePath logFilePath, string serviceName)
+        {
+            var context = new OperationContext(new Context(Logger));
 
             // Intentionally making the interval longer to test the logic manually instead of relying on the tracker's
             // logic to write to the file when the timer fires.
@@ -36,7 +54,7 @@ namespace BuildXL.Cache.Host.Test
             var expectedOfflineTime = 10;
             var testClock = new MemoryClock();
 
-            using (var tracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
+            using (var tracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath, serviceName).ThrowIfFailure())
             {
                 // Offline time is not available, because the file is missing.
                 tracker.GetLastServiceHeartbeatTime(context).ShouldBeError();
@@ -49,10 +67,10 @@ namespace BuildXL.Cache.Host.Test
                 // GetLastServiceHeartbeatTime is memoized, so we can't change the state and get different results!
                 tracker.GetLastServiceHeartbeatTime(context).ShouldBeError();
                 // Need to create another tracker to test the behavior
-                using var nestedTracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure();
+                using var nestedTracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath, serviceName).ThrowIfFailure();
 
                 var lastHeartbeat = nestedTracker.GetLastServiceHeartbeatTime(context).ShouldBeSuccess();
-                
+
                 // From the previous simulated interval, we created a new file and wrote a timestamp to it.
                 // Now we should be able to determine previous offlineTIme
                 // Intentionally converting the offline time to int to simplify the comparison.
@@ -65,7 +83,7 @@ namespace BuildXL.Cache.Host.Test
             // Moving the clock forward
             testClock.UtcNow += TimeSpan.FromSeconds(expectedOfflineTime);
 
-            using (var tracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath).ThrowIfFailure())
+            using (var tracker = ServiceOfflineDurationTracker.Create(context, testClock, FileSystem, logIntervalSeconds, logFilePath, serviceName).ThrowIfFailure())
             {
                 // The previous tracker should have written the files.
                 var result = tracker.GetLastServiceHeartbeatTime(context).ShouldBeSuccess();

@@ -54,6 +54,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// </summary>
         public bool UseUniversalLocations { get; set; }
 
+        /// <summary>
+        /// Include domain name in machine location.
+        /// </summary>
+        public bool UseDomainName { get; set; }
+
         /// <nodoc />
         public static GrpcFileCopierConfiguration FromDistributedContentSettings(DistributedContentSettings dcs, int grpcPort)
         {
@@ -80,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 });
 
             grpcFileCopierConfiguration.UseUniversalLocations = dcs.UseUniversalLocations;
+            grpcFileCopierConfiguration.UseDomainName = dcs.UseDomainName;
 
             return grpcFileCopierConfiguration;
         }

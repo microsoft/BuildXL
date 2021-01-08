@@ -988,6 +988,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseUniversalLocations { get; set; }
 
+        /// <summary>
+        /// Include domain name in machine location.
+        /// </summary>
+        [DataMember]
+        public bool UseDomainName { get; set; }
+
         public MultiplexMode GetMultiplexMode()
         {
             if (UseUniversalLocations)

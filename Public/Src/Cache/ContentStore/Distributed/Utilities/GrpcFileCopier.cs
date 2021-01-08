@@ -70,14 +70,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             _junctionsByDirectory = configuration.JunctionsByDirectory?.ToDictionary(kvp => new AbsolutePath(kvp.Key), kvp => new AbsolutePath(kvp.Value)) ?? new Dictionary<AbsolutePath, AbsolutePath>();
 
-            try
+            if (configuration.UseDomainName)
             {
-                _localMachineName = System.Net.Dns.GetHostName();
+                try
+                {
+                    var ipProperties = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties();
+                    var hostName = ipProperties.HostName;
+                    var domainName = ipProperties.DomainName;
+                    if (!string.IsNullOrEmpty(domainName) && !string.IsNullOrEmpty(hostName))
+                    {
+                        _localMachineName = $"{hostName}.{domainName}";
+                    }
+                    else
+                    {
+                        Tracer.Warning(context, $"Failed to get machine name and domain from `IPGlobalProperties.GetIPGlobalProperties` [Host={hostName} Domain={domainName}]. Falling back to `Dns.GetHostName`.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Tracer.Warning(context, $"Failed to get machine name from `IPGlobalProperties.GetIPGlobalProperties`. Falling back to `Dns.GetHostName`. {e}");
+                }
             }
-            catch (Exception e)
+
+            if (_localMachineName == null)
             {
-                Tracer.Warning(context, $"Failed to get machine name from `Dns.GetHostName`. Falling back to `Environment.MachineName`. {e}");
-                _localMachineName = Environment.MachineName;
+                try
+                {
+                    _localMachineName = System.Net.Dns.GetHostName();
+                }
+                catch (Exception e)
+                {
+                    Tracer.Warning(context, $"Failed to get machine name from `Dns.GetHostName`. Falling back to `Environment.MachineName`. {e}");
+                    _localMachineName = Environment.MachineName;
+                }
             }
         }
 

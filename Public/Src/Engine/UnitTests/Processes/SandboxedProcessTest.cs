@@ -227,6 +227,66 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(ExitCodes.Timeout, result.ExitCode);
         }
 
+        [Fact]
+        public async Task SuspensionExtendsTimeout()
+        {
+            if (!JobObject.OSSupportsNestedJobs)
+            {
+                return;
+            }
+
+            var waitFile = CreateOutputFileArtifact();
+            var info = GetInfiniteWaitProcessInfo();
+            info.Timeout = TimeSpan.FromMilliseconds(150);
+
+            using (ISandboxedProcess process = await StartProcessAsync(info)) 
+            {
+                // Suspend immediatly
+                var suspendedResult = process.TryEmptyWorkingSet(isSuspend: true);
+                XAssert.AreEqual(EmptyWorkingSetResult.Success, suspendedResult);
+
+                // The process will time out next, but we will grant it more time while suspended
+                await Task.Delay(200);
+
+                // Kill it while suspended
+                await process.KillAsync();
+ 
+                SandboxedProcessResult result = await process.GetResultAsync();
+                XAssert.IsTrue(result.Killed);
+                XAssert.IsFalse(result.TimedOut, "Process claims it was timed out, but instead it was killed.");
+            }
+        }
+        
+        [Fact]
+        public async Task SuspendResumeTimeout()
+        {
+            if (!JobObject.OSSupportsNestedJobs)
+            {
+                return;
+            }
+
+            var info = GetInfiniteWaitProcessInfo();
+            info.Timeout = TimeSpan.FromMilliseconds(100);
+
+            using (ISandboxedProcess process = await StartProcessAsync(info))
+            {
+                // Suspend immediatly
+                var suspendedResult = process.TryEmptyWorkingSet(isSuspend: true);
+                XAssert.AreEqual(EmptyWorkingSetResult.Success, suspendedResult);
+
+                // The process will time out next, but we will grant it more time
+                await Task.Delay(200);
+
+                // This will succeed because the timeout was extended
+                var resumeSucceeded = process.TryResumeProcess();
+                XAssert.IsTrue(resumeSucceeded);
+
+                // Now we will definitely time out
+                var result = await process.GetResultAsync();
+                XAssert.IsTrue(result.TimedOut);
+            }
+        }
+
         [Fact(Skip = "Test is flakey TFS 495531")]
         public async Task JobCounters()
         {

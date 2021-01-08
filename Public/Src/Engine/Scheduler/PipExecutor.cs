@@ -1923,11 +1923,6 @@ namespace BuildXL.Scheduler
                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                 }
 
-                if (result.TimedOut && result.SuspendedDurationMs > 0)
-                {
-                    Logger.Log.PipTimedOutDueToSuspend(operationContext, pip.SemiStableHash, processDescription, result.SuspendedDurationMs, result.ProcessSandboxedProcessResultMs);
-                }
-
                 if (userRetry)
                 {
                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPipsCount);

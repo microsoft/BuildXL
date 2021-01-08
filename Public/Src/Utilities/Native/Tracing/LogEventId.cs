@@ -46,6 +46,7 @@ namespace BuildXL.Native.Tracing
         StorageTryOpenOrCreateFileFailure = 724,
         DetouredProcessAccessViolationException = 734,
 
+
         RetryOnFailureException = 744,
 
         MoreBytesWrittenThanBufferSize = 2930,

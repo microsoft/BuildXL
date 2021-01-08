@@ -10,14 +10,17 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
+using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -76,8 +79,18 @@ namespace BuildXL.Processes.Internal
         private readonly ContainerConfiguration m_containerConfiguration;
         private readonly bool m_setJobBreakawayOk;
         private readonly bool m_createJobObjectForCurrentProcess;
+
         private readonly LoggingContext m_loggingContext;
 
+        /// <summary>
+        /// Extended timeout time.
+        /// </summary>
+        /// <remarks>
+        /// Timeout time can be extended when the process gets suspended.
+        /// </remarks>
+        private long m_extendedTimeoutMs;
+        private readonly System.Diagnostics.Stopwatch m_suspendStopwatch = new System.Diagnostics.Stopwatch();
+       
 #region public getters
 
         /// <summary>
@@ -585,7 +598,7 @@ namespace BuildXL.Processes.Internal
                     TimeSpan timeout = m_timeout ?? Timeout.InfiniteTimeSpan;
                     m_registeredWaitHandle = ThreadPool.RegisterWaitForSingleObject(
                         m_processWaitHandle,
-                        CompletionCallback,
+                        CompletionCallbackAsync,
                         null,
                         timeout,
                         true);
@@ -618,6 +631,82 @@ namespace BuildXL.Processes.Internal
                     throw;
                 }
             }
+        }
+
+        /// <nodoc />
+        public void OnSuspensionStart()
+        {
+            // Start counting suspended time
+            m_suspendStopwatch.Start();
+        }
+
+        /// <nodoc />
+        public void OnSuspensionEnd()
+        {
+            Contract.Requires(m_suspendStopwatch.IsRunning);
+            lock (m_suspendStopwatch)
+            {
+                m_extendedTimeoutMs += m_suspendStopwatch.ElapsedMilliseconds;
+                m_suspendStopwatch.Reset();
+            }
+        }
+
+        private long GetExtendedTimeoutOnCompletion()
+        {
+            long extensionMs = 0;
+            lock (m_suspendStopwatch)
+            {
+                extensionMs = m_extendedTimeoutMs;
+                if (m_suspendStopwatch.IsRunning)   // We're suspended right now
+                {
+                    extensionMs += m_suspendStopwatch.ElapsedMilliseconds;
+                    m_suspendStopwatch.Restart();
+                }
+
+                m_extendedTimeoutMs = 0;
+            }
+
+            return extensionMs;
+        }
+
+        public bool TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
+        {
+            var jobObject = GetJobObject();
+            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds))
+            {
+                return false;
+            }
+
+            foreach (uint processId in childProcessIds)
+            {
+                using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
+                    ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION | ProcessSecurityAndAccessRights.PROCESS_SET_QUOTA,
+                    false,
+                    processId))
+                {
+                    if (processHandle.IsInvalid)
+                    {
+                        // we are too late: could not open process
+                        continue;
+                    }
+
+                    if (!jobObject.ContainsProcess(processHandle))
+                    {
+                        // we are too late: process id got reused by another process
+                        continue;
+                    }
+
+                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
+                    {
+                        // we are too late: process id got reused by another process
+                        continue;
+                    }
+
+                    actionForProcess(processHandle, processId);
+                }
+            }
+
+            return true;
         }
 
         private void StopWaiting(TaskUtilities.SemaphoreReleaser semaphoreReleaser)
@@ -679,10 +768,24 @@ namespace BuildXL.Processes.Internal
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "DetouredProcess")]
         [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         [SuppressMessage("Microsoft.Performance", "CA1801")]
-        private async void CompletionCallback(object context, bool timedOut)
+        private async void CompletionCallbackAsync(object context, bool timedOut)
         {
             if (timedOut)
             {
+                var extendedTimeoutMs = GetExtendedTimeoutOnCompletion();
+                if (extendedTimeoutMs > 0)
+                {
+                    // We consumed part of the timeout while suspended, so we give it another chance
+                    m_waiting = true;
+                    m_registeredWaitHandle = ThreadPool.RegisterWaitForSingleObject(
+                        m_processWaitHandle,
+                        CompletionCallbackAsync,
+                        null,
+                        Convert.ToUInt32(extendedTimeoutMs),
+                        true);
+                    return;
+                }
+
                 Volatile.Write(ref m_timedout, true);
 
                 // Attempt to dump the timed out process before killing it

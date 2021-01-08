@@ -156,7 +156,7 @@ namespace BuildXL.Processes
                     outputEncoding,
                     m_output.AppendLine,
                     OnProcessExitingAsync,
-                    OnProcessExited,
+                    OnProcessExitedAsync,
                     info.Timeout,
                     info.DisableConHostSharing,
                     info.LoggingContext,
@@ -205,57 +205,63 @@ namespace BuildXL.Processes
             // After we collected the child process ids, we might dispose the job object and the child process might be invalid.
             // Acquiring the reader lock will prevent the job object from disposing. 
             using (m_queryJobDataLock.AcquireReadLock())
-            {
-                (JobObject jobObject, uint[] childProcesses) = GetJobObjectWithChildProcessIds();
-
-                if (jobObject == null)
+            {                
+                if (!IsDetouredProcessUsable())
                 {
                     return EmptyWorkingSetResult.None;
                 }
 
-                EmptyWorkingSetResult result = EmptyWorkingSetResult.Success;
+                var result = EmptyWorkingSetResult.Success;
+                var suspendSuccess = true;
+                var emptyWorkingSetSuccess = true;
 
-                VisitJobObjectProcesses(jobObject, childProcesses, (processHandle, pid) =>
+                var visited = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
                 {
+                    emptyWorkingSetSuccess &= Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle());
+
                     if (isSuspend)
                     {
-                        bool isSuspendFailed = false;
                         try
                         {
-                            isSuspendFailed = !Interop.Windows.Process.Suspend(System.Diagnostics.Process.GetProcessById((int)pid));
+                            suspendSuccess &= Interop.Windows.Process.Suspend(System.Diagnostics.Process.GetProcessById((int)pid));
                         }
-#pragma warning disable ERP022
-                    catch (Exception)
+                        catch (Exception e)
                         {
-                            isSuspendFailed = true;
-                        }
-#pragma warning restore ERP022
-
-                    if (isSuspendFailed)
-                        {
-                        // If suspending the process fails, no need to continue going through the other processes.
-                        result |= EmptyWorkingSetResult.SuspendFailed;
-                        }
-                    }
-
-                    if (!Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle()))
-                    {
-                        result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
-                    }
-
-                    if (EngineEnvironmentSettings.SetMaxWorkingSetToMin)
-                    {
-                        if (!Interop.Windows.Memory.SetProcessWorkingSetSizeEx(
-                                processHandle.DangerousGetHandle(),
-                                s_defaultMin, // the default on systems with 4k pages
-                                s_defaultMin,
-                                Interop.Windows.Memory.WorkingSetSizeFlags.MaxEnable | Interop.Windows.Memory.WorkingSetSizeFlags.MinDisable))
-                        {
-                            result |= EmptyWorkingSetResult.SetMaxWorkingSetFailed;
+                            suspendSuccess = false;
+                            Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Suspend", e.ToStringDemystified());
                         }
                     }
                 });
 
+                if (!visited)
+                {
+                    // Couldn't visit
+                    result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
+
+                    if (isSuspend)
+                    {
+                        result |= EmptyWorkingSetResult.SuspendFailed;
+                    }
+
+                    return result;
+                }
+
+                if (!emptyWorkingSetSuccess)
+                {
+                    result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
+                }
+
+                if (isSuspend)
+                {
+                    if (suspendSuccess)
+                    {
+                        m_detouredProcess.OnSuspensionStart();
+                    }
+                    else
+                    {
+                        result |= EmptyWorkingSetResult.SuspendFailed;
+                    }
+                }
 
                 return result;
             }
@@ -266,23 +272,20 @@ namespace BuildXL.Processes
         {
             using (m_queryJobDataLock.AcquireReadLock())
             {
-                (JobObject jobObject, uint[] childProcesses) = GetJobObjectWithChildProcessIds();
-
-                if (jobObject == null)
+                if (!IsDetouredProcessUsable())
                 {
                     return false;
                 }
 
-                bool anyFailure = false;
-
-                VisitJobObjectProcesses(jobObject, childProcesses, (processHandle, pid) =>
+                var success = true;
+                var visited = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
                 {
                     ulong peakWorkingSet = 0;
                     if (EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume)
                     {
-                    // If maxLimitMultiplier is not zero, retrieve the memory counters before empty the working set.
-                    // Those memory counters will be used when setting the maxworkingsetsize of the process.
-                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                        // If maxLimitMultiplier is not zero, retrieve the memory counters before empty the working set.
+                        // Those memory counters will be used when setting the maxworkingsetsize of the process.
+                        var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
                         peakWorkingSet = memoryUsage?.PeakWorkingSetSize ?? 0;
                     }
 
@@ -297,18 +300,19 @@ namespace BuildXL.Processes
 
                     try
                     {
-                        anyFailure |= !Interop.Windows.Process.Resume(System.Diagnostics.Process.GetProcessById((int)pid));
+                        success &= Interop.Windows.Process.Resume(System.Diagnostics.Process.GetProcessById((int)pid));
                     }
-#pragma warning disable ERP022
-                catch (Exception)
+                    catch (Exception e)
                     {
-                        anyFailure = true;
+                        Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Resume", e.ToStringDemystified());
+                        success = false;
                     }
-#pragma warning restore ERP022
-            });
+                });
 
+                // Whether or not there's failure, stop measuring suspension time.
+                m_detouredProcess.OnSuspensionEnd();
 
-                return !anyFailure;
+                return visited && success;
             }
         }
 
@@ -317,9 +321,7 @@ namespace BuildXL.Processes
         {
             using (m_queryJobDataLock.AcquireReadLock())
             {
-                (JobObject jobObject, uint[] childProcesses) = GetJobObjectWithChildProcessIds();
-
-                if (jobObject == null)
+                if (!IsDetouredProcessUsable())
                 {
                     return null;
                 }
@@ -330,7 +332,7 @@ namespace BuildXL.Processes
                 ulong lastCommitSize = 0;
                 bool isCollectedData = false;
 
-                VisitJobObjectProcesses(jobObject, childProcesses, (processHandle, _) =>
+                var visited = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, _) =>
                 {
                     var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
                     if (memoryUsage != null)
@@ -342,6 +344,11 @@ namespace BuildXL.Processes
                         lastCommitSize += memoryUsage.PagefileUsage;
                     }
                 });
+
+                if (!visited)
+                {
+                    return null;
+                }
 
                 if (isCollectedData)
                 {
@@ -361,56 +368,12 @@ namespace BuildXL.Processes
             }
         }
 
-        private void VisitJobObjectProcesses(JobObject jobObject, uint[] childProcessIds, Action<SafeProcessHandle, uint> actionForProcess)
+        private bool IsDetouredProcessUsable()
         {
-            foreach (uint processId in childProcessIds)
-            {
-                using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
-                    ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION | ProcessSecurityAndAccessRights.PROCESS_SET_QUOTA,
-                    false,
-                    processId))
-                {
-                    if (processHandle.IsInvalid)
-                    {
-                        // we are too late: could not open process
-                        continue;
-                    }
-
-                    if (!jobObject.ContainsProcess(processHandle))
-                    {
-                        // we are too late: process id got reused by another process
-                        continue;
-                    }
-
-                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
-                    {
-                        // we are too late: process id got reused by another process
-                        continue;
-                    }
-
-                    actionForProcess(processHandle, processId);
-                }
-            }
-        }
-
-        private (JobObject, uint[]) GetJobObjectWithChildProcessIds()
-        {
-            var detouredProcess = m_detouredProcess;
-            if (detouredProcess == null ||
-                !detouredProcess.HasStarted ||
-                detouredProcess.HasExited ||
-                m_disposeStarted)
-            {
-                return (null, null);
-            }
-
-            var jobObject = detouredProcess.GetJobObject();
-            if (jobObject == null || !jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds) || childProcessIds.Length == 0)
-            {
-                return (null, null);
-            }
-
-            return (jobObject, childProcessIds);
+            return !m_disposeStarted &&
+                m_detouredProcess != null && 
+                m_detouredProcess.HasStarted &&
+                !m_detouredProcess.HasExited;
         }
 
         /// <inheritdoc />
@@ -668,7 +631,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private async Task OnProcessExited()
+        private async Task OnProcessExitedAsync()
         {
             // Wait until all incoming report messages from the detoured process have been handled.
             await WaitUntilReportEof(m_detouredProcess.Killed);

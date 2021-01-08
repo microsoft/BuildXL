@@ -103,6 +103,9 @@ namespace BuildXL.Processes.Tracing
         CannotReadSidebandFileWarning = 876,
         CannotDeleteSharedOpaqueOutputFile = 877,
         ResumeOrSuspendProcessError = 878,
+        ResumeOrSuspendException = 879,
+        // 880 is used
+
 
         // Temp files/directory cleanup
         PipTempDirectoryCleanupWarning = 2201,

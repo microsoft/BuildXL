@@ -161,6 +161,5 @@ namespace BuildXL.Native.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "A warning occurred when setting up a container for job object {jobObject}: {warning}")]
         internal abstract void WarningSettingUpContainer(LoggingContext loggingContext, string jobObject, string warning);
-
     }
 }

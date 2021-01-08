@@ -1063,6 +1063,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void ResumeOrSuspendProcessError(LoggingContext context, string pipSemiStableHash, string failedOperation, int errorCode);
 
         [GeneratedEvent(
+            (int)LogEventId.ResumeOrSuspendException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.SandboxedProcessExecutor,
+            Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
+            Message = "{operation} attempt failed with exception. {exception}")]
+        public abstract void ResumeOrSuspendException(LoggingContext context, string operation, string exception);
+
+        [GeneratedEvent(
             (ushort)LogEventId.CannotProbeOutputUnderSharedOpaque,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

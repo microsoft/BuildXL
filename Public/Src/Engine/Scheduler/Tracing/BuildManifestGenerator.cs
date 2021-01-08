@@ -7,11 +7,10 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Ipc.ExternalApi.Commands;
+using BuildXL.Ipc.ExternalApi;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -95,9 +94,9 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Generate a Build Manifest.
         /// </summary>
-        public BuildManifestData GenerateBuildManifestData(GenerateBuildManifestDataCommand cmd)
+        public BuildManifestData GenerateBuildManifestData(string dropName)
         {
-            StringId dropStringId = StringId.Create(m_stringTable, cmd.DropName);
+            StringId dropStringId = StringId.Create(m_stringTable, dropName);
             List<BuildManifestFile> sortedManifestDetailsForDrop = BuildManifestEntries.Values
                 .Where(bme => bme.DropName == dropStringId)
                 .Select(bme => (relPathStr: bme.RelativePath.ToString(m_stringTable), bme: bme))
@@ -110,11 +109,8 @@ namespace BuildXL.Scheduler.Tracing
             return new BuildManifestData(
                 Version,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                cmd.CloudBuildId,
-                cmd.Repo,
-                cmd.Branch,
-                cmd.CommitId,
-                sortedManifestDetailsForDrop);
+                sortedManifestDetailsForDrop
+            );
         }
 
         private BuildManifestFile ToBuildManifestDataComponent(string relativePath, string azureArtifactsHash, string buildManifestHash)

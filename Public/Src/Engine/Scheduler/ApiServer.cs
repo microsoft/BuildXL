@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc.Common;
+using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler.Artifacts;
@@ -24,7 +25,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Scheduler
 {
@@ -362,7 +362,7 @@ namespace BuildXL.Scheduler
                 return new IpcResult(IpcResultStatus.ExecutionError, sb.ToString());
             }
 
-            BuildManifestData buildManifestData = m_buildManifestGenerator.GenerateBuildManifestData(cmd);
+            BuildManifestData buildManifestData = m_buildManifestGenerator.GenerateBuildManifestData(cmd.DropName);
 
             return IpcResult.Success(cmd.RenderResult(buildManifestData));
         }

@@ -9,7 +9,6 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
-using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Ipc.ExternalApi
 {
@@ -75,14 +74,9 @@ namespace BuildXL.Ipc.ExternalApi
         /// <summary>
         /// Generates a BuildManifest.json file from hashes stored by <see cref="RegisterFileForBuildManifest"/>.
         /// </summary>
-        public Task<Possible<BuildManifestData>> GenerateBuildManifestData(
-            string dropName,
-            string repo,
-            string branch,
-            string commitId,
-            string cloudBuildId)
+        public Task<Possible<BuildManifestData>> GenerateBuildManifestData(string dropName)
         {
-            return ExecuteCommand(new GenerateBuildManifestDataCommand(dropName, repo, branch, commitId, cloudBuildId));
+            return ExecuteCommand(new GenerateBuildManifestDataCommand(dropName));
         }
 
         /// <summary>

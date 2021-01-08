@@ -1391,24 +1391,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.ManifestGenerator",
-          "Version": "0.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.ManifestInterface",
-          "Version": "0.0.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.NET.Test.Sdk",
           "Version": "15.9.0"
         }

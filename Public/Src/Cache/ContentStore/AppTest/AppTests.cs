@@ -24,14 +24,15 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using System.IO;
 using BuildXL.Native.IO;
+using ContentStoreTest.Extensions;
 
 namespace BuildXL.Cache.ContentStore.App.Test
 {
     public class AppTests : TestBase
     {
         private static readonly string AppExe = Path.Combine("app", $"ContentStoreApp{(OperatingSystemHelper.IsWindowsOS ? ".exe" : "")}");
-
         private static readonly Random Random = new Random();
+
 
         public AppTests(ILogger logger = null, ITestOutputHelper output = null)
             : base(logger ?? TestGlobal.Logger, output)
@@ -78,11 +79,13 @@ namespace BuildXL.Cache.ContentStore.App.Test
             var cacheDir = dir.Path / "cache";
             var dataPath = dir.Path / "data";
 
+            var port = PortExtensions.GetNextAvailablePort();
+
             var args = new Dictionary<string, string>
             {
                 ["paths"] = cacheDir.Path,
                 ["names"] = "Default",
-                ["grpcPort"] = "7090",
+                ["grpcPort"] = port.ToString(),
                 ["LogSeverity"] = "Diagnostic",
                 ["dataRootPath"] = dataPath.Path,
                 ["Scenario"] = "AppTests",
@@ -97,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.App.Test
 
                 var context = new Context(Logger);
 
-                var config = new ServiceClientContentStoreConfiguration("Default", new ServiceClientRpcConfiguration { GrpcPort = 7090 }, scenario: "AppTests");
+                var config = new ServiceClientContentStoreConfiguration("Default", new ServiceClientRpcConfiguration { GrpcPort = port }, scenario: "AppTests");
                 using var store = new ServiceClientContentStore(Logger, fileSystem, config);
                 await store.StartupAsync(context).ShouldBeSuccess();
 

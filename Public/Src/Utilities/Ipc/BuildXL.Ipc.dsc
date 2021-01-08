@@ -14,10 +14,6 @@ namespace Ipc {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("Microsoft.ManifestGenerator").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            ...addIf(
-                BuildXLSdk.isFullFramework,
-                NetFx.Netstandard.dll
-            )
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Ipc",

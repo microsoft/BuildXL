@@ -986,6 +986,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Bcl.HashCode",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Build",
           "Version": "16.4.0-preview-19516-02"
         }
@@ -1392,7 +1401,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ManifestGenerator",
-          "Version": "0.1.0"
+          "Version": "0.1.3"
         }
       }
     },
@@ -1401,7 +1410,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ManifestInterface",
-          "Version": "0.0.1"
+          "Version": "0.0.2"
         }
       }
     },

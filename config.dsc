@@ -388,8 +388,9 @@ config({
                 { id: "Microsoft.Azure.Management.Monitor", version: "0.25.0-preview" },
 
                 // Build Manifest generation and validation packages
-                { id: "Microsoft.ManifestInterface", version: "0.0.1"},
-                { id: "Microsoft.ManifestGenerator", version: "0.1.0", dependentPackageIdsToIgnore: ["BuildXL.Utilities", "Newtonsoft.Json"]},
+                { id: "Microsoft.Bcl.HashCode", version: "1.1.0"},
+                { id: "Microsoft.ManifestInterface", version: "0.0.2"},
+                { id: "Microsoft.ManifestGenerator", version: "0.1.3", dependentPackageIdsToIgnore: ["Newtonsoft.Json"]},
 
                 // FsCheck
                 { id: "FsCheck", version: "2.14.3" },

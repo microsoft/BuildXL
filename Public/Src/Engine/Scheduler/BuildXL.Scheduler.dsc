@@ -43,6 +43,10 @@ namespace Scheduler {
             importFrom("Microsoft.ManifestGenerator").pkg,
             importFrom("Newtonsoft.Json").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
+            ...addIf(
+                BuildXLSdk.isFullFramework,
+                NetFx.Netstandard.dll
+            )
         ],
         internalsVisibleTo: [
             "bxlanalyzer",

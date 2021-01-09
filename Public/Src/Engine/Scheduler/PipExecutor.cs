@@ -562,7 +562,7 @@ namespace BuildXL.Scheduler
             string connectionString = ipcProvider.LoadAndRenderMoniker(monikerId);
             IClient client = ipcProvider.GetClient(connectionString, pip.IpcInfo.IpcClientConfig);
 
-            var ipcOperationPayload = pip.MessageBody.ToString(environment.PipFragmentRenderer);
+            var ipcOperationPayload = pip.MessageBody.ToString(environment.PipFragmentRenderer, useIpcEscaping: true);
             var operation = new IpcOperation(ipcOperationPayload, waitForServerAck: true);
 
             // execute async

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.CLI;
 
 namespace BuildXL.Pips.Operations
 {
@@ -209,14 +210,29 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Formats PipData to a command line using the given a <see cref="PipFragmentRenderer"/>.
         /// </summary>
-        public string ToString(PipFragmentRenderer renderer)
+        public string ToString(PipFragmentRenderer renderer) => ToString(renderer, useIpcEscaping: false);
+
+        /// <summary>
+        /// Formats PipData to a command line.
+        /// </summary>
+        /// <param name="renderer">Fragment renderer to use.</param>
+        /// <param name="useIpcEscaping">
+        /// Whether to escape fragments for IPC calls or for process invocation.
+        /// Does not apply to fragments specifying <see cref="PipDataFragmentEscaping.NoEscaping"/>.
+        /// </param>
+        /// <remarks>
+        /// The reason why there is a distinction between escaping for IPC pips vs process pip is
+        /// because command line argument escaping for processes depends on the operating system,
+        /// whereas IPC arguments are rendered (and later parsed) in a uniform way (agnostic of the current OS).
+        /// </remarks>
+        public string ToString(PipFragmentRenderer renderer, bool useIpcEscaping)
         {
             Contract.Requires(renderer != null);
 
             using (PooledObjectWrapper<StringBuilder> wrapper = Pools.GetStringBuilder())
             {
                 StringBuilder builder = wrapper.Instance;
-                AppendPipData(builder, this, renderer);
+                AppendPipData(builder, this, renderer, useIpcEscaping);
                 return builder.ToString();
             }
         }
@@ -244,7 +260,7 @@ namespace BuildXL.Pips.Operations
             return computedLength;
         }
 
-        private static void AppendPipData(StringBuilder builder, in PipData pipData, PipFragmentRenderer renderer)
+        private static void AppendPipData(StringBuilder builder, in PipData pipData, PipFragmentRenderer renderer, bool useIpcEscaping = false)
         {
             Contract.Requires(renderer != null);
             Contract.Requires(builder != null);
@@ -273,7 +289,15 @@ namespace BuildXL.Pips.Operations
                 switch (pipData.FragmentEscaping)
                 {
                     case PipDataFragmentEscaping.CRuntimeArgumentRules:
-                        builder.AppendEscapedCommandLineWordAndAssertPostcondition(renderedEntry);
+                        if (useIpcEscaping)
+                        {
+                            builder.Append(AbstractParser.CommonEscapeArg(renderedEntry));
+                        }
+                        else
+                        {
+                            builder.AppendEscapedCommandLineWordAndAssertPostcondition(renderedEntry);
+                        }
+                        
                         break;
                     case PipDataFragmentEscaping.NoEscaping:
                         builder.Append(renderedEntry);

@@ -24,8 +24,11 @@ namespace Test.BuildXL.Utilities
         [InlineData(@"/key:""value with space""", new[] { "/key:value with space" })]
         [InlineData(@"/key:""value with""\ space", new[] { "/key:value with space" })]
         [InlineData(@"--key ""C:\x\y\z.txt""", new[] { "--key", @"C:\x\y\z.txt" })]
+        [InlineData(@"--key ""C:\\x\\y\\z.txt""", new[] { "--key", @"C:\\x\\y\\z.txt" })]
         [InlineData(@"/key:""C:\x\y.txt""", new[] { @"/key:C:\x\y.txt" })]
         [InlineData(@"/key:C:\\x\\y.txt", new[] { @"/key:C:\x\y.txt" })]
+        [InlineData(@"""\\cmicomponents(|\.raw)\\.*\.man$""", new[] { @"\\cmicomponents(|\.raw)\\.*\.man$" })]
+        [InlineData(@"\\\\cmicomponents(|\\.raw)\\\\.*\\.man$", new[] { @"\\cmicomponents(|\.raw)\\.*\.man$" })]
         public void SplitArgsTests(string input, string[] expectedArgs)
         {
             var actualArgs = AbstractParser.CommonSplitArgs(input);
@@ -59,6 +62,7 @@ namespace Test.BuildXL.Utilities
         [InlineData(typeof(UnixParser), new[] { "--key", "-n" },                1, PrefixKind.Long,  "key",             null)]
         [InlineData(typeof(UnixParser), new[] { "-k", "--next-key" },           1, PrefixKind.Short, "k",               null)]
         [InlineData(typeof(UnixParser), new[] { "-k", "-n" },                   1, PrefixKind.Short, "k",               null)]
+        [InlineData(typeof(UnixParser), new[] { "--filter", @"\\cmicomponents(|\.raw)\\.*\.man$" }, 0, PrefixKind.Long, "filter", @"\\cmicomponents(|\.raw)\\.*\.man$")]
         public void Parser_ParseTests(Type parserType, string[] args, int expectedRemainingArgs, PrefixKind expectedPrefix, string expectedKey, string expectedValue)
         {
             var parser = GetParserForType(parserType);

@@ -324,7 +324,7 @@ namespace BuildXL.Scheduler
             {
                 // For sealed files, materialization might not have succeeded because a path is not known to BXL.
                 // In such a case, do not log an error, and let the caller deal with the failure.
-                if (cmd.File.IsValid || result != ArtifactMaterializationResult.None)
+                if (cmd.File.IsValid)
                 {
                     Tracing.Logger.Log.ErrorApiServerMaterializeFileFailed(m_loggingContext, absoluteFilePath, cmd.File.IsValid, result.ToString());
                 }

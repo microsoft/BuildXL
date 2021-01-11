@@ -76,10 +76,10 @@ config({
 
                 { id: "RuntimeContracts", version: "0.3.0" },
 
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5", osSkip: [ "macOS", "unix" ] },
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5", osSkip: [ "macOS", "unix" ] },
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net462", version: "1.0.0-alpha-5" },
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0-alpha-5" },
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0", osSkip: [ "macOS", "unix" ] },
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0", osSkip: [ "macOS", "unix" ] },
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net462", version: "1.0.0" },
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.5.0" },
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
@@ -286,17 +286,17 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.137.0-preview"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "16.4.0-preview-19516-02",
+                { id: "Microsoft.Build", version: "16.5.0",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
                 },
-                { id: "Microsoft.Build.Runtime", version: "16.4.0-preview-19516-02",
+                { id: "Microsoft.Build.Runtime", version: "16.5.0",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
                 },
-                { id: "Microsoft.Build.Tasks.Core", version: "16.4.0-preview-19516-02",
+                { id: "Microsoft.Build.Tasks.Core", version: "16.5.0",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
                 },
-                { id: "Microsoft.Build.Utilities.Core", version: "16.4.0-preview-19516-02"},
-                { id: "Microsoft.Build.Framework", version: "16.4.0-preview-19516-02"},
+                { id: "Microsoft.Build.Utilities.Core", version: "16.5.0"},
+                { id: "Microsoft.Build.Framework", version: "16.5.0"},
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
@@ -324,10 +324,6 @@ config({
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
-
-                // CoreRT
-                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "win", "unix" ] },
-                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "macOS", "unix" ] },
 
                 // Kusto SDK (for netstandard)
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8",

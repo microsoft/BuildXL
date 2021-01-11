@@ -32,7 +32,7 @@ namespace VBCSCompilerLogger {
         ],
         runtimeContentToSkip: [
             importFrom("System.Collections.Immutable").pkg,
-            importFrom("System.Memory").pkg
+            importFrom("System.Memory").pkg,
         ]
     });
 

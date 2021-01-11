@@ -5,7 +5,6 @@ import * as Deployment from "Sdk.Deployment";
 import * as Shared     from "Sdk.Managed.Shared";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as Csc        from "Sdk.Managed.Tools.Csc";
-import * as Ilc        from "Sdk.Managed.Tools.ILCompiler";
 import * as ResGen     from "Sdk.Managed.Tools.ResGen.Lite";
 import * as AppPatcher from "Sdk.Managed.Tools.AppHostPatcher";
 import * as Xml        from "Sdk.Xml";
@@ -489,9 +488,6 @@ export interface Arguments {
 
         /** ResGen default args */
         resgen?: ResGen.Arguments;
-
-        /** Ilc default args */
-        ilc?: Ilc.Arguments;
     };
 
     /** Options that control how this compiled assembly gets deployed */

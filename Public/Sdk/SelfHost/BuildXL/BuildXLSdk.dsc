@@ -276,27 +276,6 @@ export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNuget
             importFrom("System.Threading.Tasks.Dataflow").pkg,
         ];
 
-@@public
-export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult {
-    if (!isHostOsOsx) {
-        const asm = executable(args);
-        return asm.override<CoreRT.NativeExecutableResult>({
-            getExecutable: () => asm.runtime.binary
-        });
-    }
-
-    /** Override framework.applicationDeploymentStyle to make sure we don't use apphost */
-    args = args.override<Arguments>({
-        deploymentStyle:  "frameworkDependent",
-    });
-
-    /** Compile to MSIL */
-    const asm = executable(args);
-
-    /** Compie to native */
-    return CoreRT.compileToNative(asm);
-}
-
 /**
  * Builds a BuildXL executable project, resulting in an EXE.
  * Does so by invoking `build` specifying `exe` as the target type.

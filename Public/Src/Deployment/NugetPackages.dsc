@@ -296,9 +296,6 @@ namespace NugetPackages {
             importFrom("NLog").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly.Contrib.WaitAndRetry").withQualifier(net472PackageQualifer).pkg,
-
-            // Unmanaged package, manually construct dependency object.
-            { id: "TransientFaultHandling.Core", version: importFrom("TransientFaultHandling.Core").withQualifier(net472PackageQualifer).pkg.version },
         ]
     });
 

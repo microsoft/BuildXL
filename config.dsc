@@ -242,7 +242,6 @@ config({
                 { id: "System.Threading.Channels", version: "4.7.0",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Linq.Async", version: "4.0.0"},
-                { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
                 { id: "Polly", version: "7.2.1" },
                 { id: "Polly.Contrib.WaitAndRetry", version: "1.1.1" },
                 { id: "Redis-64", version: "3.0.503", osSkip: [ "macOS", "unix" ] },

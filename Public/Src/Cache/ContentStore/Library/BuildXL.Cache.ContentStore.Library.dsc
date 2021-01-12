@@ -37,8 +37,6 @@ namespace Library {
             ...getGrpcPackages(true),
             ...BuildXLSdk.bclAsyncPackages,
 
-            // TODO: Once Polly is tested, we should remove TransientFaultHandling
-            BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             importFrom("Polly").pkg,
             importFrom("Polly.Contrib.WaitAndRetry").pkg,
 

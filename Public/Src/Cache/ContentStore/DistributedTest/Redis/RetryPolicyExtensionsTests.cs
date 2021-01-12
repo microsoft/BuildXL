@@ -24,12 +24,8 @@ namespace ContentStoreTest.Distributed.Redis
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task TestTracingRetryPolicy(bool usePolly)
+        public async Task TestTracingRetryPolicy()
         {
-            RetryPolicyFactory.UsePolly = usePolly;
-
             var context = new OperationContext(new Context(TestGlobal.Logger));
 
             const int RetryCount = 3;
@@ -39,7 +35,6 @@ namespace ContentStoreTest.Distributed.Redis
             int callBackCallCount = 0;
             try
             {
-
                 await retryPolicy.ExecuteAsync(
                     context.TracingContext,
                     async () =>
@@ -60,16 +55,11 @@ namespace ContentStoreTest.Distributed.Redis
             }
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task RetryPolicyStopsOnCancellation(bool usePolly)
+        [Fact]
+        public async Task RetryPolicyStopsOnCancellation()
         {
-            RetryPolicyFactory.UsePolly = usePolly;
-
             // This test shows that if a cancellation token provided to 'RetryPolicy' is triggered
-            // and at least one error already occurred, then the operation will fail with the last exception
-            // If using Polly, TaskCancelledException is thrown.
+            // and at least one error already occurred, then the operation will fail and TaskCancelledException is thrown.
 
             var cts = new CancellationTokenSource();
             var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
@@ -98,15 +88,8 @@ namespace ContentStoreTest.Distributed.Redis
                     databaseName: string.Empty);
                 Assert.True(false, "ExecuteAsync should fail.");
             }
-            catch (ApplicationException e)
-            {
-                usePolly.Should().BeFalse();
-                callBackCallCount.Should().Be(2);
-                e.Message.Should().Be("2");
-            }
             catch (TaskCanceledException)
             {
-                usePolly.Should().BeTrue();
                 callBackCallCount.Should().Be(2);
             }
         }

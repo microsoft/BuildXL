@@ -7,10 +7,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using Microsoft.Practices.TransientFaultHandling;
 using Polly;
 using Polly.Contrib.WaitAndRetry;
-using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -37,9 +35,6 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public static readonly TimeSpan DefaultDeltaBackoff = TimeSpan.FromSeconds(10.0);
 
-        /// <nodoc />
-        public static bool UsePolly = false;
-
         private static IEnumerable<TimeSpan> GetDefaultExponentialBackoff() =>
             Backoff.DecorrelatedJitterBackoffV2(medianFirstRetryDelay: DefaultMinBackoff, retryCount: DefaultRetryCount)
                 .Select(ts => new TimeSpan(ticks: Math.Min(ts.Ticks, DefaultMaxBackoff.Ticks)));
@@ -56,48 +51,20 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         public static IRetryPolicy GetExponentialPolicy(Func<Exception, bool> shouldRetry)
         {
-            return UsePolly
-                ? (IRetryPolicy)new PollyRetryPolicy(GetDefaultExponentialBackoff, shouldRetry)
-                : new TransientFaultHandlingRetryPolicy(
-                    new RetryPolicy(
-                        new CallbackDetectionStrategy(shouldRetry),
-                        RetryStrategy.DefaultExponential));
+            return new PollyRetryPolicy(GetDefaultExponentialBackoff, shouldRetry);
         }
 
         /// <nodoc />
         public static IRetryPolicy GetExponentialPolicy(Func<Exception, bool> shouldRetry, int retryCount, TimeSpan minBackoff, TimeSpan maxBackoff, TimeSpan deltaBackoff)
         {
-            return UsePolly
-                ? (IRetryPolicy)new PollyRetryPolicy(() => GetExponentialBackoff(retryCount, minBackoff, maxBackoff, deltaBackoff), shouldRetry)
-                : new TransientFaultHandlingRetryPolicy(
-                    new RetryPolicy(
-                        new CallbackDetectionStrategy(shouldRetry),
-                        new ExponentialBackoff(retryCount, minBackoff, maxBackoff, deltaBackoff)));
+            return new PollyRetryPolicy(() => GetExponentialBackoff(retryCount, minBackoff, maxBackoff, deltaBackoff), shouldRetry);
         }
 
         /// <nodoc />
         public static IRetryPolicy GetLinearPolicy(Func<Exception, bool> shouldRetry, int retries, TimeSpan? retryInterval = null)
         {
             retryInterval ??= DefaultMinBackoff;
-
-            return UsePolly
-                ? (IRetryPolicy)new PollyRetryPolicy(() => Enumerable.Range(0, retries).Select(_ => retryInterval.Value), shouldRetry)
-                : new TransientFaultHandlingRetryPolicy(
-                    new RetryPolicy(
-                        new CallbackDetectionStrategy(shouldRetry),
-                        new FixedInterval("RetryInterval", retries, retryInterval.Value, false)));
-        }
-
-        private class CallbackDetectionStrategy : ITransientErrorDetectionStrategy
-        {
-            private readonly Func<Exception, bool> _callback;
-
-            public CallbackDetectionStrategy(Func<Exception, bool> callback)
-            {
-                _callback = callback;
-            }
-
-            public bool IsTransient(Exception ex) => _callback(ex);
+            return new PollyRetryPolicy(() => Enumerable.Range(0, retries).Select(_ => retryInterval.Value), shouldRetry);
         }
     }
 
@@ -143,20 +110,5 @@ namespace BuildXL.Cache.ContentStore.Utils
                 .WaitAndRetryAsync(_generator())
                 .ExecuteAsync(_ => func(), token);
         }
-    }
-
-    /// <nodoc />
-    internal class TransientFaultHandlingRetryPolicy : IRetryPolicy
-    {
-        private readonly RetryPolicy _policy;
-
-        /// <nodoc />
-        public TransientFaultHandlingRetryPolicy(RetryPolicy policy) => _policy = policy;
-
-        /// <inheritdoc />
-        public Task<T> ExecuteAsync<T>(Func<Task<T>> func, CancellationToken token) => _policy.ExecuteAsync(func, token);
-
-        /// <inheritdoc />
-        public Task ExecuteAsync(Func<Task> func, CancellationToken token) => _policy.ExecuteAsync(func, token);
     }
 }

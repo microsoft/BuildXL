@@ -7,7 +7,6 @@ using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Utils;
-using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {

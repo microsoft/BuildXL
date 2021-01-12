@@ -3,12 +3,11 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
     /// <nodoc />
-    public class TransientErrorDetectionStrategy : ITransientErrorDetectionStrategy
+    public class TransientErrorDetectionStrategy
     {
         /// <inheritdoc />
         public bool IsTransient(Exception ex)

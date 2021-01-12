@@ -46,6 +46,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "1.0.1" },
     { id: "Symbol.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
     { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"] },
+    { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
 
     // CloudTest internal dependencies
     { id: "GvfsTestHelpersForBuildXL", version: "0.1.0"},

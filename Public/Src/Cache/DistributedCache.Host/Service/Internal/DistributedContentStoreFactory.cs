@@ -89,11 +89,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             );
 
             _redisMemoizationStoreFactory = new Lazy<RedisMemoizationStoreFactory>(() => CreateRedisCacheFactory());
-
-            if (_arguments.Configuration.DistributedContentSettings.UsePolly == true)
-            {
-                RetryPolicyFactory.UsePolly = true;
-            }
         }
 
         internal static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)

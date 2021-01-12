@@ -1072,12 +1072,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool? DistributedContentConsumerOnly { get; set; }
-
-        /// <summary>
-        /// Whether to use Polly instead of the regular TransientFaultHandling.
-        /// </summary>
-        [DataMember]
-        public bool? UsePolly { get; set; }
     }
 
     /// <summary>

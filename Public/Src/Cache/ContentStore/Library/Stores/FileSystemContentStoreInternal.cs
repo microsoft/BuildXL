@@ -1416,7 +1416,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 // A directory could have an old hash in its name or may be renamed by the user.
                 // This is not an error condition if we can't get the hash out of it.
-                if (TryGetHashFromPath(fileInfo.FullPath, out var contentHash))
+                if (TryGetHashFromPath(context, _tracer, fileInfo.FullPath, out var contentHash))
                 {
                     contentHashes.Add(new PayloadFromDisk<FileInfo>(contentHash, fileInfo));
                 }
@@ -1452,7 +1452,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private IEnumerable<FileInfo> EnumerateBlobPathsFromDiskFor(ContentHash contentHash)
+        private IEnumerable<FileInfo> EnumerateBlobPathsFromDiskFor(Context context, ContentHash contentHash)
         {
             var hashSubPath = _contentRootDirectory / contentHash.HashType.Serialize() / GetHashSubDirectory(contentHash);
             if (!FileSystem.DirectoryExists(hashSubPath))
@@ -1465,13 +1465,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 .Where(fileInfo =>
                 {
                     var filePath = fileInfo.FullPath;
-                    return TryGetHashFromPath(filePath, out var hash) &&
+                    return TryGetHashFromPath(context, _tracer, filePath, out var hash) &&
                            hash.Equals(contentHash) &&
                            filePath.FileName.EndsWith(BlobNameExtension, StringComparison.OrdinalIgnoreCase);
                 });
         }
 
-        internal static bool TryGetHashFromPath(AbsolutePath path, out ContentHash contentHash)
+        internal static bool TryGetHashFromPath(Context context, Tracer tracer, AbsolutePath path, out ContentHash contentHash)
         {
             var hashName = path.GetParent().GetParent().FileName;
             if (HashTypeExtensions.Deserialize(hashName, out var hashType))
@@ -1481,10 +1481,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     contentHash = new ContentHash(hashType, HexUtilities.HexToBytes(hashHexString));
                 }
-                catch (ArgumentException)
+                catch (ArgumentException e)
                 {
-                    // If the file name format is malformed, throw an exception with more actionable error message.
-                    throw new CacheException($"Failed to obtain the hash from file name '{path}'. File name should be in hexadecimal form.");
+                    tracer.Warning(context, $"Failed to obtain the hash from file name '{path}'. File name should be in hexadecimal form. Exception: {e}");
+                    contentHash = default;
+                    return false;
                 }
 
                 return true;
@@ -1510,9 +1511,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             return fileName.Substring(0, i);
         }
 
-        private int GetReplicaIndexFromPath(AbsolutePath path)
+        private int GetReplicaIndexFromPath(Context context, AbsolutePath path)
         {
-            if (TryGetHashFromPath(path, out var contentHash))
+            if (TryGetHashFromPath(context, _tracer, path, out var contentHash))
             {
                 string fileName = path.GetFileName();
 
@@ -2280,9 +2281,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         private void RemoveExtraReplicasFromDiskFor(Context context, ContentHash contentHash, int expectedReplicaCount)
         {
             AbsolutePath[] extraReplicaPaths =
-                EnumerateBlobPathsFromDiskFor(contentHash)
+                EnumerateBlobPathsFromDiskFor(context, contentHash)
                     .Select(blobPath => blobPath.FullPath)
-                    .Where(replicaPath => GetReplicaIndexFromPath(replicaPath) >= expectedReplicaCount).ToArray();
+                    .Where(replicaPath => GetReplicaIndexFromPath(context, replicaPath) >= expectedReplicaCount).ToArray();
 
             if (extraReplicaPaths.Any())
             {
@@ -2299,7 +2300,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private async Task RemoveCorruptedThenThrowAsync(Context context, ContentHash contentHash, ContentHash computedHash, AbsolutePath destinationPath)
         {
-            AbsolutePath[] replicaPaths = EnumerateBlobPathsFromDiskFor(contentHash).Select(blobPath => blobPath.FullPath).ToArray();
+            AbsolutePath[] replicaPaths = EnumerateBlobPathsFromDiskFor(context, contentHash).Select(blobPath => blobPath.FullPath).ToArray();
 
             foreach (AbsolutePath replicaPath in replicaPaths)
             {

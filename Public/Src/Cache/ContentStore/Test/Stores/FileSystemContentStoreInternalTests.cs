@@ -21,6 +21,7 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternalChecker;
+using BuildXL.Cache.ContentStore.Tracing;
 
 namespace ContentStoreTest.Stores
 {
@@ -70,7 +71,10 @@ namespace ContentStoreTest.Stores
         {
             var path = PathGeneratorUtilities.GetAbsolutePath("e", @".BuildXLCache\Shared\VSO0\364\~DE-1");
 
-            Assert.Throws<CacheException>(() => FileSystemContentStoreInternal.TryGetHashFromPath(new AbsolutePath(path), out _));
+            var context = new Context(Logger);
+            var tracer = new Tracer(string.Empty);
+
+            FileSystemContentStoreInternal.TryGetHashFromPath(context, tracer, new AbsolutePath(path), out _).Should().BeFalse();
         }
 
         [Fact]

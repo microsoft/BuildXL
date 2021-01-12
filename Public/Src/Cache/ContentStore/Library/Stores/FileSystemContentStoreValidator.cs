@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             $" do not match the name of its parent directory {contentFile.GetParent().FileName}.");
                     }
 
-                    if (!FileSystemContentStoreInternal.TryGetHashFromPath(contentFile, out var hashFromPath))
+                    if (!FileSystemContentStoreInternal.TryGetHashFromPath(context, _tracer, contentFile, out var hashFromPath))
                     {
                         _tracer.Debug(
                             context,
@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             int contentDirectoryMismatchCount = 0;
 
             var fileSystemContentDirectory = _enumerateBlobPathsFromDisk()
-                .Select(blobPath => FileSystemContentStoreInternal.TryGetHashFromPath(blobPath.FullPath, out var hash) ? (ContentHash?)hash : null)
+                .Select(blobPath => FileSystemContentStoreInternal.TryGetHashFromPath(context, _tracer, blobPath.FullPath, out var hash) ? (ContentHash?)hash : null)
                 .Where(hash => hash != null)
                 .GroupBy(hash => hash!.Value)
                 .ToDictionary(replicaGroup => replicaGroup.Key, replicaGroup => replicaGroup.Count());

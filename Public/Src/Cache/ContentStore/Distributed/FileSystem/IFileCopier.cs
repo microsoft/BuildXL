@@ -29,11 +29,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot);
 
         /// <summary>
-        /// Checks that the file represented by <paramref name="sourceLocation"/> exists.
-        /// </summary>
-        Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation);
-
-        /// <summary>
         /// Copies a file represented by the path into the stream specified.
         /// </summary>
         Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options);

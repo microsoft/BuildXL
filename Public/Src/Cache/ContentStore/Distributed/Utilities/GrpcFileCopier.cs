@@ -113,15 +113,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
-        {
-            // Extract host and port from machine location
-            (string host, int port) = ExtractHostInfo(sourceLocation.Machine);
-
-            return _clientCache.UseAsync(context, host, port, (nestedContext, client) => client.CheckFileExistsAsync(nestedContext, sourceLocation.Hash));
-        }
-
-        /// <inheritdoc />
         public async Task<CopyFileResult> CopyToAsync(
             OperationContext context,
             ContentLocation sourceLocation,

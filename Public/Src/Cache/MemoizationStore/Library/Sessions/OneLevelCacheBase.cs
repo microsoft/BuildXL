@@ -304,17 +304,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
-        {
-            if (ContentStore is IStreamStore innerStreamStore)
-            {
-                return await innerStreamStore.CheckFileExistsAsync(context, contentHash);
-            }
-
-            return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{ContentStore} does not implement {nameof(IStreamStore)} in {nameof(OneLevelCache)}.");
-        }
-
-        /// <inheritdoc />
         public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
         {
             if (ContentStore is IRepairStore innerRepairStore)

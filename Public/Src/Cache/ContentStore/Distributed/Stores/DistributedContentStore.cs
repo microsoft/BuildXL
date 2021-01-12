@@ -597,24 +597,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return new OpenStreamResult($"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore)}.");
         }
 
-        /// <inheritdoc />
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
-        {
-            // NOTE: Checking LLS for content needs to happen first since the query to the inner stream store result
-            // is used even if the result is fails.
-            if (CheckLlsForContent(contentHash, out var storage))
-            {
-                return new FileExistenceResult(FileExistenceResult.ResultCode.FileExists);
-            }
-
-            if (InnerContentStore is IStreamStore innerStreamStore)
-            {
-                return await innerStreamStore.CheckFileExistsAsync(context, contentHash);
-            }
-
-            return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore)}.");
-        }
-
         Task<DeleteResult> IDeleteFileHandler.HandleDeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions) => DeleteAsync(context, contentHash, deleteOptions);
 
         /// <inheritdoc />

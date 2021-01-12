@@ -282,32 +282,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash.ToShortString()} to found");
         }
 
-        private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
-        {
-            DateTime startTime = DateTime.UtcNow;
-            Context cacheContext = new Context(new Guid(request.TraceId), Logger);
-            ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
-
-            // Iterate through all known stores, looking for content in each.
-            // In most of our configurations there is just one store anyway,
-            // and doing this means both we can callers don't have
-            // to deal with cache roots and drive letters.
-
-            foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
-            {
-                if (entry.Value is IStreamStore store)
-                {
-                    FileExistenceResult result = await store.CheckFileExistsAsync(cacheContext, hash);
-                    if (result.Succeeded)
-                    {
-                        return new ExistenceResponse { Header = ResponseHeader.Success(startTime) };
-                    }
-                }
-            }
-
-            return new ExistenceResponse { Header = ResponseHeader.Failure(startTime, $"{hash.ToShortString()} not found in the cache") };
-        }
-
         private CopyLimiter CanHandleCopyRequest(bool respectConcurrencyLimit)
         {
             var operationId = Guid.NewGuid();
@@ -1097,7 +1071,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             /// <inheritdoc />
-            public override Task<ExistenceResponse> CheckFileExists(ExistenceRequest request, ServerCallContext context) => _contentServer.CheckFileExistsAsync(request, context.CancellationToken);
+            public override Task<ExistenceResponse> CheckFileExists(ExistenceRequest request, ServerCallContext context) => throw new NotSupportedException("The operation 'CheckFileExists' is not supported.");
 
             /// <inheritdoc />
             public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.HandleCopyRequestAsync(request, responseStream, context);

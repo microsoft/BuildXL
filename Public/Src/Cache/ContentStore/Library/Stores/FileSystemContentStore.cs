@@ -230,19 +230,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
-        {
-            if (await Store.ContainsAsync(context, contentHash, null))
-            {
-                return new FileExistenceResult();
-            }
-            else
-            {
-                return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, $"{contentHash.ToShortString()} wasn't found in the cache");
-            }
-        }
-
-        /// <inheritdoc />
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions = null)
         { 
             return Store.DeleteAsync(context, contentHash, deleteOptions);

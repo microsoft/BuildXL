@@ -267,14 +267,6 @@ namespace ContentStoreTest.Distributed.Stores
                 }
                 return Task.FromResult(CopyToAsyncResult);
             }
-
-#pragma warning disable 649
-            public FileExistenceResult CheckFileExistsAsyncResult;
-#pragma warning restore 649
-
-            /// <inheritdoc />
-            public Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
-                 => Task.FromResult(CheckFileExistsAsyncResult);
         }
     }
 

@@ -299,25 +299,6 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
         [Fact]
-        public async Task CheckExistingFile()
-        {
-            await RunTestCase(async (rootPath, session, client) =>
-            {
-                // Write a random file
-                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                var content = ThreadSafeRandom.GetBytes(FileSize);
-                FileSystem.WriteAllBytes(sourcePath, content);
-
-                // Put the random file
-                PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
-                putResult.ShouldBeSuccess();
-
-                // Check if file exists
-                (await client.CheckFileExistsAsync(_context, putResult.ContentHash)).ShouldBeSuccess();
-            });
-        }
-
-        [Fact]
         public async Task CopyNonExistingFile()
         {
             await RunTestCase(async (rootPath, session, client) =>
@@ -329,17 +310,7 @@ namespace ContentStoreTest.Distributed.Stores
                 copyFileResult.Code.Should().Be(CopyResultCode.FileNotFoundError, copyFileResult.ToString());
             });
         }
-
-        [Fact]
-        public async Task CheckNonExistingFile()
-        {
-            await RunTestCase(async (rootPath, session, client) =>
-            {
-                // Check if random non-existent file exists
-                (await client.CheckFileExistsAsync(_context, ContentHash.Random())).ShouldBeError();
-            });
-        }
-
+        
         [Fact]
         public async Task WrongPort()
         {

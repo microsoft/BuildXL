@@ -30,8 +30,6 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public ConcurrentDictionary<AbsolutePath, bool> FilesToCorrupt { get; } = new ConcurrentDictionary<AbsolutePath, bool>();
 
-        public ConcurrentDictionary<AbsolutePath, ConcurrentQueue<FileExistenceResult.ResultCode>> FileExistenceByReturnCode { get; } = new ConcurrentDictionary<AbsolutePath, ConcurrentQueue<FileExistenceResult.ResultCode>>();
-
         public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
 
         public Dictionary<MachineLocation, IPushFileHandler> PushHandlersByLocation { get; } = new Dictionary<MachineLocation, IPushFileHandler>();
@@ -109,29 +107,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
             return s;
         }
-
-        public Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
-        {
-            var path = PathUtilities.GetContentPath(sourceLocation.Machine.Path, sourceLocation.Hash);
-
-            if (FileExistenceByReturnCode.TryGetValue(path, out var resultQueue) && resultQueue.TryDequeue(out var result))
-            {
-                return Task.FromResult(new FileExistenceResult(result));
-            }
-
-            if (File.Exists(path.Path))
-            {
-                return Task.FromResult(new FileExistenceResult(FileExistenceResult.ResultCode.FileExists));
-            }
-
-            return Task.FromResult(new FileExistenceResult(FileExistenceResult.ResultCode.Error));
-        }
-
-        public void SetNextFileExistenceResult(AbsolutePath path, FileExistenceResult.ResultCode result)
-        {
-            FileExistenceByReturnCode[path] = new ConcurrentQueue<FileExistenceResult.ResultCode>(new[] { result });
-        }
-
+        
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash, CancellationToken.None);

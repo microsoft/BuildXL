@@ -131,43 +131,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <summary>
-        /// Checks if file exists on remote machine.
-        /// </summary>
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash hash)
-        {
-            try
-            {
-                var request = new ExistenceRequest()
-                {
-                    TraceId = context.Id.ToString(),
-                    HashType = (int)hash.HashType,
-                    ContentHash = hash.ToByteString()
-                };
-
-                ExistenceResponse response = await _client.CheckFileExistsAsync(request);
-                if (response.Header.Succeeded)
-                {
-                    return new FileExistenceResult();
-                }
-                else
-                {
-                    return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, response.Header.ErrorMessage);
-                }
-            }
-            catch (RpcException r)
-            {
-                if (r.StatusCode == StatusCode.Unavailable)
-                {
-                    return new FileExistenceResult(FileExistenceResult.ResultCode.SourceError, r);
-                }
-                else
-                {
-                    return new FileExistenceResult(FileExistenceResult.ResultCode.Error, r);
-                }
-            }
-        }
-
-        /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
         public Task<CopyFileResult> CopyFileAsync(OperationContext context, ContentHash hash, AbsolutePath destinationPath, CopyOptions options)

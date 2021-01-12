@@ -550,14 +550,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 var localContentPath = PathUtilities.GetContentPath(context.Directories[0].Path / "Root", putResult0.ContentHash);
                 File.Delete(localContentPath.Path);
                 context.TestFileCopier.FilesCopied.TryAdd(localContentPath, localContentPath);
-                context.TestFileCopier.FileExistenceByReturnCode.GetOrAdd(
-                    localContentPath,
-                    (_) =>
-                    {
-                        var queue = new ConcurrentQueue<FileExistenceResult.ResultCode>();
-                        queue.Enqueue(FileExistenceResult.ResultCode.FileNotFound);
-                        return queue;
-                    });
 
                 // Query for file from session 2
                 await OpenStreamReturnsExpectedFile(sessions[2], context.Context, putResult0.ContentHash, randomBytes);

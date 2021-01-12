@@ -238,12 +238,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
-        {
-            return PerformStoreOperationAsync<IStreamStore, FileExistenceResult>(store => store.CheckFileExistsAsync(context, contentHash));
-        }
-
-        /// <inheritdoc />
         public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token)
         {
             return PerformStoreOperationAsync<ICopyRequestHandler, BoolResult>(store => store.HandleCopyFileRequestAsync(context, hash, token));

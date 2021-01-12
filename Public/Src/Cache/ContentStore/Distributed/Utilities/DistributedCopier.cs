@@ -42,16 +42,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public virtual Task<FileExistenceResult> CheckFileExistsAsync(OperationContext context, ContentLocation sourceLocation)
-        {
-            var path = new AbsolutePath(sourceLocation.Machine.Path) / FileSystemContentStoreInternal.GetPrimaryRelativePath(sourceLocation.Hash, includeSharedFolder: false);
-
-            var resultCode = FileUtilities.Exists(path.Path) ? FileExistenceResult.ResultCode.FileExists : FileExistenceResult.ResultCode.FileNotFound;
-
-            return Task.FromResult(new FileExistenceResult(resultCode));
-        }
-
-        /// <inheritdoc />
         public virtual async Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
         {
             var sourcePath = new AbsolutePath(sourceLocation.Machine.Path) / FileSystemContentStoreInternal.GetPrimaryRelativePath(sourceLocation.Hash, includeSharedFolder: false);

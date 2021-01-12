@@ -2080,7 +2080,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // This method prints sample hashes in the following way:
                 // SampleHashes: Adds = [hash1, hash2], Removes = [hash3, hash4]
                 var sb = new StringBuilder();
-                sb.Append("SampleHashes: ");
                 sb.Append($"Adds = [{string.Join(", ", sampleHashes.Where(tpl => tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
                 sb.Append($"Removes = [{string.Join(", ", sampleHashes.Where(tpl => !tpl.add).Select(tpl => tpl.hash.ToString()))}], ");
 

@@ -45,7 +45,7 @@ namespace BuildXL.Cache.Monitor.Test
             _ = await keyVault.GetCertificateAsync(config.IcmCertificateName);
             keyVault.IcmCallsCounter.Value.Should().Be(1);
 
-            var icmClient = new IcmClient(keyVault, config.IcmUrl, config.IcmConnectorId, config.IcmCertificateName);
+            var icmClient = new IcmClient(keyVault, config.IcmUrl, config.IcmConnectorId, config.IcmCertificateName, clock);
 
             var incident = new IcmIncident(
                 stamp: "Test",
@@ -55,7 +55,8 @@ namespace BuildXL.Cache.Monitor.Test
                 severity: 4,
                 description: "This incident was created for testing the cache monitor",
                 title: "Cache Monitor Test Incident",
-                incidentTime: DateTime.Now);
+                incidentTime: DateTime.Now,
+                cacheTimeToLive: null);
 
             await icmClient.EmitIncidentAsync(incident);
 

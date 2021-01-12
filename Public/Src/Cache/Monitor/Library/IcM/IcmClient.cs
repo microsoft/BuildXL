@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using Microsoft.AzureAd.Icm.Types;
 using Microsoft.AzureAd.Icm.WebService.Client;
 
@@ -19,17 +20,31 @@ namespace BuildXL.Cache.Monitor.Library.IcM
         private readonly string _uri;
         private readonly Guid _connectorId;
         private readonly string _connectorCertificateName;
+        private readonly VolatileSet<string> _cachedIcms;
 
-        public IcmClient(KeyVaultClient keyVault, string icmUri, Guid connectorId, string connectorCertificateName)
+        public IcmClient(KeyVaultClient keyVault, string icmUri, Guid connectorId, string connectorCertificateName, IClock clock)
         {
             _keyVault = keyVault;
             _uri = icmUri;
             _connectorId = connectorId;
             _connectorCertificateName = connectorCertificateName;
+            _cachedIcms = new VolatileSet<string>(clock);
         }
 
         public async Task EmitIncidentAsync(IcmIncident incident)
         {
+            if (incident.CacheTimeToLive is not null)
+            {
+                if (_cachedIcms.Contains(incident.Title))
+                {
+                    return;
+                }
+                else
+                {
+                    _cachedIcms.Add(incident.Title, incident.CacheTimeToLive.Value);
+                }
+            }
+                
             var cert = await _keyVault.GetCertificateAsync(_connectorCertificateName);
             var incidentToSend = GetIncidentToSend(incident);
 
@@ -127,6 +142,13 @@ namespace BuildXL.Cache.Monitor.Library.IcM
 
         public DateTime? IncidentTime { get; set; }
 
+        /// <summary>
+        /// If null, this does nothing.
+        /// When this has a value, the client will remember the incident by its title and make sure that we don't
+        /// emit a new incident while the original TTL is still valid.
+        /// </summary>
+        public TimeSpan? CacheTimeToLive { get; set; }
+
         /// <nodoc />
         public IcmIncident(
             string stamp,
@@ -136,7 +158,8 @@ namespace BuildXL.Cache.Monitor.Library.IcM
             int severity,
             string description,
             string title,
-            DateTime? incidentTime)
+            DateTime? incidentTime,
+            TimeSpan? cacheTimeToLive)
         {
             Stamp = stamp;
             Environment = environment;
@@ -146,6 +169,7 @@ namespace BuildXL.Cache.Monitor.Library.IcM
             Description = description;
             Title = title;
             IncidentTime = incidentTime;
+            CacheTimeToLive = cacheTimeToLive;
         }
     }
 }

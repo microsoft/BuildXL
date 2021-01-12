@@ -145,7 +145,8 @@ namespace BuildXL.Cache.Monitor.App
                     keyVaultClient,
                     configuration.IcmUrl,
                     configuration.IcmConnectorId,
-                    configuration.IcmCertificateName);
+                    configuration.IcmCertificateName,
+                    SystemClock.Instance);
             }
             else
             {

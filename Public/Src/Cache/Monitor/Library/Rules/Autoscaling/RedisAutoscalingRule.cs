@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 : base(kustoRuleConfiguration)
             {
             }
+
+            public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(12);
         }
 
         private readonly Configuration _configuration;
@@ -87,6 +90,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             if (!primary.IsReadyToScale)
             {
                 Emit(context, "Autoscale", Severity.Warning, $"Instance `{primary.Name}` is undergoing maintenance or autoscaling operation. State=[{primary.State}]");
+                await CreateIcmForFailedStateIfNeededAsync(primary);
 
                 if (primary.IsFailed)
                 {
@@ -101,11 +105,36 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             if (!secondary.IsReadyToScale && !secondary.IsFailed)
             {
                 Emit(context, "Autoscale", Severity.Warning, $"Instance `{secondary.Name}` is undergoing maintenance or autoscaling operation. State=[{secondary.State}]");
+                await CreateIcmForFailedStateIfNeededAsync(secondary);
+
                 return ValidationOutcome.SecondaryUndergoingAutoscale;
             }
 
             await AttemptToScaleAsync(context, primary, context.CancellationToken);
             return ValidationOutcome.Success;
+        }
+
+        private async Task CreateIcmForFailedStateIfNeededAsync(IRedisInstance instance)
+        {
+            if (instance.State != "Failed")
+            {
+                return;
+            }
+
+            try
+            {
+                await EmitIcmAsync(
+                    severity: 3,
+                    title: $"{instance.Name} is in a failed state. State=[{instance.State}]",
+                    description: "Instance fell into a failed state. Please monitor it and open an IcM against the Windows Azure Cache team for support if needed.",
+                    machines: null,
+                    correlationIds: null,
+                    cacheTimeToLive: _configuration.IcmIncidentCacheTtl);
+            }
+            catch (Exception e)
+            {
+                _configuration.Logger.Error($"Failed to emit IcM for failed instance {instance.Name}: {e}");
+            }
         }
 
         private async Task<bool> AttemptToScaleAsync(RuleContext context, IRedisInstance redisInstance, CancellationToken cancellationToken)

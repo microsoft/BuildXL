@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.IcM;
 
 namespace BuildXL.Cache.Monitor.Library.Rules
 {
@@ -38,6 +40,19 @@ namespace BuildXL.Cache.Monitor.Library.Rules
                 _configuration.Stamp,
                 message,
                 summary ?? message));
+        }
+
+        protected Task EmitIcmAsync(
+            int severity,
+            string title,
+            IEnumerable<string>? machines,
+            IEnumerable<string>? correlationIds,
+            string? description = null,
+            DateTime? eventTimeUtc = null,
+            TimeSpan? cacheTimeToLive = null)
+        {
+            var incident = new IcmIncident(_configuration.Stamp, _configuration.Environment.ToString(), machines, correlationIds, severity, description ?? title, title, eventTimeUtc, cacheTimeToLive);
+            return _configuration.IcmClient.EmitIncidentAsync(incident);
         }
     }
 }

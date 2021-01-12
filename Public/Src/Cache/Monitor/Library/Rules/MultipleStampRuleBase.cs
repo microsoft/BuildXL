@@ -60,9 +60,10 @@ namespace BuildXL.Cache.Monitor.Library.Rules
             IEnumerable<string>? machines,
             IEnumerable<string>? correlationIds,
             string? description = null,
-            DateTime? eventTimeUtc = null)
+            DateTime? eventTimeUtc = null,
+            TimeSpan? cacheTimeToLive = null)
         {
-            var incident = new IcmIncident(stamp, _configuration.Environment.ToString(), machines, correlationIds, severity, description ?? title, title, eventTimeUtc);
+            var incident = new IcmIncident(stamp, _configuration.Environment.ToString(), machines, correlationIds, severity, description ?? title, title, eventTimeUtc, cacheTimeToLive);
             return _configuration.IcmClient.EmitIncidentAsync(incident);
         }
 

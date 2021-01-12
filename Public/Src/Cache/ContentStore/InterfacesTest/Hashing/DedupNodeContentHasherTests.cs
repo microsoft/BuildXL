@@ -10,7 +10,8 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Xunit;
-using System.Diagnostics;
+using System.IO;
+using System.Threading;
 
 
 // VS Test Explorer can't find Mta*, so change the false to true to run the tests in VS.
@@ -30,6 +31,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         protected DedupNode HashIsStable(HashType hashType, uint byteCount, string expectedHash, int seed = 0)
         {
+            byte[] bytes = new byte[byteCount];
+            if (byteCount > 0)
+            {
+                FillBufferWithTestContent(seed, bytes);
+            }
+
             DedupNode node;
             if (hashType == HashType.Dedup64K) // COMChunker only supports 64K.
             {
@@ -38,21 +45,23 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                     using (var chunker = new ComChunker(ChunkerConfiguration.SupportedComChunkerConfiguration))
                     using (var defaultHasher = new DedupNodeOrChunkHashAlgorithm(chunker))
                     {
-                        node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, false);
-                        node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, true);
-                        node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, false);
-                        node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, true);
+                        node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, false);
+                        node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, true);
+                        node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, false);
+                        node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, true);
                     }
                 }
             }
 
             using (var defaultHasher = new DedupNodeOrChunkHashAlgorithm(new ManagedChunker(hashType.GetChunkerConfiguration())))
             {
-                node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, false);
-                node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, true);
-                node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, false);
-                node = HashIsStableForChunker(defaultHasher, byteCount, expectedHash, seed, true);
+                node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, false);
+                node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, true);
+                node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, false);
+                node = HashIsStableForChunker(defaultHasher, bytes, expectedHash, seed, true);
             }
+
+            HashCanBeVerified(node, bytes, expectedHash, seed);
 
             return node;
         }
@@ -74,29 +83,22 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        protected DedupNode HashIsStableForChunker(DedupNodeOrChunkHashAlgorithm hasher, uint byteCount, string expectedHash, int seed, bool sizeHint)
+        protected DedupNode HashIsStableForChunker(DedupNodeOrChunkHashAlgorithm hasher, byte[] bytes, string expectedHash, int seed, bool sizeHint)
         {
             DedupNode node;
 
             if (sizeHint)
             {
-                hasher.SetInputLength(byteCount);
-            }
-
-            byte[] bytes = new byte[byteCount];
-
-            if (byteCount > 0)
-            {
-                FillBufferWithTestContent(seed, bytes);
+                hasher.SetInputLength((long)bytes.Length);
             }
 
             hasher.ComputeHash(bytes, 0, bytes.Length);
             node = hasher.GetNode();
-            Assert.Equal<long>((long)byteCount, node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
+            Assert.Equal<long>((long)bytes.Length, node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
 
-            Assert.Equal(byteCount > 0, node.EnumerateChunkLeafsInOrder().All(c => c.TransitiveContentBytes != 0));
+            Assert.Equal(bytes.Length > 0, node.EnumerateChunkLeafsInOrder().All(c => c.TransitiveContentBytes != 0));
 
-            string header = $"Seed:{seed} Length:{byteCount} Hash:";
+            string header = $"Seed:{seed} Length:{bytes.Length} Hash:";
             Assert.Equal<string>($"{header}{expectedHash}", $"{header}{node.Hash.ToHex()}");
 
             // TODO: Chunk size optimization - consider re-enabling this *new* proposed assert.
@@ -106,6 +108,19 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             //}
 
             return node;
+        }
+
+        protected void HashCanBeVerified(DedupNode node, byte[] bytes, string expectedHash, int seed)
+        {
+            List<ChunkInfo> chunks = node.GetChunks().ToList();
+
+            using (var stream = new MemoryStream(bytes))
+            {
+                bool hashMatch = ChunkDedupedFileContentHashVerifier.VerifyStreamAsync(stream, chunks, new ChunkDedupedFileContentHash(expectedHash), CancellationToken.None)
+                    .ConfigureAwait(false).GetAwaiter().GetResult();
+
+                Assert.True(hashMatch);
+            }
         }
     }
 

@@ -131,21 +131,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 _session?.Dispose();
                 _session = null;
 
-                if (_chunks.Count == 0)
-                {
-                    return new DedupNode(new ChunkInfo(0, 0, DedupSingleChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
-                }
-                else if (_chunks.Count == 1)
-                {
-                    // Content is small enough to track as a chunk.
-                    var node = new DedupNode(_chunks.Single());
-                    Contract.Check(node.Type == DedupNode.NodeType.ChunkLeaf)?.Assert($"{nameof(CreateNode)}: expected chunk leaf: {DedupNode.NodeType.ChunkLeaf} got {node.Type} instead.");
-                    return node;
-                }
-                else
-                {
-                    return DedupNodeTree.Create(_chunks);
-                }
+                return DedupNode.Create(_chunks);
             }
         }
 

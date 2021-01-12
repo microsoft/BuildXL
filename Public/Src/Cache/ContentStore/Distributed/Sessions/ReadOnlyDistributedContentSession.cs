@@ -52,6 +52,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ProactiveCopy_OutsideRingFromPreferredLocations,
             ProactiveCopy_OutsideRingCopies,
             ProactiveCopyRetries,
+            ProactiveCopyInsideRingRetries,
+            ProactiveCopyOutsideRingRetries,
             ProactiveCopy_InsideRingCopies,
             ProactiveCopy_InsideRingFullyReplicated,
         }
@@ -1276,11 +1278,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         var retries = 0;
                         if (!insideRingResult.Succeeded)
                         {
-                            while (outsideRingResult.Status.QualifiesForRetry() && retries < Settings.ProactiveCopyMaxRetries)
+                            // Make sure to re-enable the initial candidate as a future candidate, since the copy failed.
+                            if (candidate != null)
                             {
-                                SessionCounters[Counters.ProactiveCopyRetries].Increment();
-                                retries++;
-                                outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, retries);
+                                replicatedLocations.Remove(candidate.Value);
+                            }
+
+                            // Retry inside-ring copy only if the outside-ring copy cannot be retried, to avoid overwhelming machines which
+                            // may be under heavy use.
+                            if (!outsideRingResult.Succeeded && !outsideRingResult.Status.QualifiesForRetry())
+                            {
+                                while (insideRingResult.Status.QualifiesForRetry() && retries < Settings.ProactiveCopyMaxRetries)
+                                {
+                                    SessionCounters[Counters.ProactiveCopyRetries].Increment();
+                                    SessionCounters[Counters.ProactiveCopyInsideRingRetries].Increment();
+                                    retries++;
+                                    insideRingResult = await ProactiveCopyInsideBuildRing(context, hash, tryBuildRing, replicatedLocations, reason, retries).pushFileTask;
+                                }
+                            }
+                            else
+                            {
+                                while (outsideRingResult.Status.QualifiesForRetry() && retries < Settings.ProactiveCopyMaxRetries)
+                                {
+                                    SessionCounters[Counters.ProactiveCopyRetries].Increment();
+                                    SessionCounters[Counters.ProactiveCopyOutsideRingRetries].Increment();
+                                    retries++;
+                                    outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, retries);
+                                }
                             }
                         }
 

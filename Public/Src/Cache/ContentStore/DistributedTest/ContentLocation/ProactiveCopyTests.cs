@@ -96,6 +96,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var counters = sessions[0].GetCounters().ToDictionaryIntegral();
                     counters["ProactiveCopyRetries.Count"].Should().Be(ProactiveCopyRetries);
+                    counters["ProactiveCopyOutsideRingRetries.Count"].Should().Be(ProactiveCopyRetries);
                 },
                 testCopier: new ErrorReturningTestFileCopier(errorsToReturn: ProactiveCopyRetries, failingResult: PushFileResult.ServerUnavailable()),
                 implicitPin: ImplicitPin.None);
@@ -711,6 +712,54 @@ namespace ContentStoreTest.Distributed.Sessions
                         }
                     });
             }
+        }
+
+        [Fact]
+        public async Task ProactiveCopyInsideRingRetriesTest()
+        {
+            EnableProactiveCopy = true;
+            ProactiveCopyMode = ProactiveCopyMode.InsideRing; // Disable outside-ring proactive copies.
+            ProactiveCopyOnPuts = true;
+            ProactiveCopyOnPins = true;
+            ProactiveCopyLocationThreshold = 4; // Large enough that we 'always' try to push.
+            ProactiveCopyRetries = 2;
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 3;
+            ConfigureWithOneMaster();
+
+            var buildId = Guid.NewGuid().ToString();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
+
+                    var sessions = context.GetDistributedSessions();
+
+                    // Insert random file #1 into worker #1
+                    var putResult = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    var hash = putResult.ContentHash;
+
+                    var getBulkResult = await masterStore.GetBulkAsync(context, hash, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // Proactive copy should have replicated the content.
+                    getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                    var counters = sessions[0].GetCounters().ToDictionaryIntegral();
+                    counters["ProactiveCopyInsideRingRetries.Count"].Should().Be(ProactiveCopyRetries);
+                    counters["ProactiveCopyRetries.Count"].Should().Be(ProactiveCopyRetries);
+                },
+                implicitPin: ImplicitPin.None,
+                buildId: buildId,
+                testCopier: new ErrorReturningTestFileCopier(errorsToReturn: ProactiveCopyRetries, failingResult: PushFileResult.ServerUnavailable()));
         }
     }
 }

@@ -24,6 +24,7 @@ namespace BuildXL.Scheduler.Tracing
         PipIpcFailedDueToInvalidInput = 77,
 
         DeleteFullySealDirectoryUnsealedContents = 244,
+        FailedToSealDirectory = 245,
         PipsSucceededStats = 227,
         PipsFailedStats = 228,
         StatsPerformanceLog = 459,

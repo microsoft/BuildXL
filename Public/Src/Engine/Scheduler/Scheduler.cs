@@ -6381,6 +6381,8 @@ namespace BuildXL.Scheduler
             Contract.Requires(pip != null);
 
             DateTime pipStart = DateTime.UtcNow;
+            bool registerDirectoryResult = true;
+            PipResultStatus result;
 
             using (operationContext.StartOperation(PipExecutorCounter.RegisterStaticDirectory))
             {
@@ -6392,13 +6394,21 @@ namespace BuildXL.Scheduler
                     ReportCompositeOpaqueContents(environment, pip);
                 }
 
-                m_fileContentManager.RegisterStaticDirectory(pip.Directory);
+                registerDirectoryResult = m_fileContentManager.TryRegisterStaticDirectory(pip.Directory);
             }
 
-            var result = PipResultStatus.NotMaterialized;
-            if (pip.Kind == SealDirectoryKind.SourceAllDirectories || pip.Kind == SealDirectoryKind.SourceTopDirectoryOnly)
+            if (registerDirectoryResult)
             {
-                result = PipResultStatus.Succeeded;
+                result = PipResultStatus.NotMaterialized;
+                if (pip.Kind == SealDirectoryKind.SourceAllDirectories || pip.Kind == SealDirectoryKind.SourceTopDirectoryOnly)
+                {
+                    result = PipResultStatus.Succeeded;
+                }
+            }
+            else
+            {
+                // An error for why this failed should already be logged
+                result = PipResultStatus.Failed;
             }
 
             return PipResult.Create(result, pipStart);

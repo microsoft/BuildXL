@@ -3517,6 +3517,20 @@ namespace BuildXL.Scheduler.Tracing
             string deletedPaths);
 
         [GeneratedEvent(
+            (int)LogEventId.FailedToSealDirectory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+            "[{pipDescription}] Failed to seal directory '{directoryPath}': {exceptionMessage}")]
+        public abstract void FailedToSealDirectory(
+            LoggingContext context,
+            string directoryPath,
+            string pipDescription,
+            string exceptionMessage);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DebugFragment,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

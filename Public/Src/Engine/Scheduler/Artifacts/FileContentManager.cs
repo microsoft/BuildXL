@@ -281,9 +281,26 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Registers the completion of a seal directory pip
         /// </summary>
-        public void RegisterStaticDirectory(DirectoryArtifact artifact)
+        /// <returns> True if the register directory operation was successful or false if deleting the directory contents failed. </returns>
+        public bool TryRegisterStaticDirectory(DirectoryArtifact artifact)
         {
-            RegisterDirectoryContents(artifact);
+            bool result = true;
+
+            try
+            {
+                RegisterDirectoryContents(artifact);
+            }
+            catch (BuildXLException ex)
+            {
+                Logger.Log.FailedToSealDirectory(
+                    m_host.LoggingContext,
+                    artifact.Path.ToString(Context.PathTable),
+                    GetAssociatedPipDescription(artifact),
+                    ex.LogEventMessage);
+                result = false;
+            }
+
+            return result;
         }
 
         /// <summary>

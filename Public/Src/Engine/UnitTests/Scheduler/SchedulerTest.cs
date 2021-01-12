@@ -2738,6 +2738,36 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Tests whether registering a static directory will fail when one of the files to be scrubbed
+        /// within the directory is still in use.
+        /// </summary>
+        /// <remarks> 
+        /// Due to the way file IO is handled in unix, this test does not apply. Once a file handle is
+        /// opened, it can still be moved/deleted/renamed without throwing an exception.
+        /// Therefore we shouldn't see this exception thrown on unix.
+        /// </remarks>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task TestIOExceptionOnSealDirectory()
+        {
+            Setup();
+            var dirPath = CreateUniqueSourcePath();
+            var sealFile = CreateSourceFile(dirPath.ToString(Context.PathTable));
+            var fileToBeScrubbed = CreateSourceFile(dirPath.ToString(Context.PathTable));
+            var sealDirectory = CreateSealDirectory(dirPath, SealDirectoryKind.Full, true, sealFile);
+
+            PipGraphBuilder.AddSealDirectory(sealDirectory);
+
+            using (File.Open(fileToBeScrubbed.Path.ToString(Context.PathTable), FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                bool success = await RunScheduler();
+
+                XAssert.IsFalse(success);
+                AssertSchedulerErrorEventLogged(LogEventId.FailedToSealDirectory);
+                AssertLogContains(false, "Deleting a file failed");
+            }
+        }
+
+        /// <summary>
         /// Helper method to check that a BXL enum matches its corresponding ProtoBuf Enum, and the two enums are not shifted
         /// </summary>
         private void VerifyNonShiftedEnumsAreEqual(Type bxlEnum, Type protobufEnum)

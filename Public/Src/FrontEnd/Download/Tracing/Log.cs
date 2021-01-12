@@ -204,6 +204,24 @@ namespace BuildXL.FrontEnd.Download.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = ResolverSettingsPrefix + "The string '{name}' specified in '{fieldName}' is not a valid identifier.")]
         public abstract void NameContainsInvalidCharacters(LoggingContext context, string fieldName, string name);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.AuthenticationViaIWAFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (ushort)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Download resolver was not able to authenticate using Integrated Windows Authentication for '{uri}': {details}")]
+        public abstract void AuthenticationViaIWAFailed(LoggingContext context, string uri, string details);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.AuthenticationViaCredentialProviderFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (ushort)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Download resolver was not able to authenticate using a credential provider for '{uri}': {details}")]
+        public abstract void AuthenticationViaCredentialProviderFailed(LoggingContext context, string uri, string details);
     }
 
 

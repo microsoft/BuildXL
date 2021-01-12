@@ -27,6 +27,8 @@ namespace Download {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("SharpZipLib").pkg,
             ...BuildXLSdk.tplPackages,
+            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
+            importFrom("Newtonsoft.Json").pkg,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Download",

@@ -33,5 +33,7 @@ namespace BuildXL.FrontEnd.Download.Tracing
         ExtractManifestDoesNotMatch = 11816,
         Downloaded = 11817,
         NameContainsInvalidCharacters = 11818,
+        AuthenticationViaCredentialProviderFailed = 11819,
+        AuthenticationViaIWAFailed = 11820,
     }
 }

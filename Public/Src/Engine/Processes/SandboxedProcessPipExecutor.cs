@@ -24,6 +24,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
+using BuildXL.Processes.Remoting;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -223,6 +224,8 @@ namespace BuildXL.Processes
         /// </summary>
         public static readonly string StdOutputsDirNameInLog = "StdOutputs";
 
+        private bool m_forceExecuteLocally = false;
+        
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
         /// </summary>
@@ -875,16 +878,21 @@ namespace BuildXL.Processes
             }
         }
 
+        private bool SandboxedProcessNeedsExecuteRemote => m_sandboxConfig.RemoteAllProcesses;
+
         private bool SandboxedProcessNeedsExecuteExternal =>
-            // Execution mode is external
-            m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
-            // Only pip that requires admin privilege.
-            && m_pip.RequiresAdmin;
+            SandboxedProcessNeedsExecuteRemote
+            || (// Execution mode is external
+                m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
+                // Only pip that requires admin privilege.
+                && m_pip.RequiresAdmin);
 
         private bool ShouldSandboxedProcessExecuteExternal =>
             SandboxedProcessNeedsExecuteExternal
             // Container is disabled.
-            && !m_containerConfiguration.IsIsolationEnabled;
+            && !m_containerConfiguration.IsIsolationEnabled
+            // Local execution is not enforced when process needs to execute remotely.
+            && (!SandboxedProcessNeedsExecuteRemote || !m_forceExecuteLocally);
 
         private bool ShouldSandboxedProcessExecuteInVm =>
             ShouldSandboxedProcessExecuteExternal
@@ -1092,7 +1100,15 @@ namespace BuildXL.Processes
 
                 string externalSandboxedProcessDirectory = m_layoutConfiguration.ExternalSandboxedProcessDirectory.ToString(m_pathTable);
 
-                if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
+                if (SandboxedProcessNeedsExecuteRemote)
+                {
+                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
+
+                    process = await ExternalSandboxedProcess.StartAsync(
+                        info,
+                        spi => new RemoteSandboxedProcess(spi, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory, cancellationToken));
+                }
+                else if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
                     Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
@@ -1176,12 +1192,22 @@ namespace BuildXL.Processes
                     {
                         m_processIdListener?.Invoke(-process.ProcessId);
                     }
+
                     lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
                     m_numWarnings += result.WarningCount;
                     isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
 
                     if (process is ExternalSandboxedProcess externalSandboxedProcess)
                     {
+                        if (process is RemoteSandboxedProcess remoteSandboxedProcess && remoteSandboxedProcess.ShouldRunLocally == true)
+                        {
+                            m_forceExecuteLocally = true;
+                            return await RunAsync(
+                                cancellationToken,
+                                remoteSandboxedProcess.SandboxedProcessInfo.SandboxConnection,
+                                remoteSandboxedProcess.SandboxedProcessInfo.SidebandWriter);
+                        }
+
                         int exitCode = externalSandboxedProcess.ExitCode ?? -1;
                         string stdOut = Environment.NewLine + "StdOut:" + Environment.NewLine + externalSandboxedProcess.StdOut;
                         string stdErr = Environment.NewLine + "StdErr:" + Environment.NewLine + externalSandboxedProcess.StdErr;
@@ -2144,6 +2170,7 @@ namespace BuildXL.Processes
 
                 // TODO: named semaphores are not supported in NetStandard2.0
                 if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
+                    && !m_sandboxConfig.RemoteAllProcesses
                     && checkMessageCount
                     && !OperatingSystemHelper.IsUnixOS)
                 {

@@ -24,6 +24,14 @@ namespace BuildXL.SandboxedProcessExecutor
         public bool EnableTelemetry { get; set; }
 
         /// <summary>
+        /// Prints observed file/directory accesses to standard output.
+        /// </summary>
+        /// <remarks>
+        /// The observedFileAccesses flag in SandboxedProcessInfo needs to be enabled to show the observed accesses.
+        /// </remarks>
+        public bool PrintObservedAccesses { get; set; }
+
+        /// <summary>
         /// Path to sandboxed process test hooks file.
         /// </summary>
         public string SandboxedProcessExecutorTestHookFile { get; set; }

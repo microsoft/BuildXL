@@ -44,6 +44,10 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     configuration.EnableTelemetry = ParseBooleanOption(option);
                 }
+                else if (OptionEquals(option, "printObservedAccesses"))
+                {
+                    configuration.PrintObservedAccesses = ParseBooleanOption(option);
+                }
                 else if (OptionEquals(option, "testHook"))
                 {
                     configuration.SandboxedProcessExecutorTestHookFile = ParsePathOption(option);
@@ -79,10 +83,12 @@ namespace BuildXL.SandboxedProcessExecutor
             writer.WriteBanner("Tool for executing and monitoring process in a sandbox");
 
             writer.WriteLine("");
-            writer.WriteLine("/sandboxedProcessInfo:<file>   -- Sandboxed process info input file [short: /i]");
-            writer.WriteLine("/sandboxedProcessResult:<file> -- Sandboxed process result output file [short: /r]");
-            writer.WriteLine("/enableTelemetry[+/-]          -- Enable telemetry [default: false]");
-            writer.WriteLine("/help                          -- Print help message and exit [short: /?]");
+            writer.WriteLine("/sandboxedProcessInfo:<file>             -- Sandboxed process info input file [short: /i]");
+            writer.WriteLine("/sandboxedProcessResult:<file>           -- Sandboxed process result output file [short: /r]");
+            writer.WriteLine("/enableTelemetry[+/-]                    -- Enable telemetry [default: false]");
+            writer.WriteLine("/showObservedAccesses[+/-]               -- Show observed file/directory accesses [default: false]");
+            writer.WriteLine("                                            ReportedFileAccesses in file manifest must be set to true");
+            writer.WriteLine("/help                                    -- Print help message and exit [short: /?]");
         }
     }
 }

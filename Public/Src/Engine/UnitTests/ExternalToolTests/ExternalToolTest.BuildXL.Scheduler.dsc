@@ -3,6 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
+import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace ExternalToolTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
@@ -16,6 +17,7 @@ namespace ExternalToolTest {
                 runWithUntrackedDependencies: true
             },
         },
+        testFramework: XUnit.framework,
         sources: globR(d`.`, "*.cs"),
         references: [
             Scheduler.dll,

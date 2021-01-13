@@ -34,7 +34,8 @@ namespace BuildXL.Utilities
             {
                 bool failVmConnection = reader.ReadBoolean();
 
-                return new SandboxedProcessExecutorTestHook {
+                return new SandboxedProcessExecutorTestHook 
+                {
                     FailVmConnection = failVmConnection
                 };
             }

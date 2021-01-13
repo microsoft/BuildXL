@@ -853,6 +853,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "relatedActivityId",
                             opt => loggingConfiguration.RelatedActivityId = CommandLineUtilities.ParseStringOption(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "remoteAllProcesses",
+                            sign => sandboxConfiguration.RemoteAllProcesses = sign),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "remoteTelemetry",
                             (opt, sign) =>

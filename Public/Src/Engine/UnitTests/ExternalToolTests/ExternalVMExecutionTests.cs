@@ -10,7 +10,6 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using System;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
@@ -62,13 +61,13 @@ namespace ExternalToolTest.BuildXL.Scheduler
             Configuration.Schedule.MaxRetriesDueToRetryableFailures = 1;
 
             // Set the test hook and reset the graph bulider so it uses the context with the newly set test hook
-            Context.TestHooks = new TestHooks() {
-                SandboxedProcessExecutorTestHook = new SandboxedProcessExecutorTestHook {
+            Context.TestHooks = new TestHooks()
+            {
+                SandboxedProcessExecutorTestHook = new SandboxedProcessExecutorTestHook
+                {
                     FailVmConnection = true
                 }
             };
-
-            ResetPipGraphBuilder();
 
             var builder = CreatePipBuilder(new Operation[]
             {
@@ -99,11 +98,15 @@ namespace ExternalToolTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
-                Operation.Fail(global::BuildXL.Processes.ExitCodes.VmInfrastructureFailure)     // To make sure pips failing with an exit code equivalent to VmInfrastructureFailure are not retried
+
+                // Pip will fail with the same exit code as VmInfrastructureFailure code.
+                // However, pip execution should not be retried.
+                Operation.Fail(global::BuildXL.Processes.ExitCodes.VmInfrastructureFailure)
             });
             builder.Options |= Process.Options.RequiresAdmin;
             SchedulePipBuilder(builder);
 
+            // System.Diagnostics.Debugger.Launch();
             // The build is expected to fail, but all of the error logging consistency checks should pass meaning no crash
             RunScheduler().AssertFailure();
 

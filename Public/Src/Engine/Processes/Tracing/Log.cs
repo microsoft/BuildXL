@@ -373,6 +373,30 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
+            (int)LogEventId.LogRemotingDebugMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[Pip{pipSemiStableHash:X16}] Remoting debug: {message}")]
+        public abstract void LogRemotingDebugMessage(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.LogRemotingErrorMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[Pip{pipSemiStableHash:X16}] Remoting error: {message}")]
+        public abstract void LogRemotingErrorMessage(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string message);
+
+        [GeneratedEvent(
             (int)LogEventId.LogMacKextFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -963,6 +987,24 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
         public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessStartRemoteExecution,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Remoting process execution via '{tool}' starts")]
+        public abstract void PipProcessStartRemoteExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessFinishedRemoteExecution,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Remoting process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
+        public abstract void PipProcessFinishedRemoteExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessStartExternalVm,

@@ -11,13 +11,14 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// True if process should be executed externally.
         /// </summary>
-        public static bool ExecuteExternal(this AdminRequiredProcessExecutionMode mode) 
-            => mode == AdminRequiredProcessExecutionMode.ExternalTool || mode == AdminRequiredProcessExecutionMode.ExternalVM;
+        public static bool ExecuteExternal(this AdminRequiredProcessExecutionMode mode) =>
+            mode == AdminRequiredProcessExecutionMode.ExternalTool
+            || mode == AdminRequiredProcessExecutionMode.ExternalVM;
 
         /// <summary>
         /// True if process should be executed in VM.
         /// </summary>
-        public static bool ExecuteExternalVm(this AdminRequiredProcessExecutionMode mode)
-            => ExecuteExternal(mode) && mode == AdminRequiredProcessExecutionMode.ExternalVM;
+        public static bool ExecuteExternalVm(this AdminRequiredProcessExecutionMode mode) =>
+            ExecuteExternal(mode) && mode == AdminRequiredProcessExecutionMode.ExternalVM;
     }
 }

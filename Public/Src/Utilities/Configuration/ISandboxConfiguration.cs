@@ -271,5 +271,10 @@ namespace BuildXL.Utilities.Configuration
         /// Concurrency limit for executing pips inside VM. 
         /// </summary>
         int VmConcurrencyLimit { get; }
+
+        /// <summary>
+        /// Whether or not to remote all process pips.
+        /// </summary>
+        bool RemoteAllProcesses { get; }
     }
 }

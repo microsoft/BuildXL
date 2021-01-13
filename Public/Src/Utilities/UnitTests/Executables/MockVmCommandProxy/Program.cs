@@ -26,9 +26,10 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
                 return -1;
             }
 
-            string inputFile = null;
-            string outputFile = null;
             string command = args[0];
+
+            string inputFile;
+            string outputFile;
 
             if (string.Equals(VmCommands.InitializeVm, command, StringComparison.OrdinalIgnoreCase))
             {
@@ -47,6 +48,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
             }
             else if (string.Equals(VmCommands.Run, command, StringComparison.OrdinalIgnoreCase))
             {
+
                 if (!TryParseArgs(args, out inputFile, out outputFile))
                 {
                     return -1;

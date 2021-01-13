@@ -32,7 +32,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Sandboxed process info.
         /// </summary>
-        protected SandboxedProcessInfo SandboxedProcessInfo { get; private set; }
+        public SandboxedProcessInfo SandboxedProcessInfo { get; private set; }
 
         /// <summary>
         /// SandboxedProcessExecutor Test Hook.
@@ -176,8 +176,7 @@ namespace BuildXL.Processes
         /// </summary>
         protected void SerializeSandboxedProcessInputFile(string path, Action<FileStream> serialize)
         {
-            string file = SandboxedProcessInfoFile;
-            FileUtilities.CreateDirectory(Path.GetDirectoryName(file));
+            FileUtilities.CreateDirectory(Path.GetDirectoryName(path));
 
             try
             {
@@ -188,7 +187,7 @@ namespace BuildXL.Processes
             }
             catch (IOException ioException)
             {
-                ThrowBuildXLException($"Failed to serialize sandboxed process input '{file}'", ioException);
+                ThrowBuildXLException($"Failed to serialize sandboxed process input '{path}'", ioException);
             }
         }
 

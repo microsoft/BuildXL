@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.VmCommandProxy;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -53,6 +52,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsForIncrementalTool = false;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
             VmConcurrencyLimit = 0;
+            RemoteAllProcesses = false;
         }
 
         /// <nodoc />
@@ -102,6 +102,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsForIncrementalTool = template.PreserveOutputsForIncrementalTool;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
             VmConcurrencyLimit = template.VmConcurrencyLimit;
+            RemoteAllProcesses = template.RemoteAllProcesses;
         }
 
         /// <inheritdoc />
@@ -263,5 +264,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int VmConcurrencyLimit { get; set; }
+
+        /// <inheritdoc />
+        public bool RemoteAllProcesses { get; set; }
     }
 }

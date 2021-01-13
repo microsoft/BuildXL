@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -178,6 +179,11 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (executeResult.result != null)
             {
+                if (m_configuration.PrintObservedAccesses)
+                {
+                    PrintObservedAccesses(sandboxedProcessInfo.PathTable, executeResult.result);
+                }
+
                 if (!TryWriteSandboxedProcessResult(sandboxedProcessInfo.PathTable, executeResult.result))
                 {
                     return ExitCode.FailedWriteOutput;
@@ -185,6 +191,28 @@ namespace BuildXL.SandboxedProcessExecutor
             }
 
             return executeResult.exitCode;
+        }
+
+        private void PrintObservedAccesses(PathTable pathTable, SandboxedProcessResult result)
+        {
+            var accesses = new List<ReportedFileAccess>();
+
+            if (result.FileAccesses != null)
+            {
+                accesses.AddRange(result.FileAccesses);
+            }
+
+            if (result.AllUnexpectedFileAccesses != null)
+            {
+                accesses.AddRange(result.AllUnexpectedFileAccesses);
+            }
+
+            m_logger.LogInfo($"{accesses.Count} observed access(es):");
+
+            foreach (var access in accesses)
+            {
+                m_logger.LogInfo($"{access.GetPath(pathTable)}: {access.Describe()}");
+            }
         }
 
         private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)
@@ -267,7 +295,10 @@ namespace BuildXL.SandboxedProcessExecutor
             ExceptionUtilities.HandleRecoverableIOException(
                 () =>
                 {
-                    using (FileStream stream = File.OpenWrite(Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile)))
+                    string sandboxedProcessResultOutputPath = Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile);
+                    m_logger.LogInfo($"Writing sandboxed process result to '{sandboxedProcessResultOutputPath}'");
+
+                    using (FileStream stream = File.OpenWrite(sandboxedProcessResultOutputPath))
                     {
                         result.Serialize(stream, writePath);
                     }
@@ -300,7 +331,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
             {
-                m_logger.LogError($"Process command line is longer than {SandboxedProcessInfo.MaxCommandLineLength} characters: {info.GetCommandLine().Length}");
+                m_logger.LogError($"Process command line is longer than {SandboxedProcessInfo.MaxCommandLineLength} characters: {info.GetCommandLine()}");
                 return false;
             }
 
@@ -411,6 +442,8 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private async Task<(ExitCode, SandboxedProcessResult)> ExecuteAsync(SandboxedProcessInfo info)
         {
+            m_logger.LogInfo($"Start execution: {info.GetCommandLine()}");
+
             FileAccessManifest fam = info.FileAccessManifest;
 
             try

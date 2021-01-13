@@ -152,6 +152,12 @@ namespace BuildXL.Processes.Tracing
 
         DumpSurvivingPipProcessChildrenStatus = 12213,
 
+        /// Sandboxed process remoting.
+        LogRemotingDebugMessage = 12500,
+        LogRemotingErrorMessage = 12501,
+        PipProcessStartRemoteExecution = 12502,
+        PipProcessFinishedRemoteExecution = 12503,
+
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
     }

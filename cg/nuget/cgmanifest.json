@@ -986,6 +986,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Bcl.HashCode",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Build",
           "Version": "16.5.0"
         }
@@ -1384,6 +1393,24 @@
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Tokens",
           "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ManifestGenerator",
+          "Version": "0.1.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ManifestInterface",
+          "Version": "1.0.0"
         }
       }
     },

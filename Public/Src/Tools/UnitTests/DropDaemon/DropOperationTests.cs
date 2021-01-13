@@ -669,7 +669,7 @@ namespace Test.Tool.DropDaemon
                 Contract.Requires(operation != null);
                 if (InternalClient != null)
                 {
-                    if (global::BuildXL.Ipc.ExternalApi.Commands.Command.Deserialize(operation.Payload) is RegisterFileForBuildManifestCommand)
+                    if (global::BuildXL.Ipc.ExternalApi.Commands.Command.Deserialize(operation.Payload) is RegisterFilesForBuildManifestCommand)
                     {
                         // Override for RegisterFileForBuildManifestCommand (Always true)
                         return Task.FromResult(SendFn(operation));

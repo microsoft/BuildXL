@@ -36,6 +36,11 @@ namespace Tool.DropDaemon
         /// </summary>
         public bool IsOutputFile => m_file.IsOutputFile;
 
+        /// <summary>
+        /// Get output file
+        /// </summary>
+        public FileArtifact File => m_file;
+
         private readonly bool m_chunkDedup;
 
         /// <nodoc/>
@@ -87,7 +92,7 @@ namespace Tool.DropDaemon
                 throw new DaemonException("File materialization failed");
             }
 
-            if (!File.Exists(FullFilePath))
+            if (!System.IO.File.Exists(FullFilePath))
             {
                 throw new DaemonException("File materialization succeeded, but file is not found on disk: " + FullFilePath);
             }

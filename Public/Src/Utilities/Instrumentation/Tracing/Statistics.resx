@@ -153,8 +153,14 @@
   <data name="ApiTotalMaterializeFileCalls" xml:space="preserve">
     <value>BuildXLApiTotalMaterializeFileCalls</value>
   </data>
-  <data name="ApiTotalRegisterBuildManifestHashCalls" xml:space="preserve">
-    <value>BuildXLApiTotalRegisterBuildManifestHashCalls</value>
+    <data name="ApiMaterializeFileCallsTotalExecutionTimeMs" xml:space="preserve">
+    <value>BuildXLApiMaterializeFileCallsTotalExecutionTimeMs</value>
+  </data>
+  <data name="ApiBatchedRegisterBuildManifestHashesCalls" xml:space="preserve">
+    <value>BuildXLApiBatchedRegisterBuildManifestHashesCalls</value>
+  </data>
+  <data name="ApiRegisterBuildManifestHashesTotalExecutionTimeMs" xml:space="preserve">
+    <value>BuildXLApiRegisterBuildManifestHashesTotalExecutionTimeMs</value>
   </data>
   <data name="ApiTotalGenerateBuildManifestFileCalls" xml:space="preserve">
     <value>BuildXLApiTotalGenerateBuildManifestFileCalls</value>
@@ -164,6 +170,9 @@
   </data>
   <data name="ApiTotalGetSealedDirectoryContentCalls" xml:space="preserve">
     <value>BuildXLApiTotalGetSealedDirectoryContentCalls</value>
+  </data>
+    <data name="ApiGetSealedDirectoryContentTotalExecutionTimeMs" xml:space="preserve">
+    <value>BuildXLApiGetSealedDirectoryContentTotalExecutionTimeMs</value>
   </data>
   <data name="DropTrackerOverhangMs" xml:space="preserve">
     <value>DropTrackerOverhangMs</value>

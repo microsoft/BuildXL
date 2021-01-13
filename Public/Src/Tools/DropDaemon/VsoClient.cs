@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Common;
+using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
@@ -90,6 +91,7 @@ namespace Tool.DropDaemon
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
         private readonly Timer m_batchTimer;
+        private readonly DropDaemon m_dropDaemon;
 
         private readonly BatchBlock<AddFileItem> m_batchBlock;
         private readonly BufferBlock<AddFileItem[]> m_bufferBlock;
@@ -126,12 +128,13 @@ namespace Tool.DropDaemon
         public string DropUrl => ServiceEndpoint + "/_apis/drop/drops/" + DropName;
 
         /// <nodoc />
-        public VsoClient(IIpcLogger logger, DropConfig dropConfig)
+        public VsoClient(IIpcLogger logger, DropDaemon dropDaemon)
         {
-            Contract.Requires(dropConfig != null);
+            Contract.Requires(dropDaemon?.DropConfig != null);
 
             m_logger = logger;
-            m_config = dropConfig;
+            m_dropDaemon = dropDaemon;
+            m_config = dropDaemon.DropConfig;
             m_cancellationSource = new CancellationTokenSource();
 
             logger.Info("Using drop config: " + JsonConvert.SerializeObject(m_config));
@@ -164,6 +167,24 @@ namespace Tool.DropDaemon
                 DropAppTraceSource.SingleInstance.SetSourceLevel(System.Diagnostics.SourceLevels.Verbose);
                 Tracer.AddFileTraceListener(Path.Combine(m_config.LogDir, m_config.ArtifactLogName));
             }
+        }
+
+        /// <summary>
+        /// Takes a hash as string and registers its corresponding SHA-256 ContentHash using BuildXL Api.
+        /// Should be called only when DropConfig.EnableBuildManifestCreation is true.
+        /// Returns an hashset of failing FullFilePaths.
+        /// </summary>
+        private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
+        {
+            Contract.Requires(m_dropDaemon.DropConfig.EnableBuildManifestCreation == true, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
+            var bxlResult = await m_dropDaemon.ApiClient.RegisterFilesForBuildManifest(m_dropDaemon.DropName, buildManifestEntries);
+            if (!bxlResult.Succeeded)
+            {
+                m_logger.Verbose($"ApiClient.RegisterFileForBuildManifest unsuccessful. Failure: {bxlResult.Failure.Describe()}");
+                return new HashSet<string>(buildManifestEntries.Select(bme => bme.FullFilePath));
+            }
+
+            return new HashSet<string>(bxlResult.Result.Select(bme => bme.FullFilePath));
         }
 
         /// <summary>
@@ -212,7 +233,13 @@ namespace Tool.DropDaemon
 
             var addFileItem = new AddFileItem(dropItem);
             await m_batchBlock.SendAsync(addFileItem);
-            return await addFileItem.TaskSource.Task;
+
+            var manifestResult = await addFileItem.BuildManifestTaskSource.Task;
+            var dropResult = await addFileItem.DropResultTaskSource.Task;
+
+            return manifestResult == RegisterFileForBuildManifestResult.Failed
+                ? AddFileResult.RegisterFileForBuildManifestFailure
+                : dropResult;
         }
 
         /// <summary>
@@ -321,6 +348,18 @@ namespace Tool.DropDaemon
                 var numSkipped = batch.Length - dedupedBatch.Length;
                 m_logger.Info("Processing a batch of {0} drop files after skipping {1} files.", dedupedBatch.Length, numSkipped);
 
+                Task<HashSet<string>> registerFilesForBuildManifestTask = null;
+                // Register files for Build Manifest
+                if (m_dropDaemon.DropConfig.EnableBuildManifestCreation)
+                {
+                    BuildManifestEntry[] buildManifestEntries = dedupedBatch
+                        .Where(dropItem => dropItem.BlobIdentifier != null)
+                        .Select(dropItem => new BuildManifestEntry(dropItem.RelativeDropFilePath, dropItem.BlobIdentifier.ToContentHash(), dropItem.FullFilePath))
+                        .ToArray();
+
+                    registerFilesForBuildManifestTask = Task.Run(() => RegisterFilesForBuildManifestAsync(buildManifestEntries));
+                }
+
                 // compute blobs for associate
                 var startTime = DateTime.UtcNow;
                 blobsForAssociate = await Task.WhenAll(dedupedBatch.Select(item => item.FileBlobDescriptorForAssociateAsync(m_config.EnableChunkDedup, Token)));
@@ -340,6 +379,16 @@ namespace Tool.DropDaemon
                 SetResultForUploadedMissingItems(itemsLeftToUpload);
                 Interlocked.Add(ref Stats.TotalUploadSizeMb, blobsForUpload.Sum(b => b.FileSize ?? 0) >> 20);
 
+                foreach (var file in dedupedBatch)
+                {
+                    RegisterFileForBuildManifestResult result = registerFilesForBuildManifestTask == null
+                        ? RegisterFileForBuildManifestResult.Skipped
+                        : (await registerFilesForBuildManifestTask).Contains(file.FullFilePath)
+                            ? RegisterFileForBuildManifestResult.Failed
+                            : RegisterFileForBuildManifestResult.Registered;
+                    file.BuildManifestTaskSource.TrySetResult(result);
+                }
+
                 m_logger.Info("Done processing AddFile batch.");
             }
             catch (Exception e)
@@ -347,14 +396,17 @@ namespace Tool.DropDaemon
                 m_logger.Verbose($"Failed ProcessAddFilesAsync (batch size:{batch.Length}, blobsForAssociate size:{blobsForAssociate.Length}){Environment.NewLine}"
                     + string.Join(
                         Environment.NewLine,
-                        batch.Select(item => $"'{item.FullFilePath}', '{item.RelativeDropFilePath}', BlobId:'{item.BlobIdentifier?.ToString() ?? ""}', Task.IsCompleted:{item.TaskSource.Task.IsCompleted}")));
+                        batch.Select(item => $"'{item.FullFilePath}', '{item.RelativeDropFilePath}', BlobId:'{item.BlobIdentifier?.ToString() ?? ""}', Task.IsCompleted:{item.DropResultTaskSource.Task.IsCompleted}")));
 
                 foreach (AddFileItem item in batch)
                 {
-                    if (!item.TaskSource.Task.IsCompleted)
+                    if (!item.DropResultTaskSource.Task.IsCompleted)
                     {
-                        item.TaskSource.SetException(e);
+                        item.DropResultTaskSource.SetException(e);
                     }
+
+                    // No exceptions are thrown by RegisterFilesForBuildManifestAsync
+                    item.BuildManifestTaskSource.TrySetResult(RegisterFileForBuildManifestResult.Skipped);
                 }
             }
         }
@@ -372,12 +424,14 @@ namespace Tool.DropDaemon
                     if (existingItem.BlobIdentifier != null && existingItem.BlobIdentifier == item.BlobIdentifier)
                     {
                         // the item won't be returned for further processing, so we need to mark its task complete
-                        item.TaskSource.SetResult(AddFileResult.SkippedAsDuplicate);
+                        item.DropResultTaskSource.SetResult(AddFileResult.SkippedAsDuplicate);
+                        item.BuildManifestTaskSource.SetResult(RegisterFileForBuildManifestResult.Skipped);
                         ++numSkipped;
                     }
                     else
                     {
-                        item.TaskSource.SetException(new Exception($"An item with a drop path '{item.RelativeDropFilePath}' is already present -- existing content: '{existingItem?.BlobIdentifier?.ToContentHash()}', new content: '{item?.BlobIdentifier?.ToContentHash()}'"));
+                        item.DropResultTaskSource.SetException(new Exception($"An item with a drop path '{item.RelativeDropFilePath}' is already present -- existing content: '{existingItem?.BlobIdentifier?.ToContentHash()}', new content: '{item?.BlobIdentifier?.ToContentHash()}'"));
+                        item.BuildManifestTaskSource.SetResult(RegisterFileForBuildManifestResult.Skipped);
                         ++numFailed;
                     }
                 }
@@ -477,7 +531,7 @@ namespace Tool.DropDaemon
         {
             foreach (AddFileItem item in uploadedItems)
             {
-                item.TaskSource.SetResult(AddFileResult.UploadedAndAssociated);
+                item.DropResultTaskSource.SetResult(AddFileResult.UploadedAndAssociated);
             }
         }
 
@@ -495,7 +549,7 @@ namespace Tool.DropDaemon
                 var itemFileBlobDescriptor = await item.FileBlobDescriptorForAssociateAsync(chunkDedup, cancellationToken);
                 if (!missingBlobIds.Contains(itemFileBlobDescriptor.BlobIdentifier))
                 {
-                    item.TaskSource.SetResult(AddFileResult.Associated);
+                    item.DropResultTaskSource.SetResult(AddFileResult.Associated);
                 }
                 else
                 {
@@ -521,7 +575,9 @@ namespace Tool.DropDaemon
             private FileBlobDescriptor m_fileBlobDescriptorForUpload;
             private FileBlobDescriptor m_fileBlobDescriptorForAssociate;
 
-            internal TaskSourceSlim<AddFileResult> TaskSource { get; }
+            internal TaskSourceSlim<AddFileResult> DropResultTaskSource { get; }
+
+            internal TaskSourceSlim<RegisterFileForBuildManifestResult> BuildManifestTaskSource { get; }
 
             internal string FullFilePath => m_dropItem.FullFilePath;
 
@@ -531,10 +587,11 @@ namespace Tool.DropDaemon
 
             internal AddFileItem(IDropItem item)
             {
-                TaskSource = TaskSourceSlim.Create<AddFileResult>();
+                DropResultTaskSource = TaskSourceSlim.Create<AddFileResult>();
                 m_dropItem = item;
                 m_fileBlobDescriptorForUpload = null;
                 m_fileBlobDescriptorForAssociate = null;
+                BuildManifestTaskSource = TaskSourceSlim.Create<RegisterFileForBuildManifestResult>();
             }
 
             /// <summary>

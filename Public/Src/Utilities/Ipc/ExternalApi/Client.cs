@@ -9,6 +9,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Ipc.ExternalApi
 {
@@ -58,25 +59,28 @@ namespace BuildXL.Ipc.ExternalApi
         }
 
         /// <summary>
-        /// Reads the SHA-256 hash from cache or materializes the file on disk and computes it's hash.
-        /// Returns true if the hash could be generated/read from cache.
+        /// Reads the SHA-256 hashes from cache or materializes the files on disk and computes their hashes.
+        /// Returns empty if BuildManifestEntry[] all the hashes could be generated/read from cache.
+        /// Else returns a BuildManifestEntry[] of entries that couldn't be hashed.
         /// </summary>
-        public Task<Possible<bool>> RegisterFileForBuildManifest(
+        public Task<Possible<BuildManifestEntry[]>> RegisterFilesForBuildManifest(
             string dropName,
-            string relativePath,
-            ContentHash hash,
-            FileArtifact fileId,
-            string fullFilePath)
+            BuildManifestEntry[] buildManifestEntries)
         {
-            return ExecuteCommand(new RegisterFileForBuildManifestCommand(dropName, relativePath, hash, fileId, fullFilePath));
+            return ExecuteCommand(new RegisterFilesForBuildManifestCommand(dropName, buildManifestEntries));
         }
 
         /// <summary>
-        /// Generates a BuildManifest.json file from hashes stored by <see cref="RegisterFileForBuildManifest"/>.
+        /// Generates a BuildManifest.json file from hashes stored by <see cref="RegisterFilesForBuildManifest"/>.
         /// </summary>
-        public Task<Possible<BuildManifestData>> GenerateBuildManifestData(string dropName)
+        public Task<Possible<BuildManifestData>> GenerateBuildManifestData(
+            string dropName,
+            string repo,
+            string branch,
+            string commitId,
+            string cloudBuildId)
         {
-            return ExecuteCommand(new GenerateBuildManifestDataCommand(dropName));
+            return ExecuteCommand(new GenerateBuildManifestDataCommand(dropName, repo, branch, commitId, cloudBuildId));
         }
 
         /// <summary>

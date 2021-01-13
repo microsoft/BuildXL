@@ -49,6 +49,14 @@ export namespace DropDaemon {
             // because of the way that runtime assemblies are loaded into memory.
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg, 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            
+            importFrom("Microsoft.Bcl.HashCode").pkg,
+            importFrom("Microsoft.ManifestInterface").pkg,
+            importFrom("Microsoft.ManifestGenerator").pkg,
+            ...addIf(
+                BuildXLSdk.isFullFramework,
+                NetFx.Netstandard.dll
+            )
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",

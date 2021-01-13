@@ -35,6 +35,7 @@ namespace MsBuildGraphBuilder {
         runtimeContentToSkip: [
             // don't add msbuild dlls because assembly resolvers will resolve msbuild from other MSBuild installations
             ...MSBuild.msbuildReferences,
+            importFrom("System.Collections.Immutable").pkg,
         ],
         internalsVisibleTo: [
             "Test.Tool.ProjectGraphBuilder",

@@ -4,6 +4,8 @@ config({
             kind: "MsBuild",
             root: d`.`,
             moduleName: "Project",
+            // Leaving this line commented out makes the resolver find the MSBuild version and related assemblies to use under PATH:
+            // msBuildSearchLocations: [d`C:\Path\to\MsBuild\Bin`],
         }
     ]
 });

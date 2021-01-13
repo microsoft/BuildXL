@@ -112,7 +112,7 @@ namespace BuildXL.FrontEnd.Utilities
                     Arguments = arguments,
                     WorkingDirectory = workingDirectory,
                     PipSemiStableHash = 0,
-                    PipDescription = "CMakeRunner - Ninja specs and input files generator",
+                    PipDescription = description,
                     EnvironmentVariables = buildParameters
                 };
 

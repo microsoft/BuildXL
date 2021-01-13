@@ -67,6 +67,12 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, evaluationOnly
                                 }).selectDeployment(evaluationOnly)
                             ]
                         },
+                        {
+                            subfolder: "Sdk.JavaScript",
+                            contents: [ 
+                                importFrom("Sdk.JavaScript").deployment
+                            ]
+                        },
                     ])
                 ]
             }

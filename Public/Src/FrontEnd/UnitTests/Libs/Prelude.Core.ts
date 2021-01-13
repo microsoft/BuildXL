@@ -405,8 +405,7 @@ interface Array<T> {
     /**
      * Find the first element satisfying some predicate, undefined if element is not in array.
      */
-    //TODO: currently not implemented
-    //find(callbackfn: (value: T, index: number, array: T[]) => boolean): T;
+    find(callbackfn: (value: T, index: number, array: T[]) => boolean): T;
 
     /**
      * Performs the specified action for each element in an array.

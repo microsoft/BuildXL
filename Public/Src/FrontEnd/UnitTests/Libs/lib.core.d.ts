@@ -1155,6 +1155,12 @@ interface Array<T> {
      *        each element in array until the callbackfn returns false, or until the end of the array.
      */
     all(callbackfn: (value: T, index: number, array: T[]) => boolean): boolean;
+	
+    /**
+    * Find the first element satisfying some predicate, undefined if element is not in array.
+    */
+    find(callbackfn: (value: T, index: number, array: T[]) => boolean): T;
+	
     /**
       * Performs the specified action for each element in an array.
       * @param callbackfn  A function that accepts up to three arguments. forEach calls the callbackfn function one time for each element in the array. 

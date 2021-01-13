@@ -54,6 +54,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 Create<ArrayLiteral>(AmbientName, Symbol("reverse"), Reverse),
                 Create<ArrayLiteral>(AmbientName, Symbol("some"), Some),
                 Create<ArrayLiteral>(AmbientName, Symbol("all"), All),
+                Create<ArrayLiteral>(AmbientName, Symbol("find"), Find),
                 Create<ArrayLiteral>(AmbientName, Symbol("every"), All),
                 Create<ArrayLiteral>(AmbientName, Symbol("unique"), Unique),
                 Create<ArrayLiteral>(AmbientName, Symbol("slice"), Slice),
@@ -700,6 +701,34 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 // if isSome ("some") and we've exhausted the loop (no elem matched) ==> return false
                 // if !isSome ("all") and we've exhausted the loop (all elems matched) ==> return true
                 return EvaluationResult.Create(!isSome);
+            }
+        }
+
+        private static EvaluationResult Find(Context context, ArrayLiteral receiver, EvaluationResult arg, EvaluationStackFrame captures)
+        {
+            var closure = Converter.ExpectClosure(arg);
+
+            int paramsCount = closure.Function.Params;
+
+            using (var frame = EvaluationStackFrame.Create(closure.Function, captures.Frame))
+            {
+                for (int i = 0; i < receiver.Length; ++i)
+                {
+                    frame.TrySetArguments(paramsCount, receiver[i], i, EvaluationResult.Create(receiver));
+                    EvaluationResult lambdaResult = context.InvokeClosure(closure, frame);
+
+                    if (lambdaResult.IsErrorValue)
+                    {
+                        return EvaluationResult.Error;
+                    }
+
+                    if (Expression.IsTruthy(lambdaResult))
+                    {
+                        return receiver[i];
+                    }
+                }
+
+                return EvaluationResult.Undefined;
             }
         }
 

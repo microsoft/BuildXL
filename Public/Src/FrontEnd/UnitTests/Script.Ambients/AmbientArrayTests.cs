@@ -466,6 +466,44 @@ namespace M {{
             }
         }
 
+        [Theory]
+        [InlineData("[1, 2, 3, 4, 5, 0]", "(e) => e === 5", 5)] 
+        [InlineData("[1, 2, 3, 4, 5, 0]", "(e) => e === 6", null)] // null is interpreted as undefined below
+        [InlineData("[1, 2, 3, 4, 5, 0]", "(e) => e % 2 === 0", 2)]
+        public void TestFind(string array, string lambda, int? findResult)
+        {
+            var result = EvaluateSpec(
+                $@"
+namespace M {{
+    const arr = {array};
+    const pred = {lambda};
+    export const findResult = arr.find(pred);
+}}", new[] { "M.findResult"});
+
+            result.ExpectNoError();
+            if (findResult != null)
+            {
+                Assert.Equal(findResult.Value, result.Values[0]);
+            }
+            else
+            {
+                Assert.Equal(EvaluationResult.Undefined.Value, result.Values[0]);
+            }
+        }
+
+        [Fact]
+        public void TestFindError()
+        {
+            var result = EvaluateSpec(
+                $@"
+namespace M {{
+    export const findResult = [1, 2, 3, 4, 5, 0].find((e) => Contract.fail('Fail!'));
+}}", new[] { "M.findResult" });
+
+            Assert.Equal(EvaluationResult.Error.Value, result.Values[0]);
+        }
+
+
         private void CheckResult(TestResult result, object expectedResult, int errorCount = 0)
         {
             Contract.Requires(errorCount >= 0);

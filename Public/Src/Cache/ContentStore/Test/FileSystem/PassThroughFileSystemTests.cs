@@ -18,7 +18,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
 
@@ -32,6 +31,19 @@ namespace ContentStoreTest.FileSystem
         {
         }
 
+        [Fact]
+        public async Task OpenFileFromAbsentDirectoryShouldThrowDirectoryNotFoundException()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var path = testDirectory.Path / "fooBar" / "baz" / "source.txt";
+                await Assert.ThrowsAsync<DirectoryNotFoundException>(
+                    async () =>
+                    {
+                        using var fileWithLength = await FileSystem.OpenSafeAsync(path, FileAccess.Write, FileMode.Create, FileShare.None);
+                    });
+            }
+        }
 
         [Fact]
         public void DeletingAbsentFileShouldNotFail()

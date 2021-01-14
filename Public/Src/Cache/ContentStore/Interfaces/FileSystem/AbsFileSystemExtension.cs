@@ -113,7 +113,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             var stream = await fileSystem.OpenAsync(path, fileAccess, fileMode, share, options, bufferSize);
             if (stream == null)
             {
-                throw new FileNotFoundException($"The file '{path}' does not exist.");
+                // Stream is null when the file or a directory is not found.
+                if (fileSystem.DirectoryExists(path.Parent!))
+                {
+                    throw new FileNotFoundException($"The file '{path}' does not exist.");
+                }
+
+                throw new DirectoryNotFoundException($"The directory '{path.Parent}' does not exist.");
             }
 
             return stream.Value;

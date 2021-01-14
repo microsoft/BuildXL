@@ -59,6 +59,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Sealed Directories](Wiki/Advanced-Features/Sealed-Directories.md)
 * [Search Path Enumeration](Wiki/Advanced-Features/Search-Path-Enumeration.md)
 * [Escaping the sandbox](Wiki/Advanced-Features/Process-breakaway.md)
+* [Directory Translations](Wiki/Advanced-Features/Symlinks-and-Junctions.md#directory-translations)
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)

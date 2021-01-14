@@ -28,6 +28,9 @@ namespace Library {
             // IcM
             importFrom("Microsoft.AzureAd.Icm.Types.amd64").pkg,
             importFrom("Microsoft.AzureAd.Icm.WebService.Client.amd64").pkg,
+            importFrom("System.ServiceModel.Primitives").pkg,
+            importFrom("System.Private.ServiceModel").pkg,
+            importFrom("System.ServiceModel.Http").pkg,
 
             importFrom("Azure.Identity").pkg,
             importFrom("Azure.Core").pkg,

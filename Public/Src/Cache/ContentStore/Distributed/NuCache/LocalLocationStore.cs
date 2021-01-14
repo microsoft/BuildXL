@@ -406,7 +406,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             // Cancel any ongoing reconciliation cycles, and has to be before we set the machine state as closed, because reconciliation completion can set the state as open.
-            await CancelCurrentReconciliationAsync();
+            await CancelCurrentReconciliationAsync(context);
 
             _heartbeatMachineState = MachineState.Closed;
 
@@ -843,7 +843,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _lastCheckpointId = checkpointState.CheckpointId;
                     if (Configuration.ReconcileMode == ReconciliationMode.Checkpoint)
                     {
-                        await CancelCurrentReconciliationAsync();
+                        await CancelCurrentReconciliationAsync(context);
 
                         if (Configuration.InlinePostInitialization)
                         {
@@ -878,15 +878,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
-        // We acknowledge this function is not multithread safe, but do not aniticipate this being a problem, since checkpoints should not be restored in multiple occurrences.
-        private async Task CancelCurrentReconciliationAsync()
+        // We acknowledge this function is not thread safe, but do not anticipate this being a problem, since checkpoints should not be restored in multiple occurrences.
+        private async Task CancelCurrentReconciliationAsync(OperationContext context)
         {
-            _reconciliationTokenSource.Cancel();
+            // Using PerformOperationAsync for tracing purposes.
+            await context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    // Tracing the completeness of the task we're about to cancel.
+                    var pendingProcessCheckpointTaskCompleted = _pendingReconciliationTask.IsCompleted;
+                    
+                    _reconciliationTokenSource.Cancel();
 
-            // We are aware that if <see cref="_pendingReconciliationTask"/> fails this could throw an exception.
-            // The task shouldn't fail though, a failure would most likely indicate a bug.
-            _ = await _pendingReconciliationTask;
-            Volatile.Write(ref _reconciliationTokenSource, new CancellationTokenSource());
+                    // We are aware that if <see cref="_pendingReconciliationTask"/> fails this could throw an exception.
+                    // The task shouldn't fail though, a failure would most likely indicate a bug.
+                    _ = await _pendingReconciliationTask;
+                    Volatile.Write(ref _reconciliationTokenSource, new CancellationTokenSource());
+
+                    return Result.Success(pendingProcessCheckpointTaskCompleted);
+                },
+                extraEndMessage: r => $"_pendingReconciliationTask.IsCompleted={r.GetValueOrDefault()}").ThrowIfFailure();
         }
 
         /// <summary>
@@ -1814,13 +1826,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var result = await context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
+                    // Making this operation fully asynchronous because the reconciliation should be performed in a non-blocking manner.
+                    // I.e. the method should return the resulting task without doing any work that potentially may block the caller (getting the data from the content directory during reconciliation is actually synchronous).
+                    // Without Yield() here this method is effectively inlined as part as ProcessStateAsync call.
+                    await Task.Yield();
+
                     // Only one iteration of reconciliation should run at a time. Config should be set where two iterations colliding is a rare case
                     // In the rare case we do collide because the old iteration takes longer to run than our restore checkpoint interval, we continue with the previous iteration, and do not call a new one.
-                    return ConcurrencyHelper.RunOnceIfNeeded(ref _isReconcileCheckpointRunning,
+                    return await ConcurrencyHelper.RunOnceIfNeeded(ref _isReconcileCheckpointRunning,
                         func: () => ReconcilePerCheckpointCoreAsync(context, reconcileToken, _localMachineId.Value, _localContentStore, _lastProcessedAddHash, _lastProcessedRemoveHash),
-                        funcIsRunningResultProvider: () => Task.FromResult(ReconciliationPerCheckpointResult.Error(new BoolResult("Previous reconciliation cycle still running, new cycle not queued"))));
+                        funcIsRunningResultProvider: () => Task.FromResult(ReconciliationPerCheckpointResult.Error(new BoolResult("Previous reconciliation cycle is still running, new cycle not queued"))));
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
 
@@ -1850,6 +1867,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, reconcileToken);
             var token = tokenSource.Token;
+
+            using var cancellationRegistration = token.Register(() => { context.TraceDebug($"Received cancellation request for {nameof(ReconcilePerCheckpointAsync)}.", Tracer.Name); });
+
             if (Configuration.DistributedContentConsumerOnly)
             {
                 return ReconciliationPerCheckpointResult.Skipped();
@@ -1889,22 +1909,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
                     token.ThrowIfCancellationRequested();
 
-                var allLocalStoreContent = allLocalStoreContentInfos
-                    .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
-                    .OrderBy(c => c.hash)
-                    // Linq expressions are lazy, need to capture the original value instead of referencing 'startingPoint' here
-                    // that can be changed during enumeration.
-                    .SkipWhile(hashWithSize => originalStartingPoint.HasValue && hashWithSize.hash < originalStartingPoint.Value);
+                    var allLocalStoreContent = allLocalStoreContentInfos
+                        .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
+                        .OrderBy(c => c.hash)
+                        // Linq expressions are lazy, need to capture the original value instead of referencing 'startingPoint' here
+                        // that can be changed during enumeration.
+                        .SkipWhile(hashWithSize => originalStartingPoint.HasValue && hashWithSize.hash < originalStartingPoint.Value);
 
-                var allDbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId, startingPoint);
-                token.ThrowIfCancellationRequested();
+                    // Creating a new OperationContext with the combined token to cancel the database operation if needed.
+                    var allDbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(new OperationContext(context.TracingContext, token), machineId, startingPoint);
+                    token.ThrowIfCancellationRequested();
 
-                // Diff the two views of the local machines content (left = local store, right = content location db)
-                // Then send changes as events
-                var allDiffContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: allDbContent, t => t.hash);
+                    // Diff the two views of the local machines content (left = local store, right = content location db)
+                    // Then send changes as events
+                    var allDiffContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: allDbContent, t => t.hash);
 
                     foreach (var diffItem in allDiffContent)
                     {
+                        token.ThrowIfCancellationRequested();
+                        
                         var inAddRange = false;
                         var inRemoveRange = false;
                         var curHash = diffItem.item.hash;
@@ -1912,22 +1935,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // If we have no previous last reconciled hashes, set it as the first hash
                         startingPoint ??= curHash;
 
-                    if (addedContent.Count >= Configuration.ReconciliationAddLimit && removedContent.Count >= Configuration.ReconciliationRemoveLimit)
-                    {
-                        break;
-                    }
+                        if (addedContent.Count >= Configuration.ReconciliationAddLimit && removedContent.Count >= Configuration.ReconciliationRemoveLimit)
+                        {
+                            break;
+                        }
 
-                    if (addedContent.Count < Configuration.ReconciliationAddLimit)
-                    {
-                        lastProcessedAddHash = curHash;
-                        inAddRange = true;
-                    }
+                        if (addedContent.Count < Configuration.ReconciliationAddLimit)
+                        {
+                            lastProcessedAddHash = curHash;
+                            inAddRange = true;
+                        }
 
-                    if (removedContent.Count < Configuration.ReconciliationRemoveLimit)
-                    {
-                        lastProcessedRemoveHash = curHash;
-                        inRemoveRange = true;
-                    }
+                        if (removedContent.Count < Configuration.ReconciliationRemoveLimit)
+                        {
+                            lastProcessedRemoveHash = curHash;
+                            inRemoveRange = true;
+                        }
 
                         if (diffItem.mode == MergeMode.LeftOnly)
                         {
@@ -1959,11 +1982,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 }
                             }
                         }
-
-                        token.ThrowIfCancellationRequested();
                     }
 
-                    (var addHashRange, var removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
+                    var (addHashRange, removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
 
                     // If the add/remove count is below the limits, that means we went through the list looking for add/remove events
                     // Restart from the start of the list for next iteration of reconciliation
@@ -1987,21 +2008,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd);
                 }
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException) when(reconcileToken.IsCancellationRequested)
             {
-                _ = e;
-                if (reconcileToken.IsCancellationRequested)
-                {
-                    (var addHashRange, var removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
+                var (addHashRange, removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
 
-                    return await SendReconcileEventsAfterEnumerationAsync(context, machineId, addHashRange, removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash,
-                        totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd, reconcileCancelled: true);
-                }
-
-                throw;
+                return await SendReconcileEventsAfterEnumerationAsync(context, machineId, addHashRange, removeHashRange, lastProcessedAddHash, lastProcessedRemoveHash,
+                    totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd, reconcileCancelled: true);
             }
 
-            (string addHashRange, string removeHashRange) computeHashRanges(ShortHash? startingPoint, ShortHash? lastProcessedAddHash, ShortHash? lastProcessedRemoveHash)
+            static (string addHashRange, string removeHashRange) computeHashRanges(ShortHash? startingPoint, ShortHash? lastProcessedAddHash, ShortHash? lastProcessedRemoveHash)
             {
                 var addHashRange = $"{startingPoint} - {lastProcessedAddHash}";
                 var removeHashRange = $"{startingPoint} - {lastProcessedRemoveHash}";
@@ -2024,6 +2039,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     machineId: machineId,
                     addedContent: addedContent,
                     removedContent: removedContent);
+            }
+            else
+            {
+                Tracer.Debug(context, "Skipping SendReconciliationEventsAsync because there is no added or removed content.");
             }
 
             var sampleHashes = new List<(ShortHash hash, bool add)>(Configuration.ReconcileHashesLogLimit * 2);

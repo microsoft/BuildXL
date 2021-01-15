@@ -167,6 +167,15 @@ namespace BuildXL.Engine.Distribution
                 switch (eventLevel)
                 {
                     case EventLevel.Error:
+                        var status = worker.Status;
+
+                        // If we receive new failures from an already stopped worker (we're not talking to it anymore), we log them as verbose events instead.
+                        // This prevents logging errors for failed work that we retried elsewhere after abandoning that worker: in those cases,
+                        // the build will succeed but we will complain about the logged errors and crash.
+                        var shouldLogForwardedErrorAsVerbose = status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped;
+                        Action<LoggingContext, WorkerForwardedEvent> logForwardedError =
+                            shouldLogForwardedErrorAsVerbose ? Logger.Log.StoppedDistributionWorkerForwardedError : Logger.Log.DistributionWorkerForwardedError;
+
                         if (forwardedEvent.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
                         {
                             var pipProcessErrorEvent = new PipProcessErrorEventFields(
@@ -181,7 +190,8 @@ namespace BuildXL.Engine.Distribution
                                 forwardedEvent.PipProcessErrorEvent.ExitCode,
                                 forwardedEvent.PipProcessErrorEvent.OptionalMessage,
                                 forwardedEvent.PipProcessErrorEvent.ShortPipDescription);
-                            Logger.Log.DistributionWorkerForwardedError(
+                            
+                            logForwardedError(
                                 m_loggingContext,
                                 new WorkerForwardedEvent()
                                 {
@@ -194,7 +204,7 @@ namespace BuildXL.Engine.Distribution
                                 });
                         } else
                         {
-                            Logger.Log.DistributionWorkerForwardedError(
+                            logForwardedError(
                                 m_loggingContext,
                                 new WorkerForwardedEvent()
                                 {
@@ -206,7 +216,10 @@ namespace BuildXL.Engine.Distribution
                                 });
                         }
 
-                        m_loggingContext.SpecifyErrorWasLogged((ushort)forwardedEvent.EventId);
+                        if (!shouldLogForwardedErrorAsVerbose)
+                        {
+                            m_loggingContext.SpecifyErrorWasLogged((ushort)forwardedEvent.EventId);
+                        }
                         break;
                     case EventLevel.Warning:
                         Logger.Log.DistributionWorkerForwardedWarning(

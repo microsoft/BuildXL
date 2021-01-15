@@ -348,6 +348,7 @@ namespace BuildXL.Engine.Tracing
         WorkerTotalRamMb = 7044,
 
         RemoteWorkerProcessedExecutionBlob = 7045,
+        // 7046 in use by SharedLogEventId
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,

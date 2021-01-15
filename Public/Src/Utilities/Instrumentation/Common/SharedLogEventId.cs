@@ -36,6 +36,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         CacheFileLog = 451,
         DistributionWorkerForwardedError = 7015,
         DistributionWorkerForwardedWarning = 7016,
+        StoppedDistributionWorkerForwardedError = 7046,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         /*
          *********************************************

@@ -781,6 +781,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
+            (ushort)SharedLogEventId.StoppedDistributionWorkerForwardedError,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Worker {workerForwardedEvent.WorkerName} logged an error, which was received after the worker was stopped. Error message:\n{workerForwardedEvent.Text},",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+        public abstract void StoppedDistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
+
+        [GeneratedEvent(
             (ushort)SharedLogEventId.DistributionWorkerForwardedWarning,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Worker {workerForwardedEvent.WorkerName} logged warning:\n{workerForwardedEvent.Text}",

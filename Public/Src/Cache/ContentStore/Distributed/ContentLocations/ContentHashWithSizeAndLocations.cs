@@ -126,5 +126,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             return !Equals(left, right);
         }
+
+        /// <nodoc />
+        public static implicit operator ContentHashWithSize(ContentHashWithSizeAndLocations hashWithSizeAndLocations)
+        {
+            return new ContentHashWithSize(hashWithSizeAndLocations.ContentHash, hashWithSizeAndLocations.Size);
+        }
+
+        /// <nodoc />
+        public static implicit operator ContentHash(ContentHashWithSizeAndLocations hashWithSizeAndLocations)
+        {
+            return hashWithSizeAndLocations.ContentHash;
+        }
     }
 }

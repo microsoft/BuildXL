@@ -1259,7 +1259,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     try
                     {
-                        var (candidate, insideRingCopyTask) = ProactiveCopyInsideBuildRing(context, hash, tryBuildRing, replicatedLocations, reason, attempt: 0);
+                        var (candidate, insideRingCopyTask) = ProactiveCopyInsideBuildRing(context, info, tryBuildRing, replicatedLocations, reason, attempt: 0);
 
                         // To avoid the situation when outside ring copy will pick the same machine,
                         // changing replicated locations list by adding a candidate we got for inside ring copy.
@@ -1268,7 +1268,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             replicatedLocations.Add(candidate.Value);
                         }
 
-                        var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, attempt: 0);
+                        var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, info, replicatedLocations, reason, attempt: 0);
 
                         await Task.WhenAll(insideRingCopyTask, outsideRingCopyTask);
 
@@ -1293,7 +1293,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     SessionCounters[Counters.ProactiveCopyRetries].Increment();
                                     SessionCounters[Counters.ProactiveCopyInsideRingRetries].Increment();
                                     retries++;
-                                    insideRingResult = await ProactiveCopyInsideBuildRing(context, hash, tryBuildRing, replicatedLocations, reason, retries).pushFileTask;
+                                    insideRingResult = await ProactiveCopyInsideBuildRing(context, info, tryBuildRing, replicatedLocations, reason, retries).pushFileTask;
                                 }
                             }
                             else
@@ -1303,7 +1303,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     SessionCounters[Counters.ProactiveCopyRetries].Increment();
                                     SessionCounters[Counters.ProactiveCopyOutsideRingRetries].Increment();
                                     retries++;
-                                    outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, retries);
+                                    outsideRingResult = await ProactiveCopyOutsideBuildRingAsync(context, info, replicatedLocations, reason, retries);
                                 }
                             }
                         }
@@ -1320,7 +1320,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private Task<PushFileResult> ProactiveCopyOutsideBuildRingAsync(
             OperationContext context,
-            ContentHash hash,
+            ContentHashWithSize hash,
             IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason,
             int attempt)
@@ -1379,7 +1379,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private (MachineLocation? candidate, Task<PushFileResult> pushFileTask) ProactiveCopyInsideBuildRing(
             OperationContext context,
-            ContentHash hash,
+            ContentHashWithSize hash,
             bool tryBuildRing,
             IReadOnlyList<MachineLocation> replicatedLocations,
             CopyReason reason,
@@ -1428,7 +1428,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private async Task<PushFileResult> PushContentAsync(
             OperationContext context,
-            ContentHash hash,
+            ContentHashWithSize hash,
             MachineLocation target,
             bool isInsideRing,
             CopyReason reason,

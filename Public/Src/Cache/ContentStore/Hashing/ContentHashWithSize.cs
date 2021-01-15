@@ -65,5 +65,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             return $"[ContentHash={Hash} Size={Size}]";
         }
+
+        /// <nodoc />
+        public static implicit operator ContentHash(ContentHashWithSize hashWithSize)
+        {
+            return hashWithSize.Hash;
+        }
     }
 }

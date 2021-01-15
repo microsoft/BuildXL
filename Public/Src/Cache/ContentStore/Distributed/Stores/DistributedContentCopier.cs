@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// <summary>
     /// Handles copies from remote locations to a local store
     /// </summary>
-    public class DistributedContentCopier: StartupShutdownSlimBase
+    public class DistributedContentCopier : StartupShutdownSlimBase
     {
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly int _maxRetryCount;
@@ -241,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Requests another machine to copy from the current machine.
         /// </summary>
-        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing, int attempt)
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHashWithSize hash, MachineLocation targetLocation, bool isInsideRing, int attempt)
         {
             var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
@@ -259,7 +259,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private async Task<TResult> PerformProactiveCopyAsync<TResult>(
             OperationContext context,
             Func<OperationContext, Task<TResult>> func,
-            ContentHash hash,
+            ContentHashWithSize hash,
             MachineLocation targetLocation,
             bool isInsideRing,
             CopyReason reason,
@@ -303,17 +303,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 },
                 traceOperationStarted: false,
                 extraEndMessage: result =>
-                    $"Code={statusFunc(result)} " +
-                    $"ContentHash={hash.ToShortString()} " +
-                    $"TargetLocation=[{targetLocation}] " +
-                    $"InsideRing={isInsideRing} " +
-                    $"CopyReason={reason} " +
-                    $"Attempt={attempt} " +
-                    $"LocationSource={source} " +
-                    (copySchedulingSummary is null ? string.Empty : $"{copySchedulingSummary} ") +
-                    $"Scheduler.TimedOut={ioGateTimedOut} " +
-                    (result is PushFileResult pushResult && pushResult.HeaderResponseTime.HasValue ? $"HeaderResponseTime={pushResult.HeaderResponseTime} " : string.Empty) +
-                    (result is ICopyResult copyResult && copyResult.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={copyResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty));
+                {
+                    var sizeString = $"Size=[{hash.Size}] ";
+                    var headerResponseTimeString = result is PushFileResult pushResult && pushResult.HeaderResponseTime.HasValue ? $"HeaderResponseTime={pushResult.HeaderResponseTime} " : string.Empty;
+                    var minBandwidthSpeedString = result is ICopyResult copyResult && copyResult.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={copyResult.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty;
+                    return
+                        $"Code={statusFunc(result)} " +
+                        $"ContentHash={hash.Hash.ToShortString()} " +
+                        $"TargetLocation=[{targetLocation}] " +
+                        $"InsideRing={isInsideRing} " +
+                        $"CopyReason={reason} " +
+                        $"Attempt={attempt} " +
+                        $"LocationSource={source} " +
+                        (copySchedulingSummary is null ? string.Empty : $"{copySchedulingSummary} ") +
+                        $"Scheduler.TimedOut={ioGateTimedOut} " +
+                        sizeString +
+                        headerResponseTimeString +
+                        minBandwidthSpeedString;
+                });
         }
 
         /// <summary>
@@ -321,7 +328,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<PushFileResult> PushFileAsync(
             OperationContext context,
-            ContentHash hash,
+            ContentHashWithSize hashWithSize,
             MachineLocation targetLocation,
             Stream stream,
             bool isInsideRing,
@@ -332,8 +339,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
                 context,
-                innerContext => _copyRequester.PushFileAsync(innerContext, hash, stream, targetLocation, options),
-                hash,
+                innerContext => _copyRequester.PushFileAsync(innerContext, hashWithSize, stream, targetLocation, options),
+                hashWithSize,
                 targetLocation,
                 isInsideRing,
                 reason,

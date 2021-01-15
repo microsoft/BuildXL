@@ -78,7 +78,7 @@ namespace Yarn {
         // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
         const cacheFolder = arguments.yarnCacheFolder || 
             Environment.hasVariable("NugetMachineInstallRoot") 
-                ? d`${Environment.getDirectoryValue("NugetMachineInstallRoot")}\.yarn-cache`
+                ? d`${Environment.getDirectoryValue("NugetMachineInstallRoot")}/.yarn-cache`
                 : Context.getNewOutputDirectory("yarnCache");
 
         // If not specified, the default environment sets node in the path, since the basic Yarn operations assume it there
@@ -104,12 +104,12 @@ namespace Yarn {
                 Cmd.args([Artifact.none(cacheFolder)])
             ],
             outputs: [
-                p`${Environment.getDirectoryValue("UserProfile")}\.yarnrc`,
+                p`${Environment.getDirectoryValue("UserProfile")}/.yarnrc`,
             ],
             dependencies: additionalDependencies,
             unsafe: {
                 untrackedPaths: [
-                    f`${Environment.getDirectoryValue("UserProfile")}\.npmrc`
+                    f`${Environment.getDirectoryValue("UserProfile")}/.npmrc`
                 ]
             }
         };
@@ -137,7 +137,7 @@ namespace Yarn {
                     d`${Environment.getDirectoryValue("UserProfile")}`,
                     // Many times there are some accesses under .git folder that are sensitive to file content that introduce
                     // unwanted cache misses
-                    d`${arguments.repoRoot}\.git`,
+                    d`${arguments.repoRoot}/.git`,
                 ]
             }
         };

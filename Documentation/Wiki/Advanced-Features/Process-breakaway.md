@@ -1,4 +1,4 @@
-# Escaping the sandbox
+# Process breakaway: Escaping the sandbox
 
 BuildXL runs all build tools in a sandbox to observe their actions and, in some cases, prevent processes from taking certain actions. However, running tools in a sandbox has some limitations: the process (and child processes) lifespan is confined to the lifespan of the corresponding pip. This means  that any child process that tries to survive the main process will be terminated. This behavior doesn't allow processes like telemetry, compiler, code generation services, etc. to be correctly modeled with BuildXL.
 

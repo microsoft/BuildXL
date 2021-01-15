@@ -8,7 +8,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     ///     Pairing of content hash, size, and last access time.
     /// </summary>
-    public readonly struct ContentHashWithSizeAndLastAccessTime
+    [StructGenerators.StructRecord]
+    public readonly partial struct ContentHashWithSizeAndLastAccessTime
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHashWithSize"/> struct.
@@ -34,11 +35,5 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Gets the last time the content was accessed.
         /// </summary>
         public DateTime LastAccessTime { get; }
-
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return $"[ContentHash={Hash} Size={Size} LastAccessTime={LastAccessTime}]";
-        }
     }
 }

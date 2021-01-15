@@ -2,13 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
+using StructGenerators;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
     ///     Pairing of content hash and last access time.
     /// </summary>
-    public readonly struct ContentHashWithLastAccessTime
+    [StructGenerators.StructRecord]
+    public readonly partial struct ContentHashWithLastAccessTime
     {
         /// <nodoc />
         public ContentHashWithLastAccessTime(ContentHash contentHash, DateTime lastAccessTime)
@@ -27,10 +29,5 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public DateTime LastAccessTime { get; }
 
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return $"[ContentHash={Hash} LastAccessTime={LastAccessTime}]";
-        }
     }
 }

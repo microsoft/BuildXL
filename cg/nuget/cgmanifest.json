@@ -2471,6 +2471,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "StructRecordGenerator",
+          "Version": "0.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "StyleCop.Analyzers",
           "Version": "1.1.0-beta004"
         }

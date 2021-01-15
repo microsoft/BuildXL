@@ -3,7 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 
-function dlls(contents: StaticDirectory): Managed.Binary[] {
+export function getAnalyzerDlls(contents: StaticDirectory): Managed.Binary[] {
     // Getting dlls from the 'cs' folder.
     // This is not 100% safe but good enough.
 
@@ -16,8 +16,8 @@ function dlls(contents: StaticDirectory): Managed.Binary[] {
 /** Returns analyzers dlls used by the BuildXL team. */
 export function getAnalyzers(args: Arguments) : Managed.Binary[] {
     let result = [
-        ...dlls(importFrom("AsyncFixer").Contents.all),
-        ...dlls(importFrom("ErrorProne.NET.CoreAnalyzers").Contents.all)
+        ...getAnalyzerDlls(importFrom("AsyncFixer").Contents.all),
+        ...getAnalyzerDlls(importFrom("ErrorProne.NET.CoreAnalyzers").Contents.all)
     ];
 
     // FxCop analyzers, when we turn them back on we can uncomment these
@@ -31,7 +31,7 @@ export function getAnalyzers(args: Arguments) : Managed.Binary[] {
     if (args.enableStyleCopAnalyzers) {
         result = [
             ...result,
-            ...dlls(importFrom("StyleCop.Analyzers").Contents.all),
+            ...getAnalyzerDlls(importFrom("StyleCop.Analyzers").Contents.all),
             ];
     }
     

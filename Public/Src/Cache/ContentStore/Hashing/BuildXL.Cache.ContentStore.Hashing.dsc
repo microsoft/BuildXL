@@ -30,6 +30,7 @@ namespace Hashing {
                 ]
             },
         ],
+        sourceGenerators: [importFrom("StructRecordGenerator").pkg],
         nullable: true,
         allowUnsafeBlocks: true,
     });

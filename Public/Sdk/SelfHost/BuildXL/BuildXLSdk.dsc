@@ -59,7 +59,7 @@ export interface Arguments extends Managed.Arguments {
     generateLogs?: boolean;
 
     /** If the log generation needs external references, one can explicitly declare them. */
-    generateLogBinaryRefs?: Managed.Binary[],
+    generateLogBinaryRefs?: Managed.Binary[];
 
     /** Disables assembly signing with the BuildXL key. */
     skipAssemblySigning?: boolean;
@@ -76,6 +76,11 @@ export interface Arguments extends Managed.Arguments {
      * For instance, the compiler will warn on empty lock statements or when a value type instance potentially may be used in lock statement etc.
      */
     strictMode?: boolean;
+
+    /**
+     * A set of source generators used by this project.
+     */
+    sourceGenerators?: NugetPackage[];
 }
 
 @@public
@@ -549,6 +554,11 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     let embedSources = args.embedSources !== false && Flags.embedSources === true;
 
+    let analyzers = [
+        ...getAnalyzers(args), 
+        ...(args.sourceGenerators !== undefined ? args.sourceGenerators.mapMany(s => getAnalyzerDlls(s.contents)) : [])
+        ];
+
     args = Object.merge<Arguments>(
         {
             framework: framework,
@@ -591,7 +601,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     languageVersion: "preview", // Allow us using new features like non-nullable types and switch expressions.
 
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
-                    analyzers: getAnalyzers(args),
+                    analyzers: analyzers,
 
                     features: features,
                     codeAnalysisRuleset: args.enableStyleCopAnalyzers ? f`BuildXL.ruleset` : undefined,

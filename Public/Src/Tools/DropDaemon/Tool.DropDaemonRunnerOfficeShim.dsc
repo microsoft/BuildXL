@@ -8,12 +8,12 @@ const connectArgs = <DropOperationArguments>{maxConnectRetries: 20, connectRetry
 
 //@@obsolete("No need to call this function at all; just call 'createDrop' instead.")
 @@public
-export function getFinalizeDropAndStopDaemonCommand(args: any): any {
+export function getFinalizeDropAndStopDaemonCommand(args: any): Transformer.ExecuteArguments {
     return undefined;
 }
 //@@obsolete("No need to call this function at all; just call 'createDrop' instead.")
 @@public
-export function startDropDaemonSync(args: any, shutdownCommand: any): OldStartResult {
+export function startDropDaemonSync(args: any, shutdownCommand: Transformer.ExecuteArguments): OldStartResult {
     return <OldStartResult>{
         dropDaemonId: "dummy",
         // won't be used ever

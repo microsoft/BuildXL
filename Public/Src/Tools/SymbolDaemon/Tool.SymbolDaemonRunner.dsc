@@ -467,7 +467,7 @@ function getIpcArguments(serviceStartInfo: ServiceStartResult, command: string, 
     return overrideIpcArgs !== undefined ? overrideIpcArgs(ipcArgs) : ipcArgs;
 }
 
-function debugEntryCreateBehaviorToString(arg: DebugEntryCreateBehavior) {
+function debugEntryCreateBehaviorToString(arg: DebugEntryCreateBehavior) : string {
     switch (arg) {
         case DebugEntryCreateBehavior.ThrowIfExists:
             return "ThrowIfExists";

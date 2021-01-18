@@ -76,7 +76,7 @@ function getCodeCoverageOption(args: QTestArguments): CoverageOptions {
     return CoverageOptions.None;
 }
 
-function qTestTypeToString(args: QTestArguments) {
+function qTestTypeToString(args: QTestArguments) : string {
     switch (args.qTestType) {
         case QTestType.msTest_latest:
             return args.useVsTest150 ? "MsTest_150" : "MsTest_Latest";
@@ -88,7 +88,7 @@ function qTestTypeToString(args: QTestArguments) {
             Contract.fail("Invalid value specified for macro QTestType");
     };
 }
-function qTestPlatformToString(qTestPlatform: QTestPlatform) {
+function qTestPlatformToString(qTestPlatform: QTestPlatform) : string {
     switch (qTestPlatform) {
         case QTestPlatform.x86:
             return "X86";
@@ -101,7 +101,7 @@ function qTestPlatformToString(qTestPlatform: QTestPlatform) {
             return "Unspecified";
     };
 }
-function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework) {
+function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework) : string {
     switch (qTestDotNetFramework) {
         case QTestDotNetFramework.framework40:
             return "Framework40";
@@ -148,7 +148,7 @@ function findFlakyFile(): File {
 /**
  * Create a Manifest of input files for QTest to populate the test sandbox.
  */
-function createInputsManifest(args: QTestArguments) {
+function createInputsManifest(args: QTestArguments) : File {
     let inputsArray: Array<Path | RelativePath | PathAtom> = undefined;
     if (args.qTestInputs) {
         inputsArray = args.qTestInputs.mapMany(f => [f.path, f.name]);

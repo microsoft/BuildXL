@@ -22,7 +22,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             {
             }
 
-            public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(12);
+            public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(1);
         }
 
         private readonly Configuration _configuration;

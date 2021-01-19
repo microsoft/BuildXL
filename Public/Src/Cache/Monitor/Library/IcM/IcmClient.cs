@@ -37,10 +37,13 @@ namespace BuildXL.Cache.Monitor.Library.IcM
             {
                 if (_cachedIcms.Contains(incident.Title))
                 {
+                    // Update TTL and return.
+                    _cachedIcms.Add(incident.Title, incident.CacheTimeToLive.Value);
                     return;
                 }
                 else
                 {
+                    // Add to cached incidents.
                     _cachedIcms.Add(incident.Title, incident.CacheTimeToLive.Value);
                 }
             }

@@ -162,8 +162,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     continue;
                 }
 
-                // Failure is already traced, so best we can do is not mind this
-                SchedulerCycle(context, cycleQuota).IgnoreFailure();
+                SchedulerCycle(context, cycleQuota).TraceIfFailure(context);
             }
 
             // There is no need for us to do any kind of shutdown logic here. Copies' cancellation token will be
@@ -173,21 +172,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
         public Result<SchedulerCycleMetadata> SchedulerCycle(OperationContext context, int cycleQuota)
         {
-            return context.PerformOperation(
-                Tracer,
-                () => SchedulerCycleCore(context, cycleQuota),
-                messageFactory: result =>
-                {
-                    if (!result.Succeeded)
-                    {
-                        return string.Empty;
-                    }
-
-                    return result.Value!.ToString();
-                },
-                traceOperationStarted: false,
-                traceErrorsOnly: !_configuration.TraceOnSchedulerCycle,
-                isCritical: true);
+            // WARNING: This used to have a PerformOperation on the context, but that led to an enormous amount of MDM
+            // counts being generated. Please avoid doing that. With this approach, errors are traced in the Scheduler
+            // function above.
+            try
+            {
+                return SchedulerCycleCore(context, cycleQuota);
+            }
+            catch (Exception e)
+            {
+                return new Result<SchedulerCycleMetadata>(e, $"Failed to complete scheduler cycle with quota `{cycleQuota}`");
+            }
         }
 
         public record SchedulerCycleMetadata

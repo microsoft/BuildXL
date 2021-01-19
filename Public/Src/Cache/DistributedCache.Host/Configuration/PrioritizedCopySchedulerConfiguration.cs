@@ -56,11 +56,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         /// </summary>
         public double PriorityQuotaFixedRate { get; set; } = 0.5;
 
-        /// <summary>
-        /// Whether to trace debug information on each scheduler cycle.
-        /// </summary>
-        public bool TraceOnSchedulerCycle { get; set; }
-
         public PrioritizedCopySchedulerPriorityAssignmentStrategy PriorityAssignmentStrategy { get; }
     }
 }

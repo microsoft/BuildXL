@@ -13,6 +13,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
           "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1807782",
           "ModuleBugReportUris": [],
           "ErrorSignatures": [
+            "assert.equal() failure expected: success actual: success | suspendfailed",
             "assert.true() failure expected: true actual: false"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/089d24f8-683f-768d-4401-1bc575bcd1c3",

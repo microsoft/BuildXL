@@ -31,6 +31,12 @@ interface ModuleDescription {
     /** Optional main entry point for the package. Default is 'package.dsc'. V1 specific. */
     @@obsolete("V1 modules are no longer supported. Please upgrade to V2 by setting the 'projects' field.")
     main?: File; 
+
+    /**
+     * The set of mounts defined by the module.
+     * These mounts contribute to the global collection of mounts defined in the main configuration file
+     */
+    mounts?: Mount[];
 }
 
 /** A reference to a module. A string for now, but this might be expanded in the future. */

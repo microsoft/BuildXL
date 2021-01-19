@@ -49,7 +49,8 @@ namespace Test.DScript.Ast.Scheduling
                 TestPath.Combine(PathTable, "module.config.bm"),
                 new[] { TestPath.Combine(PathTable, "spec.dsc") },
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null);
+                cyclicalFriendModules: null,
+                mounts: null);
 
             m_configFilePath = TestPath.Combine(PathTable, "config.dsc");
 

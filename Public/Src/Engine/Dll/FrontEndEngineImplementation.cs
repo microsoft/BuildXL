@@ -463,6 +463,25 @@ namespace BuildXL.Engine
             return result;
         }
 
+        /// <inheritdoc/>
+        public override void AddResolvedModuleDefinedMount(IMount mount, LocationData? mountLocation = null)
+        {
+            m_mountsTable.AddResolvedModuleDefinedMount(mount, mountLocation);
+        }
+
+        /// <inheritdoc/>
+        public override bool CompleteMountInitialization()
+        {
+            var success = m_mountsTable.CompleteInitialization();
+
+            if (!success)
+            {
+                Contract.Assume(m_loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.CompleteInitialization()");
+            }
+
+            return success;
+        }
+
         /// <inheritdoc />
         public override void RestrictBuildParameters(IEnumerable<string> buildParameterNames)
         {
@@ -754,11 +773,26 @@ namespace BuildXL.Engine
         /// <summary>
         /// Computes effectively used mounts.
         /// </summary>
+        /// <remarks>
+        /// This method does not consider module defined mounts to be effective mounts. Effective mounts
+        /// are used for computing the graph fingerprint for caching purposes, and module-defined mounts
+        /// are already implicitly included in that fingerprint by virtue for tracking module configuration file
+        /// content environment variables
+        /// </remarks>
         internal IReadOnlyDictionary<string, IMount> ComputeEffectiveMounts()
         {
             Contract.Assume(m_finishedBuildParameterTracking, "Tracking must be finished to compute effectively used mounts.");
 
-            return new Dictionary<string, IMount>(m_usedMounts, StringComparer.OrdinalIgnoreCase);
+            // If a referenced mount is not found, the referenced name is made part of m_usedMounts but the mount value will be null
+            List<KeyValuePair<string, IMount>> effectiveMounts = m_usedMounts.Where(pair => pair.Value == null || !m_mountsTable.IsModuleDefinedMount(pair.Value)).ToList();
+
+            var result = new Dictionary<string, IMount>(effectiveMounts.Count, StringComparer.OrdinalIgnoreCase);
+            foreach(KeyValuePair<string, IMount> effectiveMountPair in effectiveMounts)
+            {
+                result.Add(effectiveMountPair.Key, effectiveMountPair.Value);
+            }
+
+            return result;
         }
 
         /// <summary>

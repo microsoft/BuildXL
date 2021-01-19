@@ -222,5 +222,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         {
             return EnumerateEntriesHelper(m_pathTable, path, pattern, recursive, directories, m_fileSystem);
         }
+
+        /// <inheritdoc />
+        public override bool CompleteMountInitialization() => true;
+
+        /// <inheritdoc />
+        public override void AddResolvedModuleDefinedMount(IMount mount, LocationData? mountLocation = null) => m_mounts.Add(mount.Name.ToString(m_stringTable), mount);
     }
 }

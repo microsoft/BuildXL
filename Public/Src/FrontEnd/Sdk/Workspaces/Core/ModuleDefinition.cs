@@ -77,6 +77,10 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public IEnumerable<ModuleReferenceWithProvenance> CyclicalFriendModules { get; }
 
         /// <nodoc/>
+        [CanBeNull]
+        public IEnumerable<IMount> Mounts { get; }
+
+        /// <nodoc/>
         public ModuleDefinition(
             ModuleDescriptor descriptor,
             AbsolutePath root,
@@ -86,13 +90,15 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             NameResolutionSemantics resolutionSemantics,
             int v1QualifierSpaceId,
             [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
-            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules)
+            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
+            [CanBeNull] IEnumerable<IMount> mounts)
         {
             Contract.Requires(specs != null);
             Contract.Requires(root.IsValid);
 
             AllowedModuleDependencies = allowedModuleDependencies;
             CyclicalFriendModules = cyclicalFriendModules;
+            Mounts = mounts;
 
             // Main file is valid iff the resolution semantics is explicit references
             Contract.Requires(resolutionSemantics == NameResolutionSemantics.ImplicitProjectReferences
@@ -119,7 +125,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             AbsolutePath moduleConfigFile,
             IEnumerable<AbsolutePath> specs,
             [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
-            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules)
+            [CanBeNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
+            [CanBeNull] IEnumerable<IMount> mounts)
         {
             return new ModuleDefinition(
                 descriptor,
@@ -130,7 +137,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 NameResolutionSemantics.ImplicitProjectReferences,
                 InvalidQualifierSpaceId,
                 allowedModuleDependencies,
-                cyclicalFriendModules);
+                cyclicalFriendModules,
+                mounts);
         }
 
         /// <summary>
@@ -156,7 +164,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 NameResolutionSemantics.ExplicitProjectReferences,
                 qualifierSpaceId,
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null);
+                cyclicalFriendModules: null,
+                mounts: null);
         }
 
         /// <summary>
@@ -206,7 +215,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 NameResolutionSemantics.ExplicitProjectReferences,
                 EmptyQualifierSpaceId,
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null);
+                cyclicalFriendModules: null,
+                mounts: null);
         }
 
         /// <summary>
@@ -224,7 +234,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 ResolutionSemantics,
                 V1QualifierSpaceId,
                 AllowedModuleDependencies,
-                CyclicalFriendModules);
+                CyclicalFriendModules,
+                Mounts);
         }
 
         /// <inheritdoc />

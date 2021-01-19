@@ -62,7 +62,8 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
                 TestPath.Combine(PathTable, "config.dsc"),
                 new[] { TestPath.Combine(PathTable, "build.ninja") },
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null);
+                cyclicalFriendModules: null,
+                mounts: null);
 
             m_configFilePath = TestPath.Combine(PathTable, "config.dsc");
 

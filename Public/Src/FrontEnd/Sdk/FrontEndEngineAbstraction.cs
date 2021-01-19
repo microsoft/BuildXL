@@ -128,6 +128,16 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract TryGetMountResult TryGetMount(string name, string frontEnd, ModuleId moduleId, out IMount mount);
 
         /// <summary>
+        /// Finalizes the mount registration and deals with error reporting.
+        /// </summary>
+        public abstract bool CompleteMountInitialization();
+
+        /// <summary>
+        /// Adds a resolved mount defined by a module
+        /// </summary>
+        public abstract void AddResolvedModuleDefinedMount(IMount mount, LocationData? mountLocation = null);
+
+        /// <summary>
         /// After config parsing we'll have a list of build parameters that are allowlisted.
         /// This method informs the engine of this.
         /// </summary>

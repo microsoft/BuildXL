@@ -407,7 +407,8 @@ createExpression(" + spec + ");");
                 moduleConfigFile: moduleRootDirectory.Combine(context.PathTable, "package.config.dsc"),
                 specs: new [] {specPath},
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null
+                cyclicalFriendModules: null,
+                mounts: null
                 );
 
             return new ParsedModule(moduleDefinition, new Dictionary<AbsolutePath, ISourceFile>() {[specPath] = sourceFile});

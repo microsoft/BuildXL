@@ -775,7 +775,7 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             FileContentTable fileContentTable,
             IBuildParameters availableEnvironmentVariables,
-            MountsTable availableMounts,
+            MountsTable mainConfigAvailableMounts,
             GraphFingerprint graphFingerprint,
             int maxDegreeOfParallelism,
             IConfiguration configuration,
@@ -809,7 +809,7 @@ namespace BuildXL.Engine
                                     timeLimitForJournalScanning,
                                     changeTrackingStatePath,
                                     availableEnvironmentVariables,
-                                    availableMounts,
+                                    mainConfigAvailableMounts,
                                     graphFingerprint,
                                     maxDegreeOfParallelism,
                                     configuration,
@@ -841,7 +841,7 @@ namespace BuildXL.Engine
             TimeSpan? timeLimitForJournalScanning,
             string changeTrackingStatePath,
             IBuildParameters availableEnvironmentVariables,
-            MountsTable availableMounts,
+            MountsTable mainConfigAvailableMounts,
             GraphFingerprint graphFingerprint,
             int maxDegreeOfParallelism,
             IConfiguration configuration,
@@ -927,7 +927,9 @@ namespace BuildXL.Engine
             }
 
             // Step 4: Check if all mounts in the previous input tracker match with the current ones.
-            var availableMountsByName = availableMounts.MountsByName;
+            // Module-defined mounts won't be available at this point, but it is safe to only use the main config ones since module defined ones are driven
+            // by the content of module files and environment variables registered through the engine
+            var availableMountsByName = mainConfigAvailableMounts.MountsByName;
             int mountCount = reader.ReadInt32();
             for (int i = 0; i < mountCount; i++)
             {
@@ -936,7 +938,7 @@ namespace BuildXL.Engine
 
                 if (availableMountsByName.ContainsKey(mountName))
                 {
-                    string currentPath = availableMountsByName[mountName].Path.ToString(availableMounts.MountPathExpander.PathTable);
+                    string currentPath = availableMountsByName[mountName].Path.ToString(mainConfigAvailableMounts.MountPathExpander.PathTable);
                     if (!previousPath.Equals(currentPath, OperatingSystemHelper.PathComparison))
                     {
                         result.MissType = GraphCacheMissReason.MountChanged;

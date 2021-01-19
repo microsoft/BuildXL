@@ -1663,7 +1663,9 @@ namespace BuildXL.Engine
         private IReadOnlyList<string> DiscoverGvfsProjectionFiles(MountsTable mountsTable)
         {
             var result = new HashSet<string>(OperatingSystemHelper.PathComparer);
-            var readableMountRoots = mountsTable.AllMounts.Where(m => m.IsReadable).Select(m => m.Path);
+            // There might be extra readable mounts coming from module specified ones, but the logic below is a heuristics already
+            // that tries to catch the most common cases
+            var readableMountRoots = mountsTable.AllMountsSoFar.Where(m => m.IsReadable).Select(m => m.Path);
             foreach (var mountRoot in readableMountRoots)
             {
                 for (var path = mountRoot; path.IsValid; path = path.GetParent(Context.PathTable))
@@ -3483,7 +3485,7 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             GraphFingerprint graphFingerprint,
             IBuildParameters availableEnvironmentVariables,
-            MountsTable availableMounts,
+            MountsTable mainConfigAvailableMounts,
             JournalState journalState,
             int maxDegreeOfParallelism)
         {
@@ -3494,7 +3496,7 @@ namespace BuildXL.Engine
                 fileContentTable: FileContentTable,
                 graphFingerprint: graphFingerprint,
                 availableEnvironmentVariables: availableEnvironmentVariables,
-                availableMounts: availableMounts,
+                mainConfigAvailableMounts: mainConfigAvailableMounts,
                 journalState: journalState,
                 timeLimitForJournalScanning:
                     Configuration.Engine.ScanChangeJournalTimeLimitInSec < 0

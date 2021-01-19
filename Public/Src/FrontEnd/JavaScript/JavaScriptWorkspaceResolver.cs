@@ -455,7 +455,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 m_resolverSettings.File,
                 projectFiles,
                 allowedModuleDependencies: null, // no module policies
-                cyclicalFriendModules: null); // no allowlist of cycles
+                cyclicalFriendModules: null, // no allowlist of cycles
+                mounts: null);
 
             return new JavaScriptGraphResult<TGraphConfiguration>(javaScriptGraph, moduleDefinition, exports);
         }

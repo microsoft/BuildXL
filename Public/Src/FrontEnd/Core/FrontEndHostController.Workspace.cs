@@ -154,7 +154,25 @@ namespace BuildXL.FrontEnd.Core
 
             if (!workspaceDefinition.Succeeded)
             {
+                // In some cases even if the workspace failed to build some of the pipeline still tries to continue
+                // Complete mount initialization to enable mount related queries downstream
+                Engine.CompleteMountInitialization();
                 return Workspace.Failure(workspaceProvider, workspaceProvider.Configuration, workspaceDefinition.Failure);
+            }
+
+            // As soon as we get the workspace definition, we can configure the mount table with the additional mounts modules may have defined and seal it
+            foreach (var module in workspaceDefinition.Result.Modules.Where(module => module.Mounts != null))
+            {
+                foreach (var mount in module.Mounts)
+                {
+                    Engine.AddResolvedModuleDefinedMount(mount, LocationData.Create(module.ModuleConfigFile));
+                }
+            }
+
+            // At this point the mount table can be completed
+            if (!Engine.CompleteMountInitialization())
+            {
+                return Workspace.Failure(workspaceProvider, workspaceProvider.Configuration, new GenericWorkspaceFailure("Mount points not properly defined. Detailed errors should have been logged."));
             }
 
             return await WithWorkspaceProgressReportingAsync(

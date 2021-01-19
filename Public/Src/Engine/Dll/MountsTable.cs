@@ -45,6 +45,13 @@ namespace BuildXL.Engine
 
         private bool m_mountAdditionError;
 
+        // All operations that mutate state are allowed when the mount table is not finalized. Likewise, all
+        // operations that query state are allowed when the mount table is finalized
+        private bool m_finalized = false;
+
+        // We want to distinguish mounts defined by modules vs mounts defined by the main config file or static mounts
+        private readonly ConcurrentBigSet<IMount> m_moduleDefinedMounts;
+
         /// <summary>
         /// Private constructor. Please use CreateAndRegister factory method.
         /// </summary>
@@ -60,6 +67,7 @@ namespace BuildXL.Engine
             m_mountPathIdentifiersByMount = new ConcurrentDictionary<IMount, PathAtom>();
             m_mountLocationsByMount = new ConcurrentDictionary<IMount, LocationData>();
             m_alternativeRoots = new ConcurrentDictionary<AbsolutePath, IMount>();
+            m_moduleDefinedMounts = new ConcurrentBigSet<IMount>();
         }
 
         /// <summary>
@@ -98,11 +106,11 @@ namespace BuildXL.Engine
             table.AddStaticMount("SourceRoot", layout.SourceDirectory, isWriteable: writableSourceRoot);
             table.AddStaticMount("ObjectRoot", layout.ObjectDirectory, isWriteable: true, isScrubbable: true);
             table.AddStaticMount(
-                "LogsDirectory", 
-                configuration.Logging.RedirectedLogsDirectory.IsValid 
-                ? configuration.Logging.RedirectedLogsDirectory 
-                : configuration.Logging.LogsDirectory, 
-                isWriteable: true, 
+                "LogsDirectory",
+                configuration.Logging.RedirectedLogsDirectory.IsValid
+                ? configuration.Logging.RedirectedLogsDirectory
+                : configuration.Logging.LogsDirectory,
+                isWriteable: true,
                 allowCreateDirectory: true);
 
             if (layout.FrontEndDirectory.IsValid)
@@ -122,7 +130,7 @@ namespace BuildXL.Engine
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
                 table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile);
-                table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory : true);
+                table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory: true);
                 table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true);
             }
             else
@@ -141,7 +149,7 @@ namespace BuildXL.Engine
                 table.AddStaticSystemMount("ProgramFilesX86", Environment.SpecialFolder.ProgramFilesX86, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("CommonProgramFiles", Environment.SpecialFolder.CommonProgramFiles, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("CommonProgramFilesX86", Environment.SpecialFolder.CommonProgramFilesX86, trackSourceFileChanges: true);
-                
+
                 if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
                 {
                     table.AddStaticSystemMount("InternetCache", Environment.SpecialFolder.InternetCache);
@@ -174,11 +182,11 @@ namespace BuildXL.Engine
         }
 
         private static void RegisterRedirectedMount(
-            BuildXLContext context, 
-            IReadOnlyDictionary<string, string> properties, 
-            MountsTable table, 
-            string mountName, 
-            string envVariable = null, 
+            BuildXLContext context,
+            IReadOnlyDictionary<string, string> properties,
+            MountsTable table,
+            string mountName,
+            string envVariable = null,
             bool allowCreateDirectory = false)
         {
             envVariable = envVariable ?? mountName.ToCanonicalizedEnvVar();
@@ -201,18 +209,45 @@ namespace BuildXL.Engine
         /// <summary>
         /// Gets all mounts.
         /// </summary>
-        public IEnumerable<IMount> AllMounts => m_mountPathIdentifiersByMount.Keys;
+        public IEnumerable<IMount> AllMounts
+        {
+            get
+            {
+                Contract.Assert(m_finalized);
+                return m_mountPathIdentifiersByMount.Keys;
+            }
+        }
+
+        /// <summary>
+        /// <see cref="AllMounts"/>
+        /// </summary>
+        /// <remarks>
+        /// It is not necessary to have called <see cref="CompleteInitialization"/> to call this method, but the resulting mounts might not be exhaustive
+        /// </remarks>
+        public IEnumerable<IMount> AllMountsSoFar => m_mountLocationsByMount.Keys;
 
         /// <summary>
         /// Gets mappings from name to mount.
         /// </summary>
-        public IReadOnlyDictionary<string, IMount> MountsByName => m_mountsByName;
+        public IReadOnlyDictionary<string, IMount> MountsByName
+        {
+            get
+            {
+                Contract.Assert(m_finalized);
+                return m_mountsByName;
+            }
+        }
 
         /// <summary>
         /// Adds a resolved mount as found by parsing the configuration file.
         /// </summary>
+        /// <remarks>
+        /// If the mount is defined by a module instead of the configuration file, 
+        /// use <see cref="AddResolvedModuleDefinedMount(IMount, LocationData?)"/>
+        /// </remarks>
         public void AddResolvedMount(IMount mount, LocationData? mountLocation = null)
         {
+            Contract.Assert(!m_finalized);
             var location = mountLocation ?? mount.Location;
 
             if (!ValidateMount(mount, location))
@@ -233,6 +268,34 @@ namespace BuildXL.Engine
                 m_mountsByName[mountName] = mount;
                 m_mountMapBuilder[mount.Path] = mount;
             }
+        }
+
+        /// <summary>
+        /// Add a mount defined by a module
+        /// </summary>
+        /// <remarks>
+        /// Equivalent to <see cref="AddResolvedMount(IMount, LocationData?)"/> but affects the result of
+        /// <see cref="IsModuleDefinedMount(IMount)"/>
+        /// </remarks>
+        public void AddResolvedModuleDefinedMount(IMount mount, LocationData? mountLocation = null)
+        {
+            Contract.RequiresNotNull(mount);
+            Contract.Assert(!m_finalized);
+
+            m_moduleDefinedMounts.Add(mount);
+            AddResolvedMount(mount, mountLocation);
+        }
+
+        /// <summary>
+        /// Whether the mount was defined by a module (as opposed to by the main configuration file, or a static implicit
+        /// system mount)
+        /// </summary>
+        public bool IsModuleDefinedMount(IMount mount)
+        {
+            Contract.RequiresNotNull(mount);
+            Contract.Assert(m_finalized);
+
+            return m_moduleDefinedMounts.Contains(mount);
         }
 
         private bool ValidateMount(IMount mount, LocationData location)
@@ -422,6 +485,8 @@ namespace BuildXL.Engine
         /// </summary>
         public void AddAlternativeRootToMount(string name, AbsolutePath root)
         {
+            Contract.Assert(!m_finalized);
+
             if (!m_mountsByName.TryGetValue(name, out var mount))
             {
                 Contract.Assert(false, $"Tried adding an alternative root '{root.ToString(m_context.PathTable)}' to mount '{name}', however, this mount does not exist.");
@@ -445,10 +510,12 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            if (!AddAndPerformNestingOperations())
+            if (!m_finalized && !AddAndPerformNestingOperations())
             {
                 return false;
             }
+
+            m_finalized = true;
 
             return true;
         }
@@ -598,6 +665,7 @@ namespace BuildXL.Engine
         public override BuildXL.FrontEnd.Sdk.TryGetMountResult TryGetMount(string name, ModuleId currentPackage, out IMount mount)
         {
             Contract.Requires(currentPackage.IsValid);
+            Contract.Assert(m_finalized);
 
             if (string.IsNullOrEmpty(name))
             {
@@ -613,6 +681,7 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public override IEnumerable<string> GetMountNames(ModuleId currentPackage)
         {
+            Contract.Assert(m_finalized);
             return m_mountsByName.Keys;
         }
     }

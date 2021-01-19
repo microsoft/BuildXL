@@ -66,6 +66,14 @@ namespace BuildXL.FrontEnd.Sdk
         /// Dependent modules that are allowed to be part of a module-to-module dependency cycle
         /// </summary>
         IReadOnlyList<string> CyclicalFriendModules { get; }
+
+        /// <summary>
+        /// The set of mounts defined by the package
+        /// </summary>
+        /// <remarks>
+        /// These mounts contribute to the global collection of mounts defined in <see cref="IModuleConfiguration.Mounts"/>
+        /// </remarks>
+        IReadOnlyList<IMount> Mounts { get; }
     }
 
     /// <summary>

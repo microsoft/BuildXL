@@ -52,5 +52,8 @@ namespace BuildXL.FrontEnd.Sdk.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<string> CyclicalFriendModules { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<IMount> Mounts { get; set; }
     }
 }

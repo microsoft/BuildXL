@@ -281,5 +281,19 @@ namespace BuildXL.FrontEnd.Sdk
 
             return result;
         }
+
+        /// <inheritdoc/>
+        public override bool CompleteMountInitialization() => true;
+
+        /// <inheritdoc/>
+        public override void AddResolvedModuleDefinedMount(IMount mount, LocationData? mountLocation = null)
+        {
+            if (!mount.Name.IsValid)
+            {
+                throw new InvalidOperationException("Mount has invalid name");
+            }
+
+            m_customMountsTable.Add(mount.Name.ToString(m_pathTable.StringTable), mount);
+        }
     }
 }

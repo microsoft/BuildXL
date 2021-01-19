@@ -49,10 +49,9 @@ namespace BuildXL.Engine
             pipGraph = null;
             IPipGraphBuilder pipGraphBuilder = null;
 
-            if (!AddConfigurationMountsAndCompleteInitialization(loggingContext, mountsTable))
-            {
-                return false;
-            }
+            // Observe the mount table is not finalized here since there might be extra mounts coming
+            // from DScript modules
+            AddConfigurationMounts(mountsTable);
 
             IDictionary<ModuleId, MountsTable> moduleMountsTableMap;
             if (!mountsTable.PopulateModuleMounts(Configuration.ModulePolicies.Values, out moduleMountsTableMap))
@@ -95,14 +94,17 @@ namespace BuildXL.Engine
             return pipGraphBuilder == null || (pipGraph = pipGraphBuilder.Build()) != null;
         }
 
-        private bool AddConfigurationMountsAndCompleteInitialization(LoggingContext loggingContext, MountsTable mountsTable)
+        private void AddConfigurationMounts(MountsTable mountsTable)
         {
             // Add configuration mounts
             foreach (var mount in Configuration.Mounts)
             {
                 mountsTable.AddResolvedMount(mount, new LocationData(Configuration.Layout.PrimaryConfigFile, 0, 0));
             }
+        }
 
+        private bool CompleteInitialization(LoggingContext loggingContext, MountsTable mountsTable)
+        {
             if (!mountsTable.CompleteInitialization())
             {
                 Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.CompleteInitialization()");
@@ -196,9 +198,10 @@ namespace BuildXL.Engine
             {
                 var loggingContext = timeBlock.LoggingContext;
                 var effectiveEnvironmentVariables = FrontEndEngineImplementation.PopulateFromEnvironmentAndApplyOverrides(loggingContext, properties);
-                var availableMounts = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
+                var mainConfigAvailableMounts = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
 
-                if (!AddConfigurationMountsAndCompleteInitialization(loggingContext, availableMounts))
+                AddConfigurationMounts(mainConfigAvailableMounts);
+                if (!CompleteInitialization(loggingContext, mainConfigAvailableMounts))
                 {
                     return cacheGraphStats;
                 }
@@ -225,7 +228,7 @@ namespace BuildXL.Engine
                         serializer,
                         graphFingerprint: graphFingerprint,
                         availableEnvironmentVariables: effectiveEnvironmentVariables,
-                        availableMounts: availableMounts,
+                        mainConfigAvailableMounts: mainConfigAvailableMounts,
                         journalState: journalState,
                         maxDegreeOfParallelism: maxDegreeOfParallelism);
                     cacheGraphStats.ObjectDirectoryHit = engineCacheMatchResult.Matches;
@@ -277,8 +280,10 @@ namespace BuildXL.Engine
                                 FileContentTable,
                                 maxDegreeOfParallelism);
 
+                            // Module-defined mounts won't be available at this point, but it is safe to only use the main config ones since module defined ones are driven
+                            // by the content of module files and environment variables registered through the engine
                             var cachedGraphDescriptor =
-                                cacheGraphProvider.TryGetPipGraphCacheDescriptorAsync(graphFingerprint, effectiveEnvironmentVariables, availableMounts.MountsByName).Result;
+                                cacheGraphProvider.TryGetPipGraphCacheDescriptorAsync(graphFingerprint, effectiveEnvironmentVariables, mainConfigAvailableMounts.MountsByName).Result;
 
                             if (cachedGraphDescriptor == null)
                             {

@@ -114,6 +114,17 @@ namespace Test.DScript.Ast.Incrementality
                     ["MyModule/build.bp"]      = "@@public export const x = 42;"
                 }
             };
+
+            // A module file with mounts
+            yield return new[]
+            {
+                new BuildDefinition
+                {
+                    [ConfigBc] = "config({});",
+                    [myModuleConfigFile]       = ModuleConfigurationBuilder.V2Module("MyModule").WithExtraFields("mounts: [{name: a`Test`, path: p`foo`, isReadable: true}]"),
+                    ["MyModule/build.bp"]      = "@@public export const x = 42;"
+                }
+            };
         }
 
         [Fact]

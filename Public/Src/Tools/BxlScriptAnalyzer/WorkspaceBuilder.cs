@@ -201,10 +201,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             fingerprintSalt: config.Cache.CacheSalt,
                             searchPathToolsHash: searchPathToolsHash);
 
-                        if (!AddConfigurationMountsAndCompleteInitialization(config, loggingContext, mountsTable))
-                        {
-                            return false;
-                        }
+                        // Observe mount table is completed during workspace construction
+                        AddConfigurationMounts(config, mountsTable);
 
                         IDictionary<ModuleId, MountsTable> moduleMountsTableMap;
                         if (!mountsTable.PopulateModuleMounts(config.ModulePolicies.Values, out moduleMountsTableMap))
@@ -258,21 +256,13 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             return true;
         }
 
-        private static bool AddConfigurationMountsAndCompleteInitialization(IConfiguration config, LoggingContext loggingContext, MountsTable mountsTable)
+        private static void AddConfigurationMounts(IConfiguration config, MountsTable mountsTable)
         {
             // Add configuration mounts
             foreach (var mount in config.Mounts)
             {
                 mountsTable.AddResolvedMount(mount, new LocationData(config.Layout.PrimaryConfigFile, 0, 0));
             }
-
-            if (!mountsTable.CompleteInitialization())
-            {
-                Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.CompleteInitialization()");
-                return false;
-            }
-
-            return true;
         }
 
         private static WorkspaceBuilderConfiguration GetDefaultConfiguration()

@@ -178,7 +178,8 @@ namespace Test.DScript.Workspaces
                     moduleRepository.GetAllPathsForModule(moduleDescriptor),
                     allowedModuleDependencies: null,
                     cyclicalFriendModules: moduleRepository.GetAllModules().Select(
-                        descriptor => ModuleReferenceWithProvenance.FromNameAndPath(descriptor.Name, moduleConfigurationPath.ToString(PathTable))));
+                        descriptor => ModuleReferenceWithProvenance.FromNameAndPath(descriptor.Name, moduleConfigurationPath.ToString(PathTable))),
+                    mounts: null);
             }
 
             return ModuleDefinition.CreateModuleDefinitionWithExplicitReferencesWithEmptyQualifierSpace(

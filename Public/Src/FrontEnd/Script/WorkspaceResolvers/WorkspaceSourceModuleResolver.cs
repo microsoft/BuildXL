@@ -560,7 +560,7 @@ namespace BuildXL.FrontEnd.Script
 
             return package.Descriptor.NameResolutionSemantics() == NameResolutionSemantics.ImplicitProjectReferences
                 ? ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
-                    ConvertPackageToModuleDescriptor(package), packageRoot, moduleConfigFile, projects, allowedDependencies, cyclicalFriendModules)
+                    ConvertPackageToModuleDescriptor(package), packageRoot, moduleConfigFile, projects, allowedDependencies, cyclicalFriendModules, package.Descriptor.Mounts)
 
                     : ModuleDefinition.CreateModuleDefinitionWithExplicitReferences(
                     ConvertPackageToModuleDescriptor(package), package.Path, moduleConfigFile, projects, PathTable, Context.QualifierTable.EmptyQualifierSpaceId.Id);

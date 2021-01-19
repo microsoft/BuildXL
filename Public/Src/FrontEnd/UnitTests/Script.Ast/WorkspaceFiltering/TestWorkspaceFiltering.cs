@@ -328,7 +328,8 @@ namespace Test.DScript.Ast.WorkspaceFiltering
                 NameResolutionSemantics.ImplicitProjectReferences,
                 v1QualifierSpaceId: 0,
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null);
+                cyclicalFriendModules: null,
+                mounts: null);
             return moduleDefinition;
         }
 

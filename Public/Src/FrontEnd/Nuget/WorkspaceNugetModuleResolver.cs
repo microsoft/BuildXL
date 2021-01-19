@@ -137,7 +137,8 @@ namespace BuildXL.FrontEnd.Nuget
                     pathToModuleConfig,
                     new[] { pathToSpec },
                     allowedModuleDependencies: null,
-                    cyclicalFriendModules: null); // A NuGet package does not have any module dependency restrictions nor allowlists cycles
+                    cyclicalFriendModules: null, // A NuGet package does not have any module dependency restrictions nor allowlists cycles
+                    mounts: null);
             });
         }
 

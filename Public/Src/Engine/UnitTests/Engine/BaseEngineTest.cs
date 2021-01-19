@@ -379,23 +379,38 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             Configuration.Layout.PrimaryConfigFile = configFilePath;
         }
 
-        public void AddModule(string moduleName, (string FileName, string Content) spec, bool placeInRoot = false)
+        public void AddModule(string moduleName, (string FileName, string Content) spec, bool placeInRoot = false, IMount[] moduleMounts = null)
         {
-            AddModule(moduleName, new [] {spec}, placeInRoot);
+            AddModule(moduleName, new [] {spec}, placeInRoot, moduleMounts);
         }
 
-        public void AddModule(string moduleName, IEnumerable<(string FileName, string Content)> specs, bool placeInRoot = false)
+        public void AddModule(string moduleName, IEnumerable<(string FileName, string Content)> specs, bool placeInRoot = false, IMount[] moduleMounts = null)
         {
             AddModule(
                 moduleName,
                 I($@"module({{
     name: ""{moduleName}"",
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [{string.Join(",", specs.Select(s => "f`" + s.FileName + "`"))}]
+    projects: [{string.Join(",", specs.Select(s => "f`" + s.FileName + "`"))}],
+    mounts: [{string.Join(",", moduleMounts?.Select(m => MountToExpression(m)) ?? CollectionUtilities.EmptyArray<string>())}],
 }});
 "),
                 specs,
                 placeInRoot);
+        }
+
+        private string MountToExpression(IMount mount)
+        {
+            return @$"{{
+                name: a`{mount.Name.ToString(Context.StringTable)}`, 
+                path: p`{mount.Path.ToString(Context.PathTable)}`,
+                trackSourceFileChanges: {toBool(mount.TrackSourceFileChanges)},
+                isWritable: {toBool(mount.IsWritable)},
+                isReadable: {toBool(mount.IsReadable)},
+                isScrubbable: {toBool(mount.IsScrubbable)},
+            }}";
+
+            string toBool(bool b) => b ? "true" : "false";
         }
 
         public void AddModule(string moduleName, string moduleContent, IEnumerable<(string FileName, string Content)> specs, bool placeInRoot = false)

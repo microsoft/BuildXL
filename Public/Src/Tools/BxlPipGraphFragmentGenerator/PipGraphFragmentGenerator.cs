@@ -96,10 +96,8 @@ namespace BuildXL.PipGraphFragmentGenerator
                     ? new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander)
                     : new PipGraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander);
 
-                if (!AddConfigurationMountsAndCompleteInitialization(config, loggingContext, mountsTable))
-                {
-                    return false;
-                }
+                // Observe mount table is completed during workspace construction
+                AddConfigurationMounts(config, mountsTable);
 
                 if (!mountsTable.PopulateModuleMounts(config.ModulePolicies.Values, out var moduleMountsTableMap))
                 {
@@ -173,21 +171,13 @@ namespace BuildXL.PipGraphFragmentGenerator
             }
         }
 
-        private static bool AddConfigurationMountsAndCompleteInitialization(IConfiguration config, LoggingContext loggingContext, MountsTable mountsTable)
+        private static void AddConfigurationMounts(IConfiguration config, MountsTable mountsTable)
         {
             // Add configuration mounts
             foreach (var mount in config.Mounts)
             {
                 mountsTable.AddResolvedMount(mount, new LocationData(config.Layout.PrimaryConfigFile, 0, 0));
             }
-
-            if (!mountsTable.CompleteInitialization())
-            {
-                Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.CompleteInitialization()");
-                return false;
-            }
-
-            return true;
         }
 
         private static CommandLineConfiguration CompleteCommandLineConfiguration(ICommandLineConfiguration commandLineConfig)

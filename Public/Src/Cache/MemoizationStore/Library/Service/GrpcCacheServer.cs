@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -30,10 +31,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
     /// </summary>
     public sealed class GrpcCacheServer : GrpcContentServer
     {
-        private readonly Tracer _tracer = new Tracer(nameof(GrpcCacheServer));
-
         /// <inheritdoc />
-        protected override Tracer Tracer => _tracer;
+        protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCacheServer));
 
         /// <summary>
         /// We need this because these methods rely on having memoization verbs, which only an ICacheSession can
@@ -107,7 +106,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                         return new GetSelectorsResponse(result.Value.HasMore, selectors);
                     }
 
-                    throw new NotSupportedException($"Session {c.Session.GetType().Name} does not support GetSelectosAsync functionality.");
+                    throw new NotSupportedException($"Session {c.Session.GetType().Name} does not support {nameof(GetSelectorsAsync)} functionality.");
                 },
                 context.CancellationToken);
         }
@@ -130,12 +129,15 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             IGrpcRequest request,
             Func<ServiceOperationContext, Task<TResponse>> taskFunc,
             CancellationToken token,
-            [CallerMemberName]string operation = null) where TResponse : IGrpcResponse, new()
+            [CallerMemberName]string operation = null!) where TResponse : IGrpcResponse, new()
         {
-            var stopwatch = StopwatchSlim.Start();
-            DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new OperationContext(new Context(new Guid(request.Header.TraceId), Logger), token);
+            var sw = StopwatchSlim.Start();
 
+            DateTime startTime = DateTime.UtcNow;
+            
+            using var shutdownTracker = TrackShutdown(new OperationContext(new Context(new Guid(request.Header.TraceId), Logger), token), token);
+            var tracingContext = shutdownTracker.Context;
+            
             var sessionId = request.Header.SessionId;
             if (!_cacheSessionHandler.TryGetSession(sessionId, out var session))
             {
@@ -146,7 +148,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
 
             try
             {
-                var serviceOperationContext = new ServiceOperationContext(session, cacheContext, startTime);
+                var serviceOperationContext = new ServiceOperationContext(session, tracingContext, startTime);
+
+                TraceGrpcOperationStarted(tracingContext, enabled: TraceGrpcOperations, operation, sessionId);
 
                 var result = await taskFunc(serviceOperationContext);
                 
@@ -155,22 +159,26 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                     result.Header = ResponseHeader.Success(startTime);
                 }
 
+                TraceGrpcOperationFinished(tracingContext, enabled: TraceGrpcOperations, operation, sw.Elapsed, sessionId);
+
                 return result;
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException e)
             {
-                Logger.Info($"GRPC server operation '{operation}' is canceled by {stopwatch.Elapsed.TotalMilliseconds}ms.");
-                return failure("The operation was canceled.");
+                var message = GetLogMessage(e, operation, sessionId);
+                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
+                return failure(message);
             }
             catch (ResultPropagationException e)
             {
-                Logger.Error(e, $"GRPC server operation '{operation}' failed by {stopwatch.Elapsed.TotalMilliseconds}ms. Error: {e}");
-
+                var message = GetLogMessage(e, operation, sessionId);
+                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
                 return new TResponse {Header = ResponseHeader.Failure(startTime, e.Result.ErrorMessage, e.Result.Diagnostics)};
             }
             catch (Exception e)
             {
-                Logger.Error(e, $"GRPC server operation '{operation}' failed by {stopwatch.Elapsed.TotalMilliseconds}ms. Error: {e}");
+                var message = GetLogMessage(e, operation, sessionId);
+                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
                 return failure(e.ToString());
             }
 

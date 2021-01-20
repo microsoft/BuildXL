@@ -117,8 +117,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private readonly ConcurrencyLimiter<ContentHash> _ongoingPushesConcurrencyLimiter;
 
-
-        private readonly bool _traceGrpcOperations;
+        /// <summary>
+        /// If true, then all grpc-level operation should emit start and stop messages.
+        /// </summary>
+        protected readonly bool TraceGrpcOperations;
 
         /// <nodoc />
         public GrpcContentServer(
@@ -134,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _contentStoreByCacheName = storesByName;
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
             _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
-            _traceGrpcOperations = localServerConfiguration?.TraceGrpcOperations ?? false;
+            TraceGrpcOperations = localServerConfiguration?.TraceGrpcOperations ?? false;
             _ongoingPushesConcurrencyLimiter = new ConcurrencyLimiter<ContentHash>(localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit);
             _copyFromConcurrencyLimiter = new ConcurrencyLimiter<Guid>(localServerConfiguration?.CopyRequestHandlingCountLimit ?? LocalServerConfiguration.DefaultCopyRequestHandlingCountLimit);
             _pool = new ByteArrayPool(_bufferSize);
@@ -888,9 +890,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             CancellationToken token,
             bool? traceStartAndStop = null,
             bool obtainSession = true,
-            [CallerMemberName] string? caller = null)
+            [CallerMemberName] string operation = null!)
         {
-            bool trace = traceStartAndStop ?? _traceGrpcOperations;
+            bool trace = traceStartAndStop ?? TraceGrpcOperations;
 
             var tracingContext = new Context(Guid.Parse(header.TraceId), Logger);
             using var shutdownTracker = TrackShutdown(tracingContext, token);
@@ -914,32 +916,56 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             try
             {
-                if (trace)
-                {
-                    Tracer.Debug(tracingContext, $"Starting GRPC operation {caller} for session {sessionId}.");
-                }
-
+                TraceGrpcOperationStarted(tracingContext, enabled: trace, operation, sessionId);
                 var result = await taskFunc(context, session!);
-
-                if (trace)
-                {
-                    Tracer.Debug(tracingContext, $"GRPC operation {caller} is finished in {sw.Elapsed.TotalMilliseconds}ms for session {sessionId}.");
-                }
+                TraceGrpcOperationFinished(tracingContext, enabled: trace, operation, sw.Elapsed, sessionId);
 
                 return result;
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException e)
             {
-                var message = $"The GRPC server operation {caller} was canceled in {sw.Elapsed.TotalMilliseconds}ms.";
-                Tracer.Info(tracingContext, message);
+                var message = GetLogMessage(e, operation, sessionId);
+                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
                 return failFunc(context, message);
             }
             catch (Exception e)
             {
-                Tracer.Error(tracingContext, $"GRPC server operation {caller} failed in {sw.Elapsed.TotalMilliseconds}ms. {e}");
-                return failFunc(context, e.ToString());
+                var message = GetLogMessage(e, operation, sessionId);
+                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
+                return failFunc(context, $"{message}. Error={e}");
             }
         }
+
+        /// <nodoc />
+        protected void TraceGrpcOperationStarted(Context tracingContext, bool enabled, string operation, int sessionId)
+        {
+            if (enabled)
+            {
+                Tracer.OperationStarted(tracingContext, operation, enabled: true, additionalInfo: $"SessionId={sessionId}");
+            }
+        }
+
+        /// <nodoc />
+        protected void TraceGrpcOperationFinished(Context tracingContext, bool enabled, string operation, TimeSpan duration, int sessionId)
+        {
+            if (enabled)
+            {
+                Tracer.OperationFinished(tracingContext, BoolResult.Success, duration, $"SessionId={sessionId}", operation, traceErrorsOnly: false);
+            }
+        }
+
+        /// <summary>
+        /// Gets the log message for tracing purposes.
+        /// </summary>
+        protected static string GetLogMessage(Exception e, string operation, int sessionId) => $"The GRPC server operation {operation} {(IsCancelled(e) ? "was cancelled" : "failed")}. SessionId=[{sessionId}]";
+
+        /// <nodoc />
+        protected static BoolResult FromException(Exception e)
+        {
+            return new BoolResult(e) {IsCancelled = IsCancelled(e)};
+        }
+
+        private static bool IsCancelled(Exception e) => e is TaskCanceledException or OperationCanceledException;
 
         private Task<T> RunFuncNoSessionAsync<T>(
             string traceId,

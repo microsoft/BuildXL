@@ -34,7 +34,6 @@ namespace BuildXL.Cache.VerticalAggregator
         private readonly ICacheSession m_remoteSession;
         private readonly ICacheReadOnlySession m_remoteROSession;
         private readonly SessionCounters m_sessionCounters;
-        private readonly Lazy<Dictionary<string, double>> m_finalStats;
 
         internal VerticalCacheAggregatorSession(
             VerticalCacheAggregator cache,
@@ -61,7 +60,6 @@ namespace BuildXL.Cache.VerticalAggregator
             m_cacheId = new CacheId(localSession.CacheId, remoteROSession.CacheId);
             m_remoteIsReadOnly = remoteIsReadOnly;
             m_sessionCounters = new SessionCounters();
-            m_finalStats = Lazy.Create(ExportStats);
             m_remoteContentIsReadOnly = remoteContentIsReadOnly;
         }
 
@@ -503,7 +501,7 @@ namespace BuildXL.Cache.VerticalAggregator
                 using (var eventing = new CacheActivity(VerticalCacheAggregator.EventSource, CacheActivity.StatisticOptions, activityId, "SessionStatistics", CacheId))
                 {
                     eventing.Start();
-                    eventing.WriteStatistics(m_finalStats.Value);
+                    eventing.WriteStatistics(ExportStats());
                     eventing.Stop();
                 }
             }
@@ -1456,7 +1454,7 @@ namespace BuildXL.Cache.VerticalAggregator
 
                     stats.AddRange(maybeStats.Result);
 
-                    stats.Add(new CacheSessionStatistics(CacheId, m_cache.GetType().FullName, m_finalStats.Value));
+                    stats.Add(new CacheSessionStatistics(CacheId, m_cache.GetType().FullName, ExportStats()));
 
                     eventing.Stop();
                     return stats.ToArray();

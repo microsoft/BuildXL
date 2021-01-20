@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using ContentStore.Grpc;
 #nullable disable
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -443,6 +444,18 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseUnsafeByteStringConstruction { get; set; } = false;
 
+        #region DistributedContentCopier
+
+        [DataMember]
+        [Validation.Range(0, long.MaxValue)]
+        public long? GrpcCopyCompressionSizeThreshold { get; set; }
+
+        [DataMember]
+        [Validation.Enum(typeof(CopyCompression), allowNull: true)]
+        public string GrpcCopyCompressionAlgorithm { get; set; }
+
+        #endregion
+
         #region Grpc File Copier
 
         [DataMember]
@@ -484,9 +497,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(0, int.MaxValue)]
         public int? GrpcCopyClientBufferSizeBytes { get; set; }
-
-        [DataMember]
-        public bool? GrpcCopyClientUseGzipCompression { get; set; }
 
         [DataMember]
         public bool? GrpcCopyClientConnectOnStartup { get; set; }

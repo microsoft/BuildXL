@@ -21,6 +21,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
+using ContentStore.Grpc;
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -256,14 +257,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         if (shouldCopy)
                         {
-                            var putResult = await _copier.TryCopyAndPutAsync(
+                            return await _copier.TryCopyAndPutAsync(
                                 context,
-                                this,
-                                hashInfo,
-                                CopyReason.CentralStorage,
-                                args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null));
-
-                            return putResult;
+                                new DistributedContentCopier.CopyRequest(
+                                    this,
+                                    hashInfo,
+                                    CopyReason.CentralStorage,
+                                    args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null),
+                                    // Most of these transfers are large files (sst files), but they are also already
+                                    // compressed, so compressing over it would only waste cycles.
+                                    CopyCompression.None
+                                    ));
                         }
 
                         // Wait for content to propagate to more machines

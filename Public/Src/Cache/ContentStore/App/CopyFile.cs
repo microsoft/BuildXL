@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
 using Context = BuildXL.Cache.ContentStore.Interfaces.Tracing.Context;
+using ContentStore.Grpc;
 
 namespace BuildXL.Cache.ContentStore.App
 {
@@ -49,8 +50,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                var config = GrpcCopyClientConfiguration.WithGzipCompression(useCompressionForCopies);
-                config.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.Disabled;
+                var config = new GrpcCopyClientConfiguration();
                 using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration()
                 {
                     GrpcCopyClientConfiguration = config
@@ -61,7 +61,10 @@ namespace BuildXL.Cache.ContentStore.App
                 var copyFileResult = clientCache.UseAsync(new OperationContext(context), host, grpcPort, (nestedContext, rpcClient) =>
                 {
                     return retryPolicy.ExecuteAsync(
-                        () => rpcClient.CopyFileAsync(nestedContext, hash, finalPath, new CopyOptions(bandwidthConfiguration: null)),
+                        () => rpcClient.CopyFileAsync(nestedContext, hash, finalPath, new CopyOptions(bandwidthConfiguration: null)
+                        {
+                            CompressionHint = useCompressionForCopies ? CopyCompression.Gzip : CopyCompression.None,
+                        }),
                         _cancellationToken);
                 }).GetAwaiter().GetResult();
 

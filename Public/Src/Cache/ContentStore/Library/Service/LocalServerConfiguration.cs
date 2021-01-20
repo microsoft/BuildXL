@@ -23,7 +23,6 @@ namespace BuildXL.Cache.ContentStore.Service
             int grpcPort,
             IAbsFileSystem fileSystem,
             int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null,
             int? proactivePushCountLimit = null,
             TimeSpan? logIncrementalStatsInterval = null,
             TimeSpan? logMachineStatsInterval = null,
@@ -35,7 +34,6 @@ namespace BuildXL.Cache.ContentStore.Service
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
-            GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
             CopyRequestHandlingCountLimit = copyRequestHandlingCountLimit;
             FileSystem = fileSystem;
@@ -55,7 +53,6 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPort = (int)serviceConfiguration.GrpcPort;
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName ?? DefaultFileName;
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
-            GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             CopyRequestHandlingCountLimit = serviceConfiguration.CopyRequestHandlingCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
@@ -73,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPort = (int)serviceConfiguration.GrpcPort;
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName ?? DefaultFileName;
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
-            GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             CopyRequestHandlingCountLimit = serviceConfiguration.CopyRequestHandlingCountLimit;
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
@@ -182,11 +178,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </remarks>
         public int? CopyRequestHandlingCountLimit { get; private set; }
 
-        /// <summary>
-        /// Files greater than this size will be compressed via GZip when GZip is enabled.
-        /// </summary>
-        public int? GzipBarrierSizeForGrpcCopies { get; private set; }
-
         /// <nodoc />
         public static readonly string DefaultFileName = "CASaaS GRPC port";
 
@@ -230,7 +221,6 @@ namespace BuildXL.Cache.ContentStore.Service
             sb.Append($", GrpcPort={GrpcPort}");
             sb.Append($", GrpcPortFileName={GrpcPortFileName}");
             sb.Append($", BufferSizeForGrpcCopies={BufferSizeForGrpcCopies}");
-            sb.Append($", GzipBarrierSizeForGrpcCopies={GzipBarrierSizeForGrpcCopies}");
             sb.Append($", TraceGrpcOperations={TraceGrpcOperations}");
 
             return sb.ToString();

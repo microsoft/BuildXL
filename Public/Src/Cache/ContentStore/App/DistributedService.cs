@@ -104,7 +104,6 @@ namespace BuildXL.Cache.ContentStore.App
                     dataRootPath: dataRootPath,
                     ct: _cancellationToken,
                     bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
-                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
                     loggingSettings: loggingSettings,
                     telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId, serviceName: "DistributedService"));
 

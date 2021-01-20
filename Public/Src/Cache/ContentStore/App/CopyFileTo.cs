@@ -49,8 +49,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var path = new AbsolutePath(sourcePath);
                 using Stream stream = File.OpenRead(path.Path);
 
-                var config = GrpcCopyClientConfiguration.WithGzipCompression(false);
-                config.BandwidthCheckerConfiguration = BandwidthChecker.Configuration.Disabled;
+                var config = new GrpcCopyClientConfiguration();
                 using var clientCache = new GrpcCopyClientCache(context, new GrpcCopyClientCacheConfiguration()
                 {
                     GrpcCopyClientConfiguration = config

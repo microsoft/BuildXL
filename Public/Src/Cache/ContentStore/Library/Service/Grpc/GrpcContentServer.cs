@@ -82,7 +82,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly Capabilities _serviceCapabilities;
         private readonly IReadOnlyDictionary<string, IContentStore> _contentStoreByCacheName;
         private readonly int _bufferSize;
-        private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
 
         private readonly IAbsFileSystem _fileSystem;
@@ -135,7 +134,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _serviceCapabilities = serviceCapabilities;
             _contentStoreByCacheName = storesByName;
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
-            _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
             TraceGrpcOperations = localServerConfiguration?.TraceGrpcOperations ?? false;
             _ongoingPushesConcurrencyLimiter = new ConcurrencyLimiter<ContentHash>(localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit);
             _copyFromConcurrencyLimiter = new ConcurrencyLimiter<Guid>(localServerConfiguration?.CopyRequestHandlingCountLimit ?? LocalServerConfiguration.DefaultCopyRequestHandlingCountLimit);
@@ -337,69 +335,66 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             ContentHash hash = request.GetContentHash();
-            long size = -1;
             OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
-
-            // If result is unsuccessful, then result.Stream is null, but using(null) is just a no op.
-            using (result.Stream)
+            switch (result.Code)
             {
-                // Figure out response headers.
-                CopyCompression compression = CopyCompression.None;
-                
-                switch (result.Code)
+                case OpenStreamResult.ResultCode.ContentNotFound:
+                    Counters[GrpcContentServerCounters.CopyContentNotFound].Increment();
+                    await SendErrorResponseAsync(
+                        callContext,
+                        errorType: "ContentNotFound",
+                        errorMessage: $"Requested content with hash={hash.ToShortString()} not found.");
+                    break;
+                case OpenStreamResult.ResultCode.Error:
+                    Contract.Assert(result.Exception != null);
+                    Counters[GrpcContentServerCounters.CopyError].Increment();
+                    await SendErrorResponseAsync(
+                        callContext,
+                        errorType: result.Exception.GetType().Name,
+                        errorMessage: result.Exception.Message);
+                    break;
+                case OpenStreamResult.ResultCode.Success:
                 {
-                    case OpenStreamResult.ResultCode.ContentNotFound:
-                        Counters[GrpcContentServerCounters.CopyContentNotFound].Increment();
-                        await SendErrorResponseAsync(
-                            callContext,
-                            errorType: "ContentNotFound",
-                            errorMessage: $"Requested content with hash={hash.ToShortString()} not found.");
-                        break;
-                    case OpenStreamResult.ResultCode.Error:
-                        Contract.Assert(result.Exception != null);
-                        Counters[GrpcContentServerCounters.CopyError].Increment();
-                        await SendErrorResponseAsync(
-                            callContext,
-                            errorType: result.Exception.GetType().Name,
-                            errorMessage: result.Exception.Message);
-                        break;
-                    case OpenStreamResult.ResultCode.Success:
-                        Contract.Assert(result.Stream != null);
-                        size = result.Stream.Length;
-                        Metadata headers = new Metadata();
-                        headers.Add("FileSize", size.ToString());
-                        if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
-                        {
-                            compression = CopyCompression.Gzip;
-                        }
+                    Contract.AssertNotNull(result.Stream);
+                    using var _ = result.Stream;
+                    long size = result.Stream.Length;
 
-                        headers.Add("Compression", compression.ToString());
-                        headers.Add("ChunkSize", _bufferSize.ToString());
-                        // Send the response headers.
-                        await callContext.WriteResponseHeadersAsync(headers);
-                        break;
-                    default:
-                        throw new NotImplementedException($"Unknown result.Code '{result.Code}'.");
-                }
+                    CopyCompression compression = request.Compression;
+                    StreamContentDelegate streamContent;
+                    switch (compression)
+                    {
+                        case CopyCompression.None:
+                            streamContent = StreamContentAsync;
+                            break;
+                        case CopyCompression.Gzip:
+                            streamContent = StreamContentWithGzipCompressionAsync;
+                            break;
+                        default:
+                            Tracer.Error(cacheContext, $"Requested compression algorithm '{compression}' is unknown by the server. Transfer will be uncompressed.");
+                            compression = CopyCompression.None;
+                            streamContent = StreamContentAsync;
+                            break;
+                    }
 
-                // Send the content.
-                if (result.Succeeded)
-                {
+                    Metadata headers = new Metadata();
+                    headers.Add("FileSize", size.ToString());
+                    headers.Add("Compression", compression.ToString());
+                    headers.Add("ChunkSize", _bufferSize.ToString());
+
+                    // Send the response headers.
+                    await callContext.WriteResponseHeadersAsync(headers);
+
                     // Need to cancel the operation when the instance is shut down.
                     using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
                     var operationContext = shutdownTracker.Context;
 
-                    using var arrayHandle = _pool.Get();
-                    using var arraySecondaryHandle = _pool.Get();
-                    StreamContentDelegate streamContent = compression == CopyCompression.None ? (StreamContentDelegate)StreamContentAsync : StreamContentWithCompressionAsync;
-
-                    byte[] buffer = arrayHandle.Value;
-                    byte[] secondaryBuffer = arraySecondaryHandle.Value;
+                    using var bufferHandle = _pool.Get();
+                    using var secondaryBufferHandle = _pool.Get();
                     (await operationContext.PerformOperationAsync(
                             _tracer,
-                            () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
+                            () => streamContent(result.Stream!, bufferHandle.Value, secondaryBufferHandle.Value, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
-                            extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}, Size=[{size}], Sender=[{GetSender(callContext)}], ReadTime=[{getFileIoDurationAsString()}].",
+                            extraEndMessage: r => $"Hash=[{hash.ToShortString()}] Compression=[{compression}] Size=[{size}] Sender=[{GetSender(callContext)}] ReadTime=[{getFileIoDurationAsString()}]",
                             counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration])
                         ).Then((r, duration) => trackMetrics(r.totalChunksCount, r.totalBytes, duration))
                         .IgnoreFailure(); // The error was already logged.
@@ -420,7 +415,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         var duration = GetFileIODuration(result.Stream);
                         return duration != null ? $"{(long)duration.Value.TotalMilliseconds}ms" : string.Empty;
                     }
+
+                    break;
                 }
+                default:
+                    throw new NotImplementedException($"Unknown result.Code '{result.Code}'.");
             }
         }
 
@@ -566,7 +565,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             }
 
                             var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
-                            
+
                             _tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
                             return Unit.Void;
                         }
@@ -597,7 +596,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }, buffer, secondaryBuffer, cancellationToken: ct);
         }
 
-        private async Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentWithCompressionAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
+        private async Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentWithGzipCompressionAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
             long bytes = 0L;
             long chunks = 0L;
@@ -1059,7 +1058,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     return new PushCopyLimiter(limiter, hash, rejectionReason);
                 }
-                
+
                 if (overTheLimit)
                 {
                     return new PushCopyLimiter(limiter, hash, RejectionReason.CopyLimitReached);

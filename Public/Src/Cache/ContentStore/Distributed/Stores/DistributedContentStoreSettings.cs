@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using ContentStore.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -268,5 +269,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Returns true if Redis can be used for storing small files.
         /// </summary>
         public bool AreBlobsSupported { get; set; }
+
+        /// <summary>
+        /// Minimum size to start compressing gRPC transfers
+        /// </summary>
+        public long? GrpcCopyCompressionSizeThreshold { get; set; }
+
+        /// <summary>
+        /// Algorithm to use when a gRPC transfer is to be compressed
+        /// </summary>
+        public CopyCompression GrpcCopyCompressionAlgorithm { get; set; } = CopyCompression.Gzip;
     }
 }

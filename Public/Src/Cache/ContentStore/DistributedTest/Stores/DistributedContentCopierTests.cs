@@ -17,7 +17,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using ContentStoreTest.Distributed.ContentLocation;
+using ContentStore.Grpc;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -309,7 +309,7 @@ namespace ContentStoreTest.Distributed.Stores
 
         internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
-            return base.TryCopyAndPutAsync(operationContext, this, hashWithLocations, CopyReason.None, handleCopyAsync);
+            return TryCopyAndPutAsync(operationContext, new CopyRequest(this, hashWithLocations, CopyReason.None, handleCopyAsync, CopyCompression.None));
         }
     }
 }

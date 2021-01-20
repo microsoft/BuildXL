@@ -29,8 +29,7 @@ namespace BuildXL.Cache.Host.Configuration
             string scenarioName = null,
             uint grpcPort = 0,
             string grpcPortFileName = null,
-            int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null
+            int? bufferSizeForGrpcCopies = null
             )
         {
             DefaultSingleInstanceTimeoutSec = defaultSingleInstanceTimeoutSec;
@@ -40,7 +39,6 @@ namespace BuildXL.Cache.Host.Configuration
             GrpcPort = grpcPort;
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
-            GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
         }
 
         /// <summary>
@@ -112,12 +110,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public int? MaxCopyFromHandlers { get; set; }
-
-        /// <summary>
-        /// Files greater than this size will be compressed via GZip when GZip is enabled.
-        /// </summary>
-        [DataMember]
-        public int? GzipBarrierSizeForGrpcCopies { get; set; } = null;
 
         /// <nodoc />
         [DataMember]

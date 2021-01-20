@@ -1,15 +1,13 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using ContentStore.Grpc;
+
 namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
     /// Options for copy operations.
     /// </summary>
-    /// <remarks>
-    /// Currently there are no options available and this class is used for progress reporting only.
-    /// But we expect to have actual options or other input data like counters here.
-    /// </remarks>
     public class CopyOptions
     {
         private long _totalBytesCopied;
@@ -43,8 +41,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <summary>
-        /// A bandwidth requirements for the current copy attempt.
+        /// Bandwidth requirements for the current copy attempt.
         /// </summary>
         public BandwidthConfiguration? BandwidthConfiguration { get; set; }
+
+        /// <summary>
+        /// Requested compression algorithm to use for the current copy attempt.
+        /// </summary>
+        /// <remarks>
+        /// Server and/or client may decide to ignore the hint.
+        /// </remarks>
+        public CopyCompression CompressionHint { get; set; }
     }
 }

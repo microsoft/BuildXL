@@ -31,6 +31,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using ContentStore.Grpc;
 using PlaceBulkResult = System.Collections.Generic.IEnumerable<System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Interfaces.Results.Indexed<BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult>>>;
 
 #nullable enable
@@ -776,12 +777,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             byte[]? bytes = null;
 
-            var putResult = await DistributedCopier.TryCopyAndPutAsync(
-                operationContext,
+            var copyCompression = CopyCompression.None;
+            var copyCompressionThreshold = Settings.GrpcCopyCompressionSizeThreshold ?? 0;
+            if (copyCompressionThreshold > 0 && hashInfo.Size > copyCompressionThreshold)
+            {
+                copyCompression = Settings.GrpcCopyCompressionAlgorithm;
+            }
+            var copyRequest = new DistributedContentCopier.CopyRequest(
                 _copierHost,
                 hashInfo,
                 reason,
-                handleCopyAsync: async args =>
+                HandleCopyAsync: async args =>
                 {
                     (CopyFileResult copyFileResult, AbsolutePath tempLocation, int attemptCount) = args;
 
@@ -790,13 +796,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     if (Settings.UseTrustedHash(actualSize) && Inner is ITrustedContentSession trustedInner)
                     {
                         // The file has already been hashed, so we can trust the hash of the file.
-                         innerPutResult = await trustedInner.PutTrustedFileAsync(
-                             context,
-                             new ContentHashWithSize(hashInfo.ContentHash, actualSize),
-                             tempLocation,
-                             FileRealizationMode.Move,
-                             cts,
-                             urgencyHint);
+                        innerPutResult = await trustedInner.PutTrustedFileAsync(
+                            context,
+                            new ContentHashWithSize(hashInfo.ContentHash, actualSize),
+                            tempLocation,
+                            FileRealizationMode.Move,
+                            cts,
+                            urgencyHint);
 
                         // BytesFromTrustedCopy will only be non-null when the trusted copy exposes the bytes it copied because AreBlobsSupported evaluated to true
                         //  and the file size is smaller than BlobMaxSize.
@@ -834,27 +840,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         }
                         else
                         {
-                             innerPutResult = await Inner.PutFileAsync(
-                                 context,
-                                 hashInfo.ContentHash.HashType,
-                                 tempLocation,
-                                 FileRealizationMode.Move,
-                                 cts,
-                                 urgencyHint);
+                            innerPutResult = await Inner.PutFileAsync(
+                                context,
+                                hashInfo.ContentHash.HashType,
+                                tempLocation,
+                                FileRealizationMode.Move,
+                                cts,
+                                urgencyHint);
                         }
                     }
 
                     return innerPutResult;
+                },
+                copyCompression);
 
-                });
-
-                if (bytes != null && putResult.Succeeded)
-                {
-                    await PutBlobAsync(operationContext, putResult.ContentHash, bytes);
-                }
-
-                return putResult;
+            var putResult = await DistributedCopier.TryCopyAndPutAsync(operationContext, copyRequest);
+            if (bytes != null && putResult.Succeeded)
+            {
+                await PutBlobAsync(operationContext, putResult.ContentHash, bytes);
             }
+
+            return putResult;
+        }
 
         /// <summary>
         /// Puts a given blob into redis (either inline or not depending on the settings).
@@ -1036,8 +1043,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             bool updateContentTracker = true,
             bool succeedWithOneLocation = false)
         {
-            PinResult result = await PinRemoteAsync(context, pinning.Record, isLocal, updateContentTracker, succeedWithOneLocation: succeedWithOneLocation);
-            pinning.Result = result;
+            pinning.Result = await PinRemoteAsync(context, pinning.Record, isLocal, updateContentTracker, succeedWithOneLocation: succeedWithOneLocation);
         }
 
         // This method processes a single content location record set for pinning.
@@ -1232,9 +1238,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(
-            OperationContext context, 
-            ContentHashWithSizeAndLocations info, 
-            bool tryBuildRing, 
+            OperationContext context,
+            ContentHashWithSizeAndLocations info,
+            bool tryBuildRing,
             CopyReason reason)
         {
             var hash = info.ContentHash;

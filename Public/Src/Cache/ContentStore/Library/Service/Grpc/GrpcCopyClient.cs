@@ -216,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                               HashType = (int)hash.HashType,
                                               ContentHash = hash.ToByteString(),
                                               Offset = 0,
-                                              Compression = _configuration.UseGzipCompression ? CopyCompression.Gzip : CopyCompression.None,
+                                              Compression = options.CompressionHint,
                                               FailFastIfBusy = options.BandwidthConfiguration?.FailFastIfServerIsBusy ?? false,
                                           };
 
@@ -255,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 CopyCompression compression = CopyCompression.None;
                 foreach (Metadata.Entry header in headers)
                 {
-                    switch (header.Key)
+                    switch (header.Key.ToLowerInvariant())
                     {
                         case "exception":
                             exception = header.Value;
@@ -264,7 +264,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             message = header.Value;
                             break;
                         case "compression":
-                            Enum.TryParse(header.Value, out compression);
+                            if (!Enum.TryParse(header.Value, out compression))
+                            {
+                                return new CopyFileResult(
+                                    CopyResultCode.Unknown,
+                                    $"Unable to parse the server's intended compression '{header.Value}'. Requested compression is '{request.Compression}'");
+                            }
+
                             break;
                     }
                 }
@@ -339,7 +345,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             await StreamContentWithCompressionAsync(response.ResponseStream, targetStream, options, token);
                             break;
                         default:
-                            throw new NotSupportedException($"CopyCompression {compression} is not supported.");
+                            throw new NotSupportedException($"Server is compressing stream with algorithm '{compression}', which is not supported client-side");
                     }
                 }
                 finally

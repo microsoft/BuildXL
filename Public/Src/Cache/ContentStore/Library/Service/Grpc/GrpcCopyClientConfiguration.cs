@@ -15,21 +15,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public class GrpcCopyClientConfiguration
     {
         /// <nodoc />
-        public static GrpcCopyClientConfiguration WithGzipCompression(bool useGzipCompression)
-        {
-            return new GrpcCopyClientConfiguration()
-            {
-                UseGzipCompression = useGzipCompression,
-            };
-        }
-
-        /// <nodoc />
         public int ClientBufferSizeBytes { get; set; } = ContentStore.Grpc.GrpcConstants.DefaultBufferSizeBytes;
-
-        /// <summary>
-        /// Whether to allow using Gzip compression for copies
-        /// </summary>
-        public bool UseGzipCompression { get; set; }
 
         /// <summary>
         /// Whether to force connection establishment on startup
@@ -77,7 +63,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             var grpcCopyClientConfiguration = new GrpcCopyClientConfiguration();
             ApplyIfNotNull(dcs.GrpcCopyClientBufferSizeBytes, v => grpcCopyClientConfiguration.ClientBufferSizeBytes = v);
-            ApplyIfNotNull(dcs.GrpcCopyClientUseGzipCompression, v => grpcCopyClientConfiguration.UseGzipCompression = v);
             ApplyIfNotNull(dcs.GrpcCopyClientConnectOnStartup, v => grpcCopyClientConfiguration.ConnectOnStartup = v);
             ApplyIfNotNull(dcs.GrpcCopyClientDisconnectionTimeoutSeconds, v => grpcCopyClientConfiguration.DisconnectionTimeout = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(dcs.GrpcCopyClientConnectionTimeoutSeconds, v => grpcCopyClientConfiguration.ConnectionTimeout = TimeSpan.FromSeconds(v));

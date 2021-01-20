@@ -32,6 +32,7 @@ using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthC
 using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
+using ContentStore.Grpc;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -369,8 +370,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 TraceProactiveCopy = distributedSettings.TraceProactiveCopy,
                 ProactiveCopyGetBulkBatchSize = distributedSettings.ProactiveCopyGetBulkBatchSize,
                 ProactiveCopyGetBulkInterval = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyGetBulkIntervalSeconds),
-                ProactiveCopyMaxRetries = distributedSettings.ProactiveCopyMaxRetries
+                ProactiveCopyMaxRetries = distributedSettings.ProactiveCopyMaxRetries,
             };
+            ApplyIfNotNull(distributedSettings.GrpcCopyCompressionSizeThreshold, v => distributedContentStoreSettings.GrpcCopyCompressionSizeThreshold = v);
+            ApplyEnumIfNotNull<CopyCompression>(distributedSettings.GrpcCopyCompressionAlgorithm, v => distributedContentStoreSettings.GrpcCopyCompressionAlgorithm = v);
 
             if (distributedSettings.EnableProactiveReplication && redisContentLocationStoreConfiguration.Checkpoint != null)
             {

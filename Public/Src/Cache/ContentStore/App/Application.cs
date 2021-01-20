@@ -626,7 +626,6 @@ namespace BuildXL.Cache.ContentStore.App
             string dataRootPath,
             CancellationToken ct,
             int? bufferSizeForGrpcCopies,
-            int? gzipBarrierSizeForGrpcCopies,
             LoggingSettings loggingSettings,
             ITelemetryFieldsProvider telemetryFieldsProvider)
         {
@@ -639,7 +638,7 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
             localCasSettings.PreferredCacheDrive = new AbsolutePath(cacheRootPath).GetPathRoot();
-            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
+            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs, loggingSettings);
 

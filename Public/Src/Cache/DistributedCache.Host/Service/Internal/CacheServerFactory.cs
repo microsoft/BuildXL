@@ -257,7 +257,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             serviceConfiguration.GrpcPort = localCasServiceSettings.GrpcPort;
             serviceConfiguration.BufferSizeForGrpcCopies = localCasServiceSettings.BufferSizeForGrpcCopies;
-            serviceConfiguration.GzipBarrierSizeForGrpcCopies = localCasServiceSettings.GzipBarrierSizeForGrpcCopies;
             serviceConfiguration.ProactivePushCountLimit = localCasServiceSettings.MaxProactivePushRequestHandlers;
             serviceConfiguration.CopyRequestHandlingCountLimit = localCasServiceSettings.MaxCopyFromHandlers;
 
@@ -319,7 +318,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 (int)localCasSettings.ServiceSettings.GrpcPort,
                 grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName,
                 bufferSizeForGrpcCopies: localCasSettings.ServiceSettings.BufferSizeForGrpcCopies,
-                gzipBarrierSizeForGrpcCopies: localCasSettings.ServiceSettings.GzipBarrierSizeForGrpcCopies,
                 proactivePushCountLimit: localCasSettings.ServiceSettings.MaxProactivePushRequestHandlers,
                 logIncrementalStatsInterval: distributedSettings?.LogIncrementalStatsInterval,
                 logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval,

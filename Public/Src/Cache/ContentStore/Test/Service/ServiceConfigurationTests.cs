@@ -27,7 +27,7 @@ namespace ContentStoreTest.Service
         private static readonly string Path2 = "path2";
 
         private static readonly string GoodJson =
-            $@"{{""BufferSizeForGrpcCopies"":1000,""DataRootPath"":""{FilePrefixJson}{ValidDataRoot}"",""GracefulShutdownSeconds"":44,""GrpcPort"":779,""GrpcPortFileName"":""MyTest"",""GzipBarrierSizeForGrpcCopies"":65536,""MaxConnections"":77,""NamedCacheRoots"":{{""name1"":""{FilePrefixJson}{Path1}"",""name2"":""{FilePrefixJson}{Path2}""}}}}";
+            $@"{{""BufferSizeForGrpcCopies"":1000,""DataRootPath"":""{FilePrefixJson}{ValidDataRoot}"",""GracefulShutdownSeconds"":44,""GrpcPort"":779,""GrpcPortFileName"":""MyTest"",""MaxConnections"":77,""NamedCacheRoots"":{{""name1"":""{FilePrefixJson}{Path1}"",""name2"":""{FilePrefixJson}{Path2}""}}}}";
 
         private const uint MaxConnections = 77;
         private const uint GracefulShutdownSeconds = 44;
@@ -68,7 +68,6 @@ namespace ContentStoreTest.Service
                 configuration.GracefulShutdownSeconds.Should().Be(GracefulShutdownSeconds);
                 configuration.GrpcPortFileName.Should().Be(GrpcPortFileName);
                 configuration.BufferSizeForGrpcCopies.Should().Be(_bufferSizeForCopies);
-                configuration.GzipBarrierSizeForGrpcCopies.Should().Be(_grpcBarrierSizeForGrpcCopies);
             }
         }
 

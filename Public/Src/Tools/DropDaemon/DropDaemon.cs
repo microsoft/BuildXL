@@ -36,7 +36,7 @@ namespace Tool.DropDaemon
     /// <summary>
     ///     Responsible for accepting and handling TCP/IP connections from clients.
     /// </summary>
-    public sealed class DropDaemon : ServicePipDaemon.ServicePipDaemon, IDisposable, IIpcOperationExecutor
+    public sealed class DropDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon, IDisposable, IIpcOperationExecutor
     {
         private const int ServicePointParallelismForDrop = 200;
 
@@ -480,19 +480,11 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Synchronous version of <see cref="CreateAsync"/>
-        /// </summary>
-        public IIpcResult Create()
-        {
-            return CreateAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
         /// In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
         /// result of this operation.
         /// </summary>
-        public async Task<IIpcResult> CreateAsync()
+        protected override async Task<IIpcResult> DoCreateAsync()
         {
             DropCreationEvent dropCreationEvent =
                 await SendDropEtwEvent(
@@ -597,19 +589,11 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// Synchronous version of <see cref="FinalizeAsync"/>
-        /// </summary>
-        public IIpcResult Finalize()
-        {
-            return FinalizeAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Finalizes the drop.  Handles drop-related exceptions by omitting their stack traces.
         /// In all cases emits an appropriate <see cref="DropFinalizationEvent"/> indicating the
         /// result of this operation.
         /// </summary>
-        public async Task<IIpcResult> FinalizeAsync()
+        protected override async Task<IIpcResult> DoFinalizeAsync()
         {
             var dropFinalizationEvent =
                 await SendDropEtwEvent(

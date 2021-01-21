@@ -31,7 +31,7 @@ namespace Tool.SymbolDaemon
     /// <summary>
     /// Daemon responsible for handling symbol-related requests.
     /// </summary>
-    public sealed class SymbolDaemon : ServicePipDaemon.ServicePipDaemon, IDisposable, IIpcOperationExecutor
+    public sealed class SymbolDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon, IDisposable, IIpcOperationExecutor
     {
         private const string LogFileName = "SymbolDaemon";
         private const int s_servicePointParallelism = 200;
@@ -678,17 +678,9 @@ namespace Tool.SymbolDaemon
         }
 
         /// <summary>
-        /// Synchronous version of <see cref="CreateAsync"/>
-        /// </summary>
-        public IIpcResult Create()
-        {
-            return CreateAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Creates a symbol request.
         /// </summary>
-        public async Task<IIpcResult> CreateAsync()
+        protected override async Task<IIpcResult> DoCreateAsync()
         {
             // TODO(olkonone): add logging
             Request createRequestResult;
@@ -733,17 +725,9 @@ namespace Tool.SymbolDaemon
         }
 
         /// <summary>
-        /// Synchronous version of <see cref="FinalizeAsync"/>
-        /// </summary>
-        public IIpcResult Finalize()
-        {
-            return FinalizeAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// Finalizes the symbol request. 
         /// </summary>
-        public async Task<IIpcResult> FinalizeAsync()
+        protected override async Task<IIpcResult> DoFinalizeAsync()
         {
             // TODO(olkonone): add logging
             Request finalizeRequestResult;

@@ -85,7 +85,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
                 "VerifyBlobBuildCacheHttpClientConnection",
                 () => httpClientFactory.VerifyConnectionAsync(client as IArtifactHttpClient),
                 CancellationToken.None).ConfigureAwait(false);
-            _tracer.Debug(context, "Verified connection to {_buildCacheBaseUri} with SessionId=[{httpClientFactory.ClientSettings.SessionId}]");
+            _tracer.Debug(context, $"Verified connection to {_buildCacheBaseUri} with SessionId=[{httpClientFactory.ClientSettings.SessionId}]");
             return client;
         }
     }

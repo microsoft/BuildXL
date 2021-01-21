@@ -1899,12 +1899,12 @@ namespace BuildXL.Scheduler
             m_pipExecutionStepCounters.LogAsStatistics("PipExecutionStep", loggingContext);
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
+            ApiServer.Counters.LogAsStatistics("ApiServer", loggingContext);
             statistics.AddRange(ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.HashInfo.HashType).GetCounters().ToDictionaryIntegral());
 
             m_pipPropertyInfo.LogPipPropertyInfo(loggingContext);
             m_pipRetryInfo.LogPipRetryInfo(loggingContext, PipExecutionCounters);
 
-            m_apiServer?.LogStats(loggingContext);
             m_servicePipTracker?.LogStats(loggingContext);
 
             if (m_configuration.InCloudBuild())

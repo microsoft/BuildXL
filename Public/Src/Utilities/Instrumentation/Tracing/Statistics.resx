@@ -150,30 +150,6 @@
   <data name="DiskAvailableMBExecutionStart" xml:space="preserve">
     <value>DiskAvailableMBExecutionStart</value>
   </data>
-  <data name="ApiTotalMaterializeFileCalls" xml:space="preserve">
-    <value>BuildXLApiTotalMaterializeFileCalls</value>
-  </data>
-    <data name="ApiMaterializeFileCallsTotalExecutionTimeMs" xml:space="preserve">
-    <value>BuildXLApiMaterializeFileCallsTotalExecutionTimeMs</value>
-  </data>
-  <data name="ApiBatchedRegisterBuildManifestHashesCalls" xml:space="preserve">
-    <value>BuildXLApiBatchedRegisterBuildManifestHashesCalls</value>
-  </data>
-  <data name="ApiRegisterBuildManifestHashesTotalExecutionTimeMs" xml:space="preserve">
-    <value>BuildXLApiRegisterBuildManifestHashesTotalExecutionTimeMs</value>
-  </data>
-  <data name="ApiTotalGenerateBuildManifestFileCalls" xml:space="preserve">
-    <value>BuildXLApiTotalGenerateBuildManifestFileCalls</value>
-  </data>
-  <data name="ApiTotalReportStatisticsCalls" xml:space="preserve">
-    <value>BuildXLApiTotalReportStatisticsCalls</value>
-  </data>
-  <data name="ApiTotalGetSealedDirectoryContentCalls" xml:space="preserve">
-    <value>BuildXLApiTotalGetSealedDirectoryContentCalls</value>
-  </data>
-    <data name="ApiGetSealedDirectoryContentTotalExecutionTimeMs" xml:space="preserve">
-    <value>BuildXLApiGetSealedDirectoryContentTotalExecutionTimeMs</value>
-  </data>
   <data name="DropTrackerOverhangMs" xml:space="preserve">
     <value>DropTrackerOverhangMs</value>
   </data>
@@ -302,9 +278,6 @@
   </data>
   <data name="AppHostInitializationDurationMs" xml:space="preserve">
     <value>AppHostInitializationDurationMs</value>
-  </data>
-  <data name="ApiTotalLogMessageCalls" xml:space="preserve">
-    <value>BuildXLApiTotalLogMessageCalls</value>
   </data>
   <data name="TotalMaterializedInputsSize" xml:space="preserve">
     <value>TotalMaterializedInputsSize</value>

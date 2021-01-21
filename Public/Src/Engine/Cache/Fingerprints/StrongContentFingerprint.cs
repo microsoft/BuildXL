@@ -55,6 +55,11 @@ namespace BuildXL.Engine.Cache.Fingerprints
         public static readonly StrongContentFingerprint AugmentedWeakFingerprintMarker = new StrongContentFingerprint(FingerprintUtilities.CreateSpecialValue(1));
 
         /// <summary>
+        /// Special marker fingerprint for build manifest hashes.
+        /// </summary>
+        public static readonly StrongContentFingerprint BuildManifestFingerprintMarker = new StrongContentFingerprint(FingerprintUtilities.CreateSpecialValue(2));
+
+        /// <summary>
         /// Creates a content fingerprint from the given hash.
         /// The hash should have been constructed according to the definition of a strong content fingerprint.
         /// </summary>

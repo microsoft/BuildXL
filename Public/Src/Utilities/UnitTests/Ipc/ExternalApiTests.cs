@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -143,6 +144,18 @@ namespace Test.BuildXL.Ipc
             var maybeResult = await apiClient.RegisterFilesForBuildManifest(dropName, buildManifestEntries.ToArray());
             XAssert.PossiblySucceeded(maybeResult);
             XAssert.ArrayEqual(buildManifestEntries.ToArray(), maybeResult.Result);
+        }
+
+        [Fact]
+        public async Task TestHashContentStreamAsync()
+        {
+            StreamWithLength stream = new MemoryStream(Encoding.UTF8.GetBytes("SampleString")).AssertHasLength();
+
+            ContentHash shaHash = await ContentHashingUtilities.HashContentStreamAsync(stream, HashType.SHA256);
+            ContentHash vsoHash = await ContentHashingUtilities.HashContentStreamAsync(stream, HashType.Vso0);
+
+            XAssert.AreEqual(shaHash.HashType, HashType.SHA256);
+            XAssert.AreEqual(vsoHash.HashType, HashType.Vso0);
         }
 
         [Fact]

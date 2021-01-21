@@ -27,6 +27,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Scheduler
@@ -43,15 +44,10 @@ namespace BuildXL.Scheduler
         private readonly Tracing.IExecutionLogTarget m_executionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
 
-        private long m_numMaterializeFile;
-        private long m_materializeFileTotalExecutionTimeMs;
-        private long m_numRegisterBuildManifestHashes;
-        private long m_registerBuildManifestHashesTotalExecutionTimeMs;
-        private long m_numGenerateBuildManifestFile;
-        private long m_numReportStatistics;
-        private long m_numGetSealedDirectoryContent;
-        private long m_getSealedDirectoryContentTotalExecutionTimeMs;
-        private long m_numLogMessage;
+        /// <summary>
+        /// Counters for all ApiServer relates statistics.
+        /// </summary>
+        public static readonly CounterCollection<ApiServerCounters> Counters = new CounterCollection<ApiServerCounters>();
 
         private LoggingContext m_loggingContext;
 
@@ -95,12 +91,15 @@ namespace BuildXL.Scheduler
             m_server.Start(this);
         }
 
-        private static (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
+        /// <summary>
+        /// Generates <see cref="WeakContentFingerprint"/> and <see cref="StrongContentFingerprint"/> for given Vso Hash
+        /// </summary>
+        public static (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
         {
             var hashBytes = hash.ToByteArray();
             Array.Resize(ref hashBytes, FingerprintUtilities.FingerprintLength);
             var wf = new WeakContentFingerprint(FingerprintUtilities.CreateFrom(hashBytes));
-            var sf = new StrongContentFingerprint(wf.Hash);
+            var sf = StrongContentFingerprint.BuildManifestFingerprintMarker;
             return (wf, sf);
         }
 
@@ -122,9 +121,10 @@ namespace BuildXL.Scheduler
 
             var result = await m_engineCache.TwoPhaseFingerprintStore.TryGetCacheEntryAsync(wf, hash, sf);
 
-            if (result.Succeeded)
+            if (result.Succeeded && result.Result?.MetadataHash != null)
             {
-                return result.Result?.MetadataHash;
+                // HashType information is sometimes lost in the caching layers. Manually overwriting the HashType to avoid invalid build manifest generation.
+                return new ContentHash(ContentHashingUtilities.BuildManifestHashType, result.Result?.MetadataHash.ToByteArray());
             }
 
             return null;
@@ -152,7 +152,7 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Compute the SHA-256 hash for file stored in Cache. Required for Build Manifets generation.
+        /// Compute the SHA-256 hash for file stored in Cache. Required for Build Manifest generation.
         /// </summary>
         private async Task<Possible<ContentHash>> ComputeBuildManifestHashFromCacheAsync(BuildManifestEntry buildManifestEntry)
         {
@@ -191,25 +191,6 @@ namespace BuildXL.Scheduler
             m_server.Dispose();
         }
 
-        /// <summary>
-        /// Logs statistics.
-        /// </summary>
-        public void LogStats(LoggingContext loggingContext)
-        {
-            Logger.Log.BulkStatistic(loggingContext, new Dictionary<string, long>
-            {
-                [Statistics.ApiTotalMaterializeFileCalls] = Volatile.Read(ref m_numMaterializeFile),
-                [Statistics.ApiMaterializeFileCallsTotalExecutionTimeMs] = Volatile.Read(ref m_materializeFileTotalExecutionTimeMs),
-                [Statistics.ApiBatchedRegisterBuildManifestHashesCalls] = Volatile.Read(ref m_numRegisterBuildManifestHashes),
-                [Statistics.ApiRegisterBuildManifestHashesTotalExecutionTimeMs] = Volatile.Read(ref m_registerBuildManifestHashesTotalExecutionTimeMs),
-                [Statistics.ApiTotalGenerateBuildManifestFileCalls] = Volatile.Read(ref m_numGenerateBuildManifestFile),
-                [Statistics.ApiTotalReportStatisticsCalls] = Volatile.Read(ref m_numReportStatistics),
-                [Statistics.ApiTotalGetSealedDirectoryContentCalls] = Volatile.Read(ref m_numGetSealedDirectoryContent),
-                [Statistics.ApiGetSealedDirectoryContentTotalExecutionTimeMs] = Volatile.Read(ref m_getSealedDirectoryContentTotalExecutionTimeMs),
-                [Statistics.ApiTotalLogMessageCalls] = Volatile.Read(ref m_numLogMessage),
-            });
-        }
-
         async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
         {
             Contract.Requires(op != null);
@@ -234,42 +215,52 @@ namespace BuildXL.Scheduler
             var materializeFileCmd = cmd as MaterializeFileCommand;
             if (materializeFileCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteMaterializeFileAsync, materializeFileCmd, ref m_numMaterializeFile, ref m_materializeFileTotalExecutionTimeMs);
-                return new Possible<IIpcResult>(result);
+                using (Counters.StartStopwatch(ApiServerCounters.MaterializeFileCallsDuration))
+                {
+                    var result = await ExecuteCommandWithStats(ExecuteMaterializeFileAsync, materializeFileCmd, ApiServerCounters.MaterializeFileCalls);
+                    return new Possible<IIpcResult>(result);
+                }
+                
             }
 
             var registerBuildManifestHashesCmd = cmd as RegisterFilesForBuildManifestCommand;
             if (registerBuildManifestHashesCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteRecordBuildManifestHashesAsync, registerBuildManifestHashesCmd, ref m_numRegisterBuildManifestHashes, ref m_registerBuildManifestHashesTotalExecutionTimeMs);
-                return new Possible<IIpcResult>(result);
+                using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestHashesDuration))
+                {
+                    var result = await ExecuteCommandWithStats(ExecuteRecordBuildManifestHashesAsync, registerBuildManifestHashesCmd, ApiServerCounters.BatchedRegisterBuildManifestHashesCalls);
+                    return new Possible<IIpcResult>(result);
+                }
             }
 
             var generateBuildManifestDataCmd = cmd as GenerateBuildManifestDataCommand;
             if (generateBuildManifestDataCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestDataAsync, generateBuildManifestDataCmd, ref m_numGenerateBuildManifestFile);
+                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestDataAsync, generateBuildManifestDataCmd, ApiServerCounters.TotalGenerateBuildManifestFileCalls);
                 return new Possible<IIpcResult>(result);
             }
 
             var reportStatisticsCmd = cmd as ReportStatisticsCommand;
             if (reportStatisticsCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteReportStatistics, reportStatisticsCmd, ref m_numReportStatistics);
+                var result = await ExecuteCommandWithStats(ExecuteReportStatistics, reportStatisticsCmd, ApiServerCounters.TotalReportStatisticsCalls);
                 return new Possible<IIpcResult>(result);
             }
 
             var getSealedDirectoryFilesCmd = cmd as GetSealedDirectoryContentCommand;
             if (getSealedDirectoryFilesCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ref m_numGetSealedDirectoryContent, ref m_getSealedDirectoryContentTotalExecutionTimeMs);
-                return new Possible<IIpcResult>(result);
+                using (Counters.StartStopwatch(ApiServerCounters.GetSealedDirectoryContentDuration))
+                {
+                    var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ApiServerCounters.TotalGetSealedDirectoryContentCalls);
+                    return new Possible<IIpcResult>(result);
+                }
             }
 
             var logMessageCmd = cmd as LogMessageCommand;
             if (logMessageCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteLogMessage, logMessageCmd, ref m_numLogMessage);
+                var result = await ExecuteCommandWithStats(ExecuteLogMessage, logMessageCmd, ApiServerCounters.TotalLogMessageCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -399,26 +390,33 @@ namespace BuildXL.Scheduler
             }
 
             // (2) Attempt hash read from cache
-            ContentHash? hashFromCache = await TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
-            if (hashFromCache.HasValue)
+            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalHashToHashCacheDuration))
             {
-                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
-                RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
-                return null;
+                ContentHash? hashFromCache = await TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
+                if (hashFromCache.HasValue)
+                {
+                    m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
+                    RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
+                    return null;
+                }
             }
 
             // (3) Attempt to compute hash for locally existing file (Materializes non-existing files)
-            var computeHashResult = await ComputeBuildManifestHashFromCacheAsync(buildManifestEntry);
-            if (computeHashResult.Succeeded)
+            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalComputeHashLocallyDuration))
             {
-                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, computeHashResult.Result);
-                RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
-                await StoreBuildManifestHashAsync(buildManifestEntry.Hash, computeHashResult.Result);
+                var computeHashResult = await ComputeBuildManifestHashFromCacheAsync(buildManifestEntry);
+                if (computeHashResult.Succeeded)
+                {
+                    m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, computeHashResult.Result);
+                    RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
+                    await StoreBuildManifestHashAsync(buildManifestEntry.Hash, computeHashResult.Result);
 
-                return null;
+                    return null;
+                }
+
+                Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromCacheFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             }
 
-            Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromCacheFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             return buildManifestEntry;
         }
 
@@ -532,23 +530,83 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static Task<IIpcResult> ExecuteCommandWithStats<TCommand>(Func<TCommand, Task<IIpcResult>> executor, TCommand cmd, ref long totalCounter)
+        private static Task<IIpcResult> ExecuteCommandWithStats<TCommand>(Func<TCommand, Task<IIpcResult>> executor, TCommand cmd, ApiServerCounters totalCounter)
             where TCommand : Command
         {
-            Interlocked.Increment(ref totalCounter);
+            Counters.IncrementCounter(totalCounter);
             return executor(cmd);
         }
+    }
 
-        private static Task<IIpcResult> ExecuteCommandWithStats<TCommand>(Func<TCommand, Task<IIpcResult>> executor, TCommand cmd, ref long totalCounter, ref long executionTimeCounterMs)
-            where TCommand : Command
-        {
-            Stopwatch stopwatch = Stopwatch.StartNew();
+    /// <summary>
+    /// Counter types for all ApiServer statistics.
+    /// </summary>
+    public enum ApiServerCounters
+    {
+        /// <summary>
+        /// Time spent obtaining hash to hash mappings from cache for build manifest
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RegisterBuildManifestInternalHashToHashCacheDuration,
 
-            var result = ExecuteCommandWithStats(executor, cmd, ref totalCounter);
+        /// <summary>
+        /// Time spent computing hashes for build manifest (includes materialization times for non-existing files)
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RegisterBuildManifestInternalComputeHashLocallyDuration,
 
-            stopwatch.Stop();
-            Interlocked.Add(ref executionTimeCounterMs, stopwatch.ElapsedMilliseconds);
-            return result;
-        }
+        /// <summary>
+        /// Number of <see cref="MaterializeFileCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        MaterializeFileCalls,
+
+        /// <summary>
+        /// Time spent on <see cref="MaterializeFileCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        MaterializeFileCallsDuration,
+
+        /// <summary>
+        /// Number of <see cref="RegisterFilesForBuildManifestCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        BatchedRegisterBuildManifestHashesCalls,
+
+        /// <summary>
+        /// Time spent on <see cref="RegisterFilesForBuildManifestCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RegisterBuildManifestHashesDuration,
+
+        /// <summary>
+        /// Number of <see cref="GenerateBuildManifestDataCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalGenerateBuildManifestFileCalls,
+
+        /// <summary>
+        /// Number of <see cref="ReportStatisticsCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalReportStatisticsCalls,
+
+        /// <summary>
+        /// Number of <see cref="GetSealedDirectoryContentCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalGetSealedDirectoryContentCalls,
+
+        /// <summary>
+        /// Time spent on <see cref="GetSealedDirectoryContentCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        GetSealedDirectoryContentDuration,
+
+        /// <summary>
+        /// Time spent on <see cref="LogMessageCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalLogMessageCalls
     }
 }

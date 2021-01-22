@@ -283,6 +283,11 @@ interface FrontEndConfiguration {
      * If true the check that a member is obsolete is disabled during Ast Conversion.
      */
      disableIsObsoleteCheckDuringConversion?: boolean;
+
+     /**
+      * If true, ignore missing modules files by flagging them with a verbose message rather than an error.
+      */
+      allowMissingSpecs?: boolean;
 }
 
 interface EngineConfiguration {

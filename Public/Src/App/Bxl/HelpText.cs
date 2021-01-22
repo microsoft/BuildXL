@@ -1093,6 +1093,10 @@ namespace BuildXL
                 "/maxTypeCheckingConcurrency[+|-]",
                 Strings.HelpText_DisplayHelp_MaxTypeCheckingConcurrency);
 
+            hw.WriteOption(
+                "/allowMissingSpecs[+|-]",
+                Strings.HelpText_DisplayHelp_AllowMissingSpecs);
+
             #endregion
 
             #region Component Governance Manifest

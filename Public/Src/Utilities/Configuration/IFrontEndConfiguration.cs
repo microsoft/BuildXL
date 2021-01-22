@@ -333,5 +333,11 @@ namespace BuildXL.Utilities.Configuration
         /// cgmanifest.json is used for Component Governance in CloudBuild
         /// </remarks>
         AbsolutePath ValidateCgManifestForNugets { get; }
+
+        /// <summary>
+        /// Ignore missing modules files by flagging them with a verbose message rather than an error.
+        /// </summary>
+        /// <remarks> This option is disabled by default. </remarks>
+        bool? AllowMissingSpecs { get; }
     }
 }

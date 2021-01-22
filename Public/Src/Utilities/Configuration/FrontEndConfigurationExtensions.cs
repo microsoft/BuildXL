@@ -111,10 +111,13 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static int DefaultIterationThreshold = 10000000;
 
-        // Extension methods
-
         /// <nodoc/>
-        public static bool ProfileScript(this IFrontEndConfiguration configuration) => 
+        public static bool DefaultAllowMissingSpecs = false;
+
+    // Extension methods
+
+    /// <nodoc/>
+    public static bool ProfileScript(this IFrontEndConfiguration configuration) => 
             configuration.ProfileScript ?? DefaultProfileScript;
 
         /// <nodoc/>
@@ -312,5 +315,9 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static int MaxLoopIterations(this IFrontEndConfiguration configuration) =>
             (configuration as FrontEndConfiguration)?.MaxLoopIterations ?? DefaultIterationThreshold;
+
+        /// <nodoc />
+        public static bool AllowMissingSpecs(this IFrontEndConfiguration configuration) =>
+            configuration.AllowMissingSpecs ?? DefaultAllowMissingSpecs;
     }
 }

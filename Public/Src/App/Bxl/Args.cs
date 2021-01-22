@@ -233,6 +233,9 @@ namespace BuildXL
                             "allowInternalDetoursErrorNotificationFile",
                             sign => sandboxConfiguration.AllowInternalDetoursErrorNotificationFile = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "allowMissingSpecs",
+                            opt => frontEndConfiguration.AllowMissingSpecs = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "analyzeDependencyViolations",
                             opt => { /* DEPRECATED -- DO NOTHING */ }),
                         OptionHandlerFactory.CreateBoolOption(

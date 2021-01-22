@@ -50,7 +50,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// by the package. When this field is specified, and the user evaluate or build the package, and the evaluation requires a project
         /// not in this list, then the evaluation will result in an error.
         /// </remarks>
-        IReadOnlyList<AbsolutePath> Projects { get; }
+        IReadOnlyList<AbsolutePath> Projects { get; set; }
 
         /// <summary>
         /// The resolution semantics for this package

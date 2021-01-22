@@ -19,6 +19,8 @@ using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Engine.Tracing;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using FrontEndLogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
+using FrontEndCoreLogEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -438,6 +440,148 @@ namespace Test.BuildXL.EngineTests
             AbsolutePath indexablePath = AbsolutePath.Create(pt, Path.Combine(TestRoot, "subdirectory"));
             BuildXLEngine.CheckArtifactFolersAndEmitNoIndexWarning(pt, LoggingContext, indexablePath);
             AssertWarningEventLogged(LogEventId.EmitSpotlightIndexingWarning);
+        }
+
+        /// <summary>
+        /// Tests the allow missing specs flag to ensure that the engine doesn't throw an error when an empty module
+        /// or spec file is provided.
+        /// </summary>
+        /// <param name="allowMissingSpecs"> 
+        /// Tests with the flag enabled and disabled to ensure that an error is still
+        /// thrown when a bad spec is provided without the flag enabled
+        /// </param>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void VerifyAllowMissingSpecsFlag(bool allowMissingSpecs)
+        {
+            var missingModuleConfig = Path.Combine(TestRoot, "src", "inexistentModule.config.dsc");
+            var missingTestFile = Path.Combine(TestRoot, "inexistentSpec.dsc");
+            var config = @"
+config({
+    resolvers: [{ 
+        kind: ""DScript"",
+        modules:[f`module.config.dsc`, f`src/inexistentModule.config.dsc`]
+    }],
+    mounts: [{
+        name: a`Src`,
+        isReadable: true,
+        isWritable: true,
+        isScrubbable: false,
+        path: p`.`,
+        trackSourceFileChanges: true
+    }],
+    disableDefaultSourceResolver: true
+}); ";
+
+            var moduleContents = @"
+module({ 
+    name: ""Test"", projects: [f`spec.dsc`, f`inexistentSpec.dsc`]
+});";
+            var specFileContents = @"const test = Debug.writeLine(""test"");";
+
+            SetConfig(config);
+            AddFile(Path.Combine(TestRoot, "module.config.dsc"), moduleContents);
+            AddFile(Path.Combine(TestRoot, "spec.dsc"), specFileContents);
+
+            Configuration.FrontEnd.AllowMissingSpecs = allowMissingSpecs;
+
+            RunEngine(expectSuccess: allowMissingSpecs);
+
+            if (allowMissingSpecs)
+            {
+                AssertVerboseEventLogged(FrontEndLogEventId.SourceResolverModuleFilesDoNotExistVerbose, count: 1); // Logged once for src/module.config.dsc
+                AssertVerboseEventLogged(FrontEndLogEventId.ModuleProjectFileDoesNotExist, count: 2); // Logged twice, once for src/module.config.dsc and once for test2.dsc
+                AssertLogContains(false, missingModuleConfig);
+                AssertLogContains(false, missingTestFile);
+            }
+            else
+            {
+                AssertErrorEventLogged(FrontEndLogEventId.SourceResolverPackageFilesDoNotExist, count: 1);
+            }
+        }
+
+        /// <summary>
+        /// Tests the allowMissingSpec flag with an inline module definition that has a missing project.
+        /// </summary>
+        [Fact]
+        public void VerifyAllowMissingSpecsFlagWithInlineModule()
+        {
+            var config = @"
+config({
+    resolvers: [{ 
+        kind: ""DScript"",
+        modules: [{moduleName: ""Test"", projects: [f`spec.dsc`, f`inexistentSpec.dsc`]}]
+    }],
+    mounts: [{
+        name: a`Src`,
+        isReadable: true,
+        isWritable: true,
+        isScrubbable: false,
+        path: p`.`,
+        trackSourceFileChanges: true
+    }],
+    disableDefaultSourceResolver: true
+}); ";
+            var specFileContents = @"const test = Debug.writeLine(""test"");";
+
+            SetConfig(config);
+            AddFile(Path.Combine(TestRoot, "spec.dsc"), specFileContents);
+
+            Configuration.FrontEnd.AllowMissingSpecs = true;
+
+            RunEngine(expectSuccess: true);
+            AssertVerboseEventLogged(FrontEndLogEventId.ModuleProjectFileDoesNotExist, count: 1);
+        }
+
+        /// <summary>
+        /// Verifies that even when the allow missing spec flag is set, if a module that is missing is referenced by another
+        /// an error will still be thrown and the build will fail. There should always be an error regardless of whether
+        /// the flag is set or not.
+        /// </summary>
+        /// <param name="allowMissingSpecs"> 
+        /// Tests with the flag enabled and disabled to ensure that an error is always thrown regardless of the flag being enabled
+        /// when there is a user error.
+        /// </param>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void VerifyAllowMissingSpecsWithMissingModuleReference(bool allowMissingSpecs)
+        {
+            var config = @"
+config({
+    resolvers: [{ 
+        kind: ""DScript"",
+        modules: [{moduleName: ""Test"", projects: " + (allowMissingSpecs ? "[f`missingSpec.dsc`]" : "[f`realSpec.dsc`]") + @"}, {moduleName: ""Test2"", projects: [f`realSpec2.dsc`]}]
+    }],
+    mounts: [{
+        name: a`Src`,
+        isReadable: true,
+        isWritable: true,
+        isScrubbable: false,
+        path: p`.`,
+        trackSourceFileChanges: true
+    }],
+    disableDefaultSourceResolver: true
+}); ";
+
+            var specFile = @" ";
+            var spec2File = @"
+import * as T from ""Test"";
+const y = Debug.writeLine(T.testValue); ";
+
+            SetConfig(config);
+            AddFile(Path.Combine(TestRoot, "realSpec.dsc"), specFile);
+            AddFile(Path.Combine(TestRoot, "realSpec2.dsc"), spec2File);
+
+            Configuration.FrontEnd.AllowMissingSpecs = allowMissingSpecs;
+
+            RunEngine(expectSuccess: false);
+
+            // allowMissingSpec=true: Property 'testValue' does not exist on type 'typeof Test'.
+            // allowMissingSpec=false: Property 'testValue' does not exist on type 'typeof Test'.
+            AssertErrorEventLogged(FrontEndCoreLogEventId.CheckerError);
+            AssertErrorEventLogged(FrontEndCoreLogEventId.CannotBuildWorkspace); // One or more error occurred during workspace analysis
         }
 
         private void SetupTestData()

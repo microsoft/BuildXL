@@ -348,6 +348,10 @@ namespace BuildXL.FrontEnd.Script.Tracing
 
         ReportBindingPatternInVariableDeclarationIsNowAllowed = 9417,
 
+        // Events used to indicate missing spec/module files that were ignored
+        SourceResolverModuleFilesDoNotExistVerbose = 9418,
+        ModuleProjectFileDoesNotExist = 9419,
+
         // Obsolete syntax rules (starting from 9500)
 
         // Don't go beyond 9899

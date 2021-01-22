@@ -140,7 +140,16 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Specified package (configuration) file '{packageConfigPath}' does not exist.",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
         public abstract void ReportSourceResolverPackageFilesDoNotExist(LoggingContext loggingContext, Location location, string frontEndName, string packageConfigPath);
-        
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SourceResolverModuleFilesDoNotExistVerbose,
+            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Specified module (configuration) file '{moduleConfigPath}' does not exist.",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+        public abstract void SourceResolverModuleFilesDoNotExistVerbose(LoggingContext loggingContext, Location location, string frontEndName, string moduleConfigPath);
+
         [GeneratedEvent(
             (ushort)LogEventId.SourceResolverRootDirForPackagesDoesNotExist,
             EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
@@ -333,6 +342,15 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Message = "{mesage}",
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportComponentGovernanceGenerationError(LoggingContext loggingContext, string mesage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ModuleProjectFileDoesNotExist,
+            EventGenerators = BuildXL.Tracing.EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Specified project file '{projectPath}' in package file '{modulePath}' does not exist.",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+        public abstract void ModuleProjectFileDoesNotExist(LoggingContext loggingContext, Location location, string frontEndName, string modulePath, string projectPath);
     }
 
     /// <summary>

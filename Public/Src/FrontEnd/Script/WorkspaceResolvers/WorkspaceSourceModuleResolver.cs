@@ -21,6 +21,7 @@ using BuildXL.FrontEnd.Workspaces.Core.Failures;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
@@ -386,6 +387,35 @@ namespace BuildXL.FrontEnd.Script
                 packagePaths.AddRange(modules);
             }
 
+            if (FrontEndConfiguration.AllowMissingSpecs())
+            {
+                // Filter out package paths that do not exist
+                packagePaths = packagePaths.Where(package =>
+                {
+                    if (package.GetValue() is AbsolutePath path)
+                    {
+                        if (!Engine.FileExists(path))
+                        {
+                            Logger.ModuleProjectFileDoesNotExist(
+                                Context.LoggingContext,
+                                new Location() { File = m_resolverSettings.Root.ToString(PathTable) },
+                                Name,
+                                m_resolverSettings.Root.ToString(PathTable),
+                                path.ToString(PathTable));
+
+                            return false;
+                        }
+                    }
+
+                    if (package.GetValue() is InlineModuleDefinition inlineModule)
+                    {
+                        inlineModule.Projects = FilterMissingProjectPaths(inlineModule.Projects, m_resolverSettings.Root);
+                    }
+
+                    return true;
+                }).ToList();
+            }
+
             // TODO: In the future we may want users to specify the packages explicitly, or via explicit glob.
             // TODO: Thus, we can avoid implicit directory enumerations on collecting packages.
             // TODO: Implicit directory enumeration turns out to be bad for spinning disk.
@@ -627,13 +657,24 @@ namespace BuildXL.FrontEnd.Script
                     // Ensure that package.config.dsc exists in the file system.
                     if (!Engine.FileExists(packagePathToCheck))
                     {
-                        Logger.ReportSourceResolverPackageFilesDoNotExist(
-                            Context.LoggingContext,
-                            new Location() { File = configPath.ToString(PathTable) },
-                            Name,
-                            packagePathToCheck.ToString(PathTable));
+                        if(Configuration.FrontEnd.AllowMissingSpecs())
+                        {
+                            Logger.SourceResolverModuleFilesDoNotExistVerbose(
+                                Context.LoggingContext,
+                                new Location() { File = configPath.ToString(PathTable) },
+                                Name,
+                                packagePathToCheck.ToString(PathTable));
+                        }
+                        else
+                        {
+                            Logger.ReportSourceResolverPackageFilesDoNotExist(
+                                Context.LoggingContext,
+                                new Location() { File = configPath.ToString(PathTable) },
+                                Name,
+                                packagePathToCheck.ToString(PathTable));
 
-                        return false;
+                            return false;
+                        }
                     }
 
                     return true;
@@ -976,6 +1017,11 @@ namespace BuildXL.FrontEnd.Script
                             // defining the root of the package. To avoid conflicts with multiple packages/modules declared
                             // in a single file, use undefined file names of the form "package.config.dscX" where X is the index of the package.
                             packageMainFile = path.GetParent(PathTable).Combine(PathTable, Script.Constants.Names.PackageConfigDsc + i);
+                        }
+
+                        if (FrontEndConfiguration.AllowMissingSpecs())
+                        {
+                            packageConfiguration.Projects = FilterMissingProjectPaths(packageConfiguration.Projects, packageConfigPath);
                         }
 
                         PackageId packageId = CreatePackageId(packageConfiguration);
@@ -1408,6 +1454,32 @@ namespace BuildXL.FrontEnd.Script
         private bool IsLegacyPackageFile(PathAtom candidate)
         {
             return candidate.CaseInsensitiveEquals(StringTable, m_packageDsc);
+        }
+
+        /// <summary>
+        /// Filters out package paths from a module that don't exist on disk and returns an updated list of paths.
+        /// </summary>
+        /// <param name="projects"> A set of paths to be filtered. </param>
+        /// <param name="moduleConfigPath"> Path to the main config file. </param>
+        /// <returns> A set of paths with any missing ones from projects removed. </returns>
+        private IReadOnlyList<AbsolutePath> FilterMissingProjectPaths(IReadOnlyList<AbsolutePath> projects, AbsolutePath moduleConfigPath)
+        {
+            return projects?.Where(project =>
+            {
+                if (!Engine.FileExists(project))
+                {
+                    Logger.ModuleProjectFileDoesNotExist(
+                        Context.LoggingContext,
+                        new Location() { File = moduleConfigPath.ToString(PathTable) },
+                        Name,
+                        moduleConfigPath.ToString(PathTable),
+                        project.ToString(PathTable));
+
+                    return false;
+                }
+
+                return true;
+            }).ToList();
         }
     }
 }

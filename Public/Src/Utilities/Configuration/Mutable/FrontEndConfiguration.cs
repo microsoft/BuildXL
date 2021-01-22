@@ -72,6 +72,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowUnsafeAmbient = template.AllowUnsafeAmbient;
             GenerateCgManifestForNugets = template.GenerateCgManifestForNugets;
             ValidateCgManifestForNugets = template.ValidateCgManifestForNugets;
+            AllowMissingSpecs = template.AllowMissingSpecs;
         }
 
         /// <inheritdoc />
@@ -214,5 +215,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath ValidateCgManifestForNugets { get; set; }
+
+        /// <inheritdoc />
+        public bool? AllowMissingSpecs { get; set; }
     }
 }

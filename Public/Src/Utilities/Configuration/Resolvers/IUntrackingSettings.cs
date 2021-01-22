@@ -33,5 +33,15 @@ namespace BuildXL.Utilities.Configuration.Resolvers
         /// The relative path is interepreted relative to each available project
         /// </summary>
         IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; }
+
+        /// <summary>
+        /// Process names that will break away from the sandbox when spawned by the main process
+        /// </summary>
+        /// <remarks>
+        /// The accesses of processes that break away from the sandbox won't be observed.
+        /// Processes that breakaway can survive the lifespan of the sandbox.
+        /// Only add to this list processes that are trusted and whose accesses can be safely predicted by some other means.
+        /// </remarks>
+        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
     }
 }

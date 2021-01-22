@@ -4,10 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Pips.Builders;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Resolvers;
 
@@ -133,6 +135,11 @@ namespace BuildXL.FrontEnd.Utilities
                         processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(projectRoot.Combine(pathTable, relativeDirectory)));
                     }
                 }
+            }
+
+            if (settings.ChildProcessesToBreakawayFromSandbox != null)
+            {
+                processBuilder.ChildProcessesToBreakawayFromSandbox = settings.ChildProcessesToBreakawayFromSandbox.Where(processName => processName.IsValid).ToReadOnlyArray();
             }
         }
 

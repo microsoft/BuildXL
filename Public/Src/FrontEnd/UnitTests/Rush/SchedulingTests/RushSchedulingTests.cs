@@ -201,5 +201,19 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             XAssert.AreEqual(global::BuildXL.Utilities.Configuration.RewritePolicy.UnsafeFirstDoubleWriteWins, rewritePolicy & global::BuildXL.Utilities.Configuration.RewritePolicy.UnsafeFirstDoubleWriteWins);
         }
+
+        [Fact]
+        public void BreakawayProcessIsHonored()
+        {
+            var project = CreateRushProject();
+            var breakawayTest = PathAtom.Create(StringTable, "test.exe");
+            var breakawayProcesses = Start(new RushResolverSettings { ChildProcessesToBreakawayFromSandbox = new[] { breakawayTest } })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .ChildProcessesToBreakawayFromSandbox;
+
+            XAssert.Contains(breakawayProcesses, breakawayTest);
+        }
     }
 }

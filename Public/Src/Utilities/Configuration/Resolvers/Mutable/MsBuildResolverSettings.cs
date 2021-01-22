@@ -52,6 +52,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MsBuildRuntime = resolverSettings.MsBuildRuntime;
             DotNetSearchLocations = resolverSettings.DotNetSearchLocations;
             UseManagedSharedCompilation = resolverSettings.UseManagedSharedCompilation;
+            ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
         }
 
         /// <inheritdoc/>
@@ -133,5 +134,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
     }
 }

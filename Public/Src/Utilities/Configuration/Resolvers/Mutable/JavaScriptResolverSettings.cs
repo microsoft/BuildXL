@@ -40,6 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             WritingToStandardErrorFailsExecution = resolverSettings.WritingToStandardErrorFailsExecution;
             DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
             CustomScheduling = resolverSettings.CustomScheduling;
+            ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
         }
 
         /// <inheritdoc/>
@@ -92,5 +93,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public ICustomSchedulingCallback CustomScheduling { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
     }
 }

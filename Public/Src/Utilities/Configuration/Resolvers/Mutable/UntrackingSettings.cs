@@ -20,5 +20,8 @@ namespace BuildXL.Utilities.Configuration.Resolvers.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
     }
 }

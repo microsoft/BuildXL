@@ -449,6 +449,15 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * regular way.
      */
     customScheduling?: CustomSchedulingCallBack;
+
+    /**
+     * Process names that will break away from the sandbox when spawned by the main process
+     * The accesses of processes that break away from the sandbox won't be observed.
+     * Processes that breakaway can survive the lifespan of the sandbox.
+     * Only add to this list processes that are trusted and whose accesses can be safely predicted
+     * by some other means.
+     */
+    childProcessesToBreakawayFromSandbox?: PathAtom[];
 }
 
 /**
@@ -729,6 +738,15 @@ interface UntrackingSettings {
      * The relative path is interepreted relative to each available project
      */
     untrackedGlobalDirectoryScopes?: RelativePath[];
+
+    /**
+     * Process names that will break away from the sandbox when spawned by the main process
+     * The accesses of processes that break away from the sandbox won't be observed.
+     * Processes that breakaway can survive the lifespan of the sandbox.
+     * Only add to this list processes that are trusted and whose accesses can be safely predicted
+     * by some other means.
+     */
+    childProcessesToBreakawayFromSandbox?: PathAtom[];
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

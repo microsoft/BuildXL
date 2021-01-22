@@ -371,34 +371,71 @@ namespace BuildXL.Engine.Distribution
         {
             if (ChangeStatus(WorkerNodeStatus.NotStarted, WorkerNodeStatus.Starting))
             {
-                var startData = new BuildStartData
-                {
-                    SessionId = m_appLoggingContext.Session.Id,
-                    WorkerId = WorkerId,
-                    CachedGraphDescriptor = m_masterService.CachedGraphDescriptor,
-                    SymlinkFileContentHash = m_masterService.SymlinkFileContentHash.ToBondContentHash(),
-                    FingerprintSalt = m_masterService.Environment.ContentFingerprinter.FingerprintSalt,
-                    MasterLocation = new ServiceLocation
-                    {
-                        IpAddress = Dns.GetHostName(),
-                        Port = m_masterService.Port,
-                    },
-                    EnvironmentVariables = m_masterService.Environment.State.PipEnvironment
-                        .FullEnvironmentVariables.ToDictionary().ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
-                };
-
-                var callResult = await m_workerClient.AttachAsync(startData, m_exitCancellation.Token);
-
-                if (callResult.State != RpcCallResultState.Succeeded)
-                {
-                    await LostConnectionAsync();
-                }
-                else
+                if (await TryAttachAsync())
                 {
                     // Change to started state so we know the worker is connected
                     ChangeStatus(WorkerNodeStatus.Starting, WorkerNodeStatus.Started);
                 }
+                else
+                {
+                    await LostConnectionAsync();
+                }
             }
+        }
+
+        private async Task<bool> TryAttachAsync()
+        {
+            var startData = new BuildStartData
+            {
+                SessionId = m_appLoggingContext.Session.Id,
+                WorkerId = WorkerId,
+                CachedGraphDescriptor = m_masterService.CachedGraphDescriptor,
+                SymlinkFileContentHash = m_masterService.SymlinkFileContentHash.ToBondContentHash(),
+                FingerprintSalt = m_masterService.Environment.ContentFingerprinter.FingerprintSalt,
+                MasterLocation = new ServiceLocation
+                {
+                    IpAddress = Dns.GetHostName(),
+                    Port = m_masterService.Port,
+                },
+                EnvironmentVariables = m_masterService.Environment.State.PipEnvironment
+                       .FullEnvironmentVariables.ToDictionary().ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
+            };
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.Elapsed < EngineEnvironmentSettings.WorkerAttachTimeout)
+            {
+                WorkerNodeStatus status = Status;
+                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                {
+                    // Stop initiated: stop trying to attach
+                    return false;
+                }
+
+                var callResult = await m_workerClient.AttachAsync(startData, m_exitCancellation.Token);
+                if (callResult.State == RpcCallResultState.Succeeded)
+                {
+                    // Successfully attached
+                    return true;
+                }
+                else if (m_exitCancellation.IsCancellationRequested)
+                {
+                    // We manually cancelled the operation: don't retry
+                    return false;
+                }
+
+                try
+                {
+                    // We failed: let's try again after a while (as long as we don't exceed WorkerAttachTimeout)
+                    await Task.Delay(TimeSpan.FromSeconds(30), m_exitCancellation.Token);
+                }
+                catch (TaskCanceledException)
+                {
+                    return false;
+                }
+            }
+
+            // Timed out
+            return false;
         }
 
         private bool TryInitiateStop()

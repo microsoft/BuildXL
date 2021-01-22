@@ -45,7 +45,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private string GenerateFailLog(string traceId, uint numTry, long duration, string failureMessage)
         {
-            return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failureMessage}. ChannelState: {Channel.State}.");
+            return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failureMessage}. ChannelState: {Channel.State}");
         }
 
         public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, string buildId)

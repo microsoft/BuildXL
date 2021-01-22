@@ -6,7 +6,7 @@ BuildXL supports a wide variety of build languages and packaging systems. The en
 * MsBuild (in development)
 * Ninja (experimental)
 * NuGet
-* [Rush](Frontends/rush-onboarding.md)
+* [JavaScript](Frontends/js-onboarding.md)
 
 
 The main `config.dsc` file has a field `resolvers` that provides configuration settings for each resolver.

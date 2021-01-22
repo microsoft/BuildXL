@@ -74,7 +74,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md)
 
 ## Onboarding
-* [Onboarding a Rush repo](Wiki/Frontends/rush-onboarding.md)
+* [Onboarding a JavaScript repo](Wiki/Frontends/js-onboarding.md)
 
 ## DScript
 * [Introduction](Wiki/DScript/Introduction.md)

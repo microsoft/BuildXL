@@ -1,7 +1,7 @@
 # JavaScript Dependency Fixer
 One of the most common problems when onboarding a repo to BuildXL is undeclared dependencies. A missing dependency can cause a scheduling problem, since if the scheduler is unaware of a dependency it can schedule a dependency to run after a dependent, causing failures or undesired behavior in a non-deterministic way. So BuildXL is pretty strict when it detects that a tool accesses an output from another tool without properly declaring a dependency to it.
 
-For JavaScript projects, in particular projects scheduled by the [Rush resolver](../Frontends/rush-onboarding.md), a JavaScript execution analyzer can be run that analyzes dependency violations and adds additional entries in the corresponding `package.json` files in an attempt to fix them. 
+For JavaScript projects, in particular projects scheduled by any [JavaScript resolver](../Frontends/js-onboarding.md), a JavaScript execution analyzer can be run that analyzes dependency violations and adds additional entries in the corresponding `package.json` files in an attempt to fix them. 
 
 Let's say you did a build with BuildXL that failed because of missing dependencies. E.g.:
 

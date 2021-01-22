@@ -95,7 +95,6 @@ module({
         ...importFile(f`Desktop\Service\Service.bl`).projects,
         // etc etc
      ],
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
 });
 ```
 
@@ -112,10 +111,25 @@ The `projects` field requires an array of project files. The above examples cons
 
 module({
     name: "Contoso.Fabrikam.NodPublishers"
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: globR(d`.`, "*.bp"),
 });    
 ```
 You can leverage list files here as well. See [List](/BuildXL/User-Guide/Script/List) for details on this.
 
-The `nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences` is something temporary. That line states that this module uses the latest version ("V2") of build specifications, and not a previous implementation that we can't remove due to backwards compatibility requirements. We are actively working on removing that requirement so that all DScript will run with V2 enabled by default.
+## Inline modules
+Module configuration files allow for defining DScript modules with a variety of options. For simple cases, inline modules can be used. This enabled a way to define modules directly inlined within the main configuration files, without needing to create an extra module configuration file:
+
+```typescript
+// config.dsc
+
+config({
+  resolvers: [
+    {
+        kind: "DScript",
+        modules: [{moduleName: "MyModule", projects: [f`project.dsc`]}]
+    }
+  ]
+});
+```
+
+The example below is creating a module `MyModule` containing a single spec `project.dsc`. More generally, `projects:` field allows the same type of expressions available in a module configuration file.

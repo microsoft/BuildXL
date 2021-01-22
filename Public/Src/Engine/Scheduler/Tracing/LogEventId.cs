@@ -35,7 +35,6 @@ namespace BuildXL.Scheduler.Tracing
         ContentMissAfterContentFingerprintCacheDescriptorHit = 202,
         PipOutputDeployedFromCache = 204,
 
-
         InvalidProcessPipDueToExplicitArtifactsInOpaqueDirectory = 219,
         IgnoringUntrackedSourceFileNotUnderMount = 222,
         PipOutputProduced = 223,
@@ -183,6 +182,8 @@ namespace BuildXL.Scheduler.Tracing
         ConvertToRunnableFromCacheFailed = 2731,
         TwoPhasePublishingCacheEntryFailedError = 2732,
         PipMaterializeDependenciesFromCacheTimeoutFailure = 2740,
+        PipHydrateFileFailure = 2741,
+        PipHydratedFile = 2742,
 
         LogMismatchedDetoursErrorCount = 2922,
         PipExitedWithAzureWatsonExitCode = 2924,

@@ -607,6 +607,9 @@ namespace BuildXL
                             "logCounters",
                             sign => loggingConfiguration.LogCounters = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "logDeterminismProbe",
+                            sign => cacheConfiguration.DisableDeterminismProbeLogging = !sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "logExecution",
                             sign => loggingConfiguration.LogExecution = sign),
                         OptionHandlerFactory.CreateBoolOption(
@@ -1278,12 +1281,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "virtualizeUnknownPips",
+                            sign => cacheConfiguration.VirtualizeUnknownPips = sign),
                         OptionHandlerFactory.CreateOption(
                             "vfsCasRoot",
-                            opt =>
-                            {
-                                cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable);
-                            }),
+                            opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
                         OptionHandlerFactory.CreateOption(
                             "viewer",

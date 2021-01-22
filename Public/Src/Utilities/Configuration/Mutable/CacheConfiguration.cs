@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CacheSalt = null;
             CacheSessionName = string.Empty;
             DeterminismProbe = false;
+            DisableDeterminismProbeLogging = false;
             AllowFetchingCachedGraphFromContentCache = true;
             MinimumReplicaCountForStrongGuarantee = 3;
             StrongContentGuaranteeRefreshProbability = 1;
@@ -49,6 +50,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ArtificialCacheMissOptions = template.ArtificialCacheMissOptions == null ? null : new ArtificialCacheMissConfig(template.ArtificialCacheMissOptions);
             CacheSalt = template.CacheSalt;
             DeterminismProbe = template.DeterminismProbe;
+            DisableDeterminismProbeLogging = template.DisableDeterminismProbeLogging;
             HistoricMetadataCache = template.HistoricMetadataCache;
             AllowFetchingCachedGraphFromContentCache = template.AllowFetchingCachedGraphFromContentCache;
             MinimumReplicaCountForStrongGuarantee = template.MinimumReplicaCountForStrongGuarantee;
@@ -58,6 +60,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseDedupStore = template.UseDedupStore;
             ReplaceExistingFileOnMaterialization = template.ReplaceExistingFileOnMaterialization;
             VfsCasRoot = pathRemapper.Remap(template.VfsCasRoot);
+            VirtualizeUnknownPips = template.VirtualizeUnknownPips;
             ElideMinimalGraphEnumerationAbsentPathProbes = template.ElideMinimalGraphEnumerationAbsentPathProbes;
             AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
@@ -114,6 +117,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool DeterminismProbe { get; set; }
 
         /// <inheritdoc />
+        public bool DisableDeterminismProbeLogging { get; set; }
+
+        /// <inheritdoc />
         public bool ElideMinimalGraphEnumerationAbsentPathProbes { get; set; }
 
         /// <inheritdoc />
@@ -147,6 +153,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath VfsCasRoot { get; set; }
+
+        /// <inheritdoc />
+        public bool VirtualizeUnknownPips { get; set; }
 
         /// <inheritdoc />
         public int AugmentWeakFingerprintPathSetThreshold { get; set; }

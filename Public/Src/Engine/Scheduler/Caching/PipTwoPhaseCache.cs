@@ -444,6 +444,14 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <summary>
+        /// Attempts to get path sets associated with a pip
+        /// </summary>
+        public virtual IEnumerable<Task<Possible<ObservedPathSet>>> TryGetAssociatedPathSetsAsync(OperationContext context, Pip pip)
+        {
+            yield break;
+        }
+
+        /// <summary>
         /// Contains the hash for the pathset or metadata
         /// </summary>
         public virtual bool IsNewlyAdded(ContentHash hash) => true;

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Pips;
@@ -134,6 +136,11 @@ namespace BuildXL.Scheduler.Artifacts
         /// Attempts to get the source file a copy file (if the file is a copy file output)
         /// </summary>
         bool TryGetCopySourceFile(FileArtifact artifact, out FileArtifact sourceFile);
+
+        /// <summary>
+        /// Gets a list of paths read by the pip during a prior invocation
+        /// </summary>
+        Task<Optional<IEnumerable<AbsolutePath>>> GetReadPathsAsync(OperationContext context, Pip pip);
 
         /// <summary>
         /// Callback to materialize a file if the host supports materializing the given file

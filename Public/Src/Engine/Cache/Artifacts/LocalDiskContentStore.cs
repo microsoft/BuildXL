@@ -111,7 +111,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             AbsolutePath path,
             ContentHash contentHash,
             PathAtom fileName = default,
-            AbsolutePath reparsePointTarget = default,
             ReparsePointInfo? reparsePointInfo = null,
             bool trackPath = true,
             bool recordPathInFileContentTable = true)
@@ -119,27 +118,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
-
-                var reparsePointType = ReparsePointType.None;
-                if (reparsePointInfo == null && reparsePointTarget.IsValid)
-                {
-                    if (OperatingSystemHelper.IsUnixOS)
-                    {
-                        reparsePointType = ReparsePointType.UnixSymlink;
-                    }
-                    else
-                    {
-                        var reparsePointTypeCheck = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
-                        if (!reparsePointTypeCheck.Succeeded)
-                        {
-                            return reparsePointTypeCheck.Failure;
-                        }
-
-                        reparsePointType = reparsePointTypeCheck.Result;
-                    }
-                    
-                    reparsePointInfo = ReparsePointInfo.Create(reparsePointType, reparsePointTarget.ToString(m_pathTable));
-                }
 
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
                 if (FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
@@ -238,7 +216,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     possibleMaterialization = CreateReparsePointIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget(), reparsePointInfo.Value.ReparsePointType);
                 }
 
-                bool isReparsePoint = reparsePointTarget.IsValid || (reparsePointInfo != null && reparsePointInfo.Value.IsActionableReparsePoint);
+                bool isReparsePoint = reparsePointInfo != null && reparsePointInfo.Value.IsActionableReparsePoint;
 
                 Possible<TrackedFileContentInfo, Failure> possibleTrackedFile = await possibleMaterialization
                     .ThenAsync(p => TryOpenAndTrackPathAsync(

@@ -499,6 +499,19 @@ namespace BuildXL.Scheduler
         FileContentManagerHostTryMaterializeDuration,
 
         /// <summary>
+        /// The amount of time FileContentManager spent hydrating virtual file content (excluding waiting
+        /// on materialization semaphore)
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerHydrateDuration,
+
+        /// <summary>
+        /// The amount of time FileContentManager spent deleting directories
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerGetHydrateFilesDuration,
+
+        /// <summary>
         /// The amount of time FileContentManager spent materializing content (including waiting
         /// on materialization semaphore)
         /// </summary>

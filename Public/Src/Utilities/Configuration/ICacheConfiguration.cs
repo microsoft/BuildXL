@@ -76,6 +76,12 @@ namespace BuildXL.Utilities.Configuration
         bool DeterminismProbe { get; }
 
         /// <summary>
+        /// When enabled along with <see cref="DeterminismProbe"/>, determines if tool determinism is computed and logged. Defaults to off (i.e. logging is enabled by default)
+        /// This is used to run a full clean build which reuses cached results.
+        /// </summary>
+        bool DisableDeterminismProbeLogging { get; }
+
+        /// <summary>
         /// When enabled, metadata and pathsets are stored in a single file. Defaults to off.
         /// </summary>
         bool? HistoricMetadataCache { get; }
@@ -146,6 +152,11 @@ namespace BuildXL.Utilities.Configuration
         /// this path.
         /// </remarks>
         AbsolutePath VfsCasRoot { get; }
+
+        /// <summary>
+        /// Gets whether inputs to pips without historical file access info should be virtualized
+        /// </summary>
+        bool VirtualizeUnknownPips { get; }
 
         /// <summary>
         /// Controls the max number of logged suspicious paths (i.e., paths used in an augmented pathset, but not observed during pip execution) for each pip. 

@@ -325,6 +325,24 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipMaterializeDependenciesFromCacheTimeoutFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipHydrateFileFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed to hydrate pip dependency '{file}': {errorMessage}")]
+        internal abstract void PipHydrateFileFailure(LoggingContext loggingContext, string pipDescription, string file, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipHydratedFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Hydrated pip dependency '{file}'.")]
+        internal abstract void PipHydratedFile(LoggingContext loggingContext, string pipDescription, string file);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

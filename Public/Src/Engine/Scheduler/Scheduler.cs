@@ -4200,7 +4200,10 @@ namespace BuildXL.Scheduler
                         return processRunnable.SetPipResult(tupleResult.Item2);
                     }
 
-                    HandleDeterminismProbe(loggingContext, environment, cacheResult, runnablePip.Description);
+                    if (!m_configuration.Cache.DisableDeterminismProbeLogging)
+                    {
+                        HandleDeterminismProbe(loggingContext, environment, cacheResult, runnablePip.Description);
+                    }
 
                     processRunnable.SetCacheableProcess(cacheableProcess);
                     processRunnable.SetCacheResult(cacheResult);
@@ -4366,6 +4369,12 @@ namespace BuildXL.Scheduler
 
                     if (m_configuration.Cache.DeterminismProbe && processRunnable.CacheResult.CanRunFromCache)
                     {
+                        if (m_configuration.Cache.DisableDeterminismProbeLogging)
+                        {
+                            // Don't check determinism probe
+                            return PipExecutionStep.RunFromCache;
+                        }
+
                         // Compare strong fingerprints between execution and cache hit for determinism probe
                         return CheckMatchForDeterminismProbe(processRunnable);
                     }
@@ -6502,6 +6511,26 @@ namespace BuildXL.Scheduler
         SealDirectoryKind IFileContentManagerHost.GetSealDirectoryKind(DirectoryArtifact directory)
         {
             return GetSealDirectoryKind(directory);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        async Task<Optional<IEnumerable<AbsolutePath>>> IFileContentManagerHost.GetReadPathsAsync(OperationContext context, Pip pip)
+        {
+            foreach (var pathSetTask in m_pipTwoPhaseCache.TryGetAssociatedPathSetsAsync(context, pip))
+            {
+                var pathSet = await pathSetTask;
+                if (pathSet.Succeeded)
+                {
+                    return new Optional<IEnumerable<AbsolutePath>>(pathSet.Result.Paths
+                        // Currently, all flags refer to operations which are not reads (i.e. probes or directory enumerations)
+                        .Where(entry => entry.Flags == ObservedPathEntryFlags.None)
+                        .Select(entry => entry.Path));
+                }
+
+                break;
+            }
+
+            return default;
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

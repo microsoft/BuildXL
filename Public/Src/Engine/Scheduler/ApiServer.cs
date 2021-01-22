@@ -140,9 +140,9 @@ namespace BuildXL.Scheduler
                     Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}'. BuildManifestHash: '{hash.Serialize()}'");
                     return hash;
                 }
-                catch (BuildXLException ex)
+                catch (Exception ex) when (ex is BuildXLException || ex is IOException)
                 {
-                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash: {ex.Message}");
+                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash: {ex}");
                     return new Failure<string>($"Exception in TryGetBuildManifestHashFromLocalFileAsync: {ex}");
                 }
             }

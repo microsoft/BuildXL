@@ -68,7 +68,8 @@ namespace BuildXL.Pips.Graph
         /// 91: Add CreatedDirectories to PipCacheDescriptorV2Metadata.
         /// 92: Add IgnorePreserveOutputsPrivatization in IUnsafeSandboxConfiguration.
         /// 93: Add succeed fast exit codes.
+        /// 94: Detours no longer report chain of symlinks when symlinks are opened with FILE_FLAG_OPEN_REPARSE_POINT.
         /// </remarks>
-        TwoPhaseV2 = 93,
+        TwoPhaseV2 = 94,
     }
 }

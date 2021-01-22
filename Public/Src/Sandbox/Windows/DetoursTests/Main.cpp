@@ -1152,9 +1152,11 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallMoveSymLinkOnFilesNotEnforceChainSymLinkAccesses);
     IF_COMMAND(CallAccessSymLinkOnDirectories);
     IF_COMMAND(CallDetouredFileCreateThatAccessesChainOfSymlinks);
+    IF_COMMAND(CallDetouredFileCreateThatDoesNotAccessChainOfSymlinks);
     IF_COMMAND(CallDetouredCopyFileFollowingChainOfSymlinks);
     IF_COMMAND(CallDetouredCopyFileNotFollowingChainOfSymlinks);
     IF_COMMAND(CallDetouredNtCreateFileThatAccessesChainOfSymlinks);
+    IF_COMMAND(CallDetouredNtCreateFileThatDoesNotAccessChainOfSymlinks);
     IF_COMMAND(CallAccessNestedSiblingSymLinkOnFiles);
     IF_COMMAND(CallAccessJunctionSymlink_Real);
     IF_COMMAND(CallAccessJunctionSymlink_Junction);

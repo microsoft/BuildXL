@@ -89,7 +89,7 @@ static bool IsActionableReparsePointType(_In_ const DWORD reparsePointType)
 /// </summary>
 static bool FlagsAndAttributesContainReparsePointFlag(_In_ DWORD dwFlagsAndAttributes)
 {
-    return (dwFlagsAndAttributes & FILE_OPEN_REPARSE_POINT) != 0;
+    return (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
 }
 
 /// <summary>
@@ -97,13 +97,9 @@ static bool FlagsAndAttributesContainReparsePointFlag(_In_ DWORD dwFlagsAndAttri
 /// </summary>
 static bool AccessReparsePointTarget(
     _In_     LPCWSTR               lpFileName,
-    _In_     DWORD                 dwDesiredAccess,
     _In_     DWORD                 dwFlagsAndAttributes)
 {
-    bool hasReparsePointFlag = FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes);
-    return IsReparsePoint(lpFileName) // File is a reparse point.
-        && (!WantsDeleteOnlyAccess(dwDesiredAccess) || !hasReparsePointFlag)  // It's not deletion of reparse point.
-        && (!WantsProbeOnlyAccess(dwDesiredAccess)  || !hasReparsePointFlag); // It's not only probing reparse point.
+    return IsReparsePoint(lpFileName) && !FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes);
 }
 
 /// <summary>
@@ -328,7 +324,7 @@ static bool ShouldResolveReparsePointsInPath(
 
     if (IgnoreFullReparsePointResolving())
     {
-        return AccessReparsePointTarget(lpFileName, dwDesiredAccess, dwFlagsAndAttributes); // Trying to access reparse point target.
+        return AccessReparsePointTarget(lpFileName, dwFlagsAndAttributes);
     }
 
     CanonicalizedPath path = CanonicalizedPath::Canonicalize(lpFileName);
@@ -338,7 +334,7 @@ static bool ShouldResolveReparsePointsInPath(
     // itself should be deleted, not its targets.
     bool reparsePointDeletion =
         ((dwDesiredAccess & DELETE) != 0 || (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0)
-        && (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
+        && FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes);
 
     if (reparsePointDeletion)
     {
@@ -2874,7 +2870,7 @@ HANDLE WINAPI Detoured_CreateFileW(
     }
 
     bool isHandleToReparsePoint = (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath().GetPathString(), dwDesiredAccess, dwFlagsAndAttributes))
+    if (ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath().GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
     {
         bool accessResult = EnforceChainOfReparsePointAccesses(
             policyResult.GetCanonicalizedPath(),
@@ -6123,7 +6119,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     }
 
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
+    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
     {
         // Note that handle can be invalid because users can CreateFileW of a symlink whose target is non-existent.
         NTSTATUS ntStatus;
@@ -6420,7 +6416,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     }
 
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
+    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
     {
         NTSTATUS ntStatus;
 
@@ -6690,7 +6686,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     }
 
     bool isHandleToReparsePoint = (OpenOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, OpenOptions))
+    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
     {
         NTSTATUS ntStatus;
 

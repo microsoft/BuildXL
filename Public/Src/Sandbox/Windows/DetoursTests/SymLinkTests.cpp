@@ -249,7 +249,7 @@ int CallDetouredFileCreateWithNoSymlink()
     return (int)GetLastError();
 }
 
-int CallDetouredFileCreateThatAccessesChainOfSymlinks()
+int CallDetouredFileCreateOnSymlink(bool openWithReparsePoint)
 {
     HANDLE hFile = CreateFileW(
         L"SourceOfSymLink.link",
@@ -257,7 +257,7 @@ int CallDetouredFileCreateThatAccessesChainOfSymlinks()
         FILE_SHARE_READ,
         0,
         OPEN_EXISTING,
-        FILE_FLAG_OPEN_REPARSE_POINT,
+        (DWORD)(openWithReparsePoint ? FILE_FLAG_OPEN_REPARSE_POINT : FILE_ATTRIBUTE_NORMAL),
         NULL);
 
     if (hFile == INVALID_HANDLE_VALUE)
@@ -266,8 +266,18 @@ int CallDetouredFileCreateThatAccessesChainOfSymlinks()
     }
 
     CloseHandle(hFile);
-    
+
     return (int)GetLastError();
+}
+
+int CallDetouredFileCreateThatAccessesChainOfSymlinks()
+{
+    return CallDetouredFileCreateOnSymlink(false);
+}
+
+int CallDetouredFileCreateThatDoesNotAccessChainOfSymlinks()
+{
+    return CallDetouredFileCreateOnSymlink(true);
 }
 
 int CallDetouredCopyFileFollowingChainOfSymlinks()
@@ -431,7 +441,7 @@ int CallAccessJunctionSymlink_Junction()
     return (int)GetLastError();
 }
 
-int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
+int CallDetouredNtCreateFileOnSymlink(bool withReparsePointFlag)
 {
     _NtCreateFile NtCreateFile = GetNtCreateFile();
     _NtClose NtClose = GetNtClose();
@@ -457,16 +467,16 @@ int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
 
     IO_STATUS_BLOCK ioStatusBlock = { 0 };
     NTSTATUS status = NtCreateFile(
-        &hFile, 
+        &hFile,
         FILE_GENERIC_READ,
-        &objAttribs, 
-        &ioStatusBlock, 
+        &objAttribs,
+        &ioStatusBlock,
         &largeInteger,
-        FILE_ATTRIBUTE_NORMAL, 
-        FILE_SHARE_READ, 
-        FILE_OPEN, 
-        FILE_NON_DIRECTORY_FILE | FILE_OPEN_REPARSE_POINT,
-        NULL, 
+        FILE_ATTRIBUTE_NORMAL,
+        FILE_SHARE_READ,
+        FILE_OPEN,
+        FILE_NON_DIRECTORY_FILE | (DWORD)(withReparsePointFlag ? FILE_OPEN_REPARSE_POINT : 0),
+        NULL,
         NULL);
 
     if (hFile != INVALID_HANDLE_VALUE)
@@ -475,6 +485,16 @@ int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
     }
 
     return (int)RtlNtStatusToDosError(status);
+}
+
+int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
+{
+    return CallDetouredNtCreateFileOnSymlink(false);
+}
+
+int CallDetouredNtCreateFileThatDoesNotAccessChainOfSymlinks()
+{
+    return CallDetouredNtCreateFileOnSymlink(true);
 }
 
 int CallDetouredCreateFileWForSymlinkProbeOnly(bool withReparsePointFlag)

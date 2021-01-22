@@ -5400,8 +5400,9 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        public async Task CallDetouredFileCreateThatAccessesChainOfSymlinks()
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task CallDetouredFileCreateThatAccessesChainOfSymlinks(bool openWithReparsePointFlag)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -5420,7 +5421,9 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: "CallDetouredFileCreateThatAccessesChainOfSymlinks",
+                    argumentStr: openWithReparsePointFlag
+                        ? "CallDetouredFileCreateThatDoesNotAccessChainOfSymlinks"
+                        : "CallDetouredFileCreateThatAccessesChainOfSymlinks",
                     inputFiles:
                         ReadOnlyArray<FileArtifact>.FromWithoutCopy(
                             FileArtifact.CreateSourceFile(sourceOfSymlink),
@@ -5431,7 +5434,6 @@ namespace Test.BuildXL.Processes.Detours
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
@@ -5440,19 +5442,28 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreReparsePoints: false,
                     context: context,
                     pip: process,
-                    errorString: out errorString);
+                    errorString: out _);
 
                 VerifyNormalSuccess(context, result);
+
+                var accessesToVerify = new List<(AbsolutePath, RequestedAccess, FileAccessStatus)>
+                {
+                    (sourceOfSymlink, RequestedAccess.Read, FileAccessStatus.Allowed)
+                };
+
+                if (!openWithReparsePointFlag)
+                {
+                    accessesToVerify.AddRange(new[]
+                    {
+                        (intermediateSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed)
+                    });
+                }
 
                 VerifyFileAccesses(
                     context,
                     result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (sourceOfSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
-                        (intermediateSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
-                        (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed)
-                    });
+                    accessesToVerify.ToArray());
             }
         }
 
@@ -5707,8 +5718,9 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        public async Task CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task CallDetouredNtCreateFileThatAccessesChainOfSymlinks(bool openWithReparsePointFlag)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -5727,7 +5739,9 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: "CallDetouredNtCreateFileThatAccessesChainOfSymlinks",
+                    argumentStr: openWithReparsePointFlag
+                    ? "CallDetouredNtCreateFileThatDoesNotAccessChainOfSymlinks"
+                    : "CallDetouredNtCreateFileThatAccessesChainOfSymlinks",
                     inputFiles:
                         ReadOnlyArray<FileArtifact>.FromWithoutCopy(
                             FileArtifact.CreateSourceFile(sourceOfSymlink),
@@ -5738,7 +5752,6 @@ namespace Test.BuildXL.Processes.Detours
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
 
-                string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
                     pathTable: pathTable,
                     ignoreSetFileInformationByHandle: false,
@@ -5747,19 +5760,28 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreReparsePoints: false,
                     context: context,
                     pip: process,
-                    errorString: out errorString);
+                    errorString: out _);
 
                 VerifyNormalSuccess(context, result);
+
+                var accessesToVerify = new List<(AbsolutePath, RequestedAccess, FileAccessStatus)>
+                {
+                    (sourceOfSymlink, RequestedAccess.Read, FileAccessStatus.Allowed)
+                };
+
+                if (!openWithReparsePointFlag)
+                {
+                    accessesToVerify.AddRange(new[]
+                    {
+                        (intermediateSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed)
+                    });
+                }
 
                 VerifyFileAccesses(
                     context,
                     result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (sourceOfSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
-                        (intermediateSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
-                        (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed)
-                    });
+                    accessesToVerify.ToArray());
             }
         }
 

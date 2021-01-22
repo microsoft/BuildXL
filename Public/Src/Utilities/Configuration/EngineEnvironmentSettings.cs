@@ -158,19 +158,6 @@ namespace BuildXL.Utilities.Configuration
             TimeSpan.FromMinutes(5));
 
         /// <summary>
-        /// Inactivity timeout
-        ///     - Master - if it cannot send a single heartbeat message to a worker within this interval, declares the worker as dead and stops using it
-        ///     - Worker - if it doesn't receive any call from the master within this interval, decides that the master is dead and exits
-        /// </summary>
-        public static readonly Setting<TimeSpan> DistributionInactiveTimeout = CreateSetting("BuildXLDistribInactiveTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(30));
-
-        /// <summary>
-        /// The maximum number of workers allowed to attach concurrently
-        /// </summary>
-        public static readonly Setting<int> MaxConcurrentWorkersAttachLimit = CreateSetting("BuildXLMaxConcurrentWorkersAttachLimit", value => ParseInt32(value) ?? 10);
-
-        /// <summary>
         /// The number of threads in the grpc thread pool.
         /// </summary>
         /// <remarks>

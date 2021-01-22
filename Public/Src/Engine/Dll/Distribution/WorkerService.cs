@@ -35,14 +35,6 @@ namespace BuildXL.Engine.Distribution
     /// <summary>
     /// Defines service run on worker nodes in a distributed build.
     /// </summary>
-    /// <remarks>
-    /// There are 2 timers to make sure both master and worker are alive:
-    /// - The master timer sends heartbeat calls. The worker notes that the master is alive. It also
-    /// retries all previously failed calls back to the master.
-    /// - The service timer checks for a dead master. If it discovers that the master hasn't called
-    /// for EngineEnvironmentSettings.DistributionInactiveTimeout (or WorkerAttachTimeout if Attach is still not called),
-    /// the service will shut down.
-    /// </remarks>
     public sealed partial class WorkerService : IDistributionService
     {
         #region Writer Pool
@@ -96,7 +88,6 @@ namespace BuildXL.Engine.Distribution
 
         private readonly ConcurrentBigSet<int> m_handledBuildRequests = new ConcurrentBigSet<int>();
 
-        private TimeSpan m_lastHeartbeatTimestamp = TimeSpan.Zero;
         private Scheduler.Tracing.OperationTracker m_operationTracker;
 
         /// <summary>
@@ -296,14 +287,11 @@ namespace BuildXL.Engine.Distribution
             Logger.Log.DistributionWaitingForMasterAttached(m_appLoggingContext);
 
             var timeout = GrpcSettings.WorkerAttachTimeout;
-            while (!AttachCompletion.Wait(timeout))
+            if (!AttachCompletion.Wait(timeout))
             {
-                if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > timeout)
-                {
-                    Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
-                    Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
-                    return false;
-                }
+                Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
+                Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
+                return false;
             }
 
             if (!AttachCompletion.Result)
@@ -464,13 +452,8 @@ namespace BuildXL.Engine.Distribution
         {
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
-            Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)EngineEnvironmentSettings.DistributionInactiveTimeout.Value.TotalMinutes);
+            Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxRetry));
             ExitAsync("Connection timed out", isUnexpected: true);
-        }
-
-        internal void SetLastHeartbeatTimestamp()
-        {
-            m_lastHeartbeatTimestamp = TimestampUtilities.Timestamp;
         }
 
         internal void ExecutePipsCore(PipBuildRequest request)

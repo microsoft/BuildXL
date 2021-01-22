@@ -55,8 +55,6 @@ namespace BuildXL.Engine.Distribution
         private readonly ushort m_buildServicePort;
         private readonly IServer m_masterServer;
 
-        internal readonly SemaphoreSlim WorkerAttachSemaphore = new SemaphoreSlim(EngineEnvironmentSettings.MaxConcurrentWorkersAttachLimit);
-
         internal readonly DistributionServices DistributionServices;
 
         /// <summary>

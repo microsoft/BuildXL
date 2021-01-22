@@ -355,16 +355,6 @@ namespace BuildXL.Engine.Distribution
             await FinishAsync(null);
         }
 
-        private void OnDeactivateConnection(object sender, EventArgs e)
-        {
-            ChangeStatus(WorkerNodeStatus.Running, WorkerNodeStatus.Paused);
-        }
-
-        private void OnActivateConnection(object sender, EventArgs e)
-        {
-            ChangeStatus(WorkerNodeStatus.Paused, WorkerNodeStatus.Running);
-        }
-
         /// <inheritdoc/>
         public override void Dispose()
         {

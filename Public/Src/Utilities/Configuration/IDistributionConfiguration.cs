@@ -12,7 +12,7 @@ namespace BuildXL.Utilities.Configuration
     public interface IDistributionConfiguration
     {
         /// <summary>
-        /// Specifies the roles the node plays in the distributed build {get;} or [W]orker. This argument is required for executing a distributed build. (short form: /dbr)
+        /// Specifies the roles the node plays in the distributed build: [N]one, [M]aster or [W]orker. This argument is required for executing a distributed build. (short form: /dbr)
         /// </summary>
         DistributedBuildRoles BuildRole { get; }
 

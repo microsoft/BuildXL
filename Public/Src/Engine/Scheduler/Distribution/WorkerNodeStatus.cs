@@ -19,8 +19,6 @@ namespace BuildXL.Scheduler.Distribution
     ///
     /// Failure transitions:
     /// Any state -> Stopped: Triggered when error condition occurs and node should no longer be used
-    /// Running -> Paused: RPC calls to node have failed and node is paused until a successful heartbeat
-    /// Paused -> Running: Triggered on successful heartbeat after entering paused state
     /// </summary>
     public enum WorkerNodeStatus
     {
@@ -58,6 +56,9 @@ namespace BuildXL.Scheduler.Distribution
         /// The node is running but prefer not to get new requests.
         /// A request will not be denied (to prevent time races) but has a good chance to fail.
         /// </summary>
+        /// <remarks>
+        /// This is unused after moving to gRPC for remote communication
+        /// </remarks>
         Paused,
 
         /// <summary>

@@ -19,6 +19,10 @@ typedef wchar_t const* StrType;
 typedef char const* StrType;
 #endif
 
+#if _WIN32
+typedef std::wstring StrBufferType;
+#endif
+
 // Represents the (semi-)static context of a detoured call's eventual access to a file. This context includes that information
 // obtained directly from the calling process and the nature of the call in question (operation name, open mode, raw path, etc.)
 // Note that this context is meant to live within the operation's stack; it may contain a pointer to the non-canonical path as
@@ -34,7 +38,7 @@ public:
     DWORD FlagsAndAttributes;
     unsigned long Id;
     unsigned long CorrelationId;
-
+ 
     FileOperationContext(
         StrType lpOperation,
         DWORD dwDesiredAccess,
@@ -81,6 +85,14 @@ public:
         CorrelationId = other.Id;
     }
 
+#if _WIN32
+    void AdjustPath(StrType newPath)
+    {
+        _nonCanonicalPathBuffer.assign(newPath);
+        NoncanonicalPath = _nonCanonicalPathBuffer.c_str();
+    }
+#endif
+
     FileOperationContext(const FileOperationContext& other) = default;
     FileOperationContext& operator=(const FileOperationContext&) = default;
 
@@ -88,6 +100,10 @@ private:
     // CODESYNC: Public\Src\Engine\Processes\SandboxedProcessReports.cs
     static const unsigned long NoId = 0UL;
     static unsigned long GetNextId();
+
+#if _WIN32
+    StrBufferType _nonCanonicalPathBuffer;
+#endif
 };
 
 enum class FileExistence {

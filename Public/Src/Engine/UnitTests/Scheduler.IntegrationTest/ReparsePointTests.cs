@@ -8,6 +8,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -892,30 +893,41 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreNotEqual(checkpoint1, File.ReadAllText(ArtifactToString(copiedFile)));
         }
 
+        public enum IgnoreReparsePointMode
+        {
+            // Ignore all reparse point.
+            All,
+
+            // Ignore only non CreateFile API.
+            NonCreateFile,
+
+            // Do not ignore any reparse point.
+            None
+        }
+
         /// <summary>
         /// Validates that Detours does not follow symlinks when IgnoreReparsePoints and IgnoreNonCreateFileReparsePoints options are enabled
         /// </summary>
-        /// <param name="ignoreOnlyNonCreateFileReparsePoints">
-        /// When true, enables IgnoreNonCreateFileReparse which ignores symlinks for CreateFile and NtCreateFile/OpenFile APIs
-        /// When false, enables IgnoreReparsePoints which ignores symlinks for all file management APIs
-        /// </param>
+        /// <param name="ignoreReparsePointMode"/>
         /// <param name="useCreateFileAPI">
         /// When true, a pip is created that passes a symlink into a CreateFile or NtCreateFile/OpenFile API
         /// When false, a pip is created that passes a symlink into a filemanagement API other than CreateFile or NtCreateFile/OpenFile
         /// </param>
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, true)]
-        [InlineData(false, false)]
-        public void ValidateCachingUnsafeIgnoreReparsePointReadFile(bool ignoreOnlyNonCreateFileReparsePoints, bool useCreateFileAPI)
+        [InlineData(IgnoreReparsePointMode.All, true)]
+        [InlineData(IgnoreReparsePointMode.All, false)]
+        [InlineData(IgnoreReparsePointMode.NonCreateFile, true)]
+        [InlineData(IgnoreReparsePointMode.NonCreateFile, false)]
+        [InlineData(IgnoreReparsePointMode.None, true)]
+        [InlineData(IgnoreReparsePointMode.None, false)]
+        public void ValidateCachingUnsafeIgnoreReparsePointReadFile(IgnoreReparsePointMode ignoreReparsePointMode, bool useCreateFileAPI)
         {
             // Allows pips to input and output symlink files without declaring the corresponding target files
-            if (ignoreOnlyNonCreateFileReparsePoints)
+            if (ignoreReparsePointMode == IgnoreReparsePointMode.NonCreateFile)
             {
                 Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreNonCreateFileReparsePoints = true;
             }
-            else
+            else if (ignoreReparsePointMode == IgnoreReparsePointMode.All)
             {
                 Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreReparsePoints = true;
             }
@@ -937,15 +949,28 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(outFile),
             }).Process;
 
-            if (ignoreOnlyNonCreateFileReparsePoints && useCreateFileAPI)
+            if (ignoreReparsePointMode == IgnoreReparsePointMode.None
+                || (ignoreReparsePointMode == IgnoreReparsePointMode.NonCreateFile && useCreateFileAPI))
             {
                 // Detours is only ignoring symlinks for APIs other than CreateFile and NtCreateFile/OpenFile
                 // Since ReadFile calls CreateFile, expect a disallowed file access on undeclared underlying /targetFile
+
                 RunScheduler().AssertFailure();
-                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(
+                    ProcessesLogEventId.PipProcessDisallowedFileAccess,
+                    count: useCreateFileAPI
+                    ? 1 
+                    : 2 /* File.Copy internally calls CreateFileW upon failure */);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertWarningEventLogged(
+                    LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations,
+                    count: useCreateFileAPI ? 1 : 0 /* The process execution exit with non 0 exit code. */);
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
+
+                if (!useCreateFileAPI)
+                {
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+                }
             }
             else
             {

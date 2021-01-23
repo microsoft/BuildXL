@@ -104,12 +104,6 @@ void PolicyResult::ReportIndeterminatePolicyAndSetLastError(FileOperationContext
         -1);
 }
 
-void PolicyResult::SetPath(CanonicalizedPathType path)
-{
-    m_canonicalizedPath = path;
-    TranslateFilePath(std::wstring(m_canonicalizedPath.GetPathString()), m_translatedPath, false);
-}
-
 #if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
 bool PolicyResult::AllowWrite() const {
 

@@ -1400,8 +1400,17 @@ static bool AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
             return accessResult;
         }
 
-        opContext.NoncanonicalPath = fullyResolvedPath.c_str();
-        policyResult.SetPath(CanonicalizedPath::Canonicalize(fullyResolvedPath.c_str()));
+        opContext.AdjustPath(fullyResolvedPath.c_str());
+
+        // Reset policy result because the fully resolved path is likely to be different.
+        PolicyResult newPolicyResult;
+        if (!newPolicyResult.Initialize(fullyResolvedPath.c_str()))
+        {
+            newPolicyResult.ReportIndeterminatePolicyAndSetLastError(opContext);
+            return false;
+        }
+
+        policyResult = newPolicyResult;
     }
 
     return true;
@@ -3275,7 +3284,10 @@ BOOL WINAPI Detoured_CopyFileExW(
 
     bool copySymlink = (dwCopyFlags & COPY_FILE_COPY_SYMLINK) != 0;
 
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(sourceOpContext, sourcePolicyResult, copySymlink))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
+        sourceOpContext,
+        sourcePolicyResult,
+        true /* EnforceChainOfReparsePointAccessesForNonCreateFile will do the enforcement for the last reparse point */))
     {
         return FALSE;
     }
@@ -3296,19 +3308,22 @@ BOOL WINAPI Detoured_CopyFileExW(
         return FALSE;
     }
 
+    // When COPY_FILE_COPY_SYMLINK is specified, then no need to enforce chain of symlink accesses.
+    if (!copySymlink && !EnforceChainOfReparsePointAccessesForNonCreateFile(sourceOpContext))
+    {
+        return FALSE;
+    }
+
     if (copySymlink)
     {
         // Invalidate cache entries because we are about to replace the destination with a symbolic link
         ResolvedPathCache::Instance().Invalidate(destPolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
     }
 
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(destinationOpContext, destPolicyResult, copySymlink))
-    {
-        return FALSE;
-    }
-
-    // When COPY_FILE_COPY_SYMLINK is specified, then no need to enforce chain of symlink accesses.
-    if (!copySymlink && !EnforceChainOfReparsePointAccessesForNonCreateFile(sourceOpContext))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
+        destinationOpContext,
+        destPolicyResult,
+        true /* EnforceChainOfReparsePointAccessesForNonCreateFile will do the enforcement for the last reparse point */))
     {
         return FALSE;
     }
@@ -3332,7 +3347,7 @@ BOOL WINAPI Detoured_CopyFileExW(
         // if g exists, then g will be modified, but if g doesn't exist, then g will be created.
         if (!EnforceChainOfReparsePointAccessesForNonCreateFile(destinationOpContext))
         {
-            return false;
+            return FALSE;
         }
     }
 
@@ -3964,7 +3979,10 @@ BOOL WINAPI Detoured_CreateHardLinkW(
         return FALSE;
     }
 
-    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(destinationOpContext, destPolicyResult, false /*CreateHardLinkW always creates a hardlink to the target of the reparse point*/))
+    if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
+        destinationOpContext,
+        destPolicyResult,
+        false /* CreateHardLinkW always creates a hardlink to the target of the reparse point */))
     {
         return FALSE;
     }

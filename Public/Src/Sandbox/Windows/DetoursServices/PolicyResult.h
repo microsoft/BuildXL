@@ -42,7 +42,6 @@ public:
     PolicyResult& operator=(const PolicyResult&) = default;
 
     CanonicalizedPathType Path() const        { return m_canonicalizedPath; }
-    void SetPath(CanonicalizedPathType path);
 
 #if _WIN32
 

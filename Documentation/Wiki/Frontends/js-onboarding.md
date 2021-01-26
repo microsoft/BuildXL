@@ -9,6 +9,8 @@ Almost all the BuildXL configuration options are the same regardless of the coor
 
 Interested in running package install under BuildXL as well and benefit from caching? Check [here](js-package-install.md).
 
+Where do I get BuildXL from? The most convenient option for JavaScript developers is getting BuildXL as an [Npm package](https://www.npmjs.com/package/@microsoft/buildxl).
+
 ## The basics
 Moving an existing JavaScript repo to BuildXL may need some adjustments to conform to extra build guardrails BuildXL imposes to guarantee safe caching and distribution. Many repos though may need little or no changes, but that really depends on how well 'disciplined' a repo is.
 

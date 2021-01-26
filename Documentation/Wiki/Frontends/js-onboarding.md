@@ -7,6 +7,8 @@ Currently BuildXL knows how to talk to particular JS coordinators/package manage
 
 Almost all the BuildXL configuration options are the same regardless of the coordinator. In the examples that follow, we will use Rush to exemplify different scenarios, even though any other supported coordinator can be used instead. Check the [coordinator-specific options](js-coordinator-options.md) to understand the differences.
 
+Interested in running package install under BuildXL as well and benefit from caching? Check [here](js-package-install.md).
+
 ## The basics
 Moving an existing JavaScript repo to BuildXL may need some adjustments to conform to extra build guardrails BuildXL imposes to guarantee safe caching and distribution. Many repos though may need little or no changes, but that really depends on how well 'disciplined' a repo is.
 
@@ -145,4 +147,4 @@ There are some additional configuration options that may be required in more adv
 * [Performance considerations](js-perf.md)
 * [Beyond JavaScript - hybrid builds](js-hybrid-builds.md)
 * [Other misc options](js-misc-options.md)
-
+* [Package installation under BuildXL](js-package-install.md)

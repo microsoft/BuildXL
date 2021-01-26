@@ -28,17 +28,17 @@ namespace BuildXL.Cache.ContentStore.Utils
                 return 0;
             }
 
-            long numBytes;
+            double numBytes;
             const string exceptionMessage = "Invalid byte count expression: ";
             for (int i = 0; i < ByteSuffixes.Length; i++)
             {
                 var byteSuffix = ByteSuffixes[i];
                 if (expression.EndsWith(byteSuffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (long.TryParse(expression.Substring(0, expression.Length - byteSuffix.Length), out numBytes))
+                    if (double.TryParse(expression.Substring(0, expression.Length - byteSuffix.Length), out numBytes))
                     {
-                        numBytes *= (long)Math.Pow(1024, i);
-                        return numBytes;
+                        numBytes *= Math.Pow(1024, i);
+                        return (long)Math.Ceiling(numBytes);
                     }
 
                     throw new ArgumentException(exceptionMessage + expression, nameof(expression));
@@ -46,14 +46,14 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
 
             if (expression.EndsWith(AlternateByteSuffix, StringComparison.OrdinalIgnoreCase) &&
-                long.TryParse(expression.Substring(0, expression.Length - AlternateByteSuffix.Length), out numBytes))
+                double.TryParse(expression.Substring(0, expression.Length - AlternateByteSuffix.Length), out numBytes))
             {
-                return numBytes;
+                return (long)Math.Ceiling(numBytes);
             }
 
-            if (long.TryParse(expression, out numBytes))
+            if (double.TryParse(expression, out numBytes))
             {
-                return numBytes;
+                return (long)Math.Ceiling(numBytes);
             }
 
             throw new ArgumentException(exceptionMessage + expression);

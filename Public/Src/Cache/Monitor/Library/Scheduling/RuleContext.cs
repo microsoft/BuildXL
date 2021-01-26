@@ -26,7 +26,7 @@ namespace BuildXL.Cache.Monitor.App.Scheduling
 
         public OperationContext IntoOperationContext(ILogger logger)
         {
-            var tracingContext = new Context(logger);
+            var tracingContext = new Context(RunGuid, logger);
             return IntoOperationContext(tracingContext);
         }
 

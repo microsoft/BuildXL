@@ -17,6 +17,7 @@ using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using BuildXL.Cache.Monitor.App.Rules.Kusto;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Az;
 using BuildXL.Cache.Monitor.Library.Client;
 using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Notifications;
@@ -505,7 +506,8 @@ namespace BuildXL.Cache.Monitor.App
                 autoscalingAgentConfiguration.MaximumClusterMemoryAllowedMb = arguments.DynamicStampProperties.RedisAutoscalingMaximumClusterMemoryAllowedMb;
             }
 
-            var redisAutoscalingAgent = new RedisAutoscalingAgent(autoscalingAgentConfiguration, arguments.EnvironmentResources.MonitorManagementClient);
+            var azureMetricsClient = new AzureMetricsClient(arguments.EnvironmentResources.MonitorManagementClient);
+            var redisAutoscalingAgent = new RedisAutoscalingAgent(autoscalingAgentConfiguration, azureMetricsClient);
             var configuration = new RedisAutoscalingRule.Configuration(arguments.BaseConfiguration);
 
             var primaryRedisInstance = RedisInstance

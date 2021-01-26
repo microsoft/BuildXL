@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using Microsoft.Azure.Management.Fluent;
 using Microsoft.Azure.Management.Redis.Fluent;
@@ -18,7 +19,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
         {
         }
 
-        public override Task<BoolResult> ScaleAsync(IReadOnlyList<RedisClusterSize> scalePath, CancellationToken cancellationToken = default)
+        public override Task<BoolResult> ScaleAsync(OperationContext context, IReadOnlyList<RedisClusterSize> scalePath)
         {
             // This is very weird. The expectation here is that we will perform an autoscale. The issue is that when
             // working in read-only mode, we can't perform autoscales. I have thought about emulating as if they were

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 
 namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
@@ -25,6 +26,6 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
 
         Task<BoolResult> RefreshAsync(CancellationToken cancellationToken = default);
 
-        Task<BoolResult> ScaleAsync(IReadOnlyList<RedisClusterSize> scalePath, CancellationToken cancellationToken = default);
+        Task<BoolResult> ScaleAsync(OperationContext context, IReadOnlyList<RedisClusterSize> scalePath);
     }
 }

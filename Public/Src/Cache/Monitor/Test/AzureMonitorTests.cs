@@ -42,11 +42,11 @@ namespace BuildXL.Cache.Monitor.Test
                 Constants.DefaultAzureAppId,
                 appKey).ThrowIfFailure();
 
-            var monitorManagementClient = await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(
+            var monitorManagementClient = new AzureMetricsClient(await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(
                 Constants.DefaultAzureTenantId,
                 _environmentConfiguration.AzureSubscriptionId,
                 Constants.DefaultAzureAppId,
-                appKey).ThrowIfFailureAsync();
+                appKey).ThrowIfFailureAsync());
 
             // var redisCaches = (await azure.RedisCaches.ListAsync()).ToDictionary(cache => cache.Name, cache => cache);
 

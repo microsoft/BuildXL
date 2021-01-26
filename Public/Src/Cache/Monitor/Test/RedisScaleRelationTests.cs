@@ -6,6 +6,7 @@ using BuildXL.Cache.Monitor.App.Rules.Autoscaling;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
 using Xunit.Abstractions;
+using FluentAssertions;
 
 namespace BuildXL.Cache.Monitor.Test
 {
@@ -49,6 +50,22 @@ namespace BuildXL.Cache.Monitor.Test
                         Assert.True(RedisScalingUtilities.CanScale(inst1, inst2));
                     }
                 }
+            }
+        }
+
+        [Fact]
+        public void CantScaleIfEitherInstanceOrPlanChanges()
+        {
+            var cantScaleRelation =
+                from source in RedisClusterSize.Instances
+                from target in RedisClusterSize.Instances
+                where !source.Equals(target)
+                where !RedisScalingUtilities.CanScale(source, target)
+                select (source, target);
+
+            foreach (var (source, target) in cantScaleRelation)
+            {
+                (!source.Tier.Equals(target.Tier) || source.Shards != target.Shards).Should().BeTrue($"{source} -> {target}");
             }
         }
 

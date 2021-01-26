@@ -2,8 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -23,6 +24,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             }
 
             public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(1);
+
+            public TimeSpan MinimumWaitTimeBetweenDownscaleSteps { get; set; } = TimeSpan.FromMinutes(20);
         }
 
         private readonly Configuration _configuration;
@@ -30,6 +33,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
         private readonly RedisAutoscalingAgent _redisAutoscalingAgent;
         private readonly IRedisInstance _primaryRedisInstance;
         private readonly IRedisInstance _secondaryRedisInstance;
+
+        private readonly Dictionary<string, DateTime> _lastAutoscaleTimeUtc = new Dictionary<string, DateTime>();
 
         /// <inheritdoc />
         public override string Identifier => $"{nameof(RedisAutoscalingRule)}:{_configuration.StampId}";
@@ -110,7 +115,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 return ValidationOutcome.SecondaryUndergoingAutoscale;
             }
 
-            await AttemptToScaleAsync(context, primary, context.CancellationToken);
+            await AttemptToScaleAsync(context, primary);
             return ValidationOutcome.Success;
         }
 
@@ -137,13 +142,14 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             }
         }
 
-        private async Task<bool> AttemptToScaleAsync(RuleContext context, IRedisInstance redisInstance, CancellationToken cancellationToken)
+        private async Task<bool> AttemptToScaleAsync(RuleContext context, IRedisInstance redisInstance)
         {
             Contract.Requires(redisInstance.IsReadyToScale);
+            var operationContext = context.IntoOperationContext(_configuration.Logger);
 
             // Fetch which cluster size we want, and start scaling operation if needed.
             var currentClusterSize = redisInstance.ClusterSize;
-            var targetClusterSizeResult = await _redisAutoscalingAgent.EstimateBestClusterSizeAsync(context.IntoOperationContext(_configuration.Logger), redisInstance);
+            var targetClusterSizeResult = await _redisAutoscalingAgent.EstimateBestClusterSizeAsync(operationContext, redisInstance);
             if (!targetClusterSizeResult.Succeeded)
             {
                 Emit(context, "Autoscale", Severity.Error, $"Failed to find best plan for instance `{redisInstance.Name}` in plan `{currentClusterSize}`. Result=[{targetClusterSizeResult}]");
@@ -154,18 +160,67 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             Contract.AssertNotNull(modelOutput);
 
             var targetClusterSize = modelOutput.TargetClusterSize;
-            if (targetClusterSize.Equals(redisInstance.ClusterSize) || modelOutput.ScalePath.Count == 0)
+            if (targetClusterSize.Equals(currentClusterSize) || modelOutput.ScalePath.Count == 0)
             {
                 return false;
             }
 
-            Emit(context, "Autoscale", Severity.Warning, $"Autoscaling from `{currentClusterSize}` to `{targetClusterSize}` via scale path `{currentClusterSize} -> {string.Join(" -> ", modelOutput.ScalePath)}` for instance `{redisInstance.Name}`. Solution cost is `{modelOutput.Cost}`");
+            if (RedisScalingUtilities.IsDownScale(currentClusterSize, targetClusterSize))
+            {
+                // Downscales are typically about saving money rather than system health, hence, it's deprioritized.
 
-            var scaleResult = await redisInstance.ScaleAsync(modelOutput.ScalePath, cancellationToken);
+                // Force downscales to happen during very comfortable business hours in PST, to ensure we're always
+                // available if things go wrong. We disregard holidays because it's a pain to handle them.
+                var nowPst = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_configuration.Clock.UtcNow, "Pacific Standard Time");
+                if (!IsAutoscaleTimeAllowed(nowPst))
+                {
+                    Emit(context, "Autoscale", Severity.Info, $"Refused autoscale from `{currentClusterSize}` to `{targetClusterSize}` via scale path `{currentClusterSize} -> {string.Join(" -> ", modelOutput.ScalePath)}` for instance `{redisInstance.Name}` due to business hours constraints");
+                    return false;
+                }
+
+                // Downscales are performed in phases instead of all at once. If the model proposes an autoscale, we'll
+                // only take the first step of it in the current iteration, and force wait some amount of time until we
+                // allow this instance to be downscaled again. This gives some time to evaluate the effects of the last
+                // downscale (which typically takes time because migration's effects on instance memory and cpu load
+                // take some time to see).
+                //
+                // The intent of this measure is to avoid situations where our downscale causes heightened load in the
+                // remaining shards, forcing us to scale back to our original size after some time. This effect creates
+                // "autoscale loops" over time.
+                modelOutput.ScalePath = modelOutput.ScalePath.Take(1).ToList();
+                if (_lastAutoscaleTimeUtc.TryGetValue(redisInstance.Id, out var lastAutoscaleTimeUtc))
+                {
+                    var now = _configuration.Clock.UtcNow;
+                    if (now - lastAutoscaleTimeUtc < _configuration.MinimumWaitTimeBetweenDownscaleSteps)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            Emit(context, "Autoscale", Severity.Warning, $"Autoscaling from `{currentClusterSize}` ({currentClusterSize.MonthlyCostUsd} USD/mo) to `{targetClusterSize}` ({targetClusterSize.MonthlyCostUsd} USD/mo) via scale path `{currentClusterSize} -> {string.Join(" -> ", modelOutput.ScalePath)}` for instance `{redisInstance.Name}`. CostFunction=[{modelOutput.Cost}]");
+
+            var scaleResult = await redisInstance.ScaleAsync(operationContext, modelOutput.ScalePath);
+            _lastAutoscaleTimeUtc[redisInstance.Id] = _configuration.Clock.UtcNow;
             if (!scaleResult)
             {
                 Emit(context, "Autoscale", Severity.Error, $"Autoscale attempt from `{currentClusterSize}` to `{targetClusterSize}` for instance `{redisInstance.Name}` failed. Result=[{scaleResult}]");
                 scaleResult.ThrowIfFailure();
+            }
+
+            return true;
+        }
+
+        private static bool IsAutoscaleTimeAllowed(DateTime nowPst)
+        {
+            if (nowPst.DayOfWeek == DayOfWeek.Saturday || nowPst.DayOfWeek == DayOfWeek.Sunday)
+            {
+                return false;
+            }
+
+            if (nowPst.Hour < 10 || nowPst.Hour > 16)
+            {
+                return false;
             }
 
             return true;

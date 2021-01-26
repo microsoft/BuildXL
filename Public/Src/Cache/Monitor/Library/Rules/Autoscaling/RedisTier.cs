@@ -203,7 +203,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
                     (RedisPlan.Premium, 5), new RedisTierProperties
                     {
                         MemorySizeMb = 120_000,
-                        MonthlyCostPerShardUsd = 7469.76,
+                        MonthlyCostPerShardUsd = 7477.20,
                         NumCoresPerShard = 20,
                         AvailableBandwidthMb = 6000,
                         EstimatedRequestsPerSecond = 373_000,

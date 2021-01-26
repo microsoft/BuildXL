@@ -24,10 +24,10 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             {
                 case RedisPlan.Basic:
                     // You can't scale from a Basic cache directly to a Premium cache
-                    return to <= RedisPlan.Standard;
+                    return to == RedisPlan.Basic || to == RedisPlan.Standard;
                 case RedisPlan.Standard:
                     // You can't scale from a Standard cache down to a Basic cache
-                    return to >= RedisPlan.Standard;
+                    return to == RedisPlan.Standard || to == RedisPlan.Premium;
                 case RedisPlan.Premium:
                     // You can't scale from a Premium cache down to a Standard or a Basic cache
                     return to == RedisPlan.Premium;
@@ -48,16 +48,16 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 return false;
             }
 
-            // You can scale from a Basic cache to a Standard cache but you can't change the size at the same time
-            if (from.Plan == RedisPlan.Basic && to.Plan == RedisPlan.Standard)
-            {
-                return from.Capacity == to.Capacity;
-            }
-
             // You can't scale from a larger size down to the C0 (250 MB) size
             if ((to.Plan == RedisPlan.Basic || to.Plan == RedisPlan.Standard) && to.Capacity == 0)
             {
                 return false;
+            }
+
+            // You can scale the plan, but you can't simultaneously change the capacity
+            if (!from.Plan.Equals(to.Plan))
+            {
+                return from.Capacity == to.Capacity;
             }
 
             return true;
@@ -82,6 +82,58 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             }
 
             return true;
+        }
+
+        public static bool IsDownScale(RedisTier from, RedisTier to)
+        {
+            // Premium to Standard is a downscale, as well as Standard to basic and transitive.
+            if (from.Plan > to.Plan)
+            {
+                return true;
+            }
+
+            if (from.Plan < to.Plan)
+            {
+                return false;
+            }
+
+            // Plans are equal, so all we care about is instance capacity
+            return from.Capacity > to.Capacity;
+        }
+
+        public static bool IsDownScale(RedisClusterSize from, RedisClusterSize to)
+        {
+            // Same tier (i.e. P3) means that we only care about shards
+            if (from.Tier.Equals(to.Tier))
+            {
+                return from.Shards > to.Shards;
+            }
+
+            // Distinct tier, but same number of shards means we only care about tier
+            if (from.Shards == to.Shards)
+            {
+                return IsDownScale(from.Tier, to.Tier);
+            }
+
+            // Distinct tier and distinct number of shards gets a bit more complicated, so we turn to looking at memory
+            // capacity, server capacity, and cost
+
+            if (from.ClusterMemorySizeMb > to.ClusterMemorySizeMb)
+            {
+                return true;
+            }
+
+            if (from.EstimatedRequestsPerSecond > to.EstimatedRequestsPerSecond)
+            {
+                return true;
+            }
+
+            if (from.MonthlyCostUsd > to.MonthlyCostUsd)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         public static TimeSpan ExpectedScalingDelay(RedisClusterSize from, RedisClusterSize to)

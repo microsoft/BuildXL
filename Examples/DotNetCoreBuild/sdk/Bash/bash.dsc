@@ -16,7 +16,10 @@ export const untrackedSystemScopes = [
     d`/System/Library`,
     d`/AppleInternal`,
     d`/var`,
-    d`/bin`
+    d`/bin`,
+    ...(Environment.hasVariable("HOME") ? [
+        d`${Environment.getDirectoryValue("HOME")}/Library`
+    ] : [])
 ];
 
 @@public

@@ -97,6 +97,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | where Result == '{Constants.ResultCode.Success}'
                 | project PreciseTimeStamp, Message, Stamp
                 | parse Message with * 'SizeMb=[' SizeMb:double ']' *
+                | parse Message with * ' SizeOnDiskMb = ' SizeOnDiskMb:double ' ' *
+                | extend SizeMb = coalesce(SizeMb, SizeOnDiskMb)
                 | project PreciseTimeStamp, TotalSize=tolong(SizeMb * 1000000), Stamp 
                 | sort by PreciseTimeStamp asc";
 

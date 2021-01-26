@@ -2768,6 +2768,35 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Tests the DumpFailedPips flag to ensure that the execution log target is
+        /// added when the flag is enabled.
+        /// </summary>
+        /// <param name="enableLogging"> Test with the flag enabled or disabled </param>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task TestDumpFailedPipsFlagLoggingTarget(bool enableLogging)
+        {
+            Setup();
+            m_configuration.Logging.DumpFailedPips = enableLogging;
+            await RunScheduler();
+
+            var logTargets = ((MultiExecutionLogTarget)m_scheduler.ExecutionLog).LogTargets;
+            bool containsDumpPipLiteTarget = false;
+
+            foreach (var target in logTargets)
+            {
+                if (target.GetType().Equals(typeof(DumpPipLiteExecutionLogTarget)))
+                {
+                    containsDumpPipLiteTarget = true;
+                    break;
+                }
+            }
+
+            XAssert.IsTrue(containsDumpPipLiteTarget == enableLogging);
+        }
+
+        /// <summary>
         /// Helper method to check that a BXL enum matches its corresponding ProtoBuf Enum, and the two enums are not shifted
         /// </summary>
         private void VerifyNonShiftedEnumsAreEqual(Type bxlEnum, Type protobufEnum)

@@ -15,6 +15,11 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     public class MultiExecutionLogTarget : ExecutionLogTargetBase
     {
+        /// <summary>
+        /// Returns an array of log targets that are currently added to this multi execution log target.
+        /// </summary>
+        public IExecutionLogTarget[] LogTargets => m_targets;
+
         private IExecutionLogTarget[] m_targets;
 
         /// <nodoc />

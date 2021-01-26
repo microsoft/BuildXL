@@ -1317,6 +1317,12 @@ namespace BuildXL.Scheduler
                 fingerprintAugmentationTarget,
                 buildManifestStoreTarget);
 
+            if (configuration.Logging.DumpFailedPips.GetValueOrDefault())
+            {
+                m_dumpPipLiteExecutionLogTarget = new DumpPipLiteExecutionLogTarget(context, graph.PipTable, loggingContext);
+                m_multiExecutionLogTarget.AddExecutionLogTarget(m_dumpPipLiteExecutionLogTarget);
+            }
+
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
                 loggingContext,
@@ -5715,6 +5721,7 @@ namespace BuildXL.Scheduler
         private readonly FingerprintStoreExecutionLogTarget m_fingerprintStoreTarget;
         private readonly MultiExecutionLogTarget m_multiExecutionLogTarget;
         private readonly BuildManifestGenerator m_buildManifestGenerator;
+        private readonly DumpPipLiteExecutionLogTarget m_dumpPipLiteExecutionLogTarget;
 
         /// <inheritdoc/>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

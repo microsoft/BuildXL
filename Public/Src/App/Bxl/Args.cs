@@ -342,6 +342,9 @@ namespace BuildXL
                             "diag",
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "dumpFailedPips",
+                            opt => loggingConfiguration.DumpFailedPips = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
                             sign => distributionConfiguration.EarlyWorkerRelease = sign),
                         OptionHandlerFactory.CreateOption(

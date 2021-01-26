@@ -410,6 +410,14 @@ interface ResolverDefaults {
     nuget?: NuGetResolverDefaults;
 }
 
+interface LoggingConfiguration {
+    /**
+     * When set to true, the dump pip lite runtime analyzer will be enabled to dump information about failing pips.
+     * This option is enabled by default.
+     */
+    dumpFailedPips?: boolean;
+}
+
 interface Configuration {
     qualifiers?: QualifierConfiguration;
 
@@ -489,6 +497,9 @@ interface Configuration {
 
     /** Overrides for defaults by front-end resolver. */
     resolverDefaults?: ResolverDefaults;
+
+    /** BuildXL logging configuration */
+    logging?: LoggingConfiguration;
 }
 
 /** Configuration function that is used in config.ds for configuring a DScript source cone. */

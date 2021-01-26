@@ -382,6 +382,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_ScriptShowLargest,
                 HelpLevel.Verbose);
 
+            hw.WriteOption(
+                "/dumpFailedPips[+|-]",
+                Strings.HelpText_DisplayHelp_DumpFailedPips);
+
             #endregion
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_ErrorsAndWarningsBanner);

@@ -388,5 +388,13 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the maximum number of PerProcessPipPerformanceInformation batched messages to be sent to Aria
          /// </summary>
         public int MaxNumPipTelemetryBatches { get; }
+
+        /// <summary>
+        /// When set to true, the dump pip lite runtime analyzer will be enabled to dump information about failing pips.
+        /// </summary>
+        /// <remarks>
+        /// This option is enabled by default.
+        /// </remarks>
+        public bool? DumpFailedPips { get; }
     }
 }

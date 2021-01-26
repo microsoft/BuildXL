@@ -169,7 +169,7 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
         return undefined;
     }
 
-    const symbolMetadataFile = indexSymbolFiles(files);
+    const symbolMetadataFile = indexSymbolFiles(files, args);
 
     const fileMessageBody = files.length !== 0
         ? [
@@ -237,7 +237,7 @@ function addDirectories(createResult: SymbolCreateResult, args: OperationArgumen
     );
 }
 
-function indexSymbolFiles(files: File[]) : DerivedFile {
+function indexSymbolFiles(files: File[], args: OperationArguments) : DerivedFile {
     const symbolDataFileName = "symbol_data.txt";
 
     Contract.requires(
@@ -266,7 +266,12 @@ function indexSymbolFiles(files: File[]) : DerivedFile {
             // this causes DFAs and other issues.
             untrackedPaths: files
         },
-        description : "SymbolIndexing: " + files[0].name + " and " + (files.length - 1) + " other file(s)"
+        description : "SymbolIndexing: " + files[0].name + " and " + (files.length - 1) + " other file(s)",
+        tags: [
+            symbolTag,
+            `symbold-indexFiles`,
+            ...(args.tags || []),
+        ]
     }; 
 
     // run the tool
@@ -338,7 +343,12 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
         unsafe: {            
             untrackedScopes: directories.map(dir => dir.root)
         },
-        description : "SymbolIndexing: " + directories[0].name + " and " + (directories.length - 1) + " other directories(s)"
+        description : "SymbolIndexing: " + directories[0].name + " and " + (directories.length - 1) + " other directories(s)",
+        tags: [
+            symbolTag,
+            `symbold-indexDirectories`,
+            ...(args.tags || []),
+        ]
     }; 
 
     // run the tool

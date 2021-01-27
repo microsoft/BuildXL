@@ -243,7 +243,19 @@ namespace BuildXL.Cache.Host.Service.Internal
             return MultiLevelUtilities.RunManyLevelAsync(
                 GetSessionsInOrder<IReadOnlyContentSession>().ToArray(),
                 hashesWithPaths,
-                (session, hashes) => session.PlaceFileAsync(context, hashes, accessMode, replacementMode, realizationMode, cts, urgencyHint),
+                (session, hashes) =>
+                {
+                    // NOTE: this goes around the FileSystemContentStore's bulk place, rendering it useless. The reason
+                    // we do it this way is so that the hardlink logic stays consistent. This means that multiple place
+                    // operations from the same request may run at a higher rate than estipulated by the store.
+                    IEnumerable<Task<Indexed<PlaceFileResult>>> materializations = hashes.Select(async (hashWithPath, index) =>
+                    {
+                        var result = await PlaceFileAsync(context, hashWithPath.Hash, hashWithPath.Path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+                        return new Indexed<PlaceFileResult>(result, index);
+                    });
+
+                    return Task.FromResult(materializations.ToList().AsEnumerable());
+                },
                 p => p.Succeeded);
         }
 

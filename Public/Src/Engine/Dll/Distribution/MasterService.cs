@@ -170,7 +170,7 @@ namespace BuildXL.Engine.Distribution
                         // If we receive new failures from an already stopped worker (we're not talking to it anymore), we log them as verbose events instead.
                         // This prevents logging errors for failed work that we retried elsewhere after abandoning that worker: in those cases,
                         // the build will succeed but we will complain about the logged errors and crash.
-                        var shouldLogForwardedErrorAsVerbose = status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped;
+                        var shouldLogForwardedErrorAsVerbose = status == WorkerNodeStatus.Stopped;
                         Action<LoggingContext, WorkerForwardedEvent> logForwardedError =
                             shouldLogForwardedErrorAsVerbose ? Logger.Log.StoppedDistributionWorkerForwardedError : Logger.Log.DistributionWorkerForwardedError;
 

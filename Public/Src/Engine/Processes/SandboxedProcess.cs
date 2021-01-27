@@ -827,6 +827,11 @@ namespace BuildXL.Processes
             try
             {
                 process = System.Diagnostics.Process.GetProcessById(pid);
+                // Process.GetProcessById returns an object that is not fully initialized. Instead, the fields are populated the first time they are accessed.
+                // Because of that if a process exits before the object is initialized, reading any of the properties will result in an InvalidOperationException
+                // exception. Force initialization be querying the process name. Local function is used here just to make sure that the compiler does not
+                // optimize away the property access.
+                doNothing(process.ProcessName);
                 return true;
             }
             catch (ArgumentException aEx)
@@ -838,6 +843,11 @@ namespace BuildXL.Processes
                 Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(m_loggingContext, pid.ToString(), $"Failed with Exception: {ioEx.Message}");
             }
             return false;
+
+            void doNothing(string _)
+            {
+                // no-op
+            }
         }
 
         private bool ShouldWaitForSurvivingChildProcesses(JobObject jobObject)

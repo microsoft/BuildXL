@@ -56,6 +56,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <nodoc />
         public static UnixTime Min(UnixTime left, UnixTime right) => Math.Min(left.Value, right.Value) == left.Value ? left : right;
 
+        public static UnixTime Max(UnixTime left, UnixTime right) => Math.Max(left.Value, right.Value) == left.Value ? left : right;
+
         /// <nodoc />
         public static implicit operator UnixTime(DateTime value)
         {

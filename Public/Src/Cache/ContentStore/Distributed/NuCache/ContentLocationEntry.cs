@@ -159,7 +159,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new ContentLocationEntry(
                 entry1.Locations.SetExistence(MachineIdCollection.Create(entry2.Locations.ToArray()), true),
                 entry1.ContentSize,
-                UnixTime.Min(entry1.LastAccessTimeUtc, entry2.LastAccessTimeUtc),
+                UnixTime.Max(entry1.LastAccessTimeUtc, entry2.LastAccessTimeUtc),
                 UnixTime.Min(entry1.CreationTimeUtc, entry2.CreationTimeUtc));
         }
 

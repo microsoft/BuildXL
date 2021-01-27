@@ -124,7 +124,7 @@ namespace BuildXL.Scheduler
             if (result.Succeeded && result.Result?.MetadataHash != null)
             {
                 // HashType information is sometimes lost in the caching layers. Manually overwriting the HashType to avoid invalid build manifest generation.
-                return new ContentHash(ContentHashingUtilities.BuildManifestHashType, result.Result?.MetadataHash.ToByteArray());
+                return new ContentHash(ContentHashingUtilities.BuildManifestHashType, result.Result?.MetadataHash.ToHashByteArray());
             }
 
             return null;

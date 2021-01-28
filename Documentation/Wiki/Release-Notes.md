@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210122.8 (Release [93209](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=93209)) Released 1/27/2020
+- Add breakaway process option in JS resolvers
+- [Detours] Fix symlink traversal for CreateFileW and NtCreateFile
+- Add the ability for DScript modules to define mounts
+- Various fixes and improvements
+
 # 0.1.0-20210118.0 (Release [92598](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=92598)) Released 1/20/2020
 - Process remoting via AnyBuild.
 - Added JavaScript SDK

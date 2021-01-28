@@ -572,17 +572,17 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
         }
 
         [Fact]
-        public async Task FailingStartupThrowsResultPropagationException()
+        public Task FailingStartupThrowsResultPropagationException()
         {
             var configuration = new ResourcePoolConfiguration();
 
-            await RunTest<Key, FailingResource>(async (context, pool) =>
-            {
-                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
-                {
-                    return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
-                });
-            },
+            return RunTest<Key, FailingResource>(async (context, pool) =>
+             {
+                 _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                 {
+                     return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
+                 });
+             },
             _ => new FailingResource(startupFailure: true),
             configuration);
         }

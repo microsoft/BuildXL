@@ -45,9 +45,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         }
 
         /// <inheritdoc />
-        public async Task<CopySchedulerResult<CopyFileResult>> ScheduleOutboundPullAsync(OutboundPullCopy request)
+        public Task<CopySchedulerResult<CopyFileResult>> ScheduleOutboundPullAsync(OutboundPullCopy request)
         {
-            return await _outboundPullGate.GatedOperationAsync(async pair =>
+            return _outboundPullGate.GatedOperationAsync(async pair =>
                 {
                     var (timeWaiting, currentCount) = pair;
 
@@ -66,10 +66,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         }
 
         /// <inheritdoc />
-        public async Task<CopySchedulerResult<T>> ScheduleOutboundPushAsync<T>(OutboundPushCopy<T> request)
+        public Task<CopySchedulerResult<T>> ScheduleOutboundPushAsync<T>(OutboundPushCopy<T> request)
             where T : class
         {
-            return await _outboundPushGate.GatedOperationAsync(async pair =>
+            return _outboundPushGate.GatedOperationAsync(async pair =>
                 {
                     var (timeWaiting, currentCount) = pair;
 

@@ -94,13 +94,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Test
             }
 
             var tcs = new TaskCompletionSource<RunSummary>();
-            var thread = new Thread(async () =>
+            var thread = new Thread(() =>
             {
                 Assert.Equal(Thread.CurrentThread.GetApartmentState(), ApartmentState.MTA);
 
                 try
                 {
-                    var result = await _testCase.RunAsync(diagnosticMessageSink, messageBus, constructorArguments, aggregator, cancellationTokenSource);
+                    var result = _testCase.RunAsync(diagnosticMessageSink, messageBus, constructorArguments, aggregator, cancellationTokenSource).GetAwaiter().GetResult();
                     tcs.SetResult(result);
                 }
                 catch (Exception e)

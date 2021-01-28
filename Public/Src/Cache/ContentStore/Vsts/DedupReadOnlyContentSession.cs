@@ -601,9 +601,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 {
                     // Root node has expired.
                 },
-                async (needAction) =>
+                (needAction) =>
                 {
-                    pinResult = await TryPinChildrenAsync(context, dedupId, needAction.InsufficientKeepUntil, keepUntil);
+                    pinResult = TryPinChildrenAsync(context, dedupId, needAction.InsufficientKeepUntil, keepUntil).GetAwaiter().GetResult();
                 },
                 (added) =>
                 {

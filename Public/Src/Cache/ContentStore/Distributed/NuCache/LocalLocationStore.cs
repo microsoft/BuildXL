@@ -410,9 +410,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _heartbeatMachineState = MachineState.Closed;
 
-#pragma warning disable AsyncFixer02
             _heartbeatTimer?.Dispose();
-#pragma warning restore AsyncFixer02
 
             await GlobalStore.SetLocalMachineStateAsync(context, MachineState.Closed).IgnoreFailure();
 
@@ -879,10 +877,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         // We acknowledge this function is not thread safe, but do not anticipate this being a problem, since checkpoints should not be restored in multiple occurrences.
-        private async Task CancelCurrentReconciliationAsync(OperationContext context)
+        private Task CancelCurrentReconciliationAsync(OperationContext context)
         {
             // Using PerformOperationAsync for tracing purposes.
-            await context.PerformOperationAsync(
+            return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {

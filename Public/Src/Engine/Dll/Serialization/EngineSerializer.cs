@@ -319,14 +319,12 @@ namespace BuildXL.Engine
             Action<BuildXLWriter> serializer,
             string overrideName = null)
         {
-            var task = SerializeToFileInternal(fileType, serializer, overrideName);
+            var task = SerializeToFileInternalAsync(fileType, serializer, overrideName);
             SerializationTasks.Add(task);
             return task;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-        private async Task<SerializationResult> SerializeToFileInternal(GraphCacheFile fileType, Action<BuildXLWriter> serializer, string overrideName)
+        private async Task<SerializationResult> SerializeToFileInternalAsync(GraphCacheFile fileType, Action<BuildXLWriter> serializer, string overrideName)
         {
             // Unblock the caller
             await Task.Yield();

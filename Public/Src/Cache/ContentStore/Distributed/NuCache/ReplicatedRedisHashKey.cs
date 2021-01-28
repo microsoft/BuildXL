@@ -218,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new Result<T>(result, isNullAllowed: true);
         }
 
-        private async Task TryMirrorRedisHashDataAsync(
+        private Task TryMirrorRedisHashDataAsync(
             OperationContext context,
             RedisDatabaseAdapter source,
             RedisDatabaseAdapter target,
@@ -226,7 +226,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             long secondaryVersion,
             long? postMirrorSourceVersion = null)
         {
-            await context.PerformOperationAsync(
+            return context.PerformOperationAsync(
                 _host.Tracer,
                 async () =>
                 {

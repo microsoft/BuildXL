@@ -71,12 +71,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Repeatedly executes the specified asynchronous task with the ArtifactHttpClientErrorDetectionStrategy, logging attempts beyond the first.
         /// </summary>
-        public static async Task<T> ExecuteWithTimeoutAsync<T>(Context context, string operationName, Func<CancellationToken, Task<T>> taskFunc, CancellationToken ct, TimeSpan? timeout = null)
+        public static Task<T> ExecuteWithTimeoutAsync<T>(Context context, string operationName, Func<CancellationToken, Task<T>> taskFunc, CancellationToken ct, TimeSpan? timeout = null)
         {
             timeout = timeout ?? DefaultOperationTimeout;
 
             int attemptCount = 0;
-            return await LazyRetryPolicyInstance.Value.ExecuteAsync(
+            return LazyRetryPolicyInstance.Value.ExecuteAsync(
                 async () =>
                 {
                     // We need to use a fresh cancellation token in retries; otherwise, the operation will continuously get cancelled after the first timeout. 

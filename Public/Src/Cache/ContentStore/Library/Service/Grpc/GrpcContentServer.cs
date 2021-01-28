@@ -821,9 +821,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 traceStartAndStop: true);
         }
 
-        private async Task<DeleteContentResponse> DeleteAsync(DeleteContentRequest request, CancellationToken ct)
+        private Task<DeleteContentResponse> DeleteAsync(DeleteContentRequest request, CancellationToken ct)
         {
-            return await RunFuncNoSessionAsync(
+            return RunFuncNoSessionAsync(
                 request.TraceId,
                 async context =>
                 {

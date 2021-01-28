@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         ///     Alternative for UploadAndReferenceBlobAsync that uses WalkBlocksAsync instead of the synchronous WalkBlocks.
         ///     Also utilizes the AsyncHttpRetryHelper to mitigate transient exceptions.
         /// </summary>
-        public static async Task UploadAndReferenceBlobWithRetriesAsync(
+        public static Task UploadAndReferenceBlobWithRetriesAsync(
             this IBlobStoreHttpClient client,
             BlobIdentifier blobId,
             Stream stream,
@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             Contract.Requires(stream != null);
 
             var attempt = 0;
-            await AsyncHttpRetryHelper.InvokeVoidAsync(
+            return AsyncHttpRetryHelper.InvokeVoidAsync(
                 async () =>
                 {
                     bool blobUploaded = false;

@@ -19,8 +19,6 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Interop.Unix.Sandbox.AccessReport;
 
-#pragma warning disable AsyncFixer02
-
 namespace Test.BuildXL.Processes
 {
     [TestClassIfSupported(requiresMacOperatingSystem: true)]

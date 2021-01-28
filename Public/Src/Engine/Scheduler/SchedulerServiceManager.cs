@@ -246,13 +246,11 @@ namespace BuildXL.Scheduler
                     loggingContext))
                 {
                     var serviceStartTask = PipExecutor.ExecuteServiceStartOrShutdownAsync(
-#pragma warning disable AsyncFixer04 // A disposable object used in a fire & forget async call
                         // Bug #1155822: There is a race condition where service start/shutdown can
                         // cause crash in the operation tracker because the parent operation is already completed
                         // this is not fully understood, but the tracking of details of services operations is not
                         // important so this disables it
                         OperationContext.CreateUntracked(loggingContext),
-#pragma warning restore AsyncFixer04 // A disposable object used in a fire & forget async call
                         environment,
                         serviceProcess,
                         processId =>

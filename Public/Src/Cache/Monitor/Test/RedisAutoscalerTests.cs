@@ -29,9 +29,9 @@ namespace BuildXL.Cache.Monitor.Test
         }
 
         [Fact]
-        public async Task DisallowsLowCostDownscalesAsync()
+        public Task DisallowsLowCostDownscalesAsync()
         {
-            await RunTestAsync(async (operationContext, redisAutoscalingAgent) =>
+            return RunTestAsync(async (operationContext, redisAutoscalingAgent) =>
             {
                 var redisInstance = new MockRedisInstance(RedisClusterSize.Parse("P2/1"));
                 redisAutoscalingAgent.UsedMemoryBytes.Add("7.4 GB".ToSize());
@@ -53,9 +53,9 @@ namespace BuildXL.Cache.Monitor.Test
         [InlineData("P1/2", new[] { "P1/3" }, "11 GB")]
         [InlineData("P1/3", new[] { "P1/4" }, "16 GB")]
         [InlineData("P1/4", new[] { "P1/6" }, "22 GB")]
-        public async Task PrefersAddingShardsWhenMemoryGrowsAsync(string initialClusterSize, IEnumerable<string> expectedPath, string usedMemoryAcrossAllShards)
+        public Task PrefersAddingShardsWhenMemoryGrowsAsync(string initialClusterSize, IEnumerable<string> expectedPath, string usedMemoryAcrossAllShards)
         {
-            await RunTestAsync(async (operationContext, redisAutoscalingAgent) =>
+            return RunTestAsync(async (operationContext, redisAutoscalingAgent) =>
             {
                 redisAutoscalingAgent.UsedMemoryBytes.Add(usedMemoryAcrossAllShards.ToSize());
                 redisAutoscalingAgent.OperationsPerSecond.Add(10);
@@ -72,7 +72,6 @@ namespace BuildXL.Cache.Monitor.Test
             });
         }
 
-        [SuppressMessage("AsyncUsage", "AsyncFixer01:Unnecessary async/await usage", Justification = "Dispose of Logger/ConsoleLog")]
         private async Task RunTestAsync(Func<OperationContext, TestableRedisAutoscalingAgent, Task> testFunc)
         {
             // Console is forwarded to XUnit as per TestBase

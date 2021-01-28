@@ -181,9 +181,9 @@ namespace BuildXL.Cache.Analyzer
         /// </summary>
         /// <param name="casHash">CasHash value to check</param>
         /// <param name="errors">Where any cache errors found get stored</param>
-        private async Task CheckCasHashAsync(CasHash casHash, ConcurrentDictionary<CacheError, int> errors)
+        private Task CheckCasHashAsync(CasHash casHash, ConcurrentDictionary<CacheError, int> errors)
         {
-            await AllCasHashes.GetOrAdd(casHash, async (cH) =>
+            return AllCasHashes.GetOrAdd(casHash, async (cH) =>
             {
                 if (!(await AttemptToPinAsync(casHash)))
                 {

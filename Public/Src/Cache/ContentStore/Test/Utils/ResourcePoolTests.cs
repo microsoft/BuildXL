@@ -232,7 +232,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
         }
 
         [Fact]
-        public async Task CreateFailsAfterDispose()
+        public Task CreateFailsAfterDispose()
         {
             var capacity = 2;
             var context = new Context(TestGlobal.Logger);
@@ -244,10 +244,10 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
             pool.Dispose();
 
-            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            {
-                using var obj1 = await pool.CreateAsync(new Key(0));
-            });
+            return Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+             {
+                 using var obj1 = await pool.CreateAsync(new Key(0));
+             });
         }
     }
 }

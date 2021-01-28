@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             => new CancellableOperationContext(new OperationContext(context, token), ShutdownStartedCancellationToken);
 
         /// <inheritdoc />
-        public virtual async Task<BoolResult> StartupAsync(Context context)
+        public virtual Task<BoolResult> StartupAsync(Context context)
         {
             if (AllowMultipleStartupAndShutdowns)
             {
@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     return result;
                 }));
 
-            return await _lazyStartupTask!.Value;
+            return _lazyStartupTask!.Value;
         }
 
         /// <inheritdoc />

@@ -231,9 +231,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             _disposed = true;
 
-#pragma warning disable AsyncFixer02
             _timer.Dispose();
-#pragma warning restore AsyncFixer02
 
             // If the timer's callback is still running, this operation will be skipped due to re-entrancy check inside of it.
             LogCurrentTimeStampToFile(new OperationContext(_originalTracingContext));

@@ -38,11 +38,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _retention = retention;
         }
 
-        public async Task<Result<AbsolutePath>> BackupAsync(OperationContext context, AbsolutePath instancePath, string? name = null)
+        public Task<Result<AbsolutePath>> BackupAsync(OperationContext context, AbsolutePath instancePath, string? name = null)
         {
             int numCopiedFiles = 0;
             AbsolutePath? backupPath = null;
-            return await context.PerformOperationAsync(_tracer, async () =>
+            return context.PerformOperationAsync(_tracer, async () =>
             {
                 var backupTime = _clock.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
                 var backupName = backupTime;
@@ -72,9 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Do not use Async here: since EnumerateFiles takes an Action, making this async means we'll
                         // need to make the action async as well, which is equivalent to an async void function. That
                         // leads to race conditions.
-#pragma warning disable AsyncFixer02 // Long running or blocking operations under an async method
                         _fileSystem.CopyFile(fileInfo.FullPath, targetFilePath, replaceExisting: true);
-#pragma warning restore AsyncFixer02 // Long running or blocking operations under an async method
 
                         ++numCopiedFiles;
                     });

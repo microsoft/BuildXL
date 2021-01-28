@@ -400,6 +400,7 @@ namespace Test.Tool.DropDaemon
         }
 
         [Fact]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         public void TestDropDaemonOutrightRejectSymlinks()
         {
             // create a regular file that mocks a symlink (because creating symlinks on Windows is difficult?!?)

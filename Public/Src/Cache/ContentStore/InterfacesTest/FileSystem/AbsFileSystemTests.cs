@@ -1056,9 +1056,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 using (var stream = await FileSystem.OpenAsync(
                     source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
                 {
-#pragma warning disable AsyncFixer02
                     stream?.Dispose();
-#pragma warning restore AsyncFixer02
                 }
             }
         }

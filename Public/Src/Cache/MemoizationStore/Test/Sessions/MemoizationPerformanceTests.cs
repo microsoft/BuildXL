@@ -173,11 +173,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
         }
 
         [Fact]
-        public async Task GetExistingSelectors()
+        public Task GetExistingSelectors()
         {
             IList<Fingerprint> weakFingerprints = null;
 
-            await Run(
+            return Run(
                 nameof(GetExistingSelectors),
                 async (session, store) =>
                 {
@@ -209,11 +209,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
         }
 
         [Fact]
-        public async Task GetExistingContentHashList()
+        public Task GetExistingContentHashList()
         {
             IList<StrongFingerprint> strongFingerprints = null;
 
-            await Run(
+            return Run(
                 nameof(GetExistingContentHashList),
                 async (session, store) =>
                 {
@@ -250,11 +250,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
         }
 
         [Fact]
-        public async Task AddOrGetContentHashListGets()
+        public Task AddOrGetContentHashListGets()
         {
             List<Record> items = null;
 
-            await Run(
+            return Run(
                 nameof(AddOrGetContentHashListGets),
                 async (session, store) =>
                 {
@@ -303,7 +303,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
             }
         }
 
-        private static async Task Get(Context context, IMemoizationSession session, IList<StrongFingerprint> strongFingerprints)
+        private static Task Get(Context context, IMemoizationSession session, IList<StrongFingerprint> strongFingerprints)
         {
             var tasks = Enumerable.Range(0, strongFingerprints.Count).Select(i => Task.Run(async () =>
             {
@@ -311,10 +311,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                 r.Succeeded.Should().BeTrue();
             }));
 
-            await TaskSafetyHelpers.WhenAll(tasks);
+            return TaskSafetyHelpers.WhenAll(tasks);
         }
 
-        private static async Task AddOrGet(
+        private static Task AddOrGet(
             Context context, IMemoizationSession session, List<Record> records)
         {
             var tasks = Enumerable.Range(0, records.Count).Select(i => Task.Run(async () =>
@@ -325,7 +325,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                 r.ContentHashListWithDeterminism.ContentHashList.Should().BeNull();
             }));
 
-            await TaskSafetyHelpers.WhenAll(tasks);
+            return TaskSafetyHelpers.WhenAll(tasks);
         }
 
         private async Task<List<StrongFingerprint>> EnumerateStrongFingerprintsAsync(Context context, IMemoizationStore store, int count)

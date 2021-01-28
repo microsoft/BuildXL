@@ -138,9 +138,7 @@ namespace BuildXL.FrontEnd.Utilities
                 r =>
                 {
                     // Dispose the registration for the cancellation token once the process is done
-#pragma warning disable AsyncFixer02
                     registration.Dispose();
-#pragma warning restore AsyncFixer02
 
 
                     //

@@ -31,9 +31,9 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task EvictionAnnouncesHash()
+        public Task EvictionAnnouncesHash()
         {
-            await TestStore(
+            return TestStore(
                 _context,
                 _clock,
                 async store =>
@@ -54,23 +54,23 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task FileSystemContentStoreInternalWithNullGarbageCollector()
+        public Task FileSystemContentStoreInternalWithNullGarbageCollector()
         {
-            await TestStore(_context, _clock, async store =>
-            {
-                var cas = store as IContentStoreInternal;
-                var blobSize = BlobSizeToStartSoftPurging(2);
+            return TestStore(_context, _clock, async store =>
+             {
+                 var cas = store as IContentStoreInternal;
+                 var blobSize = BlobSizeToStartSoftPurging(2);
 
-                using (var stream1 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))
-                using (var stream2 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))
-                {
-                    await cas.PutStreamAsync(_context, stream1, ContentHashType).ShouldBeSuccess();
-                    _clock.Increment();
-                    await cas.PutStreamAsync(_context, stream2, ContentHashType).ShouldBeSuccess();
-                    _clock.Increment();
-                    await store.SyncAsync(_context);
-                }
-            });
+                 using (var stream1 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))
+                 using (var stream2 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))
+                 {
+                     await cas.PutStreamAsync(_context, stream1, ContentHashType).ShouldBeSuccess();
+                     _clock.Increment();
+                     await cas.PutStreamAsync(_context, stream2, ContentHashType).ShouldBeSuccess();
+                     _clock.Increment();
+                     await store.SyncAsync(_context);
+                 }
+             });
         }
     }
 }

@@ -18,8 +18,6 @@ using Xunit;
 using static BuildXL.Native.IO.Windows.FileUtilitiesWin;
 using NativeLogEventId = BuildXL.Native.Tracing.LogEventId;
 
-#pragma warning disable AsyncFixer02
-
 namespace Test.BuildXL.Storage
 {
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -1058,5 +1056,3 @@ namespace Test.BuildXL.Storage
         }
     }
 }
-
-#pragma warning restore AsyncFixer02

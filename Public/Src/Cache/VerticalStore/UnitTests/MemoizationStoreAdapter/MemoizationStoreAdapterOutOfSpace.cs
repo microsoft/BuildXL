@@ -66,52 +66,52 @@ namespace BuildXL.Cache.Tests
         }
 
         [Fact]
-        public async Task TestSessionForOutOfSpaceAtOnce()
+        public Task TestSessionForOutOfSpaceAtOnce()
         {
-           await TestForOutOfSpace(
-                nameof(TestSessionForOutOfSpaceAtOnce),
-                async session =>
-                     {
-                         var random = new Random();
+            return TestForOutOfSpace(
+                 nameof(TestSessionForOutOfSpaceAtOnce),
+                 async session =>
+                      {
+                          var random = new Random();
 
                          // Add content exceeding quota.
                          var content = new byte[(1024 * 1024) + 1024];
-                         random.NextBytes(content);
+                          random.NextBytes(content);
 
-                         using (var stream = new MemoryStream(content))
-                         {
-                             var result = await session.AddToCasAsync(stream);
-                             Assert.False(result.Succeeded);
+                          using (var stream = new MemoryStream(content))
+                          {
+                              var result = await session.AddToCasAsync(stream);
+                              Assert.False(result.Succeeded);
 
-                             string dummy;
-                             Assert.True(
-                                 MemoizationStoreAdapterCacheCacheSession.IsOutOfSpaceError(
-                                     result.Failure.DescribeIncludingInnerFailures(),
-                                     out dummy));
-                         }
+                              string dummy;
+                              Assert.True(
+                                  MemoizationStoreAdapterCacheCacheSession.IsOutOfSpaceError(
+                                      result.Failure.DescribeIncludingInnerFailures(),
+                                      out dummy));
+                          }
 
                          // Add content smaller than quota.
                          content = new byte[1024];
-                         random.NextBytes(content);
+                          random.NextBytes(content);
 
-                         using (var stream = new MemoryStream(content))
-                         {
-                             var result = await session.AddToCasAsync(stream);
-                             Assert.False(result.Succeeded);
+                          using (var stream = new MemoryStream(content))
+                          {
+                              var result = await session.AddToCasAsync(stream);
+                              Assert.False(result.Succeeded);
 
-                             string dummy;
-                             Assert.True(
-                                 MemoizationStoreAdapterCacheCacheSession.IsOutOfSpaceError(
-                                     result.Failure.DescribeIncludingInnerFailures(),
-                                     out dummy));
-                         }
-                     });
+                              string dummy;
+                              Assert.True(
+                                  MemoizationStoreAdapterCacheCacheSession.IsOutOfSpaceError(
+                                      result.Failure.DescribeIncludingInnerFailures(),
+                                      out dummy));
+                          }
+                      });
         }
 
         [Fact]
-        public async Task TestSessionForOutOfSpace()
+        public Task TestSessionForOutOfSpace()
         {
-            await TestForOutOfSpace(
+            return TestForOutOfSpace(
                nameof(TestSessionForOutOfSpaceAtOnce),
                async session =>
                {

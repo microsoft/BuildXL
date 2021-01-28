@@ -38,9 +38,9 @@ namespace BuildXL.Cache.Roxis.Test
             return _database.ShutdownAsync(context);
         }
 
-        public async Task<Result<CommandResponse>> ExecuteAsync(OperationContext context, CommandRequest request)
+        public Task<Result<CommandResponse>> ExecuteAsync(OperationContext context, CommandRequest request)
         {
-            return await context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationAsync(Tracer, async () =>
             {
                 var results = await Task.WhenAll(request.Commands.Select(c => _database.HandleAsync(c)));
                 return Result.Success(new CommandResponse(results));

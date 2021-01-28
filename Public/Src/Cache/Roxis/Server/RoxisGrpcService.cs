@@ -80,7 +80,7 @@ namespace BuildXL.Cache.Roxis.Server
                 _service = service;
             }
 
-            public override async Task<Reply> Execute(Request request, ServerCallContext callContext)
+            public override Task<Reply> Execute(Request request, ServerCallContext callContext)
             {
                 // TODO: read-only stream wrap over a span
                 // TODO: unsafe byte string
@@ -101,7 +101,7 @@ namespace BuildXL.Cache.Roxis.Server
                 var tracingContext = new Context(operationId, _context.TracingContext.Logger);
                 var operationContext = new OperationContext(tracingContext, token: callContext.CancellationToken);
 
-                return await operationContext.PerformNonResultOperationAsync(Tracer, async () =>
+                return operationContext.PerformNonResultOperationAsync(Tracer, async () =>
                 {
                     var commandRequest = _serializationPool.Deserialize(request.Request_.ToByteArray(), reader => CommandRequest.Deserialize(reader));
 

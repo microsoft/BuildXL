@@ -230,7 +230,6 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
             Contract.Requires(notification.ExecutionLogData.Count != 0);

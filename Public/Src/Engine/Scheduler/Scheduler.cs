@@ -654,28 +654,30 @@ namespace BuildXL.Scheduler
             // Unblock caller.
             await Task.Yield();
 
-            Parallel.Invoke(
-                async () =>
+            var fileChangeTrackerSaveTask = Task.Run(async () =>
+            {
+                m_fileChangeTracker.SaveTrackingStateIfChanged(fileChangeTrackerPath, fileEnvelopeId);
+                if (m_configuration.Logging.LogExecution && m_configuration.Engine.ScanChangeJournal)
                 {
-                    m_fileChangeTracker.SaveTrackingStateIfChanged(fileChangeTrackerPath, fileEnvelopeId);
-                    if (m_configuration.Logging.LogExecution && m_configuration.Engine.ScanChangeJournal)
-                    {
-                        await TryDuplicateSchedulerFileToLogDirectoryAsync(loggingContext, m_fileChangeTrackerFile, DefaultSchedulerFileChangeTrackerFile);
-                    }
-                },
-                async () =>
-                {
-                    if (IncrementalSchedulingState != null)
-                    {
-                        string dirtyNodePath = m_incrementalSchedulingStateFile.ToString(Context.PathTable);
-                        IncrementalSchedulingState.SaveIfChanged(fileEnvelopeId, dirtyNodePath);
+                    await TryDuplicateSchedulerFileToLogDirectoryAsync(loggingContext, m_fileChangeTrackerFile, DefaultSchedulerFileChangeTrackerFile);
+                }
+            });
 
-                        if (m_configuration.Logging.LogExecution)
-                        {
-                            await TryDuplicateSchedulerFileToLogDirectoryAsync(loggingContext, m_incrementalSchedulingStateFile, DefaultIncrementalSchedulingStateFile);
-                        }
+            var incrementalStateSaveTask = Task.Run(async () =>
+            {
+                if (IncrementalSchedulingState != null)
+                {
+                    string dirtyNodePath = m_incrementalSchedulingStateFile.ToString(Context.PathTable);
+                    IncrementalSchedulingState.SaveIfChanged(fileEnvelopeId, dirtyNodePath);
+
+                    if (m_configuration.Logging.LogExecution)
+                    {
+                        await TryDuplicateSchedulerFileToLogDirectoryAsync(loggingContext, m_incrementalSchedulingStateFile, DefaultIncrementalSchedulingStateFile);
                     }
-                });
+                }
+            });
+
+            await Task.WhenAll(fileChangeTrackerSaveTask, incrementalStateSaveTask);
         }
 
         private async Task TryDuplicateSchedulerFileToLogDirectoryAsync(LoggingContext loggingContext, AbsolutePath filePath, string destinationFileName)

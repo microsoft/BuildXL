@@ -262,12 +262,12 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Bond-serializes a given <typeparamref name="T"/> and stores the result to the content cache.
         /// The returned content hash can be used to later deserialize the structure with <see cref="TryLoadAndDeserializeContent{T}"/>.
         /// </summary>
-        public static async Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
+        public static Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
             this IArtifactContentCache contentCache,
             T valueToSerialize,
             BoxRef<long> contentSize = null)
         {
-            return await BondExtensions.TrySerializeAndStoreContent(
+            return BondExtensions.TrySerializeAndStoreContent(
                 valueToSerialize,
                 async (valueHash, valueBuffer) =>
                 {

@@ -14,8 +14,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
-#pragma warning disable AsyncFixer02
-
 namespace Test.BuildXL.Processes
 {
     [Trait("Category", "FileAccessExplicitReportingTest")]

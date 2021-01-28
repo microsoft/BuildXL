@@ -2351,9 +2351,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                             if (possiblyStream.Succeeded)
                             {
-#pragma warning disable AsyncFixer02
                                 possiblyStream.Result.Dispose();
-#pragma warning restore AsyncFixer02
 
                                 var possiblyPlaced =
                                     new Possible<ContentMaterializationResult>(

@@ -172,30 +172,30 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected abstract Task VerifyPutStreamCallCounterBumpedOnUse(ICache cache, Context context);
 
-        private async Task RunCacheAndSessionTestAsync(Func<ICache, ICacheSession, Context, Task> funcAsync)
+        private Task RunCacheAndSessionTestAsync(Func<ICache, ICacheSession, Context, Task> funcAsync)
         {
             var context = new Context(Logger);
-            await RunTestAsync(context, async cache =>
-            {
-                var createSessionResult = cache.CreateSession(context, context.Id.ToString(), ImplicitPin.None);
-                createSessionResult.ShouldBeSuccess();
+            return RunTestAsync(context, async cache =>
+             {
+                 var createSessionResult = cache.CreateSession(context, context.Id.ToString(), ImplicitPin.None);
+                 createSessionResult.ShouldBeSuccess();
 
-                using (ICacheSession session = createSessionResult.Session)
-                {
-                    try
-                    {
-                        var startupResult = await session.StartupAsync(context);
-                        startupResult.ShouldBeSuccess();
+                 using (ICacheSession session = createSessionResult.Session)
+                 {
+                     try
+                     {
+                         var startupResult = await session.StartupAsync(context);
+                         startupResult.ShouldBeSuccess();
 
-                        await funcAsync(cache, session, context);
-                    }
-                    finally
-                    {
-                        var shutdownResult = await session.ShutdownAsync(context);
-                        shutdownResult.ShouldBeSuccess();
-                    }
-                }
-            });
+                         await funcAsync(cache, session, context);
+                     }
+                     finally
+                     {
+                         var shutdownResult = await session.ShutdownAsync(context);
+                         shutdownResult.ShouldBeSuccess();
+                     }
+                 }
+             });
         }
     }
 }

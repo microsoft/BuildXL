@@ -26,9 +26,9 @@ namespace Test.BuildXL.Ipc
             : base(output) { }
 
         [Fact]
-        public async Task TestUnawaited()
+        public Task TestUnawaited()
         {
-            await WithServer(
+            return WithServer(
                 nameof(TestUnawaited),
                 EchoingExecutor,
                 maxConcurrentClients: 10,
@@ -55,9 +55,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestSimplePing()
+        public Task TestSimplePing()
         {
-            await WithServerAndClient(
+            return WithServerAndClient(
                 nameof(TestSimplePing),
                 EchoingExecutor,
                 async (server, tcpProvider, clientStream) =>
@@ -67,9 +67,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestSendIllFormattedRequest()
+        public Task TestSendIllFormattedRequest()
         {
-            await WithServerAndClient(
+            return WithServerAndClient(
                 nameof(TestSendIllFormattedRequest),
                 EchoingExecutor,
                 maxConcurrentClients: 1, // using 1 to ensure that bogus clients are not taking up space in the processing queue
@@ -91,9 +91,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestSingleConcurrentClient()
+        public Task TestSingleConcurrentClient()
         {
-            await WithServerAndClient(
+            return WithServerAndClient(
                 nameof(TestSingleConcurrentClient),
                 EchoingExecutor,
                 maxConcurrentClients: 1,
@@ -103,7 +103,9 @@ namespace Test.BuildXL.Ipc
                     using (var client2 = tcpClient2.GetStream())
                     {
                         var client2PingRequest = await SendPing(client2);
+#pragma warning disable AsyncFixer04 // Fire-and-forget async call inside a using block. 
                         var client2PingResponseTask = Response.DeserializeAsync(client2);
+#pragma warning restore AsyncFixer04
 
                         var client1PingRequest = await SendPing(client1);
                         var client1PingResponseTask = Response.DeserializeAsync(client1);
@@ -116,18 +118,16 @@ namespace Test.BuildXL.Ipc
                         Assert.False(client2PingResponseTask.IsCompleted);
 
                         // close client1 and wait for response to client2
-#pragma warning disable AsyncFixer02
                         client1.Dispose();
-#pragma warning restore AsyncFixer02
                         VerifyPingResponse(client2PingRequest, await client2PingResponseTask);
                     }
                 });
         }
 
         [Fact]
-        public async Task TestDisconnectResponseSentUponCompletion()
+        public Task TestDisconnectResponseSentUponCompletion()
         {
-            await WithServerAndClient(
+            return WithServerAndClient(
                 nameof(TestDisconnectResponseSentUponCompletion),
                 EchoingExecutor,
                 maxConcurrentClients: 1,
@@ -148,7 +148,7 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestCommandThatRequestsStopReceivesResponseBeforeDisconnectResponse()
+        public Task TestCommandThatRequestsStopReceivesResponseBeforeDisconnectResponse()
         {
             const string StopCmd = "stop";
             const string StopResponse = "stopped";
@@ -162,7 +162,7 @@ namespace Test.BuildXL.Ipc
                 return IpcResult.Success(StopResponse);
             });
 
-            await WithServerAndClient(
+            return WithServerAndClient(
                 nameof(TestCommandThatRequestsStopReceivesResponseBeforeDisconnectResponse),
                 ipcExecutor,
                 maxConcurrentClients: 1,
@@ -188,9 +188,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestMultipleConcurrentClients()
+        public Task TestMultipleConcurrentClients()
         {
-            await WithServerAndClient(
+            return WithServerAndClient(
                 nameof(TestMultipleConcurrentClients),
                 EchoingExecutor,
                 maxConcurrentClients: 2,

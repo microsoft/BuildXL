@@ -174,7 +174,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public async Task SkipRestoreCheckpointTest(bool changeKeyspace)
+        public Task SkipRestoreCheckpointTest(bool changeKeyspace)
         {
             // Ensure master lease is long enough that role doesn't switch between machines
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(60);
@@ -193,7 +193,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 2,
                 iterations: 3,
@@ -255,14 +255,14 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task DeleteAsyncDistributedTest()
+        public Task DeleteAsyncDistributedTest()
         {
             int machineCount = 3;
             var loggingContext = new Context(Logger);
             var servers = new LocalContentServer[machineCount];
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 loggingContext,
                 machineCount,
                 async context =>
@@ -306,7 +306,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task ServerHibernateSessionTests()
+        public Task ServerHibernateSessionTests()
         {
             UseGrpcServer = true;
 
@@ -318,7 +318,7 @@ namespace ContentStoreTest.Distributed.Sessions
             int machineCount = 2;
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 loggingContext,
                 machineCount,
                 async context =>
@@ -381,7 +381,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task PinWithUnverifiedCountTest()
+        public Task PinWithUnverifiedCountTest()
         {
             _overrideDistributed = s =>
             {
@@ -392,7 +392,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.PinMinUnverifiedCount = 2;
             };
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount: 3,
                 async context =>
@@ -428,7 +428,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(1)]
         [InlineData(0)]
-        public async Task PinWithUnverifiedCountAndStartCopy(int threshold)
+        public Task PinWithUnverifiedCountAndStartCopy(int threshold)
         {
             _overrideDistributed = s =>
             {
@@ -446,7 +446,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.InlineOperationsForTests = false;
             };
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount: 3,
                 async context =>
@@ -532,7 +532,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task PinWithUnverifiedCountAndStartCopy()
+        public Task PinWithUnverifiedCountAndStartCopy()
         {
             _overrideDistributed = s =>
             {
@@ -544,7 +544,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.AsyncCopyOnPinThreshold = 1;
             };
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount: 3,
                 async context =>
@@ -579,11 +579,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task LocalLocationStoreRedundantReconcileTest()
+        public Task LocalLocationStoreRedundantReconcileTest()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 2,
                 async context =>
@@ -618,7 +618,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task LocalLocationStoreDistributedEvictionTest()
+        public Task LocalLocationStoreDistributedEvictionTest()
         {
             // Use the same context in two sessions when checking for file existence
             var loggingContext = new Context(Logger);
@@ -628,7 +628,7 @@ namespace ContentStoreTest.Distributed.Sessions
             int machineCount = 5;
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 loggingContext,
                 machineCount,
                 async context =>
@@ -701,11 +701,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task RegisterLocalLocationToGlobalRedisTest()
+        public Task RegisterLocalLocationToGlobalRedisTest()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -814,11 +814,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task LazyAddForHighlyReplicatedContentTest()
+        public Task LazyAddForHighlyReplicatedContentTest()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 SafeToLazilyUpdateMachineCountThreshold + 1,
                 async context =>
@@ -846,11 +846,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task TestEvictionBelowMinimumAge()
+        public Task TestEvictionBelowMinimumAge()
         {
             ConfigureWithOneMaster(s => s.ReconcileMode = ReconciliationMode.Once.ToString());
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount: 1,
                 async context =>
@@ -872,7 +872,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task TestMultiplexTransition()
+        public Task TestMultiplexTransition()
         {
             _registerAdditionalLocationPerMachine = true;
 
@@ -896,7 +896,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             List<PutResult> putResults = new List<PutResult>();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount: 2,
                 async context =>
@@ -1174,18 +1174,18 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public async Task TestGetHashesInEvictionOrder(bool reverse)
+        public Task TestGetHashesInEvictionOrder(bool reverse)
         {
             _overrideDistributed = s => s.ReconcileMode = ReconciliationMode.Once.ToString();
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 2,
                 async context =>
                 {
                     var master = context.GetMaster();
-                    
+
                     int count = 10000;
                     var hashes = Enumerable.Range(0, count).Select(i => (delay: count - i, hash: ContentHash.Random()))
                         .Select(
@@ -1526,33 +1526,33 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task CopyFileWithCancellation()
+        public Task CopyFileWithCancellation()
         {
             ConfigureWithOneMaster();
-            await RunTestAsync(new Context(Logger), 3, async context =>
-            {
-                var sessions = context.Sessions;
+            return RunTestAsync(new Context(Logger), 3, async context =>
+             {
+                 var sessions = context.Sessions;
 
                 // Insert random file in session 0
                 var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                var worker = context.GetFirstWorkerIndex();
-                var putResult1 = await sessions[worker].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token).ShouldBeSuccess();
+                 var worker = context.GetFirstWorkerIndex();
+                 var putResult1 = await sessions[worker].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token).ShouldBeSuccess();
 
                 // Ensure both files are downloaded to session 2
                 var cts = new CancellationTokenSource();
-                cts.Cancel();
-                var master = context.GetMasterIndex();
-                OpenStreamResult openResult = await sessions[master].OpenStreamAsync(context, putResult1.ContentHash, cts.Token);
-                openResult.ShouldBeCancelled();
-            });
+                 cts.Cancel();
+                 var master = context.GetMasterIndex();
+                 OpenStreamResult openResult = await sessions[master].OpenStreamAsync(context, putResult1.ContentHash, cts.Token);
+                 openResult.ShouldBeCancelled();
+             });
         }
 
         [Fact]
-        public async Task SkipRedundantTouchAndAddTest()
+        public Task SkipRedundantTouchAndAddTest()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -1592,9 +1592,9 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(MachineReputation.Bad)]
         [InlineData(MachineReputation.Missing)]
         [InlineData(MachineReputation.Timeout)]
-        public async Task ReputationTrackerTests(MachineReputation badReputation)
+        public Task ReputationTrackerTests(MachineReputation badReputation)
         {
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -1641,12 +1641,12 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public virtual async Task MultiLevelContentLocationStoreDatabasePinTests(bool usePinBulk)
+        public virtual Task MultiLevelContentLocationStoreDatabasePinTests(bool usePinBulk)
         {
             ConfigureWithOneMaster();
             int storeCount = 3;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount,
                 async context =>
@@ -1697,7 +1697,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public async Task MultiLevelContentLocationStoreDatabasePinFailOnEvictedContentTests(bool usePinBulk)
+        public Task MultiLevelContentLocationStoreDatabasePinFailOnEvictedContentTests(bool usePinBulk)
         {
             ConfigureWithOneMaster(s =>
             {
@@ -1706,7 +1706,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             int storeCount = 3;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount,
                 async context =>
@@ -1747,11 +1747,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task MultiLevelContentLocationStoreOpenStreamTests()
+        public Task MultiLevelContentLocationStoreOpenStreamTests()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -1773,14 +1773,14 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task MultiLevelContentStoreTests()
+        public Task MultiLevelContentStoreTests()
         {
             var remoteScenarioName = Guid.NewGuid().ToString();
             _overrideScenarioName = remoteScenarioName;
             UseGrpcServer = true;
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 1,
                 async remoteContext =>
@@ -1853,7 +1853,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task ConsumerOnlyContentLocationStoreContentDiscoveryTests()
+        public Task ConsumerOnlyContentLocationStoreContentDiscoveryTests()
         {
             int consumerIndex = 1;
             int storeCount = 3;
@@ -1873,7 +1873,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 }
             });
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 storeCount: storeCount,
                 async context =>
@@ -1917,11 +1917,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task MultiLevelContentLocationStorePlaceFileTests()
+        public Task MultiLevelContentLocationStorePlaceFileTests()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -1943,11 +1943,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task MultiLevelContentLocationStorePlaceFileFallbackToGlobalTest()
+        public Task MultiLevelContentLocationStorePlaceFileFallbackToGlobalTest()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -2003,11 +2003,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task LocalDatabaseReplicationWithLocalDiskCentralStoreTest()
+        public Task LocalDatabaseReplicationWithLocalDiskCentralStoreTest()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -2058,7 +2058,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Theory]
-        public async Task LocalDatabaseReplicationWithMasterSelectionTest()
+        public Task LocalDatabaseReplicationWithMasterSelectionTest()
         {
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
 
@@ -2074,7 +2074,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 2,
                 async context =>
@@ -2198,7 +2198,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task IncrementalCheckpointingResetWithEpochChangeTest()
+        public Task IncrementalCheckpointingResetWithEpochChangeTest()
         {
             // Test Description:
             // In loop:
@@ -2222,7 +2222,7 @@ namespace ContentStoreTest.Distributed.Sessions
             static long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
                 where TEnum : System.Enum => c1[name].Value - c2[name].Value;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 iterations: 5,
                 storeCount: 2,
@@ -2301,7 +2301,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(0, true)]
         [InlineData(10, false)]
-        public async Task DistributedCentralStorageFallbacksToBlobOnTimeoutTest(double? copyTimeoutSeconds, bool shouldFetchFromFallback)
+        public Task DistributedCentralStorageFallbacksToBlobOnTimeoutTest(double? copyTimeoutSeconds, bool shouldFetchFromFallback)
         {
             ConfigureWithOneMaster(dcs =>
             {
@@ -2309,7 +2309,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 dcs.DistributedCentralStoragePeerToPeerCopyTimeoutSeconds = copyTimeoutSeconds;
             });
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 2,
                 async context =>
@@ -2337,11 +2337,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task EventStreamContentLocationStoreBasicTests()
+        public Task EventStreamContentLocationStoreBasicTests()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -2427,7 +2427,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task TestRegisterActions()
+        public Task TestRegisterActions()
         {
             // This test validates that events (like add location/remove location) are properly generated
             // based on the local location store's internal state and configuration.
@@ -2435,7 +2435,7 @@ namespace ContentStoreTest.Distributed.Sessions
             // and the central store should be updated.
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -2503,7 +2503,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact(Skip = "Diagnostic purposes only")]
-        public async Task TestDistributedEviction()
+        public Task TestDistributedEviction()
         {
             var testDbPath = new AbsolutePath(@"ADD PATH TO LLS DB HERE");
             //_testDatabasePath = TestRootDirectoryPath / "tempdb";
@@ -2512,7 +2512,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var contentDirectoryPath = new AbsolutePath(@"ADD PATH TO CONTENT DIRECTORY HERE");
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 1,
                 async context =>
@@ -2553,7 +2553,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task DualRedundancyGlobalRedisTest()
+        public Task DualRedundancyGlobalRedisTest()
         {
             // Disable cluster state storage in DB to ensure it doesn't interfere with testing
             // Redis cluster state resiliency
@@ -2561,7 +2561,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster();
             int machineCount = 3;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 machineCount,
                 async context =>
@@ -2662,14 +2662,14 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task CancelRaidedRedisTest()
+        public Task CancelRaidedRedisTest()
         {
             _enableSecondaryRedis = true;
             _poolSecondaryRedisDatabase = false;
             ConfigureWithOneMaster();
             int machineCount = 1;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 machineCount,
                 async context =>
@@ -2707,11 +2707,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task GarbageCollectionTests()
+        public Task GarbageCollectionTests()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -2754,11 +2754,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task SelfEvictionTests()
+        public Task SelfEvictionTests()
         {
             ConfigureWithOneMaster();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 3,
                 async context =>
@@ -2919,7 +2919,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact(Skip = "For manual testing only")]
-        public async Task TestRealDistributedEviction()
+        public Task TestRealDistributedEviction()
         {
             // Running this test:
             // 1.  Specify azure storage secret below
@@ -2952,7 +2952,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             TestClock.UtcNow = DateTime.Parse("2020-02-19 21:30:0.0Z").ToUniversalTime();
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 1,
                 async context =>
@@ -3303,11 +3303,11 @@ namespace ContentStoreTest.Distributed.Sessions
         #region Machine State Tracking Tests
 
         [Fact]
-        public async Task MachineStateStartsAsOpenAndAskModeWorks()
+        public Task MachineStateStartsAsOpenAndAskModeWorks()
         {
             int machineCount = 3;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 machineCount,
                 ensureLiveness: false,
@@ -3346,7 +3346,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task MachineShutdownTransitionsToClosed()
+        public Task MachineShutdownTransitionsToClosed()
         {
             ConfigureWithOneMaster(
                 overrideDistributed: s =>
@@ -3357,7 +3357,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             int machineCount = 2;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 machineCount,
                 ensureLiveness: false,
@@ -3391,7 +3391,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task InactiveMachineTransitionsToExpired()
+        public Task InactiveMachineTransitionsToExpired()
         {
             ConfigureWithOneMaster(
                 overrideDistributed: s =>
@@ -3402,7 +3402,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             int machineCount = 2;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 machineCount,
                 ensureLiveness: true,
@@ -3446,12 +3446,12 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task InactiveMachineTransitionsToClosed()
+        public Task InactiveMachineTransitionsToClosed()
         {
             ConfigureWithOneMaster();
             int machineCount = 2;
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 machineCount,
                 ensureLiveness: true,

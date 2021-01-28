@@ -2362,12 +2362,12 @@ namespace Test.BuildXL.Scheduler
             return DoIpcTagFilteringTest(CreateGraphForTagFilterTestingWithIpcAndCopyPips, allowlistTags, blocklistTags, a1Done, a2Done, b1Done, b2Done, pDone);
         }
 
-        private async Task DoIpcTagFilteringTest(Func<IpcClientInfo, TestGraphForTagFilter> graphFactory, string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
+        private Task DoIpcTagFilteringTest(Func<IpcClientInfo, TestGraphForTagFilter> graphFactory, string allowlistTags, string blocklistTags, bool a1Done, bool a2Done, bool b1Done, bool b2Done, bool pDone)
         {
             Setup(disableLazyOutputMaterialization: true);
 
             var ipcProvider = new DummyIpcProvider();
-            await WithIpcServer(
+            return WithIpcServer(
                 ipcProvider,
                 s_succeedingEchoingIpcExecutor,
                 new ServerConfig(),
@@ -2459,7 +2459,6 @@ namespace Test.BuildXL.Scheduler
 
         // when one opens a file for writing on Unix, others can still read it
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         public async Task TestSourceFileLocked()
         {
             Setup();

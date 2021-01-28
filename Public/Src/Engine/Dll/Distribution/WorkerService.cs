@@ -313,7 +313,6 @@ namespace BuildXL.Engine.Distribution
 
         /// <nodoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         public async void ExitAsync(string failure, bool isUnexpected = false)
         {
             await Task.Yield();

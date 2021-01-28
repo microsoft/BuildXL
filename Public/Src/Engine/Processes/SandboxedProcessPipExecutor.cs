@@ -1245,9 +1245,7 @@ namespace BuildXL.Processes
                 finally
                 {
                     m_activeProcess = null;
-#pragma warning disable AsyncFixer02
                     cancellationTokenRegistration.Dispose();
-#pragma warning restore AsyncFixer02
                     process.Dispose();
                 }
 

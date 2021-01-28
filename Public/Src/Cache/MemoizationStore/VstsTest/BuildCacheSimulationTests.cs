@@ -341,7 +341,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             return RunTestAsync(context, referenceFingerprintsAsync, createTestCache);
         }
 
-        private async Task AssertExpirationInRangeAsync(Context context, string cacheNamespace, StrongFingerprint strongFingerprint, DateTime expectedLow, DateTime expectedHigh)
+        private Task AssertExpirationInRangeAsync(Context context, string cacheNamespace, StrongFingerprint strongFingerprint, DateTime expectedLow, DateTime expectedHigh)
         {
             // Create a bare BuildCache client so that the value read is not thwarted by some intermediate cache layer (like Redis)
             Func<DisposableDirectory, ICache> createCheckerCacheFunc =
@@ -367,7 +367,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                 Assert.InRange(rawExpiration.Value, expectedLow - assertionTolerance, expectedHigh + assertionTolerance);
             };
 
-            await RunTestAsync(context, checkFunc, createCheckerCacheFunc);
+            return RunTestAsync(context, checkFunc, createCheckerCacheFunc);
         }
     }
 }

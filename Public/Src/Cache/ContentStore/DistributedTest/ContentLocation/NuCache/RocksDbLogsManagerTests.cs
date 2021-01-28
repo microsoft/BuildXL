@@ -38,9 +38,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void CanBackupSingleFile()
+        public Task CanBackupSingleFile()
         {
-            WithLogManager(TimeSpan.FromDays(7),
+            return WithLogManager(TimeSpan.FromDays(7),
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 0, numLogFiles: 1);
@@ -54,9 +54,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void CanBackupMultipleFiles()
+        public Task CanBackupMultipleFiles()
         {
-            WithLogManager(TimeSpan.FromDays(7),
+            return WithLogManager(TimeSpan.FromDays(7),
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 10);
@@ -69,9 +69,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void DoesNotBackupIfThereArentAnyLogs()
+        public Task DoesNotBackupIfThereArentAnyLogs()
         {
-            WithLogManager(TimeSpan.FromDays(7),
+            return WithLogManager(TimeSpan.FromDays(7),
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 0);
@@ -81,9 +81,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void CollectsGarbage()
+        public Task CollectsGarbage()
         {
-            WithLogManager(TimeSpan.FromDays(7),
+            return WithLogManager(TimeSpan.FromDays(7),
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 0, numLogFiles: 10);
@@ -101,9 +101,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
-        public void DoesNotCollectUsefulLogs()
+        public Task DoesNotCollectUsefulLogs()
         {
-            WithLogManager(TimeSpan.FromDays(7),
+            return WithLogManager(TimeSpan.FromDays(7),
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 10);
@@ -125,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 });
         }
 
-        private void WithLogManager(TimeSpan retention, Action<OperationContext, RocksDbLogsManager> action)
+        private Task WithLogManager(TimeSpan retention, Func<OperationContext, RocksDbLogsManager, Task> action)
         {
             var backupFolder = _workingDirectory.Path / "backup";
             _fileSystem.CreateDirectory(backupFolder);
@@ -135,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var operationContext = new OperationContext(tracingContext);
 
             var manager = new RocksDbLogsManager(_clock, _fileSystem, backupFolder, retention);
-            action(operationContext, manager);
+            return action(operationContext, manager);
         }
 
         private async Task CreateEmptyFileAsync(AbsolutePath path)

@@ -118,13 +118,13 @@ namespace Test.BuildXL.Plugin
                 },
 
                 CreatePluginClientFunc = pluginClientCreator,
-                RunInPluginThreadAction = async () =>
+                RunInPluginThreadAction = () =>
                 {
                     using (var pluginServer = new LogParsePluginServer(m_port, new MockLogger()))
                     {
                         pluginServer.Start();
 
-                        await pluginServer.ShutdownCompletionTask;
+                        pluginServer.ShutdownCompletionTask.GetAwaiter().GetResult();
                     }
                 }
             };

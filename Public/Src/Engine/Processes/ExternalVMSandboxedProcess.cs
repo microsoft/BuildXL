@@ -84,7 +84,6 @@ namespace BuildXL.Processes
         public override bool TryResumeProcess() => false; // Currently, only SandboxedProcess is supported.
 
         /// <inheritdoc />
-        [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         public override async Task<SandboxedProcessResult> GetResultAsync()
         {
             Contract.Requires(m_processExecutor != null);

@@ -42,7 +42,6 @@ namespace BuildXL.FrontEnd.Script
         { }
 
         /// <inheritdoc/>
-        [SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
         public override async Task<bool> InitResolverAsync(IResolverSettings resolverSettings, object workspaceResolver)
         {
             Contract.Requires(resolverSettings != null);

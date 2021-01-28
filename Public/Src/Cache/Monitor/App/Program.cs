@@ -117,7 +117,7 @@ namespace BuildXL.Cache.Monitor.App
             }
         }
 
-        private static async Task RunMonitorAsync(string? configurationFilePath, string? backupFilePath, string? logFilePath, bool production, CancellationTokenSource? cancellationTokenSource = null, CancellationToken cancellationToken = default)
+        private static Task RunMonitorAsync(string? configurationFilePath, string? backupFilePath, string? logFilePath, bool production, CancellationTokenSource? cancellationTokenSource = null, CancellationToken cancellationToken = default)
         {
             var configuration = LoadConfiguration(production, configurationFilePath);
             if (!string.IsNullOrEmpty(backupFilePath))
@@ -136,7 +136,7 @@ namespace BuildXL.Cache.Monitor.App
                 };
             }
 
-            await WithLoggerAsync(async (logger) =>
+            return WithLoggerAsync(async (logger) =>
                                   {
                                       var context = new Context(logger);
                                       var operationContext = new OperationContext(context, cancellationToken);

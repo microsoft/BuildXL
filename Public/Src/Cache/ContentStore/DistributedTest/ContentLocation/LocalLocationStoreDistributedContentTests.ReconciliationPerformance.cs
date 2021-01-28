@@ -151,7 +151,7 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact(Skip = "For manual testing only")]
-        public async Task ReconciliationOverRealStorage()
+        public Task ReconciliationOverRealStorage()
         {
             var checkpointsKey = Guid.NewGuid().ToString();
             // Copy and paste a real connection string here.
@@ -173,7 +173,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.AzureStorageSecretName = Host.StoreSecret("StorageName", storageConnectionString);
             });
 
-            await RunTestAsync(
+            return RunTestAsync(
                 new Context(Logger),
                 2,
                 async context =>

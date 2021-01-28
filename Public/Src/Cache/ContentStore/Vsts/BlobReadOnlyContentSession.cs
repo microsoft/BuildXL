@@ -395,11 +395,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return DownloadUsingAzureBlobsAsync(context, contentHash, path, fileMode);
         }
 
-        private async Task<long?> DownloadUsingAzureBlobsAsync(
+        private Task<long?> DownloadUsingAzureBlobsAsync(
             OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
         {
 
-            return await AsyncHttpRetryHelper<long?>.InvokeAsync(
+            return AsyncHttpRetryHelper<long?>.InvokeAsync(
                 async () =>
                 {
                     StreamWithRange? httpStream = null;

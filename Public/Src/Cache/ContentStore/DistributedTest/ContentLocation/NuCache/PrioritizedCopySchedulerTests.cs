@@ -20,100 +20,100 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
     public class PrioritizedCopySchedulerTests
     {
         [Fact]
-        public async Task SingleCopyShouldGetScheduled()
+        public Task SingleCopyShouldGetScheduled()
         {
-            await RunTest(async (context, scheduler) =>
-              {
+            return RunTest(async (context, scheduler) =>
+               {
                   // This only schedules the task, but it won't run until the cycle happens.
                   var resultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, _ => Task.FromResult(new CopyFileResult())));
 
-                  var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
-                  var result = await resultTask;
+                   var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
+                   var result = await resultTask;
 
-                  result.ShouldBeSuccess();
-                  result.Value.ShouldBeSuccess();
-              });
+                   result.ShouldBeSuccess();
+                   result.Value.ShouldBeSuccess();
+               });
         }
 
         [Fact]
-        public async Task SchedulingIsOrderedAndDoesntOverschedule()
+        public Task SchedulingIsOrderedAndDoesntOverschedule()
         {
-            await RunTest(async (context, scheduler) =>
-            {
-                var firstTaskQueueTime = TimeSpan.MinValue;
-                var secondTaskQueueTime = TimeSpan.MinValue;
+            return RunTest(async (context, scheduler) =>
+             {
+                 var firstTaskQueueTime = TimeSpan.MinValue;
+                 var secondTaskQueueTime = TimeSpan.MinValue;
 
-                var firstResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
-                {
-                    firstTaskQueueTime = arguments.Summary.QueueWait;
+                 var firstResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
+                 {
+                     firstTaskQueueTime = arguments.Summary.QueueWait;
 
-                    arguments.Summary.PriorityQueueLength.Should().Be(1);
-                    return Task.FromResult(new CopyFileResult());
-                }));
+                     arguments.Summary.PriorityQueueLength.Should().Be(1);
+                     return Task.FromResult(new CopyFileResult());
+                 }));
 
-                var secondResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
-                {
-                    secondTaskQueueTime = arguments.Summary.QueueWait;
-                    return Task.FromResult(new CopyFileResult());
-                }));
+                 var secondResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
+                 {
+                     secondTaskQueueTime = arguments.Summary.QueueWait;
+                     return Task.FromResult(new CopyFileResult());
+                 }));
 
-                var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
+                 var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
 
-                var firstTaskResult = await firstResultTask;
-                firstTaskResult.ShouldBeSuccess();
-                firstTaskResult.Value.ShouldBeSuccess();
+                 var firstTaskResult = await firstResultTask;
+                 firstTaskResult.ShouldBeSuccess();
+                 firstTaskResult.Value.ShouldBeSuccess();
 
-                secondTaskQueueTime.Should().Be(TimeSpan.MinValue);
+                 secondTaskQueueTime.Should().Be(TimeSpan.MinValue);
 
-                var secondCycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
-                var secondTaskResult = await secondResultTask;
-                secondTaskResult.ShouldBeSuccess();
-                secondTaskResult.Value.ShouldBeSuccess();
+                 var secondCycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
+                 var secondTaskResult = await secondResultTask;
+                 secondTaskResult.ShouldBeSuccess();
+                 secondTaskResult.Value.ShouldBeSuccess();
 
-                secondTaskQueueTime.Should().BeGreaterOrEqualTo(firstTaskQueueTime);
-            });
+                 secondTaskQueueTime.Should().BeGreaterOrEqualTo(firstTaskQueueTime);
+             });
         }
 
         [Fact]
-        public async Task SchedulingIsOrderedAcrossPriorities()
+        public Task SchedulingIsOrderedAcrossPriorities()
         {
-            await RunTest(async (context, scheduler) =>
-            {
-                var lowPriorityTaskQueueTime = TimeSpan.MinValue;
-                var highPriorityTaskQueueTime = TimeSpan.MinValue;
+            return RunTest(async (context, scheduler) =>
+             {
+                 var lowPriorityTaskQueueTime = TimeSpan.MinValue;
+                 var highPriorityTaskQueueTime = TimeSpan.MinValue;
 
                 // Schedule a lower priority copy followed by a higher priority one. Then check that the higher
                 // priority one happens before the lower priority
                 var lowPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, arguments =>
-                {
-                    lowPriorityTaskQueueTime = arguments.Summary.QueueWait;
-                    return Task.FromResult(new CopyFileResult());
-                }));
+                 {
+                     lowPriorityTaskQueueTime = arguments.Summary.QueueWait;
+                     return Task.FromResult(new CopyFileResult());
+                 }));
 
-                var highPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
-                {
-                    highPriorityTaskQueueTime = arguments.Summary.QueueWait;
-                    return Task.FromResult(new CopyFileResult());
-                }));
+                 var highPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
+                 {
+                     highPriorityTaskQueueTime = arguments.Summary.QueueWait;
+                     return Task.FromResult(new CopyFileResult());
+                 }));
 
-                var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
+                 var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
 
-                var highPriorityTaskResult = await highPriorityResultTask;
-                highPriorityTaskResult.ShouldBeSuccess();
-                highPriorityTaskResult.Value.ShouldBeSuccess();
+                 var highPriorityTaskResult = await highPriorityResultTask;
+                 highPriorityTaskResult.ShouldBeSuccess();
+                 highPriorityTaskResult.Value.ShouldBeSuccess();
 
                 // Low priority task shouldn't have run
                 lowPriorityTaskQueueTime.Should().Be(TimeSpan.MinValue);
 
-                var secondCycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
+                 var secondCycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
 
-                var lowPriorityTaskResult = await lowPriorityResultTask;
-                lowPriorityTaskResult.ShouldBeSuccess();
-                lowPriorityTaskResult.Value.ShouldBeSuccess();
+                 var lowPriorityTaskResult = await lowPriorityResultTask;
+                 lowPriorityTaskResult.ShouldBeSuccess();
+                 lowPriorityTaskResult.Value.ShouldBeSuccess();
 
                 // Higher priority task's queue time should reflect that it waited less
                 highPriorityTaskQueueTime.Should().BeLessOrEqualTo(lowPriorityTaskQueueTime);
-            });
+             });
         }
 
         [Fact]

@@ -259,7 +259,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 result => CopyResultCode.Unknown);
         }
 
-        private async Task<TResult> PerformProactiveCopyAsync<TResult>(
+        private Task<TResult> PerformProactiveCopyAsync<TResult>(
             OperationContext context,
             Func<OperationContext, Task<TResult>> func,
             ContentHashWithSize hash,
@@ -273,7 +273,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             CopySchedulingSummary? copySchedulingSummary = null;
             var ioGateTimedOut = true;
 
-            return await context.PerformOperationAsync(
+            return context.PerformOperationAsync(
                 Tracer,
                 operation: async () =>
                 {

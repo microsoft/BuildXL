@@ -37,7 +37,7 @@ namespace BuildXL.Cache.Monitor.Library.Az
             _monitorManagementClient = monitorManagementClient;
         }
 
-        public async Task<Dictionary<MetricName, List<MetricValue>>> GetMetricsWithDimensionAsync(
+        public Task<Dictionary<MetricName, List<MetricValue>>> GetMetricsWithDimensionAsync(
             string resourceUri,
             IReadOnlyList<MetricName> metrics,
             string dimension,
@@ -60,7 +60,7 @@ namespace BuildXL.Cache.Monitor.Library.Az
             var endTime = endTimeUtc.ToString("yyyy-MM-ddTHH:mm:00Z");
             var interval = $"{startTime}/{endTime}";
 
-            return await RetryPolicy.ExecuteAsync(async () =>
+            return RetryPolicy.ExecuteAsync(async () =>
             {
                 var metricNames = string.Join(",", metrics.Select(name => name.Name.ToLower()));
                 var odataQuery = new ODataQuery<MetadataValue>(odataExpression: $"{dimension} eq '*'");

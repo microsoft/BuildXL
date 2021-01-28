@@ -251,11 +251,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        private async Task PutNodeAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
+        private Task PutNodeAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
             var dedupIdentifier = dedupNode.GetDedupId();
 
-            await TryGatedArtifactOperationAsync<object>(
+            return TryGatedArtifactOperationAsync<object>(
                 context,
                 dedupIdentifier.ValueString,
                 "DedupUploadSession.UploadAsync",

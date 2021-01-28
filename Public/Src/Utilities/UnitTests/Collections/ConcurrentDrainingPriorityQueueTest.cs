@@ -60,9 +60,9 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task Basic()
+        public Task Basic()
         {
-            await Task.WhenAll(
+            return Task.WhenAll(
                 new[] { 1, 2, Environment.ProcessorCount, Environment.ProcessorCount * 2, -1 }.Select(
                     async maxDegreeOfParallelism =>
                           {
@@ -108,9 +108,9 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        public async Task EnqueueDuringRun()
+        public Task EnqueueDuringRun()
         {
-            await Task.WhenAll(
+            return Task.WhenAll(
                 new[] { 1, 2, Environment.ProcessorCount, Environment.ProcessorCount * 2, -1 }.Select(
                     async maxDegreeOfParallelism =>
                           {

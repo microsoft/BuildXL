@@ -1992,7 +1992,6 @@ namespace BuildXL.Scheduler
 
         private static void LogUserSpecifiedExitCodeEvent(SandboxedProcessPipExecutionResult result, OperationContext operationContext, PipExecutionContext context, Process pip, string processDescription, int remainingUserRetries)
         {
-#pragma warning disable AsyncFixer02
             var stdErr = string.Empty;
             if (result.EncodedStandardError != null)
             {
@@ -2018,7 +2017,6 @@ namespace BuildXL.Scheduler
                              + File.ReadAllText(path, result.EncodedStandardOutput.Item2);
                 }
             }
-#pragma warning restore AsyncFixer02
             Logger.Log.PipWillBeRetriedDueToExitCode(
                 operationContext,
                 pip.SemiStableHash,

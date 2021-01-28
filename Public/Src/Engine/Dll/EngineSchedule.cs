@@ -1261,7 +1261,6 @@ namespace BuildXL.Engine
         /// <summary>
         /// Handles reporting end of build status and persisting some state. Returns 'false' on failure (error already logged).
         /// </summary>
-        [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         public async Task<bool> ProcessPostExecutionTasksAsync(
             LoggingContext loggingContext,
             EngineContext context,

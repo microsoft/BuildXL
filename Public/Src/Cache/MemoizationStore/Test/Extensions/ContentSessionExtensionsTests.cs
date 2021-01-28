@@ -43,37 +43,37 @@ namespace BuildXL.Cache.MemoizationStore.Test.Extensions
         }
 
         [Fact]
-        public async Task TrueOnNullContentHashList()
+        public Task TrueOnNullContentHashList()
         {
             var context = new Context(Logger);
-            await RunTestAsync(context, async session =>
-            {
-                (await session.EnsureContentIsAvailableAsync(context, Name, null, Token)).Should().BeTrue();
-            });
+            return RunTestAsync(context, async session =>
+             {
+                 (await session.EnsureContentIsAvailableAsync(context, Name, null, Token)).Should().BeTrue();
+             });
         }
 
         [Fact]
-        public async Task FalseOnMissingContent()
+        public Task FalseOnMissingContent()
         {
             var context = new Context(Logger);
             var contentHashList = ContentHashList.Random(HasherType);
-            await RunTestAsync(context, async session =>
-            {
-                (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeFalse();
-            });
+            return RunTestAsync(context, async session =>
+             {
+                 (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeFalse();
+             });
         }
 
         [Fact]
-        public async Task TrueOnExistingContent()
+        public Task TrueOnExistingContent()
         {
             var context = new Context(Logger);
-            await RunTestAsync(context, async session =>
-            {
-                var putResult = await session.PutRandomAsync(
-                    context, HasherType, false, RandomContentByteCount, Token);
-                var contentHashList = new ContentHashList(new[] {putResult.ContentHash});
-                (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeTrue();
-            });
+            return RunTestAsync(context, async session =>
+             {
+                 var putResult = await session.PutRandomAsync(
+                     context, HasherType, false, RandomContentByteCount, Token);
+                 var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+                 (await session.EnsureContentIsAvailableAsync(context, Name, contentHashList, Token)).Should().BeTrue();
+             });
         }
 
         private async Task RunTestAsync(Context context, Func<IContentSession, Task> funcAsync)

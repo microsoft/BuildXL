@@ -352,9 +352,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     if (closeStream)
                     {
-#pragma warning disable AsyncFixer02 // A disposable object used in a fire & forget async call
                         targetStream.Dispose();
-#pragma warning restore AsyncFixer02 // A disposable object used in a fire & forget async call
                     }
                 }
 

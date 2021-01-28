@@ -81,9 +81,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestRequestsFailAfterCompletion()
+        public Task TestRequestsFailAfterCompletion()
         {
-            await WithSetupAndTeardownAssertingClientCompleted(
+            return WithSetupAndTeardownAssertingClientCompleted(
                 nameof(TestRequestsFailAfterCompletion),
                 async (client, serverStream) =>
                 {
@@ -96,9 +96,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestIntertwinedTwoOperations()
+        public Task TestIntertwinedTwoOperations()
         {
-            await WithSetupAndTeardownAssertingClientCompleted(
+            return WithSetupAndTeardownAssertingClientCompleted(
                 nameof(TestIntertwinedTwoOperations),
                 async (client, serverStream) =>
                 {
@@ -153,9 +153,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestSendIllFormattedResponse()
+        public Task TestSendIllFormattedResponse()
         {
-            await WithSetupAndTeardownAssertingClientFaultedWithIpcException(
+            return WithSetupAndTeardownAssertingClientFaultedWithIpcException(
                 nameof(TestSendIllFormattedResponse),
                 IpcException.IpcExceptionKind.Serialization,
                 async (client, serverStream) =>
@@ -175,9 +175,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestSendResponseNotMatchingRequestId()
+        public Task TestSendResponseNotMatchingRequestId()
         {
-            await WithSetupAndTeardownAssertingClientFaultedWithIpcException(
+            return WithSetupAndTeardownAssertingClientFaultedWithIpcException(
                 nameof(TestSendResponseNotMatchingRequestId),
                 IpcException.IpcExceptionKind.SpuriousResponse,
                 async (client, serverStream) =>
@@ -196,9 +196,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestSendResponseTwice()
+        public Task TestSendResponseTwice()
         {
-            await WithSetupAndTeardownAssertingClientFaultedWithIpcException(
+            return WithSetupAndTeardownAssertingClientFaultedWithIpcException(
                 nameof(TestSendResponseTwice),
                 IpcException.IpcExceptionKind.SpuriousResponse,
                 async (client, serverStream) =>
@@ -242,9 +242,9 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestConnectionLost()
+        public Task TestConnectionLost()
         {
-            await WithSetup(
+            return WithSetup(
                 nameof(TestConnectionLost),
                 async (client, serverSocket) =>
                 {
@@ -269,24 +269,24 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public async Task TestStopRequestSentUponCompletion()
+        public Task TestStopRequestSentUponCompletion()
         {
-             await WithSetup(
-                nameof(TestStopRequestSentUponCompletion),
-                async (client, serverSocket) =>
-                {
-                    using (var serverStream = new NetworkStream(serverSocket))
-                    {
-                        using (client)
-                        {
-                            client.RequestStop();
-                            await WaitClientDone(client);
-                        }
+            return WithSetup(
+               nameof(TestStopRequestSentUponCompletion),
+               async (client, serverSocket) =>
+               {
+                   using (var serverStream = new NetworkStream(serverSocket))
+                   {
+                       using (client)
+                       {
+                           client.RequestStop();
+                           await WaitClientDone(client);
+                       }
 
-                        var request = await Request.DeserializeAsync(serverStream);
-                        Assert.True(request.IsStopRequest);
-                    }
-                });
+                       var request = await Request.DeserializeAsync(serverStream);
+                       Assert.True(request.IsStopRequest);
+                   }
+               });
         }
 
         private Task WithSetupAndTeardownAssertingClientCompleted(string testName, Func<MultiplexingClient, Stream, Task> testAction)
@@ -344,7 +344,6 @@ namespace Test.BuildXL.Ipc
                 });
         }
 
-        [SuppressMessage("AsyncFixer04", "AsyncFixer04:Fire & Forget 'tcpConnectivity'", Justification = "It's not forgotten, since the task is awaited 2 lines below")]
         private async Task WithSetup(string testName, Func<MultiplexingClient, Socket, Task> testAction)
         {
             using (var tcpConnectivity = new TcpIpConnectivity(Utils.GetUnusedPortNumber()))

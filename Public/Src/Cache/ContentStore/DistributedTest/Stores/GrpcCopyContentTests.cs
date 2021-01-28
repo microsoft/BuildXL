@@ -86,36 +86,36 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
         [Fact]
-        public async Task CopyExistingFile()
+        public Task CopyExistingFile()
         {
-            await RunTestCase(async (rootPath, session, client) =>
-            {
+            return RunTestCase(async (rootPath, session, client) =>
+             {
                 // Write a random file
                 var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                var content = ThreadSafeRandom.GetBytes(FileSize);
-                FileSystem.WriteAllBytes(sourcePath, content);
+                 var content = ThreadSafeRandom.GetBytes(FileSize);
+                 FileSystem.WriteAllBytes(sourcePath, content);
 
                 // Put the random file
                 PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
-                putResult.ShouldBeSuccess();
+                 putResult.ShouldBeSuccess();
 
                 // Copy the file out via GRPC
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                (await client.CopyFileAsync(new OperationContext(_context), putResult.ContentHash, destinationPath, new CopyOptions(bandwidthConfiguration: null))).ShouldBeSuccess();
+                 (await client.CopyFileAsync(new OperationContext(_context), putResult.ContentHash, destinationPath, new CopyOptions(bandwidthConfiguration: null))).ShouldBeSuccess();
 
-                var copied = FileSystem.ReadAllBytes(destinationPath);
+                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
                 // Compare original and copied files
                 var originalHash = content.CalculateHash(DefaultHashType);
-                var copiedHash = copied.CalculateHash(DefaultHashType);
-                Assert.Equal(originalHash, copiedHash);
-            });
+                 var copiedHash = copied.CalculateHash(DefaultHashType);
+                 Assert.Equal(originalHash, copiedHash);
+             });
         }
 
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public async Task CopyFileRejectedIfTooMany(bool failFastIfServerBusy)
+        public Task CopyFileRejectedIfTooMany(bool failFastIfServerBusy)
         {
             var failFastBandwidthConfiguration = new BandwidthConfiguration()
             {
@@ -127,51 +127,51 @@ namespace ContentStoreTest.Distributed.Stores
             int numberOfFiles = 100;
             _copyToLimit = 1;
 
-            await RunTestCase(async (rootPath, session, client) =>
-            {
+            return RunTestCase(async (rootPath, session, client) =>
+             {
                 // Add random files to the cache.
                 var tasks = Enumerable.Range(1, numberOfFiles).Select(_ => putRandomFile()).ToList();
-                var hashes = await Task.WhenAll(tasks);
+                 var hashes = await Task.WhenAll(tasks);
 
-                var copyTasks = hashes.Select(
-                    hash =>
-                    {
-                        var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                        return client.CopyFileAsync(
-                            new OperationContext(_context),
-                            hash,
-                            destinationPath,
-                            new CopyOptions(failFastBandwidthConfiguration));
-                    });
+                 var copyTasks = hashes.Select(
+                     hash =>
+                     {
+                         var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                         return client.CopyFileAsync(
+                             new OperationContext(_context),
+                             hash,
+                             destinationPath,
+                             new CopyOptions(failFastBandwidthConfiguration));
+                     });
 
-                var results = await Task.WhenAll(copyTasks);
+                 var results = await Task.WhenAll(copyTasks);
 
-                if (failFastIfServerBusy)
-                {
+                 if (failFastIfServerBusy)
+                 {
                     // We're doing 100 simultaneous copies, at least some of them should fail, because we're not willing to wait for the response.
                     var error = results.FirstOrDefault(r => !r.Succeeded);
-                    error.Should().NotBeNull("At least one copy operation should fail.");
+                     error.Should().NotBeNull("At least one copy operation should fail.");
 
-                    error!.ErrorMessage.Should().Contain("Copy limit of");
-                }
-                else
-                {
+                     error!.ErrorMessage.Should().Contain("Copy limit of");
+                 }
+                 else
+                 {
                     // All operation should succeed!
                     results.All(r => r.ShouldBeSuccess()).Should().BeTrue();
-                }
+                 }
 
-                async Task<ContentHash> putRandomFile()
-                {
-                    var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                    var content = ThreadSafeRandom.GetBytes(FileSize);
-                    FileSystem.WriteAllBytes(sourcePath, content);
+                 async Task<ContentHash> putRandomFile()
+                 {
+                     var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                     var content = ThreadSafeRandom.GetBytes(FileSize);
+                     FileSystem.WriteAllBytes(sourcePath, content);
 
                     // Put the random file
                     PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
-                    putResult.ShouldBeSuccess();
-                    return putResult.ContentHash;
-                }
-            });
+                     putResult.ShouldBeSuccess();
+                     return putResult.ContentHash;
+                 }
+             });
         }
 
         [Theory]
@@ -261,71 +261,71 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
         [Fact]
-        public async Task CopyToShouldNotCloseGivenStream()
+        public Task CopyToShouldNotCloseGivenStream()
         {
-            await RunTestCase(async (rootPath, session, client) =>
-            {
+            return RunTestCase(async (rootPath, session, client) =>
+             {
                 // Write a random file
                 var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                var content = ThreadSafeRandom.GetBytes(FileSize);
-                FileSystem.WriteAllBytes(sourcePath, content);
+                 var content = ThreadSafeRandom.GetBytes(FileSize);
+                 FileSystem.WriteAllBytes(sourcePath, content);
 
                 // Put the random file
                 PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
-                putResult.ShouldBeSuccess();
+                 putResult.ShouldBeSuccess();
 
                 // Copy the file out via GRPC
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                using (var destinationStream = await FileSystem.OpenSafeAsync(
-                    destinationPath,
-                    FileAccess.ReadWrite,
-                    FileMode.CreateNew,
-                    FileShare.None,
-                    FileOptions.None,
-                    1024))
-                {
-                    (await client.CopyToAsync(new OperationContext(_context), putResult.ContentHash, destinationStream, new CopyOptions(bandwidthConfiguration: null))).ShouldBeSuccess();
+                 using (var destinationStream = await FileSystem.OpenSafeAsync(
+                     destinationPath,
+                     FileAccess.ReadWrite,
+                     FileMode.CreateNew,
+                     FileShare.None,
+                     FileOptions.None,
+                     1024))
+                 {
+                     (await client.CopyToAsync(new OperationContext(_context), putResult.ContentHash, destinationStream, new CopyOptions(bandwidthConfiguration: null))).ShouldBeSuccess();
                     // If the stream is not disposed, the following operation should not fail.
                     destinationStream.Stream.Position.Should().BeGreaterThan(0);
-                }
+                 }
 
-                var copied = FileSystem.ReadAllBytes(destinationPath);
+                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
                 // Compare original and copied files
                 var originalHash = content.CalculateHash(DefaultHashType);
-                var copiedHash = copied.CalculateHash(DefaultHashType);
-                Assert.Equal(originalHash, copiedHash);
-            });
+                 var copiedHash = copied.CalculateHash(DefaultHashType);
+                 Assert.Equal(originalHash, copiedHash);
+             });
         }
 
         [Fact]
-        public async Task CopyNonExistingFile()
+        public Task CopyNonExistingFile()
         {
-            await RunTestCase(async (rootPath, session, client) =>
-            {
+            return RunTestCase(async (rootPath, session, client) =>
+             {
                 // Copy the file out via GRPC
                 var copyFileResult = await client.CopyFileAsync(new OperationContext(_context), ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
 
-                Assert.False(copyFileResult.Succeeded);
-                copyFileResult.Code.Should().Be(CopyResultCode.FileNotFoundError, copyFileResult.ToString());
-            });
+                 Assert.False(copyFileResult.Succeeded);
+                 copyFileResult.Code.Should().Be(CopyResultCode.FileNotFoundError, copyFileResult.ToString());
+             });
         }
         
         [Fact]
-        public async Task WrongPort()
+        public Task WrongPort()
         {
-            await RunTestCase(async (rootPath, session, client) =>
-            {
+            return RunTestCase(async (rootPath, session, client) =>
+             {
                 // Copy fake file out via GRPC
                 var bogusPort = PortExtensions.GetNextAvailablePort();
 
-                await _clientCache.UseAsync(new OperationContext(_context), LocalHost, bogusPort, async (nestedContext, client) =>
-                {
-                    var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
-                    Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
-                    return Unit.Void;
-                });
-            });
+                 await _clientCache.UseAsync(new OperationContext(_context), LocalHost, bogusPort, async (nestedContext, client) =>
+                 {
+                     var copyFileResult = await client.CopyFileAsync(nestedContext, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), new CopyOptions(bandwidthConfiguration: null));
+                     Assert.Equal(CopyResultCode.ServerUnavailable, copyFileResult.Code);
+                     return Unit.Void;
+                 });
+             });
         }
 
         private async Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName] string testName = null)

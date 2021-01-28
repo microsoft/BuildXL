@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Execute a given <paramref name="func"/> func and trace transient failures.
         /// </summary>
-        public static async Task ExecuteAsync(
+        public static Task ExecuteAsync(
             this IRetryPolicy policy,
             Context context,
             Func<Task> func,
@@ -29,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             string? databaseName,
             [CallerMemberName] string? caller = null)
         {
-            await policy.ExecuteAsync(
+            return policy.ExecuteAsync(
                 context,
                 async () =>
                 {
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Execute a given <paramref name="func"/> func and trace transient failures.
         /// </summary>
-        public static async Task<T> ExecuteAsync<T>(
+        public static Task<T> ExecuteAsync<T>(
             this IRetryPolicy policy,
             Context context,
             Func<Task<T>> func,
@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 }
             };
 
-            return await policy.ExecuteAsync(outerFunc, token);
+            return policy.ExecuteAsync(outerFunc, token);
         }
     }
 }

@@ -93,9 +93,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Test.Hashing
             return (buffer, DedupNode.Create(storedChunks));
         }
 
-        private async Task<bool> VerifyContentAsync(byte [] bytes, DedupNode expectedNode)
+        private Task<bool> VerifyContentAsync(byte [] bytes, DedupNode expectedNode)
         {
-            return await ChunkDedupedFileContentHashVerifier.VerifyStreamAsync(
+            return ChunkDedupedFileContentHashVerifier.VerifyStreamAsync(
                new MemoryStream(bytes),
                expectedNode.GetChunks().ToList(),
                new ChunkDedupedFileContentHash(expectedNode.Hash.Take(DedupSingleChunkHashInfo.Length).ToArray()),

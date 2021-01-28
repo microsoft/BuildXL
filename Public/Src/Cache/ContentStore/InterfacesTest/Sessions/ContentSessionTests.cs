@@ -240,9 +240,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                 {
                     // Open should not pin this content, allowing eviction on the next put.
                     var r = await session.OpenStreamAsync(context, contentHash, Token).ShouldBeSuccess();
-#pragma warning disable AsyncFixer02
                     r.Stream.Dispose();
-#pragma warning restore AsyncFixer02
 
                     // This put should succeed after the first content is evicted.
                     await session.PutRandomAsync(context, ContentHashType, false, MaxSize, Token).ShouldBeSuccess();

@@ -115,29 +115,29 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
 
         [Fact]
-        public async Task WalkAllBlocks()
+        public Task WalkAllBlocks()
         {
             var random = new Random(0);
-            await TryWithDifferentSizesAsync(async testSize =>
-            {
-                var bytes = new byte[testSize];
-                random.NextBytes(bytes);
+            return TryWithDifferentSizesAsync(async testSize =>
+             {
+                 var bytes = new byte[testSize];
+                 random.NextBytes(bytes);
 
-                using (var byteStream = new MemoryStream(bytes))
-                {
-                    var blobIdWithBlocks = await VsoHash.WalkAllBlobBlocksAsync(
-                        byteStream,
-                        null,
-                        true,
-                        multipleBlockCallback: (block, blockLength, blockHash, isFinalBlock) => Task.FromResult(0));
+                 using (var byteStream = new MemoryStream(bytes))
+                 {
+                     var blobIdWithBlocks = await VsoHash.WalkAllBlobBlocksAsync(
+                         byteStream,
+                         null,
+                         true,
+                         multipleBlockCallback: (block, blockLength, blockHash, isFinalBlock) => Task.FromResult(0));
 
-                    byteStream.Position = 0;
-                    Assert.Equal(await VsoHash.CalculateBlobIdentifierWithBlocksAsync(byteStream), blobIdWithBlocks);
+                     byteStream.Position = 0;
+                     Assert.Equal(await VsoHash.CalculateBlobIdentifierWithBlocksAsync(byteStream), blobIdWithBlocks);
 
-                    byteStream.Position = 0;
-                    Assert.Equal(await VsoHash.CalculateBlobIdentifierWithBlocksAsync(byteStream), blobIdWithBlocks);
-                }
-            });
+                     byteStream.Position = 0;
+                     Assert.Equal(await VsoHash.CalculateBlobIdentifierWithBlocksAsync(byteStream), blobIdWithBlocks);
+                 }
+             });
         }
 
         [Fact]

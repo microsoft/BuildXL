@@ -105,36 +105,36 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact(Skip = "Skip until pending PR to fix flakiness.")]
-        public async Task PutStreamParallelAdds()
+        public Task PutStreamParallelAdds()
         {
             const int PutSize = 30;
 
-            await TestStore(Context, Clock, async store =>
-            {
-                var putTasks = Enumerable.Range(0, 20).Select(async i =>
-                {
-                    ContentHash hashFromPut;
-                    using (var dataStream = new MemoryStream(ThreadSafeRandom.GetBytes(PutSize)))
-                    {
-                        var r = await store.PutStreamAsync(Context, dataStream, ContentHashType, null).ShouldBeSuccess();
-                        hashFromPut = r.ContentHash;
-                        Clock.Increment();
-                    }
-                    return hashFromPut;
-                }).ToArray();
+            return TestStore(Context, Clock, async store =>
+             {
+                 var putTasks = Enumerable.Range(0, 20).Select(async i =>
+                 {
+                     ContentHash hashFromPut;
+                     using (var dataStream = new MemoryStream(ThreadSafeRandom.GetBytes(PutSize)))
+                     {
+                         var r = await store.PutStreamAsync(Context, dataStream, ContentHashType, null).ShouldBeSuccess();
+                         hashFromPut = r.ContentHash;
+                         Clock.Increment();
+                     }
+                     return hashFromPut;
+                 }).ToArray();
 
-                ContentHash[] puthashes = await TaskSafetyHelpers.WhenAll(putTasks);
+                 ContentHash[] puthashes = await TaskSafetyHelpers.WhenAll(putTasks);
 
-                await store.SyncAsync(Context);
+                 await store.SyncAsync(Context);
 
-                var filesStillInCache = 0;
-                foreach (var hash in puthashes)
-                {
-                    filesStillInCache += (await store.ContainsAsync(Context, hash, null)) ? 1 : 0;
-                }
+                 var filesStillInCache = 0;
+                 foreach (var hash in puthashes)
+                 {
+                     filesStillInCache += (await store.ContainsAsync(Context, hash, null)) ? 1 : 0;
+                 }
 
-                Assert.Equal(20, filesStillInCache);
-            });
+                 Assert.Equal(20, filesStillInCache);
+             });
         }
 
         [Fact]

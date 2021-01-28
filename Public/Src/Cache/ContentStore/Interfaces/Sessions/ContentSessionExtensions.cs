@@ -217,7 +217,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         /// <summary>
         ///     Put a randomly-sized content from a file into the store.
         /// </summary>
-        public static async Task<PutResult> PutRandomFileAsync(
+        public static Task<PutResult> PutRandomFileAsync(
             this IContentSession session,
             Context context,
             IAbsFileSystem fileSystem,
@@ -239,11 +239,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 
             if (!provideHash)
             {
-                return await session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct).ConfigureAwait(false);
+                return session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct);
             }
 
             var hash = HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHash(data);
-            return await session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct).ConfigureAwait(false);
+            return session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct);
         }
     }
 }

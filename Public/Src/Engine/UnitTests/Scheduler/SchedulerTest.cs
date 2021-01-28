@@ -2595,7 +2595,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestRecordFileForBuildManifest()
         {
-            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, Context.StringTable, "cbId");
+            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, Context.StringTable);
 
             string relativePath = "/a/b";
             ContentHash hash0 = ContentHash.Random();

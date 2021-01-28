@@ -4,12 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
-using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Ipc.ExternalApi
 {
@@ -71,16 +69,11 @@ namespace BuildXL.Ipc.ExternalApi
         }
 
         /// <summary>
-        /// Generates a BuildManifest.json file from hashes stored by <see cref="RegisterFilesForBuildManifest"/>.
+        /// Generates a list of file hashes for BuildManifest stored by <see cref="RegisterFilesForBuildManifest"/>.
         /// </summary>
-        public Task<Possible<BuildManifestData>> GenerateBuildManifestData(
-            string dropName,
-            string repo,
-            string branch,
-            string commitId,
-            string cloudBuildId)
+        public Task<Possible<List<BuildManifestFileInfo>>> GenerateBuildManifestFileList(string dropName)
         {
-            return ExecuteCommand(new GenerateBuildManifestDataCommand(dropName, repo, branch, commitId, cloudBuildId));
+            return ExecuteCommand(new GenerateBuildManifestFileListCommand(dropName));
         }
 
         /// <summary>

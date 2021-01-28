@@ -42,13 +42,6 @@ namespace Scheduler {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
-            importFrom("Microsoft.Bcl.HashCode").pkg,
-            importFrom("Microsoft.ManifestInterface").pkg,
-            importFrom("Microsoft.ManifestGenerator").pkg,
-            ...addIf(
-                BuildXLSdk.isFullFramework,
-                NetFx.Netstandard.dll
-            )
         ],
         internalsVisibleTo: [
             "bxlanalyzer",

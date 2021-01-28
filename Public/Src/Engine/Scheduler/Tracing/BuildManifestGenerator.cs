@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -11,7 +10,6 @@ using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -40,24 +38,17 @@ namespace BuildXL.Scheduler.Tracing
         internal readonly ConcurrentBigMap<(StringId, RelativePath), BuildManifestEntry> BuildManifestEntries;
 
         /// <summary>
-        /// Indicates Build Manifest Version
-        /// </summary>
-        public readonly string Version;
-
-        /// <summary>
         /// Constructor.
         /// </summary>
         public BuildManifestGenerator(
             LoggingContext loggingContext,
-            StringTable stringTable,
-            string version = "1.0.0")
+            StringTable stringTable)
         {
             Contract.Requires(loggingContext != null);
 
             m_loggingContext = loggingContext;
             m_stringTable = stringTable;
             m_duplicateEntries = new ConcurrentBag<(string, string, string, string)>();
-            Version = version;
             BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestEntry>();
         }
 
@@ -95,31 +86,24 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Generate a Build Manifest.
         /// </summary>
-        public BuildManifestData GenerateBuildManifestData(GenerateBuildManifestDataCommand cmd)
+        public List<BuildManifestFileInfo> GenerateBuildManifestFileList(GenerateBuildManifestFileListCommand cmd)
         {
             StringId dropStringId = StringId.Create(m_stringTable, cmd.DropName);
-            List<BuildManifestFile> sortedManifestDetailsForDrop = BuildManifestEntries.Values
+            List<BuildManifestFileInfo> sortedManifestDetailsForDrop = BuildManifestEntries.Values
                 .Where(bme => bme.DropName == dropStringId)
                 .Select(bme => (relPathStr: bme.RelativePath.ToString(m_stringTable), bme: bme))
                 .OrderBy(t => t.relPathStr)
                 .Select(t => ToBuildManifestDataComponent(t.relPathStr,
-                    t.bme.AzureArtifactsHash.Serialize(),
-                    t.bme.BuildManifestHash.Serialize()))
+                    t.bme.AzureArtifactsHash.ToHex(),
+                    t.bme.BuildManifestHash.ToHex()))
                 .ToList();
 
-            return new BuildManifestData(
-                Version,
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                cmd.CloudBuildId,
-                cmd.Repo,
-                cmd.Branch,
-                cmd.CommitId,
-                sortedManifestDetailsForDrop);
+            return sortedManifestDetailsForDrop;
         }
 
-        private BuildManifestFile ToBuildManifestDataComponent(string relativePath, string azureArtifactsHash, string buildManifestHash)
+        private BuildManifestFileInfo ToBuildManifestDataComponent(string relativePath, string azureArtifactsHash, string buildManifestHash)
         {
-            return new BuildManifestFile(
+            return new BuildManifestFileInfo(
                 relativePath.Replace('\\', '/'),
                 azureArtifactsHash,
                 buildManifestHash

@@ -1,91 +1,161 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
 using System.IO;
-using Microsoft.ManifestGenerator;
+using BuildXL.Utilities;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Ipc.ExternalApi.Commands
 {
     /// <summary>
-    /// Command corresponding to the <see cref="Client.GenerateBuildManifestData"/> API operation.
+    /// Command corresponding to the <see cref="Client.GenerateBuildManifestFileList"/> API operation.
     /// </summary>
-    public sealed class GenerateBuildManifestDataCommand : Command<BuildManifestData>
+    public sealed class GenerateBuildManifestFileListCommand : Command<List<BuildManifestFileInfo>>
     {
         /// <summary>
         /// DropName to identify which drop the Build Manifest is being generated for.
         /// </summary>
         public string DropName { get; }
 
-        /// <summary>
-        /// Git Repo location.
-        /// </summary>
-        public string Repo { get; }
-
-        /// <summary>
-        /// Git Branch name.
-        /// </summary>
-        public string Branch { get; }
-
-        /// <summary>
-        /// Commit id of current <see cref="Branch"/> head.
-        /// </summary>
-        public string CommitId { get; }
-
-        /// <summary>
-        /// Relative Activity Id or CloudBuildId for the build.
-        /// </summary>
-        public string CloudBuildId { get; }
-
         /// <nodoc />
-        public GenerateBuildManifestDataCommand(
-            string dropName,
-            string repo,
-            string branch,
-            string commitId,
-            string cloudBuildId)
+        public GenerateBuildManifestFileListCommand(string dropName)
         {
             DropName = dropName;
-            Repo = repo;
-            Branch = branch;
-            CommitId = commitId;
-            CloudBuildId = cloudBuildId;
         }
 
         /// <inheritdoc />
-        public override bool TryParseResult(string result, out BuildManifestData commandResult)
+        public override bool TryParseResult(string result, out List<BuildManifestFileInfo> commandResult)
         {
-            return BuildManifestData.TryParse(result, out commandResult);
+            commandResult = new List<BuildManifestFileInfo>();
+
+            using (var reader = new StringReader(result)) 
+            {
+                var count = reader.ReadLine();
+                if (!int.TryParse(count, out var numberOfFiles))
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < numberOfFiles; i++)
+                {
+                    string val = reader.ReadLine();
+                    if (!BuildManifestFileInfo.TryParse(val, out var buildManifestFileInfo))
+                    {
+                        return false;
+                    }
+
+                    commandResult.Add(buildManifestFileInfo);
+                }
+
+                return true;
+            }
         }
 
         /// <inheritdoc />
-        public override string RenderResult(BuildManifestData commandResult)
+        public override string RenderResult(List<BuildManifestFileInfo> commandResult)
         {
-            return commandResult.ToString();
+            Contract.Requires(commandResult != null);
+
+            using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
+            var sb = stringBuilderPoolInstance.Instance;
+            sb.AppendLine($"{commandResult.Count}");
+
+            foreach (BuildManifestFileInfo fileInfo in commandResult)
+            {
+                sb.AppendLine(fileInfo.ToString());
+            }
+
+            return sb.ToString();
         }
 
         internal override void InternalSerialize(BinaryWriter writer)
         {
             writer.Write(DropName);
-            writer.Write(Repo);
-            writer.Write(Branch);
-            writer.Write(CommitId);
-            writer.Write(CloudBuildId);
         }
 
         internal static Command InternalDeserialize(BinaryReader reader)
         {
-            string dropName = reader.ReadString();
-            string repo = reader.ReadString();
-            string branch = reader.ReadString();
-            string commitId = reader.ReadString();
-            string cloudBuildId = reader.ReadString();
+            return new GenerateBuildManifestFileListCommand(reader.ReadString());
+        }
+    }
 
-            return new GenerateBuildManifestDataCommand(
-                dropName: dropName,
-                repo: repo,
-                branch : branch,
-                commitId: commitId,
-                cloudBuildId : cloudBuildId);
+    /// <summary>
+    /// Stores Hash values and RelativePath of individual files added to drop
+    /// </summary>
+    public class BuildManifestFileInfo : IEquatable<BuildManifestFileInfo>
+    {
+        /// <nodoc/>
+        public string RelativePath { get; }
+
+        /// <nodoc/>
+        public string AzureArtifactsHash { get; }
+
+        /// <nodoc/>
+        public string BuildManifestHash { get; }
+
+        /// <nodoc/>
+        public BuildManifestFileInfo(
+            string relativePath,
+            string azureArtifactsHash,
+            string buildManifestHash)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(relativePath));
+            Contract.Requires(!string.IsNullOrEmpty(azureArtifactsHash));
+            Contract.Requires(!string.IsNullOrEmpty(buildManifestHash));
+
+            RelativePath = relativePath;
+            AzureArtifactsHash = azureArtifactsHash;
+            BuildManifestHash = buildManifestHash;
+        }
+
+        /// <summary>
+        /// Separator used for serialization
+        /// </summary>
+        public const char Separator = '|';
+
+        /// <summary>
+        /// Number of fields to be serialized within BuildManifestFileInfo
+        /// </summary>
+        private const int FieldCount = 3;
+
+        /// <summary>
+        /// String representation format: RelativePath | AzureArtifactsHash | BuildManifestHash
+        /// </summary>
+        public override string ToString() 
+        {
+            return $"{RelativePath}{BuildManifestFileInfo.Separator}{AzureArtifactsHash}{BuildManifestFileInfo.Separator}{BuildManifestHash}";
+        }
+
+        /// <summary>
+        /// Try to parse strings generated by <see cref="ToString"/>
+        /// </summary>
+        public static bool TryParse(string val, out BuildManifestFileInfo fileInfo)
+        {
+            fileInfo = null;
+
+            string[] splits = val.Split(BuildManifestFileInfo.Separator);
+
+            if (splits.Length != FieldCount)
+            {
+                return false;
+            }
+
+            fileInfo = new BuildManifestFileInfo(
+                splits[0],
+                splits[1],
+                splits[2]);
+
+            return true;
+        }
+
+        /// <nodoc/>
+        public bool Equals(BuildManifestFileInfo other)
+        {
+            return string.Equals(RelativePath, other?.RelativePath) &&
+                string.Equals(AzureArtifactsHash, other?.AzureArtifactsHash) &&
+                string.Equals(BuildManifestHash, other?.BuildManifestHash);
         }
     }
 }

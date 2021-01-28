@@ -559,20 +559,28 @@ namespace Tool.DropDaemon
         {
             Contract.Requires(daemon.DropConfig.EnableBuildManifestCreation == true, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            var bxlResult = await daemon.ApiClient.GenerateBuildManifestData(
-                daemon.DropName,
-                daemon.DropConfig.Repo,
-                daemon.DropConfig.Branch,
-                daemon.DropConfig.CommitId,
-                daemon.DropConfig.CloudBuildId);
+            var bxlResult = await daemon.ApiClient.GenerateBuildManifestFileList(daemon.DropName);
 
             if (!bxlResult.Succeeded)
             {
                 return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {daemon.DropName}. Failure: {bxlResult.Failure}");
             }
 
+            List<BuildManifestFile> manifestFileListForDrop = bxlResult.Result
+                .Select(fileInfo => new BuildManifestFile(fileInfo.RelativePath, fileInfo.AzureArtifactsHash, fileInfo.BuildManifestHash))
+                .ToList();
+
+            BuildManifestData buildManifestData = new BuildManifestData(
+                CloudBuildManifestV1.ManifestInfoV1.Version,
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                daemon.DropConfig.CloudBuildId,
+                daemon.DropConfig.Repo,
+                daemon.DropConfig.Branch,
+                daemon.DropConfig.CommitId,
+                manifestFileListForDrop);
+
             string localFilePath;
-            string buildManifestJsonStr = BuildManifestData.GenerateBuildManifestJsonString(bxlResult.Result);
+            string buildManifestJsonStr = BuildManifestData.GenerateBuildManifestJsonString(buildManifestData);
 
             try
             {

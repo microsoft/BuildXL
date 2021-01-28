@@ -4,12 +4,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -28,7 +26,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using Microsoft.ManifestGenerator;
 
 namespace BuildXL.Scheduler
 {
@@ -233,10 +230,10 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            var generateBuildManifestDataCmd = cmd as GenerateBuildManifestDataCommand;
+            var generateBuildManifestDataCmd = cmd as GenerateBuildManifestFileListCommand;
             if (generateBuildManifestDataCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestDataAsync, generateBuildManifestDataCmd, ApiServerCounters.TotalGenerateBuildManifestFileCalls);
+                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestFileListAsync, generateBuildManifestDataCmd, ApiServerCounters.TotalGenerateBuildManifestFileListCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -324,14 +321,14 @@ namespace BuildXL.Scheduler
             return IpcResult.Success(cmd.RenderResult(succeeded));
         }
 
-        private Task<IIpcResult> ExecuteGenerateBuildManifestDataAsync(GenerateBuildManifestDataCommand cmd)
-            => Task.FromResult(ExecuteGenerateBuildManifestData(cmd));
+        private Task<IIpcResult> ExecuteGenerateBuildManifestFileListAsync(GenerateBuildManifestFileListCommand cmd)
+            => Task.FromResult(ExecuteGenerateBuildManifestFileList(cmd));
 
         /// <summary>
-        /// Executes <see cref="GenerateBuildManifestDataCommand"/>. Generates a BuildManifest.json file for given
-        /// <see cref="GenerateBuildManifestDataCommand.DropName"/>.
+        /// Executes <see cref="GenerateBuildManifestFileListCommand"/>. Generates a list of file hashes required for BuildManifest.json file
+        /// for given <see cref="GenerateBuildManifestFileListCommand.DropName"/>.
         /// </summary>
-        private IIpcResult ExecuteGenerateBuildManifestData(GenerateBuildManifestDataCommand cmd)
+        private IIpcResult ExecuteGenerateBuildManifestFileList(GenerateBuildManifestFileListCommand cmd)
         {
             Contract.Requires(cmd != null);
             Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on master");
@@ -349,9 +346,7 @@ namespace BuildXL.Scheduler
                 return new IpcResult(IpcResultStatus.ExecutionError, sb.ToString());
             }
 
-            BuildManifestData buildManifestData = m_buildManifestGenerator.GenerateBuildManifestData(cmd);
-
-            return IpcResult.Success(cmd.RenderResult(buildManifestData));
+            return IpcResult.Success(cmd.RenderResult(m_buildManifestGenerator.GenerateBuildManifestFileList(cmd)));
         }
 
         /// <summary>
@@ -580,10 +575,10 @@ namespace BuildXL.Scheduler
         RegisterBuildManifestHashesDuration,
 
         /// <summary>
-        /// Number of <see cref="GenerateBuildManifestDataCommand"/> calls
+        /// Number of <see cref="GenerateBuildManifestFileListCommand"/> calls
         /// </summary>
         [CounterType(CounterType.Numeric)]
-        TotalGenerateBuildManifestFileCalls,
+        TotalGenerateBuildManifestFileListCalls,
 
         /// <summary>
         /// Number of <see cref="ReportStatisticsCommand"/> calls

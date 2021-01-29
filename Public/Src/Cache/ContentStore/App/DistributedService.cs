@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Writable directory for service operations (use CWD if null)")] string dataRootPath,
             [DefaultValue(null), Description("Identifier for the stamp this service will run as")] string stampId,
             [DefaultValue(null), Description("Identifier for the ring this service will run as")] string ringId,
-            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
+            [DefaultValue(Constants.OneGBInMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
             [DefaultValue(false)] bool debug,
             [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
             [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies,

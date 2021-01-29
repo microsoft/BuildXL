@@ -17,7 +17,7 @@ namespace BuildXL.Cache.Host.Service
 
         public string BuildId => "Unknown";
 
-        public string ServiceName { get; } = "CacheService";
+        public string ServiceName { get; set; } = "CacheService";
 
         public string APEnvironment => "Unknown";
 

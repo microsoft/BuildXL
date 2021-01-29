@@ -494,7 +494,7 @@ namespace BuildXL.Cache.ContentStore.App
         private FileSystemContentStoreInternal CreateInternal(AbsolutePath rootPath)
         {
             return new FileSystemContentStoreInternal(
-                _fileSystem, SystemClock.Instance, rootPath, new ConfigurationModel(ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(Constants.OneMB)));
+                _fileSystem, SystemClock.Instance, rootPath, new ConfigurationModel(ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(Constants.OneGBInMB)));
         }
 
         private void RunContentStore(string cacheName, string cachePath, ServiceClientRpcConfiguration rpcConfiguration, Func<Context, IContentSession, Task> funcAsync)
@@ -516,7 +516,7 @@ namespace BuildXL.Cache.ContentStore.App
         private void RunFileSystemContentStore(AbsolutePath rootPath, System.Func<Context, IContentSession, Task> funcAsync)
         {
             System.Func<IContentStore> createFunc = () => new FileSystemContentStore(
-                _fileSystem, SystemClock.Instance, rootPath, new ConfigurationModel(ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(Constants.OneMB)));
+                _fileSystem, SystemClock.Instance, rootPath, new ConfigurationModel(ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(Constants.OneGBInMB)));
             RunContentStore(createFunc, funcAsync);
         }
 

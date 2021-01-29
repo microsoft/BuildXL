@@ -80,6 +80,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// Optional. Defaults to root folder.
         /// </summary>
         public string TargetRelativePath { get; set; }
+
+        /// <summary>
+        /// Indicates that the drop is the primary drop used to determining the deployed drop name when logging
+        /// </summary>
+        public bool IsPrimary { get; set; }
     }
 
     /// <summary>

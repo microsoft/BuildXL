@@ -5,6 +5,6 @@ namespace BuildXL.Cache.ContentStore.App
 {
     public static class Constants
     {
-        public const int OneMB = 1024 * 1024 * 1024;
+        public const int OneGBInMB = 1024;
     }
 }

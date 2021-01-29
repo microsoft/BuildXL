@@ -51,14 +51,15 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Duration of inactivity after which a session will be timed out.")] double? unusedSessionTimeoutSeconds,
             [DefaultValue(null), Description("Duration of inactivity after which a session with a heartbeat will be timed out.")] double? unusedSessionHeartbeatTimeoutSeconds,
             [DefaultValue(false), Description("Stop running service")] bool stop,
-            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
+            [DefaultValue(Constants.OneGBInMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
             [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(RemoteGrpcPortDescription)] uint backingGrpcPort,
             [DefaultValue(null), Description("Name of scenario for backing CAS service")] string backingScenario,
             [DefaultValue("None"), Description("Ring Id. Used only for telemetry.")] string ringId,
             [DefaultValue("None"), Description("Stamp Id. Used only for telemetry.")] string stampId,
             [DefaultValue(null), Description("nLog configuration path. If empty, it is disabled")] string nLogConfigurationPath,
             [DefaultValue(null), Description("Whether to use Azure Blob logging or not")] string nLogToBlobStorageSecretName,
-            [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath
+            [DefaultValue(null), Description("If using Azure Blob logging, where to temporarily store logs")] string nLogToBlobStorageWorkspacePath,
+            [DefaultValue(false), Description("Enable metadata")] bool enableMetadata
             )
         {
             Initialize();
@@ -176,6 +177,11 @@ namespace BuildXL.Cache.ContentStore.App
             {
                 distributedContentSettings.BackingGrpcPort = (int)backingGrpcPort;
                 distributedContentSettings.BackingScenario = backingScenario;
+            }
+
+            if (enableMetadata)
+            {
+                distributedContentSettings.EnableMetadataStore = true;
             }
 
             LoggingSettings loggingSettings = null;

@@ -77,6 +77,9 @@ namespace BuildXL.Cache.ContentStore.App
                     var arguments = new LoggerFactoryArguments(_logger, host, settings.LoggingSettings)
                     {
                         TelemetryFieldsProvider = new HostTelemetryFieldsProvider(settings.DeploymentParameters)
+                        {
+                            ServiceName = "DeploymentLauncher"
+                        }
                     };
 
                     var replacementLogger = LoggerFactory.CreateReplacementLogger(arguments);

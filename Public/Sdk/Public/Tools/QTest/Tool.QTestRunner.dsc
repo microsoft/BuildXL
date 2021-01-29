@@ -279,7 +279,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.none(flakyFile)),
         Cmd.flag("--doNotFailForZeroTestCases", args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotFailForZeroTestCases),
         Cmd.flag("--qTestHonorTrxResultSummary", args.qTestHonorTrxResultSummary),
-        Cmd.option("--qTestParserType ", args.qTestParserType)
+        Cmd.option("--qTestParserType ", args.qTestParserType),
+        Cmd.option("--AzureDevOpsLogUploadMode ", args.qTestAzureDevOpsLogUploadMode)
     ];
 
     if (isJSProject) {
@@ -599,6 +600,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     javaScriptProject?: JavaScriptProject;
     /** Specifies what parser to use to parse QTest results */
     qTestParserType?: string;
+    /** Specifies the upload behavior to Azure DevOps for QTest logs. Default mode is OnlyFailedTargets.*/
+    qTestAzureDevOpsLogUploadMode?: "AllTargets" | "OnlyFailedTargets" | "None"; 
     /** Nested tool options */
     tools?: {
         /** 

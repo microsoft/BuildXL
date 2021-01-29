@@ -4,6 +4,8 @@ import * as ManagedSdk from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 
 namespace VfsLibrary {
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+    
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore.Vfs",
@@ -25,6 +27,9 @@ namespace VfsLibrary {
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
             ...getGrpcPackages(true),
+
+            importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
+            importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Vfs.Test",

@@ -71,6 +71,11 @@ namespace Cache.NugetPackages {
             Nuget.createAssemblyLayoutWithSpecificRuntime(net5WinX64ContentStore.Library.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(net5OsxX64ContentStore.Library.dll, "osx-x64", false),
             
+            // ContentStore.VfsLibraries
+            Nuget.createAssemblyLayout(net472ContentStore.VfsLibrary.dll),
+            Nuget.createAssemblyLayoutWithSpecificRuntime(winX64ContentStore.VfsLibrary.dll, "win-x64", true),
+            Nuget.createAssemblyLayoutWithSpecificRuntime(net5WinX64ContentStore.VfsLibrary.dll, "win-x64", true),
+
             // ContentStore.Grpc
             Nuget.createAssemblyLayout(net472ContentStore.Grpc.dll),
             Nuget.createAssemblyLayout(net462ContentStore.Grpc.dll),

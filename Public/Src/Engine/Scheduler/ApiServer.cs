@@ -50,6 +50,8 @@ namespace BuildXL.Scheduler
 
         private readonly ConcurrentDictionary<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
 
+        private const int GetBuildManifestHashFromLocalFileRetryLimit = 3;
+
         /// <nodoc />
         public ApiServer(
             IIpcProvider ipcProvider,
@@ -127,24 +129,37 @@ namespace BuildXL.Scheduler
             return null;
         }
 
-        private async Task<Possible<ContentHash>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath)
+        private async Task<Possible<ContentHash>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, int retryAttempt = 0)
         {
+            if (retryAttempt >= GetBuildManifestHashFromLocalFileRetryLimit)
+            {
+                string message = $"GetBuildManifestHashFromLocalFileRetryLimit exceeded at path '{fullFilePath}'";
+                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", message);
+                return new Failure<string>(message);
+            }
+
+            if (retryAttempt > 0)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(20 * retryAttempt));
+            }
+
             if (File.Exists(fullFilePath))
             {
                 try
                 {
                     var hash = await ContentHashingUtilities.HashFileForBuildManifestAsync(fullFilePath);
-                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}'. BuildManifestHash: '{hash.Serialize()}'");
+                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", $"Local file found at path '{fullFilePath}'. BuildManifestHash: '{hash.Serialize()}'");
                     return hash;
                 }
                 catch (Exception ex) when (ex is BuildXLException || ex is IOException)
                 {
-                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash: {ex}");
-                    return new Failure<string>($"Exception in TryGetBuildManifestHashFromLocalFileAsync: {ex}");
+                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest",
+                        $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash. Retry attempt {retryAttempt} out of {GetBuildManifestHashFromLocalFileRetryLimit}. Exception: {ex}");
+                    return await TryGetBuildManifestHashFromLocalFileAsync(fullFilePath, retryAttempt + 1);
                 }
             }
 
-            Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "Verbose", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
+            Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
             return new Failure<string>($"File doesn't exist: '{fullFilePath}'");
         }
 
@@ -409,7 +424,7 @@ namespace BuildXL.Scheduler
                     return null;
                 }
 
-                Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromCacheFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
+                Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromLocalFileFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             }
 
             return buildManifestEntry;

@@ -411,7 +411,7 @@ namespace BuildXL.Scheduler.Tracing
         ApiServerReceivedMessage = 12107,
         ApiServerReceivedWarningMessage = 12108,
         ApiServerStoreBuildManifestHashToCacheFailed = 12109,
-        ErrorApiServerGetBuildManifestHashFromCacheFailed = 12110,
+        ErrorApiServerGetBuildManifestHashFromLocalFileFailed = 12110,
 
         // Copy file cont'd.
         // Elsewhere = 12201,

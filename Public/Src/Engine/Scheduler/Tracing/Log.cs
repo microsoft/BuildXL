@@ -3780,13 +3780,13 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerStoreBuildManifestHashToCacheFailed(LoggingContext loggingContext, string hash, string buildManifestHash, string reason);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ErrorApiServerGetBuildManifestHashFromCacheFailed,
+            (ushort)LogEventId.ErrorApiServerGetBuildManifestHashFromLocalFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation Get BuildManifest Hash from cache for Hash: '{hash}' failed. Reason: {reason}.")]
-        internal abstract void ErrorApiServerGetBuildManifestHashFromCacheFailed(LoggingContext loggingContext, string hash, string reason);
+            Message = "[{ShortProductName} API Server] Operation Get BuildManifest Hash from local file for Hash: '{hash}' failed. Reason: {reason}.")]
+        internal abstract void ErrorApiServerGetBuildManifestHashFromLocalFileFailed(LoggingContext loggingContext, string hash, string reason);
     }
 }
 #pragma warning restore CA1823 // Unused field

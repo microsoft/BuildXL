@@ -111,30 +111,5 @@ export const y = x;";
 
             Assert.Equal(42, result);
         }
-        
-        [Fact]
-        public void WorkspaceComputationFailsWhenProjectIsOutsideTheModuleRoot()
-        {
-            string packageConfig = @"
-module({
-    name: 'Pack1',
-    projects: [f`../project.dsc`],
-});
-";
-            // Ignore WarnForDeprecatedV1Modules
-            IgnoreWarnings();
-
-            var result =
-                BuildLegacyConfigurationWithPrelude("config({modules: [f`Pack1/package.config.dsc`, f`Sdk.Prelude/package.config.dsc`]});")
-                .AddSpec("Pack1/package.config.dsc", packageConfig)
-                .AddSpec("project.dsc", "export const x = 42;")
-                .RootSpec("config.dsc")
-                .ParseWithFirstError();
-
-            Assert.Contains("Project files should be physically within its module root", result.FullMessage);
-            Assert.Equal(
-                global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace,
-                (global::BuildXL.FrontEnd.Core.Tracing.LogEventId) result.ErrorCode);
-        }
     }
 }

@@ -568,12 +568,6 @@ namespace BuildXL.FrontEnd.Script
                 {
                     projects.Add(package.Path);
                 }
-
-                var outOfConeProject = projects.Find(project => !project.IsWithin(PathTable, packageRoot));
-                if (outOfConeProject != default(AbsolutePath))
-                {
-                    return new ProjectOutsideModuleConeFailure(PathTable, package, outOfConeProject);
-                }
             }
 
             // This is for v1 only, so we'll just have a hardcoded filename since it must be that name.

@@ -58,7 +58,7 @@ namespace BuildXL.FrontEnd.Script
         /// Source files obtained during configuration processing.
         /// </summary>
         /// <remarks>
-        /// Not null if <see cref="InitPackageFromDescriptorAsync(DiscriminatingUnion{AbsolutePath, IInlineModuleDefinition}, AbsolutePath)"/> was called and was successful.
+        /// Not null if <see cref="InitPackageFromDescriptorAsync(DiscriminatingUnion{AbsolutePath, IInlineModuleDefinition}, AbsolutePath, int)"/> was called and was successful.
         /// </remarks>
         private ISourceFile[] m_configurationFiles;
 
@@ -826,7 +826,7 @@ namespace BuildXL.FrontEnd.Script
                 var currentPackagePathOrInlined = packagePathOrInlined;
 
                 // Per suggestion, create a task to avoid doing things sequential.
-                initTasks[i] = Task.Run(async () => await InitPackageFromDescriptorAsync(currentPackagePathOrInlined, configPath));
+                initTasks[i] = Task.Run(async () => await InitPackageFromDescriptorAsync(currentPackagePathOrInlined, configPath, i));
                 ++i;
             }
 
@@ -842,22 +842,22 @@ namespace BuildXL.FrontEnd.Script
             return result;
         }
 
-        private Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptorAsync(DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition> pathOrInlined, AbsolutePath configPath)
+        private Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptorAsync(DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition> pathOrInlined, AbsolutePath configPath, int packageIndex)
         {
             Contract.RequiresNotNull(pathOrInlined);
 
             var value = pathOrInlined.GetValue();
             return value is AbsolutePath path
                 ? InitPackageFromDescriptorAsync(path, configPath)
-                : InitPackageFromDescriptAsync(configPath, (IInlineModuleDefinition)value);
+                : InitPackageFromDescriptAsync(configPath, (IInlineModuleDefinition)value, packageIndex);
         }
 
-        private async Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptAsync(AbsolutePath configPath, IInlineModuleDefinition inlineDefinition)
+        private async Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptAsync(AbsolutePath configPath, IInlineModuleDefinition inlineDefinition, int packageIndex)
         {
             var packageConfiguration = new PackageDescriptor
             {
-                // Use a random GUID for the module name if not provided 
-                Name = inlineDefinition.ModuleName ?? Guid.NewGuid().ToString(),
+                // Use an arbitrary (but deterministic) name for the module name if not provided 
+                Name = inlineDefinition.ModuleName ?? $"AnonymousModule_{packageIndex}",
                 // The default is V2
                 NameResolutionSemantics = NameResolutionSemantics.ImplicitProjectReferences,
                 Projects = inlineDefinition.Projects,

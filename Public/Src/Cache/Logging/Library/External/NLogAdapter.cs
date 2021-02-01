@@ -200,6 +200,12 @@ namespace BuildXL.Cache.Logging.External
         internal static LogEventInfo CreateLogEventInfo(in LogMessage operation)
         {
             var logLine = new LogEventInfo(level: Translate(operation.Severity), loggerName: null, message: operation.Message);
+
+            if (operation.Exception != null)
+            {
+                logLine.Exception = operation.Exception;
+            }
+            
             SetCoreProperties(logLine, operation);
             return logLine;
         }

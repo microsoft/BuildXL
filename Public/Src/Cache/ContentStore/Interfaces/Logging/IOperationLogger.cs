@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
     }
 
     /// <summary>
-    /// 
+    /// Log message data.
     /// </summary>
     public readonly struct LogMessage : IOperationInfo
     {
@@ -130,6 +130,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         public string OperationId { get; }
 
+        /// <summary>
+        /// An optional exception associated with the log message
+        /// </summary>
+        public Exception? Exception { get; }
+
         /// <nodoc />
         public LogMessage(
             string message,
@@ -138,6 +143,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
             OperationKind operationKind,
             string operationId,
             Severity severity)
+        : this (message, operationName, tracerName, operationKind, operationId, severity, exception: null)
+        {
+        }
+
+        /// <nodoc />
+        public LogMessage(
+            string message,
+            string operationName,
+            string tracerName,
+            OperationKind operationKind,
+            string operationId,
+            Severity severity,
+            Exception? exception)
         {
             Contract.RequiresNotNullOrEmpty(message, "message should not be null or empty");
 
@@ -147,6 +165,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
             OperationKind = operationKind;
             Severity = severity;
             OperationId = operationId;
+            Exception = exception;
         }
     }
 

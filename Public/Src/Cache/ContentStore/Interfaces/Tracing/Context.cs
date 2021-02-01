@@ -125,11 +125,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <summary>
+        ///     Log a message if current severity is set to at least Error.
+        /// </summary>
+        public void Error(Exception exception, string message, string component, [CallerMemberName] string? operation = null)
+        {
+            TraceMessage(Severity.Error, exception, message, component, operation);
+        }
+
+        /// <summary>
         ///     Log a message if current severity is set to at least Warning.
         /// </summary>
         public void Warning(string message, string component, [CallerMemberName] string? operation = null)
         {
             TraceMessage(Severity.Warning, message, component, operation);
+        }
+
+        /// <summary>
+        ///     Log a message if current severity is set to at least Warning.
+        /// </summary>
+        public void Warning(Exception exception, string message, string component, [CallerMemberName] string? operation = null)
+        {
+            TraceMessage(Severity.Warning, exception, message, component, operation);
         }
 
         /// <summary>
@@ -153,6 +169,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void TraceMessage(Severity severity, string message, string component, [CallerMemberName] string? operation = null)
         {
+            TraceMessage(severity, exception: null, message, component, operation);
+        }
+
+        /// <summary>
+        ///     Trace a message if current severity is set to at least the given severity.
+        /// </summary>
+        public void TraceMessage(Severity severity, Exception? exception, string message, string component, [CallerMemberName] string? operation = null)
+        {
             if (Logger == null)
             {
                 return;
@@ -162,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 
             if (Logger is IStructuredLogger structuredLogger)
             {
-                structuredLogger.Log(new LogMessage(message, operation, component, OperationKind.None, _idAsString, severity));
+                structuredLogger.Log(new LogMessage(message, operation, component, OperationKind.None, _idAsString, severity, exception));
             }
             else
             {
@@ -181,7 +205,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                     provenance = $"{component}.{operation}: ";
                 }
 
-                Logger.Log(severity, $"{_idAsString} {provenance}{message}");
+                if (exception == null)
+                {
+                    Logger.Log(severity, $"{_idAsString} {provenance}{message}");
+                }
+                else
+                {
+                    if (severity == Severity.Error)
+                    {
+                        Logger.Error(exception, $"{_idAsString} {provenance}{message}");
+                    }
+                    else
+                    {
+                        Logger.Log(severity, $"{_idAsString} {provenance}{message} {exception}");
+                    }
+                }
             }
         }
 

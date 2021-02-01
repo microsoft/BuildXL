@@ -129,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             IReadOnlyDictionary<string, IContentStore> storesByName,
             LocalServerConfiguration? localServerConfiguration = null)
         {
-            Contract.Requires(storesByName != null);
+            Contract.RequiresNotNull(storesByName);
 
             _serviceCapabilities = serviceCapabilities;
             _contentStoreByCacheName = storesByName;

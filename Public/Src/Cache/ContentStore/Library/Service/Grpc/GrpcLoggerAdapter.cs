@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public void Error(string format, params object[] formatArgs) => TraceMessage(Severity.Error, format, formatArgs);
 
-        public void Error(Exception exception, string message) => TraceMessage(Severity.Error, message);
+        public void Error(Exception exception, string message) => TraceMessage(Severity.Error, exception, message);
 
         public void Info(string message) => TraceMessage(Severity.Info, message);
 
@@ -43,11 +43,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public void Warning(string format, params object[] formatArgs) => TraceMessage(Severity.Warning, format, formatArgs);
 
-        public void Warning(Exception exception, string message) => TraceMessage(Severity.Warning, message);
+        public void Warning(Exception exception, string message) => TraceMessage(Severity.Warning, exception, message);
 
         private void TraceMessage(Severity severity, string message)
         {
             _context.TraceMessage(severity, message, component: Component, operation: _operation);
+        }
+
+        private void TraceMessage(Severity severity, Exception exception, string message)
+        {
+            _context.TraceMessage(severity, exception, message, component: Component, operation: _operation);
         }
 
         private void TraceMessage(Severity severity, string format, object[] formatArgs)

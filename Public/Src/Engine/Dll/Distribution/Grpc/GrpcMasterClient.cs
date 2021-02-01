@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -39,12 +40,13 @@ namespace BuildXL.Engine.Distribution.Grpc
                 waitForConnection: true);
         }
 
-        public Task<RpcCallResult<Unit>> NotifyAsync(OpenBond.WorkerNotificationArgs message, IList<long> semiStableHashes)
+        public Task<RpcCallResult<Unit>> NotifyAsync(OpenBond.WorkerNotificationArgs message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
         {
             var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
                async (callOptions) => await m_client.NotifyAsync(grpcMessage, options: callOptions),
-               DistributionHelpers.GetNotifyDescription(message, semiStableHashes));
+               DistributionHelpers.GetNotifyDescription(message, semiStableHashes),
+               cancellationToken: cancellationToken);
         }
     }
 }

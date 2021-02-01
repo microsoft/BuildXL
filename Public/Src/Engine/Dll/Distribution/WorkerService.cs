@@ -118,6 +118,8 @@ namespace BuildXL.Engine.Distribution
         private NotifyMasterExecutionLogTarget m_notifyMasterExecutionLogTarget;
 
         private readonly Thread m_sendThread;
+        private readonly CancellationTokenSource m_sendCancellationSource;
+
         private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData>();
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
@@ -141,15 +143,16 @@ namespace BuildXL.Engine.Distribution
             m_attachCompletionSource = TaskSourceSlim.Create<bool>();
             m_exitCompletionSource = TaskSourceSlim.Create<bool>();
             m_workerRunnablePipObserver = new WorkerRunnablePipObserver(this);
-            m_sendThread = new Thread(SendBuildResults);
+            m_sendCancellationSource = new CancellationTokenSource();
+            m_sendThread = new Thread(() => SendBuildResults(m_sendCancellationSource.Token));
         }
 
-        private void SendBuildResults()
+        private void SendBuildResults(CancellationToken cancellationToken)
         {
             int numBatchesSent = 0;
 
             ExtendedPipCompletionData firstItem;
-            while (!m_buildResults.IsCompleted)
+            while (!m_buildResults.IsCompleted && !cancellationToken.IsCancellationRequested)
             {
                 try
                 {
@@ -169,6 +172,12 @@ namespace BuildXL.Engine.Distribution
                     m_executionResultList.Add(item);
                 }
 
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    // We may wake up after blocking with TryTake to find out that we were cancelled
+                    break;
+                }
+
                 // Ensure all execution log events are flushed before reporting pip results to master
                 // to ensure dependency ordering constraints between pips are maintained inside combined
                 // execution log on master.
@@ -185,7 +194,17 @@ namespace BuildXL.Engine.Distribution
 
                 using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerFlushExecutionLogDuration))
                 {
-                    flushExecutionLogTask.GetAwaiter().GetResult();
+                    try
+                    {
+                        flushExecutionLogTask.Wait(cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // The logger may still be trying to flush the execution log to the orchestrator
+                        // because that operation is not tied to the cancellation token, but that's OK. 
+                        // We still want to stop trying to communicate so we exit.
+                        break;
+                    }
                 }
 
                 using (m_services.Counters.StartStopwatch(DistributionCounter.ReportPipsCompletedDuration))
@@ -195,8 +214,9 @@ namespace BuildXL.Engine.Distribution
                         WorkerId = WorkerId,
                         CompletedPips = m_executionResultList.Select(a => a.SerializedData).ToList()
                     },
-                    m_executionResultList.Select(a => a.SemiStableHash).ToList()).GetAwaiter().GetResult();
-
+                    m_executionResultList.Select(a => a.SemiStableHash).ToList(),
+                    cancellationToken: cancellationToken).GetAwaiter().GetResult();
+                    
                     if (callResult.Succeeded)
                     {
                         foreach (var result in m_executionResultList)
@@ -207,10 +227,10 @@ namespace BuildXL.Engine.Distribution
 
                         numBatchesSent++;
                     }
-                    else
+                    else if (!cancellationToken.IsCancellationRequested)
                     {
                         // Fire-forget exit call with failure.
-                        // If we fail to send notification to master, the worker should fail.
+                        // If we fail to send notification to master and we were not cancelled, the worker should fail.
                         ExitAsync(failure: "Notify event failed to send to master", isUnexpected: true);
                         break;
                     }
@@ -323,6 +343,7 @@ namespace BuildXL.Engine.Distribution
         public void Exit(string failure, bool isUnexpected = false)
         {
             m_buildResults.CompleteAdding();
+
             if (m_sendThread.IsAlive)
             {
                 m_sendThread.Join();
@@ -449,6 +470,9 @@ namespace BuildXL.Engine.Distribution
 
         private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
         {
+            // Stop sending messages
+            m_sendCancellationSource.Cancel();
+           
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
             Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxRetry));

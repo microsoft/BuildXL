@@ -1295,6 +1295,7 @@ namespace BuildXL.Scheduler
             MasterSpecificExecutionLogTarget masterTarget = null;
             WeakFingerprintAugmentationExecutionLogTarget fingerprintAugmentationTarget = null;
             BuildManifestStoreTarget buildManifestStoreTarget = null;
+            m_dumpPipLiteExecutionLogTarget = null;
 
             if (!IsDistributedWorker)
             {
@@ -1309,6 +1310,12 @@ namespace BuildXL.Scheduler
 
                 m_buildManifestGenerator = new BuildManifestGenerator(loggingContext, context.StringTable);
                 buildManifestStoreTarget = new BuildManifestStoreTarget(m_buildManifestGenerator);
+
+                // Only log failed pips on master to make it easier to retrieve logs for failing pips on workers
+                if (configuration.Logging.DumpFailedPips.GetValueOrDefault())
+                {
+                    m_dumpPipLiteExecutionLogTarget = new DumpPipLiteExecutionLogTarget(context, graph.PipTable, loggingContext, configuration, graph);
+                }
             }
 
             m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
@@ -1317,13 +1324,9 @@ namespace BuildXL.Scheduler
                 new ObservedInputAnomalyAnalyzer(loggingContext, graph),
                 masterTarget,
                 fingerprintAugmentationTarget,
-                buildManifestStoreTarget);
+                buildManifestStoreTarget,
+                m_dumpPipLiteExecutionLogTarget);
 
-            if (configuration.Logging.DumpFailedPips.GetValueOrDefault())
-            {
-                m_dumpPipLiteExecutionLogTarget = new DumpPipLiteExecutionLogTarget(context, graph.PipTable, loggingContext);
-                m_multiExecutionLogTarget.AddExecutionLogTarget(m_dumpPipLiteExecutionLogTarget);
-            }
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(

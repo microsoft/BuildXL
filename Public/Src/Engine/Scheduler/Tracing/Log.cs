@@ -3787,6 +3787,52 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{ShortProductName} API Server] Operation Get BuildManifest Hash from local file for Hash: '{hash}' failed. Reason: {reason}.")]
         internal abstract void ErrorApiServerGetBuildManifestHashFromLocalFileFailed(LoggingContext loggingContext, string hash, string reason);
+        
+        [GeneratedEvent(
+            (ushort)LogEventId.DumpPipLiteUnableToCreateLogDirectory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Runtime Dump Pip Lite Analyzer failed to create log folder {directory}, and has been disabled for this build. Reason: {exceptionMessage}.")]
+        internal abstract void DumpPipLiteUnableToCreateLogDirectory(LoggingContext loggingContext, string directory, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DumpPipLiteUnableToSerializePip,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Runtime Dump Pip Lite Analyzer failed to serialize pip '{pipHash}' at '{path}' due to a generic error, and has been disabled for the remainder of this build. Reason: {exceptionMessage}.")]
+        internal abstract void DumpPipLiteUnableToSerializePip(LoggingContext loggingContext, string pipHash, string path, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DumpPipLiteUnableToSerializePipDueToBadArgument,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Dump pip lite analysis utilities unable to serialize pip '{pipHash}' at '{path}' due to a bad argument to the JSON serializer or file writer, and has been disabled for the remainder of this build. Reason: {exceptionMessage}.")]
+        internal abstract void DumpPipLiteUnableToSerializePipDueToBadArgument(LoggingContext loggingContext, string pipHash, string path, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DumpPipLiteUnableToSerializePipDueToBadPath,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Dump pip lite analysis utilities unable to serialize pip '{pipHash}' at '{path}' due to a bad output path provided to the file writer, and has been disabled for the remainder of this build. Reason: {exceptionMessage}.")]
+        internal abstract void DumpPipLiteUnableToSerializePipDueToBadPath(LoggingContext loggingContext, string pipHash, string path, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.RuntimeDumpPipLiteLogLimitReached,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Runtime dump pip lite analyzer has hit the maximum amount of files that can be logged ({maxFiles}) and will not log additional failures for this build.")]
+        internal abstract void RuntimeDumpPipLiteLogLimitReached(LoggingContext loggingContext, int maxFiles);
+
     }
 }
 #pragma warning restore CA1823 // Unused field

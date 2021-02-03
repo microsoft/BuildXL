@@ -13,6 +13,8 @@ namespace Scheduler {
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Text.Encoding.dll,
+                NetFx.Netstandard.dll,
+                importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
                 importFrom("System.Collections.Immutable").pkg
             ]),
             ...addIfLazy(BuildXLSdk.isDotNetCoreApp, () => [

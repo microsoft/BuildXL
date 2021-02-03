@@ -488,6 +488,13 @@ namespace BuildXL.Scheduler.Tracing
 
         SkippingDownstreamPipsDueToPipSuccess = 14521,
 
+        // Dump pip lite analyzer
+        DumpPipLiteUnableToCreateLogDirectory = 14522,
+        DumpPipLiteUnableToSerializePip = 14523,
+        DumpPipLiteUnableToSerializePipDueToBadArgument = 14524,
+        DumpPipLiteUnableToSerializePipDueToBadPath = 14525,
+        RuntimeDumpPipLiteLogLimitReached = 14526
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

@@ -92,7 +92,8 @@ namespace BuildXL.Pips
         PreserveOutput,
         CacheMaterializationError,
         VisualStudioDebugView,
-        PathSetAugmentation,        
+        PathSetAugmentation,
+        RuntimeDumpPipLiteAnalyzer,
         End // This must be the last entry
 #pragma warning restore 1591
     }

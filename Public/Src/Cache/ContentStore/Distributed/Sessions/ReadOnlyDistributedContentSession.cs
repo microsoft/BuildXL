@@ -1441,6 +1441,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ProactiveCopyLocationSource source,
             int attempt)
         {
+            // This is here to avoid hanging ProactiveCopyIfNeededAsync on inside/outside ring copies before starting
+            // the other one.
+            await Task.Yield();
+
             if (Settings.PushProactiveCopies)
             {
                 // It is possible that this method is used during proactive replication

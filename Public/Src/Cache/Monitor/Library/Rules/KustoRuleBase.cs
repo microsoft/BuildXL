@@ -39,7 +39,10 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
                 requestProperties = new ClientRequestProperties();
             }
-            requestProperties.ClientRequestId = context.RunGuid.ToString();
+
+            // This is used for performance monitoring of queries. Follows recommendation from here:
+            // https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/netfx/request-properties
+            requestProperties.ClientRequestId = $"Monitor.{Identifier};{context.RunGuid}-{Guid.NewGuid()}";
 
             return _configuration.KustoClient.QueryAsync<T>(query, database, requestProperties);
         }

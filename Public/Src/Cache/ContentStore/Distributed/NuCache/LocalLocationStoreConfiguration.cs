@@ -423,7 +423,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// The maximum number of gigabytes to retain in CAS
         /// </summary>
-        public int MaxRetentionGb { get; set; } = 20;
+        public double MaxRetentionGb { get; set; } = 20;
 
         /// <summary>
         /// Defines the target maximum number of simultaneous copies

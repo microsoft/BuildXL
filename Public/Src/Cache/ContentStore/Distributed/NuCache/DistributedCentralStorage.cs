@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _fallbackStorage = fallbackStorage;
             _locationStore = locationStore;
 
-            var maxRetentionMb = configuration.MaxRetentionGb * 1024;
+            var maxRetentionMb = (int)Math.Ceiling(configuration.MaxRetentionGb * 1024);
             var softRetentionMb = (int)(maxRetentionMb * 0.8);
 
             var cacheFolder = configuration.CacheRoot / CacheSubFolderName;

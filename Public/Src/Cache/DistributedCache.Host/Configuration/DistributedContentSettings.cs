@@ -610,8 +610,8 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseSelfCheckSettingsForDistributedCentralStorage { get; set; } = false;
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int MaxCentralStorageRetentionGb { get; set; } = 25;
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double MaxCentralStorageRetentionGb { get; set; } = 25;
 
         [DataMember]
         [Validation.Range(0, int.MaxValue)]

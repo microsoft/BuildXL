@@ -717,7 +717,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     var result = CreateSession(store, context, name, implicitPin).ThrowIfFailure();
 
-                    var session = result.Session!;
+                    var session = result.Session!; // Still need to use '!' here because the compiler doesn't know the semantics of 'ThrowIfFailure'.
                     await session.StartupAsync(context).ThrowIfFailure();
 
                     var handle = new SessionHandle<TSession>(

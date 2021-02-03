@@ -58,6 +58,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly T Session;
 
         /// <inheritdoc />
+        [MemberNotNullWhen(true, nameof(Session))]
+        public override bool Succeeded => base.Succeeded;
+
+        /// <inheritdoc />
         public bool Equals([AllowNull]CreateSessionResult<T> other)
         {
             if (other is null || !base.Equals(other))
@@ -82,16 +86,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return base.GetHashCode() ^ (Session?.Name.GetHashCode() ?? 0);
+            return (base.GetHashCode(), (Session?.Name.GetHashCode() ?? 0)).GetHashCode();
         }
 
         /// <nodoc />
         public CreateSessionResult<B> Map<B>(Func<T, B> transform)
             where B : IName
         {
-            if (Success)
+            if (Succeeded)
             {
-                return new CreateSessionResult<B>(transform(Session!));
+                return new CreateSessionResult<B>(transform(Session));
             }
             else
             {

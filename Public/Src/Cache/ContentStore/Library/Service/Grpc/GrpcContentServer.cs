@@ -632,6 +632,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 request.Header,
                 async (context, session) =>
                 {
+                    Contract.Assert(session != null);
+                    
                     PinResult pinResult = await session.PinAsync(
                         context.OperationContext,
                         request.ContentHash.ToContentHash((HashType)request.HashType),
@@ -670,6 +672,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 request.Header,
                 async (context, session) =>
                 {
+                    Contract.Assert(session != null);
                     var pinList = new List<ContentHash>();
                     foreach (var hash in request.Hashes)
                     {
@@ -733,6 +736,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 request.Header,
                 async (context, session) =>
                 {
+                    Contract.Assert(session != null);
                     PlaceFileResult placeFileResult = await session.PlaceFileAsync(
                         context.OperationContext,
                         request.ContentHash.ToContentHash((HashType)request.HashType),
@@ -769,6 +773,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 request.Header,
                 async (context, session) =>
                 {
+                    Contract.Assert(session != null);
                     PutResult putResult;
                     if (request.ContentHash == ByteString.Empty)
                     {
@@ -814,7 +819,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             return RunFuncAsync(
                 request.Header,
-                (context, session) => Task.FromResult(new HeartbeatResponse { Header = ResponseHeader.Success(context.StartTime) }),
+                (context, _) => Task.FromResult(new HeartbeatResponse { Header = ResponseHeader.Success(context.StartTime) }),
                 (context, errorMessage) => new HeartbeatResponse { Header = ResponseHeader.Failure(context.StartTime, errorMessage) },
                 token,
                 // It is important to trace heartbeat messages because lack of them will cause sessions to expire.
@@ -884,7 +889,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private async Task<T> RunFuncAsync<T>(
             RequestHeader header,
-            Func<RequestContext, IContentSession, Task<T>> taskFunc,
+            Func<RequestContext, IContentSession?, Task<T>> taskFunc,
             Func<RequestContext, string, T> failFunc,
             CancellationToken token,
             bool? traceStartAndStop = null,
@@ -916,7 +921,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             try
             {
                 TraceGrpcOperationStarted(tracingContext, enabled: trace, operation, sessionId);
-                var result = await taskFunc(context, session!);
+                var result = await taskFunc(context, session);
                 TraceGrpcOperationFinished(tracingContext, enabled: trace, operation, sw.Elapsed, sessionId);
 
                 return result;

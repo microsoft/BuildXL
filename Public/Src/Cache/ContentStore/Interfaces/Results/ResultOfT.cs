@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         // The following attribute allows the compiler to understand that if Succeeded is true, then Value is not null.
         // This is not technically correct, because the caller can specify 'isNullAllowed: true' in the constructor,
         // but this is a good enough behavior for us, because in vast majority of cases, isNullAllowed is false.
-        // [MemberNotNullWhen(true, nameof(Value))]
+        [MemberNotNullWhen(true, nameof(Value))]
         // WIP ST: this is not working with the 3.7 compiler!!
         public override bool Succeeded => base.Succeeded;
 

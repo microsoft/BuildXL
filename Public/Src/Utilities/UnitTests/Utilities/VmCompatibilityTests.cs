@@ -234,7 +234,7 @@ namespace Test.BuildXL.Utilities
             });
         }
 
-        [Fact(Skip = "Tested in CI/CB test. Enable this test once VmCommandProxy is deployed to CB from CB test.")]
+        [Fact]
         public void DnsGetHostNameReturnsExpectedHostName()
         {
             EnsureRunInVm(() =>

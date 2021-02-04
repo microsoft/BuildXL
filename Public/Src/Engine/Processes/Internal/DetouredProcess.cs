@@ -10,20 +10,18 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
-using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = Microsoft.Win32.SafeHandles.SafeProcessHandle;
@@ -42,6 +40,7 @@ namespace BuildXL.Processes.Internal
     internal sealed class DetouredProcess : IDisposable
     {
         private readonly SemaphoreSlim m_syncSemaphore = TaskUtilities.CreateMutex();
+        private readonly ReadWriteLock m_queryJobDataLock = ReadWriteLock.Create();
         private readonly int m_bufferSize;
         private readonly string m_commandLine;
         private readonly StreamDataReceived m_errorDataReceived;
@@ -102,6 +101,11 @@ namespace BuildXL.Processes.Internal
         /// Whether this process has exited. Once true, it will never become false. Implies <code>HasStarted</code>.
         /// </summary>
         public bool HasExited => Volatile.Read(ref m_exited);
+
+        /// <summary>
+        /// True if this process has started but hasn't exited yet
+        /// </summary>
+        public bool IsRunning => HasStarted && !HasExited;
 
         /// <summary>
         /// Retrieves the process id associated with this process.
@@ -209,13 +213,16 @@ namespace BuildXL.Processes.Internal
                 Analysis.IgnoreResult(Native.Processes.ProcessUtilities.TerminateProcess(processHandle, exitCode));
             }
 
-            JobObject jobObject = m_job;
-            if (jobObject != null)
+            using (m_queryJobDataLock.AcquireWriteLock())
             {
-                // Ignore result, as there is a race with regular shutdown.
-                m_killed = true;
+                JobObject jobObject = m_job;
+                if (jobObject != null)
+                {
+                    // Ignore result, as there is a race with regular shutdown.
+                    m_killed = true;
 
-                Analysis.IgnoreResult(jobObject.Terminate(exitCode));
+                    Analysis.IgnoreResult(jobObject.Terminate(exitCode));
+                }
             }
         }
 
@@ -669,44 +676,57 @@ namespace BuildXL.Processes.Internal
             return extensionMs;
         }
 
-        public bool TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
+        public VisitJobObjectResult TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
         {
-            var jobObject = GetJobObject();
-            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds))
+            Contract.Requires(HasStarted);
+            
+            // Accessing jobObject needs to be protected by m_queryJobDataLock.
+            // After we collected the child process ids, we might dispose the job object and the child process might be invalid.
+            // Acquiring the reader lock will prevent the job object from disposing. 
+            using (m_queryJobDataLock.AcquireReadLock())
             {
-                return false;
-            }
-
-            foreach (uint processId in childProcessIds)
-            {
-                using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
-                    ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION | ProcessSecurityAndAccessRights.PROCESS_SET_QUOTA,
-                    false,
-                    processId))
+                var jobObject = GetJobObject();
+                if (m_killed)
                 {
-                    if (processHandle.IsInvalid)
-                    {
-                        // we are too late: could not open process
-                        continue;
-                    }
-
-                    if (!jobObject.ContainsProcess(processHandle))
-                    {
-                        // we are too late: process id got reused by another process
-                        continue;
-                    }
-
-                    if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
-                    {
-                        // we are too late: process id got reused by another process
-                        continue;
-                    }
-
-                    actionForProcess(processHandle, processId);
+                    // Terminated before starting the operation
+                    return VisitJobObjectResult.TerminatedBeforeVisitation;
                 }
-            }
 
-            return true;
+                if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds))
+                {
+                    return VisitJobObjectResult.Failed;
+                }
+
+                foreach (uint processId in childProcessIds)
+                {
+                    using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
+                        ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION | ProcessSecurityAndAccessRights.PROCESS_SET_QUOTA,
+                        false,
+                        processId))
+                    {
+                        if (processHandle.IsInvalid)
+                        {
+                            // we are too late: could not open process
+                            continue;
+                        }
+
+                        if (!jobObject.ContainsProcess(processHandle))
+                        {
+                            // we are too late: process id got reused by another process
+                            continue;
+                        }
+
+                        if (!ProcessUtilities.GetExitCodeProcess(processHandle, out int exitCode))
+                        {
+                            // we are too late: process id got reused by another process
+                            continue;
+                        }
+
+                        actionForProcess(processHandle, processId);
+                    }
+                }
+                return VisitJobObjectResult.Success;
+            }
         }
 
         private void StopWaiting(TaskUtilities.SemaphoreReleaser semaphoreReleaser)

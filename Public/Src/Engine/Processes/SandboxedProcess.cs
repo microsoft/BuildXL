@@ -53,7 +53,6 @@ namespace BuildXL.Processes
         private readonly PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
         private MemoryStream FileAccessManifestStream => m_fileAccessManifestStreamWrapper.Instance;
         private FileAccessManifest m_fileAccessManifest;
-        private readonly ReadWriteLock m_queryJobDataLock = ReadWriteLock.Create();
 
         private readonly TaskSourceSlim<SandboxedProcessResult> m_resultTaskCompletionSource =
             TaskSourceSlim.Create<SandboxedProcessResult>();
@@ -63,7 +62,6 @@ namespace BuildXL.Processes
         private readonly LoggingContext m_loggingContext;
         private DetouredProcess m_detouredProcess;
         private bool m_processStarted;
-        private bool m_disposeStarted;
         private SandboxedProcessOutputBuilder m_error;
         private SandboxedProcessOutputBuilder m_output;
         private SandboxedProcessReports m_reports;
@@ -139,11 +137,11 @@ namespace BuildXL.Processes
                     info.DetoursEventListener,
                     info.SidebandWriter,
                     info.FileSystemView) : null;
-            
+
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-            
+
             m_detouredProcess =
                 new DetouredProcess(
                     SandboxedProcessInfo.BufferSize,
@@ -201,180 +199,167 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend)
         {
-            // Accessing jobObject needs to be protected by m_queryJobDataLock.
-            // After we collected the child process ids, we might dispose the job object and the child process might be invalid.
-            // Acquiring the reader lock will prevent the job object from disposing. 
-            using (m_queryJobDataLock.AcquireReadLock())
-            {                
-                if (!IsDetouredProcessUsable())
-                {
-                    return EmptyWorkingSetResult.None;
-                }
+            if (!IsDetouredProcessUsable)
+            {
+                return EmptyWorkingSetResult.None;
+            }
 
-                var result = EmptyWorkingSetResult.Success;
-                var suspendSuccess = true;
-                var emptyWorkingSetSuccess = true;
+            var result = EmptyWorkingSetResult.Success;
+            var suspendSuccess = true;
+            var emptyWorkingSetSuccess = true;
 
-                var visited = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
-                {
-                    emptyWorkingSetSuccess &= Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle());
-
-                    if (isSuspend)
-                    {
-                        try
-                        {
-                            suspendSuccess &= Interop.Windows.Process.Suspend(System.Diagnostics.Process.GetProcessById((int)pid));
-                        }
-                        catch (Exception e)
-                        {
-                            suspendSuccess = false;
-                            Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Suspend", e.ToStringDemystified());
-                        }
-                    }
-                });
-
-                if (!visited)
-                {
-                    // Couldn't visit
-                    result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
-
-                    if (isSuspend)
-                    {
-                        result |= EmptyWorkingSetResult.SuspendFailed;
-                    }
-
-                    return result;
-                }
-
-                if (!emptyWorkingSetSuccess)
-                {
-                    result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
-                }
+            var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
+            {
+                emptyWorkingSetSuccess &= Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle());
 
                 if (isSuspend)
                 {
-                    if (suspendSuccess)
+                    try
                     {
-                        m_detouredProcess.OnSuspensionStart();
+                        suspendSuccess &= Interop.Windows.Process.Suspend(System.Diagnostics.Process.GetProcessById((int)pid));
                     }
-                    else
+                    catch (Exception e)
                     {
-                        result |= EmptyWorkingSetResult.SuspendFailed;
+                        suspendSuccess = false;
+                        Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Suspend", e.ToStringDemystified());
                     }
+                }
+            });
+
+            if (visitResult == VisitJobObjectResult.TerminatedBeforeVisitation)
+            {
+                // We tried to race with process termination and lost
+                return EmptyWorkingSetResult.None;
+            }
+
+            if (visitResult == VisitJobObjectResult.Failed)
+            {
+                result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
+
+                if (isSuspend)
+                {
+                    result |= EmptyWorkingSetResult.SuspendFailed;
                 }
 
                 return result;
             }
+
+            if (!emptyWorkingSetSuccess)
+            {
+                result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
+            }
+
+            if (isSuspend)
+            {
+                if (suspendSuccess)
+                {
+                    m_detouredProcess.OnSuspensionStart();
+                }
+                else
+                {
+                    result |= EmptyWorkingSetResult.SuspendFailed;
+                }
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
         public bool TryResumeProcess()
         {
-            using (m_queryJobDataLock.AcquireReadLock())
+            if (!IsDetouredProcessUsable)
             {
-                if (!IsDetouredProcessUsable())
+                return false;
+            }
+
+            var success = true;
+            var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
+            {
+                ulong peakWorkingSet = 0;
+                if (EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume)
                 {
-                    return false;
+                    // If maxLimitMultiplier is not zero, retrieve the memory counters before empty the working set.
+                    // Those memory counters will be used when setting the maxworkingsetsize of the process.
+                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                    peakWorkingSet = memoryUsage?.PeakWorkingSetSize ?? 0;
                 }
 
-                var success = true;
-                var visited = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
+                if (peakWorkingSet != 0)
                 {
-                    ulong peakWorkingSet = 0;
-                    if (EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume)
-                    {
-                        // If maxLimitMultiplier is not zero, retrieve the memory counters before empty the working set.
-                        // Those memory counters will be used when setting the maxworkingsetsize of the process.
-                        var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
-                        peakWorkingSet = memoryUsage?.PeakWorkingSetSize ?? 0;
-                    }
+                    Interop.Windows.Memory.SetProcessWorkingSetSizeEx(
+                        processHandle.DangerousGetHandle(),
+                        s_defaultMin, // the default on systems with 4k pages
+                        new UIntPtr(peakWorkingSet),
+                        Interop.Windows.Memory.WorkingSetSizeFlags.MaxEnable | Interop.Windows.Memory.WorkingSetSizeFlags.MinDisable);
+                }
 
-                    if (peakWorkingSet != 0)
-                    {
-                        Interop.Windows.Memory.SetProcessWorkingSetSizeEx(
-                            processHandle.DangerousGetHandle(),
-                            s_defaultMin, // the default on systems with 4k pages
-                            new UIntPtr(peakWorkingSet),
-                            Interop.Windows.Memory.WorkingSetSizeFlags.MaxEnable | Interop.Windows.Memory.WorkingSetSizeFlags.MinDisable);
-                    }
+                try
+                {
+                    success &= Interop.Windows.Process.Resume(System.Diagnostics.Process.GetProcessById((int)pid));
+                }
+                catch (Exception e)
+                {
+                    Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Resume", e.ToStringDemystified());
+                    success = false;
+                }
+            });
 
-                    try
-                    {
-                        success &= Interop.Windows.Process.Resume(System.Diagnostics.Process.GetProcessById((int)pid));
-                    }
-                    catch (Exception e)
-                    {
-                        Tracing.Logger.Log.ResumeOrSuspendException(m_loggingContext, "Resume", e.ToStringDemystified());
-                        success = false;
-                    }
-                });
+            // Whether or not there's failure, stop measuring suspension time.
+            m_detouredProcess.OnSuspensionEnd();
 
-                // Whether or not there's failure, stop measuring suspension time.
-                m_detouredProcess.OnSuspensionEnd();
-
-                return visited && success;
-            }
+            return (visitResult != VisitJobObjectResult.Failed) && success;
         }
 
         /// <inheritdoc />
         public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
         {
-            using (m_queryJobDataLock.AcquireReadLock())
+            if (!IsDetouredProcessUsable)
             {
-                if (!IsDetouredProcessUsable())
-                {
-                    return null;
-                }
-
-                ulong lastPeakWorkingSet = 0;
-                ulong lastPeakCommitSize = 0;
-                ulong lastWorkingSet = 0;
-                ulong lastCommitSize = 0;
-                bool isCollectedData = false;
-
-                var visited = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, _) =>
-                {
-                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
-                    if (memoryUsage != null)
-                    {
-                        isCollectedData = true;
-                        lastPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
-                        lastPeakCommitSize += memoryUsage.PeakPagefileUsage;
-                        lastWorkingSet += memoryUsage.WorkingSetSize;
-                        lastCommitSize += memoryUsage.PagefileUsage;
-                    }
-                });
-
-                if (!visited)
-                {
-                    return null;
-                }
-
-                if (isCollectedData)
-                {
-                    m_peakWorkingSet.RegisterSample(lastPeakWorkingSet);
-                    m_peakCommitSize.RegisterSample(lastPeakCommitSize);
-
-                    m_workingSet.RegisterSample(lastWorkingSet);
-                    m_commitSize.RegisterSample(lastCommitSize);
-                }
-
-                return ProcessMemoryCountersSnapshot.CreateFromBytes(
-                    lastPeakWorkingSet,
-                    lastWorkingSet,
-                    Convert.ToUInt64(m_workingSet.Average),
-                    lastPeakCommitSize,
-                    lastCommitSize);
+                return null;
             }
+
+            ulong lastPeakWorkingSet = 0;
+            ulong lastPeakCommitSize = 0;
+            ulong lastWorkingSet = 0;
+            ulong lastCommitSize = 0;
+            bool isCollectedData = false;
+
+            var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, _) =>
+            {
+                var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                if (memoryUsage != null)
+                {
+                    isCollectedData = true;
+                    lastPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
+                    lastPeakCommitSize += memoryUsage.PeakPagefileUsage;
+                    lastWorkingSet += memoryUsage.WorkingSetSize;
+                    lastCommitSize += memoryUsage.PagefileUsage;
+                }
+            });
+
+            if (visitResult != VisitJobObjectResult.Success)
+            {
+                return null;
+            }
+
+            if (isCollectedData)
+            {
+                m_peakWorkingSet.RegisterSample(lastPeakWorkingSet);
+                m_peakCommitSize.RegisterSample(lastPeakCommitSize);
+
+                m_workingSet.RegisterSample(lastWorkingSet);
+                m_commitSize.RegisterSample(lastCommitSize);
+            }
+
+            return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                lastPeakWorkingSet,
+                lastWorkingSet,
+                Convert.ToUInt64(m_workingSet.Average),
+                lastPeakCommitSize,
+                lastCommitSize);
         }
 
-        private bool IsDetouredProcessUsable()
-        {
-            return !m_disposeStarted &&
-                m_detouredProcess != null && 
-                m_detouredProcess.HasStarted &&
-                !m_detouredProcess.HasExited;
-        }
+        private bool IsDetouredProcessUsable => m_detouredProcess != null && m_detouredProcess.IsRunning;
 
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize()
@@ -401,12 +386,6 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_output")]
         public void Dispose()
         {
-            using (m_queryJobDataLock.AcquireWriteLock())
-            {
-                // Prevent further data queries
-                m_disposeStarted = true;
-            }
-
             if (m_processStarted)
             {
                 InternalKill();

@@ -51,6 +51,21 @@ namespace BuildXL.Utilities.VmCommandProxy
     }
 
     /// <summary>
+    /// Special files in VM that pips may access. 
+    /// </summary>
+    public static class VmSpecialFilesAndDirectories
+    {
+        /// <summary>
+        /// CopyLocalShim.exe in this directory can be injected using Image File Execution Options to intercept processes such as LSBuild.exe
+        /// that do not work well when executed from the network mapped D: drive. It will copy the original .exe and its entire folder into the VM
+        /// and re-execute the original command-line from there.
+        /// CODESYNC (CB codebase): private\Common\VmUtils\VmCommandProxy\VmCommandProxy.cs
+        /// 
+        /// </summary>
+        public const string CopyLocalShimDirectory = @"C:\VmAgent\Dependencies\CopyLocalShim";
+    }
+
+    /// <summary>
     /// Special environment variable for executions in VM.
     /// </summary>
     public static class VmSpecialEnvironmentVariables
@@ -221,14 +236,14 @@ namespace BuildXL.Utilities.VmCommandProxy
                 try
                 {
                     int hr = SHGetKnownFolderPath(knownFolderId, 0, IntPtr.Zero, out pszPath);
-                    if (hr >= 0)
-                        return Marshal.PtrToStringAuto(pszPath);
-                    throw Marshal.GetExceptionForHR(hr);
+                    return hr >= 0 ? Marshal.PtrToStringAuto(pszPath) : throw Marshal.GetExceptionForHR(hr);
                 }
                 finally
                 {
                     if (pszPath != IntPtr.Zero)
+                    {
                         Marshal.FreeCoTaskMem(pszPath);
+                    }
                 }
             }
         }

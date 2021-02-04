@@ -2103,6 +2103,13 @@ namespace BuildXL.Processes
                 }
             }
 
+            if (ShouldSandboxedProcessExecuteInVm)
+            {
+                // Untrack copy-local shim directory because it is meant to be abstracted away from customer's build.
+                // It's used as a compatibility measure and therefore the customer's build shouldn't know about it.
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, VmSpecialFilesAndDirectories.CopyLocalShimDirectory));
+            }
+
             // Directories specified in the directory translator can be directory symlinks or junctions that are meant to be directories in normal circumstances.
             if (m_fileAccessManifest.DirectoryTranslator != null)
             {

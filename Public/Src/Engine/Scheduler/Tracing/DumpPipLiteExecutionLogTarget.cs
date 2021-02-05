@@ -115,7 +115,7 @@ namespace BuildXL.Scheduler.Tracing
 
                     if (m_logPathCreated)
                     {
-                        var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.RuntimeDumpPipLiteAnalyzer);
+                        var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.DumpPipLiteAnalyzer);
 
                         // A log entry should have been generated already if this fails
                         var dumpPipResult = DumpPipLiteAnalysisUtilities.DumpPip(pip,

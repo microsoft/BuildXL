@@ -238,6 +238,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.DumpPip:
                     m_analyzer = InitializeDumpPipAnalyzer();
                     break;
+                case AnalysisMode.DumpPipLite:
+                    m_analyzer = InitializeDumpPipLiteAnalyzer(m_analysisInput);
+                    break;
                 case AnalysisMode.DumpProcess:
                     m_analyzer = InitializeDumpProcessAnalyzer();
                     break;
@@ -577,6 +580,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteDumpPipAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteDumpPipLiteAnalyzerHelp(writer);
 
             writer.WriteLine("");
             WriteProcessRunScriptAnalyzerHelp(writer);

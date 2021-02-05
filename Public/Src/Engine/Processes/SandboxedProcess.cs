@@ -208,6 +208,11 @@ namespace BuildXL.Processes
             var suspendSuccess = true;
             var emptyWorkingSetSuccess = true;
 
+            if (isSuspend)
+            {
+                // We start measuring here to avoid being considered timed-out while we are doing the visitation below
+                m_detouredProcess.StartMeasuringSuspensionTime();
+            }
             var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
             {
                 emptyWorkingSetSuccess &= Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle());
@@ -249,16 +254,10 @@ namespace BuildXL.Processes
                 result |= EmptyWorkingSetResult.EmptyWorkingSetFailed;
             }
 
-            if (isSuspend)
+            if (isSuspend && !suspendSuccess)
             {
-                if (suspendSuccess)
-                {
-                    m_detouredProcess.OnSuspensionStart();
-                }
-                else
-                {
-                    result |= EmptyWorkingSetResult.SuspendFailed;
-                }
+                m_detouredProcess.StopMeasuringSuspensionTime(); // Not very important as we will be cancelled after this failure
+                result |= EmptyWorkingSetResult.SuspendFailed;
             }
 
             return result;
@@ -305,7 +304,7 @@ namespace BuildXL.Processes
             });
 
             // Whether or not there's failure, stop measuring suspension time.
-            m_detouredProcess.OnSuspensionEnd();
+            m_detouredProcess.StopMeasuringSuspensionTime();
 
             return (visitResult != VisitJobObjectResult.Failed) && success;
         }

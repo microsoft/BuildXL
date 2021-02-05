@@ -641,14 +641,14 @@ namespace BuildXL.Processes.Internal
         }
 
         /// <nodoc />
-        public void OnSuspensionStart()
+        internal void StartMeasuringSuspensionTime()
         {
             // Start counting suspended time
             m_suspendStopwatch.Start();
         }
 
         /// <nodoc />
-        public void OnSuspensionEnd()
+        internal void StopMeasuringSuspensionTime()
         {
             Contract.Requires(m_suspendStopwatch.IsRunning);
             lock (m_suspendStopwatch)
@@ -676,6 +676,9 @@ namespace BuildXL.Processes.Internal
             return extensionMs;
         }
 
+        /// <summary>
+        /// Iterates through the job object processes executing an action for each one.
+        /// </summary>
         public VisitJobObjectResult TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
         {
             Contract.Requires(HasStarted);

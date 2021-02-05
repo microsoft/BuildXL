@@ -235,18 +235,15 @@ namespace Test.BuildXL.Processes
                 return;
             }
 
-            var waitFile = CreateOutputFileArtifact();
             var info = GetInfiniteWaitProcessInfo();
-            info.Timeout = TimeSpan.FromMilliseconds(150);
 
-            using (ISandboxedProcess process = await StartProcessAsync(info)) 
+            using (ISandboxedProcess process = await TryStartProcessAndSuspendImmediately(info, 100, multiplier: 2, retries: 5)) 
             {
-                // Suspend immediatly
-                var suspendedResult = process.TryEmptyWorkingSet(isSuspend: true);
-                XAssert.AreEqual(EmptyWorkingSetResult.Success, suspendedResult);
+                // If this fails a lot, consider changing the knobs above
+                XAssert.IsNotNull(process, "Unable to start sandboxed process and suspend it immediately"); 
 
                 // The process will time out next, but we will grant it more time while suspended
-                await Task.Delay(200);
+                await Task.Delay((int)(info.Timeout.Value.TotalMilliseconds * 4));
 
                 // Kill it while suspended
                 await process.KillAsync();
@@ -266,16 +263,14 @@ namespace Test.BuildXL.Processes
             }
 
             var info = GetInfiniteWaitProcessInfo();
-            info.Timeout = TimeSpan.FromMilliseconds(100);
 
-            using (ISandboxedProcess process = await StartProcessAsync(info))
+            using (ISandboxedProcess process = await TryStartProcessAndSuspendImmediately(info, 100, multiplier: 2, retries: 5))
             {
-                // Suspend immediatly
-                var suspendedResult = process.TryEmptyWorkingSet(isSuspend: true);
-                XAssert.AreEqual(EmptyWorkingSetResult.Success, suspendedResult);
+                // If this fails a lot, consider changing the knobs above
+                XAssert.IsNotNull(process, "Unable to start sandboxed process and suspend it immediately"); 
 
-                // The process will time out next, but we will grant it more time
-                await Task.Delay(200);
+                // The process will definitely time out next, but we will grant it more time
+                await Task.Delay((int)(info.Timeout.Value.TotalMilliseconds * 4));
 
                 // This will succeed because the timeout was extended
                 var resumeSucceeded = process.TryResumeProcess();
@@ -285,6 +280,29 @@ namespace Test.BuildXL.Processes
                 var result = await process.GetResultAsync();
                 XAssert.IsTrue(result.TimedOut);
             }
+        }
+
+        private async Task<ISandboxedProcess> TryStartProcessAndSuspendImmediately(SandboxedProcessInfo info, double timeout, double multiplier = 2, int retries = 5)
+        {
+            // When starting the process with a timeout, there's a chance that we won't be able to suspend it before 
+            // the time is consumed and the process is killed. We try to do it a few times and return the "suspended"
+            // process, or null if we failed every time.
+            for (var i = 0; i < retries; i++)
+            {
+                info.Timeout = TimeSpan.FromMilliseconds(timeout);
+                var process = await StartProcessAsync(info);
+                var suspendedResult = process.TryEmptyWorkingSet(isSuspend: true);
+                if (suspendedResult == EmptyWorkingSetResult.Success)
+                {
+                    return process;
+                }
+
+                // We failed, try again
+                process.Dispose();
+                timeout *= multiplier;
+            }
+
+            return null;
         }
 
         [Fact(Skip = "Test is flakey TFS 495531")]

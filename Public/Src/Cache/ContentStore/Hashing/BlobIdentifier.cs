@@ -3,8 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using System.Linq;
+using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 #pragma warning disable CS1591 // disable 'Missing XML comment for publicly visible type' warnings.
@@ -18,11 +19,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// Internally represented as a byte array of the algorithm result with a single byte algorithm identifier appended.
     /// </summary>
     [Serializable]
+    [DataContract]
     public sealed class BlobIdentifier : IEquatable<BlobIdentifier>, IComparable, ILongHash, IHashCount
     {
         private const int MinimumIdentifierValueByteCount = 4;
         private const int MinimumAlgorithmResultByteCount = MinimumIdentifierValueByteCount - 1;
         private int AlgorithmIdIndex => _identifierValue.Length - 1;
+        [DataMember(Name = "identifierValue")]
         private readonly byte[] _identifierValue;
 
         /// <nodoc />
@@ -64,8 +67,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new ArgumentNullException(nameof(valueIncludingAlgorithm), "BlobIdentifier cannot be instantiated, hash value is invalid.");
             }
 
-            // Ignore the result of this call as ValidateInternal will check for null.
-            _identifierValue = HexUtilities.HexToBytes(valueIncludingAlgorithm);
+            if (!HexUtilities.TryToByteArray(valueIncludingAlgorithm, out byte[]? parsedValue))
+            {
+                throw new ArgumentException(nameof(valueIncludingAlgorithm), "BlobIdentifier cannot be instantiated, hash value is invalid.");
+            }
+
+            _identifierValue = parsedValue;
             Validate();
         }
 
@@ -78,6 +85,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <param name="value">Must be the value corresponding to the Bytes of the id to be created.</param>
         public BlobIdentifier(byte[] value)
         {
+            Contract.Requires(value != null);
+
             _identifierValue = value;
             Validate();
         }
@@ -92,19 +101,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// class instance was created
         /// This is *NOT* the complete value as it *excludes* the AlgorithmId suffix.
         /// </summary>
-        public byte[] AlgorithmResultBytes => this._identifierValue.Take(AlgorithmIdIndex).ToArray();
+        public byte[] AlgorithmResultBytes => _identifierValue.Take(AlgorithmIdIndex).ToArray();
 
         /// <summary>
         /// AlgorithmResult in HexString format (ex:  54CE418A2A89A74B42CC3963)
         /// </summary>
-        public string AlgorithmResultString => this.AlgorithmResultBytes.ToHex();
+        public string AlgorithmResultString => AlgorithmResultBytes.ToHex();
 
         /// <summary>
         /// Gets the unique identifier for binary content computed when the
         /// class instance was created  (ex:  54CE418A2A89A74B42CC3963*01*).
         /// This is the complete value as it includes the AlgorithmId suffix.
         /// </summary>
-        public string ValueString => this._identifierValue.ToHex();
+        public string ValueString => _identifierValue.ToHex();
 
         /// <summary>
         /// Gets a copy of byte array underlying this identifier.
@@ -120,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <nodoc />
-        public int GetByteCount() { return this.Bytes.Length; }
+        public int GetByteCount() { return Bytes.Length; }
 
         /// <summary>
         /// Returns a user-friendly, non-canonical string representation of the unique identifier for binary content
@@ -163,7 +172,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public static BlobIdentifier CreateFromAlgorithmResult(string algorithmResult, byte algorithmId = VsoHash.VsoAlgorithmId)
         {
-            return new BlobIdentifier(HexUtilities.HexToBytes(algorithmResult), algorithmId);
+            if (!HexUtilities.TryToByteArray(algorithmResult, out var identifier))
+            {
+                throw new ArgumentException($"BlobIdentifier cannot be created, invalid hex string encountered : {algorithmResult}");
+            }
+
+            return new BlobIdentifier(identifier, algorithmId);
         }
 
         public static BlobIdentifier CreateFromAlgorithmResult(byte[] algorithmResult, byte algorithmId = VsoHash.VsoAlgorithmId)
@@ -238,8 +252,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void Validate()
         {
-            Contract.Requires(_identifierValue != null);
-
             int algorithmResultLength = _identifierValue.Length - 1;
 
             // The final byte array needs to be at least 4 bytes long for GetHashCode to work.

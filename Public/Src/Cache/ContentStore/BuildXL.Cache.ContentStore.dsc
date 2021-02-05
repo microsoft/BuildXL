@@ -55,16 +55,27 @@ export const kustoPackages = [
 @@public
 export function getSerializationPackages(includeNetStandard: boolean) {
     return [
+        ... (getSystemTextJson(includeNetStandard)),
+        ...(BuildXLSdk.isFullFramework ? [
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+        ] : []),
+        ...(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0" ? [
+            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        ] : []),
+        importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    ];
+}
+
+@@public
+export function getSystemTextJson(includeNetStandard: boolean) {
+    return [
         ...(includeNetStandard && BuildXLSdk.isFullFramework ? [
             BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
         ] : [
         ]),
-        
-        ...(qualifier.targetFramework === "net5.0" ? [] : [importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg]),
 
-        importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        ...(qualifier.targetFramework === "net5.0" ? [] : [importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg]),
     ];
 }
 

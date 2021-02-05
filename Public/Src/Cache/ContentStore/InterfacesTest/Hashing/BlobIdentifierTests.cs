@@ -4,10 +4,15 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities.Instrumentation.Common;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Xunit;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
@@ -127,6 +132,32 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         {
             byte[] bytes = HexUtilities.HexToBytes(string.Empty);
             Assert.Equal(0, bytes.Length);
+        }
+
+        [Fact]
+        public void SerializationFormatIsCorrect_NewtonsoftJson()
+        {
+            BlobIdentifier original = BlobIdentifier.CreateFromAlgorithmResult(HashIdentifier, 0xF);
+            string serialized = JsonConvert.SerializeObject(original);
+            JObject jObject = JObject.Parse(serialized);
+            Assert.Equal(1, jObject.Count);
+
+            var identifierProperty = jObject["identifierValue"];
+            Assert.NotNull(identifierProperty);
+
+            var bytes = identifierProperty.ToObject<byte[]>();
+            Assert.Equal(bytes, original.Bytes);
+        }
+
+
+        [Fact]
+        public void CanBeSerializedThenDeserialized_NewtonsoftJson()
+        {
+            BlobIdentifier original = BlobIdentifier.MaxValue;
+            string serialized = JsonConvert.SerializeObject(original, Formatting.None);
+            BlobIdentifier deserializedObject = JsonConvert.DeserializeObject<BlobIdentifier>(serialized);
+
+            Assert.Equal(original, deserializedObject);
         }
 
         private static string GetFilePath()

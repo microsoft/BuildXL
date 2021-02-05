@@ -8,6 +8,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <nodoc />
     public sealed class NodeDedupIdentifier : DedupIdentifier
     {
+        private static readonly IContentHasher Hasher = DedupSingleChunkHashInfo.Instance.CreateContentHasher(); // Regardless of underlying chunk size, always hash this way.
+
         /// <nodoc />
         public byte NodeAlgorithm { get; } = (byte)NodeAlgorithmId.Node64K; // Default to node of 64K chunks.
 
@@ -34,10 +36,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.Requires(bytes != null);
             Contract.Check(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode())?.Assert($"Cannot serialize from hash because hash type is invalid: {hashType}");
-            using (var hasher = hashType.GetNodeAlgorithmId().GetContentHasher())
-            {
-                return new NodeDedupIdentifier(hasher.GetContentHash(bytes).ToHashByteArray(), hashType.GetNodeAlgorithmId());
-            }
+            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />
@@ -45,10 +44,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.Requires(bytes != null);
             Contract.Check(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode())?.Assert($"Cannot serialize from hash because hash type is invalid: {hashType}");
-            using (var hasher = hashType.GetNodeAlgorithmId().GetContentHasher())
-            {
-                return new NodeDedupIdentifier(hasher.GetContentHash(bytes, offset, count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
-            }
+            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes, offset, count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />
@@ -56,10 +52,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.Requires(bytes.Array != null);
             Contract.Check(((NodeAlgorithmId)hashType.GetNodeAlgorithmId()).IsValidNode())?.Assert($"Cannot serialize from hash because hash type is invalid: {hashType}");
-            using (var hasher = hashType.GetNodeAlgorithmId().GetContentHasher())
-            {
-                return new NodeDedupIdentifier(hasher.GetContentHash(bytes.Array, bytes.Offset, bytes.Count).ToHashByteArray(), hasher.Info.HashType.GetNodeAlgorithmId());
-            }
+            return new NodeDedupIdentifier(Hasher.GetContentHash(bytes.Array, bytes.Offset, bytes.Count).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />

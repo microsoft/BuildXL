@@ -2,14 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
-using System.ComponentModel;
-using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <nodoc />
     public static class DedupNodeExtensions
     {
+        private static readonly IContentHasher ChunkHasher = DedupSingleChunkHashInfo.Instance.CreateContentHasher();  // Regardless of underlying chunk size, always hash this way.
+
         /// <nodoc />
         public static ContentHash ToContentHash(this DedupNode node, HashType hashType)
         {
@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public static NodeDedupIdentifier CalculateNodeDedupIdentifier(this DedupNode node, HashType hashType)
         {
-            return new NodeDedupIdentifier(node.ToContentHash(hashType).ToHashByteArray(), hashType.GetNodeAlgorithmId());
+            return new NodeDedupIdentifier(ChunkHasher.GetContentHash(node.Serialize()).ToHashByteArray(), hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 throw new ArgumentException($"The given hash does not represent a {nameof(NodeDedupIdentifier)}");
             }
-            return new NodeDedupIdentifier(node.Hash, (NodeAlgorithmId)AlgorithmIdLookup.Find(hashType));
+            return new NodeDedupIdentifier(node.Hash, hashType.GetNodeAlgorithmId());
         }
 
         /// <nodoc />

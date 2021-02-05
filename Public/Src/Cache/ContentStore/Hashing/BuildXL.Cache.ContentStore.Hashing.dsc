@@ -15,6 +15,7 @@ namespace Hashing {
         references: [
             UtilitiesCore.dll,
             
+            ...getSystemTextJson(/*includeNetStandard*/true),
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll,

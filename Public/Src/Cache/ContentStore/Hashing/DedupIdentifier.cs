@@ -5,12 +5,14 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using System.ComponentModel;
 
 #pragma warning disable SA1600 // Elements must be documented
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
+    [TypeConverter(typeof(DedupIdentifierTypeConverter))]
     public abstract class DedupIdentifier : IEquatable<DedupIdentifier>, IComparable<DedupIdentifier>, ILongHash
     {
         private readonly byte[] _value;
@@ -34,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new ArgumentNullException(nameof(hashAndAlgorithm));
             }
 
-            this._value = hashAndAlgorithm.Bytes;
+            _value = hashAndAlgorithm.Bytes;
         }
 
         public static DedupIdentifier Create(string valueIncludingAlgorithm)
@@ -96,12 +98,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public NodeDedupIdentifier CastToNodeDedupIdentifier()
         {
-            return new NodeDedupIdentifier(AlgorithmResult, (NodeAlgorithmId)AlgorithmId);
+            return new NodeDedupIdentifier(new HashAndAlgorithm(Value));
         }
 
         public ChunkDedupIdentifier CastToChunkDedupIdentifier()
         {
-            return new ChunkDedupIdentifier(_value);
+            return new ChunkDedupIdentifier(new HashAndAlgorithm(Value));
         }
 
         /// <summary>
@@ -132,12 +134,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Dedup identifier string representation without the algorithm Id.
         /// </summary>
-        public string AlgorithmResultString => this.AlgorithmResult.ToHex();
+        public string AlgorithmResultString => AlgorithmResult.ToHex();
 
         /// <summary>
         /// Dedup identifier string representation with the algorithm Id.
         /// </summary>
-        public string ValueString => this._value.ToHex();
+        public string ValueString => _value.ToHex();
 
         /// <summary>
         /// Byte appended to end of identifier to mark the type of hashing algorithm used.
@@ -149,8 +151,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             get
             {
-                byte[] copy = new byte[this._value.Length];
-                this._value.CopyTo(copy, 0);
+                byte[] copy = new byte[_value.Length];
+                _value.CopyTo(copy, 0);
                 return copy;
             }
         }
@@ -167,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return true;
             }
 
-            return this._value.SequenceEqual(other._value);
+            return _value.SequenceEqual(other._value);
         }
 
          /// <inheritdoc/>
@@ -180,12 +182,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public override int GetHashCode()
         {
-            return BitConverter.ToInt32(this._value, 0);
+            return BitConverter.ToInt32(_value, 0);
         }
 
         public long GetLongHashCode()
         {
-            return BitConverter.ToInt64(this._value, 0);
+            return BitConverter.ToInt64(_value, 0);
         }
 
         public static bool operator ==(DedupIdentifier? x, DedupIdentifier? y)
@@ -211,19 +213,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return -1;
             }
 
-            return ByteArrayComparer.Instance.Compare(this._value, other._value);
+            return ByteArrayComparer.Instance.Compare(_value, other._value);
         }
     }
 
     public readonly struct HashAndAlgorithm
     {
         public readonly byte[] Bytes;
-        public byte AlgorithmId => this.Bytes[this.Bytes.Length - 1];
+        public byte AlgorithmId => Bytes[Bytes.Length - 1];
         public HashAndAlgorithm(byte[] bytes)
         {
             Contract.Requires(bytes != null);
             Contract.Check(bytes.Length > 32)?.Assert($"Byte representing the hash algorithm id is missing. Actual Hash Length: {bytes.Length}");
-            this.Bytes = bytes;
+            Bytes = bytes;
         }
     }
 }

@@ -16,6 +16,8 @@ namespace InterfacesTest {
 
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("Newtonsoft.Json").pkg,
+            ...getSerializationPackages(/*includeNetStandard*/true),
         ],
         runTestArgs: {
             skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : [],

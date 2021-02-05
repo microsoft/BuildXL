@@ -70,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     throw new InvalidEnumArgumentException($"Unsupported algorithm id {algorithmId} of enum type: {nameof(NodeAlgorithmId)} encountered.");
             }
         }
-    
+
         /// <nodoc />
         public static IContentHasher GetContentHasher(this NodeAlgorithmId algorithmId)
         {
@@ -83,6 +83,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 default:
                     throw new InvalidEnumArgumentException($"No hasher found for unsupported {nameof(NodeAlgorithmId)} : {algorithmId}.");
             }
-        }         
+        }
     }
 }

@@ -454,12 +454,22 @@ interface StaticDirectory extends PathQueries {
 
 /** A shared opaque directory. Its static content is always empty. */
 interface SharedOpaqueDirectory extends StaticDirectory {
-    kind: "shared"
+    kind: "shared",
+    /**
+     * Asserts that a given output file is part of the shared opaque directory.
+     * The check is delayed to runtime execution. 
+     */
+    assertExistence: (path: Path | PathFragment) => File;
 }
 
 /** An exclusive opaque directory. Its static content is always empty. */
 interface ExclusiveOpaqueDirectory extends StaticDirectory {
-    kind: "exclusive"
+    kind: "exclusive",
+    /**
+     * Asserts that a given output file is part of the exclusive opaque directory.
+     * The check is delayed to runtime execution. 
+     */
+    assertExistence: (path: Path | PathFragment) => File;
 }
 
 /** A source sealed directory where only the top directory is sealed. Its static content is always empty. */

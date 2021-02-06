@@ -368,6 +368,21 @@ namespace BuildXL.Pips
             return TryAddFinishedProcessToGraph(pip, processOutputs);
         }
 
+        /// <nodoc/>
+        public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact)
+        {
+            Contract.Requires(outputDirectoryArtifact.IsValid);
+            Contract.Requires(outputInOpaque.IsValid);
+
+            if (PipGraph is null)
+            {
+                fileArtifact = FileArtifact.Invalid;
+                return false;
+            }
+
+            return PipGraph.TryAssertOutputExistenceInOpaqueDirectory(outputDirectoryArtifact, outputInOpaque, out fileArtifact);
+        }
+
         /// <summary>
         /// Applies OS defaults and tries to finish the process
         /// </summary>

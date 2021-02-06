@@ -1070,7 +1070,15 @@ namespace BuildXL.Scheduler
                     runnableFromCacheCheckResult.Fingerprint.ToString(),
                     cacheHitData.Metadata.Id);
 
-                ExecutionResult executionResult = GetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult);
+                if (!TryGetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult, out var executionResult))
+                {
+                    // Error should have been logged
+                    executionResult.SetResult(operationContext.LoggingContext, PipResultStatus.Failed);
+                    executionResult.Seal();
+
+                    return executionResult;
+                }
+
                 executionResult.Seal();
 
                 // Save all dynamic writes to a sideband file if the pip needs it
@@ -1195,7 +1203,7 @@ namespace BuildXL.Scheduler
             var pathTable = context.PathTable;
             var processExecutionResult = new ExecutionResult
             {
-                MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip)
+                MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip, environment.PipGraphView)
             };
 
             if (fingerprint.HasValue)
@@ -1288,7 +1296,8 @@ namespace BuildXL.Scheduler
             if (!(executionResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
                 executionResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
                 executionResult.Status == SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed ||
-                executionResult.Status == SandboxedProcessPipExecutionStatus.Canceled))
+                executionResult.Status == SandboxedProcessPipExecutionStatus.Canceled ||
+                executionResult.Status == SandboxedProcessPipExecutionStatus.SharedOpaquePostProcessingFailed))
             {
                 Contract.Assert(false, "Unexpected execution result " + executionResult.Status);
             }
@@ -1742,7 +1751,8 @@ namespace BuildXL.Scheduler
                         detoursListener: detoursEventListener,
                         reparsePointResolver: environment.ReparsePointAccessResolver,
                         staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
-                        pluginManager: environment.PluginManager);
+                        pluginManager: environment.PluginManager,
+                        pipGraphFileSystemView: environment.PipGraphView);
                     
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>
@@ -3240,11 +3250,12 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static ExecutionResult GetCacheHitExecutionResult(
+        private static bool TryGetCacheHitExecutionResult(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             Process pip,
-            RunnableFromCacheResult runnableFromCacheCheckResult)
+            RunnableFromCacheResult runnableFromCacheCheckResult,
+            out ExecutionResult executionResult)
         {
             Contract.Requires(environment != null);
             Contract.Requires(pip != null);
@@ -3253,9 +3264,9 @@ namespace BuildXL.Scheduler
 
             var cacheHitData = runnableFromCacheCheckResult.GetCacheHitData();
 
-            var executionResult = new ExecutionResult
+            executionResult = new ExecutionResult
             {
-                MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip),
+                MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip, environment.PipGraphView),
                 DynamicallyObservedFiles = runnableFromCacheCheckResult.DynamicallyObservedFiles,
                 DynamicallyProbedFiles = runnableFromCacheCheckResult.DynamicallyProbedFiles,
                 DynamicallyObservedEnumerations = runnableFromCacheCheckResult.DynamicallyObservedEnumerations,
@@ -3281,11 +3292,21 @@ namespace BuildXL.Scheduler
 
             // The index of the first artifact corresponding to an opaque directory input
             using (var poolFileList = Pools.GetFileArtifactWithAttributesList())
+            using (var existenceAssertionsWrapper = Pools.GetFileArtifactSet())
             {
+                HashSet<FileArtifact> existenceAssertions = existenceAssertionsWrapper.Instance;
+
                 var fileList = poolFileList.Instance;
                 for (int i = 0; i < pip.DirectoryOutputs.Length; i++)
                 {
                     fileList.Clear();
+                    
+                    // Let's validate here the existence assertions for opaques.
+                    // Observe that even though this is a cache hit, the existence assertions may have changed
+                    // Existence assertions are explicitly not part of the producer fingerprint since they are not
+                    // part of its inputs, and a change in them shouldn't make a pip a cache miss
+                    Contract.Assert(existenceAssertions.Count == 0);
+                    existenceAssertions.AddRange(environment.PipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(pip.DirectoryOutputs[i]));
 
                     foreach (var dynamicOutputFileAndInfo in cacheHitData.DynamicDirectoryContents[i])
                     {
@@ -3293,6 +3314,20 @@ namespace BuildXL.Scheduler
                             dynamicOutputFileAndInfo.fileArtifact,
                             FileExistence.Required,
                             dynamicOutputFileAndInfo.fileMaterializationInfo.IsUndeclaredFileRewrite));
+
+                        existenceAssertions.Remove(dynamicOutputFileAndInfo.fileArtifact);
+                    }
+
+                    // There are some outputs that were asserted as belonging to the opaque that were not found
+                    if (existenceAssertions.Count != 0)
+                    {
+                        Processes.Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
+                            operationContext,
+                            pip.GetDescription(environment.Context),
+                            existenceAssertions.First().Path.ToString(environment.Context.PathTable),
+                            pip.DirectoryOutputs[i].Path.ToString(environment.Context.PathTable));
+
+                        return false;
                     }
 
                     executionResult.ReportDirectoryOutput(pip.DirectoryOutputs[i], fileList);
@@ -3331,7 +3366,7 @@ namespace BuildXL.Scheduler
             executionResult.ReportCreatedDirectories(cacheHitData.CreatedDirectories);
 
             executionResult.SetResult(operationContext, PipResultStatus.NotMaterialized);
-            return executionResult;
+            return true;
         }
 
         private static async Task<bool> ReplayWarningsFromCacheAsync(
@@ -3404,7 +3439,8 @@ namespace BuildXL.Scheduler
                 vmInitializer: environment.VmInitializer,
                 tempDirectoryCleaner: environment.TempCleaner,
                 incrementalTools: configuration.IncrementalTools,
-                reparsePointResolver: environment.ReparsePointAccessResolver);
+                reparsePointResolver: environment.ReparsePointAccessResolver,
+                pipGraphFileSystemView: environment.PipGraphView);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {
@@ -4219,9 +4255,14 @@ namespace BuildXL.Scheduler
         /// <remarks>
         /// If a pip has shared opaque directory outputs it is always considered dirty since
         /// it is not clear how to infer what to run based on the state of the file system.
+        /// If a pip has exclusive opaques with existence assertions, it is considered dirty as well
+        /// since validating the assertions in a top-down scheduling is not straightforward (even though it could
+        /// be achieved in the future)
         /// </remarks>
-        public static bool IsUnconditionallyPerpetuallyDirty(Pip pip)
-            => pip.PipType == PipType.Process && (pip as Process).HasSharedOpaqueDirectoryOutputs;
+        public static bool IsUnconditionallyPerpetuallyDirty(Pip pip, IPipGraphFileSystemView pipGraphView)
+            => pip.PipType == PipType.Process && pip is Process process &&
+               (process.HasSharedOpaqueDirectoryOutputs || 
+                process.DirectoryOutputs.Any(directory => pipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directory).Count > 0)); 
 
         /// <summary>
         /// Discovers the content hashes of a process pip's outputs, which must now be on disk.
@@ -4329,86 +4370,112 @@ namespace BuildXL.Scheduler
                 // We need to discover dynamic outputs in the given opaque directories.
                 var fileList = poolFileList.Instance;
 
-                for (int i = 0; i < process.DirectoryOutputs.Length; i++)
+                using (var existenceAssertionsWrapper = Pools.GetFileArtifactSet())
                 {
-                    fileList.Clear();
-                    var directoryArtifact = process.DirectoryOutputs[i];
-                    var directoryArtifactPath = directoryArtifact.Path;
+                    HashSet<FileArtifact> existenceAssertions = existenceAssertionsWrapper.Instance;
 
-                    var index = i;
-
-                    // For the case of an opaque directory, the content is determined by scanning the file system
-                    if (!directoryArtifact.IsSharedOpaque)
+                    for (int i = 0; i < process.DirectoryOutputs.Length; i++)
                     {
-                        var enumerationResult = environment.State.FileContentManager.EnumerateAndTrackOutputDirectory(
-                            directoryArtifact,
-                            outputDirectoryData,
-                            handleFile: fileArtifact =>
+                        fileList.Clear();
+                        var directoryArtifact = process.DirectoryOutputs[i];
+                        var directoryArtifactPath = directoryArtifact.Path;
+
+                        var index = i;
+
+                        // For the case of an opaque directory, the content is determined by scanning the file system
+                        if (!directoryArtifact.IsSharedOpaque)
+                        {
+                            // Let's validate here the existence assertions for exclusive opaques
+                            // Shared opaques were already validated during sandboxed execution
+                            // The validation is implemented in difference places for each to avoid unnecessary
+                            // re-enumerations
+                            Contract.Assert(existenceAssertions.Count == 0);
+                            existenceAssertions.AddRange(environment.PipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directoryArtifact));
+                            
+                            var enumerationResult = environment.State.FileContentManager.EnumerateAndTrackOutputDirectory(
+                                directoryArtifact,
+                                outputDirectoryData,
+                                handleFile: fileArtifact =>
+                                {
+                                    if (!CheckForAllowedReparsePointProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
+                                    {
+                                        enableCaching = false;
+                                        return;
+                                    }
+
+                                    // Files under an exclusive opaques are always considered required outputs
+                                    fileList.Add(FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required));
+                                    FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
+                                    var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
+                                    allOutputs.Add(fileArtifactWithAttributes);
+
+                                    if (exclusiveOutputDirectoriesAreRedirected)
+                                    {
+                                        PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
+                                    }
+
+                                    existenceAssertions.Remove(fileArtifact);
+                                },
+
+                                // TODO: Currently the logic skips empty subdirectories. The logic needs to preserve the structure of opaque directories.
+                                // TODO: THe above issue is tracked by task 872930.
+                                handleDirectory: null);
+
+                            if (!enumerationResult.Succeeded)
                             {
-                                if (!CheckForAllowedReparsePointProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
+                                Logger.Log.ProcessingPipOutputDirectoryFailed(
+                                    operationContext,
+                                    description,
+                                    directoryArtifactPath.ToString(pathTable),
+                                    enumerationResult.Failure.DescribeIncludingInnerFailures());
+                                return false;
+                            }
+
+                            // There are some outputs that were asserted as belonging to the shared opaque that were not found
+                            if (existenceAssertions.Count != 0)
+                            {
+                                Processes.Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
+                                            operationContext,
+                                            description,
+                                            existenceAssertions.First().Path.ToString(pathTable),
+                                            directoryArtifact.Path.ToString(pathTable));
+
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            // For the case of shared opaque directories, the content is based on detours
+                            var writeAccessesByPath = processExecutionResult.SharedDynamicDirectoryWriteAccesses;
+                            if (!writeAccessesByPath.TryGetValue(directoryArtifactPath, out var accesses))
+                            {
+                                accesses = CollectionUtilities.EmptyArray<FileArtifactWithAttributes>();
+                            }
+
+                            foreach (var access in accesses)
+                            {
+                                if (!CheckForAllowedReparsePointProduction(access.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
                                 {
                                     enableCaching = false;
-                                    return;
                                 }
-
-                                // Files under an exclusive opaques are always considered required outputs
-                                fileList.Add(FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required));
-                                FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
-                                var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
-                                allOutputs.Add(fileArtifactWithAttributes);
-
-                                if (exclusiveOutputDirectoriesAreRedirected)
+                                else
                                 {
-                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
-                                }
-                            },
+                                    fileList.Add(access);
+                                    FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
 
-                            // TODO: Currently the logic skips empty subdirectories. The logic needs to preserve the structure of opaque directories.
-                            // TODO: THe above issue is tracked by task 872930.
-                            handleDirectory: null);
+                                    allOutputs.Add(access);
 
-                        if (!enumerationResult.Succeeded)
-                        {
-                            Logger.Log.ProcessingPipOutputDirectoryFailed(
-                                operationContext,
-                                description,
-                                directoryArtifactPath.ToString(pathTable),
-                                enumerationResult.Failure.DescribeIncludingInnerFailures());
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        // For the case of shared opaque directories, the content is based on detours
-                        var writeAccessesByPath = processExecutionResult.SharedDynamicDirectoryWriteAccesses;
-                        if (!writeAccessesByPath.TryGetValue(directoryArtifactPath, out var accesses))
-                        {
-                            accesses = CollectionUtilities.EmptyArray<FileArtifactWithAttributes>();
-                        }
-
-                        foreach (var access in accesses)
-                        {
-                            if (!CheckForAllowedReparsePointProduction(access.Path, operationContext, description, pathTable, processExecutionResult, environment.Configuration))
-                            {
-                                enableCaching = false;
-                            }
-                            else
-                            {
-                                fileList.Add(access);
-                                FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
-
-                                allOutputs.Add(access);
-
-                                if (sharedOutputDirectoriesAreRedirected)
-                                {
-                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, access, allRedirectedOutputs);
+                                    if (sharedOutputDirectoriesAreRedirected)
+                                    {
+                                        PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, access, allRedirectedOutputs);
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    processExecutionResult.ReportDirectoryOutput(directoryArtifact, fileList);
-                    numDynamicOutputs += fileList.Count;
+                        processExecutionResult.ReportDirectoryOutput(directoryArtifact, fileList);
+                        numDynamicOutputs += fileList.Count;
+                    }
                 }
 
                 if (encodedStandardOutput != null)
@@ -5082,7 +5149,14 @@ namespace BuildXL.Scheduler
                 null, // Don't pass observedInputProcessingResult since this function doesn't rely on the part of the output dependent on that.
                 cachingInfo.WeakFingerprint);
 
-            ExecutionResult convergedExecutionResult = GetCacheHitExecutionResult(operationContext, environment, process, runnableFromCacheResult);
+            if (!TryGetCacheHitExecutionResult(operationContext, environment, process, runnableFromCacheResult, out var convergedExecutionResult))
+            {
+                // Errors should have been logged already
+
+                // Didn't converge with cache but the storage of the two phase descriptor is still considered successful
+                // since there is a result in the cache for the strong fingerprint
+                return StoreCacheEntryResult.Succeeded;
+            }
 
             // In success case, return deployed from cache status to indicate that we converged with remote cache and that
             // reporting to environment has already happened.

@@ -151,6 +151,7 @@ namespace BuildXL.Processes.Tracing
         DisallowedDoubleWriteOnMerge = 12211,
 
         DumpSurvivingPipProcessChildrenStatus = 12213,
+        ExistenceAssertionUnderOutputDirectoryFailed = 12214,
 
         /// Sandboxed process remoting.
         LogRemotingDebugMessage = 12500,

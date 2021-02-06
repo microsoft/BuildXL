@@ -5,6 +5,8 @@ To support such scenarios, we introduce the concept of opaque sealed directories
 
 A process can declare one of its outputs as `directory` which may contain an arbitrary set of files and directories. An OD is similar to a zip file -- you know there is some content in an archive, but dont know exactly what until you open (consume) it.
 
+There is however a way to assert a given file exists under an opaque directory (that also applies to [shared opaques](Shared-Opaque-Directories.md)) by calling `assertExistence` (check [here](Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc) for the API). This allows to treat a file under an opaque as a regular `File` at spec writing time, and the existence assertion becomes a check performed during pip execution.
+
 ## Opaque Sealed Directory Validation Rules
 * Only one process can write to a single OD. That is, any OD is exlusively owned by a single pip.
 * One process can produce multiple opaque sealed directories.

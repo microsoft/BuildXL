@@ -1350,6 +1350,7 @@ namespace Test.BuildXL.Scheduler
             PipProvenance provenance = null,
             IEnumerable<DirectoryArtifact> directoryDependencies = null,
             IEnumerable<AbsolutePath> outputDirectoryPaths = null,
+            IEnumerable<DirectoryArtifact> sharedOutputDirectories = null,
             IEnumerable<PipId> orderDependencies = null,
             IEnumerable<FileArtifact> directoryDependenciesToConsume = null,
             IEnumerable<FileArtifact> directoryOutputsToProduce = null,
@@ -1367,6 +1368,7 @@ namespace Test.BuildXL.Scheduler
                 provenance,
                 directoryDependencies,
                 outputDirectoryPaths,
+                sharedOutputDirectories ?? CollectionUtilities.EmptyArray<DirectoryArtifact>(),
                 orderDependencies,
                 directoryDependenciesToConsume,
                 directoryOutputsToProduce,
@@ -1484,6 +1486,7 @@ namespace Test.BuildXL.Scheduler
             PipProvenance provenance = null,
             IEnumerable<DirectoryArtifact> directoryDependencies = null,
             IEnumerable<AbsolutePath> outputDirectoryPaths = null,
+            IEnumerable<DirectoryArtifact> sharedOutputDirectories = null,
             IEnumerable<PipId> orderDependencies = null,
             IEnumerable<FileArtifact> directoryDependenciesToConsume = null,
             IEnumerable<FileArtifact> directoryOutputsToProduce = null,
@@ -1498,11 +1501,14 @@ namespace Test.BuildXL.Scheduler
             FileArtifact executable = GetCmdExecutable();
 
             environmentVariables = environmentVariables ?? Enumerable.Empty<EnvironmentVariable>();
-            DirectoryArtifact[] outputDirectories = null;
+            IEnumerable<DirectoryArtifact> outputDirectories = CollectionUtilities.EmptyArray<DirectoryArtifact>();
 
             if (outputDirectoryPaths != null)
             {
-                outputDirectories = outputDirectoryPaths.Select(OutputDirectory.Create).ToArray();
+                outputDirectories = outputDirectoryPaths
+                    .Select(OutputDirectory.Create)
+                    .ToArray();
+
                 if (resultingSealedOutputDirectories != null)
                 {
                     foreach (var directory in outputDirectories)
@@ -1512,9 +1518,14 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            if (sharedOutputDirectories != null)
+            {
+                outputDirectories = outputDirectories.Union(sharedOutputDirectories);
+            }
+
             var finalDependencies = dependencies.Union(directoryDependenciesToConsume ?? ReadOnlyArray<FileArtifact>.Empty);
             var finalOutputs = outputs.Select(f => f.ToFileArtifact()).Union(directoryOutputsToProduce ?? ReadOnlyArray<FileArtifact>.Empty);
-
+            
             var process =
                 new Process(
                     executable,
@@ -1908,6 +1919,72 @@ namespace Test.BuildXL.Scheduler
             AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSincePreviousVersionUsedAsInput);
 
             return RunScheduler();
+        }
+
+        [Fact]
+        [Feature(Features.RewrittenFile)]
+        public void AssertedOutputUnderOpaqueIsValidated()
+        {
+            Setup();
+            FileArtifact depArtifact1 = CreateSourceFile();
+            FileArtifact outArtifact1 = CreateOutputFileArtifact();
+
+            Process process = CreateProcess(
+                new List<FileArtifact> { depArtifact1 },
+                new List<FileArtifact> { outArtifact1 });
+
+            bool addProcess = PipGraphBuilder.AddProcess(process);
+            XAssert.IsTrue(addProcess);
+
+            var outputDirectory = PipGraphBuilder.ReserveSharedOpaqueDirectory(outArtifact1.Path.GetParent(Context.PathTable));
+
+            Process processToo = CreateProcess(
+               dependencies: new List<FileArtifact> { depArtifact1 },
+               outputs: new List<FileArtifact>(),
+               sharedOutputDirectories: new List<DirectoryArtifact> { outputDirectory });
+
+            addProcess = PipGraphBuilder.AddProcess(processToo);
+            XAssert.IsTrue(addProcess);
+
+            bool existenceAsserted = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(processToo.DirectoryOutputs.Single(), outArtifact1.Path, out _);
+            XAssert.IsFalse(existenceAsserted);
+
+            // Static checks on declared outputs should work as usual
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
+        }
+
+        [Fact]
+        [Feature(Features.RewrittenFile)]
+        public void CompositeOpaquesDontSupportAssertions()
+        {
+            Setup();
+            FileArtifact depArtifact1 = CreateSourceFile();
+            FileArtifact outArtifact1 = CreateOutputFileArtifact();
+
+            Process process = CreateProcess(
+                new List<FileArtifact> { depArtifact1 },
+                new List<FileArtifact> { outArtifact1 });
+
+            bool addProcess = PipGraphBuilder.AddProcess(process);
+            XAssert.IsTrue(addProcess);
+
+            var outputDirectory = PipGraphBuilder.ReserveSharedOpaqueDirectory(outArtifact1.Path.GetParent(Context.PathTable));
+
+            Process processToo = CreateProcess(
+               dependencies: new List<FileArtifact> { depArtifact1 },
+               outputs: new List<FileArtifact>(),
+               sharedOutputDirectories: new List<DirectoryArtifact> { outputDirectory });
+
+            addProcess = PipGraphBuilder.AddProcess(processToo);
+            XAssert.IsTrue(addProcess);
+
+            PipConstructionHelper.TryComposeSharedOpaqueDirectory(outputDirectory, new[] { outputDirectory }, null, "Test", new string[] { }, out var compositeSharedOpaque);
+
+            bool existenceAsserted = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(compositeSharedOpaque, outArtifact1.Path, out _);
+            XAssert.IsFalse(existenceAsserted);
+
+            // Static checks on declared outputs should work as usual
+            AssertSchedulerErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.ScheduleFailAddPipAssertionNotSupportedInCompositeOpaques);
         }
 
         [Fact]

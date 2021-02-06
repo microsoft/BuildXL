@@ -17,6 +17,7 @@ namespace Test.BuildXL.Scheduler
 {
     using System.Collections.Concurrent;
     using global::BuildXL.Scheduler.FileSystem;
+    using global::BuildXL.Utilities.Collections;
     using PathTuple = ValueTuple<AbsolutePath, AbsolutePath>;
 
     [Trait("Category", "FileContentManagerTests")]
@@ -341,6 +342,11 @@ namespace Test.BuildXL.Scheduler
             {
                 isItUnderSharedOpaque = false;
                 return false;
+            }
+
+            public IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact directoryArtifact)
+            {
+                return CollectionUtilities.EmptySet<FileArtifact>();
             }
         }
 

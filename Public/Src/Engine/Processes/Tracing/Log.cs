@@ -1130,5 +1130,14 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Failure during dumping unexpected surviving child processes for Process: '{processName}'. Status: {status}")]
         public abstract void DumpSurvivingPipProcessChildrenStatus(LoggingContext context, string processName, string status);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExistenceAssertionUnderOutputDirectoryFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] The output file '{assertedOutput}' existence was asserted under output directory root '{outputDirectoryRoot}' but the file was not produced by the pip.")]
+        public abstract void ExistenceAssertionUnderOutputDirectoryFailed(LoggingContext context, string pipDescription, string assertedOutput, string outputDirectoryRoot);
     }
 }

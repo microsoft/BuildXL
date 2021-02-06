@@ -87,5 +87,6 @@ namespace BuildXL.Pips.Tracing
         PipStaticFingerprint = 14410,
 
         MultiplePipsUsingSameTemporaryDirectory = 14411,
+        ScheduleFailAddPipAssertionNotSupportedInCompositeOpaques = 14414,
     }
 }

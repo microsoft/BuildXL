@@ -20,6 +20,7 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes.Containers;
@@ -171,7 +172,7 @@ namespace BuildXL.Processes
 
         private readonly ITempCleaner m_tempDirectoryCleaner;
 
-        private readonly ReadOnlyHashSet<AbsolutePath> m_sharedOpaqueDirectoryRoots;
+        private readonly IReadOnlyDictionary<AbsolutePath, DirectoryArtifact> m_sharedOpaqueDirectoryRoots;
 
         private readonly ProcessInContainerManager m_processInContainerManager;
         private readonly ContainerConfiguration m_containerConfiguration;
@@ -218,6 +219,7 @@ namespace BuildXL.Processes
         private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> m_staleOutputsUnderSharedOpaqueDirectories;
         
         private readonly ISandboxFileSystemView m_fileSystemView;
+        private readonly IPipGraphFileSystemView m_pipGraphFileSystemView;
 
         /// <summary>
         /// Name of the diretory in Log directory for std output files
@@ -263,7 +265,8 @@ namespace BuildXL.Processes
             ReparsePointResolver reparsePointResolver = null,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null,
             PluginManager pluginManager = null,
-            ISandboxFileSystemView sandboxFileSystemView = null)
+            ISandboxFileSystemView sandboxFileSystemView = null,
+            IPipGraphFileSystemView pipGraphFileSystemView = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -372,8 +375,7 @@ namespace BuildXL.Processes
 
             m_sharedOpaqueDirectoryRoots = m_pip.DirectoryOutputs
                 .Where(directory => directory.IsSharedOpaque)
-                .Select(directory => directory.Path)
-                .ToReadOnlySet();
+                .ToDictionary(directory => directory.Path, directory => directory);
 
             m_processInContainerManager = processInContainerManager;
 
@@ -404,7 +406,8 @@ namespace BuildXL.Processes
             m_detoursListener = detoursListener;
             m_reparsePointResolver = reparsePointResolver;
             m_staleOutputsUnderSharedOpaqueDirectories = staleOutputsUnderSharedOpaqueDirectories;
-            m_fileSystemView = sandboxFileSystemView; 
+            m_fileSystemView = sandboxFileSystemView;
+            m_pipGraphFileSystemView = pipGraphFileSystemView;
         }
 
         /// <inheritdoc />
@@ -2609,7 +2612,7 @@ namespace BuildXL.Processes
             foreach (var current in m_pathTable.EnumerateHierarchyBottomUp(path.Value))
             {
                 var currentAsPath = new AbsolutePath(current);
-                if (m_sharedOpaqueDirectoryRoots.Contains(currentAsPath))
+                if (m_sharedOpaqueDirectoryRoots.ContainsKey(currentAsPath))
                 {
                     sharedOpaqueRoot = currentAsPath;
                     // If the outmost root was not requested, we can shortcut the search and return when
@@ -3748,7 +3751,7 @@ namespace BuildXL.Processes
 
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
-                    foreach (var sharedDirectory in m_sharedOpaqueDirectoryRoots)
+                    foreach (var sharedDirectory in m_sharedOpaqueDirectoryRoots.Keys)
                     {
                         dynamicWriteAccesses[sharedDirectory] = new HashSet<AbsolutePath>();
                     }
@@ -3918,63 +3921,97 @@ namespace BuildXL.Processes
                     // * the tool could have created a file but then removed it and created a directory
                     // We only care about the access if its final shape is not a directory
                     bool reparsePointProduced = false;
-                    foreach (var kvp in dynamicWriteAccesses)
+
+                    using (var existenceAssertionsWrapper = Pools.GetFileArtifactSet())
                     {
-                        var fileWrites = new List<FileArtifactWithAttributes>(kvp.Value.Count);
-                        mutableWriteAccesses[kvp.Key] = fileWrites;
-                        foreach (AbsolutePath writeAccess in kvp.Value)
+                        HashSet<FileArtifact> existenceToAssert = existenceAssertionsWrapper.Instance;
+
+                        foreach (var kvp in dynamicWriteAccesses)
                         {
-                            string outputPath;
-                            if (sharedOutputDirectoriesAreRedirected)
+                            // Let's validate here the existence assertions for shared opaques
+                            // Exclusive opaque content is unknown at this point, so it is validated at a later stage
+                            Contract.Assert(existenceToAssert.Count == 0);
+                            var assertions = m_pipGraphFileSystemView?.GetExistenceAssertionsUnderOpaqueDirectory(m_sharedOpaqueDirectoryRoots[kvp.Key]);
+                            // This is null for some tests
+                            if (assertions != null)
                             {
-                                outputPath = m_processInContainerManager.GetRedirectedOpaqueFile(writeAccess, kvp.Key, m_containerConfiguration).ToString(m_pathTable);
-                            }
-                            else
-                            {
-                                outputPath = writeAccess.ToString(m_pathTable);
+                                existenceToAssert.AddRange(assertions);
                             }
 
-                            var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false, out var isReparsePoint);
-                            reparsePointProduced |= isReparsePoint;
-
-                            if (!maybeResult.Succeeded)
+                            var fileWrites = new List<FileArtifactWithAttributes>(kvp.Value.Count);
+                            mutableWriteAccesses[kvp.Key] = fileWrites;
+                            foreach (AbsolutePath writeAccess in kvp.Value)
                             {
-                                Tracing.Logger.Log.CannotProbeOutputUnderSharedOpaque(
+                                string outputPath;
+                                if (sharedOutputDirectoriesAreRedirected)
+                                {
+                                    outputPath = m_processInContainerManager.GetRedirectedOpaqueFile(writeAccess, kvp.Key, m_containerConfiguration).ToString(m_pathTable);
+                                }
+                                else
+                                {
+                                    outputPath = writeAccess.ToString(m_pathTable);
+                                }
+
+                                var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false, out var isReparsePoint);
+                                reparsePointProduced |= isReparsePoint;
+
+                                if (!maybeResult.Succeeded)
+                                {
+                                    Tracing.Logger.Log.CannotProbeOutputUnderSharedOpaque(
+                                        m_loggingContext,
+                                        m_pip.GetDescription(m_context),
+                                        writeAccess.ToString(m_pathTable),
+                                        maybeResult.Failure.DescribeIncludingInnerFailures());
+
+                                    sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
+                                    observedAccesses = CollectionUtilities.EmptySortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>(new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+
+                                    return false;
+                                }
+
+                                switch (maybeResult.Result)
+                                {
+                                    case PathExistence.ExistsAsDirectory:
+                                        // Directories are not reported as explicit content, since we don't have the functionality today to persist them in the cache.
+                                        continue;
+                                    case PathExistence.ExistsAsFile:
+                                        // If outputs are redirected, we don't want to store a tombstone file
+                                        if (!sharedOutputDirectoriesAreRedirected || !FileUtilities.IsWciTombstoneFile(outputPath))
+                                        {
+                                            // If the written file was a denied write based on file existence, that means an undeclared file was overriden.
+                                            // This file could be an allowed undeclared source or a file completely alien to the build, not mentioned at all.
+                                            var artifact = FileArtifact.CreateOutputFile(writeAccess);
+                                            fileWrites.Add(FileArtifactWithAttributes.Create(
+                                                artifact,
+                                                FileExistence.Required,
+                                                isUndeclaredFileRewrite: fileExistenceDenials.Contains(writeAccess)));
+
+                                            // We found an output, remove it from the set of assertions to verify
+                                            existenceToAssert.Remove(artifact);
+                                        }
+                                        break;
+                                    case PathExistence.Nonexistent:
+                                        fileWrites.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writeAccess), FileExistence.Temporary));
+                                        break;
+                                }
+                            }
+                            
+                            // There are some outputs that were asserted as belonging to the shared opaque that were not found
+                            if (existenceToAssert.Count != 0)
+                            {
+                                Tracing.Logger.Log.ExistenceAssertionUnderOutputDirectoryFailed(
                                     m_loggingContext,
                                     m_pip.GetDescription(m_context),
-                                    writeAccess.ToString(m_pathTable),
-                                    maybeResult.Failure.DescribeIncludingInnerFailures());
+                                    existenceToAssert.First().Path.ToString(m_pathTable),
+                                    kvp.Key.ToString(m_pathTable));
 
                                 sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
                                 observedAccesses = CollectionUtilities.EmptySortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>(new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
 
                                 return false;
                             }
-
-                            switch (maybeResult.Result)
-                            {
-                                case PathExistence.ExistsAsDirectory:
-                                    // Directories are not reported as explicit content, since we don't have the functionality today to persist them in the cache.
-                                    continue;
-                                case PathExistence.ExistsAsFile:
-                                    // If outputs are redirected, we don't want to store a tombstone file
-                                    if (!sharedOutputDirectoriesAreRedirected || !FileUtilities.IsWciTombstoneFile(outputPath))
-                                    {
-                                        // If the written file was a denied write based on file existence, that means an undeclared file was overriden.
-                                        // This file could be an allowed undeclared source or a file completely alien to the build, not mentioned at all.
-                                        fileWrites.Add(FileArtifactWithAttributes.Create(
-                                            FileArtifact.CreateOutputFile(writeAccess),
-                                            FileExistence.Required,
-                                            isUndeclaredFileRewrite: fileExistenceDenials.Contains(writeAccess)));
-                                    }
-                                    break;
-                                case PathExistence.Nonexistent:
-                                    fileWrites.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writeAccess), FileExistence.Temporary));
-                                    break;
-                            }
                         }
                     }
-
                     sharedDynamicDirectoryWriteAccesses = mutableWriteAccesses;
 
                     // Consider the scenario where path/dir/file gets probed but at probing time the path is absent. Afterwards, a dir junction path/dir gets created, pointing

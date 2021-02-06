@@ -90,6 +90,21 @@ namespace BuildXL.Pips.Graph
         protected readonly ConcurrentBigMap<DirectoryArtifact, NodeId> OutputDirectoryProducers;
 
         /// <summary>
+        /// Mapping from directory to the set of output existence assertions
+        /// </summary>
+        /// <remarks>
+        /// The set of existence assertions under opaque directories are made a property of the graph rather than
+        /// a property of consuming pips for implementation simplicity. Otherwise, the file artifacts produced by
+        /// asserting existence would have to be tracked until they become inputs of consuming pips, and only checked there.
+        /// The net effect of the current implementation is that existence assertions are verified as soon as the producer
+        /// executes (or gets replayed from the cache) instead of waiting for an actual consumer of it. Therefore, 
+        /// the assertion validation happens eagerly. This is compatible with the spirit of these assertions and also
+        /// enable some extra scenarios (e.g. specs can assert a particular file is produced under an opaque even if
+        /// that file is not actually consumed by anybody)
+        /// </remarks>
+        protected readonly ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> OutputsUnderOpaqueExistenceAssertions;
+
+        /// <summary>
         /// The set of all output directory exclusions
         /// </summary>
         public readonly ConcurrentBigSet<AbsolutePath> OutputDirectoryExclusions;
@@ -179,6 +194,7 @@ namespace BuildXL.Pips.Graph
             Modules = new ConcurrentBigMap<ModuleId, NodeId>();
             PipProducers = new ConcurrentBigMap<FileArtifact, NodeId>();
             OutputDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, NodeId>();
+            OutputsUnderOpaqueExistenceAssertions = new ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>>();
             OutputDirectoryExclusions = new ConcurrentBigSet<AbsolutePath>();
             OutputDirectoryRoots = new ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)>();
             CompositeOutputDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, NodeId>();
@@ -204,6 +220,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> outputDirectoryProducers,
+                ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> outputsUnderOpaqueExistenceAssertions,
                 ConcurrentBigSet<AbsolutePath> outputDirectoryExclusions,
                 ConcurrentBigMap<AbsolutePath, (bool isSharedOpaque, HashSet<DirectoryArtifact> artifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeOutputDirectoryProducers,
@@ -223,6 +240,7 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(modules != null);
             Contract.Requires(pipProducers != null);
             Contract.Requires(outputDirectoryProducers != null);
+            Contract.Requires(outputsUnderOpaqueExistenceAssertions != null);
             Contract.Requires(outputDirectoryExclusions != null);
             Contract.Requires(outputDirectoryRoots != null);
             Contract.Requires(compositeOutputDirectoryProducers != null);
@@ -244,6 +262,7 @@ namespace BuildXL.Pips.Graph
             Modules = modules;
             PipProducers = pipProducers;
             OutputDirectoryProducers = outputDirectoryProducers;
+            OutputsUnderOpaqueExistenceAssertions = outputsUnderOpaqueExistenceAssertions;
             OutputDirectoryExclusions = outputDirectoryExclusions;
             OutputDirectoryRoots = outputDirectoryRoots;
             CompositeOutputDirectoryProducers = compositeOutputDirectoryProducers;
@@ -673,6 +692,17 @@ namespace BuildXL.Pips.Graph
             }
 
             return DirectoryArtifact.Invalid;
+        }
+
+        public IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact directoryArtifact)
+        {
+            var result = OutputsUnderOpaqueExistenceAssertions.TryGet(directoryArtifact);
+            if (!result.IsFound)
+            {
+                return CollectionUtilities.EmptySet<FileArtifact>();
+            }
+
+            return result.Item.Value.ToReadOnlySet();
         }
 
         public int PipCount => PipTable.Count;

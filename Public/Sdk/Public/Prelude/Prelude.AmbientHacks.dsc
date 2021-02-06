@@ -70,10 +70,12 @@ namespace _PreludeAmbientHack_Transformer {
 
     interface SharedOpaqueDirectory extends StaticDirectory {
         kind: "shared"
+        assertExistence: (path: Path | PathFragment) => File;
     }
 
     interface ExclusiveOpaqueDirectory extends StaticDirectory {
         kind: "exclusive"
+        assertExistence: (path: Path | PathFragment) => File;
     }
 
     interface SourceTopDirectory extends StaticDirectory {

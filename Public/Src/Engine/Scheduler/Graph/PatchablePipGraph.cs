@@ -460,5 +460,11 @@ namespace BuildXL.Scheduler.Graph
         {
             return m_builder.GetPipFromPipId(pipId);
         }
+
+        /// <inheritdoc/>
+        public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact) 
+        {
+            return m_builder.TryAssertOutputExistenceInOpaqueDirectory(outputDirectoryArtifact, outputInOpaque, out fileArtifact);
+        }
     }
 }

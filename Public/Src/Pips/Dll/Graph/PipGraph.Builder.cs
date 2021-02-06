@@ -257,6 +257,7 @@ namespace BuildXL.Pips.Graph
                             modules: Modules,
                             pipProducers: PipProducers,
                             opaqueDirectoryProducers: OutputDirectoryProducers,
+                            outputsUnderOpaqueExistenceAssertions: OutputsUnderOpaqueExistenceAssertions,
                             outputDirectoryExclusions: OutputDirectoryExclusions,
                             outputDirectoryRoots: OutputDirectoryRoots,
                             compositeSharedOpaqueProducers: CompositeOutputDirectoryProducers,
@@ -1804,6 +1805,18 @@ namespace BuildXL.Pips.Graph
                 DirectoryArtifact fullSealArtifact = SealDirectoryTable.TryFindFullySealedDirectoryArtifactForFile(path);
                 if (fullSealArtifact.IsValid && !fullSealArtifact.IsSharedOpaque)
                 {
+                    var producerPipResult = OutputDirectoryProducers.TryGet(fullSealArtifact);
+
+                    // If the file is under an opaque but it is an existence assertion produced by the same pip, then
+                    // we let it happen since this file is not representing an 'extra' write, just a point name for an existing one.
+                    if (producerPipResult.IsFound &&
+                        OutputsUnderOpaqueExistenceAssertions.TryGet(fullSealArtifact) is var result && 
+                        result.IsFound && result.Item.Value.Contains(FileArtifact.CreateOutputFile(path)) 
+                        && producerPipResult.Item.Value == pip.PipId.ToNodeId())
+                    {
+                        return false;
+                    }
+
                     SealDirectoryTable.TryGetSealForDirectoryArtifact(fullSealArtifact, out PipId sealingPipId);
                     Contract.Assert(sealingPipId.IsValid);
 
@@ -1983,6 +1996,59 @@ namespace BuildXL.Pips.Graph
                 }
 
                 ComputeAndStorePipStaticFingerprint(writeFile);
+
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact)
+            {
+                Contract.Requires(outputDirectoryArtifact.IsValid);
+                Contract.Requires(outputDirectoryArtifact.IsOutputDirectory());
+                Contract.Requires(outputInOpaque.IsWithin(Context.PathTable, outputDirectoryArtifact.Path));
+
+                var success = TryGetOutputDirectoryPip(outputDirectoryArtifact, out NodeId producerPipResult);
+                Contract.Assert(success);
+
+                // File artifacts under opaque directories always have rewrite count 1
+                fileArtifact = FileArtifact.CreateOutputFile(outputInOpaque);
+
+                // Let's retrieve the producer of the opaque
+                var producerPipId = producerPipResult.ToPipId();
+                var producerPip = PipTable.HydratePip(producerPipId, PipQueryContext.PipGraphIsValidOutputFileArtifactRewrite1);
+
+                // We don't allow assertions on composite shared opaques
+                // TODO: this can be implemented in the future. Making the composite opaque the producer of the file is not a big deal but
+                // we need to accomodate this into the file monitoring violation analyzer to not flag this as a double write
+                if (producerPip.PipType == PipType.SealDirectory && ((SealDirectory)producerPip).IsComposite)
+                {
+                    LogEventWithPipProvenance(Logger.ScheduleFailAddPipAssertionNotSupportedInCompositeOpaques, producerPip, fileArtifact);
+                    return false;
+                }
+
+                using (LockManager.PathAccessGroupLock pathAccessLock = LockManager.AcquirePathAccessLock(fileArtifact))
+                {
+                    // Check if the assertion was already made. In that case, just return successfully.
+                    if (OutputsUnderOpaqueExistenceAssertions.ContainsKey(outputDirectoryArtifact))
+                    {
+                        return true;
+                    }
+
+                    OutputsUnderOpaqueExistenceAssertions.AddOrUpdate(
+                        outputDirectoryArtifact,
+                        fileArtifact,
+                        (key, fileArtifact) => new HashSet<FileArtifact> { fileArtifact },
+                        (key, fileArtifact, assertions) => { assertions.Add(fileArtifact); return assertions; });
+
+                    // Validate the output as if it was a regular file output. Same constraints apply.
+                    if (!IsValidOutputFileArtifact(pathAccessLock, fileArtifact, FileArtifact.Invalid, producerPip, SemanticPathExpander))
+                    {
+                        return false;
+                    }
+
+                    // Add the output to the pip graph and keep track of the assertion
+                    AddOutput(pathAccessLock, producerPipResult, FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required));
+                }
 
                 return true;
             }

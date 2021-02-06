@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using System.Collections.Generic;
 
 namespace BuildXL.Pips.Graph
 {
@@ -15,5 +17,8 @@ namespace BuildXL.Pips.Graph
 
         /// <nodoc/>
         bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItSharedOpaque);
+
+        /// <nodoc/>
+        IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact directoryArtifact);
     }
 }

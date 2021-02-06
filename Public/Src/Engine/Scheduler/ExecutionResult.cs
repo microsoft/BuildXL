@@ -777,6 +777,7 @@ namespace BuildXL.Scheduler
                             processResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.Canceled ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed ||
+                            processResult.Status == SandboxedProcessPipExecutionStatus.SharedOpaquePostProcessingFailed ||
                             processResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
                             processResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount))
                         {

@@ -149,5 +149,13 @@ namespace BuildXL.Pips.Graph
         /// Hydrates a pip from a <see cref="PipId"/>
         /// </summary>
         Pip GetPipFromPipId(PipId pipId);
+
+        /// <summary>
+        /// Asserts that a given output path is going to be present in an opaque directory
+        /// </summary>
+        /// <remarks>
+        /// The existence of the specified output is checked during pip execution
+        /// </remarks>
+        bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact);
     }
 }

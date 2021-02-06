@@ -180,5 +180,12 @@ namespace BuildXL.Engine
 
         /// <inheritdoc />
         public Pip GetPipFromPipId(PipId pipId) => null;
+        
+        /// <inheritdoc/>
+        public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact)
+        {
+            fileArtifact = FileArtifact.Invalid;
+            return false;
+        }
     }
 }

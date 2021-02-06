@@ -39,6 +39,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                        { NameId("ensureContents"), Create<StaticDirectory>(AmbientName, Symbol("ensureContents"), EnsureContents) },
                        { NameId("root"), CreateProperty<StaticDirectory>(AmbientName, Symbol("root"), GetRoot) },
                        { NameId("kind"), CreateProperty<StaticDirectory>(AmbientName, Symbol("kind"), GetKind) },
+                       { NameId("assertExistence"), Create<StaticDirectory>(AmbientName, Symbol("assertExistence"), AssertFileExistence) },
 
                        // TODO: These two methods need to be deprecated.
                        { NameId("getContent"), Create<StaticDirectory>(AmbientName, Symbol("getContent"), GetContent) },
@@ -77,6 +78,31 @@ namespace BuildXL.FrontEnd.Script.Ambients
             }
 
             return EvaluationResult.False;
+        }
+
+        private static EvaluationResult AssertFileExistence(Context context, StaticDirectory receiver, EvaluationResult arg, EvaluationStackFrame captures)
+        {
+            var path = GetPathFromArgument(context, receiver, arg);
+
+            // This function is not exposed to non-opaque directories, so we could just assert here. But just in case (e.g. some casts can force things), 
+            // throw a handled exception
+            if (!receiver.SealDirectoryKind.IsOpaqueOutput())
+            {
+                throw new InvalidOutputAssertionUnderOpaqueDirectoryException(path.ToString(context.PathTable), new ErrorContext(objectCtx: arg.Value, pos: 0));
+            }
+
+            if (!path.IsWithin(context.PathTable, receiver.Root.Path))
+            {
+                // If the path is not within the directory, we already know it is not there
+                throw new FileNotFoundInStaticDirectoryException(path.ToString(context.PathTable), new ErrorContext(objectCtx: arg.Value, pos: 0));
+            }
+
+            if (!context.GetPipConstructionHelper().TryAssertOutputExistenceInOpaqueDirectory(receiver.Root, path, out FileArtifact fileArtifact))
+            {
+                throw new InvalidOutputAssertionUnderOpaqueDirectoryException(path.ToString(context.PathTable), new ErrorContext(objectCtx: arg.Value, pos: 0));
+            }
+
+            return EvaluationResult.Create(fileArtifact);
         }
 
         private static EvaluationResult GetFile(Context context, StaticDirectory receiver, EvaluationResult arg, EvaluationStackFrame captures)

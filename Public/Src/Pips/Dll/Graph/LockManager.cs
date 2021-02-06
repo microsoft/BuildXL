@@ -257,6 +257,16 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
+        /// Gets a path access lock for the output file artifact
+        /// </summary>
+        public PathAccessGroupLock AcquirePathAccessLock(FileArtifact outputFile)
+        {
+            var builder = GetPathAccessLockBuilder();
+            builder.AddAccess(outputFile.Path, AccessType.Write);
+            return builder.Acquire();
+        }
+
+        /// <summary>
         /// Gets a path access lock for the files accessed by the pip
         /// </summary>
         public PathAccessGroupLock AcquirePathAccessLock(CopyFile copyFile)

@@ -775,6 +775,8 @@ namespace Test.BuildXL.Scheduler
             m_pathTable = pathTable;
         }
 
+        public IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact directoryArtifact) => CollectionUtilities.EmptySet<FileArtifact>();
+
         public bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItUnderSharedOpaque)
         {
             isItUnderSharedOpaque = false;

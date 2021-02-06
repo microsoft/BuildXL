@@ -679,5 +679,111 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertCacheHit(processA.Process.PipId, processB.Process.PipId);
             }
         }
+
+        [Theory]
+        [InlineData(SealDirectoryKind.SharedOpaque)]
+        [InlineData(SealDirectoryKind.Opaque)]
+        public void OutputExistenceAssertionsUnderOpaqueConsumptionBehavior(SealDirectoryKind kind)
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFile = CreateOutputFileArtifact(outputDirectory, "fileA");
+
+            var builderA = CreatePipBuilder(
+                new[]
+                {
+                    Operation.WriteFile(outputFile, doNotInfer: true),
+                });
+
+            builderA.AddOutputDirectory(outputDirectory, kind);
+            var processA = SchedulePipBuilder(builderA);
+
+            // Assert the existence of the file under the opaque and consume it downstream
+            var result = PipConstructionHelper.TryAssertOutputExistenceInOpaqueDirectory(processA.ProcessOutputs.GetOpaqueDirectory(outputDirectory), outputFile, out var fileInOpaque);
+            XAssert.IsTrue(result);
+
+            var builderB = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(fileInOpaque),
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                }) ;
+            
+            SchedulePipBuilder(builderB);
+            RunScheduler().AssertSuccess();
+        }
+
+        [Theory]
+        [InlineData(SealDirectoryKind.SharedOpaque)]
+        [InlineData(SealDirectoryKind.Opaque)]
+        public void OutputExistenceAssertionsUnderOpaqueIsValidated(SealDirectoryKind kind)
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFile = CreateOutputFileArtifact(outputDirectory, "fileA");
+
+            // A do-nothing pip
+            var builderA = CreatePipBuilder(new Operation[]{});
+
+            builderA.AddOutputDirectory(outputDirectory, kind);
+            var processA = SchedulePipBuilder(builderA);
+
+            // Assert the existence of the file under the opaque
+            var result = PipConstructionHelper.TryAssertOutputExistenceInOpaqueDirectory(processA.ProcessOutputs.GetOpaqueDirectory(outputDirectory), outputFile, out var fileInOpaque);
+            XAssert.IsTrue(result);
+
+            // The file is not produced, we should detect it and fail
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.ExistenceAssertionUnderOutputDirectoryFailed);
+        }
+
+        [Theory]
+        [InlineData(SealDirectoryKind.SharedOpaque)]
+        [InlineData(SealDirectoryKind.Opaque)]
+        public void OutputExistenceAssertionsUnderOpaqueCachingBehavior(SealDirectoryKind kind)
+        {
+            var outputDirectory = CreateUniqueObjPath("outputDir");
+            var outputFile = CreateOutputFileArtifact(outputDirectory, "fileA");
+
+            var builderA = CreatePipBuilder(
+                new[]
+                {
+                    Operation.WriteFile(outputFile, doNotInfer: true),
+                });
+
+            builderA.AddOutputDirectory(outputDirectory, kind);
+            var processA = SchedulePipBuilder(builderA);
+
+            // Assert the existence of the file under the opaque and consume it downstream
+            var result = PipConstructionHelper.TryAssertOutputExistenceInOpaqueDirectory(processA.ProcessOutputs.GetOpaqueDirectory(outputDirectory), outputFile, out var fileInOpaque);
+            XAssert.IsTrue(result);
+
+            var builderB = CreatePipBuilder(
+                new[]
+                {
+                    Operation.ReadFile(fileInOpaque),
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                });
+
+            var processB = SchedulePipBuilder(builderB);
+            RunScheduler(runNameOrDescription: "First build").AssertSuccess();
+
+            // Second run should be a cache hit
+            RunScheduler(runNameOrDescription: "Second build - all cached").AssertCacheHit(processA.Process.PipId, processB.Process.PipId);
+
+            AssertVerboseEventLogged(LogEventId.ProcessPipCacheHit, 2);
+
+            ResetPipGraphBuilder();
+            processA = SchedulePipBuilder(builderA);
+
+            // Assert a non-existent file
+            result = PipConstructionHelper.TryAssertOutputExistenceInOpaqueDirectory(processA.ProcessOutputs.GetOpaqueDirectory(outputDirectory), CreateOutputFileArtifact(outputDirectory), out _);
+            XAssert.IsTrue(result);
+
+            // We should detect the non existent file
+            RunScheduler(runNameOrDescription: "Third build - cached but existence assertion failed").AssertFailure();
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.ExistenceAssertionUnderOutputDirectoryFailed);
+
+            // But the process pip should have been a cache hit anyway
+            AssertVerboseEventLogged(LogEventId.ProcessPipCacheHit);
+        }
     }
 }

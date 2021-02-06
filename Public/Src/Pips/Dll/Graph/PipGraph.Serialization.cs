@@ -27,6 +27,7 @@ namespace BuildXL.Pips.Graph
             public readonly ConcurrentBigMap<ModuleId, NodeId> Modules;
             public readonly ConcurrentBigMap<FileArtifact, NodeId> PipProducers;
             public readonly ConcurrentBigMap<DirectoryArtifact, NodeId> OpaqueDirectoryProducers;
+            public readonly ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> OutputsUnderOpaqueExistenceAssertions;
             public readonly ConcurrentBigSet<AbsolutePath> OutputDirectoryExclusions;
 
             /// <summary>
@@ -55,6 +56,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> opaqueDirectoryProducers,
+                ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> outputsUnderOpaqueExistenceAssertions,
                 ConcurrentBigSet<AbsolutePath> outputDirectoryExclusions,
                 ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeSharedOpaqueProducers,
@@ -76,6 +78,7 @@ namespace BuildXL.Pips.Graph
                     modules: modules,
                     pipProducers: pipProducers,
                     opaqueDirectoryProducers: opaqueDirectoryProducers,
+                    outputsUnderOpaqueExistenceAssertions: outputsUnderOpaqueExistenceAssertions,
                     outputDirectoryExclusions: outputDirectoryExclusions,
                     outputDirectoryRoots: outputDirectoryRoots,
                     compositeOutputDirectoryProducers: compositeSharedOpaqueProducers,
@@ -103,6 +106,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> opaqueDirectoryProducers,
+                ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>> outputsUnderOpaqueExistenceAssertions,
                 ConcurrentBigSet<AbsolutePath> outputDirectoryExclusions,
                 ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeOutputDirectoryProducers,
@@ -127,6 +131,7 @@ namespace BuildXL.Pips.Graph
                 OutputDirectoryExclusions = outputDirectoryExclusions;
                 OutputDirectoryRoots = outputDirectoryRoots;
                 CompositeOutputDirectoryProducers = compositeOutputDirectoryProducers;
+                OutputsUnderOpaqueExistenceAssertions = outputsUnderOpaqueExistenceAssertions;
                 SourceSealedDirectoryRoots = sourceSealedDirectoryRoots;
                 TemporaryPaths = temporaryPaths;
                 SealDirectoryNodes = sealDirectoryNodes;
@@ -151,6 +156,7 @@ namespace BuildXL.Pips.Graph
                     modules: graph.Modules,
                     pipProducers: graph.PipProducers,
                     opaqueDirectoryProducers: graph.OutputDirectoryProducers,
+                    outputsUnderOpaqueExistenceAssertions: graph.OutputsUnderOpaqueExistenceAssertions,
                     outputDirectoryExclusions: graph.OutputDirectoryExclusions,
                     outputDirectoryRoots: graph.OutputDirectoryRoots,
                     compositeOutputDirectoryProducers: graph.CompositeOutputDirectoryProducers,
@@ -187,6 +193,13 @@ namespace BuildXL.Pips.Graph
                     () => new KeyValuePair<DirectoryArtifact, NodeId>(
                         reader.ReadDirectoryArtifact(),
                         new NodeId(reader.ReadUInt32())));
+
+                var outputsUnderOpaqueExistenceAssertions = ConcurrentBigMap<DirectoryArtifact, HashSet<FileArtifact>>.Deserialize(
+                    reader,
+                    () => new KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>(
+                        reader.ReadDirectoryArtifact(),
+                        new HashSet<FileArtifact>(reader.ReadArray(_reader => _reader.ReadFileArtifact())))
+                    );
 
                 var outputDirectoryExclusions = ConcurrentBigSet<AbsolutePath>.Deserialize(
                     reader, () => reader.ReadAbsolutePath());
@@ -308,6 +321,7 @@ namespace BuildXL.Pips.Graph
                     modules: modules,
                     pipProducers: pipProducers,
                     opaqueDirectoryProducers: opaqueDirectoryProducers,
+                    outputsUnderOpaqueExistenceAssertions: outputsUnderOpaqueExistenceAssertions,
                     outputDirectoryExclusions: outputDirectoryExclusions,
                     outputDirectoryRoots: outputDirectoryRoots,
                     compositeOutputDirectoryProducers: compositeOutputDirectoryProducers,
@@ -343,6 +357,14 @@ namespace BuildXL.Pips.Graph
                     {
                         writer.Write(kvp.Key);
                         writer.Write(kvp.Value.Value);
+                    });
+
+                OutputsUnderOpaqueExistenceAssertions.Serialize(
+                    writer,
+                    kvp =>
+                    {
+                        writer.Write(kvp.Key);
+                        writer.Write(kvp.Value.ToArray(), (_writer, fileArtifact) => _writer.Write(fileArtifact));
                     });
 
                 OutputDirectoryExclusions.Serialize(

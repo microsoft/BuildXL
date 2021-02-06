@@ -35,8 +35,11 @@ namespace BuildXL.Cache.Host.Service
 
             foreach (var sensitiveProperty in CheckSensitiveProperties)
             {
-                // Currently System.Text.Json does not support implementing a contract resolver like in Newtonsoft, so we are using regex replace here
-                jsonString = Regex.Replace(jsonString, $"(\"\\w*?{sensitiveProperty}\\w*?\"):.+?\"(.+?)\"", "$1: \"xxxx\"");
+                if (!withSecrets)
+                {
+                    // Currently System.Text.Json does not support implementing a contract resolver like in Newtonsoft, so we are using regex replace here
+                    jsonString = Regex.Replace(jsonString, $"(\"\\w*?{sensitiveProperty}\\w*?\"):.+?\"(.+?)\"", "$1: \"xxxx\"");
+                }
             }
 
             return jsonString;
@@ -47,7 +50,6 @@ namespace BuildXL.Cache.Host.Service
         {
             logger.Debug($"JSON serialized of {typeof(T)}: {ConfigToString(config)}");
         }
-
     }
 
     internal class TimeSpanConverter : JsonConverter<TimeSpan>

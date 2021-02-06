@@ -1285,7 +1285,10 @@ namespace BuildXL.FrontEnd.Script
             m_packages[package.Id] = package;
 
             var packagesInDir = m_packageDirectories.GetOrAdd(dirPath, new List<Package>());
-            packagesInDir.Add(package);
+            lock(packagesInDir)
+            {
+                packagesInDir.Add(package);
+            }
         }
 
         private bool ValidateFoundPackages()

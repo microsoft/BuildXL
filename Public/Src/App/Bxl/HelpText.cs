@@ -386,6 +386,10 @@ namespace BuildXL
                 "/dumpFailedPips[+|-]",
                 Strings.HelpText_DisplayHelp_DumpFailedPips);
 
+            hw.WriteOption(
+                "/dumpFailedPipsLogLimit:<number>",
+                Strings.HelpText_DisplayHelp_DumpFailedPipsLogLimit);
+            
             #endregion
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_ErrorsAndWarningsBanner);

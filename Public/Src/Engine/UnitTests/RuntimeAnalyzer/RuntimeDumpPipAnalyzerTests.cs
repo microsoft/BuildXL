@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using System.IO;
+using BuildXL.Scheduler.Tracing;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using Test.BuildXL.Scheduler;
 using Xunit;
 using Xunit.Abstractions;
@@ -56,6 +59,30 @@ namespace Test.BuildXL.RuntimeAnalyzer
                 Assert.False(Directory.Exists(logFolder));
                 Assert.False(File.Exists(pipDumpFile));
             }
+        }
+
+        /// <summary>
+        /// Set the log limit to 1, with two failing pips, ensure that the log limit event is logged, and only one file is logged.
+        /// </summary>
+        [Fact]
+        public void TestLogLimit()
+        {
+            var failingCopyFile1 = new CopyFile(FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix)), CreateOutputFileArtifact(), ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(Context));
+            var failingCopyFile2 = new CopyFile(FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix)), CreateOutputFileArtifact(), ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(Context));
+            
+            PipGraphBuilder.AddCopyFile(failingCopyFile1);
+            PipGraphBuilder.AddCopyFile(failingCopyFile2);
+
+            Configuration.Logging.DumpFailedPipsLogLimit = 1;
+
+            var schedulerResult = RunScheduler().AssertFailure();
+
+            var logFolder = Path.Combine(schedulerResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), "FailedPips");
+
+            SetExpectedFailures(2, 0);
+            AssertErrorCount();
+            AssertVerboseEventLogged(LogEventId.RuntimeDumpPipLiteLogLimitReached, count: 1);
+            Assert.True(Directory.GetFiles(logFolder).Length == 1);
         }
     }
 }

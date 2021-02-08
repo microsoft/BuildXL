@@ -51,7 +51,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxNumPipTelemetryBatches = 1;
             CacheMissBatch = true;
             RedirectedLogsDirectory = AbsolutePath.Invalid;
-            DumpFailedPips = false; // TODO: once implementation and testing is completed for the dump pip lite analyzer, set this to true to enable by default
+            DumpFailedPips = true;
+            DumpFailedPipsLogLimit = 50;
         }
 
         /// <nodoc />
@@ -146,6 +147,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AriaIndividualMessageSizeLimitBytes = template.AriaIndividualMessageSizeLimitBytes;
             MaxNumPipTelemetryBatches = template.MaxNumPipTelemetryBatches;
             DumpFailedPips = template.DumpFailedPips;
+            DumpFailedPipsLogLimit = template.DumpFailedPipsLogLimit;
         }
 
         /// <inheritdoc />
@@ -379,5 +381,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? DumpFailedPips { get; set; }
+
+        /// <inheritdoc/>
+        public int? DumpFailedPipsLogLimit { get; set; }
     }
 }

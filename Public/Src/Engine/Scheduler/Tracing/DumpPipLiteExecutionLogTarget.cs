@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
@@ -79,7 +80,7 @@ namespace BuildXL.Scheduler.Tracing
             m_logPath = configuration.Logging.LogsDirectory.Combine(context.PathTable, "FailedPips"); // This path has not been created yet
             m_logPathCreated = false;
             m_loggingErrorOccured = false;
-            m_maxLogFiles = 50; //TODO: Update this variable with the value from the command line argument
+            m_maxLogFiles = configuration.Logging.DumpFailedPipsLogLimit.GetValueOrDefault();
             m_numLogFilesGenerated = 0;
         }
 
@@ -103,10 +104,14 @@ namespace BuildXL.Scheduler.Tracing
         /// </remarks>
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
-            if (data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed)
+            if (data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed && !m_loggingErrorOccured)
             {
-                if (m_numLogFilesGenerated < m_maxLogFiles && !m_loggingErrorOccured)
+                var currentNumLogFiles = Interlocked.Increment(ref m_numLogFilesGenerated);
+
+                if (currentNumLogFiles <= m_maxLogFiles)
                 {
+                    var dumpPipResult = false;
+
                     if (!m_logPathCreated)
                     {
                         // A log entry should have been generated already if this fails
@@ -118,33 +123,24 @@ namespace BuildXL.Scheduler.Tracing
                         var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.DumpPipLiteAnalyzer);
 
                         // A log entry should have been generated already if this fails
-                        var dumpPipResult = DumpPipLiteAnalysisUtilities.DumpPip(pip,
+                        dumpPipResult = DumpPipLiteAnalysisUtilities.DumpPip(pip,
                                                                                  m_logPath.ToString(m_pipExecutionContext.PathTable),
                                                                                  m_pipExecutionContext.PathTable,
                                                                                  m_pipExecutionContext.StringTable,
                                                                                  m_pipExecutionContext.SymbolTable,
                                                                                  m_pipGraph);
-
-                        if (dumpPipResult)
-                        {
-                            m_numLogFilesGenerated++;
-
-                            if (m_numLogFilesGenerated >= m_maxLogFiles)
-                            {
-                                // Log limit reached, log this once
-                                Logger.Log.RuntimeDumpPipLiteLogLimitReached(m_loggingContext, m_maxLogFiles);
-                            }
-                        }
-                        else
-                        {
-                            // This failure was already logged in DumpPipLiteAnalysisUtilies
-                            m_loggingErrorOccured = true;
-                        }
                     }
-                    else
+
+                    if (!(m_logPathCreated && dumpPipResult))
                     {
                         // This failure was already logged in DumpPipLiteAnalysisUtilies
                         m_loggingErrorOccured = true;
+                    }
+
+                    if (currentNumLogFiles >= m_maxLogFiles)
+                    {
+                        // Log limit reached, log this once
+                        Logger.Log.RuntimeDumpPipLiteLogLimitReached(m_loggingContext, m_maxLogFiles);
                     }
                 }
             }

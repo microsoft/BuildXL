@@ -344,6 +344,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "dumpFailedPips",
                             opt => loggingConfiguration.DumpFailedPips = opt),
+                        OptionHandlerFactory.CreateOption(
+                            "dumpFailedPipsLogLimit",
+                            opt => loggingConfiguration.DumpFailedPipsLogLimit = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
                             sign => distributionConfiguration.EarlyWorkerRelease = sign),

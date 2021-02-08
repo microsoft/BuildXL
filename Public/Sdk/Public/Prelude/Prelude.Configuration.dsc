@@ -416,6 +416,12 @@ interface LoggingConfiguration {
      * This option is enabled by default.
      */
     dumpFailedPips?: boolean;
+
+    /**
+     * When the dumpFailedPips option is enabled, this flag can be used to limit the number of logs to the specified value.
+     * The default value for this option is 50
+     */
+    dumpFailedPipsLogLimit?: number;
 }
 
 interface Configuration {

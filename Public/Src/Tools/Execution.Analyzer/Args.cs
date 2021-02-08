@@ -253,6 +253,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.ExportGraph:
                     m_analyzer = InitializePipGraphExporter();
                     break;
+                case AnalysisMode.ExtraDependencies:
+                    m_analyzer = InitializeExtraDependenciesAnalyzer();
+                    break;
                 case AnalysisMode.FailedPipsDump:
                     m_analyzer = InitializeFailedPipsDumpAnalyzer();
                     if (!string.IsNullOrEmpty(m_analysisInputOther.ExecutionLogPath))
@@ -556,6 +559,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteExportDgmlAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteExtraDependenciesAnalyzerHelp(writer);
 
             writer.WriteLine("");
             WriteObservedInputHelp(writer);

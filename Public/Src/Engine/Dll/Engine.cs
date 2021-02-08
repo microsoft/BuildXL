@@ -272,14 +272,10 @@ namespace BuildXL.Engine
             Contract.Requires(configuration != null);
             Contract.Requires(initialConfig != null);
 
-            bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
-
-            GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
+            GrpcEnvironment.Initialize();
 
             Logger.Log.GrpcSettings(
                 loggingContext,
-                GrpcSettings.ThreadPoolSize,
-                grpcHandlerInliningEnabled,
                 (int)GrpcSettings.CallTimeout.TotalMinutes,
                 (int)GrpcSettings.WorkerAttachTimeout.TotalMinutes);
 

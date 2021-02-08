@@ -31,22 +31,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </remarks>
         public static TimeSpan WorkerAttachTimeout => EngineEnvironmentSettings.WorkerAttachTimeout;
 
-        /// <summary>
-        /// The number of threads to be created for Grpc.
-        /// </summary>
-        /// <remarks>
-        /// Default: 70
-        /// </remarks>
-        public static int ThreadPoolSize => EngineEnvironmentSettings.GrpcThreadPoolSize;
-
-        /// <summary>
-        /// Maximum time to wait for the master to connect to a worker.
-        /// </summary>
-        /// <remarks>
-        /// Default: false
-        /// </remarks>
-        public static bool HandlerInliningEnabled => EngineEnvironmentSettings.GrpcHandlerInliningEnabled;
-
         public static void ParseHeader(Metadata header, out string sender, out string senderBuildId, out string traceId)
         {
             sender = string.Empty;

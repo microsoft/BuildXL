@@ -158,22 +158,6 @@ namespace BuildXL.Utilities.Configuration
             TimeSpan.FromMinutes(5));
 
         /// <summary>
-        /// The number of threads in the grpc thread pool.
-        /// </summary>
-        /// <remarks>
-        /// Cache layer was using 70 by default, so we set the default limit based on their usage.
-        /// </remarks>
-        public static readonly Setting<int> GrpcThreadPoolSize = CreateSetting("BuildXLGrpcThreadPoolSize", value => ParseInt32(value) ?? 70);
-
-        /// <summary>
-        /// Whether HandlerInlining is enabled for grpc.
-        /// </summary>
-        /// <remarks>
-        /// Default disabled
-        /// </remarks>
-        public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
-
-        /// <summary>
         /// Whether KeepAlive is enabled for grpc. It allows http2 pings between client and server over transport.
         /// </summary>
         /// <remarks>

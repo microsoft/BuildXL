@@ -558,36 +558,39 @@ namespace BuildXL.Engine.Distribution
                 m_isConnectionLost = !callResult.Succeeded;
             }
 
-            // If the worker was available at some point of the build and the connection is lost, 
-            // we should log an warning.
-            if (m_isConnectionLost && EverAvailable)
+            if (EverAvailable)
             {
-                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name);
-            }
-
-            m_executionBlobQueue.CompleteAdding();
-
-            using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
-            {
-                bool isQueueCompleted = false;
-                using (await m_logBlobMutex.AcquireAsync())
+                // If the worker was available at some point of the build and the connection is lost, 
+                // we should log an warning.
+                if (m_isConnectionLost)
                 {
-                    // If there are no execution log events, there will be no calls to LogExecutionBlobAsync; as a result,
-                    // the completion task will never be set, i.e., await will never return. To avoid this, we are checking
-                    // the status of the queue before deciding to wait for the completion task.
-                    //
-                    // BlockingCollection is completed when it is empty and CompleteAdding is called. We call CompleteAdding just above;
-                    // another thread can take the last element from the queue(TryTake in LogExecutionBlobAsync), so the blocking collection
-                    // will become completed. However, we need to wait for that thread to process that event; otherwise, we will dispose
-                    // the execution log related objects if we continue stopping the worker and the exception will happen during processing
-                    // the event in that thread. We wait for that thread to process the event by acquiring the m_logBlobMutex.
-                    isQueueCompleted = m_executionBlobQueue.IsCompleted;
+                    Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name);
                 }
 
-                if (!isQueueCompleted)
+                m_executionBlobQueue.CompleteAdding();
+
+                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
                 {
-                    // Wait for execution blobs to be processed.
-                    await m_executionBlobCompletion.Task;
+                    bool isQueueCompleted = false;
+                    using (await m_logBlobMutex.AcquireAsync())
+                    {
+                        // If there are no execution log events, there will be no calls to LogExecutionBlobAsync; as a result,
+                        // the completion task will never be set, i.e., await will never return. To avoid this, we are checking
+                        // the status of the queue before deciding to wait for the completion task.
+                        //
+                        // BlockingCollection is completed when it is empty and CompleteAdding is called. We call CompleteAdding just above;
+                        // another thread can take the last element from the queue(TryTake in LogExecutionBlobAsync), so the blocking collection
+                        // will become completed. However, we need to wait for that thread to process that event; otherwise, we will dispose
+                        // the execution log related objects if we continue stopping the worker and the exception will happen during processing
+                        // the event in that thread. We wait for that thread to process the event by acquiring the m_logBlobMutex.
+                        isQueueCompleted = m_executionBlobQueue.IsCompleted;
+                    }
+
+                    if (!isQueueCompleted)
+                    {
+                        // Wait for execution blobs to be processed.
+                        await m_executionBlobCompletion.Task;
+                    }
                 }
             }
 

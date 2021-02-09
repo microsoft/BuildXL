@@ -55,11 +55,12 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
             mockKusto.Add(new object[] {
                 new BuildFailuresRule.Result() { Stamp = "DM_S1", FailureRate = 0.0},
-                new BuildFailuresRule.Result() { Stamp = "DM_S2", FailureRate = configuration.FailureRateThresholds.Fatal!.Value + 0.1},
+                new BuildFailuresRule.Result() { Stamp = "DM_S2", FailureRate = configuration.FailureRateThresholds.Fatal!.Value + 0.1, Total = configuration.MinimumAmountOfBuildsForIcm },
+                new BuildFailuresRule.Result() { Stamp = "DM_S3", FailureRate = configuration.FailureRateThresholds.Fatal!.Value + 0.1, Total = configuration.MinimumAmountOfBuildsForIcm - 1 },
             });
 
             await rule.Run(ruleContext);
-            _notifier.Results.Count.Should().Be(2);
+            _notifier.Results.Count.Should().Be(3);
             _notifier.Results[0].Severity.Should().Be(Severity.Fatal);
 
             mockIcm.Incidents.Count.Should().Be(1);

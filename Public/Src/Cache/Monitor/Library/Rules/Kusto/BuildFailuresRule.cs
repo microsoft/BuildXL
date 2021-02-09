@@ -36,6 +36,11 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             {
                 Sev4 = 0.5,
             };
+
+            /// <summary>
+            /// Avoid the case where we fail 1 out of 1 builds
+            /// </summary>
+            public long MinimumAmountOfBuildsForIcm { get; set; } = 5;
         }
 
         private readonly Configuration _configuration;
@@ -96,17 +101,20 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                         eventTimeUtc: now);
                 });
 
-                await _configuration.FailureRateIcmThresholds.CheckAsync(failureRate, (severity, threshold) =>
+                if (total >= _configuration.MinimumAmountOfBuildsForIcm)
                 {
-                    return EmitIcmAsync(
-                        severity,
-                        title: $"{stamp}: High failure rate ({Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%)",
-                        stamp,
-                        machines: null,
-                        correlationIds: null,
-                        description: $"Build failure rate `{failed}/{total}={Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
-                        eventTimeUtc: now);
-                });
+                    await _configuration.FailureRateIcmThresholds.CheckAsync(failureRate, (severity, threshold) =>
+                    {
+                        return EmitIcmAsync(
+                            severity,
+                            title: $"{stamp}: High failure rate ({Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%)",
+                            stamp,
+                            machines: null,
+                            correlationIds: null,
+                            description: $"Build failure rate `{failed}/{total}={Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
+                            eventTimeUtc: now);
+                    });
+                }
             }
         }
     }

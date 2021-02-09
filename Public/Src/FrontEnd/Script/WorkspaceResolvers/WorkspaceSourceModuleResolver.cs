@@ -58,7 +58,7 @@ namespace BuildXL.FrontEnd.Script
         /// Source files obtained during configuration processing.
         /// </summary>
         /// <remarks>
-        /// Not null if <see cref="InitPackageFromDescriptorAsync(DiscriminatingUnion{AbsolutePath, IInlineModuleDefinition}, AbsolutePath, int)"/> was called and was successful.
+        /// Not null if <see cref="InitPackageFromDescriptorAsync(AbsolutePath, AbsolutePath)"/> was called and was successful.
         /// </remarks>
         private ISourceFile[] m_configurationFiles;
 
@@ -322,6 +322,7 @@ namespace BuildXL.FrontEnd.Script
             return m_resolveModuleAsyncIfNeededTask.GetOrCreate(this, @this => @this.DoResolveModuleAsyncIfNeededAsync());
         }
 
+        /// <inheritdoc />
         private async Task<ModuleResolutionResult> DoResolveModuleAsyncIfNeededAsync()
         {
             if (m_moduleResolutionState == ModuleResolutionState.Unresolved)
@@ -817,16 +818,20 @@ namespace BuildXL.FrontEnd.Script
 
             // qualifierSpaceId is invalid if unspecified.
 #pragma warning disable SA1009 // Closing parenthesis must be spaced correctly
-            var initTasks = new Task<(bool success, Workspace moduleWorkspace)>[packagesPathsOrInlined.Count];
+            var initTasks = new Task<(bool success, IEnumerable<ISourceFile> sourceFiles)>[packagesPathsOrInlined.Count];
 #pragma warning restore SA1009 // Closing parenthesis must be spaced correctly
 
             int i = 0;
             foreach (var packagePathOrInlined in packagesPathsOrInlined)
             {
                 var currentPackagePathOrInlined = packagePathOrInlined;
+                Contract.RequiresNotNull(currentPackagePathOrInlined);
+                var value = currentPackagePathOrInlined.GetValue();
 
                 // Per suggestion, create a task to avoid doing things sequential.
-                initTasks[i] = Task.Run(async () => await InitPackageFromDescriptorAsync(currentPackagePathOrInlined, configPath, i));
+                initTasks[i] = value is AbsolutePath path
+                    ? Task.Run(() => InitPackageFromDescriptorAsync((AbsolutePath)value, configPath))
+                    : Task.FromResult(InitPackageFromDescript(configPath, (IInlineModuleDefinition)value, i));
                 ++i;
             }
 
@@ -836,23 +841,13 @@ namespace BuildXL.FrontEnd.Script
             {
                 // All modules were successfully processed,
                 // we can create a full workspace for all module configs.
-                m_configurationFiles = results.SelectMany(t => t.moduleWorkspace.GetAllSourceFiles()).ToArray();
+                m_configurationFiles = results.SelectMany(t => t.sourceFiles).ToArray();
             }
 
             return result;
         }
 
-        private Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptorAsync(DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition> pathOrInlined, AbsolutePath configPath, int packageIndex)
-        {
-            Contract.RequiresNotNull(pathOrInlined);
-
-            var value = pathOrInlined.GetValue();
-            return value is AbsolutePath path
-                ? InitPackageFromDescriptorAsync(path, configPath)
-                : InitPackageFromDescriptAsync(configPath, (IInlineModuleDefinition)value, packageIndex);
-        }
-
-        private async Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptAsync(AbsolutePath configPath, IInlineModuleDefinition inlineDefinition, int packageIndex)
+        private (bool success, IEnumerable<ISourceFile> sourceFiles) InitPackageFromDescript(AbsolutePath configPath, IInlineModuleDefinition inlineDefinition, int packageIndex)
         {
             var packageConfiguration = new PackageDescriptor
             {
@@ -865,7 +860,7 @@ namespace BuildXL.FrontEnd.Script
 
             if (!ValidatePackageConfiguration(packageConfiguration, configPath))
             {
-                return (success: false, moduleWorkspace: null);
+                return (success: false, sourceFiles: null);
             }
 
             PackageId packageId = CreatePackageId(packageConfiguration);
@@ -876,13 +871,7 @@ namespace BuildXL.FrontEnd.Script
             var packageMainFile = configPath.GetParent(PathTable).Combine(PathTable, Names.PackageConfigDsc + "." + packageConfiguration.Name);
 
             CreatePackageAndUpdatePackageMaps(packageId, packageMainFile, packageConfiguration);
-
-            // For inline modules, we use the main config file as the configuration file that defines the module
-            // But we skip validation since 1) the config file is already validated and 2) the validation here expects
-            // a module configuration file, and that's not the case
-            var nonTypeCheckedWorkspace = await m_configConversionHelper.ParseAndValidateConfigFileAsync(configPath, typecheck: false, validate: false);
-
-            return (success: nonTypeCheckedWorkspace != null, moduleWorkspace: nonTypeCheckedWorkspace);
+            return (success: true, sourceFiles: new ISourceFile[] { });
         }
 
 #pragma warning disable SA1009 // Closing parenthesis must be spaced correctly
@@ -893,7 +882,7 @@ namespace BuildXL.FrontEnd.Script
         /// Returns a tuple that indicates the result of the initalization and the workspace.
         /// Function can't return just a <see cref="ISourceFile"/> for a given module configuration, because module configuration can import other files and these files are part of the workspace as well.
         /// </returns>>
-        private async Task<(bool success, Workspace moduleWorkspace)> InitPackageFromDescriptorAsync(AbsolutePath path, AbsolutePath configPath)
+        private async Task<(bool success, IEnumerable<ISourceFile> sourceFiles)> InitPackageFromDescriptorAsync(AbsolutePath path, AbsolutePath configPath)
 #pragma warning restore SA1009 // Closing parenthesis must be spaced correctly
         {
             Contract.Requires(path.IsValid);
@@ -904,7 +893,7 @@ namespace BuildXL.FrontEnd.Script
             if (!parseResult.Success)
             {
                 // Error has been reported.
-                return (success: false, moduleWorkspace: null);
+                return (success: false, sourceFiles: null);
             }
 
             Contract.Assert(parseResult.Result != null);
@@ -931,7 +920,7 @@ namespace BuildXL.FrontEnd.Script
                     if (!success)
                     {
                         // Error has been reported during the evaluation.
-                        return (success: false, moduleWorkspace: null);
+                        return (success: false, sourceFiles: null);
                     }
 
                     var bindings = module.GetAllBindings(context).ToList();
@@ -948,7 +937,7 @@ namespace BuildXL.FrontEnd.Script
                     if (packageDeclarationArrayLiteral == null)
                     {
                         Logger.PackageDescriptorsIsNotArrayLiteral(Context.LoggingContext, Name, packageConfigPath.ToString(PathTable));
-                        return (success: false, moduleWorkspace: null);
+                        return (success: false, sourceFiles: null);
                     }
 
                     for (int i = 0; i < packageDeclarationArrayLiteral.Length; ++i)
@@ -958,7 +947,7 @@ namespace BuildXL.FrontEnd.Script
                         if (packageDeclarationObjectLiteral == null)
                         {
                             Logger.PackageDescriptorIsNotObjectLiteral(Context.LoggingContext, Name, packageConfigPath.ToString(PathTable), i);
-                            return (success: false, moduleWorkspace: null);
+                            return (success: false, sourceFiles: null);
                         }
 
                         IPackageDescriptor packageConfiguration;
@@ -976,14 +965,14 @@ namespace BuildXL.FrontEnd.Script
                                 new Location() { File = packageConfigPath.ToString(PathTable) },
                                 Name,
                                 GetConversionExceptionMessage(packageConfigPath, conversionException));
-                            return (success: false, moduleWorkspace: null);
+                            return (success: false, sourceFiles: null);
                         }
 
                         ChangeNameResolutionSemanticIfNeeded(packageConfiguration, packageConfigPath.GetName(PathTable).ToString(StringTable));
 
                         if (!ValidatePackageConfiguration(packageConfiguration, packageConfigPath))
                         {
-                            return (success: false, moduleWorkspace: null);
+                            return (success: false, sourceFiles: null);
                         }
 
                         AbsolutePath packageMainFile;
@@ -1002,7 +991,7 @@ namespace BuildXL.FrontEnd.Script
                                     packageMainFile.ToString(PathTable),
                                     packageConfigPath.ToString(PathTable));
 
-                                return (success: false, moduleWorkspace: null);
+                                return (success: false, sourceFiles: null);
                             }
                         }
                         else
@@ -1027,7 +1016,7 @@ namespace BuildXL.FrontEnd.Script
 
             // re-create workspace without typechecking
             var nonTypeCheckedWorkspace = await m_configConversionHelper.ParseAndValidateConfigFileAsync(packageConfigPath, typecheck: false);
-            return (success: nonTypeCheckedWorkspace != null, moduleWorkspace: nonTypeCheckedWorkspace);
+            return (success: nonTypeCheckedWorkspace != null, sourceFiles: nonTypeCheckedWorkspace?.GetAllSourceFiles());
         }
 
         private void ChangeNameResolutionSemanticIfNeeded(IPackageDescriptor packageConfiguration, string packageConfigPath)

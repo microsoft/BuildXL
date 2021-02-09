@@ -4,13 +4,16 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Client;
 using BuildXL.Cache.Monitor.Library.IcM;
 using BuildXL.Cache.Monitor.Library.Notifications;
 using BuildXL.Cache.Monitor.Library.Rules.Kusto;
@@ -362,11 +365,22 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             return (mockKusto, baseConfiguration, mockIcm);
         }
 
-        private async Task<Watchlist> GetWatchListAsync(MockKustoClient mockKusto)
+        private Task<Watchlist> GetWatchListAsync(MockKustoClient mockKusto)
         {
-            IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> envDictionary = new Dictionary<CloudBuildEnvironment, EnvironmentConfiguration>() { { TestEnvironment, Constants.DefaultEnvironments[TestEnvironment] } };
-            var watchlist = await Watchlist.CreateAsync(TestGlobal.Logger, mockKusto, envDictionary);
-            return watchlist;
+            var environments = new Dictionary<CloudBuildEnvironment, EnvironmentConfiguration>() {
+                {
+                    TestEnvironment, Constants.DefaultEnvironments[TestEnvironment]
+                }
+            };
+
+            var resources = new Dictionary<CloudBuildEnvironment, IKustoClient>()
+            {
+                {
+                    TestEnvironment, mockKusto
+                }
+            };
+
+            return Watchlist.CreateAsync(TestGlobal.Logger, environments, resources);
         }
     }
 }

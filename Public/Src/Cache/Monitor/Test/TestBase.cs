@@ -16,10 +16,10 @@ namespace BuildXL.Cache.Monitor.Test
 
         protected Result<string> GetApplicationKey()
         {
-            var applicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_APPLICATION_KEY");
+            var applicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_PROD_APPLICATION_KEY");
             if (string.IsNullOrEmpty(applicationKey))
             {
-                return new Result<string>(errorMessage: "Please set the `CACHE_MONITOR_APPLICATION_KEY` environment variable to your application key");
+                return new Result<string>(errorMessage: "Please set the `CACHE_MONITOR_PROD_APPLICATION_KEY` environment variable to your application key");
             }
             return applicationKey;
         }

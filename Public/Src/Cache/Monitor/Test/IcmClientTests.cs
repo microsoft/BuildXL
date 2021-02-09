@@ -33,7 +33,7 @@ namespace BuildXL.Cache.Monitor.Test
 
             var keyVault = new KeyVaultClient(
                 config.KeyVaultUrl,
-                config.AzureTenantId,
+                config.TenantId,
                 config.AzureAppId,
                 config.AzureAppKey,
                 clock,

@@ -39,7 +39,8 @@ namespace MonitorTest {
                         passThroughEnvironmentVariables: [
                             // Used to ensure tests against Azure can run whenever this environment variable is 
                             // available
-                            "CACHE_MONITOR_APPLICATION_KEY"
+                            "CACHE_MONITOR_PROD_APPLICATION_KEY",
+                            "CACHE_MONITOR_TEST_APPLICATION_KEY"
                         ]
                     },
                 }

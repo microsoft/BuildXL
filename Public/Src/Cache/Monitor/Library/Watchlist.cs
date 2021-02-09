@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -72,14 +71,14 @@ namespace BuildXL.Cache.Monitor.App
             .ToDictionary(group => group.Key, group => group.ToList());
 
         private readonly ILogger _logger;
-        private readonly IKustoClient _kustoClient;
         private readonly IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> _environments;
+        private readonly IReadOnlyDictionary<CloudBuildEnvironment, IKustoClient> _kustoClients;
 
-        private Watchlist(ILogger logger, IKustoClient kustoClient, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments)
+        private Watchlist(ILogger logger, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments, IReadOnlyDictionary<CloudBuildEnvironment, IKustoClient> kustoClients)
         {
             _logger = logger;
-            _kustoClient = kustoClient;
             _environments = environments;
+            _kustoClients = kustoClients;
         }
 
         /// <summary>
@@ -100,9 +99,9 @@ namespace BuildXL.Cache.Monitor.App
             return !hasNotChanged;
         }
 
-        public static async Task<Watchlist> CreateAsync(ILogger logger, IKustoClient kustoClient, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments)
+        public static async Task<Watchlist> CreateAsync(ILogger logger, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments, IReadOnlyDictionary<CloudBuildEnvironment, IKustoClient> kustoClients)
         {
-            var watchlist = new Watchlist(logger, kustoClient, environments);
+            var watchlist = new Watchlist(logger, environments, kustoClients);
             await watchlist.RefreshAsync();
             return watchlist;
         }
@@ -116,10 +115,11 @@ namespace BuildXL.Cache.Monitor.App
             await _environments.ParallelForEachAsync(async (keyValuePair) => {
                 var envName = keyValuePair.Key;
                 var envConf = keyValuePair.Value;
+                var envKusto = _kustoClients[envName];
 
                 _logger.Info("Loading monitor stamps for environment `{0}`", envName);
 
-                var results = await _kustoClient.QueryAsync<DynamicStampProperties>(query, envConf.KustoDatabaseName);
+                var results = await envKusto.QueryAsync<DynamicStampProperties>(query, envConf.KustoDatabaseName);
                 foreach (var result in results)
                 {
                     Contract.AssertNotNullOrEmpty(result.Stamp);

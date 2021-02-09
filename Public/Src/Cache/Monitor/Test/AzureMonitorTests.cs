@@ -37,15 +37,15 @@ namespace BuildXL.Cache.Monitor.Test
             var appKey = appKeyResult.ThrowIfFailure();
 
             var azure = ExternalDependenciesFactory.CreateAzureClient(
-                Constants.DefaultAzureTenantId,
+                Constants.DefaultProdTenantId,
                 _environmentConfiguration.AzureSubscriptionId,
-                Constants.DefaultAzureAppId,
+                Constants.DefaultProdAzureAppId,
                 appKey).ThrowIfFailure();
 
             var monitorManagementClient = new AzureMetricsClient(await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(
-                Constants.DefaultAzureTenantId,
+                Constants.DefaultProdTenantId,
                 _environmentConfiguration.AzureSubscriptionId,
-                Constants.DefaultAzureAppId,
+                Constants.DefaultProdAzureAppId,
                 appKey).ThrowIfFailureAsync());
 
             // var redisCaches = (await azure.RedisCaches.ListAsync()).ToDictionary(cache => cache.Name, cache => cache);

@@ -33,9 +33,13 @@ namespace BuildXL.Cache.Monitor.App
 
         public static string DefaultKustoClusterUrl { get; } = "https://cbuild.kusto.windows.net";
 
-        public static string DefaultAzureTenantId { get; } = "72f988bf-86f1-41af-91ab-2d7cd011db47";
+        public static string DefaultProdTenantId { get; } = "72f988bf-86f1-41af-91ab-2d7cd011db47";
 
-        public static string DefaultAzureAppId { get; } = "22cabbbb-1f32-4057-b601-225bab98348d";
+        public static string DefaultProdAzureAppId { get; } = "22cabbbb-1f32-4057-b601-225bab98348d";
+
+        public static string DefaultTestTenantId { get; } = "975f013f-7f24-47e8-a7d3-abc4752bf346";
+
+        public static string DefaultTestAzureAppId { get; } = "961ae58d-adb0-49c1-a6a2-0b0578c8e9c2";
 
         public static string DefaultKeyVaultUrl { get; } = "https://cbsecrets.vault.azure.net/";
 
@@ -54,20 +58,26 @@ namespace BuildXL.Cache.Monitor.App
                     CloudBuildEnvironment.Production,
                     new EnvironmentConfiguration
                     {
-                        KustoDatabaseName = "CloudBuildProd",
+                        AzureTenantId = DefaultProdTenantId,
+                        AzureAppId = DefaultProdAzureAppId,
+                        AzureAppKey = string.Empty,
                         AzureSubscriptionName = "CloudBuild-PROD",
                         AzureSubscriptionId = "7965fc55-7602-4cf6-abe4-e081cf119567",
-                        AzureKeyVaultSubscriptionId = "41cf5fb3-558b-467d-b6cd-dd7e6c18945d",
+                        KustoClusterUrl = DefaultKustoClusterUrl,
+                        KustoDatabaseName = "CloudBuildProd",
                     }
                 },
                 {
                     CloudBuildEnvironment.Test,
                     new EnvironmentConfiguration
                     {
-                        KustoDatabaseName = "CloudBuildCBTest",
+                        AzureTenantId = DefaultTestTenantId,
+                        AzureAppId = DefaultTestAzureAppId,
+                        AzureAppKey = string.Empty,
                         AzureSubscriptionName = "CloudBuild_Test",
                         AzureSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
-                        AzureKeyVaultSubscriptionId = "30c83465-21e5-4a97-9df2-d8dd19881d24",
+                        KustoClusterUrl = DefaultKustoClusterUrl,
+                        KustoDatabaseName = "CloudBuildCBTest",
                     }
                 },
                 // Removing until we actually support/care about this

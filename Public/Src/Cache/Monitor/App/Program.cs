@@ -201,12 +201,21 @@ namespace BuildXL.Cache.Monitor.App
             {
                 configuration = new Monitor.Configuration();
 
-                var applicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_APPLICATION_KEY");
-                if (string.IsNullOrEmpty(applicationKey))
+                var cloudBuildProdApplicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_PROD_APPLICATION_KEY");
+                if (string.IsNullOrEmpty(cloudBuildProdApplicationKey))
                 {
-                    throw new ArgumentException($"Please specify a configuration file or set the `CACHE_MONITOR_APPLICATION_KEY` environment variable to your application key");
+                    throw new ArgumentException($"Please specify a configuration file or set the `CACHE_MONITOR_PROD_APPLICATION_KEY` environment variable to your application key");
                 }
-                configuration.AzureAppKey = applicationKey;
+
+                var cloudBuildTestApplicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_TEST_APPLICATION_KEY");
+                if (string.IsNullOrEmpty(cloudBuildTestApplicationKey))
+                {
+                    throw new ArgumentException($"Please specify a configuration file or set the `CACHE_MONITOR_TEST_APPLICATION_KEY` environment variable to your application key");
+                }
+
+                configuration.AzureAppKey = cloudBuildProdApplicationKey;
+                configuration.Environments[CloudBuildEnvironment.Production].AzureAppKey = cloudBuildProdApplicationKey;
+                configuration.Environments[CloudBuildEnvironment.Test].AzureAppKey = cloudBuildTestApplicationKey;
 
                 configuration.ReadOnly = !production;
                 return configuration;

@@ -101,7 +101,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "assert.true() failure expected: true actual: false"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/089d24f8-683f-768d-4401-1bc575bcd1c3",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-03-11T15:30:28.8526941Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: False)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: False)",
@@ -132,26 +132,6 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
         "ErrorSignatureToModuleBugReportUri": {}
       },
       "TestSourceDir": "Public\\Src\\Engine\\UnitTests\\Processes"
-    },
-    "Public\\Src\\FrontEnd\\UnitTests\\Script.Interpretation_retail_X64": {
-      "FlakyTestMap": {
-        "Test.DScript.Ast.Interpretation.InterpretTypeOf.InterpretTypeOfTest(expr: \"Transformer.filterSharedOpaqueDirectory(d`.`, {kin\"..., typeName: \"SharedOpaqueDirectory\")": {
-          "Name": "Test.DScript.Ast.Interpretation.InterpretTypeOf.InterpretTypeOfTest(expr: \"Transformer.filterSharedOpaqueDirectory(d`.`, {kin\"..., typeName: \"SharedOpaqueDirectory\")",
-          "DetectionTimeUtc": "2021-01-05T04:00:38.0379462Z",
-          "QuarantineExpiryTimeUtc": "2021-07-04T04:00:38.0379463Z",
-          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1805067",
-          "ModuleBugReportUris": [],
-          "ErrorSignatures": [
-            "system.invalidoperationexception : evaluation failed. errors: b:\\out\\objects\\c\\#NUM#\\jn#NUM#er#NUM#t#NUM#v#NUM#pxl#NUM#cg#NUM#w\\sandbox\\qtest#NUM#\\build.dsc(#NUM#,#NUM#):error #NUM#: b:\\out\\objects\\c\\#NUM#\\jn#NUM#er#NUM#t#NUM#v#NUM#pxl#NUM#cg#NUM#w\\sandbox\\qtest#NUM#\\build.dsc(#NUM#,#NUM#): argument of type 'directory' is not assignable to parameter of type 'sharedopaquedirectory'. property 'kind' is missing in type 'directory'. error #NUM#: one or more error occurred during workspace analysis. see output for more details."
-          ],
-          "SessionUri": "https://cloudbuild.microsoft.com/build/9aa85e97-3160-55ad-1af2-2edc9e2a0b90",
-          "ScheduledDeletionTimeUtc": "2021-02-06T12:30:14.2800642Z"
-        }
-      },
-      "Metadata": {
-        "ErrorSignatureToModuleBugReportUri": {}
-      },
-      "TestSourceDir": "Public\\Src\\FrontEnd\\UnitTests\\Script.Interpretation"
     }
   }
 }

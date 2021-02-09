@@ -256,10 +256,22 @@ namespace BuildXL.Engine.Distribution
 
             m_masterServer.Dispose();
 
+            // Consider switching to `IAsyncDisposable.DisposeAsync` in this code to avoid blocking calls in Dispose method.
             if (m_remoteWorkers != null)
             {
                 // Finish and dispose all workers
-                Task.WaitAll(m_remoteWorkers.Select(static w => w.FinishAsync(null).ContinueWith(_ => w.Dispose())).ToArray());
+                var tasks = m_remoteWorkers
+                    .Select(
+                        static async w =>
+                        {
+                            using (w)
+                            {
+                                // Disposing the workers once FinishAsync is done.
+                                await w.FinishAsync(null);
+                            }
+                        })
+                    .ToArray();
+                Task.WaitAll(tasks);
             }
         }
 

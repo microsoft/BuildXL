@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             set.AddMetric("MachineKbitsPerSecSent", (long)perfInfo.MachineKbitsPerSecSent);
             set.AddMetric("ProcessCpuPercentage", perfInfo.ProcessCpuPercentage);
             set.AddMetric("ProcessWorkingSetMB", perfInfo.ProcessWorkingSetMB);
-
+            set.AddMetric("GCTotalMemoryMB", (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6));
             set.AddMetric("ProcessThreadCount", (long)_perfStatsAggregator.ProcessThreadCount.Latest);
 
             ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);

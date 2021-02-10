@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return result;
         }
 
-        private bool IsStoredEpochInvalid([NotNullWhen(true)]out string? epoch)
+        private bool IsStoredEpochInvalid([NotNullWhen(true)] out string? epoch)
         {
             TryGetGlobalEntry(nameof(ClusterStateKeys.StoredEpoch), out epoch);
             return _configuration.Epoch != epoch;
@@ -337,6 +337,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
+                LogMemoryUsage(context, columnFamilyName: null);
+                LogMemoryUsage(context, columnFamilyName: nameof(Columns.Metadata));
+
                 if (IsStoredEpochInvalid(out var storedEpoch))
                 {
                     SetGlobalEntry(nameof(ClusterStateKeys.StoredEpoch), _configuration.Epoch);
@@ -364,7 +367,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
-                LogMemoryUsage(context);
+                LogMemoryUsage(context, columnFamilyName: null);
+                LogMemoryUsage(context, columnFamilyName: nameof(Columns.Metadata));
 
                 var activeSlot = _activeSlot;
 
@@ -399,52 +403,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void LogMemoryUsage(OperationContext context)
+        private void LogMemoryUsage(OperationContext context, string? columnFamilyName)
         {
             if (_keyValueStore != null)
             {
-                try
-                {
-                    var usage = _keyValueStore.Use(store =>
-                    {
-                        // From the docs:
-                        // 
-                        // There are a couple of components in RocksDB that contribute to memory usage:
-                        // Block cache
-                        // Indexes and bloom filters
-                        // Memtables
-                        // Blocks pinned by iterators
-                        // 
-                        // Since we never create a cache, we don't need to check those.
+                _ = context.PerformOperation(Tracer, () =>
+                  {
+                      return _keyValueStore.Use(store =>
+                      {
+                          // See: https://github.com/facebook/rocksdb/wiki/Memory-usage-in-RocksDB
 
-                        long? indexesAndBloomFilters = null;
-                        long? memtables = null;
-                        if (long.TryParse(store.GetProperty("rocksdb.estimate-table-readers-mem"), out var val))
-                        {
-                            indexesAndBloomFilters = val;
-                        }
-                        if (long.TryParse(store.GetProperty("rocksdb.cur-size-all-mem-tables"), out val))
-                        {
-                            memtables = val;
-                        }
+                          // Indexes and bloom filters
+                          long tableReadersMem = GetLongProperty(store, "rocksdb.estimate-table-readers-mem", columnFamilyName).GetValueOrDefault(-1);
 
-                        return (indexesAndBloomFilters, memtables);
-                    });
+                          // Memtables
+                          long curSizeAllMemTables = GetLongProperty(store, "rocksdb.cur-size-all-mem-tables", columnFamilyName).GetValueOrDefault(-1);
 
-                    if (usage.Succeeded)
-                    {
-                        var (indexesAndBloomFilters, memtables) = usage.Result;
-                        Tracer.Debug(context, $"Loading next checkpoint. Current database memory usage: IndexesAndBloomFilters={indexesAndBloomFilters}bytes, Memtables={memtables}bytes");
-                    }
-                    else
-                    {
-                        Tracer.Debug(context, $"Failed to get database memory usage: {usage.Failure.DescribeIncludingInnerFailures()}");
-                    }
-                }
-                catch (Exception e)
-                {
-                    Tracer.Debug(context, $"Failed to get database memory usage. Exception: {e}");
-                }
+                          // Block cache
+                          long blockCacheUsage = GetLongProperty(store, "rocksdb.block-cache-usage", columnFamilyName).GetValueOrDefault(-1);
+
+                          // Blocks pinned by iterators
+                          long blockCachePinnedUsage = GetLongProperty(store, "rocksdb.block-cache-pinned-usage", columnFamilyName).GetValueOrDefault(-1);
+
+                          return (tableReadersMem, curSizeAllMemTables, blockCacheUsage, blockCachePinnedUsage);
+                      }).ToResult();
+                  }, traceOperationStarted: false, messageFactory: r =>
+                  {
+                      if (!r.Succeeded)
+                      {
+                          return string.Empty;
+                      }
+
+                      return $"ColumnFamily=[{columnFamilyName ?? "default"}] TableReadersMemBytes=[{r.Value.tableReadersMem}] CurSizeAllMemTablesBytes=[{r.Value.curSizeAllMemTables}] BlockCacheUsageBytes=[{r.Value.blockCacheUsage}] BlockCachePinnedUsageBytes=[{r.Value.blockCachePinnedUsage}]";
+                  });
             }
         }
 
@@ -474,7 +465,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override bool TryGetGlobalEntry(string key, [NotNullWhen(true)]out string? value)
+        public override bool TryGetGlobalEntry(string key, [NotNullWhen(true)] out string? value)
         {
             value = _keyValueStore.Use(
                 static (store, state) =>
@@ -583,7 +574,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
+        protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
         {
             entry = _keyValueStore.Use(
                     static (store, state) => TryGetEntryCoreHelper(state.hash, store, state.db),
@@ -855,19 +846,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
-
-        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string? columnFamilyName = null)
-        {
-            try
-            {
-                return long.Parse(store.GetProperty(propertyName, columnFamilyName));
-            }
-            catch (Exception exception)
-            {
-                return new Result<long>(exception);
-            }
-        }
-
         /// <inheritdoc />
         protected override Result<MetadataGarbageCollectionOutput> GarbageCollectMetadataCore(OperationContext context)
         {
@@ -1101,7 +1079,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Tracer.Info(context, $"Second pass complete. ScannedEntries=[{secondPassScannedEntries}] RemovedEntries=[{secondPassRemovedEntries}] SumKeySize=[{secondPassSumKeySize}] SumValueSize=[{secondPassSumValueSize}] RemovedKeySize=[{secondPassRemovedValueSize}] RemovedValueSize=[{secondPassRemovedValueSize}] SizeBytes=[{sizeDatabaseBytes}] SizeRemovalBytes=[{sizeRemovalBytes}] FractionToKeep=[{fractionToKeep}] KeepCutOffMinutes=[{keepCutOffMinutes}] KeepCutOffDateTime=[{keepCutOffDateTime}]");
 
-            
+
             var removedSizeBytes = secondPassRemovedKeySize + secondPassRemovedValueSize;
             var preGcSizeBytes = secondPassSumKeySize + secondPassSumValueSize;
             // NOTE: This math below can overflow.
@@ -1164,6 +1142,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             };
 
             return _keyValueStore.Use(store => GetLongProperty(store, propertyName, columnFamilyName)).Result;
+        }
+
+        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string? columnFamilyName = null)
+        {
+            try
+            {
+                return long.Parse(store.GetProperty(propertyName, columnFamilyName));
+            }
+            catch (Exception exception)
+            {
+                return new Result<long>(exception);
+            }
         }
 
         private class KeyValueStoreGuard : IDisposable

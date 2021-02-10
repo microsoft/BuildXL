@@ -1256,16 +1256,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash)}={actions[i]}"));
                     extraMessage = $"Register actions(Eager={eagerContentHashes.Count.ToString()}, Event={eventContentHashes.Count.ToString()}): [{registerActionsMessage}]";
 
-                    if (eagerContentHashes.Count != 0)
-                    {
-                        // Update global store
-                        await GlobalStore.RegisterLocationAsync(context, machineId, eagerContentHashes).ThrowIfFailure();
-                    }
-
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
                         EventStore.AddLocations(context, machineId, eventContentHashes, touch).ThrowIfFailure();
+                    }
+
+                    if (eagerContentHashes.Count != 0)
+                    {
+                        // Update global store
+                        await GlobalStore.RegisterLocationAsync(context, machineId, eagerContentHashes).ThrowIfFailure();
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add

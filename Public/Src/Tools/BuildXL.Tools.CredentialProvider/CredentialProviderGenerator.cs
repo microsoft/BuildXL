@@ -8,7 +8,9 @@ namespace BuildXL.Tools.CredentialProvider
         private readonly static Dictionary<string, string> ValidPackageSources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json"] = "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
-            ["https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"] = "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT"
+            ["https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"] = "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
+            ["https://mseng.vsblob.visualstudio.com/DefaultCollection"] = "VSTSPERSONALACCESSTOKEN",
+            ["https://mseng.artifacts.visualstudio.com/DefaultCollection"] = "VSTSPERSONALACCESSTOKEN"
         };
 
         public static int Main(string[] args)

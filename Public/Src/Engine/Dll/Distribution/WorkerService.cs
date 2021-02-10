@@ -380,6 +380,11 @@ namespace BuildXL.Engine.Distribution
                 Logger.Log.DistributionWorkerUnexpectedFailureAfterMasterExits(m_appLoggingContext);
             }
 
+            // Request server shut down before exiting, so the orchestrator stops requests our way
+            // gRPC ensures that any pending calls will still be served as part of the shutdown process,
+            // so there is no problem if we're executing this as part of an "exit" RPC (which is the normal way of exiting)
+            // Do not await, as this call to Exit may have been made as part of the exit RPC and we need to finish it.
+            m_workerServer.ShutdownAsync().Forget();
             m_exitCompletionSource.TrySetResult(reportSuccess);
         }
 

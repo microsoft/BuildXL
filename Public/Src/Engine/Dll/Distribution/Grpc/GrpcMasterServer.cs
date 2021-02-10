@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -46,10 +47,23 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <nodoc/>
-        public void Dispose()
+        public async Task ShutdownAsync()
         {
-            m_server.ShutdownAsync().GetAwaiter().GetResult();
+            if (m_server != null)
+            {
+                try
+                {
+                    await m_server.ShutdownAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    // Shutdown was already requested
+                }
+            }
         }
+
+        /// <nodoc/>
+        public void Dispose() => ShutdownAsync().GetAwaiter().GetResult();
 
         #region Service Methods
 

@@ -154,6 +154,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private readonly FileSystemContentStoreInternalChecker _checker;
 
+        private Timer? _selfCheckTimer;
+
         /// <nodoc />
         public FileSystemContentStoreInternal(
             IAbsFileSystem fileSystem,
@@ -204,7 +206,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             using (var disposableContext = TrackShutdown(context, token))
             {
-                return await _checker.SelfCheckContentDirectoryAsync(disposableContext.Context);
+                var result = await _checker.SelfCheckContentDirectoryAsync(disposableContext.Context);
+
+                if (!disposableContext.Context.Token.IsCancellationRequested)
+                {
+                    _selfCheckTimer?.Change(_settings?.SelfCheckSettings?.Frequency ?? TimeSpan.FromDays(1), Timeout.InfiniteTimeSpan);
+                }
+
+                return result;
             }
         }
 
@@ -400,9 +409,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 // Starting the self check and ignore and trace the failure.
                 // Self check procedure is a long running operation that can take longer then an average process lifetime.
-                // So instead of relying on timers to recheck content directory, we rely on
-                // periodic service restarts.
-                SelfCheckContentDirectoryAsync(context.CreateNested(nameof(FileSystemContentStoreInternal)), context.Token).FireAndForget(context);
+                // Self check will run on a timer that gets triggered at startup, and after every periodic timeframe after the previous call.
+                // Periodic timeframe set by <see cref="SelfCheckSettings.Frequency"/>
+                _selfCheckTimer = new Timer(
+                    callback: _ => { SelfCheckContentDirectoryAsync(context.CreateNested(nameof(FileSystemContentStoreInternal)), context.Token).FireAndForget(context); },
+                    state: null,
+                    dueTime: TimeSpan.Zero,
+                    period: Timeout.InfiniteTimeSpan);
             }
 
             return result;
@@ -899,6 +912,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             QuotaKeeper?.Dispose();
             _taskTracker?.Dispose();
             ContentDirectory.Dispose();
+            _selfCheckTimer?.Dispose();
         }
 
         /// <summary>

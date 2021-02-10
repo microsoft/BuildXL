@@ -141,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($" AddLocationsMinHash={updatedHashesVisitor.AddLocationsMinHash}, AddLocationsMaxHash={updatedHashesVisitor.AddLocationsMaxHash},")
                 .Append($" RemoveLocationsMinHash={updatedHashesVisitor.RemoveLocationsMinHash?.ToString() ?? "None"}, RemoveLocationsMaxHash={updatedHashesVisitor.RemoveLocationsMaxHash?.ToString() ?? "None"}");
 
-            context.TraceInfo(
+            context.TracingContext.Info(
                 $"Processed {counters[ReceivedEventBatchCount].Value} message(s) by {durationMs}ms. {sb}",
                 component: nameof(EventHubContentLocationEventStore));
 
@@ -185,7 +185,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[Touch, #{eventStoreCounters[SentTouchLocationsEvents].Value}, #{touchedHashes}], ")
                 .Append($"[UpdateMetadata, #{eventStoreCounters[SentUpdateMetadataEntryEvents].Value}, N/A, {eventStoreCounters[SentUpdateMetadataEntryEvents].TotalMilliseconds}ms], ")
                 .Append($"[Stored, #{eventStoreCounters[SentStoredEvents].Value}, N/A].");
-            context.TraceInfo($"Sent {eventStoreCounters[SentEventBatchCount].Value} message(s) by {duration}ms. {sb}", component: nameof(EventHubContentLocationEventStore));
+            context.TracingContext.Info($"Sent {eventStoreCounters[SentEventBatchCount].Value} message(s) by {duration}ms. {sb}", component: nameof(EventHubContentLocationEventStore));
 
             var totalEvents = eventStoreCounters[SentAddLocationsEvents].Value + eventStoreCounters[SentRemoveLocationsEvents].Value +
                 eventStoreCounters[SentTouchLocationsEvents].Value + eventStoreCounters[SentUpdateMetadataEntryEvents].Value;

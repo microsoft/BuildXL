@@ -501,7 +501,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var filteredHashes = contentHashes.Where(hash => !localContentStore.Contains(hash)).ToList();
                 if (filteredHashes.Count != contentHashes.Count)
                 {
-                    Tracer.OperationDebug(context, $"Hashes not unregistered because they are still present in local store: [{string.Join(",", contentHashes.Except(filteredHashes))}]");
+                    Tracer.Debug(context, $"Hashes not unregistered because they are still present in local store: [{string.Join(",", contentHashes.Except(filteredHashes))}]");
                     contentHashes = filteredHashes;
                 }
             }

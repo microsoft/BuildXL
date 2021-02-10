@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private void TraceMessage(Severity severity, Exception exception, string message)
         {
-            _context.TraceMessage(severity, exception, message, component: Component, operation: _operation);
+            _context.TraceMessage(severity, message, exception, component: Component, operation: _operation);
         }
 
         private void TraceMessage(Severity severity, string format, object[] formatArgs)

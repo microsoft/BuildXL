@@ -80,10 +80,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public virtual void Always(Context context, string message, [CallerMemberName] string? operation = null)
         {
-            if (context.IsEnabled)
-            {
-                context.Always(message, Name, operation);
-            }
+            Trace(Severity.Always, context, message, operation);
         }
 
         public void Error(Context context, string message, [CallerMemberName] string? operation = null)
@@ -93,14 +90,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public void Error(Context context, Exception exception, [CallerMemberName] string? operation = null)
         {
-            Error(context, exception.Message, operation);
-            Debug(context, exception.ToString(), operation);
+            Trace(Severity.Error, context, exception.ToString(), operation, exception);
         }
 
         public void Error(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
         {
-            Error(context, $"{message}:{exception}", operation);
-            Debug(context, exception.ToString(), operation);
+            Trace(Severity.Error, context, message, operation, exception);
         }
 
         public void Warning(Context context, string message, [CallerMemberName] string? operation = null)
@@ -121,6 +116,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public void Diagnostic(Context context, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Diagnostic, context, message, operation);
+        }
+
+        private void Trace(Severity severity, Context context, string message, string? operation = null, Exception? exception = null)
+        {
+            context.TraceMessage(severity, message, exception, component: Name, operation: operation);
         }
 
         public virtual void StartupStart(Context context)
@@ -197,16 +197,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     }
                 }
             }
-        }
-
-        private void Trace(Severity severity, Context context, string message, string? operationName = null)
-        {
-            if (!context.IsSeverityEnabled(severity))
-            {
-                return;
-            }
-
-            context.TraceMessage(severity, message, component: Name, operation: operationName);
         }
 
         public void OperationStarted(Context context, string operationName, bool enabled = true, string? additionalInfo = null)
@@ -292,12 +282,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         /// <nodoc />
-        public void OperationDebug(Context context, string message, [CallerMemberName]string? operationName = null)
-        {
-            Debug(context, $"{Name}.{operationName}: {message}");
-        }
-
-        /// <nodoc />
         public void OperationFinished(OperationContext context, ResultBase result, TimeSpan duration, [CallerMemberName]string? operationName = null, bool traceErrorsOnly = false)
         {
             OperationFinished(context.TracingContext, result, duration, message: string.Empty, operationName, traceErrorsOnly: traceErrorsOnly);
@@ -328,11 +312,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 if (string.IsNullOrEmpty(prefix))
                 {
                     // Trace(Severity.Debug, context, message);
-                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, s, operationName: nameof(TraceStatisticsAtShutdown)));
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, s, operation: nameof(TraceStatisticsAtShutdown)));
                 }
                 else
                 {
-                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"{prefix}.{s}", operationName: nameof(TraceStatisticsAtShutdown)));
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"{prefix}.{s}", operation: nameof(TraceStatisticsAtShutdown)));
                 }
             }
         }

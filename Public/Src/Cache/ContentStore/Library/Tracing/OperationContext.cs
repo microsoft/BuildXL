@@ -94,18 +94,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         public static implicit operator Context(OperationContext context) => context.TracingContext;
 
         /// <nodoc />
-        public void TraceDebug(string message, string component, [CallerMemberName] string? operation = null)
-        {
-            TracingContext.TraceMessage(Severity.Debug, message, component, operation);
-        }
-
-        /// <nodoc />
-        public void TraceInfo(string message, string component, [CallerMemberName] string? operation = null)
-        {
-            TracingContext.TraceMessage(Severity.Info, message, component, operation);
-        }
-
-        /// <nodoc />
         public Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, Func<T, string>? endMessageFactory = null, [CallerMemberName]string? caller = null)
             where T : ResultBase
         {

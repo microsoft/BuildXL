@@ -129,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Error(Exception exception, string message, string component, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Error, exception, message, component, operation);
+            TraceMessage(Severity.Error, message, exception, component, operation);
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Warning(Exception exception, string message, string component, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(Severity.Warning, exception, message, component, operation);
+            TraceMessage(Severity.Warning, message, exception, component, operation);
         }
 
         /// <summary>
@@ -169,15 +169,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void TraceMessage(Severity severity, string message, string component, [CallerMemberName] string? operation = null)
         {
-            TraceMessage(severity, exception: null, message, component, operation);
+            TraceMessage(severity, message, exception: null, component: component, operation: operation);
         }
 
         /// <summary>
         ///     Trace a message if current severity is set to at least the given severity.
         /// </summary>
-        public void TraceMessage(Severity severity, Exception? exception, string message, string component, [CallerMemberName] string? operation = null)
+        public void TraceMessage(Severity severity, string message, Exception? exception, string component, [CallerMemberName] string? operation = null)
         {
             if (Logger == null)
+            {
+                return;
+            }
+
+            if (!IsSeverityEnabled(severity))
             {
                 return;
             }
@@ -330,24 +335,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 operationLogger.TrackTopLevelStatistic(stat);
             }
         }
-
-        /// <nodoc />
-        public void ChangeRole(string role)
-        {
-            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole, role);
-        }
-
-        /// <nodoc />
-        public void RegisterBuildId(string buildId)
-        {
-            Logger.RegisterBuildId(buildId);
-        }
-
-        /// <nodoc />
-        public void UnregisterBuildId()
-        {
-            Logger.UnregisterBuildId();
-        }
     }
 
     /// <nodoc />
@@ -377,6 +364,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             {
                 operationLogger.UnregisterBuildId();
             }
+        }
+
+        /// <nodoc />
+        public static void ChangeRole(string role)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole, role);
         }
     }
 }

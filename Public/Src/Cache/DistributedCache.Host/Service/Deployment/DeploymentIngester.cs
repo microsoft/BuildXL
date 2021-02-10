@@ -292,7 +292,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 if (!FileSystem.FileExists(DeploymentManifestPath))
                 {
-                    Tracer.OperationDebug(Context, $"No deployment manifest found at '{DeploymentManifestPath}'");
+                    Tracer.Debug(Context, $"No deployment manifest found at '{DeploymentManifestPath}'");
                     return BoolResult.Success;
                 }
 
@@ -315,11 +315,11 @@ namespace BuildXL.Cache.Host.Service
                             });
                         }
 
-                        Tracer.OperationDebug(Context, $"Loaded drop '{dropEntry.Key}' with {dropEntry.Value.Count} files");
+                        Tracer.Debug(Context, $"Loaded drop '{dropEntry.Key}' with {dropEntry.Value.Count} files");
                     }
                     else
                     {
-                        Tracer.OperationDebug(Context, $"Discarded drop '{dropEntry.Key}' with {dropEntry.Value.Count} files");
+                        Tracer.Debug(Context, $"Discarded drop '{dropEntry.Key}' with {dropEntry.Value.Count} files");
                     }
                 }
 

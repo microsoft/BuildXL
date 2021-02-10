@@ -195,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 else
                 {
-                    Tracer.OperationDebug(context, $"Falling back to blob storage. Error={putResult}");
+                    Tracer.Debug(context, $"Falling back to blob storage. Error={putResult}");
                 }
             }
 
@@ -252,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // OR the number replicas exceeds the number of required replicas computed based on the machine index
                         bool shouldCopy = pendingCopyCount < _configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
 
-                        Tracer.OperationDebug(context, $"{i} (ShouldCopy={shouldCopy}): Id={machineId}" +
+                        Tracer.Debug(context, $"{i} (ShouldCopy={shouldCopy}): Id={machineId}" +
                             $", Replicas={actualReplicas}, RequiredReplicas={requiredReplicas}, Pending={pendingCopyCount}, Max={_configuration.MaxSimultaneousCopies}");
 
                         if (shouldCopy)

@@ -470,7 +470,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
 
                         // Saving a global information about the new role of a current service.
-                        context.TracingContext.ChangeRole(newRole.ToString());
+                        LoggerExtensions.ChangeRole(newRole.ToString());
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
                         Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master || Configuration.MasterThroughputCheckMode);
@@ -1343,7 +1343,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             foreach (var contentHashesPage in contentHashes.GetPages(100))
             {
-                context.TraceDebug($"LocalLocationStore.TrimBulk({contentHashesPage.GetShortHashesTraceString()})", component: nameof(LocalLocationStore));
+                context.TracingContext.Debug($"LocalLocationStore.TrimBulk({contentHashesPage.GetShortHashesTraceString()})", component: nameof(LocalLocationStore));
             }
 
             return context.PerformOperation(
@@ -1866,7 +1866,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, reconcileToken);
             var token = tokenSource.Token;
 
-            using var cancellationRegistration = token.Register(() => { context.TraceDebug($"Received cancellation request for {nameof(ReconcilePerCheckpointAsync)}.", Tracer.Name); });
+            using var cancellationRegistration = token.Register(() => { Tracer.Debug(context, $"Received cancellation request for {nameof(ReconcilePerCheckpointAsync)}."); });
 
             if (Configuration.DistributedContentConsumerOnly)
             {

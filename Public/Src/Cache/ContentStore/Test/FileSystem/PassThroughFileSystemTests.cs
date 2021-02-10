@@ -606,7 +606,7 @@ namespace ContentStoreTest.FileSystem
 
             var context = new OperationContext(new Context(TestGlobal.Logger));
 
-            context.TraceDebug($"Writing {numberOfFiles} files...", component: nameof(PassThroughFileSystemTests));
+            context.TracingContext.Debug($"Writing {numberOfFiles} files...", component: nameof(PassThroughFileSystemTests));
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 
@@ -652,7 +652,7 @@ namespace ContentStoreTest.FileSystem
                             await file.WriteAsync(bytes, 0, bytes.Length);
                         }
 
-                        context.TraceDebug($"{index}: {sw.Elapsed}, {file.WriteDuration}, totalSize={totalSize}", component: nameof(PassThroughFileSystemTests));
+                        context.TracingContext.Debug($"{index}: {sw.Elapsed}, {file.WriteDuration}, totalSize={totalSize}", component: nameof(PassThroughFileSystemTests));
                         return (sw.Elapsed, file.WriteDuration);
 
                         

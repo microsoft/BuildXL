@@ -999,7 +999,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ulong firstPassSumKeySize = 0;
             ulong firstPassSumValueSize = 0;
             ulong firstPassScannedEntries = 0;
-            var latSketch = new DDSketch();
+            var lastAccessTimeSketch = new DDSketch();
+            var strongFingerprintSizeSketch = new DDSketch();
+            var metadataEntrySizeSketch = new DDSketch();
             foreach (var keyValuePair in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
             {
                 context.Token.ThrowIfCancellationRequested();
@@ -1007,7 +1009,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var lastAccessTime = DateTime.FromFileTimeUtc(DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value));
                 var lastAccessDelta = now - lastAccessTime;
 
-                latSketch.Insert(lastAccessDelta.TotalMinutes);
+                lastAccessTimeSketch.Insert(lastAccessDelta.TotalMinutes);
+
+                strongFingerprintSizeSketch.Insert(keyValuePair.Key.Length);
+                metadataEntrySizeSketch.Insert(keyValuePair.Value.Length);
 
                 firstPassSumKeySize += (uint)keyValuePair.Key.Length;
                 firstPassSumValueSize += (uint)keyValuePair.Value.Length;
@@ -1028,7 +1033,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             double avgValueSize = (double)firstPassSumValueSize / (double)firstPassScannedEntries;
             Tracer.Info(context, $"First pass complete. SumKeySize=[{firstPassSumKeySize}] SumValueSize=[{firstPassSumValueSize}] CountEntries=[{firstPassScannedEntries}] AvgKeySize=[{avgKeySize}] AvgValueSize=[{avgValueSize}]");
 
-            Tracer.Info(context, $"First pass last access time sketch statistics: Max=[{latSketch.Max}] Min=[{latSketch.Min}] Avg=[{latSketch.Average}] P50=[{latSketch.Quantile(0.5)}] P75=[{latSketch.Quantile(0.75)}] P90=[{latSketch.Quantile(0.90)}] P95=[{latSketch.Quantile(0.95)}]");
+            Tracer.Info(context, $"Last Access Time statistics: Max=[{lastAccessTimeSketch.Max}] Min=[{lastAccessTimeSketch.Min}] Avg=[{lastAccessTimeSketch.Average}] P50=[{lastAccessTimeSketch.Quantile(0.5)}] P75=[{lastAccessTimeSketch.Quantile(0.75)}] P90=[{lastAccessTimeSketch.Quantile(0.90)}] P95=[{lastAccessTimeSketch.Quantile(0.95)}]");
+
+            Tracer.Info(context, $"Strong Fingerprint size statistics: Max=[{strongFingerprintSizeSketch.Max}] Min=[{strongFingerprintSizeSketch.Min}] Avg=[{strongFingerprintSizeSketch.Average}] P50=[{strongFingerprintSizeSketch.Quantile(0.5)}] P75=[{strongFingerprintSizeSketch.Quantile(0.75)}] P90=[{strongFingerprintSizeSketch.Quantile(0.90)}] P95=[{strongFingerprintSizeSketch.Quantile(0.95)}]");
+
+            Tracer.Info(context, $"Metadata Entry size statistics: Max=[{metadataEntrySizeSketch.Max}] Min=[{metadataEntrySizeSketch.Min}] Avg=[{metadataEntrySizeSketch.Average}] P50=[{metadataEntrySizeSketch.Quantile(0.5)}] P75=[{metadataEntrySizeSketch.Quantile(0.75)}] P90=[{metadataEntrySizeSketch.Quantile(0.90)}] P95=[{metadataEntrySizeSketch.Quantile(0.95)}]");
 
             ulong sizeDatabaseBytes = firstPassSumKeySize + firstPassSumValueSize;
             if (sizeDatabaseBytes <= sizeTargetBytes)
@@ -1045,7 +1054,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             double fractionToRemove = (double)sizeRemovalBytes / (double)sizeDatabaseBytes;
             double fractionToKeep = 1.0 - fractionToRemove;
 
-            var keepCutOffMinutes = latSketch.Quantile(fractionToKeep);
+            var keepCutOffMinutes = lastAccessTimeSketch.Quantile(fractionToKeep);
 
             // Everything older than this point will be removed
             var keepCutOffDateTime = now - TimeSpan.FromMinutes(keepCutOffMinutes);

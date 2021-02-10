@@ -84,6 +84,7 @@ namespace Tool.SymbolDaemon
             Contract.Requires(bxlClient != null);
             Contract.Requires(!string.IsNullOrEmpty(filePath));
             Contract.Requires(!string.IsNullOrEmpty(fileId));
+            Contract.Requires(hash.IsValid);
             // It's not clear whether the symbol endpoint can play nicely with dedup hashes, so locking it down to VSO0 for now.
             Contract.Requires(hash.HashType == HashType.Vso0, "support only VSO0 hashes (for now)");
 
@@ -149,10 +150,15 @@ namespace Tool.SymbolDaemon
         }
 
         /// <nodoc/>
-        public override string ToString()
+        public override string ToString() => ToString(verbose: false);
+
+        /// <nodoc/>
+        public string ToString(bool verbose)
         {
-            return $"Path: {FullFilePath}{Environment.NewLine}" +
-                $"   {string.Join(Environment.NewLine, DebugEntries.Select(a => $"BlobId:{a.BlobIdentifier} - ClientKey:{a.ClientKey} - InfoLevel:{a.InformationLevel}"))}";
+            return verbose
+                ? $"Path: {FullFilePath}{Environment.NewLine}"
+                  + $"{string.Join(Environment.NewLine, DebugEntries.Select(a => $"   BlobId:{a.BlobIdentifier} - ClientKey:{a.ClientKey} - InfoLevel:{a.InformationLevel}"))}"
+                : FileId.ToString(m_file);
         }
     }
 }

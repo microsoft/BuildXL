@@ -72,6 +72,12 @@ export interface SymbolRequestSettings {
     
     /** Maximum number of uploads to issue to symbol service in parallel. */
     maxParallelUploads?: number;
+
+    /** Size of batches in which to send 'associate' requests to drop service. */
+    batchSize?: number;
+    
+    /** Maximum time in milliseconds before triggering a batch 'associate' request. */
+    nagleTimeMillis?: number;
     
     /** Retention period in days for uploaded symbols. */
     retentionDays?: number;

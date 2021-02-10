@@ -48,6 +48,7 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Net.Http.dll
             ),
+        ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
     ],
     runtimeContent: symstoreX64Libs    
 });

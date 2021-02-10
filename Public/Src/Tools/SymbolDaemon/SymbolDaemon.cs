@@ -129,6 +129,30 @@ namespace Tool.SymbolDaemon
             DefaultValue = null,
         });
 
+        internal static readonly IntOption BatchSize = RegisterSymbolConfigOption(new IntOption("batchSize")
+        {
+            ShortName = "bs",
+            HelpText = "Size of batches in which to send 'associate' requests",
+            IsRequired = false,
+            DefaultValue = SymbolConfig.DefaultBatchSize,
+        });
+
+        internal static readonly IntOption MaxParallelUploads = RegisterSymbolConfigOption(new IntOption("maxParallelUploads")
+        {
+            ShortName = "mpu",
+            HelpText = "Maximum number of uploads to issue to the service endpoint in parallel",
+            IsRequired = false,
+            DefaultValue = SymbolConfig.DefaultMaxParallelUploads,
+        });
+
+        internal static readonly IntOption NagleTimeMs = RegisterSymbolConfigOption(new IntOption("nagleTimeMillis")
+        {
+            ShortName = "nt",
+            HelpText = "Maximum time in milliseconds to wait before triggering a batch 'associate' request",
+            IsRequired = false,
+            DefaultValue = (int)SymbolConfig.DefaultNagleTime.TotalMilliseconds,
+        });
+
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)
         {
             byte? domainId;
@@ -146,7 +170,10 @@ namespace Tool.SymbolDaemon
                 verbose: conf.Get(Verbose),
                 enableTelemetry: conf.Get(EnableTelemetry),
                 logDir: conf.Get(LogDir),
-                domainId: domainId);
+                domainId: domainId,
+                batchSize: conf.Get(BatchSize),
+                maxParallelUploads: conf.Get(MaxParallelUploads),
+                nagleTimeMs: conf.Get(NagleTimeMs));
         }
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)

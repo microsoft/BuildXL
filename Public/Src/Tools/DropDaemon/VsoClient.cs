@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
@@ -90,14 +89,9 @@ namespace Tool.DropDaemon
         private readonly DropConfig m_config;
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
-        private readonly Timer m_batchTimer;
         private readonly DropDaemon m_dropDaemon;
 
-        private readonly BatchBlock<AddFileItem> m_batchBlock;
-        private readonly BufferBlock<AddFileItem[]> m_bufferBlock;
-        private readonly ActionBlock<AddFileItem[]> m_actionBlock;
-
-        private long m_lastTimeProcessAddFileRanInTicks = DateTime.UtcNow.Ticks;
+        private readonly TimedBatchBlock<AddFileItem> m_batchBlock;
 
         private CancellationToken Token => m_cancellationSource.Token;
 
@@ -146,21 +140,11 @@ namespace Tool.DropDaemon
                 logger: logger,
                 clientConstructor: CreateDropServiceClient);
 
-            // create dataflow blocks
-            var groupingOptions = new GroupingDataflowBlockOptions { Greedy = true };
-
-            var actionOptions = new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = m_config.MaxParallelUploads };
-            var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
-
-            m_batchBlock = new BatchBlock<AddFileItem>(m_config.BatchSize, groupingOptions);
-            m_bufferBlock = new BufferBlock<AddFileItem[]>(); // per http://blog.stephencleary.com/2012/11/async-producerconsumer-queue-using.html, good to have buffer when throttling
-            m_actionBlock = new ActionBlock<AddFileItem[]>(ProcessAddFilesAsync, actionOptions);
-            m_batchBlock.LinkTo(m_bufferBlock, linkOptions);
-            m_bufferBlock.LinkTo(m_actionBlock, linkOptions);
-
-            // create and set up timer for triggering the batch block
-            TimeSpan timerInterval = m_config.NagleTime;
-            m_batchTimer = new Timer(FlushBatchBlock, null, timerInterval, timerInterval);
+            m_batchBlock = new TimedBatchBlock<AddFileItem>(
+                maxDegreeOfParallelism: m_config.MaxParallelUploads,
+                batchSize: m_config.BatchSize,
+                nagleInterval: m_config.NagleTime,
+                batchProcessor: ProcessAddFilesAsync);
 
             if (m_config.ArtifactLogName != null)
             {
@@ -248,7 +232,7 @@ namespace Tool.DropDaemon
         public async Task<FinalizeResult> FinalizeAsync(CancellationToken token)
         {
             m_batchBlock.Complete();
-            await m_actionBlock.Completion;
+            await m_batchBlock.Completion;
 
             var startTime = DateTime.UtcNow;
             await m_dropClient.FinalizeAsync(DropName, token);
@@ -285,7 +269,7 @@ namespace Tool.DropDaemon
         {
             m_dropClient.Dispose();
             m_cancellationSource.Dispose();
-            m_batchTimer.Dispose();
+            m_batchBlock.Dispose();
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose client", Justification = "Caller is responsible for disposing it")]
@@ -304,18 +288,6 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        ///     Triggered by <see cref="m_batchTimer"/>.
-        /// </summary>
-        private void FlushBatchBlock(object state)
-        {
-            var elapsedTicks = ElapsedTicksSinceLastProcessedBatch();
-            if (elapsedTicks > m_config.NagleTime.Ticks)
-            {
-                m_batchBlock.TriggerBatch();
-            }
-        }
-
-        /// <summary>
         ///     Implements 'drop addfile' by first calling <see cref="IDropServiceClient.AssociateAsync"/>,
         ///     and then <see cref="IDropServiceClient.UploadAndAssociateAsync"/>.
         /// </summary>
@@ -324,8 +296,6 @@ namespace Tool.DropDaemon
         /// </remarks>
         private async Task ProcessAddFilesAsync(AddFileItem[] batch)
         {
-            Interlocked.Exchange(ref m_lastTimeProcessAddFileRanInTicks, DateTime.UtcNow.Ticks);
-
             if (batch.Length == 0)
             {
                 return;
@@ -558,11 +528,6 @@ namespace Tool.DropDaemon
             }
 
             return missingItems;
-        }
-
-        private long ElapsedTicksSinceLastProcessedBatch()
-        {
-            return DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastTimeProcessAddFileRanInTicks);
         }
 
         /// <summary>

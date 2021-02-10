@@ -13,7 +13,7 @@ interface UberArguments extends SymbolCreateArguments, ServiceStartResult {
 }
 
 /**
- * Generic SymbolDaemon runner.  Can be used whenever VSO authentication using Azure Active Directory is sufficient, 
+ * Generic SymbolDaemon runner.  Can be used whenever VSO authentication using Azure Active Directory is sufficient,
  * which is typically the case when running on a developer box, or VSTS lab machine.
  */
 @@public
@@ -22,9 +22,9 @@ export const runner: SymbolRunner = {
         args: SymbolCreateArguments
     )
     => createSymbol(args),
-    
-    addFilesToSymbol: addFiles,    
-    
+
+    addFilesToSymbol: addFiles,
+
     addDirectoriesToSymbol: addDirectories,
 
     startDaemonNoSymbol: (
@@ -41,7 +41,7 @@ export const runner: SymbolRunner = {
     },
 
     pingDaemon: (serviceInfo: ServiceStartResult, args: OperationArguments) => executePingAsProcess(serviceInfo, args),
-    
+
     testReadFile: (
         serviceInfo: ServiceStartResult,
         file: File,
@@ -66,8 +66,8 @@ export const runner: SymbolRunner = {
 };
 
 /**
- * Specialized runner for CloudBuild, which sets some magic environment variables  
- * CloudBuild uses to discover credential providers needed to authenticate against VSO.  
+ * Specialized runner for CloudBuild, which sets some magic environment variables
+ * CloudBuild uses to discover credential providers needed to authenticate against VSO.
  */
 @@public
 export const cloudBuildRunner: SymbolRunner = {
@@ -95,20 +95,20 @@ function startService(args: UberArguments, startCommand: string, shutdownCmdName
             "symbol name must be defined, or must be inferrable in symbol config file"
         );
     }
-    
+
     const moniker = Transformer.getNewIpcMoniker();
-    
+
     const connectArgs = <UberArguments><OperationArguments>{maxConnectRetries: args.maxConnectRetries, connectRetryDelayMillis: args.connectRetryDelayMillis, ipcMoniker: moniker};
-    
+
     const serviceStartCmd = getExecuteArguments(
         startCommand,
         overrideMoniker(args, moniker)
     );
     const shutdownCmd = getExecuteArguments(shutdownCmdName, connectArgs);
-    const finalizeCmd = finalizationCmdName !== undefined 
+    const finalizeCmd = finalizationCmdName !== undefined
         ? getIpcArguments(connectArgs, finalizationCmdName, connectArgs, overrideMustRunOnMaster)
         : undefined;
-    
+
     const result = Transformer.createService(
         serviceStartCmd.merge<Transformer.CreateServiceArguments>({
             serviceShutdownCmd: shutdownCmd,
@@ -121,7 +121,7 @@ function startService(args: UberArguments, startCommand: string, shutdownCmdName
             serviceTrackableTagDisplayName: "SymbolTrackerOverhangMs"
         })
     );
-    
+
     return <ServiceStartResult>{
         symbolDaemonId: result.serviceId,
         ipcMoniker: moniker,
@@ -142,18 +142,18 @@ function createSymbol(args: SymbolCreateArguments): SymbolCreateResult {
         shutdownCmdName,
         finalizationCmdName,
         false
-    );   
-    
+    );
+
     const result = executeDaemonCommand(
         symbolStartResult,
         "create",
         <UberArguments>args,
         overrideMustRunOnMaster
     );
-    
+
     // return aggregate info
     return <SymbolCreateResult>{serviceStartInfo: symbolStartResult, outputs: result.outputs};
-}   
+}
 
 function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[]): Result {
     Contract.requires(
@@ -173,12 +173,12 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
 
     const fileMessageBody = files.length !== 0
         ? [
-            Cmd.options("--file ", files.map(fi => Artifact.input(fi))),                
+            Cmd.options("--file ", files.map(fi => Artifact.input(fi))),
             Cmd.options("--hash ", files.map(fi => Artifact.vsoHash(fi))),
             Cmd.options("--fileId ", files.map(fi => Artifact.fileId(fi))),
             Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),
             ]
-        : [];      
+        : [];
 
     const uberArgs = args.merge<UberArguments>({
         dependencies: createResult.outputs || [],
@@ -213,9 +213,9 @@ function addDirectories(createResult: SymbolCreateResult, args: OperationArgumen
         ? [
             Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
             Cmd.options("--directoryId ", directories.map(dir => Artifact.directoryId(dir))),
-            Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),             
+            Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),
             ]
-        : [];          
+        : [];
 
     const uberArgs = args.merge<UberArguments>({
         dependencies: createResult.outputs || [],
@@ -243,7 +243,7 @@ function indexSymbolFiles(files: File[], args: OperationArguments) : DerivedFile
     Contract.requires(
         files.length !== 0,
         "The list of files cannot be empty"
-    );   
+    );
 
     // get a directory where we are going to store the result of indexing
     const outDir = Context.getNewOutputDirectory("symbol_indexing");
@@ -272,7 +272,7 @@ function indexSymbolFiles(files: File[], args: OperationArguments) : DerivedFile
             `symbold-indexFiles`,
             ...(args.tags || []),
         ]
-    }; 
+    };
 
     // run the tool
     const result = Transformer.execute(executeArguments);
@@ -291,7 +291,7 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
     Contract.requires(
         directories.length !== 0,
         "The list of directories cannot be empty"
-    ); 
+    );
 
     const directoryMessageBody = directories.length !== 0
         ? [
@@ -300,7 +300,7 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
             ]
         : [];
 
-    const outDir = Context.getNewOutputDirectory("symbol_indexing");    
+    const outDir = Context.getNewOutputDirectory("symbol_indexing");
     const dirContentFile = p`${outDir.path}/dir_content.txt`;
 
     const uberArgs = args.merge<UberArguments>({
@@ -332,15 +332,15 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
         arguments: [
             Cmd.argument("indexDirectories"),
             Cmd.startUsingResponseFile(false),
-            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),            
+            Cmd.options("--directory ", directories.map(dir => Artifact.input(dir))),
             Cmd.option("--inputDirectoriesContent ", Artifact.input(dirContentResult.outputs[0])),
             Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),
         ],
         // SymStoreUtil opens some files (namely .pdb) with ReadWrite access, this causes DFAs and other issues.
-        // Because the pip consumes dynamic directories we need to specify both the double wrtite policy and the 
+        // Because the pip consumes dynamic directories we need to specify both the double wrtite policy and the
         // untracked scopes.
         doubleWritePolicy: "allowSameContentDoubleWrites",
-        unsafe: {            
+        unsafe: {
             untrackedScopes: directories.map(dir => dir.root)
         },
         description : "SymbolIndexing: " + directories[0].name + " and " + (directories.length - 1) + " other directories(s)",
@@ -349,7 +349,7 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
             `symbold-indexDirectories`,
             ...(args.tags || []),
         ]
-    }; 
+    };
 
     // run the tool
     return Transformer.execute(executeArguments).getOutputFile(outputPath);
@@ -394,7 +394,7 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
     const outDir = Context.getNewOutputDirectory(nametag);
     const selectedTool: Transformer.ToolDefinition = args.tool || tool;
     Contract.assert(
-        selectedTool !== undefined, 
+        selectedTool !== undefined,
         "tool not specified"
     );
 
@@ -411,9 +411,11 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
             Cmd.option("--moniker ", args.ipcMoniker),
             Cmd.option("--ipcServerMoniker ", args.ipcServerMoniker),
             Cmd.option("--name ", args.name),
-            Cmd.option("--service ", args.service),            
+            Cmd.option("--service ", args.service),
             Cmd.option("--maxConcurrentClients ", args.maxConcurrentClients),
-            Cmd.option("--maxParallelUploads ", args.maxParallelUploads),            
+            Cmd.option("--maxParallelUploads ", args.maxParallelUploads),
+            Cmd.option("--nagleTimeMillis ", args.nagleTimeMillis),
+            Cmd.option("--batchSize ", args.batchSize),
             Cmd.option("--retentionDays ", args.retentionDays),
             Cmd.option("--maxConnectRetries ", args.maxConnectRetries),
             Cmd.option("--connectRetryDelayMillis ", args.connectRetryDelayMillis),
@@ -435,7 +437,7 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
         environmentVariables: (args.additionalEnvironmentVars || []),
         unsafe: {
             passThroughEnvironmentVariables: (args.forwardEnvironmentVars || []),
-        }   
+        }
     };
 }
 
@@ -491,7 +493,7 @@ function debugEntryCreateBehaviorToString(arg: DebugEntryCreateBehavior) : strin
 }
 
 const cbEnvironmentVariables: string[] = [
-    "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 
+    "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
     "QAUTHMATERIALROOT",
     "ARTIFACT_CREDENTIALPROVIDERS_PATH",
     "__CLOUDBUILD_AUTH_HELPER_ROOT__",
@@ -505,10 +507,10 @@ function applyCloudBuildDefaultsAndSetEnvVars(args: SymbolCreateArguments): Symb
         enableCloudBuildIntegration: true,
         verbose: true,
         maxConnectRetries: 10,
-        connectRetryDelayMillis: 3000,        
+        connectRetryDelayMillis: 3000,
         maxConcurrentClients: 500,
-        timeoutInMilliseconds: 5 * 60 * 60 * 1000,        
-        warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000,        
+        timeoutInMilliseconds: 5 * 60 * 60 * 1000,
+        warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000,
     };
 
     return defaults.merge(args).merge(

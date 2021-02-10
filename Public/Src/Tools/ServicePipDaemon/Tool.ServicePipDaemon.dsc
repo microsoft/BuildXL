@@ -25,7 +25,8 @@ namespace ServicePipDaemon {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
 
-            importFrom("Newtonsoft.Json").pkg
+            importFrom("Newtonsoft.Json").pkg,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",

@@ -52,6 +52,21 @@ namespace Tool.SymbolDaemon
         public byte? DomainId { get; }
 
         /// <summary>
+        /// Size of batches in which to send 'associate' requests to the service endpoint.
+        /// </summary>
+        public int BatchSize { get; }
+
+        /// <summary>
+        /// Maximum number of uploads to issue to the service endpoint in parallel.
+        /// </summary>
+        public int MaxParallelUploads { get; }
+
+        /// <summary>
+        /// Maximum time to wait before triggering a current batch (i.e., processing a batch even if it's not completely full).
+        /// </summary>
+        public TimeSpan NagleTime { get; }
+
+        /// <summary>
         /// Enable chunk dedup.
         /// </summary>
         /// <remarks>
@@ -76,6 +91,15 @@ namespace Tool.SymbolDaemon
         /// <nodoc/>
         public static bool DefaultEnableTelemetry { get; } = false;
 
+        /// <nodoc/>
+        public const int DefaultBatchSize = 300;
+
+        /// <nodoc/>
+        public static int DefaultMaxParallelUploads { get; } = Environment.ProcessorCount;
+
+        /// <nodoc/>
+        public static readonly TimeSpan DefaultNagleTime = TimeSpan.FromMilliseconds(300);
+
         /// <nodoc />
         public SymbolConfig(
             string requestName,
@@ -86,7 +110,10 @@ namespace Tool.SymbolDaemon
             bool? verbose = null,
             bool? enableTelemetry = null,
             string logDir = null,
-            byte? domainId = null)
+            byte? domainId = null,
+            int? batchSize = null,
+            int? maxParallelUploads = null,
+            int? nagleTimeMs = null)
         {
             Name = requestName;
             Service = serviceEndpoint;
@@ -96,6 +123,9 @@ namespace Tool.SymbolDaemon
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             LogDir = logDir;
             DomainId = domainId;
+            BatchSize = batchSize ?? DefaultBatchSize;
+            NagleTime = nagleTimeMs.HasValue ? TimeSpan.FromMilliseconds(nagleTimeMs.Value) : DefaultNagleTime;
+            MaxParallelUploads = maxParallelUploads ?? DefaultMaxParallelUploads;
 
             if (debugEntryCreateBehaviorStr == null)
             {

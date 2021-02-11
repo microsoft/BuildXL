@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly byte[] _storage; // buffer to store content before written
         private readonly Func<byte[], int, int, Task> _writer; // method to write
         private int _writePointer; // pointer to next index in buffer to be written to
-        private int _position; // total bytes written
+        private long _bytesWritten; // total bytes written
 
         public BufferedWriteStream(byte[] storage, Func<byte[], int, int, Task> writer)
         {
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _storage = storage;
             _writer = writer;
             _writePointer = 0;
-            _position = 0;
+            _bytesWritten = 0;
         }
 
         public override bool CanWrite => true;
@@ -69,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 readPointer += copyCount;
                 _writePointer += copyCount;
                 totalCount += copyCount;
-                _position += copyCount;
+                _bytesWritten += copyCount;
 
                 if (_writePointer == _storage.Length)
                 {
@@ -110,9 +110,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override long Position { get => _position; set => throw new NotSupportedException(); }
+        public override long Position { get => _bytesWritten; set => throw new NotSupportedException(); }
 
-        public override long Length { get => _position; }
+        public override long Length { get => _bytesWritten; }
 
         public override void SetLength(long value) => throw new NotSupportedException();
 

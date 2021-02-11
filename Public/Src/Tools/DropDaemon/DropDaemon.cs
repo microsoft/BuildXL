@@ -563,7 +563,7 @@ namespace Tool.DropDaemon
 
             if (!bxlResult.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {daemon.DropName}. Failure: {bxlResult.Failure}");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {daemon.DropName}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
             }
 
             List<BuildManifestFile> manifestFileListForDrop = bxlResult.Result

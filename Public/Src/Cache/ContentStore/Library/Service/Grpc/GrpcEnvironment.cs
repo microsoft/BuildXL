@@ -132,40 +132,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initialize the GRPC environment if not yet initialized.
         /// </summary>
-        /// <remarks>
-        /// This is here for backwards compatibility. Should be removed when/if clients migrate.
-        /// </remarks>
         public static void InitializeIfNeeded(int numThreads = 70, bool handlerInliningEnabled = true)
         {
-            // We mimick the old initialization logic almost completely faithfully here. The only change now is that we
-            // may throw if a previous initialization failed. All clients that call this method do so before giving us
-            // control, so this code below should never ever throw anyways.
-            if (handlerInliningEnabled)
-            {
-                // Explicitly set ThreadPoolSize and CompletionQueueCount. This is what QuickBuild, drop, etc were
-                // doing thus far.
-                Initialize(
-                    logger: null,
-                    options: new GrpcEnvironmentOptions()
-                    {
-                        ThreadPoolSize = numThreads,
-                        CompletionQueueCount = numThreads,
-                        HandlerInlining = true,
-                    });
-            }
-            else
-            {
-                // Explicitly do NOT change ThreadPoolSize and CompletionQueueCount, and leave them as defaults. This
-                // is important to reproduce because it's what BuildXL is doing.
-                Initialize(
-                    logger: null,
-                    options: new GrpcEnvironmentOptions()
-                    {
-                        ThreadPoolSize = null,
-                        CompletionQueueCount = null,
-                        HandlerInlining = false,
-                    });
-            }
+            // We explicitly disregard whatever the caller says and initialize to reasonable defaults. We have observed
+            // that these two knobs in particular are actually irrelevant in all practical cases.
+            Initialize();
         }
 
         /// <summary>

@@ -25,3 +25,6 @@ When true, any tool that writes to standard error, even if the execution returns
 
 ### childProcessesToBreakawayFromSandbox: PathAtom[]
 Lists process names that are allowed to escape BuildXL sandbox, and therefore won't be monitored, nor their actions registered. This is an unsafe option. Please check [here](../Advanced-Features/Process-breakaway.md) for details.
+
+### customScripts: (packageName: string, location: RelativePath) => File | Map<string, FileContent>
+Allows to customize the available scripts for a given package. Check the details [here](js-custom-scripts.md).

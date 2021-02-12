@@ -7,3 +7,5 @@ Even though the vast majority of the configuration options equally apply to all,
 * [Rush](js-rush-options.md) specific options
 * [Yarn](js-yarn-options.md) specific options
 * [Lage](js-lage-options.md) specific options
+
+Does your repository build in a custom way or use a coordinator not listed here? [Check](js-custom-graph.md) how to customize it.

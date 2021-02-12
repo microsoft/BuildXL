@@ -3,7 +3,7 @@ BuildXL provides native support for JavaScript-based repositories. This is achie
 
 High level, and ignoring some particularities that could make a repository need to provide extra information, a single BuildXL configuration file that tells BuildXL that is dealing with a JavaScript-based repo is the only artifact that should be needed to accelerate a JavaScript build with safe caching and distribution. 
 
-Currently BuildXL knows how to talk to particular JS coordinators/package managers: [Rush](https://rushjs.io/), [Yarn](https://yarnpkg.com/) (on workspaces) and [Lage](https://github.com/microsoft/lage).
+Currently BuildXL knows how to talk to particular JS coordinators/package managers: [Rush](https://rushjs.io/), [Yarn](https://yarnpkg.com/) (on workspaces) and [Lage](https://github.com/microsoft/lage). Additionally, if a repository is not a monorepo or uses a coordinator unknown to BuildXL a [small adapter](js-custom-graph.md) can be written that allows BuildXL to build it. 
 
 Almost all the BuildXL configuration options are the same regardless of the coordinator. In the examples that follow, we will use Rush to exemplify different scenarios, even though any other supported coordinator can be used instead. Check the [coordinator-specific options](js-coordinator-options.md) to understand the differences.
 
@@ -148,5 +148,7 @@ There are some additional configuration options that may be required in more adv
 * [Getting cache hits in a distributed scenario](js-cachehits.md)
 * [Performance considerations](js-perf.md)
 * [Beyond JavaScript - hybrid builds](js-hybrid-builds.md)
-* [Other misc options](js-misc-options.md)
 * [Package installation under BuildXL](js-package-install.md)
+* [Coordinator-specific options](js-coordinator-options.md)
+* [Building beyond well-known monorepo managers](js-custom-graph.md)
+* [Other misc options](js-misc-options.md)

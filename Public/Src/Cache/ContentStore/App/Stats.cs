@@ -8,10 +8,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
+using static BuildXL.Utilities.Collections.TargetBlockExtensions;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App

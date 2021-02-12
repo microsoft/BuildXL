@@ -6,10 +6,10 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
-namespace BuildXL.Cache.ContentStore.Extensions
+namespace BuildXL.Utilities.Collections
 {
     /// <summary>
-    ///     Useful extensions to ActionBlock class
+    /// Useful extensions to ActionBlock class
     /// </summary>
     public static class TargetBlockExtensions
     {
@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         }
 
         /// <summary>
-        ///     Post all given items to the actionBlock and return a task of the completion.
+        /// Post all given items to the actionBlock and return a task of the completion.
         /// </summary>
         public static Task PostAllAndComplete<T>(this ITargetBlock<T> actionBlock, IEnumerable<T> inputs)
         {
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Extensions
         }
 
         /// <summary>
-        ///     Post all given items to the actionBlock.
+        /// Post all given items to the actionBlock.
         /// </summary>
         public static void PostAll<T>(this ITargetBlock<T> actionBlock, IEnumerable<T> inputs)
         {

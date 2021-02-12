@@ -26,7 +26,6 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -126,7 +125,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly bool _overrideUnixFileAccessMode;
 
         private Context _eagerFingerprintIncorporationTracingContext; // must be set at StartupAsync
-        private readonly NagleQueue<StrongFingerprint> _eagerFingerprintIncorporationNagleQueue;
+        private readonly BuildXL.Utilities.Collections.NagleQueue<StrongFingerprint> _eagerFingerprintIncorporationNagleQueue;
 
         /// <nodoc />
         protected readonly bool ManuallyExtendContentLifetime;
@@ -213,7 +212,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             if (enableEagerFingerprintIncorporation)
             {
-                _eagerFingerprintIncorporationNagleQueue = NagleQueue<StrongFingerprint>.Create(IncorporateBatchAsync, maxDegreeOfParallelismForIncorporateRequests, eagerFingerprintIncorporationInterval, eagerFingerprintIncorporationBatchSize);
+                _eagerFingerprintIncorporationNagleQueue = BuildXL.Utilities.Collections.NagleQueue<StrongFingerprint>.Create(IncorporateBatchAsync, maxDegreeOfParallelismForIncorporateRequests, eagerFingerprintIncorporationInterval, eagerFingerprintIncorporationBatchSize);
             }
         }
 

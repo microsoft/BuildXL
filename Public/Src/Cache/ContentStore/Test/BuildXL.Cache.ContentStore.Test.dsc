@@ -25,6 +25,7 @@ namespace Test {
             ),
             // TODO: This needs to be renamed to just utilities... but it is in a package in public/src
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("Google.Protobuf").pkg,
             

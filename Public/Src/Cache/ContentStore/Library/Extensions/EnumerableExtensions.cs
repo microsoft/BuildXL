@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Extensions
 {

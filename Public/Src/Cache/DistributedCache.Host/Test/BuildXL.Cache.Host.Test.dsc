@@ -31,6 +31,7 @@ namespace Test {
 
             // Used by Launcher integration test
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Cache.ContentStore").App.exe,
             ...addIfLazy(!BuildXLSdk.isFullFramework, () => [LauncherServer.exe]
             )

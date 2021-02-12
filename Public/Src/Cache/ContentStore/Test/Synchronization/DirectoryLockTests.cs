@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Utilities.Collections;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;

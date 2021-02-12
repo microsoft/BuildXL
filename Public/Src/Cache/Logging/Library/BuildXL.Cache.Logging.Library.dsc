@@ -15,6 +15,7 @@ namespace Library {
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [

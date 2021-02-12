@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 
-namespace BuildXL.Cache.ContentStore.Utils
+namespace BuildXL.Utilities.Collections
 {
     /// <summary>
     /// Special version of <see cref="NagleQueue{T}"/> that runs batch processing synchronously.

@@ -4,8 +4,8 @@
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Extensions;
 using ContentStoreTest.Test;
+using BuildXL.Utilities.Collections;
 using FluentAssertions;
 using Xunit;
 

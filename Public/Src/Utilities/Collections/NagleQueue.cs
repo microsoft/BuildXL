@@ -8,9 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Extensions;
 
-namespace BuildXL.Cache.ContentStore.Utils
+namespace BuildXL.Utilities.Collections
 {
     /// <summary>
     /// Nagling queue for processing data in batches based on the size or a time interval.

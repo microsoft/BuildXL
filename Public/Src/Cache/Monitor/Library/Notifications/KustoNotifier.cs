@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using Kusto.Data.Common;
 using Kusto.Ingest;
 using Newtonsoft.Json;

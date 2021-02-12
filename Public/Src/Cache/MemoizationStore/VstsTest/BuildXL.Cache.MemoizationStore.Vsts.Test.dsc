@@ -36,6 +36,8 @@ namespace VstsTest {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.fluentAssertionsWorkaround,
+
+            importFrom("BuildXL.Utilities").Collections.dll,
         ],
         runtimeContent: [
             {

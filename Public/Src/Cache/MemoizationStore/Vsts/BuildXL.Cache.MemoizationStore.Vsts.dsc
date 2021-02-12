@@ -28,6 +28,7 @@ namespace Vsts {
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

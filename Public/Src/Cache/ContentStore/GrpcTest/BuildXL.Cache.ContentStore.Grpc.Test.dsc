@@ -26,6 +26,8 @@ namespace GrpcTest {
             UtilitiesCore.dll,
             InterfacesTest.dll,
 
+            importFrom("BuildXL.Utilities").Collections.dll,
+
             ...getGrpcPackages(true),
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],

@@ -472,6 +472,17 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
+            OncePerEnvironment(arguments =>
+            {
+                var configuration = new DiskCorruptionRule.Configuration(arguments.BaseConfiguration);
+
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new DiskCorruptionRule(configuration),
+                    PollingPeriod = TimeSpan.FromMinutes(30),
+                });
+            }, watchlist);
+
             OncePerStamp(GenerateRedisAutoscalingRules, watchlist);
         }
 

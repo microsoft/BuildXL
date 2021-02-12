@@ -138,8 +138,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         /// <summary>
         /// Populates current scope with a given <paramref name="symbolTable"/>.
         /// </summary>
-        internal void PopulateFromSymbolTable(ISymbolTable symbolTable)
+        internal void PopulateFromSymbolTable([CanBeNull] ISymbolTable symbolTable)
         {
+            // The binder in some cases optimizes the local table block and does not create a symbol table at all
+            if (symbolTable == null)
+            {
+                return;
+            }
+
             foreach (var kvp in symbolTable)
             {
                 var symbol = kvp.Value;
@@ -294,10 +300,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         /// <summary>
         ///     Pushes a new scope, i.e., a new block.
         /// </summary>
-        public void PushBlockScope(ISymbolTable symbolTable)
+        public void PushBlockScope([CanBeNull] ISymbolTable symbolTable)
         {
-            Contract.Requires(symbolTable != null);
-
             m_scopedVarsStack.Push(new BlockScope(this));
             PopulateFromSymbolTable(symbolTable);
         }

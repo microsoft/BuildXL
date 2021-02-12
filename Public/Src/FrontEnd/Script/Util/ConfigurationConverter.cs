@@ -10,11 +10,11 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using BuildXL.FrontEnd.Script.Ambients.Map;
-using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -29,6 +29,9 @@ namespace BuildXL.FrontEnd.Script.Util
     /// </summary>
     public sealed class ConfigurationConverter
     {
+        private static readonly Type[] s_convertFileContentExpectedTypes = { typeof(string), typeof(PathAtom), typeof(RelativePath), typeof(AbsolutePath) };
+        private static readonly Type[] s_convertFileContentExpectedTypesWithArray = { typeof(string), typeof(PathAtom), typeof(RelativePath), typeof(AbsolutePath), typeof(ArrayLiteral) };
+
         /// <summary>
         /// Fully qualified name of resolver class (or implementation).
         /// </summary>
@@ -112,6 +115,75 @@ namespace BuildXL.FrontEnd.Script.Util
 
             var targetInstance = new ConfigurationImpl(cmdLineConfiguration);
             return Convert(context, configLiteral, targetInstance);
+        }
+
+        /// <summary>
+        /// Creates a corresponding <see cref="PipData"/> from a file content that is expected to be the conversion of
+        /// type FileContent = PathFragment | Path | (PathFragment | Path)[];
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: Prelude.IO.dsc
+        /// </remarks>
+        public static PipData CreatePipDataFromFileContent(FrontEndContext context, object fileContent, string separator)
+        {
+            using (var pipDataBuilderWrapper = context.GetPipDataBuilder())
+            {
+                var pipDataBuilder = pipDataBuilderWrapper.Instance;
+                var fileContentArray = fileContent as ArrayLiteral;
+                if (fileContentArray != null)
+                {
+                    // fileContent is an array that needs to be joined
+                    for (int i = 0; i < fileContentArray.Length; i++)
+                    {
+                        pipDataBuilder.Add(ConvertFileContentElement(context, fileContentArray[i], pos: i, objectContext: fileContentArray));
+                    }
+
+                    return pipDataBuilder.ToPipData(separator, PipDataFragmentEscaping.NoEscaping);
+                }
+                else
+                {
+                    // fileContent is a scalar
+                    pipDataBuilder.Add(ConvertFileContentElement(context, EvaluationResult.Create(fileContent), pos: 0, objectContext: null));
+                    return pipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping);
+                }
+            }
+        }
+
+        /// <summary>
+        /// This function is used for both the scalar case (e.g. a string is passed as the file content) or for the array case element (e.g. a string[] is passed)
+        /// The objectContext is passed for the array case only.
+        /// </summary>
+        private static PipDataAtom ConvertFileContentElement(FrontEndContext context, EvaluationResult result, int pos, object objectContext)
+        {
+            // Expected types are AmbientTypes.PathType, AmbientTypes.RelativePathType , AmbientTypes.PathAtomType or PrimitiveType.StringType
+            var element = result.Value;
+            if (element is string e)
+            {
+                return e;
+            }
+
+            if (element is PathAtom atom)
+            {
+                return atom;
+            }
+
+            if (element is RelativePath relativePath)
+            {
+                return relativePath.ToString(context.StringTable);
+            }
+
+            if (element is AbsolutePath absolutePath)
+            {
+                return absolutePath;
+            }
+
+            // If the object context is null, that means we are in the scalar case, in which case we can also expect an array
+            throw Converter.CreateException(
+                objectContext == null
+                    ? s_convertFileContentExpectedTypesWithArray
+                    : s_convertFileContentExpectedTypes,
+                result,
+                new ConversionContext(false, pos: pos, objectCtx: objectContext));
         }
 
         private ConfigurationConverter(FrontEndContext context)
@@ -286,8 +358,8 @@ namespace BuildXL.FrontEnd.Script.Util
                     context.ErrorContext);
             }
 
-            // Special treatment for object literals, since we want to match it to an implementation
-            if (val is ObjectLiteral)
+            // Special treatment for object literals and maps, since we want to match it to an implementation
+            if (val is ObjectLiteral || val is OrderedMap)
             {
                 // Let's go through the target types in order to check if we find an implementation for any of them.
                 // First one wins
@@ -340,6 +412,13 @@ namespace BuildXL.FrontEnd.Script.Util
             var objLit = val as ObjectLiteral;
             if (objLit == null)
             {
+                // If the value is not an object literal and the result type is compatible, return the value
+                // as is without doing any explicit conversion
+                if (resultType.IsAssignableFrom(val.GetType()))
+                {
+                    return val;
+                }
+
                 throw new ConversionException(
                     I($"Cannot convert value of type '{val.GetType()}' to object; value must be an object literal"),
                     context.ErrorContext);
@@ -774,8 +853,11 @@ namespace BuildXL.FrontEnd.Script.Util
             foreach (var pair in collection)
             {
                 dictionary.Add(
-                    pair.Key,
-                    (TValue)ConvertAny(
+                    pair.Key, 
+                    // Conversion may not be needed if types are compatible
+                    typeof(TValue).IsAssignableFrom(pair.Value?.GetType())  
+                    ? pair.Value 
+                    : (TValue)ConvertAny(
                         pair.Value,
                         typeof(TValue),
                         targetInstance != null && targetInstance.TryGetValue(pair.Key, out TValue existingValue) ? existingValue : default(TValue),

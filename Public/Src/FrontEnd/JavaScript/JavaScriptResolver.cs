@@ -335,6 +335,7 @@ namespace BuildXL.FrontEnd.JavaScript
         public void NotifyEvaluationFinished()
         {
             m_evaluationSemaphore.Dispose();
+            m_javaScriptWorkspaceResolver?.NotifyEvaluationFinished();
         }
 
         private async Task<bool> EvaluateAllFilesOnceAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId, IEvaluationScheduler scheduler)
@@ -559,7 +560,6 @@ namespace BuildXL.FrontEnd.JavaScript
                 scheduler,
                 FileType.Project);
 
-
             evaluationContext = contextTree;
 
             // The result of Transformer.execute() is an object literal constructed off a ProcessOutputs instance. The original instance is kept
@@ -595,7 +595,7 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 // Create the argument that will be passed to the DScript callback
                 EvaluationResult javaScriptProject = CreateJavaScriptProject(createdProject.Project, createdProject.Process);
-
+                
                 // For each JavaScript project, callbacks may be called concurrently. Create a mutable child context for each invocation
                 // using for the full symbol 'projectName_ScriptCommandName', which is unique per resolver
                 var childFactory = new MutableContextFactory(

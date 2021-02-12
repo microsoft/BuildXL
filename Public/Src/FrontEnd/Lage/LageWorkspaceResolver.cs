@@ -17,7 +17,7 @@ namespace BuildXL.FrontEnd.Lage
     /// <summary>
     /// Workspace resolver for Lage
     /// </summary>
-    public class LageWorkspaceResolver : JavaScriptWorkspaceResolver<LageConfiguration, ILageResolverSettings>
+    public class LageWorkspaceResolver : ToolBasedJavaScriptWorkspaceResolver<LageConfiguration, ILageResolverSettings>
     {
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool

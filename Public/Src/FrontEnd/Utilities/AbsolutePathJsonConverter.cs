@@ -11,12 +11,12 @@ using Newtonsoft.Json;
 namespace BuildXL.FrontEnd.Utilities
 {
     /// <summary>
-    /// Converts strings coming from JSON to <see cref="AbsolutePath"/>
+    /// Converts strings coming from JSON to <see cref="AbsolutePath"/> and back
     /// </summary>
     /// <remarks>
     /// Any malformed path will result in <see cref="AbsolutePath.Invalid"/>
     /// </remarks>
-    public class AbsolutePathJsonConverter : ReadOnlyJsonConverter<AbsolutePath>
+    public class AbsolutePathJsonConverter : JsonConverter<AbsolutePath>
     {
         private readonly PathTable m_pathTable;
         private readonly IReadOnlyCollection<(AbsolutePath, AbsolutePath)> m_redirection;
@@ -33,7 +33,7 @@ namespace BuildXL.FrontEnd.Utilities
         }
 
         /// <nodoc/>
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override AbsolutePath ReadJson(JsonReader reader, Type objectType, AbsolutePath existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             var pathAsString = (string)reader.Value;
 
@@ -56,6 +56,12 @@ namespace BuildXL.FrontEnd.Utilities
             }
 
             return fullPath;
+        }
+
+        /// <nodoc/>
+        public override void WriteJson(JsonWriter writer, AbsolutePath value, JsonSerializer serializer)
+        {
+            writer.WriteValue(value.ToString(m_pathTable));
         }
     }
 }

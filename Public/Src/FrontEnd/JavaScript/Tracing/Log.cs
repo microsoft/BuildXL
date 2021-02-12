@@ -217,5 +217,25 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void JavaScriptCommandGroupCanOnlyContainRegularCommands(LoggingContext context, Location location, string commandGroup, string command);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CustomScriptsFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Failure at computing custom scripts for package '{packageName}'. {failure}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CustomScriptsFailure(LoggingContext context, Location location, string packageName, string failure);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotLoadScriptsFromJsonFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Failure reading package scripts from '{pathToJson}'. {failure}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CannotLoadScriptsFromJsonFile(LoggingContext context, Location location, string pathToJson, string failure);
     }
 }

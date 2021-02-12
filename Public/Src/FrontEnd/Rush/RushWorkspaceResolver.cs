@@ -15,7 +15,7 @@ namespace BuildXL.FrontEnd.Rush
     /// <summary>
     /// Workspace resolver for Rush
     /// </summary>
-    public class RushWorkspaceResolver : JavaScriptWorkspaceResolver<RushConfiguration, RushResolverSettings>
+    public class RushWorkspaceResolver : ToolBasedJavaScriptWorkspaceResolver<RushConfiguration, RushResolverSettings>
     {
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool

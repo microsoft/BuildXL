@@ -344,6 +344,23 @@ interface YarnResolver extends JavaScriptResolverWithExecutionSemantics {
 }
 
 /**
+ * Resolver for customized JavaScript repos which are not under any known JavaScript package manager/coordinator.
+ */
+interface CustomJavaScriptResolver extends JavaScriptResolverWithExecutionSemantics {
+    kind: "CustomJavaScript",
+    
+    /** 
+     * A custom project graph that defines the packages and its dependencies.
+     * The user can return a file that is expected to be a JSON following the Yarn workspaces
+     * schema (https://classic.yarnpkg.com/en/docs/cli/workspaces/#toc-yarn-workspaces-info) 
+     * or provide an equivalent map from project names to location and dependencies.
+     * If corresponding package.json files are not in place, this customization plays nicely with
+     * 'customScripts' (a customization option common to all JavaScript resolvers)
+     * */
+    customProjectGraph: File | Map<string, {location: RelativePath, workspaceDependencies: string[]}>
+}
+
+/**
  * Resolver for Lage project-level build execution
  */
 interface LageResolver extends JavaScriptResolver {
@@ -458,6 +475,16 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * by some other means.
      */
     childProcessesToBreakawayFromSandbox?: PathAtom[];
+
+    /**
+     * Users can specify a callback that defines the available scripts for a given package name. The result of the callback
+     * overrides the information on existing package.json files that coordinators may decide to pick up.
+     * The callback can return a JSON file which is expected to follow package.json schema (in particular, BuildXL will load
+     * the 'scripts' section) or an equivalent map of script command name to script content.
+     * The callback can return 'undefined' indicating no particular customization should happen for a given package and that
+     * the regular way of determining a package script commands should occur.
+     */
+    customScripts?: (packageName: string, location: RelativePath) => File | Map<string, FileContent>
 }
 
 /**
@@ -765,4 +792,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver | YarnResolver | LageResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver;

@@ -285,6 +285,7 @@ namespace BuildXL.FrontEnd.Factory
             frontEndFactory.AddFrontEnd(new CMakeFrontEnd());
             frontEndFactory.AddFrontEnd(new RushFrontEnd());
             frontEndFactory.AddFrontEnd(new YarnFrontEnd());
+            frontEndFactory.AddFrontEnd(new CustomYarnFrontEnd());
             frontEndFactory.AddFrontEnd(new LageFrontEnd());
 #endif
 

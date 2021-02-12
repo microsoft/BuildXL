@@ -39,6 +39,15 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             SourceFiles = sourceFiles;
         }
 
+        /// <nodoc/>
+        public DeserializedJavaScriptProject WithCustomScripts(IReadOnlyDictionary<string, string> customScriptCommands)
+        {
+            Contract.Requires(customScriptCommands != null);
+
+            return new DeserializedJavaScriptProject(
+                Name, ProjectFolder, Dependencies, customScriptCommands, TempFolder, OutputDirectories, SourceFiles);
+        }
+
         /// <summary>
         /// The script commands that are available for the project
         /// </summary>

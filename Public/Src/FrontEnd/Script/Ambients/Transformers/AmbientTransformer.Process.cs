@@ -28,9 +28,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
     /// </summary>
     public partial class AmbientTransformerBase : AmbientDefinitionBase
     {
-        private static readonly Type[] s_convertFileContentExpectedTypes = { typeof(string), typeof(PathAtom), typeof(RelativePath), typeof(AbsolutePath) };
-        private static readonly Type[] s_convertFileContentExpectedTypesWithArray = { typeof(string), typeof(PathAtom), typeof(RelativePath), typeof(AbsolutePath), typeof(ArrayLiteral) };
-
         private static readonly Dictionary<string, FileExistence> s_fileExistenceKindMap = new Dictionary<string, FileExistence>(StringComparer.Ordinal)
         {
             ["required"] = FileExistence.Required,
@@ -1442,44 +1439,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 TryScheduleIpcPip(context, obj, allowUndefinedTargetService: true, isServiceFinalization: true, out _, out var ipcPipId);
                 return ipcPipId;
             }
-        }
-
-
-        /// <summary>
-        /// This function is used for both the scalar case (e.g. a string is passed as the file content) or for the array case element (e.g. a string[] is passed)
-        /// The objectContext is passed for the array case only.
-        /// </summary>
-        private static PipDataAtom ConvertFileContentElement(Context context, EvaluationResult result, int pos, object objectContext)
-        {
-            // Expected types are AmbientTypes.PathType, AmbientTypes.RelativePathType , AmbientTypes.PathAtomType or PrimitiveType.StringType
-            var element = result.Value;
-            if (element is string e)
-            {
-                return e;
-            }
-
-            if (element is PathAtom atom)
-            {
-                return atom;
-            }
-
-            if (element is RelativePath relativePath)
-            {
-                return relativePath.ToString(context.StringTable);
-            }
-
-            if (element is AbsolutePath absolutePath)
-            {
-                return absolutePath;
-            }
-
-            // If the object context is null, that means we are in the scalar case, in which case we can also expect an array
-            throw Converter.CreateException(
-                objectContext == null
-                    ? s_convertFileContentExpectedTypesWithArray
-                    : s_convertFileContentExpectedTypes,
-                result,
-                new ConversionContext(false, pos: pos, objectCtx: objectContext));
         }
 
         private static void IfPropertyDefined<TState>(TState state, ObjectLiteral obj, SymbolAtom propertyName, Action<TState, EvaluationResult, ConversionContext> callback)

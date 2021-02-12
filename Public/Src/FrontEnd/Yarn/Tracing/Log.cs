@@ -37,5 +37,24 @@ namespace BuildXL.FrontEnd.Yarn.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void UsingYarnAt(LoggingContext context, Location location, string basePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ErrorReadingCustomProjectGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix +  "Error reading custom project graph. {failure}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ErrorReadingCustomProjectGraph(LoggingContext context, Location location, string failure);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotSerializeGraphFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Cannot serialize file '{file}' containing the serialized graph. Details: {message}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CannotSerializeGraphFile(LoggingContext context, Location location, string file, string message);
     }
 }

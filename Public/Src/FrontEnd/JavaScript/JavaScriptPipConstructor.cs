@@ -57,6 +57,8 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private readonly ConcurrentBigMap<(JavaScriptProject, QualifierId), PipConstructionHelper> m_pipConstructionHelperPerProject = new ConcurrentBigMap<(JavaScriptProject, QualifierId), PipConstructionHelper>();
 
+        private readonly ConcurrentBigSet<AbsolutePath> m_specFilePips = new ConcurrentBigSet<AbsolutePath>();
+
         /// <summary>
         /// Base directory where all logs are located
         /// </summary>
@@ -531,13 +533,17 @@ namespace BuildXL.FrontEnd.JavaScript
 
             var pathToProject = project.ProjectFolder;
 
-            // We might be adding the same spec file pip more than once when the same project is evaluated
-            // under different global properties, but that's fine, the pip graph ignores duplicates
-            m_frontEndHost.PipGraph?.AddSpecFile(
-                new SpecFilePip(
-                    FileArtifact.CreateSourceFile(pathToProject),
-                    new LocationData(pathToProject, 0, 0),
-                    m_moduleDefinition.Descriptor.Id));
+            // We shouldn't be adding the same spec file pip to the pip graph.
+            // This can happen if the same package root is defined for multiple packages, or if different qualifiers apply to the same package.
+            var result = m_specFilePips.GetOrAdd(pathToProject);
+            if (!result.IsFound)
+            {
+                m_frontEndHost.PipGraph?.AddSpecFile(
+                    new SpecFilePip(
+                        FileArtifact.CreateSourceFile(pathToProject),
+                        new LocationData(pathToProject, 0, 0),
+                        m_moduleDefinition.Descriptor.Id));
+            }
 
             Root.TryGetRelative(PathTable, pathToProject, out var specRelativePath);
             if (!PathAtom.TryCreate(m_context.StringTable, m_moduleDefinition.Descriptor.Name, out _))

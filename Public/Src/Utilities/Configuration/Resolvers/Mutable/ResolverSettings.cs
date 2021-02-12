@@ -72,6 +72,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     return new RushResolverSettings(rushResolver, pathRemapper);
                 case IYarnResolverSettings yarnResolver:
                     return new YarnResolverSettings(yarnResolver, pathRemapper);
+                case ICustomJavaScriptResolverSettings customYarnResolver:
+                    return new CustomJavaScriptResolverSettings(customYarnResolver, pathRemapper);
                 case ILageResolverSettings lageResolver:
                     return new LageResolverSettings(lageResolver, pathRemapper);
                 default:

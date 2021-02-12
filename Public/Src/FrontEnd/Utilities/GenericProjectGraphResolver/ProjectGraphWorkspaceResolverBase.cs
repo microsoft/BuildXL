@@ -334,6 +334,8 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             }
 
             serializer.Converters.Add(absolutePathConverter);
+            serializer.Converters.Add(new RelativePathJsonConverter(m_context.StringTable));
+
             // Let's not add invalid absolute paths to any collection
             serializer.Converters.Add(ValidAbsolutePathEnumerationJsonConverter.Instance);
 

@@ -15,7 +15,7 @@ namespace BuildXL.FrontEnd.Yarn
     /// <summary>
     /// Workspace resolver for Yarn
     /// </summary>
-    public class YarnWorkspaceResolver : JavaScriptWorkspaceResolver<YarnConfiguration, IYarnResolverSettings>
+    public class YarnWorkspaceResolver : ToolBasedJavaScriptWorkspaceResolver<YarnConfiguration, IYarnResolverSettings>
     {
         /// <summary>
         /// CODESYNC: the BuildXL deployment spec that places the tool

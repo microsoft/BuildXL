@@ -219,6 +219,9 @@ namespace RelativePath {
 
 type PathFragment = PathAtom | RelativePath | string;
 
+/** The content of a file, allowing for path-like artifacts to be part of it. */
+type FileContent = PathFragment | Path | (PathFragment | Path)[];
+
 interface PathQueries {
     /** 
      * Gets the path extension; returns undefined for invalid extension. 

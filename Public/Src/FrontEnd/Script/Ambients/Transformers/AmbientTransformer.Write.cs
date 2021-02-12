@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -144,7 +145,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         var separator = Args.AsStringOptional(args, 3) ?? Environment.NewLine;
                         description = Args.AsStringOptional(args, 4);
 
-                        pipData = CreatePipDataForWriteFile(context, fileContent, separator);
+                        pipData = ConfigurationConverter.CreatePipDataFromFileContent(context.FrontEndContext, fileContent, separator);
                         break;
 
                     case WriteFileMode.WriteData:
@@ -184,31 +185,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             return new EvaluationResult(result);
-        }
-
-        private static PipData CreatePipDataForWriteFile(Context context, object fileContent, string separator)
-        {
-            using (var pipDataBuilderWrapper = context.FrontEndContext.GetPipDataBuilder())
-            {
-                var pipDataBuilder = pipDataBuilderWrapper.Instance;
-                var fileContentArray = fileContent as ArrayLiteral;
-                if (fileContentArray != null)
-                {
-                    // fileContent is an array that needs to be joined
-                    for (int i = 0; i < fileContentArray.Length; i++)
-                    {
-                        pipDataBuilder.Add(ConvertFileContentElement(context, fileContentArray[i], pos: i, objectContext: fileContentArray));
-                    }
-
-                    return pipDataBuilder.ToPipData(separator, PipDataFragmentEscaping.NoEscaping);
-                }
-                else
-                {
-                    // fileContent is a scalar
-                    pipDataBuilder.Add(ConvertFileContentElement(context, EvaluationResult.Create(fileContent), pos: 0, objectContext: null));
-                    return pipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping);
-                }
-            }
         }
 
         private PipData ProcessData(Context context, EvaluationResult data, ConversionContext conversionContext)

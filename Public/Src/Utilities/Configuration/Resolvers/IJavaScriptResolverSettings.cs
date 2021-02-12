@@ -86,6 +86,14 @@ namespace BuildXL.Utilities.Configuration
         /// regular way
         /// </remarks>
         ICustomSchedulingCallback CustomScheduling { get; }
+
+        /// <summary>
+        /// Callback specifying custom scripts
+        /// </summary>
+        /// <remarks>
+        /// The object is a closure, enforced by the DScript type checker. The Closure type is defined in the TypeScript DLL, not easily accessible from here.
+        /// </remarks>
+        object CustomScripts { get; }
     }
 
     /// <nodoc/>

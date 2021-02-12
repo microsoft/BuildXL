@@ -41,6 +41,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
             CustomScheduling = resolverSettings.CustomScheduling;
             ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
+            CustomScripts = resolverSettings.CustomScripts;
         }
 
         /// <inheritdoc/>
@@ -96,5 +97,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
+
+        /// <inheritdoc />
+        public object CustomScripts { get; set; }
     }
 }

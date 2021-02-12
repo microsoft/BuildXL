@@ -33,5 +33,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         SpecifiedExportIsAReservedName = 11916,
         ConstructingGraphScript = 11917,
         JavaScriptCommandGroupCanOnlyContainRegularCommands = 11918,
+        CustomScriptsFailure = 11919,
+        CannotLoadScriptsFromJsonFile = 11920,
     }
 }

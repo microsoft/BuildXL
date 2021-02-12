@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using TypeScript.Net.Scanning;
 
@@ -46,6 +47,12 @@ namespace TypeScript.Net.Utilities
         public static LineInfo FromLineAndPosition(int line, int position)
         {
             return new LineInfo(line, position);
+        }
+
+        /// <nodoc/>
+        public Location ToLocation(string file)
+        {
+            return new Location { Line = Line, Position = Position, File = file };
         }
 
         /// <nodoc/>

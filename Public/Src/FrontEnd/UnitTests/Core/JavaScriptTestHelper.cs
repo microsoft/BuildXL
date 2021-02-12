@@ -56,7 +56,7 @@ namespace Test.BuildXL.FrontEnd.Core
             string path,
             string content)
         {
-            builder.AddFile(Path.Combine(path, JavaScriptWorkspaceResolver<DsTest, IJavaScriptResolverSettings>.BxlConfigurationFilename), content);
+            builder.AddFile(Path.Combine(path, ToolBasedJavaScriptWorkspaceResolver<DsTest, IJavaScriptResolverSettings>.BxlConfigurationFilename), content);
             return builder;
         }
 

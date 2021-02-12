@@ -13,7 +13,9 @@ namespace BuildXL.FrontEnd.Yarn.Tracing
     {
         None = 0,
 
-        // reserved 12200 .. 12300 for Yarn front-end
-        UsingYarnAt = 12200,
+        // reserved 12700 .. 12800 for Yarn front-end
+        UsingYarnAt = 12700,
+        ErrorReadingCustomProjectGraph = 12701,
+        CannotSerializeGraphFile = 12702,
     }
 }

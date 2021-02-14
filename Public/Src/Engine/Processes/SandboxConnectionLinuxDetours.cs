@@ -300,16 +300,15 @@ namespace BuildXL.Processes
                 int totalRead = 0;
                 while (totalRead < length)
                 {
-                    var numRead = IO.Read(handle, buffer, offset, length);
+                    var numRead = IO.Read(handle, buffer, offset + totalRead, length - totalRead);
                     if (numRead <= 0)
                     {
                         return numRead;
                     }
-                    offset += numRead;
                     totalRead += numRead;
                 }
 
-                return length;
+                return totalRead;
             }
 
             private void StartReceivingAccessReports()

@@ -5,19 +5,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
-using CLAP;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-#if !NET_FRAMEWORK
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
-#endif
+using CLAP;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App
@@ -67,7 +64,6 @@ namespace BuildXL.Cache.ContentStore.App
             if (stop)
             {
                 IpcUtilities.SetShutdown(_scenario);
-
                 return;
             }
 
@@ -81,96 +77,36 @@ namespace BuildXL.Cache.ContentStore.App
                 throw new CacheException("Mismatching lengths of names/paths arguments.");
             }
 
-            var caches = new Dictionary<string, string>();
-            for (var i = 0; i < names.Length; i++)
-            {
-                caches.Add(names[i], paths[i]);
-            }
-
             var serverDataRootPath = !string.IsNullOrWhiteSpace(dataRootPath)
                 ? new AbsolutePath(dataRootPath)
                 : new AbsolutePath(Environment.CurrentDirectory);
 
-            var cancellationTokenSource = new CancellationTokenSource();
-
-#if NET_FRAMEWORK
-            var configuration = new ServiceConfiguration(caches, serverDataRootPath, maxConnections, gracefulShutdownSeconds, (int)grpcPort, grpcPortFileName);
-            if (!configuration.IsValid)
-            {
-                throw new CacheException($"Invalid service configuration, error=[{configuration.Error}]");
-            }
-
-            var localContentServerConfiguration = new LocalServerConfiguration(configuration);
-            if (unusedSessionTimeoutSeconds != null)
-            {
-                localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromSeconds(unusedSessionTimeoutSeconds.Value);
-            }
-
-            if (unusedSessionHeartbeatTimeoutSeconds != null)
-            {
-                localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromSeconds(unusedSessionHeartbeatTimeoutSeconds.Value);
-            }
+            var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
 
             if (_scenario != null)
             {
                 _logger.Debug($"scenario=[{_scenario}]");
             }
 
-            var exitSignal = new ManualResetEvent(false);
-            Console.CancelKeyPress += (sender, args) =>
+            using var exitEvent = GetExitEvent();
+
+            var localCasSettings = LocalCasSettings.Default(maxSizeQuotaMB, paths[0], names[0], grpcPort, grpcPortFileName);
+            for (int i = 1; i < names.Length; i++)
             {
-                exitSignal.Set();
-                args.Cancel = true;
-            };
-
-            using (var exitEvent = IpcUtilities.GetShutdownWaitHandle(_scenario))
-            {
-                var server = new LocalContentServer(
-                    _fileSystem,
-                    _logger,
-                    _scenario,
-                    path =>
-                        new FileSystemContentStore(
-                            _fileSystem,
-                            SystemClock.Instance,
-                            path,
-                            new ConfigurationModel(inProcessConfiguration: ContentStoreConfiguration.CreateWithMaxSizeQuotaMB((uint)maxSizeQuotaMB))),
-                    localContentServerConfiguration);
-
-                using (server)
-                {
-                    var context = new Context(_logger);
-                    try
-                    {
-                        var result = server.StartupAsync(context).Result;
-                        if (!result.Succeeded)
-                        {
-                            throw new CacheException(result.ErrorMessage);
-                        }
-
-                        int completedIndex = WaitHandle.WaitAny(new WaitHandle[] { exitSignal, exitEvent });
-                        var source = completedIndex == 0 ? "control-C" : "exit event";
-                        _tracer.Always(context, $"Shutdown by {source}.");
-                    }
-                    finally
-                    {
-                        var result = server.ShutdownAsync(context).Result;
-                        if (!result.Succeeded)
-                        {
-                            _tracer.Warning(context, $"Failed to shutdown store: {result.ErrorMessage}");
-                        }
-                    }
-                }
+                localCasSettings.AddNamedCache(names[i], paths[i]);
             }
-#else
-            Console.CancelKeyPress += (sender, args) =>
-            {
-                cancellationTokenSource.Cancel();
-                args.Cancel = true;
-            };
 
-            var localCasSettings = LocalCasSettings.Default(maxSizeQuotaMB, serverDataRootPath.Path, names[0], grpcPort, grpcPortFileName);
             localCasSettings.ServiceSettings.ScenarioName = _scenario;
+
+            if (unusedSessionTimeoutSeconds != null)
+            {
+                localCasSettings.ServiceSettings.UnusedSessionTimeoutMinutes = TimeSpan.FromSeconds(unusedSessionTimeoutSeconds.Value).TotalMinutes;
+            }
+
+            if (unusedSessionHeartbeatTimeoutSeconds != null)
+            {
+                localCasSettings.ServiceSettings.UnusedSessionHeartbeatTimeoutMinutes = TimeSpan.FromSeconds(unusedSessionHeartbeatTimeoutSeconds.Value).TotalMinutes;
+            }
 
             var distributedContentSettings = DistributedContentSettings.CreateDisabled();
             if (backingGrpcPort != ServiceConfiguration.GrpcDisabledPort)
@@ -217,13 +153,35 @@ namespace BuildXL.Cache.ContentStore.App
                 TelemetryFieldsProvider = new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
             };
 
-            DistributedCacheServiceFacade.RunAsync(distributedCacheServiceArguments).GetAwaiter().GetResult();
+            var runTask = Task.Run(() => DistributedCacheServiceFacade.RunAsync(distributedCacheServiceArguments));
 
             // Because the facade completes immediately and named wait handles don't exist in CORECLR,
             // completion here is gated on Control+C. In the future, this can be redone with another option,
             // such as a MemoryMappedFile or GRPC heartbeat. This is just intended to be functional.
-            cancellationTokenSource.Token.WaitHandle.WaitOne();
-#endif
+            int completedIndex = WaitHandle.WaitAny(new WaitHandle[] { cancellationTokenSource.Token.WaitHandle, exitEvent });
+
+            var source = completedIndex == 0 ? "control-C" : "exit event";
+            _logger.Always($"Shutdown by {source}.");
+
+            if (completedIndex == 1)
+            {
+                cancellationTokenSource.Cancel();
+            }
+
+            runTask.GetAwaiter().GetResult();
+        }
+
+        private WaitHandle GetExitEvent()
+        {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                return IpcUtilities.GetShutdownWaitHandle(_scenario);
+            }
+            else
+            {
+                // Not supported on non-windows OS. Return no-op wait handle.
+                return CancellationToken.None.WaitHandle;
+            }
         }
     }
 }

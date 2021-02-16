@@ -200,6 +200,14 @@ namespace BuildXL.Cache.Host.Configuration
             return settings;
         }
 
+        public void AddNamedCache(string cacheName, string cacheRoot)
+        {
+            AddNamedCache(cacheName, new NamedCacheSettings()
+            {
+                CacheRootPath = cacheRoot
+            });
+        }
+
         private void AddNamedCache(string cacheName, NamedCacheSettings settings)
         {
             if (CacheSettings == null)

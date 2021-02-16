@@ -85,13 +85,13 @@ namespace BuildXL.Cache.Host.Configuration
         /// Period of inactivity after which sessions are shutdown and forgotten.
         /// </summary>
         [DataMember]
-        public int? UnusedSessionTimeoutMinutes { get; set; } = null;
+        public double? UnusedSessionTimeoutMinutes { get; set; } = null;
 
         /// <summary>
         /// Period of inactivity after which sessions with a heartbeat are shutdown and forgotten.
         /// </summary>
         [DataMember]
-        public int? UnusedSessionHeartbeatTimeoutMinutes { get; set; } = null;
+        public double? UnusedSessionHeartbeatTimeoutMinutes { get; set; } = null;
 
         /// <summary>
         /// Gets the buffer size used during streaming for GRPC copies.

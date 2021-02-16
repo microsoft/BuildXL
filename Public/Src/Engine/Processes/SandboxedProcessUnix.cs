@@ -336,8 +336,6 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override async Task KillAsync()
         {
-            LogProcessState($"{nameof(SandboxedProcessUnix)}::{nameof(KillAsync)}");
-
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
             // don't process any more kernel reports that get pushed into report structure asynchronously!
@@ -427,7 +425,15 @@ namespace BuildXL.Processes
 
         private void KillAllChildProcesses()
         {
-            NotifyPipTerminated(PipId, CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
+            var distinctProcessIds = CoalesceProcesses(GetCurrentlyActiveChildProcesses())
+                .Select(p => p.ProcessId)
+                .ToHashSet();
+            foreach (int processId in distinctProcessIds)
+            {
+                bool killed = BuildXL.Interop.Unix.Process.ForceQuit(processId);
+                LogProcessState($"KillAllChildProcesses: kill({processId}) = {killed}");
+                SandboxConnection.NotifyPipProcessTerminated(PipId, processId);
+            }
         }
 
         private bool ShouldWaitForSurvivingChildProcesses()
@@ -454,16 +460,6 @@ namespace BuildXL.Processes
         internal void PostAccessReport(AccessReport report)
         {
             m_pendingReports.Post(report);
-        }
-
-        private void NotifyPipTerminated(long pipId, IEnumerable<ReportedProcess> survivingChildProcesses)
-        {
-            // TODO: bundle this into a single message
-            var distinctProcessIds = new HashSet<uint>(survivingChildProcesses.Select(p => p.ProcessId));
-            foreach (var processId in distinctProcessIds)
-            {
-                SandboxConnection.NotifyPipProcessTerminated(pipId, (int)processId);
-            }
         }
 
         private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)

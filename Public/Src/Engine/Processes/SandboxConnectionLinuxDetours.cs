@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
@@ -19,6 +20,7 @@ using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.Sandbox;
 
@@ -78,6 +80,7 @@ namespace BuildXL.Processes
 
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
+            private readonly bool m_isInTestMode;
 
             /// <remarks>
             /// This dictionary is accessed both from the <see cref="m_workerThread"/> thread as well as the thread
@@ -92,11 +95,21 @@ namespace BuildXL.Processes
             private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Thread m_workerThread;
+            private readonly ActionBlock<(PooledObjectWrapper<byte[]> wrapper, int length)> m_accessReportProcessingBlock;
+
+            private int m_stopRequestCounter;
+            private int m_completeAccessReportProcessingCounter;
 
             private static readonly TimeSpan ActiveProcessesCheckerInterval = TimeSpan.FromSeconds(1);
+            private static readonly TimeSpan MaxWaitForReceiveAccessReports = TimeSpan.FromMinutes(1);
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath, string debugLogPath)
+            private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
+
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath, string debugLogPath, bool isInTestMode)
             {
+                m_isInTestMode = isInTestMode;
+                m_stopRequestCounter = 0;
+                m_completeAccessReportProcessingCounter = 0;
                 m_failureCallback = failureCallback;
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
@@ -118,6 +131,14 @@ namespace BuildXL.Processes
                 {
                     LogDebug($"Opening FIFO '{ReportsFifoPath}' for writing");
                     return IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0);
+                });
+
+                // action block where parsing and processing of received ActionReport bytes is done
+                m_accessReportProcessingBlock = new ActionBlock<(PooledObjectWrapper<byte[]> wrapper, int length)>(ProcessBytes, new ExecutionDataflowBlockOptions
+                {
+                    BoundedCapacity = DataflowBlockOptions.Unbounded,
+                    MaxDegreeOfParallelism = 1,
+                    EnsureOrdered = true
                 });
 
                 // start a background thread for reading from the FIFO
@@ -145,16 +166,53 @@ namespace BuildXL.Processes
                 }
             }
 
+            private void CompleteAccessReportProcessing(bool logWarningIfNotAlreadyCompleted = false)
+            {
+                var cnt = Interlocked.Increment(ref m_completeAccessReportProcessingCounter);
+                if (cnt > 1)
+                {
+                    return; // already completed
+                }
+
+                if (logWarningIfNotAlreadyCompleted)
+                {
+                    LogDebug($"[WARNING] Access report processing not completed after {MaxWaitForReceiveAccessReports} for pip {Process.PipId}");
+                }
+
+                m_accessReportProcessingBlock.Complete();
+                m_accessReportProcessingBlock.Completion.ContinueWith(t =>
+                {
+                    LogDebug("Posting OpProcessTreeCompleted message");
+                    Process.PostAccessReport(new AccessReport
+                    {
+                        Operation = FileOperation.OpProcessTreeCompleted,
+                        PathOrPipStats = AccessReport.EncodePath("")
+                    });
+                });
+            }
+
             /// <summary>
             /// Request to stop receiving access reports.  This method returns immediately;
             /// any currently pending reports will be processed asynchronously. 
             /// </summary>
             internal void RequestStop()
             {
+                if (Interlocked.Increment(ref m_stopRequestCounter) > 1)
+                {
+                    return; // already stopped
+                }
+
                 LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
                 // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
                 m_lazyWriteHandle.Value.Dispose();
                 m_activeProcessesChecker.Cancel();
+
+                // The m_workerThread might still be processing access reports from the FIFO so don't complete m_accessReportProcessingBlock yet.
+                // However, in the event of a catastrophic filesystem failure, the worker thread might get stuck; to make sure we eventually
+                // make progress, here we complete the action block after a certain timeout.
+                Task.Delay(MaxWaitForReceiveAccessReports)
+                    .ContinueWith(t => CompleteAccessReportProcessing(logWarningIfNotAlreadyCompleted: true))
+                    .Forget();
             }
 
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
@@ -220,65 +278,80 @@ namespace BuildXL.Processes
             public void Dispose()
             {
                 RequestStop();
-                m_workerThread.Join();
                 m_activeProcessesChecker.Join();
                 m_pathCache.Clear();
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, retryOnFailure: false));
+                if (m_isInTestMode)
+                {
+                    // The worker thread should complete in all but most extreme cases.  One such extreme case 
+                    // is when the underlying filesystems crashes or shuts down completely (which is possible,
+                    // especially if that's a custom-implemented filesystem running in user space).  When that
+                    // happens, some write handled to the created FIFO may remain open, so the 'read' call in
+                    // 'StartReceivingAccessReports' may remain stuck forever.
+                    LogDebug("Waiting for the worker thread to complete");
+                    m_workerThread.Join();
+                }
             }
 
-            private void ProcessBytes(byte[] bytes)
+            /// <summary>
+            /// This method is backing <see cref="m_accessReportProcessingBlock"/>.
+            /// </summary>
+            private void ProcessBytes((PooledObjectWrapper<byte[]> wrapper, int length) item)
             {
-                // Format:
-                //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
-                string message = Encoding.GetString(bytes).TrimEnd('\n');
+                using (item.wrapper)
+                {
+                    // Format:
+                    //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
+                    string message = Encoding.GetString(item.wrapper.Instance, index: 0, count: item.length).TrimEnd('\n');
 
-                // parse message and create AccessReport
-                string[] parts = message.Split(new[] { '|' });
-                Contract.Assert(parts.Length == 8);
-                RequestedAccess access = (RequestedAccess)AssertInt(parts[2]);
-                string path = parts[7];
+                    // parse message and create AccessReport
+                    string[] parts = message.Split(new[] { '|' });
+                    Contract.Assert(parts.Length == 8);
+                    RequestedAccess access = (RequestedAccess)AssertInt(parts[2]);
+                    string path = parts[7];
 
-                // ignore accesses to libDetours.so, because we injected that library
-                if (path == DetoursLibFile)
-                {
-                    return;
-                }
-
-                var report = new AccessReport
-                {
-                    Pid = (int)AssertInt(parts[1]),
-                    PipId = Process.PipId,
-                    RequestedAccess = (uint)access,
-                    Status = AssertInt(parts[3]),
-                    ExplicitLogging = AssertInt(parts[4]),
-                    Error = AssertInt(parts[5]),
-                    Operation = (FileOperation) AssertInt(parts[6]),
-                    PathOrPipStats = Encoding.GetBytes(path),
-                };
-
-                // update active processes
-                if (report.Operation == FileOperation.OpProcessStart)
-                {
-                    AddPid(report.Pid);
-                }
-                else if (report.Operation == FileOperation.OpProcessExit)
-                {
-                    RemovePid(report.Pid);
-                }
-                else
-                {
-                    // check the path cache (only when the message is not about process tree)
-                    if (GetOrCreateCacheRecord(path).CheckCacheHitAndUpdate(access))
+                    // ignore accesses to libDetours.so, because we injected that library
+                    if (path == DetoursLibFile)
                     {
-                        LogDebug("Cache hit for access report: " + message);
                         return;
                     }
-                }
 
-                // post the AccessReport
-                Process.PostAccessReport(report);
+                    var report = new AccessReport
+                    {
+                        Pid = (int)AssertInt(parts[1]),
+                        PipId = Process.PipId,
+                        RequestedAccess = (uint)access,
+                        Status = AssertInt(parts[3]),
+                        ExplicitLogging = AssertInt(parts[4]),
+                        Error = AssertInt(parts[5]),
+                        Operation = (FileOperation) AssertInt(parts[6]),
+                        PathOrPipStats = Encoding.GetBytes(path),
+                    };
+
+                    // update active processes
+                    if (report.Operation == FileOperation.OpProcessStart)
+                    {
+                        AddPid(report.Pid);
+                    }
+                    else if (report.Operation == FileOperation.OpProcessExit)
+                    {
+                        RemovePid(report.Pid);
+                    }
+                    else
+                    {
+                        // check the path cache (only when the message is not about process tree)
+                        if (GetOrCreateCacheRecord(path).CheckCacheHitAndUpdate(access))
+                        {
+                            LogDebug("Cache hit for access report: " + message);
+                            return;
+                        }
+                    }
+
+                    // post the AccessReport
+                    Process.PostAccessReport(report);
+                }
             }
 
             private uint AssertInt(string str)
@@ -311,6 +384,9 @@ namespace BuildXL.Processes
                 return totalRead;
             }
 
+            /// <summary>
+            /// The method backing the <see cref="m_workerThread"/> thread.
+            /// </summary>
             private void StartReceivingAccessReports()
             {
                 var fifoName = ReportsFifoPath;
@@ -327,21 +403,14 @@ namespace BuildXL.Processes
                 // make sure that m_lazyWriteHandle has been created
                 Analysis.IgnoreResult(m_lazyWriteHandle.Value);
 
-                // action block where parsing and processing of received bytes is offloaded (so that the read loop below is as tight as possible)
-                var actionBlock = new ActionBlock<byte[]>(ProcessBytes, new ExecutionDataflowBlockOptions
-                {
-                    BoundedCapacity = DataflowBlockOptions.Unbounded,
-                    MaxDegreeOfParallelism = 1,
-                    EnsureOrdered = true
-                });
-
+                byte[] messageLengthBytes = new byte[sizeof(int)];
                 while (true)
                 {
                     // read length
-                    byte[] messageLengthBytes = new byte[sizeof(int)];
                     var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
                     if (numRead == 0) // EOF
                     {
+                        LogDebug("Exiting 'receive reports' loop.");
                         break;
                     }
 
@@ -355,29 +424,19 @@ namespace BuildXL.Processes
                     int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
 
                     // read a message of that length
-                    byte[] messageBytes = new byte[messageLength];
-                    numRead = Read(readHandle, messageBytes, 0, messageBytes.Length);
-                    if (numRead < messageBytes.Length)
+                    PooledObjectWrapper<byte[]> messageBytes = ByteArrayPool.GetInstance(messageLength);
+                    numRead = Read(readHandle, messageBytes.Instance, 0, messageLength);
+                    if (numRead < messageLength)
                     {
-                        LogError($"Read from FIFO {ReportsFifoPath} failed with return value {numRead}");
+                        LogError($"Read from FIFO {ReportsFifoPath} failed: read only {numRead} out of {messageLength} bytes");
                         break;
                     }
 
                     // Add message to processing queue
-                    actionBlock.Post(messageBytes);
+                    m_accessReportProcessingBlock.Post((messageBytes, messageLength));
                 }
 
-                // complete action block and wait for it to finish
-                actionBlock.Complete();
-                actionBlock.Completion.GetAwaiter().GetResult();
-
-                // report process tree completed 
-                var report = new AccessReport
-                {
-                    Operation = FileOperation.OpProcessTreeCompleted,
-                    PathOrPipStats = AccessReport.EncodePath("")
-                };
-                Process.PostAccessReport(report);
+                CompleteAccessReportProcessing();
             }
         }
 
@@ -541,7 +600,7 @@ namespace BuildXL.Processes
             process.LogDebug($"Created FIFO at '{fifoPath}'");
 
             // create and save info for this pip
-            var info = new Info(m_failureCallback, process, fifoPath, famPath, debugLogPath);
+            var info = new Info(m_failureCallback, process, fifoPath, famPath, debugLogPath, IsInTestMode);
             if (!m_pipProcesses.TryAdd(process.PipId, info))
             {
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");

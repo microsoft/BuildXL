@@ -335,7 +335,7 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException);
 
-            LogProcessState($"UnsandboxedProcess::KillAsync()");
+            LogProcessState($"UnsandboxedProcess::KillAsync({ProcessId})");
             return m_processExecutor.KillAsync();
         }
 

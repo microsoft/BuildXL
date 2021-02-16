@@ -230,7 +230,7 @@ namespace BuildXL.Utilities
             {
                 if (!Process.HasExited)
                 {
-                    Log($"calling Kill()");
+                    Log($"calling Kill({Process.Id})");
                     Process.Kill();
                 }
             }

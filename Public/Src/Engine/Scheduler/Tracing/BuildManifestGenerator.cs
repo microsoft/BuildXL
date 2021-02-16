@@ -75,12 +75,6 @@ namespace BuildXL.Scheduler.Tracing
             {
                 m_duplicateEntries.Add((dropName, relativePath, existingEntry.Item.Value.AzureArtifactsHash.Serialize(), azureArtifactsHash.Serialize()));
             }
-            else
-            {
-                Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext,
-                    "Verbose",
-                    $"RecordFileForBuildManifest added a file at RelativePath '{relativePath}'. AzureArtifactsHash: '{azureArtifactsHash.Serialize()}'. BuildManifestHash: '{buildManifestHash.Serialize()}'");
-            }
         }
 
         /// <summary>
@@ -97,6 +91,10 @@ namespace BuildXL.Scheduler.Tracing
                     t.bme.AzureArtifactsHash.ToHex(),
                     t.bme.BuildManifestHash.ToHex()))
                 .ToList();
+
+            Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext,
+                    "Verbose",
+                    $"GenerateBuildManifestFileList generated a list with {sortedManifestDetailsForDrop.Count} files.");
 
             return sortedManifestDetailsForDrop;
         }

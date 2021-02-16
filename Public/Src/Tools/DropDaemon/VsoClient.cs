@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
@@ -91,7 +92,7 @@ namespace Tool.DropDaemon
         private readonly CancellationTokenSource m_cancellationSource;
         private readonly DropDaemon m_dropDaemon;
 
-        private readonly TimedBatchBlock<AddFileItem> m_batchBlock;
+        private readonly NagleQueue<AddFileItem> m_nagleQueue;
 
         private CancellationToken Token => m_cancellationSource.Token;
 
@@ -140,11 +141,11 @@ namespace Tool.DropDaemon
                 logger: logger,
                 clientConstructor: CreateDropServiceClient);
 
-            m_batchBlock = new TimedBatchBlock<AddFileItem>(
+            m_nagleQueue = NagleQueue<AddFileItem>.Create(
                 maxDegreeOfParallelism: m_config.MaxParallelUploads,
                 batchSize: m_config.BatchSize,
-                nagleInterval: m_config.NagleTime,
-                batchProcessor: ProcessAddFilesAsync);
+                interval: m_config.NagleTime,
+                processBatch: ProcessAddFilesAsync);
 
             if (m_config.ArtifactLogName != null)
             {
@@ -216,7 +217,7 @@ namespace Tool.DropDaemon
             Interlocked.Increment(ref Stats.NumAddFileRequests);
 
             var addFileItem = new AddFileItem(dropItem);
-            await m_batchBlock.SendAsync(addFileItem);
+            m_nagleQueue.Enqueue(addFileItem);
 
             var manifestResult = await addFileItem.BuildManifestTaskSource.Task;
             var dropResult = await addFileItem.DropResultTaskSource.Task;
@@ -231,8 +232,7 @@ namespace Tool.DropDaemon
         /// </summary>
         public async Task<FinalizeResult> FinalizeAsync(CancellationToken token)
         {
-            m_batchBlock.Complete();
-            await m_batchBlock.Completion;
+            await m_nagleQueue.DisposeAsync();
 
             var startTime = DateTime.UtcNow;
             await m_dropClient.FinalizeAsync(DropName, token);
@@ -269,7 +269,7 @@ namespace Tool.DropDaemon
         {
             m_dropClient.Dispose();
             m_cancellationSource.Dispose();
-            m_batchBlock.Dispose();
+            m_nagleQueue.Dispose();
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose client", Justification = "Caller is responsible for disposing it")]

@@ -11,6 +11,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -50,7 +51,7 @@ namespace Tool.SymbolDaemon
         private string m_requestId;
         private IDomainId m_domainId;
         private readonly SemaphoreSlim m_requestIdAcquisitionMutex = TaskUtilities.CreateMutex();
-        private readonly TimedBatchBlock<BatchedSymbolFile> m_batchBlock;
+        private readonly NagleQueue<BatchedSymbolFile> m_nagleQueue;
         private readonly ActionQueue m_fileUploadQueue;
         private int m_batchCount;
 
@@ -106,11 +107,11 @@ namespace Tool.SymbolDaemon
                 logger: logger,
                 clientConstructor: CreateSymbolServiceClient);
 
-            m_batchBlock = new TimedBatchBlock<BatchedSymbolFile>(
+            m_nagleQueue = NagleQueue<BatchedSymbolFile>.Create(
                 maxDegreeOfParallelism: m_config.MaxParallelUploads,
                 batchSize: m_config.BatchSize,
-                nagleInterval: m_config.NagleTime,
-                batchProcessor: ProcessBatchedFilesAsync);
+                interval: m_config.NagleTime,
+                processBatch: ProcessBatchedFilesAsync);
 
             m_fileUploadQueue = new ActionQueue(m_config.MaxParallelUploads);
         }
@@ -214,7 +215,7 @@ namespace Tool.SymbolDaemon
 
             m_logger.Verbose($"Queued file '{symbolFile}'");
             var batchedFile = new BatchedSymbolFile(symbolFile);
-            await m_batchBlock.SendAsync(batchedFile);
+            m_nagleQueue.Enqueue(batchedFile);
             return await batchedFile.ResultTaskSource.Task;
         }
 
@@ -389,6 +390,8 @@ namespace Tool.SymbolDaemon
         /// </summary>        
         public async Task<Request> FinalizeAsync(CancellationToken token)
         {
+            await m_nagleQueue.DisposeAsync();
+
             using (m_counters.StartStopwatch(SymbolClientCounter.FinalizeDuration))
             {
                 var result = await m_symbolClient.FinalizeRequestAsync(
@@ -414,6 +417,7 @@ namespace Tool.SymbolDaemon
         /// <nodoc />
         public void Dispose()
         {
+            m_nagleQueue.Dispose();
             m_symbolClient.Dispose();
         }
 

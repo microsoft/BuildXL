@@ -24,7 +24,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 
             public Thresholds<long> MachineCountThreshold = new Thresholds<long>()
             {
-                Error = 0,
+                Error = 1,
                 Fatal = 3,
             };
         }

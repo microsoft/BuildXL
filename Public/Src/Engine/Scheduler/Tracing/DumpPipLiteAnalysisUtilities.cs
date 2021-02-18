@@ -114,7 +114,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             SerializedPip serializedPip = new SerializedPip
             {
-                PipMetaData = CreatePipMetadata(pip, pathTable, stringTable, pipGraph)
+                PipMetaData = CreatePipMetadata(pip, pathTable, stringTable, pipGraph, symbolTable)
             };
 
             switch (pip.PipType)
@@ -154,7 +154,7 @@ namespace BuildXL.Scheduler.Tracing
             return serializedPip;
         }
 
-        private static PipMetaData CreatePipMetadata(Pip pip, PathTable pathTable, StringTable stringTable, PipGraph pipGraph)
+        private static PipMetaData CreatePipMetadata(Pip pip, PathTable pathTable, StringTable stringTable, PipGraph pipGraph, SymbolTable symbolTable)
         {
             PipMetaData pipMetaData = new PipMetaData
             {
@@ -171,7 +171,7 @@ namespace BuildXL.Scheduler.Tracing
                 pipMetaData.Usage = CreateString(provenance.Usage, pathTable);
                 pipMetaData.Spec = CreateString(provenance.Token.Path, pathTable);
                 pipMetaData.Location = provenance.Token.IsValid ? provenance.Token.ToString(pathTable) : null;
-                pipMetaData.Thunk = provenance.OutputValueSymbol.IsValid ? provenance.OutputValueSymbol.ToString() : null;
+                pipMetaData.Thunk = provenance.OutputValueSymbol.IsValid ? provenance.OutputValueSymbol.ToString(symbolTable) : null;
                 pipMetaData.ModuleId = provenance.ModuleId.IsValid ? provenance.ModuleId.Value.Value.ToString() : null;
             }
 
@@ -212,7 +212,7 @@ namespace BuildXL.Scheduler.Tracing
                 Arguments = CreateString(pip.Arguments, pathTable),
                 ResponseFilePath = CreateString(pip.ResponseFile, pathTable),
                 ReponseFileContents = CreateString(pip.ResponseFileData, pathTable),
-                EnvironmentVariables = pip.EnvironmentVariables.Select(envVar => (envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : null))).ToList(),
+                EnvironmentVariables = pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"))).ToList(),
             };
         }
 
@@ -245,8 +245,8 @@ namespace BuildXL.Scheduler.Tracing
         {
             return new ProcessAdvancedOptions
             {
-                WarningTimeout = pip.WarningTimeout,
-                ErrorTimeout = pip.Timeout,
+                WarningTimeout = CreateNumeric(pip.WarningTimeout),
+                ErrorTimeout = CreateNumeric(pip.Timeout),
                 SuccessCodes = pip.SuccessExitCodes.IsValid ? pip.SuccessExitCodes.ToList() : null,
                 Semaphores = CreateString(pip.Semaphores, stringTable),
                 PreserveOutputTrustLevel = pip.PreserveOutputsTrustLevel,
@@ -444,6 +444,11 @@ namespace BuildXL.Scheduler.Tracing
         private static List<string> CreateString(IEnumerable<FileArtifactWithAttributes> values, PathTable pathTable)
         {
             return values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable) + " (" + Enum.Format(typeof(FileExistence), value.FileExistence, "f") + ")").ToList();
+        }
+
+        private static long? CreateNumeric(TimeSpan? value)
+        {
+            return value.HasValue ? Convert.ToInt64(value.Value.TotalMilliseconds) : null;
         }
 
         #endregion StringHelperFunctions

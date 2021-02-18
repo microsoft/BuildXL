@@ -91,7 +91,20 @@ namespace BuildXL.Scheduler.Tracing
         [JsonPropertyName("Response File Contents")]
         public string ReponseFileContents { get; set; }
         [JsonPropertyName("Environment Variables")]
-        public List<(string Variable, string Value)> EnvironmentVariables { get; set; }
+        public List<SerializedEnvironmentVariable> EnvironmentVariables { get; set; }
+    }
+
+    /// <nodoc/>
+    public struct SerializedEnvironmentVariable
+    {
+        public string Variable { get; set; }
+        public string Value { get; set; }
+
+        public SerializedEnvironmentVariable(string variable, string value)
+        {
+            Variable = variable;
+            Value = value;
+        }
     }
 
     /// <nodoc/>
@@ -129,10 +142,10 @@ namespace BuildXL.Scheduler.Tracing
     /// <nodoc/>
     public class ProcessAdvancedOptions
     {
-        [JsonPropertyName("Warning Timeout")]
-        public TimeSpan? WarningTimeout { get; set; }
-        [JsonPropertyName("Error Timeout")]
-        public TimeSpan? ErrorTimeout { get; set; }
+        [JsonPropertyName("Warning Timeout (ms)")]
+        public long? WarningTimeout { get; set; }
+        [JsonPropertyName("Error Timeout (ms)")]
+        public long? ErrorTimeout { get; set; }
         [JsonPropertyName("Success Codes")]
         public List<int> SuccessCodes { get; set; }
         public List<string> Semaphores { get; set; }

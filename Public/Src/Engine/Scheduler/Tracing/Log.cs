@@ -1358,8 +1358,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Resuming process execution because available RAM is above required limit.")]
-        internal abstract void ResumingProcessExecutionAfterSufficientResources(LoggingContext loggingContext);
+            Message = "Will try to resume process execution because available RAM is above required limit. [available RAM MB: {availableRam} > {minimumAvailableRam}] or [used RAM percentage: {ramUtilization} < {maximumRamUtilization})]")]
+        internal abstract void ResumingProcessExecutionAfterSufficientResources(LoggingContext loggingContext, int availableRam, int minimumAvailableRam, int ramUtilization, int maximumRamUtilization);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessStatus,

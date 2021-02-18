@@ -125,7 +125,7 @@ namespace BuildXL.Scheduler
                 TotalUsedPeakWorkingSet = totalPeakWorkingSet;
                 TotalRamMbNeededForResume = totalRamNeededForResume;
                 NumSuspended = m_pipResourceScopes.Count(a => a.Value.IsSuspended);
-                NumActive = m_pipResourceScopes.Count(a => !a.Value.IsSuspended);
+                NumActive = m_pipResourceScopes.Count - NumSuspended;
             }
         }
 
@@ -144,7 +144,6 @@ namespace BuildXL.Scheduler
                 try
                 {
                     InitializeScopeList(mode);
-
                     ManageResourcesByPreference(mode, requiredSizeMb);
                 }
                 finally
@@ -216,11 +215,7 @@ namespace BuildXL.Scheduler
 
         private void ManageResourcesByPreference(ManageMemoryMode mode, int requiredSize)
         {
-            // Resume and EmptyWorkingSet can be called for all items in the list.
-            // However, cancellation and suspend should keep one item untouchable to keep the scheduler progressing.
-            int allowedCount = (mode == ManageMemoryMode.Resume || mode == ManageMemoryMode.EmptyWorkingSet) ?
-                m_manageResourcesScopeList.Count :
-                m_manageResourcesScopeList.Count - 1;
+            int allowedCount = GetAllowedManagedResourceScopeCount(mode);
 
             for (int i = 0; i < m_manageResourcesScopeList.Count && requiredSize > 0 && allowedCount > 0; i++)
             {
@@ -261,6 +256,32 @@ namespace BuildXL.Scheduler
                 requiredSize -= sizeMb;
                 allowedCount--;
             }
+        }
+
+        /// <summary>
+        /// Get the number of resource scopes that are allowed to be managed, 
+        /// according to the ManageMemoryMode requested and the state of the resource list.
+        /// </summary>
+        private int GetAllowedManagedResourceScopeCount(ManageMemoryMode mode)
+        {
+            if (mode == ManageMemoryMode.Resume || mode == ManageMemoryMode.EmptyWorkingSet)
+            {
+                // Resume and EmptyWorkingSet can be called for all resource scopes in the list.
+                return m_manageResourcesScopeList.Count;
+            }
+
+            // Other modes are cancellation/suspend
+            // Normally, cancellation and suspend should keep one item untouchable to ensure scheduler progress.
+            // However, if the remaining resource scope is a single suspended process and the request is for cancellation, 
+            // then that suspendend process needs to be cancelled in order to ensure scheduler progress. 
+            // This can happen if after having a single suspended process, the memory usage is still high.
+            if (m_manageResourcesScopeList.Count == 1 && m_manageResourcesScopeList[0].IsSuspended)
+            {
+                return m_manageResourcesScopeList.Count;
+            }
+
+            // In other cases, cancellation and suspend should keep one item untouchable to keep the scheduler progressing.
+            return m_manageResourcesScopeList.Count - 1;
         }
 
         /// <summary>

@@ -2782,10 +2782,16 @@ namespace BuildXL.Scheduler
 
             if (resourceManager.NumActive == 0 && resourceManager.NumSuspended > 0)
             {
-                PipExecutionCounters.IncrementCounter(PipExecutorCounter.CancelSuspendedPipDueToNoRunningProcess);
+                // Maybe something changed with our previous actions (we refreshed this number before potentially resuming some processes). 
+                // Before taking drastic action, refresh the counters.
+                resourceManager.RefreshMemoryCounters();
 
-                // If there is no active process pips running, cancel one pip to check whether the scheduler will move forward.
-                resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
+                if (resourceManager.NumActive == 0 && resourceManager.NumSuspended > 0)
+                {
+                    // There are no active process pips running, cancel one pip to check whether the scheduler will move forward.
+                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.CancelSuspendedPipDueToNoRunningProcess);
+                    resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
+                }
             }
         }
 
@@ -2804,7 +2810,12 @@ namespace BuildXL.Scheduler
             if (memoryResource == MemoryResource.Available && !LocalWorker.MemoryResourceAvailable)
             {
                 // Set resources to available to allow executing further work
-                Logger.Log.ResumingProcessExecutionAfterSufficientResources(m_executePhaseLoggingContext);
+                Logger.Log.ResumingProcessExecutionAfterSufficientResources(m_executePhaseLoggingContext,
+                    availableRam: perfInfo.AvailableRamMb ?? 0,
+                    minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
+                    ramUtilization: perfInfo.RamUsagePercentage ?? 0,
+                    maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
+
                 LocalWorker.MemoryResource = memoryResource;
 
                 // For distributed workers, the local worker total processes does not control

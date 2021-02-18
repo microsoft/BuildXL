@@ -66,15 +66,15 @@ namespace BuildXL.Cache.Monitor.App
 
         public IEnumerable<KeyValuePair<StampId, DynamicStampProperties>> Entries => _properties;
 
-        public IReadOnlyDictionary<CloudBuildEnvironment, List<StampId>> EnvStamps =>
+        public IReadOnlyDictionary<MonitorEnvironment, List<StampId>> EnvStamps =>
             _properties.GroupBy(property => property.Key.Environment, property => property.Key)
             .ToDictionary(group => group.Key, group => group.ToList());
 
         private readonly ILogger _logger;
-        private readonly IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> _environments;
-        private readonly IReadOnlyDictionary<CloudBuildEnvironment, IKustoClient> _kustoClients;
+        private readonly IReadOnlyDictionary<MonitorEnvironment, EnvironmentConfiguration> _environments;
+        private readonly IReadOnlyDictionary<MonitorEnvironment, IKustoClient> _kustoClients;
 
-        private Watchlist(ILogger logger, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments, IReadOnlyDictionary<CloudBuildEnvironment, IKustoClient> kustoClients)
+        private Watchlist(ILogger logger, IReadOnlyDictionary<MonitorEnvironment, EnvironmentConfiguration> environments, IReadOnlyDictionary<MonitorEnvironment, IKustoClient> kustoClients)
         {
             _logger = logger;
             _environments = environments;
@@ -99,7 +99,7 @@ namespace BuildXL.Cache.Monitor.App
             return !hasNotChanged;
         }
 
-        public static async Task<Watchlist> CreateAsync(ILogger logger, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> environments, IReadOnlyDictionary<CloudBuildEnvironment, IKustoClient> kustoClients)
+        public static async Task<Watchlist> CreateAsync(ILogger logger, IReadOnlyDictionary<MonitorEnvironment, EnvironmentConfiguration> environments, IReadOnlyDictionary<MonitorEnvironment, IKustoClient> kustoClients)
         {
             var watchlist = new Watchlist(logger, environments, kustoClients);
             await watchlist.RefreshAsync();

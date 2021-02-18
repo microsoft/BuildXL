@@ -33,13 +33,47 @@ namespace BuildXL.Cache.Monitor.App
 
         public static string DefaultKustoClusterUrl { get; } = "https://cbuild.kusto.windows.net";
 
-        public static string DefaultProdTenantId { get; } = "72f988bf-86f1-41af-91ab-2d7cd011db47";
+        public static AzureActiveDirectoryCredentials MicrosoftTenantCredentials { get; } = new AzureActiveDirectoryCredentials()
+        {
+            TenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47",
+            AppId = "22cabbbb-1f32-4057-b601-225bab98348d",
+            AppKey = string.Empty,
+        };
 
-        public static string DefaultProdAzureAppId { get; } = "22cabbbb-1f32-4057-b601-225bab98348d";
+        public static AzureActiveDirectoryCredentials PMETenantCredentials { get; } = new AzureActiveDirectoryCredentials()
+        {
+            TenantId = "975f013f-7f24-47e8-a7d3-abc4752bf346",
+            AppId = "961ae58d-adb0-49c1-a6a2-0b0578c8e9c2",
+            AppKey = string.Empty,
+        };
 
-        public static string DefaultTestTenantId { get; } = "975f013f-7f24-47e8-a7d3-abc4752bf346";
+        public static readonly AzureCredentials CloudBuildTestPMETenantCredentials = new AzureCredentials()
+        {
+            Credentials = PMETenantCredentials,
+            SubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa"
+        };
 
-        public static string DefaultTestAzureAppId { get; } = "961ae58d-adb0-49c1-a6a2-0b0578c8e9c2";
+
+        public static AzureCredentials CloudBuildTestAzureCredentials { get; } = CloudBuildTestPMETenantCredentials;
+
+        public static KustoCredentials CloudBuildTestKustoCredentials { get; } = new KustoCredentials()
+        {
+            Credentials = MicrosoftTenantCredentials,
+            ClusterUrl = DefaultKustoClusterUrl
+        };
+
+        public static readonly AzureCredentials CloudBuildProdMicrosoftTenantCredentials = new AzureCredentials()
+        {
+            Credentials = MicrosoftTenantCredentials,
+            SubscriptionId = "7965fc55-7602-4cf6-abe4-e081cf119567"
+        };
+
+        public static AzureCredentials CloudBuildProdAzureCredentials { get; } = CloudBuildProdMicrosoftTenantCredentials;
+
+        public static KustoCredentials CloudBuildProdKustoCredentials { get; } = new KustoCredentials() {
+            Credentials = MicrosoftTenantCredentials,
+            ClusterUrl = DefaultKustoClusterUrl
+        };
 
         public static string DefaultKeyVaultUrl { get; } = "https://cbsecrets.vault.azure.net/";
 
@@ -51,46 +85,27 @@ namespace BuildXL.Cache.Monitor.App
 
         public static TimeSpan IcmCertificateCacheTimeToLive { get; } = TimeSpan.FromDays(1);
 
-        public static IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> DefaultEnvironments { get; } =
-            new Dictionary<CloudBuildEnvironment, EnvironmentConfiguration>
+        public static IReadOnlyDictionary<MonitorEnvironment, EnvironmentConfiguration> DefaultEnvironments { get; } =
+            new Dictionary<MonitorEnvironment, EnvironmentConfiguration>
             {
                 {
-                    CloudBuildEnvironment.Production,
+                    MonitorEnvironment.CloudBuildProduction,
                     new EnvironmentConfiguration
                     {
-                        AzureTenantId = DefaultProdTenantId,
-                        AzureAppId = DefaultProdAzureAppId,
-                        AzureAppKey = string.Empty,
-                        AzureSubscriptionName = "CloudBuild-PROD",
-                        AzureSubscriptionId = "7965fc55-7602-4cf6-abe4-e081cf119567",
-                        KustoClusterUrl = DefaultKustoClusterUrl,
+                        AzureCredentials = CloudBuildProdAzureCredentials,
+                        KustoCredentials = CloudBuildProdKustoCredentials,
                         KustoDatabaseName = "CloudBuildProd",
                     }
                 },
                 {
-                    CloudBuildEnvironment.Test,
+                    MonitorEnvironment.CloudBuildTest,
                     new EnvironmentConfiguration
                     {
-                        AzureTenantId = DefaultTestTenantId,
-                        AzureAppId = DefaultTestAzureAppId,
-                        AzureAppKey = string.Empty,
-                        AzureSubscriptionName = "CloudBuild_Test",
-                        AzureSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
-                        KustoClusterUrl = DefaultKustoClusterUrl,
+                        AzureCredentials = CloudBuildTestAzureCredentials,
+                        KustoCredentials = CloudBuildTestKustoCredentials,
                         KustoDatabaseName = "CloudBuildCBTest",
                     }
                 },
-                // Removing until we actually support/care about this
-                //{
-                //    CloudBuildEnvironment.ContinuousIntegration,
-                //    new EnvironmentConfiguration
-                //    {
-                //        KustoDatabaseName = "CloudBuildCI",
-                //        AzureSubscriptionName = "CloudBuild_Test",
-                //        AzureSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
-                //        AzureKeyVaultSubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa",
-                //    }
-                //},
             };
 
         public static TimeSpan RedisScaleTimePerShard { get; } = TimeSpan.FromMinutes(20);

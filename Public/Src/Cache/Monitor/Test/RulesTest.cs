@@ -26,7 +26,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
     public class RulesTest
     {
         private MockNotifier<Notification> _notifier = new MockNotifier<Notification>();
-        private const CloudBuildEnvironment TestEnvironment = CloudBuildEnvironment.Test;
+        private const MonitorEnvironment TestEnvironment = MonitorEnvironment.CloudBuildTest;
 
         [Fact]
         public async Task ActiveMachineTestAsync()
@@ -367,13 +367,13 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
         private Task<Watchlist> GetWatchListAsync(MockKustoClient mockKusto)
         {
-            var environments = new Dictionary<CloudBuildEnvironment, EnvironmentConfiguration>() {
+            var environments = new Dictionary<MonitorEnvironment, EnvironmentConfiguration>() {
                 {
                     TestEnvironment, Constants.DefaultEnvironments[TestEnvironment]
                 }
             };
 
-            var resources = new Dictionary<CloudBuildEnvironment, IKustoClient>()
+            var resources = new Dictionary<MonitorEnvironment, IKustoClient>()
             {
                 {
                     TestEnvironment, mockKusto

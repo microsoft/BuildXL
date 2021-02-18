@@ -15,7 +15,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public string Stamp => StampId.Name;
 
-        public CloudBuildEnvironment Environment => StampId.Environment;
+        public MonitorEnvironment Environment => StampId.Environment;
 
         public SingleStampRuleConfiguration(
             IClock clock,

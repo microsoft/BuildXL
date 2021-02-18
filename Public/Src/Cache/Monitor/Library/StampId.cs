@@ -7,11 +7,11 @@ namespace BuildXL.Cache.Monitor.App
 {
     public struct StampId : IEquatable<StampId>
     {
-        public CloudBuildEnvironment Environment { get; }
+        public MonitorEnvironment Environment { get; }
 
         public string Name { get; }
 
-        public StampId(CloudBuildEnvironment environment, string name)
+        public StampId(MonitorEnvironment environment, string name)
         {
             Environment = environment;
             Name = name;
@@ -22,7 +22,7 @@ namespace BuildXL.Cache.Monitor.App
             get
             {
                 var stamp = AzureCompatibleStampName;
-                if (Environment == CloudBuildEnvironment.ContinuousIntegration)
+                if (Environment == MonitorEnvironment.CloudBuildContinuousIntegration)
                 {
                     stamp = "mwci";
                 }
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.Monitor.App
             get
             {
                 var stamp = AzureCompatibleStampName;
-                if (Environment == CloudBuildEnvironment.ContinuousIntegration)
+                if (Environment == MonitorEnvironment.CloudBuildContinuousIntegration)
                 {
                     stamp = "mwci";
                 }

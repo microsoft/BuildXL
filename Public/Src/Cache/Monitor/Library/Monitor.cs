@@ -33,17 +33,11 @@ namespace BuildXL.Cache.Monitor.App
     {
         public class Configuration
         {
-            public string KustoClusterUrl { get; set; } = Constants.DefaultKustoClusterUrl;
+            public KustoCredentials KustoIngestionCredentials { get; set; } = Constants.CloudBuildProdKustoCredentials;
 
             public string KeyVaultUrl { get; set; } = Constants.DefaultKeyVaultUrl;
 
-            public string KustoIngestionClusterUrl { get; set; } = Constants.DefaultKustoClusterUrl;
-
-            public string TenantId { get; set; } = Constants.DefaultProdTenantId;
-
-            public string AzureAppId { get; set; } = Constants.DefaultProdAzureAppId;
-
-            public string AzureAppKey { get; set; } = string.Empty;
+            public AzureActiveDirectoryCredentials KeyVaultCredentials { get; set; } = Constants.MicrosoftTenantCredentials;
 
             public string IcmUrl { get; set; } = Constants.DefaultIcmUrl;
 
@@ -56,7 +50,7 @@ namespace BuildXL.Cache.Monitor.App
             /// <summary>
             /// Which environments to monitor
             /// </summary>
-            public IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentConfiguration> Environments { get; set; } = Constants.DefaultEnvironments;
+            public IReadOnlyDictionary<MonitorEnvironment, EnvironmentConfiguration> Environments { get; set; } = Constants.DefaultEnvironments;
 
             public KustoNotifier<Notification>.Configuration KustoNotifier { get; set; } = new KustoNotifier<Notification>.Configuration
             {
@@ -101,7 +95,7 @@ namespace BuildXL.Cache.Monitor.App
         private readonly INotifier<Notification> _alertNotifier;
         private readonly INotifier<RuleScheduler.LogEntry> _schedulerLogWriter;
 
-        private readonly IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentResources> _environmentResources;
+        private readonly IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> _environmentResources;
 
         private readonly IKustoIngestClient _kustoIngestClient;
         private readonly IIcmClient _icmClient;
@@ -112,11 +106,7 @@ namespace BuildXL.Cache.Monitor.App
         public static async Task<Result<Monitor>> CreateAsync(OperationContext context, Configuration configuration)
         {
             Tracer.Info(context, "Creating Kusto ingest client");
-            var kustoIngestClient = ExternalDependenciesFactory.CreateKustoIngestClient(
-                configuration.KustoIngestionClusterUrl,
-                configuration.TenantId,
-                configuration.AzureAppId,
-                configuration.AzureAppKey).ThrowIfFailure();
+            var kustoIngestClient = ExternalDependenciesFactory.CreateKustoIngestClient(configuration.KustoIngestionCredentials).ThrowIfFailure();
 
             IIcmClient icmClient;
             if (!configuration.ReadOnly)
@@ -124,9 +114,9 @@ namespace BuildXL.Cache.Monitor.App
                 Tracer.Info(context, "Creating KeyVault client");
                 var keyVaultClient = new KeyVaultClient(
                     configuration.KeyVaultUrl,
-                    configuration.TenantId,
-                    configuration.AzureAppId,
-                    configuration.AzureAppKey,
+                    configuration.KeyVaultCredentials.TenantId,
+                    configuration.KeyVaultCredentials.AppId,
+                    configuration.KeyVaultCredentials.AppKey,
                     SystemClock.Instance,
                     Constants.IcmCertificateCacheTimeToLive);
 
@@ -144,7 +134,7 @@ namespace BuildXL.Cache.Monitor.App
                 icmClient = new MockIcmClient();
             }
 
-            var environmentResources = new Dictionary<CloudBuildEnvironment, EnvironmentResources>();
+            var environmentResources = new Dictionary<MonitorEnvironment, EnvironmentResources>();
 
             // This does a bunch of Azure API calls, which are really slow. Making them a bit faster by doing them
             // concurrently.
@@ -174,17 +164,8 @@ namespace BuildXL.Cache.Monitor.App
 
         private static async Task<EnvironmentResources> CreateEnvironmentResourcesAsync(OperationContext context, EnvironmentConfiguration configuration)
         {
-            var azure = ExternalDependenciesFactory.CreateAzureClient(
-                configuration.AzureTenantId,
-                configuration.AzureSubscriptionId,
-                configuration.AzureAppId,
-                configuration.AzureAppKey).ThrowIfFailure();
-
-            var monitorManagementClient = await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(
-                configuration.AzureTenantId,
-                configuration.AzureSubscriptionId,
-                configuration.AzureAppId,
-                configuration.AzureAppKey).ThrowIfFailureAsync();
+            var azure = ExternalDependenciesFactory.CreateAzureClient(configuration.AzureCredentials).ThrowIfFailure();
+            var monitorManagementClient = await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(configuration.AzureCredentials).ThrowIfFailureAsync();
 
             var redisCaches =
                 (await azure
@@ -192,17 +173,13 @@ namespace BuildXL.Cache.Monitor.App
                     .ListAsync(cancellationToken: context.Token))
                 .ToDictionary(cache => cache.Name, cache => cache);
 
-            var kustoClient = ExternalDependenciesFactory.CreateKustoQueryClient(
-                configuration.KustoClusterUrl,
-                configuration.AzureTenantId,
-                configuration.AzureAppId,
-                configuration.AzureAppKey).ThrowIfFailure();
+            var kustoClient = ExternalDependenciesFactory.CreateKustoQueryClient(configuration.KustoCredentials).ThrowIfFailure();
 
             context.Token.ThrowIfCancellationRequested();
             return new EnvironmentResources(azure, monitorManagementClient, redisCaches, kustoClient);
         }
 
-        private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IIcmClient icmClient, IClock clock, IReadOnlyDictionary<CloudBuildEnvironment, EnvironmentResources> environmentResources, ILogger logger)
+        private Monitor(Configuration configuration, IKustoIngestClient kustoIngestClient, IIcmClient icmClient, IClock clock, IReadOnlyDictionary<MonitorEnvironment, EnvironmentResources> environmentResources, ILogger logger)
         {
             _configuration = configuration;
 

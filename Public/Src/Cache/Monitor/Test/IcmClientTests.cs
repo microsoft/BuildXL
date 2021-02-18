@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.Monitor.Library.IcM;
@@ -21,21 +22,18 @@ namespace BuildXL.Cache.Monitor.Test
         {
             Debugger.Launch();
 
-            var appKey = GetApplicationKey().ShouldBeSuccess();
-            
-            var config = new App.Monitor.Configuration
-            {
-                AzureAppKey = appKey.Value!
-            };
+            LoadApplicationKey().ThrowIfFailure();
+
+            var config = new App.Monitor.Configuration();
 
             var clock = new MemoryClock();
             clock.Increment(); 
 
             var keyVault = new KeyVaultClient(
                 config.KeyVaultUrl,
-                config.TenantId,
-                config.AzureAppId,
-                config.AzureAppKey,
+                config.KeyVaultCredentials.TenantId,
+                config.KeyVaultCredentials.AppId,
+                config.KeyVaultCredentials.AppKey,
                 clock,
                 cacheTimeToLive: TimeSpan.FromSeconds(1));
 

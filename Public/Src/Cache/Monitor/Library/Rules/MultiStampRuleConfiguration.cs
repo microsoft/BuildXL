@@ -11,7 +11,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 {
     internal class MultiStampRuleConfiguration : KustoRuleConfiguration
     {
-        public CloudBuildEnvironment Environment { get; }
+        public MonitorEnvironment Environment { get; }
 
         public Watchlist WatchList { get; }
 
@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             IIcmClient icmClient,
             string kustoDatabaseName,
             string cacheTableName,
-            CloudBuildEnvironment environment,
+            MonitorEnvironment environment,
             Watchlist watchlist)
             : base(clock ,logger, notifier, kustoClient, kustoDatabaseName, cacheTableName, icmClient)
         {

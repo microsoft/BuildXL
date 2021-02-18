@@ -38,7 +38,9 @@ namespace Library {
             importFrom("Azure.Security.KeyVault.Secrets").pkg,
         ],
         internalsVisibleTo: [
-            "BuildXL.Cache.Monitor.App", 
+            {
+                assembly: "BuildXL.Cache.Monitor.App",
+            }, 
             {
                 assembly: "BuildXL.Cache.Monitor.Test",
             }

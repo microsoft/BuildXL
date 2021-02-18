@@ -50,7 +50,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
         public string SeverityFriendly => Severity.ToString();
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public CloudBuildEnvironment Environment { get; }
+        public MonitorEnvironment Environment { get; }
 
         public string Stamp { get; }
 
@@ -58,7 +58,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
         public string? Summary { get; }
 
-        public Notification(string ruleIdentifier, Guid ruleRunGuid, DateTime ruleRunTimeUtc, DateTime creationTimeUtc, DateTime eventTimeUtc, string bucket, Severity severity, CloudBuildEnvironment environment, string stamp, string message, string? summary = null)
+        public Notification(string ruleIdentifier, Guid ruleRunGuid, DateTime ruleRunTimeUtc, DateTime creationTimeUtc, DateTime eventTimeUtc, string bucket, Severity severity, MonitorEnvironment environment, string stamp, string message, string? summary = null)
         {
             RuleIdentifier = ruleIdentifier;
             RuleRunGuid = ruleRunGuid;

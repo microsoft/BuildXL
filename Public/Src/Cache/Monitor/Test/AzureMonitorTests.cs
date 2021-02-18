@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.Monitor.App;
 using BuildXL.Cache.Monitor.Library.Az;
 using FluentAssertions;
-using Microsoft.Azure.Management.Monitor;
-using Microsoft.Azure.Management.Monitor.Models;
-using Microsoft.Rest.Azure.OData;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -17,8 +13,6 @@ namespace BuildXL.Cache.Monitor.Test
 {
     public class AzureMonitorTests : TestBase
     {
-        private readonly EnvironmentConfiguration _environmentConfiguration = Constants.DefaultEnvironments[CloudBuildEnvironment.Production];
-
         public AzureMonitorTests(ITestOutputHelper output) : base(output)
         {
         }
@@ -28,25 +22,17 @@ namespace BuildXL.Cache.Monitor.Test
         {
             Debugger.Launch();
 
-            var appKeyResult = GetApplicationKey();
-            if (!appKeyResult)
-            {
-                return;
-            }
+            LoadApplicationKey().ThrowIfFailure();
 
-            var appKey = appKeyResult.ThrowIfFailure();
+            var azure = ExternalDependenciesFactory.CreateAzureClient(Constants.CloudBuildProdAzureCredentials).ThrowIfFailure();
 
-            var azure = ExternalDependenciesFactory.CreateAzureClient(
-                Constants.DefaultProdTenantId,
-                _environmentConfiguration.AzureSubscriptionId,
-                Constants.DefaultProdAzureAppId,
-                appKey).ThrowIfFailure();
+            var redisCaches =
+                (azure
+                    .RedisCaches
+                    .List())
+                .ToDictionary(cache => cache.Name, cache => cache);
 
-            var monitorManagementClient = new AzureMetricsClient(await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(
-                Constants.DefaultProdTenantId,
-                _environmentConfiguration.AzureSubscriptionId,
-                Constants.DefaultProdAzureAppId,
-                appKey).ThrowIfFailureAsync());
+            var monitorManagementClient = new AzureMetricsClient(await ExternalDependenciesFactory.CreateAzureMetricsClientAsync(Constants.CloudBuildProdAzureCredentials).ThrowIfFailureAsync());
 
             // var redisCaches = (await azure.RedisCaches.ListAsync()).ToDictionary(cache => cache.Name, cache => cache);
 

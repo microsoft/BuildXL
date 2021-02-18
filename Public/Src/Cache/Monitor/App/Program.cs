@@ -213,9 +213,8 @@ namespace BuildXL.Cache.Monitor.App
                     throw new ArgumentException($"Please specify a configuration file or set the `CACHE_MONITOR_TEST_APPLICATION_KEY` environment variable to your application key");
                 }
 
-                configuration.AzureAppKey = cloudBuildProdApplicationKey;
-                configuration.Environments[CloudBuildEnvironment.Production].AzureAppKey = cloudBuildProdApplicationKey;
-                configuration.Environments[CloudBuildEnvironment.Test].AzureAppKey = cloudBuildTestApplicationKey;
+                App.Constants.MicrosoftTenantCredentials.AppKey = cloudBuildProdApplicationKey;
+                App.Constants.PMETenantCredentials.AppKey = cloudBuildTestApplicationKey;
 
                 configuration.ReadOnly = !production;
                 return configuration;

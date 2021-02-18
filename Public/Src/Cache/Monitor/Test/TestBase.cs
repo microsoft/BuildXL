@@ -14,14 +14,24 @@ namespace BuildXL.Cache.Monitor.Test
         {
         }
 
-        protected Result<string> GetApplicationKey()
+        protected BoolResult LoadApplicationKey()
         {
-            var applicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_PROD_APPLICATION_KEY");
-            if (string.IsNullOrEmpty(applicationKey))
+            var cloudBuildProdApplicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_PROD_APPLICATION_KEY");
+            if (string.IsNullOrEmpty(cloudBuildProdApplicationKey))
             {
-                return new Result<string>(errorMessage: "Please set the `CACHE_MONITOR_PROD_APPLICATION_KEY` environment variable to your application key");
+                return new BoolResult($"Please specify a configuration file or set the `CACHE_MONITOR_PROD_APPLICATION_KEY` environment variable to your application key");
             }
-            return applicationKey;
+
+            var cloudBuildTestApplicationKey = Environment.GetEnvironmentVariable("CACHE_MONITOR_TEST_APPLICATION_KEY");
+            if (string.IsNullOrEmpty(cloudBuildTestApplicationKey))
+            {
+                return new BoolResult($"Please specify a configuration file or set the `CACHE_MONITOR_TEST_APPLICATION_KEY` environment variable to your application key");
+            }
+
+            App.Constants.MicrosoftTenantCredentials.AppKey = cloudBuildProdApplicationKey;
+            App.Constants.PMETenantCredentials.AppKey = cloudBuildTestApplicationKey;
+
+            return BoolResult.Success;
         }
     }
 }

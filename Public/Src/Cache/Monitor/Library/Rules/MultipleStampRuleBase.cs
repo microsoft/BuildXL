@@ -38,7 +38,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules
             Contract.RequiresNotNullOrEmpty(stamp);
 
             var now = _configuration.Clock.UtcNow;
-            _configuration.Logger.Log(severity, $"[{Identifier}] {message}");
+            _configuration.Logger.Log(severity, $"[{Identifier}/{stamp}] {message}");
             _configuration.Notifier.Emit(new Notification(
                 $"{Identifier}/{stamp}",
                 context.RunGuid,

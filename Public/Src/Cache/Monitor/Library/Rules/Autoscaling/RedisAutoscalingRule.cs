@@ -89,6 +89,26 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             // because there was an autoscale that happened before. Hence, we need to refresh what we know.
             await Task.WhenAll(primary.RefreshAsync(context.CancellationToken), secondary.RefreshAsync(context.CancellationToken)).ThrowIfFailureAsync();
 
+            // Both instances in a failed state means we need to open a Sev 2 against our own rotation to get them
+            // fixed as quickly as possible.
+            if (primary.IsFailed && secondary.IsFailed)
+            {
+                try
+                {
+                    await EmitIcmAsync(
+                        severity: 2,
+                        title: $"Redis instances {primary.Name} and {secondary.Name} are in a failed state",
+                        description: "Both instances fell into a failed state, permanently blocking autoscaling for their corresponding stamp. Please monitor it and open a Sev 2 IcM against the Windows Azure Cache team (https://aka.ms/redisicm) for support if needed.",
+                        machines: null,
+                        correlationIds: null,
+                        cacheTimeToLive: _configuration.IcmIncidentCacheTtl);
+                }
+                catch (Exception e)
+                {
+                    _configuration.Logger.Error($"Failed to emit IcM for failed instances {primary.Name} and {secondary.Name}: {e}");
+                }
+            }
+
             // We are willing to scale iff:
             //  1. The instance is ready to scale
             //  2. The other instance is not being scaled, but may be not ready to scale
@@ -130,8 +150,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             {
                 await EmitIcmAsync(
                     severity: 3,
-                    title: $"{instance.Name} is in a failed state. State=[{instance.State}]",
-                    description: "Instance fell into a failed state. Please monitor it and open an IcM against the Windows Azure Cache team for support if needed.",
+                    title: $"{instance.Name} is in a failed state",
+                    description: "Instance fell into a failed state. Please monitor it and open a Sev 2 IcM against the Windows Azure Cache team (https://aka.ms/redisicm) for support if needed.",
                     machines: null,
                     correlationIds: null,
                     cacheTimeToLive: _configuration.IcmIncidentCacheTtl);

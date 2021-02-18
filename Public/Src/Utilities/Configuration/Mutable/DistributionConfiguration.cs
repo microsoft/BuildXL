@@ -18,7 +18,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             // Local worker is always connected.
             MinimumWorkers = 1;
-
             EarlyWorkerReleaseMultiplier = 0.5;
             EarlyWorkerRelease = true;
         }
@@ -36,6 +35,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             BuildWorkers = new List<IDistributionServiceLocation>(template.BuildWorkers.Select(location => new DistributionServiceLocation(location)));
             DistributeCacheLookups = template.DistributeCacheLookups;
             MinimumWorkers = template.MinimumWorkers;
+            LowWorkersWarningThreshold = template.LowWorkersWarningThreshold;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
             FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
@@ -69,6 +69,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inhertidoc />
         public int MinimumWorkers { get; set; }
+
+        /// <inhertidoc />
+        public int? LowWorkersWarningThreshold { get; set; }
 
         /// <inheritdoc />
         public bool EarlyWorkerRelease { get; set; }

@@ -3306,8 +3306,17 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
-            Message = "Minimum workers not satisfied. # Minimum workers: {0}, # Connected workers: {1}")]
+            Message = "Minimum workers not satisfied. # Minimum workers: {minimumWorkers}, # Succesfully attached workers: {connectedWorkers}")]
         public abstract void MinimumWorkersNotSatisfied(LoggingContext context, int minimumWorkers, int connectedWorkers);
+
+        [GeneratedEvent(
+            (int)LogEventId.WorkerCountBelowWarningThreshold,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)(Keywords.UserMessage),
+            Message = "The attached workers for this build are below the warning threshold ({threshold}), # Succesfully attached workers: {connectedWorkers}")]
+        public abstract void WorkerCountBelowWarningThreshold(LoggingContext context, int threshold, int connectedWorkers);
 
         [GeneratedEvent(
             (int)LogEventId.BuildSetCalculatorProcessStats,

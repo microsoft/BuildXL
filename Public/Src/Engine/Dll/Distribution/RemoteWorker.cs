@@ -21,14 +21,11 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -64,7 +61,10 @@ namespace BuildXL.Engine.Distribution
 
         private volatile bool m_isConnectionLost;
 
+        /// <inheritdoc />
+        public override Task AttachCompletionTask => m_attachCompletion.Task;
         private readonly TaskSourceSlim<bool> m_attachCompletion;
+
         private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
         private readonly BlockingCollection<WorkerNotificationArgs> m_executionBlobQueue = new BlockingCollection<WorkerNotificationArgs>(new ConcurrentQueue<WorkerNotificationArgs>());
 

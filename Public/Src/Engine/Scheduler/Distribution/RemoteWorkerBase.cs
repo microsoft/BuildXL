@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using System.Threading.Tasks;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -23,6 +24,11 @@ namespace BuildXL.Scheduler.Distribution
 
         /// <inheritdoc/>
         public override int EffectiveTotalProcessSlots => m_effectiveTotalProcessSlots;
+
+        /// <summary>
+        /// Completes when the worker finishes the attachment process (successfully or otherwise)
+        /// </summary>
+        public abstract Task AttachCompletionTask { get; }
 
         /// <summary>
         /// Set effective total process slots based on the StatusReported event came from the remote worker

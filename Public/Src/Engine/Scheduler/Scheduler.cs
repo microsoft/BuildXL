@@ -262,6 +262,12 @@ namespace BuildXL.Scheduler
         public int AvailableWorkersCount => Workers.Count(a => a.IsAvailable);
 
         /// <summary>
+        /// Completes when all remote workers finish the attachment process (successfully or otherwise)
+        /// in a distributed build.
+        /// </summary>
+        private Task m_attachmentsCompletedTask;
+
+        /// <summary>
         /// Cached delegate for the main method which executes the pips
         /// </summary>
         private readonly Func<RunnablePip, Task> m_executePipFunc;
@@ -342,6 +348,8 @@ namespace BuildXL.Scheduler
 
         private void StartWorkers(LoggingContext loggingContext)
         {
+            Contract.Ensures(m_attachmentsCompletedTask != null);
+
             m_workersStatusOperation = OperationTracker.StartOperation(Worker.WorkerStatusParentOperationKind, loggingContext);
 
             // The first of the workers must be local and all others must be remote.
@@ -360,6 +368,8 @@ namespace BuildXL.Scheduler
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
             }
+            
+            m_attachmentsCompletedTask = TaskUtilities.SafeWhenAll(m_workers.Skip(1).Select(static w => (w as RemoteWorkerBase).AttachCompletionTask));
 
             m_allWorker = new AllWorker(m_workers.ToArray());
 
@@ -1516,14 +1526,18 @@ namespace BuildXL.Scheduler
         {
             Contract.Assert(m_drainThread != null, "Scheduler has not been started");
 
+            if (IsDistributedMaster) 
+            {
+                await EnsureMinimumWorkersAsync(m_configuration.Distribution.MinimumWorkers, m_configuration.Distribution.LowWorkersWarningThreshold.Value);
+            }
+
             if (m_drainThread.IsAlive)
             {
-                EnsureMinimumWorkers(m_configuration.Distribution.MinimumWorkers);
                 m_drainThread.Join();
             }
 
             Contract.Assert(!HasFailed || m_executePhaseLoggingContext.ErrorWasLogged, "Scheduler encountered errors during execution, but none were logged.");
-
+            
             // We want TimeToFirstPipExecuted to always have a value. Mark the end of the execute phase as when the first
             // pip was executed in case all pips were cache hits
             MarkPipStartExecuting();
@@ -1640,20 +1654,28 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.WorkerAveragePendingDurationMs, totalWorkerPendingDuration / everAvailableWorkerCount);
         }
 
-        private void EnsureMinimumWorkers(int minimumWorkers)
+        private async Task EnsureMinimumWorkersAsync(int minimumWorkers, int warningThreshold)
         {
-            bool isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
+            Contract.Assert(m_attachmentsCompletedTask != null, "Attachments completed task shouldn't be null");
 
-            bool anyRemoteWorkerReleased = Workers.Any(a => a.IsEarlyReleaseInitiated);
-            int availableWorkers = AvailableWorkersCount;
+            // Wait for all attachment requests to complete
+            await m_attachmentsCompletedTask;
 
-            // If any remote worker is released due to insufficient amount of work left, do not attempt to cancel the build
-            // even though minimum workers is not satisfied.
-            if (availableWorkers < minimumWorkers && !isDrainingCompleted && !anyRemoteWorkerReleased)
+            // Count all succesfully attached workers
+            int everAvailableWorkers = Workers.Count(a => a.EverAvailable);
+
+            if (m_drainThread.IsAlive)
             {
-                Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, availableWorkers);
-                m_hasFailures = true;
-                RequestTermination(cancelQueue: false);
+                if (everAvailableWorkers < minimumWorkers)
+                {
+                    Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, everAvailableWorkers);
+                    m_hasFailures = true;
+                    RequestTermination(cancelQueue: false);
+                }
+                else if (everAvailableWorkers < warningThreshold)
+                {
+                    Logger.Log.WorkerCountBelowWarningThreshold(m_executePhaseLoggingContext, warningThreshold, everAvailableWorkers);
+                }
             }
         }
 
@@ -5770,6 +5792,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(loggingContext != null);
             Contract.Assert(!IsInitialized);
             Contract.Assert(!IsDistributedWorker);
+            Contract.Ensures(HasFailed || m_attachmentsCompletedTask != null);
 
             using (var pm = PerformanceMeasurement.Start(
                     loggingContext,
@@ -5780,9 +5803,17 @@ namespace BuildXL.Scheduler
                 InitSchedulerRuntimeState(pm.LoggingContext, schedulerState: schedulerState);
 
                 // Start workers after scheduler runtime state is successfully established
-                if (!HasFailed && IsDistributedMaster)
+                if (!HasFailed)
                 {
-                    StartWorkers(loggingContext);
+                    if (IsDistributedMaster)
+                    {
+                        StartWorkers(loggingContext);
+                    }
+                    else
+                    {
+                        // No remote workers to wait for
+                        m_attachmentsCompletedTask = Task.CompletedTask;
+                    }
                 }
 
                 InitPipStates(pm.LoggingContext);

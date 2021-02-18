@@ -451,6 +451,7 @@ namespace BuildXL.Scheduler.Tracing
         DirtyBuildProcessNotSkipped = 14202,
         DirtyBuildStats = 14203,
         MinimumWorkersNotSatisfied = 14204,
+        WorkerCountBelowWarningThreshold = 14205,
         BuildSetCalculatorStats = 14210,
         BuildSetCalculatorProcessStats = 14211,
         BuildSetCalculatorScheduleDependenciesUntilCleanAndMaterializedStats = 14212,

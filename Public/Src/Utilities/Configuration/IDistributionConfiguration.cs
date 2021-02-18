@@ -55,6 +55,11 @@ namespace BuildXL.Utilities.Configuration
         int MinimumWorkers { get; }
 
         /// <summary>
+        /// Minimum number of workers that BuildXL needs to connect within a fixed time; otherwise BuildXL will issue a warning.
+        /// </summary>
+        int? LowWorkersWarningThreshold { get; }
+
+        /// <summary>
         /// Indicates whether the remote workers should be released early in case of insufficient amount of work.
         /// </summary>
         bool EarlyWorkerRelease { get; }

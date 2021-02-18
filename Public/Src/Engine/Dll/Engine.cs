@@ -880,12 +880,28 @@ namespace BuildXL.Engine
                 {
                     // Disable the distribution if no remote worker is given.
                     mutableConfig.Distribution.BuildRole = DistributedBuildRoles.None;
+                    mutableConfig.Distribution.LowWorkersWarningThreshold = 0;
                 }
                 else
                 {
+                    var remoteWorkerCount = mutableConfig.Distribution.BuildWorkers.Count;
+
+                    if (mutableConfig.Distribution.LowWorkersWarningThreshold == null)
+                    {
+                        mutableConfig.Distribution.LowWorkersWarningThreshold = remoteWorkerCount/2;
+                    }
+                    else
+                    {
+                        mutableConfig.Distribution.LowWorkersWarningThreshold = Math.Min(remoteWorkerCount + 1, mutableConfig.Distribution.LowWorkersWarningThreshold.Value);
+                    }
+                    
                     // Force graph caching because the master needs to communicate it to the worker.
                     mutableConfig.Cache.CacheGraph = true;
                 }
+            }
+            else
+            {
+                mutableConfig.Distribution.LowWorkersWarningThreshold = 0;
             }
 
             if (mutableConfig.Distribution.BuildRole != DistributedBuildRoles.Master)

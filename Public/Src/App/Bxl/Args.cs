@@ -761,6 +761,9 @@ namespace BuildXL
                             "minWorkers",
                             opt => distributionConfiguration.MinimumWorkers = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "minWorkersWarn",
+                            opt => distributionConfiguration.LowWorkersWarningThreshold = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "noLog",
                             opt => ParseInt32ListOption(opt, loggingConfiguration.NoLog)),
                         OptionHandlerFactory.CreateOption(

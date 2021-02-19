@@ -1303,6 +1303,88 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void CacheConvergenceCanTriggerAdditionalWriteInUndeclaredFileViolations()
+        {
+            // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time.
+            // This enables us to recreate cache convergence
+            Configuration.Cache.ArtificialCacheMissOptions = new ArtificialCacheMissConfig()
+            {
+                Rate = ushort.MaxValue,
+                Seed = 0,
+                IsInverted = false
+            };
+
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = true;
+
+            // Shared opaque to produce outputs
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // First we will generate a safe different-content write over this file
+            string originalContent = "content";
+            var output = CreateOutputFileArtifact(sharedOpaqueDirPath);
+            var outputAsSource = FileArtifact.CreateSourceFile(output.Path);
+
+            Directory.CreateDirectory(sharedOpaqueDir);
+            File.WriteAllText(outputAsSource.Path.ToString(Context.PathTable), originalContent);
+
+            // Read the source file in its original form before the write, so same-content rewrite can actually kick in on the second build without making the writer be a miss
+            var builderA = CreatePipBuilder(new Operation[] { 
+                Operation.ReadFile(outputAsSource, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))});
+            builderA.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+            builderA.Options |= Process.Options.AllowUndeclaredSourceReads;
+            var processA = SchedulePipBuilder(builderA);
+
+            Environment.SetEnvironmentVariable("FILE_CONTENT", "different content");
+            // This pip writes to the output file the content specified in FILE_CONTENT, which for this first build is a different content one. 
+            // However processA is reading the file in an ordered way, so this should be allowed
+            var builderB = CreatePipBuilder(new Operation[] {
+                Operation.DeleteFile(output), // delete it first since the write operation always appends
+                Operation.WriteEnvVariableToFile(output, "FILE_CONTENT", doNotInfer: true)}) ;
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+            builderB.Options |= Process.Options.AllowUndeclaredSourceReads;
+            builderB.AddInputFile(processA.ProcessOutputs.GetOutputFiles().Single());
+            // Set the variable as passthrough so we can later change it without affecting caching
+            builderB.SetPassthroughEnvironmentVariable(StringId.Create(Context.StringTable, "FILE_CONTENT"));
+            var processB = SchedulePipBuilder(builderB);
+
+            RunScheduler(runNameOrDescription: "First build").AssertSuccess();
+
+            // We should see the allowed rewrite
+            AssertVerboseEventLogged(LogEventId.AllowedRewriteOnUndeclaredFile);
+
+            // Change the content of the environment variable. This will make the writer pip change the output it generates to match the content of the original file
+            Environment.SetEnvironmentVariable("FILE_CONTENT", originalContent);
+            // Restore the file to its original form, so process A will also be a hit
+            File.WriteAllText(outputAsSource.Path.ToString(Context.PathTable), originalContent);
+
+            ResetPipGraphBuilder();
+
+            SchedulePipBuilder(builderA);
+            SchedulePipBuilder(builderB);
+
+            // For the second build, add a racy reader, so the write being same or different content actually matters.
+            var builderC = CreatePipBuilder(new Operation[] { Operation.ReadFile(outputAsSource, doNotInfer: true) });
+            builderC.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderC.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+            builderC.Options |= Process.Options.AllowUndeclaredSourceReads;
+            var processC = SchedulePipBuilder(builderC);
+
+            // Run pips now making sure they run in order (C can hit a write lock from B). Check convergence actually happened
+            var result = RunScheduler(runNameOrDescription: "Second build", constraintExecutionOrder: new (Pip, Pip)[] { (processC.Process, processB.Process) }).AssertFailure();
+            result.AssertPipExecutorStatCounted(PipExecutorCounter.ProcessPipTwoPhaseCacheEntriesConverged, 2);
+
+            // Pre-convergence we should see an allowed rewrite (even though there is a racy reader, the produced content is the same)
+            AssertVerboseEventLogged(LogEventId.AllowedRewriteOnUndeclaredFile);
+
+            // However, on cache convergence the converged content is different
+            // So we should see a file monitoring error
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+        }
+
         private void FirstDoubleWriteWinsMakesPipUnCacheableRunner(
             IEnumerable<Operation> writeOperations,
             AbsolutePath sharedOpaqueDirPath,

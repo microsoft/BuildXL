@@ -48,14 +48,14 @@ namespace Test.BuildXL.Scheduler.Utils
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
-            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
-            allowedSameContentDoubleWriteViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
+            allowedSameContentViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
             return AnalyzePipViolationsResult.NoViolations;
         }
 
         /// <inheritdoc />
-        public AnalyzePipViolationsResult AnalyzeDoubleWritesOnCacheConvergence(
+        public AnalyzePipViolationsResult AnalyzeSameContentViolationsOnCacheConvergence(
             Process pip,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> convergedContent,
             IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)

@@ -1141,6 +1141,7 @@ namespace Test.BuildXL.Scheduler
                         switch (op.OpType)
                         {
                             case Operation.Type.WriteFile:
+                            case Operation.Type.WriteEnvVariableToFile:
                             case Operation.Type.WriteFileWithRetries:
                                 dao.Outputs.Add(op.Path.FileArtifact);
                                 break;

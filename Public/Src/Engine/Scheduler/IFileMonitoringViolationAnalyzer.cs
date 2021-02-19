@@ -27,7 +27,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         /// <returns>true if there were no violations marked as error</returns>
         /// <remarks>
-        /// If double writes involving same-content files are detected but allowed, a collection of those non-reported violations 
+        /// If violations involving same-content files are detected but allowed, a collection of those non-reported violations 
         /// are returned. This is useful for the case of cache convergence, where outputs may change after the main violation analysis
         /// is done.
         /// </remarks>
@@ -40,7 +40,7 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
-            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations);
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations);
 
         /// <summary>
         /// Analyzes all dynamic violations. This is useful when replaying a pip from the cache, since otherwise some violations may not be seen.
@@ -54,12 +54,12 @@ namespace BuildXL.Scheduler
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent);
 
         /// <summary>
-        /// Analyzes double writes after a cache convergence event. This may introduce new violations that were not flagged before convergence
+        /// Analyzes same content violations after a cache convergence event. This may introduce new violations that were not flagged before convergence
         /// </summary>
         /// <remarks>
         /// The analysis is based on same-content double write violations that were allowed on the first place, before cache convergence happened
         /// </remarks>
-        AnalyzePipViolationsResult AnalyzeDoubleWritesOnCacheConvergence(
+        AnalyzePipViolationsResult AnalyzeSameContentViolationsOnCacheConvergence(
             Process pip,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> convergedContent,
             IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations);

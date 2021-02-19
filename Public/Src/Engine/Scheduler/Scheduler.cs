@@ -4454,7 +4454,7 @@ namespace BuildXL.Scheduler
 
                     bool pipIsSafeToCache = true;
 
-                    IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations = null;
+                    IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations = null;
 
                     if (!IsDistributedWorker)
                     {
@@ -4508,7 +4508,7 @@ namespace BuildXL.Scheduler
                             executionResult,
                             processRunnable.Process,
                             out pipIsSafeToCache,
-                            out allowedSameContentDoubleWriteViolations);
+                            out allowedSameContentViolations);
                         LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingFileAccessViolations, DateTime.UtcNow.Subtract(start));
 
                         processRunnable.SetExecutionResult(executionResult);
@@ -4553,7 +4553,7 @@ namespace BuildXL.Scheduler
                                pipScope,
                                executionResult,
                                processRunnable.Process,
-                               allowedSameContentDoubleWriteViolations);
+                               allowedSameContentViolations);
                             LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingDoubleWrites, DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);

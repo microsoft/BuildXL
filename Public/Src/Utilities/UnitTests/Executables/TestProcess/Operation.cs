@@ -84,6 +84,11 @@ namespace Test.BuildXL.Executables.TestProcess
             WriteFile,
 
             /// <summary>
+            /// Writes the content of an environment variable to a file
+            /// </summary>
+            WriteEnvVariableToFile,
+
+            /// <summary>
             /// Type for moving a file
             /// </summary>
             MoveFile,
@@ -424,6 +429,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.WriteFile:
                         DoWriteFile();
                         return;
+                    case Type.WriteEnvVariableToFile:
+                        DoWriteEnvVariableToFile();
+                        return;
                     case Type.ReadAndWriteFile:
                         DoReadAndWriteFile();
                         return;
@@ -581,6 +589,18 @@ namespace Test.BuildXL.Executables.TestProcess
             return content == Environment.NewLine
                 ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs)
                 : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
+        }
+
+        /// <summary>
+        /// Creates a write file operation that appends the content of the specified environment variable. The file is created if it does not exist.
+        /// </summary>
+        public static Operation WriteEnvVariableToFile(FileArtifact path, string envVariableName, bool doNotInfer = false, bool changePathToAllUpperCase = false, bool useLongPathPrefix = false)
+        {
+            Contract.Assert(!changePathToAllUpperCase || !useLongPathPrefix, "Cannot specify changePathToAllUpperCase and useLongPathPrefix simultaneously");
+
+            string additionalArgs = changePathToAllUpperCase ? Operation.AllUppercasePath : (useLongPathPrefix ? Operation.UseLongPathPrefix : null);
+
+            return new Operation(Type.WriteEnvVariableToFile, path, envVariableName, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
 
         /// <summary>
@@ -1004,6 +1024,11 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoWriteFile()
         {
             DoWriteFile(Content ?? Guid.NewGuid().ToString());
+        }
+
+        private void DoWriteEnvVariableToFile()
+        {
+            DoWriteFile(Environment.GetEnvironmentVariable(Content));
         }
 
         private void DoReadFileFromOtherFile()

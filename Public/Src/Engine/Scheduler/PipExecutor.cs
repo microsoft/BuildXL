@@ -974,14 +974,14 @@ namespace BuildXL.Scheduler
             ExecutionResult processExecutionResult,
             Process process,
             out bool pipIsSafeToCache,
-            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
             pipIsSafeToCache = true;
 
             using (operationContext.StartOperation(PipExecutorCounter.AnalyzeFileAccessViolationsDuration))
             {
                 var analyzePipViolationsResult = AnalyzePipViolationsResult.NoViolations;
-                allowedSameContentDoubleWriteViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
+                allowedSameContentViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
 
                 var exclusiveOpaqueDirectories = processExecutionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 
@@ -1002,7 +1002,7 @@ namespace BuildXL.Scheduler
                         processExecutionResult.AllowedUndeclaredReads,
                         processExecutionResult.AbsentPathProbesUnderOutputDirectories,
                         processExecutionResult.OutputContent,
-                        out allowedSameContentDoubleWriteViolations);
+                        out allowedSameContentViolations);
                 }
 
                 if (!analyzePipViolationsResult.IsViolationClean)
@@ -1026,18 +1026,18 @@ namespace BuildXL.Scheduler
             PipExecutionState.PipScopeState state,
             ExecutionResult processExecutionResult,
             Process process,
-            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
             using (operationContext.StartOperation(PipExecutorCounter.AnalyzeFileAccessViolationsDuration))
             {
                 var analyzePipViolationsResult = AnalyzePipViolationsResult.NoViolations;
 
-                if (allowedSameContentDoubleWriteViolations.Count > 0)
+                if (allowedSameContentViolations.Count > 0)
                 {
-                    analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzeDoubleWritesOnCacheConvergence(
+                    analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzeSameContentViolationsOnCacheConvergence(
                         process,
                         processExecutionResult.OutputContent,
-                        allowedSameContentDoubleWriteViolations);
+                        allowedSameContentViolations);
                 }
 
                 if (!analyzePipViolationsResult.IsViolationClean)

@@ -295,7 +295,7 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
             [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
-            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
             Contract.Requires(pip != null);
 
@@ -309,7 +309,7 @@ namespace BuildXL.Scheduler
                     (absentPathProbesUnderOutputDirectories == null || absentPathProbesUnderOutputDirectories.Count == 0) &&
                     (exclusiveOpaqueDirectoryContent == null || exclusiveOpaqueDirectoryContent.Count == 0))
                 {
-                    allowedSameContentDoubleWriteViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
+                    allowedSameContentViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
                     return AnalyzePipViolationsResult.NoViolations;
                 }
 
@@ -394,7 +394,7 @@ namespace BuildXL.Scheduler
                 }
 
                 var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, absentPathProbesUnderOutputDirectories, outputArtifactInfo, allowedDoubleWriteViolations);
-                allowedSameContentDoubleWriteViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
+                allowedSameContentViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
 
@@ -428,14 +428,14 @@ namespace BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
-        public AnalyzePipViolationsResult AnalyzeDoubleWritesOnCacheConvergence(
+        public AnalyzePipViolationsResult AnalyzeSameContentViolationsOnCacheConvergence(
             Process pip,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> convergedContent,
-            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedSameContentViolations)
         {
             Contract.Requires(pip != null);
 
-            if (allowedDoubleWriteViolations.Count == 0)
+            if (allowedSameContentViolations.Count == 0)
             {
                 return AnalyzePipViolationsResult.NoViolations;
             }
@@ -444,11 +444,19 @@ namespace BuildXL.Scheduler
             foreach (var content in convergedContent)
             {
                 // If the converged content changed, then the allowed double write becomes a true violation
-                if (allowedDoubleWriteViolations.TryGetValue(content.fileArtifact, out var originalContentAndViolation) &&
+                if (allowedSameContentViolations.TryGetValue(content.fileArtifact, out var originalContentAndViolation) &&
                     originalContentAndViolation.fileMaterializationInfo.Hash != content.fileInfo.Hash)
                 {
                     ReportedViolation violation = originalContentAndViolation.reportedViolation;
                     Contract.Assert(violation.RelatedPipId.HasValue, "A double write violation should always have a related pip Id");
+
+                    // This is a case where a write in an undeclared source read was allowed based on content. Therefore, on convergence, we need
+                    // to perform that check again since the same-content condition doesn't hold anymore and, however, readers may be still well-ordered
+                    if (violation.Type == DependencyViolationType.WriteInUndeclaredSourceRead && 
+                        IsAllowedRewriteOnUndeclaredFile(pip.PipId, pip.RewritePolicy, content.fileInfo, pip.Executable.Path, content.fileArtifact, out _, out _, out _))
+                    {
+                        continue;
+                    }
 
                     disallowedViolationsOnConvergence.Add(
                         HandleDependencyViolation(
@@ -951,9 +959,9 @@ namespace BuildXL.Scheduler
             FileArtifactWithAttributes access, 
             List<ReportedViolation> reportedViolations,
             FileMaterializationInfo outputMaterializationInfo,
-            out ReportedViolation? allowedSameContentDoubleWriteViolation)
+            out ReportedViolation? allowedSameContentViolation)
         {
-            allowedSameContentDoubleWriteViolation = null;
+            allowedSameContentViolation = null;
             var path = access.Path;
 
             // Register the access and the writer, so we can spot other dynamic accesses to the same file later
@@ -1004,7 +1012,7 @@ namespace BuildXL.Scheduler
                                 path.ToString(Context.PathTable),
                                 m_graph.GetFormattedSemiStableHash(relatedPipId));
 
-                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, relatedPipId, pip.Executable.Path);
+                            allowedSameContentViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, relatedPipId, pip.Executable.Path);
                             return;
                         }
 
@@ -1064,7 +1072,7 @@ namespace BuildXL.Scheduler
                     // There was an undeclared read, so this is a write in an undeclared read
                     case DynamicFileAccessType.UndeclaredRead:
                         // Check if the violation can be relaxed
-                        if (IsAllowedRewriteOnUndeclaredFile(pip.PipId, pip.RewritePolicy, outputMaterializationInfo, pip.Executable.Path, path, out allowedSameContentDoubleWriteViolation, out var disallowedReason, out var racyReader))
+                        if (IsAllowedRewriteOnUndeclaredFile(pip.PipId, pip.RewritePolicy, outputMaterializationInfo, pip.Executable.Path, path, out allowedSameContentViolation, out var disallowedReason, out var racyReader))
                         {
                             // Log a verbose message to indicate a rewrite on an undeclared source happened
                             Logger.Log.AllowedRewriteOnUndeclaredFile(LoggingContext, pip.SemiStableHash, pip.GetDescription(Context), path.ToString(Context.PathTable));
@@ -1157,9 +1165,14 @@ namespace BuildXL.Scheduler
                 m_undeclaredReaders.TryGetValue(undeclaredRead, out var readers))
             {
                 // Make sure the ordering constraints for the readers can be satisfied
-                if (ReadersAreWellOrdered(readers, writerPipId, undeclaredRead, writeMaterializationInfo.Hash, out racyReader))
+                if (ReadersAreWellOrdered(readers, writerPipId, undeclaredRead, writeMaterializationInfo.Hash, out racyReader, out bool allowedBasedOnSameContent))
                 {
-                    allowedSameContentRewriteViolation = new ReportedViolation(isError: true, DependencyViolationType.WriteInUndeclaredSourceRead, undeclaredRead, writerPipId, relatedPipId: null, writerExecutablePath);
+                    // if readers are allowed based on a same-content write, record it since on cache convergence this may need to be revisited
+                    // Otherwise, the decision is made solely on reader ordering and cache convergence cannot change that
+                    allowedSameContentRewriteViolation = allowedBasedOnSameContent
+                        ? new ReportedViolation(isError: true, DependencyViolationType.WriteInUndeclaredSourceRead, undeclaredRead, writerPipId, relatedPipId: racyReader, writerExecutablePath)
+                        : null;
+
                     disallowedReason = SameContentRewriteDisallowedReason.None;
                     return true;
                 }
@@ -1187,7 +1200,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Make sure the ordering constraints for source/alien file readers wrt a rewrite can be satisfied
         /// </summary>
-        private bool ReadersAreWellOrdered(ConcurrentQueue<PipId> readers, PipId writerPipId, AbsolutePath undeclaredRead, ContentHash writerHash, out PipId? racyReader)
+        private bool ReadersAreWellOrdered(ConcurrentQueue<PipId> readers, PipId writerPipId, AbsolutePath undeclaredRead, ContentHash writerHash, out PipId? racyReader, out bool allowedBasedOnSameContent)
         {
             bool hasNonOrderedReaders = false;
             
@@ -1196,7 +1209,8 @@ namespace BuildXL.Scheduler
             bool? isSameContent = null;
             
             racyReader = null;
-            
+            allowedBasedOnSameContent = false;
+
             foreach (PipId reader in readers)
             {
                 var writerDependsOnReader = IsDependencyDeclared(writerPipId, reader);
@@ -1219,6 +1233,8 @@ namespace BuildXL.Scheduler
                     // So we can shortcut the validation
                     if (isSameContent == true)
                     {
+                        racyReader = reader;
+                        allowedBasedOnSameContent = true;
                         return true;
                     }
                 }
@@ -1422,7 +1438,7 @@ namespace BuildXL.Scheduler
             IReadOnlyCollection<ReportedFileAccess> violations,
             bool isAllowlistedViolation,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
-            Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations,
+            Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations,
             out ReportedFileAccess[] nonAnalyzableViolations)
         {
             var aggregateViolationsByPath = new Dictionary<(AbsolutePath, AbsolutePath), AggregateViolation>();

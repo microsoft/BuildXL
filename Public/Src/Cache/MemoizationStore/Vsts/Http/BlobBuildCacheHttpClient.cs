@@ -119,20 +119,28 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
         public Task<BlobContentHashListResponse> AddContentHashListAsync(
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
-            BlobContentHashListWithCacheMetadata contentHashList)
+            BlobContentHashListWithCacheMetadata contentHashList,
+            bool forceUpdate)
         {
             var contentHashListParameters = new
             {
                 cacheNamespace,
                 weakFingerprint = strongFingerprint.WeakFingerprint.ToHex(),
                 selectorContentHash = strongFingerprint.Selector.ContentHash.ToHex(),
-                selectorOutput = strongFingerprint.Selector.Output?.ToHex() ?? BuildCacheResourceIds.NoneSelectorOutput
+                selectorOutput = strongFingerprint.Selector.Output?.ToHex() ?? BuildCacheResourceIds.NoneSelectorOutput,
             };
+
+            var queryParameters = new Dictionary<string, string>();
+            if (forceUpdate)
+            {
+                queryParameters["forceUpdate"] = forceUpdate.ToString();
+            }
 
             return PostAsync<BlobContentHashListWithCacheMetadata, BlobContentHashListResponse>(
                 contentHashList,
                 BuildCacheResourceIds.BlobContentHashListResourceId,
-                contentHashListParameters);
+                contentHashListParameters,
+                queryParameters: queryParameters);
         }
 
         /// <inheritdoc />

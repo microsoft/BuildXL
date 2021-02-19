@@ -318,5 +318,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         [DataMember]
         public bool DownloadBlobsUsingHttpClient { get; set; } = Environment.GetEnvironmentVariable("BUILD_CACHE_BLOB_USE_HTTPCLIENT") != "0";
 
+        /// <nodoc />
+        [DataMember]
+        public bool ForceUpdateOnAddContentHashList { get; set; } = false;
+
     }
 }

@@ -130,6 +130,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         protected readonly bool ManuallyExtendContentLifetime;
 
+        /// <nodoc />
+        protected readonly bool ForceUpdateOnAddContentHashList;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="BuildCacheReadOnlySession"/> class.
         /// </summary>
@@ -155,6 +158,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         /// <param name="manuallyExtendContentLifetime">Whether to manually extend content lifetime when doing incorporate calls</param>
+        /// <param name="forceUpdateOnAddContentHashList">Whether to force an update and ignore existing CHLs when adding.</param>
         public BuildCacheReadOnlySession(
             IAbsFileSystem fileSystem,
             string name,
@@ -177,7 +181,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             TimeSpan inlineFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationInterval,
             int eagerFingerprintIncorporationBatchSize,
-            bool manuallyExtendContentLifetime)
+            bool manuallyExtendContentLifetime,
+            bool forceUpdateOnAddContentHashList)
         {
             Contract.Requires(name != null);
             Contract.Requires(contentHashListAdapter != null);
@@ -209,6 +214,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             ManuallyExtendContentLifetime = manuallyExtendContentLifetime;
 
             FingerprintTracker = new FingerprintTracker(DateTime.UtcNow + minimumTimeToKeepContentHashLists, rangeOfTimeToKeepContentHashLists);
+
+            ForceUpdateOnAddContentHashList = forceUpdateOnAddContentHashList;
 
             if (enableEagerFingerprintIncorporation)
             {
@@ -822,7 +829,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                             context,
                     $"Adding contentHashList=[{valueToAdd.ContentHashListWithDeterminism.ContentHashList}] determinism=[{valueToAdd.ContentHashListWithDeterminism.Determinism}] to VSTS with contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}] and expirationUtc=[{expirationUtc}]");
 
-                var contentHashListResponseObject = await ContentHashListAdapter.AddContentHashListAsync(context, CacheNamespace, strongFingerprint, valueToAdd).ConfigureAwait(false);
+                var contentHashListResponseObject =
+                    await ContentHashListAdapter.AddContentHashListAsync(
+                        context,
+                        CacheNamespace,
+                        strongFingerprint,
+                        valueToAdd,
+                        forceUpdate: ForceUpdateOnAddContentHashList).ConfigureAwait(false);
 
                 if (!contentHashListResponseObject.Succeeded)
                 {

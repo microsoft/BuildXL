@@ -122,7 +122,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             Context context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
-            ContentHashListWithCacheMetadata valueToAdd)
+            ContentHashListWithCacheMetadata valueToAdd,
+            bool forceUpdate)
         {
             try
             {
@@ -132,7 +133,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     innerCts => _buildCacheHttpClient.AddContentHashListAsync(
                         cacheNamespace,
                         strongFingerprint,
-                        valueToAdd), CancellationToken.None).ConfigureAwait(false);
+                        valueToAdd,
+                        forceUpdate), CancellationToken.None).ConfigureAwait(false);
                 
                 // The return value is null if the server fails adding content hash list to the backing store.
                 // See BuildCacheService.AddContentHashListAsync for more details about the implementation invariants/guarantees.

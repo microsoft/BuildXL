@@ -32,7 +32,8 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
         Task<BlobContentHashListResponse> AddContentHashListAsync(
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
-            BlobContentHashListWithCacheMetadata contentHashList);
+            BlobContentHashListWithCacheMetadata contentHashList,
+            bool forceUpdate);
 
         /// <summary>
         /// Returns a set of fingerprintSelectors that match the weak fingerprint being requested.

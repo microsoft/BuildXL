@@ -50,6 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.MaxDegreeOfParallelismForIncorporateRequests,
                 cacheConfig.MaxFingerprintsPerIncorporateRequest,
                 domain,
+                cacheConfig.ForceUpdateOnAddContentHashList,
                 writeThroughContentStoreFunc,
                 cacheConfig.SealUnbackedContentHashLists,
                 cacheConfig.UseBlobContentHashLists,

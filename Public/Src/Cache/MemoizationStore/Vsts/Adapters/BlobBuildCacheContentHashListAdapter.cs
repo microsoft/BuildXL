@@ -145,7 +145,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             Context context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
-            ContentHashListWithCacheMetadata valueToAdd)
+            ContentHashListWithCacheMetadata valueToAdd,
+            bool forceUpdate)
         {
             try
             {
@@ -188,7 +189,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     innerCts => _buildCacheHttpClient.AddContentHashListAsync(
                         cacheNamespace,
                         strongFingerprint,
-                        blobContentHashListWithCacheMetadata),
+                        blobContentHashListWithCacheMetadata,
+                        forceUpdate),
                     CancellationToken.None).ConfigureAwait(false);
                 DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
 

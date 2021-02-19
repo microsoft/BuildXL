@@ -32,7 +32,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// <summary>
         /// Adds a single content hashlist from the service asynchronously.
         /// </summary>
-        Task<ObjectResult<ContentHashListWithCacheMetadata>> AddContentHashListAsync(Context context, string cacheNamespace, StrongFingerprint strongFingerprint, ContentHashListWithCacheMetadata valueToAdd);
+        Task<ObjectResult<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
+            Context context,
+            string cacheNamespace,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithCacheMetadata valueToAdd,
+            bool forceUpdate);
 
         /// <summary>
         /// Incorporates and extends lifetimes of a set of strong fingeprints.

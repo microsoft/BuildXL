@@ -50,6 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationNagleInterval;
         private readonly int _eagerFingerprintIncorporationNagleBatchSize;
+        private readonly bool _forceUpdateOnAddContentHashList;
 
         /// <summary>
         /// BuildCache may be unable to pin the content for us when we want the content to be backed.
@@ -88,6 +89,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         /// <param name="downloadBlobsUsingHttpClient"><see cref="BuildCacheServiceConfiguration.DownloadBlobsUsingHttpClient"/></param>
+        /// <param name="forceUpdateOnAddContentHashList">Whether to force an update and ignore existing CHLs when adding.</param>
         public BuildCacheCache(
             IAbsFileSystem fileSystem,
             string cacheNamespace,
@@ -104,6 +106,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             int maxDegreeOfParallelismForIncorporateRequests,
             int maxFingerprintsPerIncorporateRequest,
             IDomainId domain,
+            bool forceUpdateOnAddContentHashList,
             Func<IContentStore> writeThroughContentStoreFunc = null,
             bool sealUnbackedContentHashLists = false,
             bool useBlobContentHashLists = false,
@@ -179,6 +182,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationNagleInterval = eagerFingerprintIncorporationNagleInterval;
             _eagerFingerprintIncorporationNagleBatchSize = eagerFingerprintIncorporationNagleBatchSize;
+            _forceUpdateOnAddContentHashList = forceUpdateOnAddContentHashList;
         }
 
         /// <inheritdoc />
@@ -377,7 +381,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _inlineFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize,
-                        _manuallyExtendContentLifetime));
+                        _manuallyExtendContentLifetime,
+                        _forceUpdateOnAddContentHashList));
             });
         }
 
@@ -428,7 +433,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _inlineFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize,
-                        _manuallyExtendContentLifetime));
+                        _manuallyExtendContentLifetime,
+                        _forceUpdateOnAddContentHashList));
             });
         }
 

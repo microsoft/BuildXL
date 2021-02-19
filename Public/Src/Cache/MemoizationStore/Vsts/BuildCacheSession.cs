@@ -54,6 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         /// <param name="manuallyExtendContentLifetime">Whether to manually extend content lifetime when doing incorporate calls</param>
+        /// <param name="forceUpdateOnAddContentHashList">Whether to force an update and ignore existing CHLs when adding.</param>
         public BuildCacheSession(
             IAbsFileSystem fileSystem,
             string name,
@@ -76,7 +77,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             TimeSpan inlineFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationInterval,
             int eagerFingerprintIncorporationBatchSize,
-            bool manuallyExtendContentLifetime)
+            bool manuallyExtendContentLifetime,
+            bool forceUpdateOnAddContentHashList)
             : base(
                 fileSystem,
                 name,
@@ -99,7 +101,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 inlineFingerprintIncorporationExpiry,
                 eagerFingerprintIncorporationInterval,
                 eagerFingerprintIncorporationBatchSize,
-                manuallyExtendContentLifetime)
+                manuallyExtendContentLifetime,
+                forceUpdateOnAddContentHashList)
         {
         }
 
@@ -157,7 +160,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                                 context,
                                 CacheNamespace,
                                 strongFingerprint,
-                                valueToAdd).ConfigureAwait(false);
+                                valueToAdd,
+                                forceUpdate: ForceUpdateOnAddContentHashList).ConfigureAwait(false);
 
                         if (!responseObject.Succeeded)
                         {

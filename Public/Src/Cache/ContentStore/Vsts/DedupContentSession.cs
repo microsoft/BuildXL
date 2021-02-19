@@ -17,7 +17,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
-using VstsDedupIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.DedupIdentifier;
 using VstsFileSystem = Microsoft.VisualStudio.Services.Content.Common.FileSystem;
 
 namespace BuildXL.Cache.ContentStore.Vsts
@@ -253,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private Task PutNodeAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
-            var dedupIdentifier = dedupNode.GetDedupId();
+            var dedupIdentifier = dedupNode.GetDedupIdentifier(HashType.Dedup64K);
 
             return TryGatedArtifactOperationAsync<object>(
                 context,
@@ -261,14 +260,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 "DedupUploadSession.UploadAsync",
                 async innerCts =>
                 {
-                    await _uploadSession.UploadAsync(dedupNode, new Dictionary<VstsDedupIdentifier, string> { { dedupIdentifier, path.Path } }, innerCts);
+                    await _uploadSession.UploadAsync(dedupNode, new Dictionary<DedupIdentifier, string> { { dedupIdentifier, path.Path } }, innerCts);
                     return null;
                 });
         }
 
         private Task PutChunkAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
-            var dedupIdentifier = dedupNode.GetDedupId();
+            var dedupIdentifier = dedupNode.GetDedupIdentifier(HashType.Dedup64K);
             return TryGatedArtifactOperationAsync(
                 context,
                 dedupIdentifier.ValueString,

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
@@ -366,12 +367,12 @@ namespace Tool.SymbolDaemon
                             batchedFile.File.FullFilePath,
                             entry.BlobIdentifier,
                             CancellationToken);
-                        batchedFile.SetBlobDetails(uploadResult);
+                        batchedFile.SetBlobIdentifier(uploadResult);
                     }
                 });
 
             // need to update entries before calling associate the second time
-            entriesWithMissingBlobs.ForEach(entry => entry.BlobDetails = missingBlobsToFilesMap[entry.BlobIdentifier].BlobDetails);
+            entriesWithMissingBlobs.ForEach(entry => missingBlobsToFilesMap[entry.BlobIdentifier].BlobIdentifier.UpdateDebugEntryBlobReference(entry));
 
             using (m_counters.StartStopwatch(SymbolClientCounter.TotalAssociateAfterUploadTime))
             {
@@ -481,7 +482,7 @@ namespace Tool.SymbolDaemon
 
             public SymbolFile File { get; }
             public TaskSourceSlim<AddDebugEntryResult> ResultTaskSource { get; }
-            public BlobIdentifierWithBlocks BlobDetails { get; private set; }
+            public SymbolBlobIdentifier BlobIdentifier { get; private set; }
 
             public BatchedSymbolFile(SymbolFile file)
             {
@@ -489,11 +490,11 @@ namespace Tool.SymbolDaemon
                 ResultTaskSource = TaskSourceSlim.Create<AddDebugEntryResult>();
             }
 
-            public void SetBlobDetails(BlobIdentifierWithBlocks details)
+            public void SetBlobIdentifier(SymbolBlobIdentifier blobIdentifier)
             {
                 lock (m_lock)
                 {
-                    BlobDetails = details;
+                    BlobIdentifier = blobIdentifier;
                 }
             }
         }

@@ -90,7 +90,7 @@ namespace Tool.SymbolDaemon
 
             if (debugEntries != null)
             {
-                var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(hash.ToHashByteArray());
+                var blobIdentifier = new BlobIdentifier(hash.ToHashByteArray());
                 Contract.Assert(debugEntries.All(e => e.BlobIdentifier == blobIdentifier));
                 m_debugEntries = new List<IDebugEntryData>(debugEntries);
             }
@@ -108,7 +108,7 @@ namespace Tool.SymbolDaemon
             Contract.Requires(entries != null);
 
             // check that either all entries are missing the blobId, or all the entries have the same blobId and that blobId matches this file
-            var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(Hash.ToHashByteArray());
+            var blobIdentifier = new BlobIdentifier(Hash.ToHashByteArray());
             Contract.Assert(entries.All(e => e.BlobIdentifier == null) || entries.All(e => e.BlobIdentifier == blobIdentifier));
 
             // ensure that BlobIdentifier is not null

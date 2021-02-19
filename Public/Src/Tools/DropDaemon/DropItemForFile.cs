@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Tool.ServicePipDaemon;
@@ -145,7 +146,7 @@ namespace Tool.DropDaemon
                 case BuildXL.Cache.ContentStore.Hashing.HashType.DedupSingleChunk:
                     return new ChunkDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
                 case BuildXL.Cache.ContentStore.Hashing.HashType.DedupNode:
-                    return new NodeDedupIdentifier(contentHash.ToHashByteArray()).ToBlobIdentifier();
+                    return new NodeDedupIdentifier(contentHash.ToHashByteArray(), NodeAlgorithmId.Node64K).ToBlobIdentifier();
                 default:
                     throw new ArgumentException($"ContentHash has unsupported type when converting to BlobIdentifier: {contentHash.HashType}");
             }

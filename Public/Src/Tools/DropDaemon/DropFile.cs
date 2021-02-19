@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Hashing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 
 namespace Tool.DropDaemon

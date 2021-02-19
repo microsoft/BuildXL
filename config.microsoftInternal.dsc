@@ -3,8 +3,8 @@
 
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
-const artifactNugetVersion = "18.176.30522-buildid13159358";
-const azureDevopsNugetVersion = "16.176.0-internal202009221";
+const artifactNugetVersion = "18.183.31009-buildid14325558";
+const azureDevopsNugetVersion = "16.183.0-internal202102091";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -45,7 +45,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
     { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "1.0.1" },
     { id: "Symbol.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.Utilities"] },
-    { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"] },
+    { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
     { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
 
     // CloudTest internal dependencies

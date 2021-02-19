@@ -28,11 +28,8 @@ using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.WindowsAzure.Storage;
-using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
 using FileInfo = System.IO.FileInfo;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using VstsDedupIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.DedupIdentifier;
-using VstsBlobIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier;
 
 namespace BuildXL.Cache.ContentStore.Vsts
 {
@@ -184,8 +181,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return pinResult;
             }
 
-            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash));
-            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
+            BlobIdentifier blobId = contentHash.ToBlobIdentifier();
+            DedupIdentifier dedupId = blobId.ToDedupIdentifier();
 
             if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
             {
@@ -244,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 PinResult pinResult;
-                var dedupId = ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash)).ToDedupIdentifier();
+                var dedupId = contentHash.ToBlobIdentifier().ToDedupIdentifier();
                 if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
                 {
                     pinResult = await TryPinChunkAsync(context, dedupId, keepUntil);
@@ -419,11 +416,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// Converts a ContentStore BlobId to an Artifact BlobId
-        /// </summary>
-        protected static VstsBlobIdentifier ToVstsBlobIdentifier(BlobIdentifier blobIdentifier) => new VstsBlobIdentifier(blobIdentifier.Bytes);
-
         private Task<BoolResult> PlaceFileInternalAsync(
             OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
         {
@@ -460,8 +452,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private async Task<BoolResult> GetFileWithDedupAsync(OperationContext context, ContentHash contentHash, string path)
         {
-            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(contentHash));
-            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
+            BlobIdentifier blobId = contentHash.ToBlobIdentifier();
+            DedupIdentifier dedupId = blobId.ToDedupIdentifier();
 
             try
             {
@@ -543,7 +535,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Updates expiry of single chunk in DedupStore if it exists.
         /// </summary>
-        private async Task<PinResult> TryPinChunkAsync(OperationContext context, VstsDedupIdentifier dedupId, DateTime keepUntil)
+        private async Task<PinResult> TryPinChunkAsync(OperationContext context, DedupIdentifier dedupId, DateTime keepUntil)
         {
             try
             {
@@ -572,7 +564,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         ///     2) All children exist and have sufficient TTL
         /// If children have insufficient TTL, attempt to extend the expiry of all children before pinning.
         /// </summary>
-        private async Task<PinResult> TryPinNodeAsync(OperationContext context, VstsDedupIdentifier dedupId, DateTime keepUntil)
+        private async Task<PinResult> TryPinNodeAsync(OperationContext context, DedupIdentifier dedupId, DateTime keepUntil)
         {
             TryReferenceNodeResponse referenceResult;
             try
@@ -615,10 +607,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Attempt to update expiry of all children. Pin parent node if all children were extended successfully.
         /// </summary>
-        private async Task<PinResult> TryPinChildrenAsync(OperationContext context, VstsDedupIdentifier parentNode, IEnumerable<VstsDedupIdentifier> dedupIdentifiers, DateTime keepUntil)
+        private async Task<PinResult> TryPinChildrenAsync(OperationContext context, DedupIdentifier parentNode, IEnumerable<DedupIdentifier> dedupIdentifiers, DateTime keepUntil)
         {
-            var chunks = new List<VstsDedupIdentifier>();
-            var nodes = new List<VstsDedupIdentifier>();
+            var chunks = new List<DedupIdentifier>();
+            var nodes = new List<DedupIdentifier>();
 
             foreach (var id in dedupIdentifiers)
             {
@@ -652,7 +644,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// Recursively attempt to update expiry of all nodes and their children.
         /// Returns success only if all children of each node are found and extended.
         /// </summary>
-        private async Task<PinResult> TryPinNodesAsync(OperationContext context, IEnumerable<VstsDedupIdentifier> dedupIdentifiers, DateTime keepUntil)
+        private async Task<PinResult> TryPinNodesAsync(OperationContext context, IEnumerable<DedupIdentifier> dedupIdentifiers, DateTime keepUntil)
         {
             if (!dedupIdentifiers.Any())
             {
@@ -660,7 +652,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             // TODO: Support batched TryKeepUntilReferenceNodeAsync in Artifact. (bug 1428612)
-            var tryReferenceBlock = new TransformBlock<VstsDedupIdentifier, PinResult>(
+            var tryReferenceBlock = new TransformBlock<DedupIdentifier, PinResult>(
                 async dedupId => await TryPinNodeAsync(context, dedupId, keepUntil),
                 new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
 
@@ -682,7 +674,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Update all chunks if they exist. Returns success only if all chunks are found and extended.
         /// </summary>
-        private async Task<PinResult> TryPinChunksAsync(OperationContext context, IEnumerable<VstsDedupIdentifier> dedupIdentifiers, DateTime keepUntil)
+        private async Task<PinResult> TryPinChunksAsync(OperationContext context, IEnumerable<DedupIdentifier> dedupIdentifiers, DateTime keepUntil)
         {
             if (!dedupIdentifiers.Any())
             {
@@ -690,7 +682,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             // TODO: Support batched TryKeepUntilReferenceChunkAsync in Artifact. (bug 1428612)
-            var tryReferenceBlock = new TransformBlock<VstsDedupIdentifier, PinResult>(
+            var tryReferenceBlock = new TransformBlock<DedupIdentifier, PinResult>(
                 async dedupId => await TryPinChunkAsync(context, dedupId, keepUntil),
                 new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
 
@@ -712,7 +704,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         ///     Checks the current keepUntil of a node. Returns null if the node is not found.
         /// </summary>
-        protected async Task<Result<DateTime?>> CheckNodeKeepUntilAsync(OperationContext context, VstsDedupIdentifier dedupId)
+        protected async Task<Result<DateTime?>> CheckNodeKeepUntilAsync(OperationContext context, DedupIdentifier dedupId)
         {
             TryReferenceNodeResponse referenceResult;
             try

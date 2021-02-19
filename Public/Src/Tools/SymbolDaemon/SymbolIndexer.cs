@@ -30,7 +30,9 @@ namespace Tool.SymbolDaemon
             var entries = m_symstoreUtil.GetDebugEntryData(
                 file.FullName,
                 new[] { file.FullName },
-                calculateBlobId);
+                calculateBlobId,
+                // Currently, only file-deduped (VsoHash) symbols are supported
+                isChunked: false);
 
             return entries;
         }

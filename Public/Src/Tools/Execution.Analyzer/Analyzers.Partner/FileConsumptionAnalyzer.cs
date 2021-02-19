@@ -461,7 +461,7 @@ namespace BuildXL.Execution.Analyzer
                             }
                         }
 
-                        m_sizeByExtension.AddOrUpdate(entry.Key.GetExtension(m_analyzer.PathTable), size, (_, oldValue) => oldValue + size);
+                        m_sizeByExtension.AddOrUpdate(entry.Key.GetExtension(m_analyzer.PathTable), size, (long _, long oldValue) => oldValue + size);
                     }
                 }
 

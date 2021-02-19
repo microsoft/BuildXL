@@ -6,10 +6,12 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Cache.ContentStore.Hashing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
+using BlobIdentifierWithBlocks = Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifierWithBlocks;
 
 namespace Tool.ServicePipDaemon
 {
@@ -94,12 +96,12 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public BlobIdentifier GetBlobIdentifier(string filename)
+        public BlobIdentifier GetBlobIdentifier(string filename, bool useChunkDedup)
         {
             var instance = GetCurrentVersionedValue();
 
             // not retrying this since it does not perform any calls over the network 
-            return instance.Value.GetBlobIdentifier(filename);
+            return instance.Value.GetBlobIdentifier(filename, useChunkDedup);
         }
 
         /// <inheritdoc />
@@ -180,7 +182,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<BlobIdentifierWithBlocks> UploadFileAsync(IDomainId domainId, Uri blobStoreUri, string requestId, string filename, BlobIdentifier blobIdentifier, CancellationToken cancellationToken)
+        public Task<SymbolBlobIdentifier> UploadFileAsync(IDomainId domainId, Uri blobStoreUri, string requestId, string filename, BlobIdentifier blobIdentifier, CancellationToken cancellationToken)
         {
             return RetryAsync(
                nameof(ISymbolServiceClient.UploadFileAsync),

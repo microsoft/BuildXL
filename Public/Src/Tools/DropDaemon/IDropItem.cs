@@ -4,8 +4,8 @@
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using JetBrains.Annotations;
-using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Pure = System.Diagnostics.Contracts.PureAttribute;
 
 namespace Tool.DropDaemon

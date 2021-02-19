@@ -434,7 +434,7 @@ namespace Tool.SymbolDaemon
                 {
                     ContentHash.TryParse(reader.ReadLine(), out var hash);
                     Contract.Assert(hash.HashType == HashType.Vso0);
-                    var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(hash.ToHashByteArray());
+                    var blobIdentifier = new BlobIdentifier(hash.ToHashByteArray());
                     int debugEntryCount = int.Parse(reader.ReadLine());
 
                     var symbols = new HashSet<DebugEntryData>(debugEntryCount, DebugEntryDataComparer.Instance);
@@ -480,7 +480,7 @@ namespace Tool.SymbolDaemon
 
             var result = new DebugEntryData()
             {
-                BlobIdentifier = blocks[0].Length == 0 ? null : Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier.Deserialize(blocks[0]),
+                BlobIdentifier = blocks[0].Length == 0 ? null : BlobIdentifier.Deserialize(blocks[0]),
                 ClientKey = string.IsNullOrEmpty(blocks[1]) ? null : blocks[1],
                 InformationLevel = (DebugInformationLevel)int.Parse(blocks[2])
             };

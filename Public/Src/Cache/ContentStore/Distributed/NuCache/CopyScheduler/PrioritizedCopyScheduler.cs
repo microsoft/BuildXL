@@ -286,12 +286,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                         continue;
                     }
 
+                    Tracer.TrackMetric(context, $"CopyScheduler_Executed_P{priority}", 1);
+
                     state.CycleLeftover--;
                 }
 
                 state.ScheduledByPriority[priority] -= state.CycleLeftover;
-
-                Tracer.TrackMetric(context, $"CopyScheduler_Executed_P{priority}", state.ScheduledByPriority[priority]);
             }
 
             state.NumInflightAtEnd = _numInflight;

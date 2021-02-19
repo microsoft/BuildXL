@@ -45,8 +45,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
         /// <summary>
         /// Lost connection to host while running the process in VM.
-        /// CODESYNC: Should match BuildXL.Processes.ExitCodes.VmInfrastructureFailure
         /// </summary>
-        VmInfrastructureFailure = 6,
+        VmConnectionError = 6,
     }
 }

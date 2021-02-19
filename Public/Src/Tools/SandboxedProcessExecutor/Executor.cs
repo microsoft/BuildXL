@@ -30,7 +30,7 @@ namespace BuildXL.SandboxedProcessExecutor
         private readonly ConsoleLogger m_logger = new ConsoleLogger();
         private ISandboxConnection m_sandboxConnection = null;
         private const int ReportQueueSizeForKextMB = 1024;
-        private readonly bool m_isRunningInVm = false;
+        private readonly bool m_isRunningInCloudBuildVm = false;
 
         /// <summary>
         /// Creates an instance of <see cref="Executor"/>.
@@ -43,7 +43,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (Environment.GetEnvironmentVariable("CLOUDBUILD_VM") == "1")
             {
-                m_isRunningInVm = true;
+                m_isRunningInCloudBuildVm = true;
             }
         }
 
@@ -83,7 +83,7 @@ namespace BuildXL.SandboxedProcessExecutor
         {
             if (!Debugger.IsAttached && m_configuration.EnableTelemetry)
             {
-                AriaV2StaticState.Enable(global::BuildXL.Tracing.AriaTenantToken.Key);
+                AriaV2StaticState.Enable(BuildXL.Tracing.AriaTenantToken.Key);
                 TrackingEventListener.RegisterEventSource(ETWLogger.Log);
                 m_telemetryStopwatch.Start();
             }
@@ -95,15 +95,15 @@ namespace BuildXL.SandboxedProcessExecutor
             {
                 m_telemetryStopwatch.Stop();
                 Logger.Log.SandboxedProcessExecutorInvoked(m_loggingContext, m_telemetryStopwatch.ElapsedMilliseconds, Environment.CommandLine);
-                AriaV2StaticState.TryShutDown(TimeSpan.FromSeconds(10), out var telemetryShutdownException);
+                AriaV2StaticState.TryShutDown(TimeSpan.FromSeconds(10), out _);
             }
         }
 
         /// <summary>
         /// Pings <see cref="Configuration.SandboxedProcessInfoInputFile"/> file periodically to identify connectivity issues between Host and VM.
         /// </summary>
-        /// <returns>True when an infrastructure issue is detected.</returns>
-        internal void DetectInfrastructureIssuesBetweenHostAndVm()
+        /// <returns>True when a connection issue is detected.</returns>
+        internal void DetectConnectionIssuesBetweenHostAndVm()
         {
             while (true)
             {
@@ -140,14 +140,16 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (sandboxedProcessExecutorTestHook?.FailVmConnection == true)
             {
-                return ExitCode.VmInfrastructureFailure;
+                return ExitCode.VmConnectionError;
             }
 
             Thread pingHost = null;
-            if (m_isRunningInVm)
+            if (m_isRunningInCloudBuildVm)
             {
-                pingHost = new Thread(DetectInfrastructureIssuesBetweenHostAndVm);
-                pingHost.IsBackground = true;   // To avoid blocking after current thread completes
+                pingHost = new Thread(DetectConnectionIssuesBetweenHostAndVm)
+                {
+                    IsBackground = true   // To avoid blocking after current thread completes
+                };
                 pingHost.Start();
             }
 
@@ -165,7 +167,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (pingHost != null && !pingHost.IsAlive)
             {
-                return ExitCode.VmInfrastructureFailure;
+                return ExitCode.VmConnectionError;
             }
 
             if (pingHost != null && pingHost.IsAlive)
@@ -219,15 +221,18 @@ namespace BuildXL.SandboxedProcessExecutor
         {
             SandboxedProcessInfo localSandboxedProcessInfo = null;
 
+            string sandboxedProcessInfoPath = Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile);
+            m_logger.LogInfo($"Reading sandboxed process info from '{sandboxedProcessInfoPath}'");
+
             bool success = Helpers.RetryOnFailure(
-                attempt => {
-                    using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
-                    {
-                        // TODO: Custom DetoursEventListener?
-                        localSandboxedProcessInfo = SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
-                        return true;
-                    }
-                });
+                attempt => 
+                {
+                    using FileStream stream = File.OpenRead(sandboxedProcessInfoPath);
+                    // TODO: Custom DetoursEventListener?
+                    localSandboxedProcessInfo = SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
+                    return true;
+                },
+                onException: e => m_logger.LogError(e.ToStringDemystified()));
 
             sandboxedProcessInfo = localSandboxedProcessInfo;
 
@@ -244,15 +249,18 @@ namespace BuildXL.SandboxedProcessExecutor
 
             SandboxedProcessExecutorTestHook localSandboxedProcessExecutorTestHook = null;
 
+            string sandboxedProcessTestHook = Path.GetFullPath(m_configuration.SandboxedProcessExecutorTestHookFile);
+            m_logger.LogInfo($"Reading sandboxed process test hook from '{sandboxedProcessTestHook}'");
+
             bool success = Helpers.RetryOnFailure(
-                attempt => {
-                    using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessExecutorTestHookFile)))
-                    {
-                        // TODO: Custom DetoursEventListener?
-                        localSandboxedProcessExecutorTestHook = SandboxedProcessExecutorTestHook.Deserialize(stream);
-                        return true;
-                    }
-                });
+                attempt => 
+                {
+                    using FileStream stream = File.OpenRead(sandboxedProcessTestHook);
+                    // TODO: Custom DetoursEventListener?
+                    localSandboxedProcessExecutorTestHook = SandboxedProcessExecutorTestHook.Deserialize(stream);
+                    return true;
+                },
+                onException: e => m_logger.LogError(e.ToStringDemystified()));
 
             sandboxedProcessExecutorTestHook = localSandboxedProcessExecutorTestHook;
             return true;
@@ -261,6 +269,22 @@ namespace BuildXL.SandboxedProcessExecutor
         private bool TryWriteSandboxedProcessResult(PathTable pathTable, SandboxedProcessResult result)
         {
             Contract.Requires(result != null);
+
+            bool isWindows = !OperatingSystemHelper.IsUnixOS;
+
+            string sandboxedProcessResultOutputPath = Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile);
+            m_logger.LogInfo($"Writing sandboxed process result to '{sandboxedProcessResultOutputPath}'");
+
+            bool success = Helpers.RetryOnFailure(
+               attempt =>
+               {
+                   using FileStream stream = File.OpenWrite(sandboxedProcessResultOutputPath);
+                   result.Serialize(stream, writePath);
+                   return true;
+               },
+               onException: e => m_logger.LogError(e.ToStringDemystified()));
+
+            return success;
 
             // When BuildXL serializes SandboxedProcessInfo, it does not serialize the path table used by SandboxedProcessInfo.
             // On deserializing that info, a new path table is created; see the Deserialize method of SandboxedProcessInfo.
@@ -274,9 +298,7 @@ namespace BuildXL.SandboxedProcessExecutor
             // path table used by BuildXL, and thus BuildXL will understand the ManifestPath serialized by this tool.
             //
             // For Unix, we need to give a special care of path serialization.
-            bool isWindows = !OperatingSystemHelper.IsUnixOS;
-
-            Action<BuildXLWriter, AbsolutePath> writePath = (writer, path) =>
+            void writePath(BuildXLWriter writer, AbsolutePath path)
             {
                 if (isWindows)
                 {
@@ -288,30 +310,7 @@ namespace BuildXL.SandboxedProcessExecutor
                     writer.Write(false);
                     writer.Write(path.ToString(pathTable));
                 }
-            };
-
-            bool success = false;
-
-            ExceptionUtilities.HandleRecoverableIOException(
-                () =>
-                {
-                    string sandboxedProcessResultOutputPath = Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile);
-                    m_logger.LogInfo($"Writing sandboxed process result to '{sandboxedProcessResultOutputPath}'");
-
-                    using (FileStream stream = File.OpenWrite(sandboxedProcessResultOutputPath))
-                    {
-                        result.Serialize(stream, writePath);
-                    }
-
-                    success = true;
-                },
-                ex =>
-                {
-                    m_logger.LogError(ex.ToString());
-                    success = false;
-                });
-
-            return success;
+            }
         }
 
         private bool TryPrepareSandboxedProcess(SandboxedProcessInfo info)

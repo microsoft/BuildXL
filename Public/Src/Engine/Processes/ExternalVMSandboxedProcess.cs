@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
@@ -18,6 +17,36 @@ namespace BuildXL.Processes
     /// <summary>
     /// Sandboxed process that will be executed in VM.
     /// </summary>
+    /// <remarks>
+    /// Running a process P in a VM involves two executables: VmCommandProxy and SandboxedProcessExecutor.
+    /// Both executables reside in the host (not in VM). VmCommandProxy will establish net use between the host
+    /// and the VM so that SandboxedProcessExecutor is accessible from the VM.
+    ///
+    /// Given a process P and SandboxedProcessInfo I for P, SandboxedProcessExecutor(P, I) executes P using the the same sandbox
+    /// that BuildXL uses.
+    ///
+    /// Instead of executing P on host, BuildXL will execute VmCommandProxy, with the following payload (RunRequest):
+    ///
+    ///     "instruct the VM to execute SandboxedProcessExecutor(P, I)"
+    /// 
+    /// To this end, BuildXL needs to do the following:
+    /// 1. Serialize SandboxedProcessInfo I.
+    /// 2. Serialize RunRequest for VmCommandProxy.
+    /// 3. Execute VmCommandProxy with the RunRequest until completion.
+    /// 4. Deserialize RunResult from VmCommandProxy to get the result of executing SandboxedProcessExecutor(P, I).
+    /// 5. Deserialize the SandboxedProcessResult from the result of executing SandboxedProcessExecutor(P, I).
+    /// 
+    /// +-------------------------------------------------------------------------------+
+    /// | HOST                                                                          |
+    /// |                                        +----------------------------------+   |
+    /// |                                        | VM                               |   |
+    /// |    [BuildXL] -> [VmCommandProxy] --->  |                                  |   |
+    /// |                                        | [SandboxedProcessExecutor(P, I)] |   |
+    /// |                                        |                                  |   |
+    /// |                                        +----------------------------------+   |
+    /// |                                                                               |
+    /// +-------------------------------------------------------------------------------+
+    /// </remarks>
     public class ExternalVmSandboxedProcess : ExternalSandboxedProcess
     {
         /// <inheritdoc />
@@ -88,7 +117,10 @@ namespace BuildXL.Processes
         {
             Contract.Requires(m_processExecutor != null);
 
-            // (1) Wait for VmCommandProxy.
+            // See the remarks of this class that BuildXL wants to execute a process P with SandboxedProcessInfo I
+            // in the VM.
+
+            // (1) Wait for VmCommandProxy to exit.
             await m_processExecutor.WaitForExitAsync();
             await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
@@ -99,6 +131,8 @@ namespace BuildXL.Processes
                 return CreateResultForVmCommandProxyFailure();
             }
 
+            // Process.ExitCode is the exit code of VmCommandProxy, and not the exit code of SandboxedProcessExecutor
+            // nor the exit code of the process P.
             if (Process.ExitCode != 0)
             {
                 return CreateResultForVmCommandProxyFailure();
@@ -112,7 +146,7 @@ namespace BuildXL.Processes
 
             try
             {
-                // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
+                // (3) Validate the result of SandboxedProcessExecutor(P, I) that VmCommandProxy instructs the VM to execute.
                 RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
                     () => VmSerializer.DeserializeFromFile<RunResult>(RunOutputPath),
                     e => m_error.AppendLine(e.Message));
@@ -122,6 +156,8 @@ namespace BuildXL.Processes
                     return CreateResultForVmCommandProxyFailure();
                 }
 
+                // runVmResult.ProcessStateInfo.ExitCode is the exit code of SandboxedProcessExecutor, and not
+                // the exit code of the process P that SandboxedProcessExecutor executes.
                 if (runVmResult.ProcessStateInfo.ExitCode != 0)
                 {
                     return CreateResultForSandboxExecutorFailure(runVmResult);
@@ -148,14 +184,14 @@ namespace BuildXL.Processes
 
         private void RunInVm()
         {
-            // (1) Serialize sandboxed prosess info and SandboxedProcessExecutor Test Hooks.
+            // (1) Serialize SandboxedProcessInfo and SandboxedProcessExecutor Test Hooks.
             SerializeSandboxedProcessInputFile(SandboxedProcessInfoFile, SandboxedProcessInfo.Serialize);
             if (SandboxedProcessExecutorTestHook != null)
             {
                 SerializeSandboxedProcessInputFile(SandboxedProcessExecutorTestHookFile, SandboxedProcessInfo.Serialize);
             }
 
-            // (2) Create and serialize run request.
+            // (2) Create and serialize RunRequest for VmCommandProxy.
             var runRequest = new RunRequest
             {
                 AbsolutePath = m_tool.ExecutablePath,
@@ -165,7 +201,7 @@ namespace BuildXL.Processes
 
             VmSerializer.SerializeToFile(RunRequestPath, runRequest);
 
-            // (2) Create a process to execute VmCommandProxy.
+            // (3) Create a process to execute VmCommandProxy.
             string arguments = $"{VmCommands.Run} /{VmCommands.Params.InputJsonFile}:\"{RunRequestPath}\" /{VmCommands.Params.OutputJsonFile}:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
@@ -213,6 +249,11 @@ namespace BuildXL.Processes
             string error = m_error.ToString();
             string hint = Path.GetFileNameWithoutExtension(m_tool.ExecutablePath);
 
+            // VmCommandProxy failure indicates VM infrastructure failure.
+            // Setting it to infrastructure failure allows BuildXL to retry the execution,
+            // possibly on different worker.
+            HasVmInfrastructureError = true;
+
             return CreateResultForFailure(
                 exitCode: m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
                 killed: m_processExecutor.Killed,
@@ -226,10 +267,10 @@ namespace BuildXL.Processes
         {
             Contract.Requires(runVmResult != null);
 
-            if (runVmResult.ProcessStateInfo.ExitCode == ExitCodes.VmInfrastructureFailure)
-            {
-                HasVmInfrastructureError = true;
-            }
+            // We expect the sandboxed process executor to run and terminate gracefully, although the underlying executed
+            // pip can fail. Any ungraceful termination can indicate VM infrastructure error, and so it is worth retrying
+            // the execution, possibly on a different worker.
+            HasVmInfrastructureError = true;
 
             return CreateResultForFailure(
                 exitCode: runVmResult.ProcessStateInfo.ExitCode,

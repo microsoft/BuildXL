@@ -101,10 +101,7 @@ namespace BuildXL.Processes
         public abstract Task KillAsync();
 
         /// <inheritdoc />
-        public virtual void Start()
-        {
-            EnsureEmptyWorkingDirectory();
-        }
+        public virtual void Start() => EnsureEmptyWorkingDirectory();
 
         /// <summary>
         /// Ensures that working directory exists and is empty.

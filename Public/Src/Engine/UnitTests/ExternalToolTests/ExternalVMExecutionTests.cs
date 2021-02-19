@@ -98,15 +98,11 @@ namespace ExternalToolTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
-
-                // Pip will fail with the same exit code as VmInfrastructureFailure code.
-                // However, pip execution should not be retried.
-                Operation.Fail(global::BuildXL.Processes.ExitCodes.VmInfrastructureFailure)
+                Operation.Fail(-1)
             });
             builder.Options |= Process.Options.RequiresAdmin;
             SchedulePipBuilder(builder);
 
-            // System.Diagnostics.Debugger.Launch();
             // The build is expected to fail, but all of the error logging consistency checks should pass meaning no crash
             RunScheduler().AssertFailure();
 

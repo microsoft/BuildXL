@@ -1,12 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.ContractsLight;
-using System.Threading;
-using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Host.Configuration;
 
@@ -29,7 +24,7 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public ITelemetryFieldsProvider TelemetryFieldsProvider { get; set; }
 
-        /// <inheritdoc />
+        /// <nodoc />
         public LoggerFactoryArguments(
             ILogger logger,
             ISecretsProvider secretsProvider,

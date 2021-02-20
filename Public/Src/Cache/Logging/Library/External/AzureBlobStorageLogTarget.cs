@@ -20,11 +20,16 @@ namespace BuildXL.Cache.Logging.External
         private readonly AzureBlobStorageLog _log;
 
         /// <nodoc />
-        public AzureBlobStorageLogTarget(AzureBlobStorageLog log)
+        public AzureBlobStorageLogTarget(AzureBlobStorageLog log, bool useOptimizedLayout)
         {
             _log = log;
             _log.OnFileOpen = WriteHeaderAsync;
             _log.OnFileClose = WriteFooterAsync;
+
+            if (useOptimizedLayout)
+            {
+                Layout = new LowAllocationSimpleLayout("${longdate}|${level:uppercase=true}|${logger}|${message}");
+            }
         }
 
         private Task WriteHeaderAsync(StreamWriter streamWriter)
@@ -59,7 +64,7 @@ namespace BuildXL.Cache.Logging.External
         protected override void CloseTarget()
         {
             InternalLogger.Warn("Closing {0} target", nameof(AzureBlobStorageLogTarget));
-            var result = _log.ShutdownAsync().Result;
+            var result = _log.ShutdownAsync().GetAwaiter().GetResult();
             if (!result.Succeeded)
             {
                 InternalLogger.Error(

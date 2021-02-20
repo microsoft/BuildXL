@@ -32,6 +32,7 @@ using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthC
 using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
+using BuildXL.Cache.Logging;
 using ContentStore.Grpc;
 
 namespace BuildXL.Cache.Host.Service.Internal

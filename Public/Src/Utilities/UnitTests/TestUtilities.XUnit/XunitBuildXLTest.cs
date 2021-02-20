@@ -153,6 +153,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 m_ioCompletionTraceHook = IOCompletionManager.Instance.StartTracingCompletion();
             }
+
+            // Many tests declare outputs outside of known mounts.
+            AllowWarningEventMaybeLogged(global::BuildXL.Pips.Tracing.LogEventId.WriteDeclaredOutsideOfKnownMount);
         }
 
         /// <summary>

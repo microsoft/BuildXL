@@ -1136,6 +1136,17 @@ namespace BuildXL.Pips.Tracing
             string pipDescription,
             string pipValueId,
             string assertedFile);
+
+        [GeneratedEvent(
+            (int)LogEventId.WriteDeclaredOutsideOfKnownMount,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Output '{writePath}' is declared outside any known mount. Please consider declaring a writable mount that contains the output.")]
+        public abstract void WriteDeclaredOutsideOfKnownMount(
+            LoggingContext context,
+            string writePath);
     }
 }
 #pragma warning restore CA1823 // Unused field

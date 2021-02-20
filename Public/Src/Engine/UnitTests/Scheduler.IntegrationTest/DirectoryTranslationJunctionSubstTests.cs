@@ -148,6 +148,8 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertCacheMiss(pipA.PipId, pipB.PipId);
 
                 RunScheduler().AssertCacheHit(pipA.PipId, pipB.PipId);
+
+                IgnoreWarnings();
             }
             finally
             {

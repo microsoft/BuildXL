@@ -58,6 +58,7 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsFalse(result);
 
                 AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot);
+                IgnoreWarnings();
             }
         }
 
@@ -91,6 +92,7 @@ namespace Test.BuildXL.Scheduler
 
                 XAssert.IsFalse(result);
                 AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque);
+                IgnoreWarnings();
             }
         }
 
@@ -132,6 +134,7 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsTrue(result);
 
                 AssertSuccessGraphBuilding(env);
+                IgnoreWarnings();
             }
         }
     }

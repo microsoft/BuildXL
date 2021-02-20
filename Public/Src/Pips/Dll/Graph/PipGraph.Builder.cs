@@ -1600,9 +1600,17 @@ namespace BuildXL.Pips.Graph
             /// <summary>
             /// Verifies that the given path is under a writable root
             /// </summary>
-            private static bool IsWritablePath(AbsolutePath path, SemanticPathExpander semanticPathExpander, out SemanticPathInfo semanticPathInfo)
+            private bool IsWritablePath(AbsolutePath path, SemanticPathExpander semanticPathExpander, out SemanticPathInfo semanticPathInfo)
             {
                 semanticPathInfo = semanticPathExpander.GetSemanticPathInfo(path);
+
+                // For historical reasons, writes happening outside of known mounts are allowed. This behavior needs to eventually change, but for the
+                // time being we just print a warning and continue. TODO: turn this into an error once all customers are in compliance
+                if (!semanticPathInfo.IsValid)
+                {
+                    Logger.WriteDeclaredOutsideOfKnownMount(LoggingContext, path.ToString(Context.PathTable));
+                }
+
                 return !semanticPathInfo.IsValid || semanticPathInfo.IsWritable;
             }
 

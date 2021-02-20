@@ -274,6 +274,23 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <summary>
+        /// Allows the test's event listener to maybe record instances of the given warning event ID since 
+        /// the previous assertion (of the same event).
+        /// This is useful when there is some expected non-deterministic warning condition (due to a race, for example)
+        /// </summary>
+        protected void AllowWarningEventMaybeLogged(Enum eventId)
+        {
+            Contract.Requires(eventId != null, "Argument eventId cannot be null.");
+            Contract.Requires(EventListener != null);
+
+            var eventCount = EventListener.GetEventCount(Convert.ToInt32(eventId, CultureInfo.InvariantCulture));
+            if (eventCount > 0)
+            {
+                m_expectedWarningCount += eventCount;
+            }
+        }
+
+        /// <summary>
         /// Asserts that the test's event listener has recorded the expected number of errors,
         /// based on prior error assertions.
         /// This is used to ensure that no additional error have been logged.

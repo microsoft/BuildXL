@@ -302,6 +302,29 @@ namespace Test.BuildXL.Scheduler
             return RunScheduler();
         }
 
+        [Feature(Features.Mount)]
+        [Fact]
+        public Task TestWarnOnOutputOutsideMount()
+        {
+            Setup();
+            string outOfMount = Path.Combine(TemporaryDirectory, "outOfMount");
+            
+            FileArtifact outputFile = CreateOutputFileArtifact(outOfMount);
+            DirectoryArtifact outputDirectory = CreateOutputDirectoryArtifact(outOfMount);
+            
+            Process process = CreateProcess(
+                dependencies: new FileArtifact[] { },
+                outputs: new[] { outputFile },
+                outputDirectoryPaths: new[] { outputDirectory.Path });
+
+            XAssert.IsTrue(PipGraphBuilder.AddProcess(process));
+
+            var result = RunScheduler();
+            AssertWarningEventLogged(PipLogEventId.WriteDeclaredOutsideOfKnownMount, 2);
+
+            return result;
+        }
+
         [Feature(Features.SealedDirectory)]
         [Fact]
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]

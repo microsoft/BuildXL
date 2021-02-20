@@ -71,6 +71,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     AssertVerboseEventLogged(LogEventId.RewritingPreservedOutput, count: 1);
                 }
+                IgnoreWarnings();
             }
         }
 

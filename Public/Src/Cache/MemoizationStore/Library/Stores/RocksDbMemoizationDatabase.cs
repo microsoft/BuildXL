@@ -80,7 +80,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 return result;
             }
 
-            Database.SetDatabaseMode(isDatabaseWriteable: true);
+            await Database.SetDatabaseModeAsync(isDatabaseWriteable: true);
             return BoolResult.Success;
         }
 

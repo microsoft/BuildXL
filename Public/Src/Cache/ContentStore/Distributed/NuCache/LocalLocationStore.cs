@@ -473,7 +473,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         LoggerExtensions.ChangeRole(newRole.ToString());
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
-                        Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master || Configuration.MasterThroughputCheckMode);
+                        await Database.SetDatabaseModeAsync(isDatabaseWriteable: newRole == Role.Master || Configuration.MasterThroughputCheckMode);
                         ClusterState.EnableBinManagerUpdates = newRole == Role.Master;
                     }
 

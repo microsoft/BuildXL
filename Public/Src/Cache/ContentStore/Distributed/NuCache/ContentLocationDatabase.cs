@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -40,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Tries to locate an entry for a given hash.
         /// </summary>
-        bool TryGetEntry(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry);
+        bool TryGetEntry(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry);
     }
 
     /// <summary>
@@ -62,25 +63,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Func<IReadOnlyList<MachineId>> _getInactiveMachines;
 
-        private Timer? _gcTimer;
         protected NagleQueue<(Context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>? NagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
-        /// <nodoc />
         protected bool IsDatabaseWriteable;
+
+        private Timer? _gcTimer;
+        private readonly object _garbageCollectionLock = new object();
         private bool _isContentGarbageCollectionEnabled;
         private bool _isMetadataGarbageCollectionEnabled;
-
-        /// <nodoc />
-        private bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
+        private Task _garbageCollectionTask = Task.CompletedTask;
+        private CancellationTokenSource _garbageCollectionCts = new CancellationTokenSource();
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
         /// </summary>
         private readonly object[] _locks = Enumerable.Range(0, ushort.MaxValue + 1).Select(s => new object()).ToArray();
-
-        /// <nodoc />
-        protected readonly object ModeChangeLock = new object();
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -114,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Attempts to get a value from the global info map
         /// </summary>
-        public abstract bool TryGetGlobalEntry(string key, [NotNullWhen(true)]out string? value);
+        public abstract bool TryGetGlobalEntry(string key, [NotNullWhen(true)] out string? value);
 
         /// <summary>
         /// Factory method that creates an instance of a <see cref="ContentLocationDatabase"/> based on an optional <paramref name="configuration"/> instance.
@@ -139,48 +137,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public void SetDatabaseMode(bool isDatabaseWriteable)
+        public async Task SetDatabaseModeAsync(bool isDatabaseWriteable)
         {
-            lock (ModeChangeLock)
+            _garbageCollectionCts.Cancel();
+            await _garbageCollectionTask;
+
+            lock (_garbageCollectionLock)
             {
-                ConfigureGarbageCollection(isDatabaseWriteable);
-                ConfigureDatabase(isDatabaseWriteable);
+                _isContentGarbageCollectionEnabled = isDatabaseWriteable;
+                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
                 IsDatabaseWriteable = isDatabaseWriteable;
             }
-        }
 
-        /// <summary>	
-        /// Configures the behavior of the database's garbage collection	
-        /// </summary>	
-        private void ConfigureGarbageCollection(bool isDatabaseWriteable)
-        {
-            _isContentGarbageCollectionEnabled = isDatabaseWriteable;
-            _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
-
-            var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
-            _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
-        }
-
-        /// <nodoc />
-        protected virtual void ConfigureDatabase(bool isDatabaseWriteable)
-        {
-
+            Interlocked.Exchange(ref _garbageCollectionCts, new CancellationTokenSource());
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            // We only create the timers within the Startup method. It is expected that users will call SetDatabaseMode
-            // before proceeding to use the database, as that method will actually start the timers.
-            if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
-            {
-                _gcTimer = new Timer(
-                    _ => GarbageCollectAsync(context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: nameof(GarbageCollectAsync))).Wait(),
-                    null,
-                    Timeout.InfiniteTimeSpan,
-                    Timeout.InfiniteTimeSpan);
-            }
-
             NagleOperationTracer = NagleQueue<(Context context, IToStringConvertible entry, EntryOperation op, OperationReason reason)>.Create(
                 ops =>
                 {
@@ -208,21 +182,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 interval: TimeSpan.FromMinutes(1),
                 batchSize: 10000);
 
+            // GC will be triggered on this timer for all machines, irrespective of their role. However, work is only
+            // performed when it needs to be (i.e. when the machine is the master). This is because the previous
+            // approaches proved to be brittle and prone to programming mistakes.
+            _gcTimer = new Timer(
+                _ =>
+                    PerformGarbageCollectionAsync(context)
+                        .FireAndForgetErrorsAsync(context, operation: nameof(PerformGarbageCollectionAsync))
+                        .GetAwaiter()
+                        .GetResult(),
+                null,
+                _configuration.GarbageCollectionInterval,
+                Timeout.InfiniteTimeSpan);
+
             return Task.FromResult(InitializeCore(context));
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             NagleOperationTracer?.Dispose();
 
-            lock (ModeChangeLock)
+            _garbageCollectionCts.Cancel();
+            await _garbageCollectionTask;
+            lock (_garbageCollectionLock)
             {
                 _gcTimer?.Dispose();
-                _gcTimer = null;
             }
 
-            return base.ShutdownCoreAsync(context);
+            return await base.ShutdownCoreAsync(context);
         }
 
         /// <nodoc />
@@ -231,7 +219,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Tries to locate an entry for a given hash.
         /// </summary>
-        public bool TryGetEntry(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
+        public bool TryGetEntry(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
         {
             if (TryGetEntryCore(context, hash, out entry))
             {
@@ -277,72 +265,92 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return EnumerateEntriesWithSortedKeysFromStorage(context, filter);
         }
 
-        /// <summary>
-        /// Collects entries with last access time longer then time to live.
-        /// </summary>
-        public async Task<BoolResult> GarbageCollectAsync(OperationContext context)
+        private async Task PerformGarbageCollectionAsync(OperationContext context)
         {
-            if (ShutdownStarted)
+            var nestedContext = context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: nameof(GarbageCollectAsync));
+
+            try
             {
-                return BoolResult.Success;
+                using (var nestedContextWithCancellation = nestedContext.WithCancellationToken(_garbageCollectionCts.Token))
+                using (var operationContext = TrackShutdown(nestedContextWithCancellation))
+                {
+                    await _garbageCollectionTask;
+#pragma warning disable AsyncFixer04 // Fire-and-forget async call inside a using block
+                    var newGarbageCollectionTask = GarbageCollectAsync(operationContext);
+#pragma warning restore AsyncFixer04 // Fire-and-forget async call inside a using block
+                    _ = Interlocked.Exchange(ref _garbageCollectionTask, newGarbageCollectionTask);
+                    (await newGarbageCollectionTask).IgnoreFailure();
+                }
             }
-
-            var result = await context.PerformOperationAsync(Tracer,
-                async () =>
-                {
-                    using (var cancellableContext = TrackShutdown(context.CreateNested(nameof(ContentLocationDatabase))))
-                    {
-                        // GC may take minutes, so we snapshot the values at the beginning and run afterwards. There
-                        // is some amount of weirdness around what happens with master demotion here.
-                        bool gcMetadata;
-                        bool gcContent;
-                        lock (ModeChangeLock)
-                        {
-                            // We lock here in order to read both atomically
-                            gcMetadata = _isMetadataGarbageCollectionEnabled;
-                            gcContent = _isContentGarbageCollectionEnabled;
-                        }
-                        if (!gcMetadata && !gcContent)
-                        {
-                            return new BoolResult(errorMessage: "No garbage collection round run");
-                        }
-
-                        var metadataGcResult = BoolResult.SuccessTask;
-                        if (gcMetadata)
-                        {
-                            metadataGcResult = TaskExtensions.Run(
-                                () => GarbageCollectMetadata(cancellableContext),
-                                inline: !_configuration.GarbageCollectionConcurrent);
-                        }
-
-                        var contentGcResult = BoolResult.SuccessTask;
-                        if (gcContent)
-                        {
-                            contentGcResult = TaskExtensions.Run(
-                                () => GarbageCollectContent(cancellableContext),
-                                inline: !_configuration.GarbageCollectionConcurrent);
-                        }
-
-                        await Task.WhenAll(metadataGcResult, contentGcResult);
-
-                        return await metadataGcResult & await contentGcResult;
-                    }
-                },
-                counter: Counters[ContentLocationDatabaseCounters.GarbageCollect],
-                isCritical: true);
-
-            if (!ShutdownStarted)
+            catch (Exception exception)
             {
-                lock (ModeChangeLock)
+                // Purposefully ignoring any exceptions here, since they'll just go into the Timer
+                Tracer.Error(nestedContext, exception: exception, message: "Failed to run garbage collection", operation: nameof(GarbageCollectAsync));
+            }
+            finally
+            {
+                lock (_garbageCollectionLock)
                 {
-                    if (IsGarbageCollectionEnabled)
+                    if (!ShutdownStarted)
                     {
                         _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
                     }
                 }
             }
+        }
 
-            return result;
+        /// <summary>
+        /// Collects entries with last access time longer then time to live.
+        /// </summary>
+        public Task<BoolResult> GarbageCollectAsync(OperationContext context)
+        {
+            bool gcMetadata = false;
+            bool gcContent = false;
+
+            return context.PerformOperationAsync(Tracer,
+                async () =>
+                {
+                    lock (_garbageCollectionLock)
+                    {
+                        gcMetadata = _isMetadataGarbageCollectionEnabled;
+                        gcContent = _isContentGarbageCollectionEnabled;
+                    }
+
+                    if (!gcMetadata && !gcContent)
+                    {
+                        return new BoolResult(errorMessage: "No garbage collection round run");
+                    }
+
+                    var metadataGcResult = BoolResult.SuccessTask;
+                    if (gcMetadata)
+                    {
+                        metadataGcResult = TaskExtensions.Run(
+                            () => GarbageCollectMetadata(context),
+                            inline: !_configuration.GarbageCollectionConcurrent);
+                    }
+
+                    // Metadata GC may take a while. During that time, we may have switched roles. Hence, we need to
+                    // recheck if we have to run content GC.
+                    var contentGcResult = BoolResult.SuccessTask;
+                    lock (_garbageCollectionLock)
+                    {
+                        gcContent = _isContentGarbageCollectionEnabled;
+                    }
+
+                    if (gcContent)
+                    {
+                        contentGcResult = TaskExtensions.Run(
+                            () => GarbageCollectContent(context),
+                            inline: !_configuration.GarbageCollectionConcurrent);
+                    }
+
+                    await Task.WhenAll(metadataGcResult, contentGcResult);
+
+                    return await metadataGcResult & await contentGcResult;
+                },
+                counter: Counters[ContentLocationDatabaseCounters.GarbageCollect],
+                extraEndMessage: r => $"GarbageCollectMetadata=[{gcMetadata}] GarbageCollectContent=[{gcContent}]",
+                isCritical: true);
         }
 
         /// <summary>
@@ -591,10 +599,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected abstract BoolResult RestoreCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory);
 
         /// <nodoc />
-        protected abstract bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry);
+        protected abstract bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry);
 
         /// <nodoc />
-        protected bool TryGetEntryCore(OperationContext context, ShortHash hash, [NotNullWhen(true)]out ContentLocationEntry? entry)
+        protected bool TryGetEntryCore(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
         {
             Counters[ContentLocationDatabaseCounters.NumberOfGetOperations].Increment();
 
@@ -656,7 +664,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             NagleOperationTracer?.Enqueue((context, hash, existsOnMachine ? EntryOperation.AddMachineNoStateChange : EntryOperation.RemoveMachineNoStateChange, reason));
                         }
-                        
+
                         // The entry is unchanged.
                         return (initialEntry, entryHasChanged: false);
                     }

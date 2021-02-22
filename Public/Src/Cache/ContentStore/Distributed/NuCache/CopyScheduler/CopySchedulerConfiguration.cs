@@ -69,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 case CopySchedulerType.Default:
                     return new DefaultCopyScheduler(DefaultCopySchedulerConfiguration, context);
                 case CopySchedulerType.Prioritized:
-                    return new PrioritizedCopyScheduler(PrioritizedCopySchedulerConfiguration, clock);
+                    return new PrioritizedCopyScheduler(PrioritizedCopySchedulerConfiguration);
                 default:
                     throw new NotImplementedException($"Unknown {nameof(ICopyScheduler)} version `{Type}`");
             }

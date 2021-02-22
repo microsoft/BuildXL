@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Utilities;
 

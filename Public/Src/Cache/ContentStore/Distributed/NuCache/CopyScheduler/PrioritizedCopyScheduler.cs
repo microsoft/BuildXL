@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -34,6 +33,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
     /// </summary>
     public sealed class PrioritizedCopyScheduler : StartupShutdownSlimBase, ICopyScheduler
     {
+        private const string CopySchedulerMetricMetricNamePrefix = "CopyScheduler_Executed_P";
+        // Caching the metric names to avoid excessive allocations during metric names construction.
+        private static readonly string[] CopySchedulerMetricNames =  Enumerable.Range(1, 10).Select(n => CopySchedulerMetricMetricNamePrefix + n.ToString()).ToArray();
+        
         private record CopyTask
         {
             public TaskSourceSlim<object> TaskSource { get; } = TaskSourceSlim.Create<object>();
@@ -56,7 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         protected override Tracer Tracer { get; } = new Tracer(nameof(PrioritizedCopyScheduler));
 
         private readonly PrioritizedCopySchedulerConfiguration _configuration;
-        private readonly IClock _clock;
 
         private readonly IProducerConsumerCollection<CopyTask>[] _pending;
 
@@ -73,13 +75,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private readonly EventWaitHandle _copyCompletedEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset);
 
         /// <nodoc />
-        public PrioritizedCopyScheduler(PrioritizedCopySchedulerConfiguration configuration, IClock clock)
+        public PrioritizedCopyScheduler(PrioritizedCopySchedulerConfiguration configuration)
         {
             Contract.Requires(configuration.MaximumConcurrentCopies > 0);
             Contract.Requires(configuration.ReservedCapacityPerCycleRate >= 0 && configuration.ReservedCapacityPerCycleRate < 1);
 
             _configuration = configuration;
-            _clock = clock;
 
             switch (configuration.PriorityAssignmentStrategy)
             {
@@ -185,15 +186,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             }
         }
 
-        public record SchedulerCycleMetadata
+        public struct SchedulerCycleMetadata
         {
             public int CycleQuota;
 
             public int CycleLeftover;
-
-            public int[] PriorityQuota;
-
-            public int[] ScheduledByPriority;
 
             public int NumInflightAtStart;
 
@@ -204,23 +201,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             public int NumPendingAtEnd;
 
             public SchedulerCycleMetadata(int maxPriority)
+                : this()
             {
                 Contract.Requires(maxPriority > 0);
-                PriorityQuota = new int[maxPriority + 1];
-                ScheduledByPriority = new int[maxPriority + 1];
             }
 
             public override string ToString()
             {
-                var quotaString = string.Join(" ", PriorityQuota.Select((value, index) => $"Quota{index}=[{value}]"));
-                var scheduledString = string.Join(" ", ScheduledByPriority.Select((value, index) => $"Scheduled{index}=[{value}]"));
                 return
                     $"{nameof(CycleQuota)}=[{CycleQuota}] " +
                     $"{nameof(CycleLeftover)}=[{CycleLeftover}] " +
                     $"{nameof(NumInflightAtStart)}=[{NumInflightAtStart}] " +
                     $"{nameof(NumInflightAtEnd)}=[{NumInflightAtEnd}] " +
                     $"{nameof(NumPendingAtStart)}=[{NumPendingAtStart}] " +
-                    $"{nameof(NumPendingAtEnd)}=[{NumPendingAtEnd}] {quotaString} {scheduledString}";
+                    $"{nameof(NumPendingAtEnd)}=[{NumPendingAtEnd}]";
             }
         }
 
@@ -246,10 +240,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 var candidates = _pending[priority];
 
                 // Compute number of candidates to dispatch from this queue, and do so
-                state.PriorityQuota[priority] = ComputePriorityQuota(priority, state.CycleQuota, state.CycleLeftover, candidates.Count);
-                state.ScheduledByPriority[priority] = state.CycleLeftover;
+                var maxPriorityQuota = ComputePriorityQuota(priority, state.CycleQuota, state.CycleLeftover, candidates.Count);
 
-                for (var priorityQuota = state.PriorityQuota[priority]; priorityQuota > 0; priorityQuota--)
+                for (var priorityQuota = maxPriorityQuota; priorityQuota > 0; priorityQuota--)
                 {
                     if (!candidates.TryTake(out var candidate))
                     {
@@ -286,18 +279,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                         continue;
                     }
 
-                    Tracer.TrackMetric(context, $"CopyScheduler_Executed_P{priority}", 1);
-
+                    Tracer.TrackMetric(context, getMetricName(priority), 1);
                     state.CycleLeftover--;
                 }
-
-                state.ScheduledByPriority[priority] -= state.CycleLeftover;
             }
 
             state.NumInflightAtEnd = _numInflight;
             state.NumPendingAtEnd = _numPending;
 
             return state;
+
+            static string getMetricName(int priority)
+            {
+                // This method is called a lot, so instead of computing the metric name all the time,
+                // using a cache of the most probable metric names.
+                return priority < CopySchedulerMetricNames.Length
+                    ? CopySchedulerMetricNames[priority]
+                    : CopySchedulerMetricMetricNamePrefix + priority;
+            }
         }
 
         private void Execute<T>(OperationContext context, CopyTask candidate, Func<OperationContext, Task<T>> taskFactory)
@@ -337,6 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     // It may happen that the externally-provided task factory throws. In such a case, we'll fail the copy
                     // with this exception, which should be re-thrown when the user awaits for the copy to complete.
                     candidate.TaskSource.TrySetException(factoryException);
+                    cts.Dispose();
                     return;
                 }
 

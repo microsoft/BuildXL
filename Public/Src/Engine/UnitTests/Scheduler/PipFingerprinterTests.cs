@@ -974,7 +974,8 @@ namespace Test.BuildXL.Scheduler
             var directoryContents = source.Vary(sd => sd.OutputDirectoryContents);
             var patterns = source.Vary(sd => sd.Patterns);
             var composedDirectories = source.Vary(sd => sd.ComposedDirectories);
-            var isComposite = source.Vary(sd => sd.IsComposite);
+            var actionKind = source.Vary(sd => sd.CompositionActionKind);
+            var isComposite = actionKind.IsComposite();
             var scrub = source.Vary(sd => sd.Scrub);
             var contentFilter = source.Vary(sd => sd.ContentFilter);
 
@@ -1013,6 +1014,11 @@ namespace Test.BuildXL.Scheduler
                     {
                         return null;
                     }
+
+                    if (actionKind == SealDirectoryCompositionActionKind.NarrowDirectoryCone && composedDirectories.Count != 1)
+                    {
+                        return null;
+                    }
                 }
                 else
                 {
@@ -1030,7 +1036,8 @@ namespace Test.BuildXL.Scheduler
                     composedDirectories,
                     PipProvenance.CreateDummy(m_context),
                     ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)),
-                    contentFilter);
+                    contentFilter,
+                    actionKind);
             }
 
             var sealDirectory = new SealDirectory(
@@ -1181,7 +1188,12 @@ namespace Test.BuildXL.Scheduler
                        new FingerprintingTypeDescriptor<SealDirectoryContentFilter?>(
                            null,
                            new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Include, ".*"),
-                           new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Exclude, ".*"))
+                           new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Exclude, ".*")),
+
+                       new FingerprintingTypeDescriptor<SealDirectoryCompositionActionKind>(
+                           SealDirectoryCompositionActionKind.None,
+                           SealDirectoryCompositionActionKind.WidenDirectoryCone,
+                           SealDirectoryCompositionActionKind.NarrowDirectoryCone)
                    };
         }
 

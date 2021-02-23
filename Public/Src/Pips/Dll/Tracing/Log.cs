@@ -1071,6 +1071,26 @@ namespace BuildXL.Pips.Tracing
             string sealDirectoryMemberPath);
 
         [GeneratedEvent(
+            (int)LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryDoesNotContainRoot,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "Output directory '{compositeSealedDirectoryPath}' (created via '{pipValueId}') cannot be sealed. The root is not nested within a member directory ('{sealDirectoryMemberPath}').")]
+        public abstract void ScheduleFailAddPipInvalidComposedSealDirectoryDoesNotContainRoot(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string compositeSealedDirectoryPath,
+            string sealDirectoryMemberPath);
+
+        [GeneratedEvent(
             (int)LogEventId.PipStaticFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

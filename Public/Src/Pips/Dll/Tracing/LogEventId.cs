@@ -82,6 +82,7 @@ namespace BuildXL.Pips.Tracing
         InvalidSharedOpaqueDirectoryDueToOverlap = 14401,
         ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot = 14402,
         ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque = 14403,
+        ScheduleFailAddPipInvalidComposedSealDirectoryDoesNotContainRoot = 14416,
 
         PerformanceDataCacheTrace = 14409,
         PipStaticFingerprint = 14410,

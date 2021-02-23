@@ -6496,7 +6496,15 @@ namespace BuildXL.Scheduler
                         // Regardless whether directoryElement is a non-composite or composite directory, it was
                         // produced by an upstream pip (ProcessPip/SealDirectoryPip respectively). At this point,
                         // FileContentManager knows the content of this directory artifact.
-                        var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
+                        IEnumerable<FileArtifact> memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
+
+                        // If the seal pip is creating a sub directory out of a sod, take only those files that are
+                        // under the root of the directory.
+                        if (pip.CompositionActionKind == SealDirectoryCompositionActionKind.NarrowDirectoryCone)
+                        {
+                            memberContents = memberContents.Where(file => file.Path.IsWithin(Context.PathTable, pip.DirectoryRoot));
+                        }
+
                         aggregatedContent.AddRange(memberContents.Select(member =>
                             FileArtifactWithAttributes.Create(member, FileExistence.Required, m_fileContentManager.IsAllowedFileRewriteOutput(member.Path))));
                     }

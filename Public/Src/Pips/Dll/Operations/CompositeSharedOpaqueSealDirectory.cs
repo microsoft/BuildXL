@@ -19,10 +19,13 @@ namespace BuildXL.Pips.Operations
         public override IReadOnlyList<DirectoryArtifact> ComposedDirectories { get; }
 
         /// <inheritdoc/>
-        public override bool IsComposite => true;
+        public override SealDirectoryContentFilter? ContentFilter => m_contentFilter;
 
         /// <inheritdoc/>
-        public override SealDirectoryContentFilter? ContentFilter => m_contentFilter;
+        public override bool IsComposite => true;
+
+        /// <nodoc/>
+        public override SealDirectoryCompositionActionKind CompositionActionKind { get; }
 
         /// <nodoc/>
         public CompositeSharedOpaqueSealDirectory(
@@ -30,7 +33,8 @@ namespace BuildXL.Pips.Operations
             IReadOnlyList<DirectoryArtifact> composedDirectories,
             PipProvenance provenance,
             ReadOnlyArray<StringId> tags,
-            SealDirectoryContentFilter? contentFilter) 
+            SealDirectoryContentFilter? contentFilter,
+            SealDirectoryCompositionActionKind compositionAction) 
                 : base(
                     directoryRoot, 
                     CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
@@ -41,8 +45,12 @@ namespace BuildXL.Pips.Operations
                     CollectionUtilities.EmptyArray<StringId>().ToReadOnlyArray())
         {
             Contract.Requires(composedDirectories != null);
+            Contract.Requires(compositionAction != SealDirectoryCompositionActionKind.None);
+
+            Contract.Assert(compositionAction != SealDirectoryCompositionActionKind.NarrowDirectoryCone || (composedDirectories.Count == 1), "When action is NarrowDirectoryCone, exactly one directory must be provided.");
 
             ComposedDirectories = composedDirectories;
+            CompositionActionKind = compositionAction;
             m_contentFilter = contentFilter;
         }
 
@@ -53,10 +61,11 @@ namespace BuildXL.Pips.Operations
                 artifact.Path,
                 reader.ReadArray(reader1 => reader1.ReadDirectoryArtifact()),
                 reader.ReadPipProvenance(),
-                reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
+                reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),                
                 reader.ReadBoolean()
                     ? new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString())
-                    : (SealDirectoryContentFilter?)null);
+                    : (SealDirectoryContentFilter?)null,
+                (SealDirectoryCompositionActionKind)reader.ReadByte());
 
             directory.SetDirectoryArtifact(artifact);
             Contract.Assume(directory.IsInitialized && directory.Directory == artifact);
@@ -83,6 +92,7 @@ namespace BuildXL.Pips.Operations
             {
                 writer.Write(false);
             }
+            writer.Write((byte)CompositionActionKind);
         }
     }
 }

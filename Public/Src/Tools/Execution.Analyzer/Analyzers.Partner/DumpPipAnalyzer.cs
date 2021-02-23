@@ -713,9 +713,10 @@ namespace BuildXL.Execution.Analyzer
                 if (PipTable.IsSealDirectoryComposite(sealPipId))
                 {
                     var sealPip = (SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(directory.artifact, PipQueryContext.SchedulerExecuteSealDirectoryPip);
+                    var isSubDir = sealPip.CompositionActionKind == SealDirectoryCompositionActionKind.NarrowDirectoryCone;
                     foreach (var nestedDirectory in sealPip.ComposedDirectories.Select(d => (artifact: d, path: d.Path.ToString(PathTable))).OrderByDescending(tupple => tupple.path))
                     {
-                        directories.Push((nestedDirectory.artifact, nestedDirectory.path, directory.tabCount + 1));
+                        directories.Push((nestedDirectory.artifact, $"{(isSubDir ? "subdirectory of " : "")}{nestedDirectory.path}", directory.tabCount + 1));
                     }
                 }
             }

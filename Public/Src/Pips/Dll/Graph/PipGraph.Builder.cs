@@ -2027,7 +2027,7 @@ namespace BuildXL.Pips.Graph
 
                 // We don't allow assertions on composite shared opaques
                 // TODO: this can be implemented in the future. Making the composite opaque the producer of the file is not a big deal but
-                // we need to accomodate this into the file monitoring violation analyzer to not flag this as a double write
+                // we need to accommodate this into the file monitoring violation analyzer to not flag this as a double write
                 if (producerPip.PipType == PipType.SealDirectory && ((SealDirectory)producerPip).IsComposite)
                 {
                     LogEventWithPipProvenance(Logger.ScheduleFailAddPipAssertionNotSupportedInCompositeOpaques, producerPip, fileArtifact);
@@ -2764,15 +2764,36 @@ namespace BuildXL.Pips.Graph
                                         return DirectoryArtifact.Invalid;
                                     }
 
-                                    // The directory to compose should be within the proposed root
-                                    if (!directoryElement.Path.IsWithin(Context.PathTable, artifactForNewSeal.Path))
+                                    // Depending on the way the composed directory is constructed, the proposed root must either contain all of the
+                                    // directories that are being composed or must be under the composed directory.
+
+                                    if (sealDirectory.CompositionActionKind == SealDirectoryCompositionActionKind.WidenDirectoryCone)
                                     {
-                                        LogEventWithPipProvenance(
-                                            Logger.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot,
-                                            sealDirectory,
-                                            root,
-                                            directoryElement.Path);
-                                        return DirectoryArtifact.Invalid;
+                                        if (!directoryElement.Path.IsWithin(Context.PathTable, artifactForNewSeal.Path))
+                                        {
+                                            LogEventWithPipProvenance(
+                                                Logger.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot,
+                                                sealDirectory,
+                                                root,
+                                                directoryElement.Path);
+                                            return DirectoryArtifact.Invalid;
+                                        }
+                                    }
+                                    else if (sealDirectory.CompositionActionKind == SealDirectoryCompositionActionKind.NarrowDirectoryCone)
+                                    {
+                                        if (!artifactForNewSeal.Path.IsWithin(Context.PathTable, directoryElement.Path))
+                                        {
+                                            LogEventWithPipProvenance(
+                                                Logger.ScheduleFailAddPipInvalidComposedSealDirectoryDoesNotContainRoot,
+                                                sealDirectory,
+                                                root,
+                                                directoryElement.Path);
+                                            return DirectoryArtifact.Invalid;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Contract.Assert(false, I($"Composition action {sealDirectory.CompositionActionKind} is not supported."));
                                     }
 
                                     // First check if the element is a regular shared opaque, i.e. it is part of the directory outputs

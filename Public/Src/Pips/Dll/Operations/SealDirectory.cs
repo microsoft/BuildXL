@@ -74,8 +74,14 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Always false for a regular seal directory, <see cref="CompositeSharedOpaqueSealDirectory"/>
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public virtual bool IsComposite => false;
+
+        /// <summary>
+        /// Always <see cref="SealDirectoryCompositionActionKind.None"/> for a regular seal directory, <see cref="CompositeSharedOpaqueSealDirectory"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public virtual SealDirectoryCompositionActionKind CompositionActionKind => SealDirectoryCompositionActionKind.None;
 
         /// <summary>
         /// Scrub the unsealed contents for fully seal directory. Always false when SealDirectoryKind is not Full.

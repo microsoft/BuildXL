@@ -586,7 +586,7 @@ namespace BuildXL.Pips
             if (mutable.PipType == PipType.SealDirectory)
             {
                 var sealMutable = ((SealDirectoryMutablePipState)mutable);
-                Contract.Assert(sealMutable.SealDirectoryKind.IsSourceSeal(), "Pattern is only avaialable for source seal directories.");
+                Contract.Assert(sealMutable.SealDirectoryKind.IsSourceSeal(), "Pattern is only available for source seal directories.");
                 return sealMutable.Patterns;
             }
 

@@ -257,7 +257,8 @@ namespace BuildXL.Pips.Graph
             fingerprinter.AddCollection<DirectoryArtifact, IReadOnlyList<DirectoryArtifact>>(nameof(SealDirectory.OutputDirectoryContents), sealDirectory.OutputDirectoryContents, (fp, d) => AddDirectoryDependency(fp, d));
             fingerprinter.AddCollection<FileArtifact, ReadOnlyArray<FileArtifact>>(nameof(SealDirectory.Contents), sortedContents, (fp, f) => AddFileDependency(fp, f));
             fingerprinter.AddCollection<StringId, ReadOnlyArray<StringId>>(nameof(SealDirectory.Patterns), sealDirectory.Patterns, (fp, p) => fp.Add(p));
-            fingerprinter.Add(nameof(SealDirectory.IsComposite), sealDirectory.IsComposite.ToString());
+            fingerprinter.Add(nameof(SealDirectory.CompositionActionKind), sealDirectory.CompositionActionKind.ToString());
+            fingerprinter.Add(nameof(SealDirectory.ContentFilter), sealDirectory.ContentFilter.HasValue ? $"{sealDirectory.ContentFilter.Value.Kind} {sealDirectory.ContentFilter.Value.Regex}" : "");
             fingerprinter.AddCollection<DirectoryArtifact, IReadOnlyList<DirectoryArtifact>>(nameof(SealDirectory.ComposedDirectories), sealDirectory.ComposedDirectories, (fp, d) => AddDirectoryDependency(fp, d));
         }
 

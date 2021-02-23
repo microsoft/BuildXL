@@ -73,6 +73,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     Function(SealSourceDirectoryFunctionName, SealSourceDirectory, SealSourceDirectorySignature),
                     Function(SealPartialDirectoryFunctionName, SealPartialDirectory, SealPartialDirectorySignature),
                     Function(ComposeSharedOpaqueDirectoriesFunctionName, ComposeSharedOpaqueDirectories, ComposeSharedOpaqueDirectoriesSignature),
+                    Function(GetSharedOpaqueSubDirectoryFunctionName, GetSharedOpaqueSubDirectory, GetSharedOpaqueSubDirectorySignature),
                     Function(GetNewIpcMonikerFunctionName, GetNewIpcMoniker, GetNewIpcMonikerSignature),
                     Function(GetIpcServerMonikerFunctionName, GetIpcServerMoniker, GetIpcMonikerSignature),
                     Function(GetDominoIpcServerMonikerFunctionName, GetIpcServerMoniker, GetIpcMonikerSignature),

@@ -107,6 +107,7 @@ namespace BuildXL.Pips.Graph
                             (fp, d) => fp.Add(d.Path, m_sealDirectoryFingerprintLookup(d).Hash));
                         hasher.Add("ContentFilter", 
                             sealDirectory.ContentFilter.HasValue ? $"{sealDirectory.ContentFilter.Value.Kind} {sealDirectory.ContentFilter.Value.Regex}" : "");
+                        hasher.Add("ActionKind", sealDirectory.CompositionActionKind.ToString());
                         completeFingerprint = new ContentFingerprint(hasher.GenerateHash());
                         completeFingerprintText = FingerprintTextEnabled
                             ? completeFingerprintText + Environment.NewLine + hasher.FingerprintInputText

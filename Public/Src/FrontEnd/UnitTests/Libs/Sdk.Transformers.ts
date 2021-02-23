@@ -345,6 +345,12 @@ namespace Transformer {
        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory, [], contentFilter);
    }
 
+    /** Creates a new shared opaque directory that is a subdirectory of an existing shared opaque directory. */
+   @@public
+   export function getSharedOpaqueSubDirectory(directory: any, subDirectoryPath: any, contentFilter?: any): SharedOpaqueDirectory {
+       return _PreludeAmbientHack_Transformer.getSharedOpaqueSubDirectory(directory, subDirectoryPath, contentFilter);
+   }  
+
     /** Options for sealing source directory. */
     @@public
     export const enum SealSourceDirectoryOption {

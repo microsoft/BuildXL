@@ -25,7 +25,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
-        public void AllContainedDirectoriesMustBeUnderACommonRoot()
+        public void AllContainedDirectoriesMustBeUnderACommonRootWhenCombiningMultipleDirectories()
         {
             var sodDir1 = @"\\dummyPath\SharedOpaqueDir1";
             var sodDir2 = @"\\outOfRoot\SharedOpaqueDir2";
@@ -50,6 +50,7 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root, sharedOpaqueDirectory2.Root },
+                    actionKind: SealDirectoryCompositionActionKind.WidenDirectoryCone,
                     contentFilter: null,
                     description: null,
                     tags: new string[] { },
@@ -58,6 +59,37 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsFalse(result);
 
                 AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot);
+                IgnoreWarnings();
+            }
+        }
+
+        [Fact]
+        public void SubdirectoryMustBeNestedWithinOriginalDirectory()
+        {
+            var sodDir1 = @"\\dummyPath\SharedOpaqueDir1";
+            var root = @"\\dummyPath";
+
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath sodPath1 = env.Paths.CreateAbsolutePath(sodDir1);
+
+                var pip1 = CreatePipBuilderWithTag(env, "test");
+                pip1.AddOutputDirectory(sodPath1, SealDirectoryKind.SharedOpaque);
+                var outputs1 = env.PipConstructionHelper.AddProcess(pip1);
+                outputs1.TryGetOutputDirectory(sodPath1, out var sharedOpaqueDirectory1);
+
+                var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
+                    env.Paths.CreateAbsolutePath(root),
+                    new[] { sharedOpaqueDirectory1.Root },
+                    actionKind: SealDirectoryCompositionActionKind.NarrowDirectoryCone,
+                    contentFilter: null,
+                    description: null,
+                    tags: new string[] { },
+                    out var composedSharedOpaque);
+
+                XAssert.IsFalse(result);
+
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryDoesNotContainRoot);
                 IgnoreWarnings();
             }
         }
@@ -85,6 +117,7 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root, sourceSealDirectory },
+                    actionKind: SealDirectoryCompositionActionKind.WidenDirectoryCone,
                     contentFilter: null,
                     description: null,
                     tags: new string[] { },
@@ -115,6 +148,7 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root },
+                    actionKind: SealDirectoryCompositionActionKind.WidenDirectoryCone,
                     contentFilter: null,
                     description: null,
                     tags: new string[] { },
@@ -126,6 +160,7 @@ namespace Test.BuildXL.Scheduler
                 result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { composedSharedOpaque },
+                    actionKind: SealDirectoryCompositionActionKind.WidenDirectoryCone,
                     contentFilter: null,
                     description: null,
                     tags: new string[] { },

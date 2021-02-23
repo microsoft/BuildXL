@@ -26,7 +26,7 @@ namespace Transformer {
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.
     */
     @@public
-    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], contentFilter?: (string | ComposedSharedOpaqueDirectoryContentFilter)): SharedOpaqueDirectory {
+    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], contentFilter?: (string | DirectoryContentFilter)): SharedOpaqueDirectory {
         let filter: ComposedSharedOpaqueDirectoryContentFilter = undefined;
 
         if (contentFilter !== undefined) {
@@ -45,8 +45,15 @@ namespace Transformer {
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.     
     */
     @@public
-    export function filterSharedOpaqueDirectory(directory: SharedOpaqueDirectory, contentFilter: ComposedSharedOpaqueDirectoryContentFilter): SharedOpaqueDirectory {
+    export function filterSharedOpaqueDirectory(directory: SharedOpaqueDirectory, contentFilter: DirectoryContentFilter): SharedOpaqueDirectory {
         return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory.root, [directory], contentFilter);
+    }
+
+    /** Creates a new shared opaque directory that is a subdirectory of an existing shared opaque directory. */
+    @@public
+    export function getSharedOpaqueSubDirectory(directory: SharedOpaqueDirectory, subDirectoryPath: RelativePath, contentFilter?: DirectoryContentFilter): SharedOpaqueDirectory {
+        const subDirectory = d`${directory.root}/${subDirectoryPath}`;
+        return _PreludeAmbientHack_Transformer.getSharedOpaqueSubDirectory(directory, subDirectory, contentFilter);
     }
 
     /** Options for sealing source directory. */
@@ -120,17 +127,21 @@ namespace Transformer {
         directories: SharedOpaqueDirectory[],
 
         /** A regular expression defining the files to be included in the resulting directory. */
-        contentFilter?: ComposedSharedOpaqueDirectoryContentFilter,
+        contentFilter?: DirectoryContentFilter,
     }
 
     @@public
-    export interface ComposedSharedOpaqueDirectoryContentFilter {
+    export interface DirectoryContentFilter {
         /** Whether this is an include or exclude filter. */
         kind : "Include" | "Exclude",
 
         /** A regular expression defining the files to be included/excluded in the resulting directory. */
         regex : string,
     }
+
+    /** Obsolete. Please use DirectoryContentFilter instead. */
+    @@public
+    export type ComposedSharedOpaqueDirectoryContentFilter = DirectoryContentFilter;
 
     /**
      * Returns whether the given item is a static directory or any of its subclasses

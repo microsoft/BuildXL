@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -316,6 +317,7 @@ namespace BuildXL.Pips
         public bool TryComposeSharedOpaqueDirectory(
             AbsolutePath directoryRoot,
             IReadOnlyList<DirectoryArtifact> contents,
+            SealDirectoryCompositionActionKind actionKind,
             SealDirectoryContentFilter? contentFilter,
             [CanBeNull] string description,
             [CanBeNull] string[] tags,
@@ -323,6 +325,7 @@ namespace BuildXL.Pips
         {
             Contract.Requires(directoryRoot.IsValid);
             Contract.Requires(contents != null);
+            Contract.Requires(actionKind.IsComposite());
 
             if (PipGraph == null)
             {
@@ -332,9 +335,7 @@ namespace BuildXL.Pips
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Count.ToString(CultureInfo.InvariantCulture),
-                    " shared opaque directories, filter: ",
-                    contentFilter.HasValue ? $"'{contentFilter.Value.Regex}' (kind: {Enum.GetName(typeof(SealDirectoryContentFilter.ContentFilterKind),     contentFilter.Value.Kind)})" : "''",  "]" });
+                : generatePipDescription());
 
             sharedOpaqueDirectory = PipGraph.ReserveSharedOpaqueDirectory(directoryRoot);
 
@@ -343,7 +344,8 @@ namespace BuildXL.Pips
                     contents,
                     CreatePipProvenance(usage),
                     ToStringIds(tags),
-                    contentFilter);
+                    contentFilter,
+                    actionKind);
 
             // The seal directory is ready to be initialized, since the directory artifact has been reserved already
             pip.SetDirectoryArtifact(sharedOpaqueDirectory);
@@ -355,6 +357,27 @@ namespace BuildXL.Pips
             }
 
             return true;
+
+            PipDataAtom[] generatePipDescription()
+            {
+                switch(actionKind)
+                {
+                    case SealDirectoryCompositionActionKind.WidenDirectoryCone:
+                        return new PipDataAtom[] {
+                            "'", directoryRoot, "' [", contents.Count.ToString(CultureInfo.InvariantCulture), " shared opaque directories, filter: ",
+                            contentFilter.HasValue ? $"'{contentFilter.Value.Regex}' (kind: {Enum.GetName(typeof(SealDirectoryContentFilter.ContentFilterKind), contentFilter.Value.Kind)})" : "''",  
+                            "]" 
+                        };
+                    case SealDirectoryCompositionActionKind.NarrowDirectoryCone:
+                        return new PipDataAtom[] {
+                            "'", directoryRoot, "' [ subdirectory of a shared opaque '", contents.FirstOrDefault().ToString(), "', filter: ",
+                            contentFilter.HasValue ? $"'{contentFilter.Value.Regex}' (kind: {Enum.GetName(typeof(SealDirectoryContentFilter.ContentFilterKind), contentFilter.Value.Kind)})" : "''",
+                            "]"
+                        };
+                    default:
+                        throw new Exception($"Cannot create description for a CompositeSharedOpaqueSealDirectory with action kind {actionKind}");
+                }
+            }
         }
 
         /// <nodoc />

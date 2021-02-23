@@ -2001,7 +2001,7 @@ namespace Test.BuildXL.Scheduler
             addProcess = PipGraphBuilder.AddProcess(processToo);
             XAssert.IsTrue(addProcess);
 
-            PipConstructionHelper.TryComposeSharedOpaqueDirectory(outputDirectory, new[] { outputDirectory }, null, "Test", new string[] { }, out var compositeSharedOpaque);
+            PipConstructionHelper.TryComposeSharedOpaqueDirectory(outputDirectory, new[] { outputDirectory }, SealDirectoryCompositionActionKind.WidenDirectoryCone, null, "Test", new string[] { }, out var compositeSharedOpaque);
 
             bool existenceAsserted = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(compositeSharedOpaque, outArtifact1.Path, out _);
             XAssert.IsFalse(existenceAsserted);

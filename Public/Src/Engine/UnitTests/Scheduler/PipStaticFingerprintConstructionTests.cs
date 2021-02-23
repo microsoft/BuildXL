@@ -138,6 +138,7 @@ namespace Test.BuildXL.Scheduler
                 var success = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(composedSharedOpaqueRoot), 
                     sharedOpaqueDirectoryArtifactMembers, 
+                    actionKind: SealDirectoryCompositionActionKind.WidenDirectoryCone,
                     contentFilter: contentFilter,
                     description: null, 
                     tags: new string[0], 

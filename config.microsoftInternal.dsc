@@ -30,7 +30,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
     { id: "Microsoft.VisualStudio.Services.Client", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
-    { id: "Microsoft.Azure.Storage.Common", version:"11.1.0" },
+    { id: "Microsoft.Azure.Storage.Common", version:"11.2.2" },
 
     { id: "GVFS.Installers", version: "0.3.20147.1" },
 

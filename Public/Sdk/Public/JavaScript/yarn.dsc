@@ -68,6 +68,7 @@ namespace Yarn {
         frozenLockfile?: boolean,
         additionalDependencies?: [File | StaticDirectory],
         environment?: Transformer.EnvironmentVariable[],
+        retries?: number,
     }
 
     /**
@@ -139,7 +140,10 @@ namespace Yarn {
                     // unwanted cache misses
                     d`${arguments.repoRoot}/.git`,
                 ]
-            }
+            },
+            processRetries: arguments.retries,
+            // Yarn install fails with exit code 1, which usually means some flaky network error that can be retried
+            retryExitCodes: [1],
         };
 
         return Transformer.execute(Object.merge(defaults, yarnInstallArgs));

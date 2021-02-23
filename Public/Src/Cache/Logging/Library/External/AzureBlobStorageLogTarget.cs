@@ -20,16 +20,14 @@ namespace BuildXL.Cache.Logging.External
         private readonly AzureBlobStorageLog _log;
 
         /// <nodoc />
-        public AzureBlobStorageLogTarget(AzureBlobStorageLog log, bool useOptimizedLayout)
+        public AzureBlobStorageLogTarget(AzureBlobStorageLog log)
         {
             _log = log;
             _log.OnFileOpen = WriteHeaderAsync;
             _log.OnFileClose = WriteFooterAsync;
 
-            if (useOptimizedLayout)
-            {
-                Layout = new LowAllocationSimpleLayout("${longdate}|${level:uppercase=true}|${logger}|${message}");
-            }
+            // Enabling a feature that allows NLog to re-use internal buffers to reduce allocations.
+            OptimizeBufferReuse = true;
         }
 
         private Task WriteHeaderAsync(StreamWriter streamWriter)
@@ -57,7 +55,9 @@ namespace BuildXL.Cache.Logging.External
         /// <inheritdoc />
         protected override void Write(LogEventInfo logEvent)
         {
-            _log.Write(Layout.Render(logEvent));
+            // RenderLogEvent respects 'OptimizeBufferReuse' flag and will have less allocations
+            // compared to a _log.Write(Layout.Render(logEvent)); call.
+            _log.Write(RenderLogEvent(Layout, logEvent));
         }
 
         /// <inheritdoc />

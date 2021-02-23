@@ -96,7 +96,7 @@ namespace BuildXL.Cache.Host.Service
                 if (type == typeof(AzureBlobStorageLogTarget))
                 {
                     var log = CreateAzureBlobStorageLogAsync(operationContext, arguments).Result;
-                    var target = new AzureBlobStorageLogTarget(log, arguments.LoggingSettings.UseOptimizedNLogRenderLayout ?? false);
+                    var target = new AzureBlobStorageLogTarget(log);
                     return target;
                 }
 

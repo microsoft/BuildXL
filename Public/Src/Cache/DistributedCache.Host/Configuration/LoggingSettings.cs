@@ -26,12 +26,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public AzureBlobStorageLogPublicConfiguration? Configuration { get; set; } = null;
 
-        /// <summary>
-        /// Whether to use a more optimized NLog Layout that avoids excessive allocations by using pooled StringBuilders.
-        /// </summary>
-        [DataMember]
-        public bool? UseOptimizedNLogRenderLayout { get; set; }
-
         public LoggingSettings()
         {
         }

@@ -65,7 +65,7 @@ config({
 
             packages: [
 
-                { id: "NLog", version: "4.6.8" },
+                { id: "NLog", version: "4.7.7" },
 
                 { id: "Bond.Core.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp", version: "8.0.0" },

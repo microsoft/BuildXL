@@ -11,23 +11,24 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Processes.Tracing;
+using System.Threading.Tasks;
 
 namespace BuildXL.Engine.Distribution
 {
-    public sealed partial class WorkerService
+    public sealed partial class WorkerNotificationManager
     {
         /// <summary>
-        /// Event listener which forwards errors to the master instance
+        /// Event listener for error and warning events which will be forwarded to the orchestrator
         /// </summary>
         private sealed class ForwardingEventListener : FormattingEventListener
         {
-            private readonly WorkerService m_workerService;
+            private readonly WorkerNotificationManager m_notificationManager;
             private int m_nextEventId;
 
-            public ForwardingEventListener(WorkerService workerService)
+            public ForwardingEventListener(WorkerNotificationManager notificationManager)
                 : base(Events.Log, GetStartTime(), eventMask: GetEventMask())
             {
-                m_workerService = workerService;
+                m_notificationManager = notificationManager;
             }
 
             private static EventMask GetEventMask()
@@ -78,21 +79,17 @@ namespace BuildXL.Engine.Distribution
                             ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
                         };
                     }
-                    
-                    await m_workerService.SendEventMessagesAsync(
-                        forwardedEvents: new List<EventMessage>(1)
-                                         {
-                                         new EventMessage()
-                                         {
-                                             Id = Interlocked.Increment(ref m_nextEventId),
-                                             Level = (int)level,
-                                             EventKeywords = (long)eventData.Keywords,
-                                             EventId = eventData.EventId,
-                                             EventName = eventData.EventName,
-                                             Text = text,                                             
-                                             PipProcessErrorEvent = pipProcessErrorEvent,
-                                         },
-                                         });
+
+                    await m_notificationManager.ReportEventMessageAsync(new EventMessage()
+                    {
+                        Id = Interlocked.Increment(ref m_nextEventId),
+                        Level = (int)level,
+                        EventKeywords = (long)eventData.Keywords,
+                        EventId = eventData.EventId,
+                        EventName = eventData.EventName,
+                        Text = text,
+                        PipProcessErrorEvent = pipProcessErrorEvent,
+                    });
                 }
                 catch (Exception ex) when (ExceptionUtilities.HandleUnexpectedException(ex))
                 {

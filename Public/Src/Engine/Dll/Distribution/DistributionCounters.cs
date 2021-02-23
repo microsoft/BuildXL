@@ -72,5 +72,9 @@ namespace BuildXL.Engine.Distribution
 
         /// <nodoc/>
         SendPipBuildRequestCallDurationMs,
+
+        /// Time sending notifications to the orchestrator
+        [CounterType(CounterType.Stopwatch)]
+        SendNotificationDuration,
     }
 }

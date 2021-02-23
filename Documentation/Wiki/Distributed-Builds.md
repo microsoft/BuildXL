@@ -49,7 +49,7 @@ After transitioning to the `Running` state the `RemoteWorker` starts the thread 
 
 - Both the build requests (from the orchestrator to a worker) and the build results (from worker to orchestrator) are queued and sent in batches to the corresponding endpoint. 
 
-- The [binary execution log](How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md) is constantly funneled from every worker to the orchestrator, which coalesces the information into the single execution log for the build. 
+- The [binary execution log](How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md) is constantly funneled (alongside the pip results) from every worker to the orchestrator, which coalesces the information into the single execution log for the build. 
 
 - The scheduler running in a worker doesn't do any actual "scheduling" besides managing concurrency and resource utilization. It just receives the specific steps to queue for execution from the WorkerService.
 
@@ -60,7 +60,7 @@ After transitioning to the `Running` state the `RemoteWorker` starts the thread 
 A thread in `ClientConnectionManager` monitors changes in the gRPC [channel state](https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.md) and tries to reconnect if it notices the connection was lost. From the orchestrator, if the reconnection attempts fail, the worker will be transitioned to the `Stopped` state. Any pending pip that was assigned to the lost worker can be retried a number of times (controlled by the `/numRetryFailedPipsOnAnotherWorker` configuration).
 
 ### Forwarded events
-The worker forwards error and warning events to the orchestrator through the `Notify` RPC. When receiving an error event, the orchestrator can decide to stop the worker and, depending on the type of error, fail the build or not (e.g., we don't fail the build because of infrastructure errors on the worker such as low disk space). 
+The worker also forwards error and warning events to the orchestrator through the `Notify` RPC. When receiving an error event, the orchestrator can decide to stop the worker and, depending on the type of error, fail the build or not (e.g., we don't fail the build because of infrastructure errors on the worker such as low disk space). 
 
 ## Examples
 For every machine, the logs for the gRPC activity can be found in the `BuildXL.DistributionRpc.log` in the build log folder. Each remote calls is associated with a trace ID (in the form of a GUID). 

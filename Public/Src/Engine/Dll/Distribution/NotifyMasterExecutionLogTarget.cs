@@ -19,11 +19,18 @@ namespace BuildXL.Engine.Distribution
     public class NotifyMasterExecutionLogTarget : ExecutionLogFileTarget
     {
         private volatile bool m_isDisposed = false;
+        private readonly NotifyStream m_notifyStream;
         private readonly BinaryLogger m_logger;
 
-        internal NotifyMasterExecutionLogTarget(uint workerId, IMasterClient masterClient, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex, DistributionServices services)
-            : this(CreateBinaryLogger(new NotifyStream(workerId, masterClient, services), context, logId, lastStaticAbsolutePathIndex))
+        internal NotifyMasterExecutionLogTarget(WorkerNotificationManager notificationManager, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
+            : this(new NotifyStream(notificationManager), context, logId, lastStaticAbsolutePathIndex)
         {
+        }
+
+        private NotifyMasterExecutionLogTarget(NotifyStream notifyStream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex) 
+            : this(CreateBinaryLogger(notifyStream, context, logId, lastStaticAbsolutePathIndex))
+        {
+            m_notifyStream = notifyStream;
         }
 
         private NotifyMasterExecutionLogTarget(BinaryLogger logger)
@@ -39,13 +46,17 @@ namespace BuildXL.Engine.Distribution
                 context,
                 logId,
                 lastStaticAbsolutePathIndex,
-                closeStreamOnDispose: true,
-                onEventWritten: () => stream.FlushIfNeeded());
+                closeStreamOnDispose: true);
         }
 
         internal Task FlushAsync()
         {
             return m_logger.FlushAsync();
+        }
+
+        internal void Deactivate()
+        {
+            m_notifyStream.Deactivate();
         }
 
         /// <inheritdoc />
@@ -71,16 +82,9 @@ namespace BuildXL.Engine.Distribution
 
         private class NotifyStream : Stream
         {
-            /// <summary>
-            /// Threshold over which events are sent to master.
-            /// </summary>
-            private const int EventDataSizeThreshold = 1 << 20;
-
             private MemoryStream m_eventDataBuffer = new MemoryStream();
 
-            private readonly uint m_workerId;
-
-            private readonly IMasterClient m_masterClient;
+            private readonly WorkerNotificationManager m_notificationManager;
 
             /// <summary>
             /// If deactivated, functions stop writing or flushing <see cref="m_eventDataBuffer"/>.
@@ -97,45 +101,19 @@ namespace BuildXL.Engine.Distribution
 
             public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-            private int m_blobSequenceNumber = 0;
-
-            private readonly DistributionServices m_services;
-
-            public NotifyStream(uint workerId, IMasterClient masterClient, DistributionServices services)
+            public NotifyStream(WorkerNotificationManager notificationManager)
             {
-                m_workerId = workerId;
-                m_masterClient = masterClient;
-                m_services = services;
+                m_notificationManager = notificationManager;
             }
 
             public override void Flush()
             {
-                if (m_isDeactivated || m_eventDataBuffer.Length == 0)
+                if (m_eventDataBuffer.Length != 0)
                 {
-                    return;
-                }
+                    m_notificationManager.FlushExecutionLog(m_eventDataBuffer);
 
-                var buffer = m_eventDataBuffer.GetBuffer();
-
-                using (m_services.Counters.StartStopwatch(DistributionCounter.SendExecutionLogDuration))
-                {
-                    // Send event data to master synchronously. This will only block the dedicated thread used by the binary logger.
-                    var callResult = m_masterClient.NotifyAsync(new WorkerNotificationArgs()
-                    {
-                        WorkerId = m_workerId,
-                        ExecutionLogData = new ArraySegment<byte>(buffer, 0, (int)m_eventDataBuffer.Length),
-                        ExecutionLogBlobSequenceNumber = m_blobSequenceNumber++,
-                    },
-                    null).GetAwaiter().GetResult();
-
-                    // Reset the buffer now that data is sent to master
+                    // Reset the buffer 
                     m_eventDataBuffer.SetLength(0);
-
-                    if (!callResult.Succeeded)
-                    {
-                        // Deactivate so that no further writes are sent to the master.
-                        m_isDeactivated = true;
-                    }
                 }
             }
 
@@ -176,12 +154,9 @@ namespace BuildXL.Engine.Distribution
                 m_eventDataBuffer.Write(buffer, offset, count);
             }
 
-            public void FlushIfNeeded()
+            public void Deactivate()
             {
-                if (m_eventDataBuffer.Length >= EventDataSizeThreshold)
-                {
-                    Flush();
-                }
+                m_isDeactivated = true;
             }
         }
     }

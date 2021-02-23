@@ -123,12 +123,12 @@ namespace BuildXL.Engine.Distribution
 
                 if (notificationArgs.ExecutionLogData.Count > 0)
                 {
-                    sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
+                    sb.AppendFormat(" ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
                 }
 
                 if (notificationArgs.ForwardedEvents?.Count > 0)
                 {
-                    sb.AppendFormat("ForwardedEvents: Count={0}", notificationArgs.ForwardedEvents.Count);
+                    sb.AppendFormat(" ForwardedEvents: Count={0}", notificationArgs.ForwardedEvents.Count);
                 }
 
                 return sb.ToString();

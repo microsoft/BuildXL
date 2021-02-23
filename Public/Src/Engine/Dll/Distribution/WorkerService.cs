@@ -4,11 +4,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -37,29 +35,6 @@ namespace BuildXL.Engine.Distribution
     /// </summary>
     public sealed partial class WorkerService : IDistributionService
     {
-        #region Writer Pool
-
-        private readonly ObjectPool<BuildXLWriter> m_writerPool = new ObjectPool<BuildXLWriter>(CreateWriter, (Action<BuildXLWriter>)CleanupWriter);
-
-        private static void CleanupWriter(BuildXLWriter writer)
-        {
-            writer.BaseStream.SetLength(0);
-        }
-
-        [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Disposal is not needed for memory stream")]
-        private static BuildXLWriter CreateWriter()
-        {
-            return new BuildXLWriter(
-                debug: false,
-                stream: new MemoryStream(),
-                leaveOpen: false,
-                logStats: false);
-        }
-
-        #endregion Writer Pool
-
-        private readonly List<ExtendedPipCompletionData> m_executionResultList = new List<ExtendedPipCompletionData>();
-
         /// <summary>
         /// Gets the build start data from the coordinator passed after the attach operation
         /// </summary>
@@ -104,24 +79,16 @@ namespace BuildXL.Engine.Distribution
         private volatile bool m_isMasterExited;
 
         private LoggingContext m_appLoggingContext;
-        private ExecutionResultSerializer m_resultSerializer;
+        private WorkerNotificationManager m_notificationManager;
         private PipTable m_pipTable;
         private PipQueue m_pipQueue;
         private Scheduler.Scheduler m_scheduler;
         private IPipExecutionEnvironment m_environment;
-        private ForwardingEventListener m_forwardingEventListener;
         private WorkerServicePipStateManager m_workerPipStateManager;
         private readonly IConfiguration m_config;
         private readonly ushort m_port;
         private readonly WorkerRunnablePipObserver m_workerRunnablePipObserver;
         private readonly DistributionServices m_services;
-        private NotifyMasterExecutionLogTarget m_notifyMasterExecutionLogTarget;
-
-        private readonly Thread m_sendThread;
-        private readonly CancellationTokenSource m_sendCancellationSource;
-
-        private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData>();
-        private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
         private IMasterClient m_masterClient;
         private readonly IServer m_workerServer;
@@ -143,118 +110,6 @@ namespace BuildXL.Engine.Distribution
             m_attachCompletionSource = TaskSourceSlim.Create<bool>();
             m_exitCompletionSource = TaskSourceSlim.Create<bool>();
             m_workerRunnablePipObserver = new WorkerRunnablePipObserver(this);
-            m_sendCancellationSource = new CancellationTokenSource();
-            m_sendThread = new Thread(() => SendBuildResults(m_sendCancellationSource.Token));
-        }
-
-        private void SendBuildResults(CancellationToken cancellationToken)
-        {
-            int numBatchesSent = 0;
-
-            ExtendedPipCompletionData firstItem;
-            while (!m_buildResults.IsCompleted && !cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    firstItem = m_buildResults.Take();
-                }
-                catch (InvalidOperationException)
-                {
-                    // m_buildResults has drained and been completed.
-                    break;
-                }
-
-                m_executionResultList.Clear();
-                m_executionResultList.Add(firstItem);
-
-                while (m_executionResultList.Count < m_maxMessagesPerBatch && m_buildResults.TryTake(out var item))
-                {
-                    m_executionResultList.Add(item);
-                }
-
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    // We may wake up after blocking with TryTake to find out that we were cancelled
-                    break;
-                }
-
-                // Ensure all execution log events are flushed before reporting pip results to master
-                // to ensure dependency ordering constraints between pips are maintained inside combined
-                // execution log on master.
-                // NOTE: Actual wait for result is below to allow other serialization of execution results
-                // to run in parallel with flush.
-                var flushExecutionLogTask = EngineEnvironmentSettings.InlineWorkerXLGHandling
-                    ? m_notifyMasterExecutionLogTarget.FlushAsync()
-                    : Task.CompletedTask;
-
-                using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
-                {
-                    Parallel.ForEach(m_executionResultList, a => SerializeExecutionResult(a));
-                }
-
-                using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerFlushExecutionLogDuration))
-                {
-                    try
-                    {
-                        flushExecutionLogTask.Wait(cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // The logger may still be trying to flush the execution log to the orchestrator
-                        // because that operation is not tied to the cancellation token, but that's OK. 
-                        // We still want to stop trying to communicate so we exit.
-                        break;
-                    }
-                }
-
-                using (m_services.Counters.StartStopwatch(DistributionCounter.ReportPipsCompletedDuration))
-                {
-                    var callResult = m_masterClient.NotifyAsync(new WorkerNotificationArgs
-                    {
-                        WorkerId = WorkerId,
-                        CompletedPips = m_executionResultList.Select(a => a.SerializedData).ToList()
-                    },
-                    m_executionResultList.Select(a => a.SemiStableHash).ToList(),
-                    cancellationToken: cancellationToken).GetAwaiter().GetResult();
-                    
-                    if (callResult.Succeeded)
-                    {
-                        foreach (var result in m_executionResultList)
-                        {
-                            m_workerPipStateManager.Transition(result.PipId, WorkerPipState.Reported);
-                            Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
-                        }
-
-                        numBatchesSent++;
-                    }
-                    else if (!cancellationToken.IsCancellationRequested)
-                    {
-                        // Fire-forget exit call with failure.
-                        // If we fail to send notification to master and we were not cancelled, the worker should fail.
-                        ExitAsync(failure: "Notify event failed to send to master", isUnexpected: true);
-                        break;
-                    }
-                }
-            }
-
-            m_services.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToMaster, numBatchesSent);
-        }
-
-        private void SerializeExecutionResult(ExtendedPipCompletionData completionData)
-        {
-            using (var pooledWriter = m_writerPool.GetInstance())
-            {
-                var writer = pooledWriter.Instance;
-                PipId pipId = completionData.PipId;
-
-                m_resultSerializer.Serialize(writer, completionData.ExecutionResult, completionData.PreservePathSetCasing);
-
-                // TODO: ToArray is expensive here. Think about alternatives.
-                var dataByte = ((MemoryStream)writer.BaseStream).ToArray();
-                completionData.SerializedData.ResultBlob = new ArraySegment<byte>(dataByte);
-                m_workerPipStateManager.Transition(pipId, WorkerPipState.Reporting);
-                m_environment.Counters.AddToCounter(m_pipTable.GetPipType(pipId) == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataByte.Length);
-            }
         }
 
         internal void Start(EngineSchedule schedule)
@@ -272,8 +127,7 @@ namespace BuildXL.Engine.Distribution
             m_environment = m_scheduler;
             m_environment.ContentFingerprinter.FingerprintSalt = BuildStartData.FingerprintSalt;
             m_environment.State.PipEnvironment.MasterEnvironmentVariables = BuildStartData.EnvironmentVariables;
-            m_resultSerializer = new ExecutionResultSerializer(maxSerializableAbsolutePathIndex: schedule.MaxSerializedAbsolutePath, executionContext: m_scheduler.Context);
-            m_forwardingEventListener = new ForwardingEventListener(this);
+            m_notificationManager = new WorkerNotificationManager(this, schedule, m_environment, m_services);
         }
 
         /// <summary>
@@ -297,6 +151,15 @@ namespace BuildXL.Engine.Distribution
             m_pipQueue.SetAsFinalized();
 
             return success;
+        }
+
+
+        internal void ReportingPipToMaster(ExtendedPipCompletionData data) => m_workerPipStateManager.Transition(data.PipId, WorkerPipState.Reporting);
+
+        internal void PipReportedToMaster(ExtendedPipCompletionData result)
+        {
+            m_workerPipStateManager.Transition(result.PipId, WorkerPipState.Reported);
+            Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
         }
 
         /// <summary>
@@ -342,25 +205,7 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         public void Exit(string failure, bool isUnexpected = false)
         {
-            m_buildResults.CompleteAdding();
-
-            if (m_sendThread.IsAlive)
-            {
-                m_sendThread.Join();
-            }
-
-            // The execution log target can be null if the worker failed to attach to master
-            if (m_notifyMasterExecutionLogTarget != null)
-            {
-                // Remove the notify master target to ensure no further events are sent to it.
-                // Otherwise, the events that are sent to a disposed target would cause crashes.
-                m_scheduler.RemoveExecutionLogTarget(m_notifyMasterExecutionLogTarget);
-                // Dispose the execution log target to ensure all events are flushed and sent to master
-                m_notifyMasterExecutionLogTarget.Dispose();
-            }
-
-            // Dispose the event listener to ensure all events are sent to master.
-            m_forwardingEventListener?.Dispose();
+            m_notificationManager.Exit();
 
             m_masterClient?.CloseAsync().GetAwaiter().GetResult();
 
@@ -465,9 +310,7 @@ namespace BuildXL.Engine.Distribution
             }
             else
             {
-                m_notifyMasterExecutionLogTarget = new NotifyMasterExecutionLogTarget(WorkerId, m_masterClient, m_environment.Context, m_scheduler.PipGraph.GraphId, m_scheduler.PipGraph.MaxAbsolutePathIndex, m_services);
-                m_scheduler.AddExecutionLogTarget(m_notifyMasterExecutionLogTarget);
-                m_sendThread.Start();
+                m_notificationManager.Start(m_masterClient);
             }
 
             return true;
@@ -476,7 +319,7 @@ namespace BuildXL.Engine.Distribution
         private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
         {
             // Stop sending messages
-            m_sendCancellationSource.Cancel();
+            m_notificationManager.Cancel();
            
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
@@ -747,15 +590,7 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
-            try
-            {
-                m_buildResults.Add(pipCompletion);
-            }
-            catch (InvalidOperationException)
-            {
-                // m_buildResults is already marked as completed due to previously infrastructure errors reported (e.g., materialization errors).
-                // No need to report the other failed results as the build already failed
-            }
+            m_notificationManager.ReportResult(pipCompletion);
         }
 
         private Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes)
@@ -831,24 +666,6 @@ namespace BuildXL.Engine.Distribution
             }
 
             return Unit.Void;
-        }
-
-        private async Task SendEventMessagesAsync(List<EventMessage> forwardedEvents)
-        {
-            if (m_masterClient == null)
-            {
-                return;
-            }
-
-            using (m_services.Counters.StartStopwatch(DistributionCounter.SendEventMessagesDuration))
-            {
-                await m_masterClient.NotifyAsync(new WorkerNotificationArgs
-                {
-                    ForwardedEvents = forwardedEvents,
-                    WorkerId = WorkerId
-                },
-                null);
-            }
         }
 
         /// <inheritdoc/>

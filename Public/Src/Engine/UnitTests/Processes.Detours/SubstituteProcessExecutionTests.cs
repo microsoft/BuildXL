@@ -104,6 +104,60 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         /// <summary>
+        /// Running cmd.exe with a one-word child process like 'nmake' (not a builtin command like 'dir') will cause shim to receive just that token 'nmake' as a command line.
+        /// This exercises the case of there being no arguments to parse from the command.
+        /// </summary>
+        [Theory]
+        [InlineData("", "")]  // Raw command
+        [InlineData("\"", "\"")]  // Quoted command - cmd /C should stip the quotes off when running child
+        [InlineData("\"", "")]  // Single start quote with no end quote
+        [InlineData("\"\"", "\"\"")]  // Force case where child process is executed with double quotes around it
+        public async Task CmdWithSingleTokenChildProcessNoArgsAsync(string preCommand, string postCommand)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var shimProgramPath = GetShimProgramPath(context);
+
+            string executable = CmdHelper.CmdX64;
+            string childExecutable = executable;
+            string quotedExecutable = '"' + executable + '"';
+            childExecutable = quotedExecutable;
+
+            var fam = CreateCommonFileAccessManifest(context.PathTable);
+
+            // Use 'doskey' (alias manager) built into Windows.
+            string args = $"/D /C {preCommand}doskey.exe{postCommand}";
+            
+            fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
+                shimProgramPath,
+                shimAllProcesses: false,
+                processMatches: new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, "cmd.exe"), PathAtom.Invalid) });
+
+            var stdOutSb = new StringBuilder(128);
+            var stdErrSb = new StringBuilder();
+
+            SandboxedProcessInfo sandboxedProcessInfo = CreateCommonSandboxedProcessInfo(
+                context,
+                executable,
+                args,
+                fam,
+                stdOutSb,
+                stdErrSb);
+
+            ISandboxedProcess sandboxedProcess =
+                await SandboxedProcessFactory.StartAsync(sandboxedProcessInfo, forceSandboxing: true)
+                    .ConfigureAwait(false);
+            SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
+
+            string stdOut = stdOutSb.ToString();
+            string stdErr = stdErrSb.ToString();
+
+            m_output.WriteLine($"stdout: {stdOut}");
+            m_output.WriteLine($"stderr: {stdErr}");
+
+            AssertSuccess(result, stdErr);
+        }
+
+        /// <summary>
         /// Execute a test that shims all top-level processes of cmd.exe, calling a test shim executable and verifying it was called correctly.
         /// The child process is passed to Detours via the lpApplicationName of CreateProcess(), and is unquoted.
         /// </summary>

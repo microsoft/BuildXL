@@ -106,6 +106,9 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
         return;
     }
 
+    size_t argStartIndex;
+    const size_t fullCommandLineLength = fullCommandLine.length();
+
     if (fullCommandLine[0] == L'"')
     {
         // Find the close quote. Might not be present which means the command
@@ -117,6 +120,7 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
             command = fullCommandLine.substr(1);
             trim_inplace(command);
             commandArgs = wstring();
+            argStartIndex = fullCommandLineLength;
         }
         else
         {
@@ -124,8 +128,7 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
             {
                 // Quotes cover entire command line.
                 command = fullCommandLine.substr(1, fullCommandLine.length() - 2);
-                trim_inplace(command);
-                commandArgs = wstring();
+                argStartIndex = fullCommandLineLength;
             }
             else
             {
@@ -138,14 +141,13 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
                 if (spaceDelimiterIndex == wstring::npos)
                 {
                     // No space, take everything through the end of the command line.
-                    spaceDelimiterIndex = fullCommandLine.length();
+                    spaceDelimiterIndex = fullCommandLineLength;
                 }
 
                 command = (noQuoteCommand +
                     fullCommandLine.substr(closeQuoteIndex + 1, spaceDelimiterIndex - closeQuoteIndex - 1));
-                trim_inplace(command);
-                commandArgs = fullCommandLine.substr(spaceDelimiterIndex + 1);
-                trim_inplace(commandArgs);
+
+                argStartIndex = spaceDelimiterIndex + 1;
             }
         }
     }
@@ -156,12 +158,23 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
         if (spaceDelimiterIndex == wstring::npos)
         {
             // No space, take everything through the end of the command line.
-            spaceDelimiterIndex = fullCommandLine.length();
+            spaceDelimiterIndex = fullCommandLineLength;
         }
 
         command = fullCommandLine.substr(0, spaceDelimiterIndex);
-        commandArgs = fullCommandLine.substr(spaceDelimiterIndex + 1);
+        argStartIndex = spaceDelimiterIndex + 1;
+    }
+
+    trim_inplace(command);
+
+    if (argStartIndex < fullCommandLineLength)
+    {
+        commandArgs = fullCommandLine.substr(argStartIndex);
         trim_inplace(commandArgs);
+    }
+    else
+    {
+        commandArgs = wstring();
     }
 }
 

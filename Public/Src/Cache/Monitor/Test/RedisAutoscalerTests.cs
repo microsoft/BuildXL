@@ -3,8 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -72,6 +70,38 @@ namespace BuildXL.Cache.Monitor.Test
             });
         }
 
+        [Theory]
+        // Memory load is low and server load is high.
+        [InlineData("P1/1", new string[] { }, "3 GB", 60)]
+        // Memory load is low and server load is extremely high. TODO: we should probably be upscaling in these cases,
+        // however, they don't happen often in our prod env.
+        [InlineData("P1/1", new string[] { }, "3 GB", 80)]
+        // Memory load is high and server load is low.
+        [InlineData("P1/1", new[] { "P1/2" }, "5.4 GB", 10)]
+        // Memory load is high and server load is high.
+        [InlineData("P1/1", new[] { "P1/2" }, "5.4 GB", 60)]
+        // Memory load is high and server load is extremely high.
+        [InlineData("P1/1", new[] { "P2/1" }, "5.4 GB", 80)]
+        public Task ChangesSKUWhenServerLoadIsHigh(string initialClusterSize, IEnumerable<string> expectedPath, string usedMemoryAcrossAllShards, int serverLoadPctAcrossAllShards)
+        {
+            return RunTestAsync(async (operationContext, redisAutoscalingAgent) =>
+            {
+                redisAutoscalingAgent.UsedMemoryBytes.Add(usedMemoryAcrossAllShards.ToSize());
+                redisAutoscalingAgent.OperationsPerSecond.Add(10);
+                redisAutoscalingAgent.MaximumServerLoadAcrossShards.Add(serverLoadPctAcrossAllShards);
+
+                var redisInstance = new MockRedisInstance(RedisClusterSize.Parse(initialClusterSize));
+                var modelOutput = await redisAutoscalingAgent
+                    .EstimateBestClusterSizeAsync(operationContext, redisInstance)
+                    .ThrowIfFailureAsync();
+
+                modelOutput
+                    .ScalePath
+                    .Should()
+                    .BeEquivalentTo(expectedPath.Select(size => RedisClusterSize.Parse(size)));
+            });
+        }
+
         private async Task RunTestAsync(Func<OperationContext, TestableRedisAutoscalingAgent, Task> testFunc)
         {
             // Console is forwarded to XUnit as per TestBase
@@ -101,6 +131,11 @@ namespace BuildXL.Cache.Monitor.Test
 
             public List<double> OperationsPerSecond { get; set; } = new List<double>();
 
+            /// <remarks>
+            /// This is defaulted to a single element list because we need to ensure that there's at least one element.
+            /// </remarks>
+            public List<double> MaximumServerLoadAcrossShards { get; set; } = new List<double>();
+
             protected override Task<List<double>> FetchMemoryUsedPerShardAsync(
                 OperationContext context,
                 DateTime now,
@@ -115,6 +150,14 @@ namespace BuildXL.Cache.Monitor.Test
                 string redisAzureId)
             {
                 return Task.FromResult(OperationsPerSecond);
+            }
+
+            protected override Task<List<double>> FetchMaximumServerLoadAcrossShardsAsync(
+                OperationContext context,
+                DateTime now,
+                string redisAzureId)
+            {
+                return Task.FromResult(MaximumServerLoadAcrossShards);
             }
         }
     }

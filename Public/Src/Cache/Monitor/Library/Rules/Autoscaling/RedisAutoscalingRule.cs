@@ -26,6 +26,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(1);
 
             public TimeSpan MinimumWaitTimeBetweenDownscaleSteps { get; set; } = TimeSpan.FromMinutes(20);
+
+            public TimeSpan MinimumWaitTimeBetweenFailedStateReports { get; set; } = TimeSpan.FromMinutes(15);
         }
 
         private readonly Configuration _configuration;
@@ -54,7 +56,9 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
         public override async Task Run(RuleContext context)
         {
-            var validationOutcome = await ValidateAndScaleAsync(context, _primaryRedisInstance, _secondaryRedisInstance);
+            var now = _configuration.Clock.UtcNow;
+
+            var validationOutcome = await ValidateAndScaleAsync(context, _primaryRedisInstance, _secondaryRedisInstance, allowFailedStateReporting: true);
             switch (validationOutcome)
             {
                 case ValidationOutcome.PrimaryUndergoingAutoscale:
@@ -70,7 +74,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                     break;
             }
 
-            await ValidateAndScaleAsync(context, _secondaryRedisInstance, _primaryRedisInstance);
+            var allowFailedStateReporting = (_configuration.Clock.UtcNow - now) > _configuration.MinimumWaitTimeBetweenFailedStateReports;
+            await ValidateAndScaleAsync(context, _secondaryRedisInstance, _primaryRedisInstance, allowFailedStateReporting);
         }
 
         private enum ValidationOutcome
@@ -83,11 +88,26 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             Success,
         }
 
-        private async Task<ValidationOutcome> ValidateAndScaleAsync(RuleContext context, IRedisInstance primary, IRedisInstance secondary)
+        private async Task<ValidationOutcome> ValidateAndScaleAsync(RuleContext context, IRedisInstance primary, IRedisInstance secondary, bool allowFailedStateReporting)
         {
             // Last refresh time may be arbitrarily long, either because the rule hasn't been run for a long time, or
             // because there was an autoscale that happened before. Hence, we need to refresh what we know.
             await Task.WhenAll(primary.RefreshAsync(context.CancellationToken), secondary.RefreshAsync(context.CancellationToken)).ThrowIfFailureAsync();
+
+            if (allowFailedStateReporting)
+            {
+                if (!primary.IsReadyToScale)
+                {
+                    Emit(context, "Autoscale", Severity.Warning, $"Instance `{primary.Name}` is undergoing maintenance or autoscaling operation. State=[{primary.State}]");
+                    await CreateIcmForFailedStateIfNeededAsync(primary);
+                }
+
+                if (!secondary.IsReadyToScale)
+                {
+                    Emit(context, "Autoscale", Severity.Warning, $"Instance `{secondary.Name}` is undergoing maintenance or autoscaling operation. State=[{secondary.State}]");
+                    await CreateIcmForFailedStateIfNeededAsync(secondary);
+                }
+            }
 
             // Both instances in a failed state means we need to open a Sev 2 against our own rotation to get them
             // fixed as quickly as possible.
@@ -114,9 +134,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             //  2. The other instance is not being scaled, but may be not ready to scale
             if (!primary.IsReadyToScale)
             {
-                Emit(context, "Autoscale", Severity.Warning, $"Instance `{primary.Name}` is undergoing maintenance or autoscaling operation. State=[{primary.State}]");
-                await CreateIcmForFailedStateIfNeededAsync(primary);
-
                 if (primary.IsFailed)
                 {
                     return ValidationOutcome.PrimaryFailed;
@@ -129,9 +146,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
             if (!secondary.IsReadyToScale && !secondary.IsFailed)
             {
-                Emit(context, "Autoscale", Severity.Warning, $"Instance `{secondary.Name}` is undergoing maintenance or autoscaling operation. State=[{secondary.State}]");
-                await CreateIcmForFailedStateIfNeededAsync(secondary);
-
                 return ValidationOutcome.SecondaryUndergoingAutoscale;
             }
 

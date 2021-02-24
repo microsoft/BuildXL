@@ -74,7 +74,8 @@ config({
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.3.0" },
+                { id: "RuntimeContracts", version: "0.3.1" },
+                { id: "RuntimeContracts.Analyzer", version: "0.3.2" }, // The versions are different because the analyzer has higher version for now.
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0", osSkip: [ "macOS", "unix" ] },
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0", osSkip: [ "macOS", "unix" ] },
@@ -129,7 +130,6 @@ config({
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
                 { id: "StructRecordGenerator", version: "0.4.0"},
                 
-                { id: "RuntimeContracts.Analyzer", version: "0.3.0" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 

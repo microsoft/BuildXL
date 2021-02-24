@@ -1134,11 +1134,13 @@ namespace Test.BuildXL.Processes.Detours
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
                     context,
-                    new SandboxConfiguration {
+                    new SandboxConfiguration
+                    {
                         FileAccessIgnoreCodeCoverage = true,
                         FailUnexpectedFileAccesses = false,
                         UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { IgnoreUndeclaredAccessesUnderSharedOpaques = false },
-                        LogObservedFileAccesses = true},
+                        LogObservedFileAccesses = true
+                    },
                     pip,
                     fileAccessAllowlist: null,
                     new Dictionary<string, string>(),
@@ -1339,10 +1341,10 @@ namespace Test.BuildXL.Processes.Detours
                 await AssertProcessFailsPreparation(
                     context,
                    new SandboxConfiguration
-                    {
-                        FailUnexpectedFileAccesses = false,
-                        FileAccessIgnoreCodeCoverage = true
-                    },
+                   {
+                       FailUnexpectedFileAccesses = false,
+                       FileAccessIgnoreCodeCoverage = true
+                   },
                     pip);
             }
 
@@ -1678,7 +1680,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, TestOutputDirectory);
 
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
-                arguments.Add("/d /c start " + CmdHelper.CmdX64 + " /k");  // Starts child process that hangs on console input and has to be killed by job object.
+                arguments.Add("/d /c start /B " + CmdHelper.CmdX64 + " /k");  // Starts child process that hangs on console input and has to be killed by job object.
 
                 var pip = new Process(
                     executableFileArtifact,
@@ -1712,8 +1714,11 @@ namespace Test.BuildXL.Processes.Detours
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
                     context,
-                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, 
-                        SurvivingPipProcessChildrenDumpDirectory = dumpDir.Combine(context.PathTable, LogFileExtensions.SurvivingPipProcessChildrenDumpDirectory)},
+                    new SandboxConfiguration
+                    {
+                        FileAccessIgnoreCodeCoverage = true,
+                        SurvivingPipProcessChildrenDumpDirectory = dumpDir.Combine(context.PathTable, LogFileExtensions.SurvivingPipProcessChildrenDumpDirectory)
+                    },
                     pip,
                     null,
                     new Dictionary<string, string>(),
@@ -1744,7 +1749,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, TestOutputDirectory);
 
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
-                arguments.Add("/d /c start " + CmdHelper.CmdX64 + " /k");  // Starts child process that hangs on console input and has to be killed by job object.
+                arguments.Add("/d /c start /B " + CmdHelper.CmdX64 + " /k");  // Starts child process that hangs on console input and has to be killed by job object.
 
                 var pip = new Process(
                     executableFileArtifact,

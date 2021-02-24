@@ -494,7 +494,12 @@ namespace BuildXL.Scheduler.Tracing
         DumpPipLiteUnableToSerializePip = 14523,
         DumpPipLiteUnableToSerializePipDueToBadArgument = 14524,
         DumpPipLiteUnableToSerializePipDueToBadPath = 14525,
-        RuntimeDumpPipLiteLogLimitReached = 14526
+        RuntimeDumpPipLiteLogLimitReached = 14526,
+
+        RecordFileForBuildManifestAfterGenerateBuildManifestFileList = 14527,
+        GenerateBuildManifestFileListFoundDuplicateHashes = 14528,
+        BuildManifestGeneratorFoundDuplicateHash = 14529,
+        GenerateBuildManifestFileListResult = 14530,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

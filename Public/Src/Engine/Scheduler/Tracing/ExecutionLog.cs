@@ -38,7 +38,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public virtual IExecutionLogTarget CreateWorkerTarget(uint workerId)
         {
-            return CanHandleWorkerEvents ? this : null;
+            return null;
         }
 
         /// <inheritdoc/>

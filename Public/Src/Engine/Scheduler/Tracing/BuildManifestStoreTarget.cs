@@ -18,6 +18,11 @@ namespace BuildXL.Scheduler.Tracing
         public override bool CanHandleWorkerEvents => true;
 
         /// <summary>
+        /// Handle the events from workers
+        /// </summary>
+        public override IExecutionLogTarget CreateWorkerTarget(uint workerId) => this;
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         public BuildManifestStoreTarget(BuildManifestGenerator buildManifestGenerator)

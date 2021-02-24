@@ -1933,6 +1933,7 @@ namespace BuildXL.Scheduler
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
             ApiServer.Counters.LogAsStatistics("ApiServer", loggingContext);
+            BuildManifestGenerator.Counters.LogAsStatistics("BuildManifestGenerator", loggingContext);
             statistics.AddRange(ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.HashInfo.HashType).GetCounters().ToDictionaryIntegral());
 
             m_pipPropertyInfo.LogPipPropertyInfo(loggingContext);

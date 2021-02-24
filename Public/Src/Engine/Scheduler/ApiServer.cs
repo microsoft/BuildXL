@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -104,29 +103,34 @@ namespace BuildXL.Scheduler
 
         private async Task StoreBuildManifestHashAsync(ContentHash hash, ContentHash manifestHash)
         {
-            (var wf, var sf) = GetBuildManifestHashKey(hash);
+            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalHashToHashCacheWriteDuration)) {
+                (var wf, var sf) = GetBuildManifestHashKey(hash);
 
-            var result = await m_engineCache.TwoPhaseFingerprintStore.TryPublishCacheEntryAsync(wf, hash, sf, new CacheEntry(manifestHash, "", ArrayView<ContentHash>.Empty));
+                var result = await m_engineCache.TwoPhaseFingerprintStore.TryPublishCacheEntryAsync(wf, hash, sf, new CacheEntry(manifestHash, "", ArrayView<ContentHash>.Empty));
 
-            if (!result.Succeeded)
-            {
-                Tracing.Logger.Log.ApiServerStoreBuildManifestHashToCacheFailed(m_loggingContext, hash.Serialize(), manifestHash.Serialize(), result.Failure.DescribeIncludingInnerFailures()); 
+                if (!result.Succeeded)
+                {
+                    Tracing.Logger.Log.ApiServerStoreBuildManifestHashToCacheFailed(m_loggingContext, hash.Serialize(), manifestHash.Serialize(), result.Failure.DescribeIncludingInnerFailures());
+                }
             }
         }
 
         private async Task<ContentHash?> TryGetBuildManifestHashAsync(ContentHash hash)
         {
-            (var wf, var sf) = GetBuildManifestHashKey(hash);
-
-            var result = await m_engineCache.TwoPhaseFingerprintStore.TryGetCacheEntryAsync(wf, hash, sf);
-
-            if (result.Succeeded && result.Result?.MetadataHash != null)
+            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalHashToHashCacheReadDuration))
             {
-                // HashType information is sometimes lost in the caching layers. Manually overwriting the HashType to avoid invalid build manifest generation.
-                return new ContentHash(ContentHashingUtilities.BuildManifestHashType, result.Result?.MetadataHash.ToHashByteArray());
-            }
+                (var wf, var sf) = GetBuildManifestHashKey(hash);
 
-            return null;
+                var result = await m_engineCache.TwoPhaseFingerprintStore.TryGetCacheEntryAsync(wf, hash, sf);
+
+                if (result.Succeeded && result.Result?.MetadataHash != null)
+                {
+                    // HashType information is sometimes lost in the caching layers. Manually overwriting the HashType to avoid invalid build manifest generation.
+                    return new ContentHash(ContentHashingUtilities.BuildManifestHashType, result.Result?.MetadataHash.ToHashByteArray());
+                }
+
+                return null;
+            }
         }
 
         private async Task<Possible<ContentHash>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, int retryAttempt = 0)
@@ -148,7 +152,6 @@ namespace BuildXL.Scheduler
                 try
                 {
                     var hash = await ContentHashingUtilities.HashFileForBuildManifestAsync(fullFilePath);
-                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", $"Local file found at path '{fullFilePath}'. BuildManifestHash: '{hash.Serialize()}'");
                     return hash;
                 }
                 catch (Exception ex) when (ex is BuildXLException || ex is IOException)
@@ -348,20 +351,12 @@ namespace BuildXL.Scheduler
             Contract.Requires(cmd != null);
             Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on master");
 
-            var duplicateEntries = m_buildManifestGenerator.DuplicateEntries(cmd.DropName);
-            if (duplicateEntries.Count != 0)
+            if (!m_buildManifestGenerator.TryGenerateBuildManifestFileList(cmd.DropName, out string error, out var buildManifestFileList))
             {
-                StringBuilder sb = new StringBuilder();
-                sb.Append($"Operation Register BuildManifest Hash for Drop '{cmd.DropName}' failed due to files with different hashes being uploaded to the same path: ");
-                foreach (var entry in duplicateEntries)
-                {
-                    sb.Append($"[Path: {entry.relativePath}'. RecordedHash: '{entry.recordedHash}'. RejectedHash: '{entry.rejectedHash}'] ");
-                }
-
-                return new IpcResult(IpcResultStatus.ExecutionError, sb.ToString());
+                return new IpcResult(IpcResultStatus.ExecutionError, error);
             }
 
-            return IpcResult.Success(cmd.RenderResult(m_buildManifestGenerator.GenerateBuildManifestFileList(cmd)));
+            return IpcResult.Success(cmd.RenderResult(buildManifestFileList));
         }
 
         /// <summary>
@@ -400,15 +395,12 @@ namespace BuildXL.Scheduler
             }
 
             // (2) Attempt hash read from cache
-            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalHashToHashCacheDuration))
+            ContentHash? hashFromCache = await TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
+            if (hashFromCache.HasValue)
             {
-                ContentHash? hashFromCache = await TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
-                if (hashFromCache.HasValue)
-                {
-                    m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
-                    RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
-                    return null;
-                }
+                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
+                RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
+                return null;
             }
 
             // (3) Attempt to compute hash for locally existing file (Materializes non-existing files)
@@ -557,7 +549,14 @@ namespace BuildXL.Scheduler
         /// Time spent obtaining hash to hash mappings from cache for build manifest
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        RegisterBuildManifestInternalHashToHashCacheDuration,
+        RegisterBuildManifestInternalHashToHashCacheReadDuration,
+
+
+        /// <summary>
+        /// Time spent obtaining hash to hash mappings from cache for build manifest
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RegisterBuildManifestInternalHashToHashCacheWriteDuration,
 
         /// <summary>
         /// Time spent computing hashes for build manifest (includes materialization times for non-existing files)

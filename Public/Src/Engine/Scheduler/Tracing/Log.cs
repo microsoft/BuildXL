@@ -3842,6 +3842,41 @@ namespace BuildXL.Scheduler.Tracing
             Message = "Runtime dump pip lite analyzer has hit the maximum amount of files that can be logged ({maxFiles}) and will not log additional failures for this build.")]
         internal abstract void RuntimeDumpPipLiteLogLimitReached(LoggingContext loggingContext, int maxFiles);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.RecordFileForBuildManifestAfterGenerateBuildManifestFileList,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "RecordFileForBuildManifest received an event after GenerateBuildManifestFileList invocation [ DropName: '{dropName}', RelativePath: '{relativePath}', AzureArtifactsHash: '{azureArtifactsHash}', BuildManifestHash: '{buildManifestHash}' ].")]
+        internal abstract void RecordFileForBuildManifestAfterGenerateBuildManifestFileList(LoggingContext loggingContext, string dropName, string relativePath, string azureArtifactsHash, string buildManifestHash);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GenerateBuildManifestFileListFoundDuplicateHashes,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Operation Register BuildManifest Hash for Drop '{dropName}' failed due to {duplicateEntryCount} files with mismatching hashes being registered at respective RelativePaths. Check BuildXL.wrn for more details.")]
+        internal abstract void GenerateBuildManifestFileListFoundDuplicateHashes(LoggingContext loggingContext, string dropName, int duplicateEntryCount);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.BuildManifestGeneratorFoundDuplicateHash,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "BuildManifestGenerator received a file path with multiple hash registeration attempts: [ DropName: '{dropName}', RelativePath: '{relativePath}', RecordedHash: '{recordedHash}', RejectedHash: '{rejectedHash}' ].")]
+        internal abstract void BuildManifestGeneratorFoundDuplicateHash(LoggingContext loggingContext, string dropName, string relativePath, string recordedHash, string rejectedHash);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GenerateBuildManifestFileListResult,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "GenerateBuildManifestFileList successfully generated a list of {fileListCount} files for Drop: '{dropName}'.")]
+        internal abstract void GenerateBuildManifestFileListResult(LoggingContext loggingContext, string dropName, int fileListCount);
     }
 }
 #pragma warning restore CA1823 // Unused field

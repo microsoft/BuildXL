@@ -1680,7 +1680,7 @@ namespace BuildXL.Scheduler
             {
                 ProcessMemoryCountersSnapshot lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
                 TimeSpan? cancellationStartTime = null;
-                resourceScope.Token.Register(
+                using var cancellationTokenRegistration = resourceScope.Token.Register(
                     () =>
                     {
                         cancellationStartTime = TimestampUtilities.Timestamp;

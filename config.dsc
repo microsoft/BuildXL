@@ -127,7 +127,7 @@ config({
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
 
                 { id: "AsyncFixer", version: "1.5.1" },
-                { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
+                { id: "ErrorProne.NET.CoreAnalyzers", version: "0.3.1-beta.2" },
                 { id: "StructRecordGenerator", version: "0.4.0"},
                 
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },

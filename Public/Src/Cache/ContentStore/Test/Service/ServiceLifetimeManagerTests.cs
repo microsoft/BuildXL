@@ -75,11 +75,6 @@ namespace ContentStoreTest.Service
             {
                 try
                 {
-                    token.Register(
-                        () =>
-                        {
-                            Output.WriteLine("Callback!1!");
-                        });
                     await Task.Delay(Timeout.InfiniteTimeSpan, token);
                     return ServiceResult.Completed;
                 }
@@ -107,7 +102,7 @@ namespace ContentStoreTest.Service
 
                 try
                 {
-                    token.Register(() =>
+                    using var registration = token.Register(() =>
                     {
                         isInterruptorCanceled = true;
                         interruptorCompletion.SetCanceled();

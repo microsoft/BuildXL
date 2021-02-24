@@ -121,7 +121,7 @@ namespace BuildXL.VsPackage.VsProject
                 }
 
                 m_buildProcess = buildProcess;
-                cancellationToken.Register(() => CancelBuildProcess(buildProcess));
+                using var registration = cancellationToken.Register(() => CancelBuildProcess(buildProcess));
                 var result = await WaitForProcessExitAsync(buildProcess, cancellationToken);
 
                 return result;
@@ -152,7 +152,10 @@ namespace BuildXL.VsPackage.VsProject
                     m_processIdSource = new TaskCompletionSource<int>();
                     m_buildInitiator = new TaskCompletionSource<bool>();
                     m_currentBuildCancellation = new CancellationTokenSource();
-                    m_currentBuildCancellation.Token.Register(() => m_buildInitiator.TrySetCanceled());
+                    
+                    // Ignoring the result because we don't need to dispose the CancellationTokenRegistration obtained from that call
+                    // because the token is created from a CancellationTokenSource that won't outlive the current instance.
+                    _ = m_currentBuildCancellation.Token.Register(() => m_buildInitiator.TrySetCanceled());
                     m_currentBuild = StartBuildCoreAsync(buildStartArguments, m_currentBuildCancellation.Token);
                     BuildInProgress = true;
                 }

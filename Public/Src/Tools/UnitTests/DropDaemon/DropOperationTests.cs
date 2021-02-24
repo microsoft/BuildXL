@@ -400,7 +400,6 @@ namespace Test.Tool.DropDaemon
         }
 
         [Fact]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         public void TestDropDaemonOutrightRejectSymlinks()
         {
             // create a regular file that mocks a symlink (because creating symlinks on Windows is difficult?!?)
@@ -409,9 +408,9 @@ namespace Test.Tool.DropDaemon
 
             // check that drop daemon rejects it outright
             var dropClient = new MockDropClient(addFileSucceeds: true);
-            WithSetup(dropClient, async (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener) =>
             {
-                var ipcResult = await daemon.AddFileAsync(new DropItemForFile(targetFile), symlinkTester: (file) => file == targetFile ? true : false);
+                var ipcResult = daemon.AddFileAsync(new DropItemForFile(targetFile), symlinkTester: (file) => file == targetFile ? true : false).GetAwaiter().GetResult();
                 Assert.False(ipcResult.Succeeded, "adding symlink to drop succeeded while it was expected to fail");
                 Assert.True(ipcResult.Payload.Contains(global::Tool.DropDaemon.DropDaemon.SymlinkAddErrorMessagePrefix));
             });

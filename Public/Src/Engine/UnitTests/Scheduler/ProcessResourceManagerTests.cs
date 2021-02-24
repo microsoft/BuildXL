@@ -144,7 +144,7 @@ namespace Test.BuildXL.Scheduler
 
                     ExecutionCount++;
                     var currrentCancellationCompletionSource = m_cancellationCompletionSource;
-                    resourceScope.Token.Register(() =>
+                    using var registration = resourceScope.Token.Register(() =>
                     {
                         XAssert.IsTrue(m_startSemaphore.Wait(millisecondsTimeout: 100000));
 

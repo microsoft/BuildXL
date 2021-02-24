@@ -15,6 +15,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
     /// </summary>
     internal sealed class ProgressNotifier : IDisposable
     {
+        private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
         private readonly IProgressReporter m_progressReporter;
         private readonly int m_numberOfFiles;
         private int m_numberOfFoundReferences;
@@ -31,7 +32,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             m_timer = new Timer(Handler, null, s_interval, s_interval);
             m_stopWatch = Stopwatch.StartNew();
 
-            token.Register(
+            m_cancellationTokenRegistration = token.Register(
                 () =>
                 {
                     // Protect the access to the timer to avoid the race condition with the disposal.
@@ -54,6 +55,8 @@ namespace BuildXL.Ide.LanguageServer.Providers
             {
                 m_timer.Dispose();
             }
+
+            m_cancellationTokenRegistration.Dispose();
         }
 
         private void Handler(object unused)

@@ -32,6 +32,7 @@ export const defaultArgs: Arguments = {
     utf8output: true,
     fullpaths: true,
     platform: "anycpu",
+    reportAnalyzer: true,
     checksumAlgorithm: "sha256",
     languageVersion: "Latest",
     deterministic: true,
@@ -69,7 +70,7 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.flag("/nologo",         args.noLogo),
         Cmd.flag("/noconfig",       args.noConfig),
         // the /shared option is not supported as part of the response file
-        Cmd.flag("/shared", args.shared),
+        Cmd.flag("/shared",         args.shared),
 
         Cmd.startUsingResponseFile(),
 
@@ -99,6 +100,8 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.option("/subsystemversion:",   args.subSystemVersion),
         Cmd.sign("/nullable",              args.nullable),
         Cmd.option("/nullable:",           args.nullabilityContext),
+
+        Cmd.flag("/reportAnalyzer",       args.reportAnalyzer),
 
         Cmd.option("/checksumalgorithm:",  args.checksumAlgorithm ? args.checksumAlgorithm.toString() : undefined),
 
@@ -342,6 +345,9 @@ export interface Arguments extends Transformer.RunnerArguments{
     baseAddress?: string;
     /** Run the analyzers from this assembly (Short form: /a) */
     analyzers?: Shared.Binary[];
+
+    /**If true then the compiler will print the performance summary for the most expensive analyzers used by the compiler */
+    reportAnalyzer?: boolean;
 
     /** A set of strings designating experimental compiler features that are to be enabled. */
     features?: string[];

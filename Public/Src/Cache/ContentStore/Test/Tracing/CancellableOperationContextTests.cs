@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             bool scopeCancellationWasCalled = false;
             using (var scope = new CancellableOperationContext(operationContext, secondaryTokenSource.Token))
             {
-                scope.Context.Token.Register(
+                using var registration = scope.Context.Token.Register(
                     () =>
                     {
                         scopeCancellationWasCalled = true;
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             bool scopeCancellationWasCalled = false;
             using (var scope = new CancellableOperationContext(operationContext, secondaryTokenSource.Token))
             {
-                scope.Context.Token.Register(
+                using var registration = scope.Context.Token.Register(
                     () =>
                     {
                         scopeCancellationWasCalled = true;
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             bool scopeCancellationWasCalled = false;
             using (var scope = new CancellableOperationContext(operationContext, secondaryTokenSource.Token))
             {
-                scope.Context.Token.Register(
+                using var registration = scope.Context.Token.Register(
                     () =>
                     {
                         scopeCancellationWasCalled = true;

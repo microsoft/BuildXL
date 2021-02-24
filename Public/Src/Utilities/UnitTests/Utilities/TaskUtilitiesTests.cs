@@ -161,7 +161,7 @@ namespace Test.BuildXL.Utilities
             var task = TaskUtilities.WithTimeoutAsync(
                 async token =>
                 {
-                    token.Register(() => { cancellationRequested = true; });
+                    using var registration = token.Register(() => { cancellationRequested = true; });
                     await Task.Delay(/* milliseconds */200000);
 
                     return 42;

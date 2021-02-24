@@ -4,7 +4,7 @@ import * as ManagedSdk from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 
 namespace VfsLibrary {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
     
     @@public
     export const dll = BuildXLSdk.library({
@@ -17,7 +17,9 @@ namespace VfsLibrary {
             Hashing.dll,
             Library.dll,
             Interfaces.dll,
-            importFrom("Microsoft.Windows.ProjFS").pkg,
+            qualifier.targetFramework === "netstandard2.0" ?
+                importFrom("Microsoft.Windows.ProjFS").withQualifier({ targetFramework: "net461" }).pkg 
+                : importFrom("Microsoft.Windows.ProjFS").pkg,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Collections.dll,

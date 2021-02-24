@@ -73,6 +73,7 @@ namespace Cache.NugetPackages {
             
             // ContentStore.VfsLibraries
             Nuget.createAssemblyLayout(net472ContentStore.VfsLibrary.dll),
+            Nuget.createAssemblyLayout(netStandardContentStore.VfsLibrary.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(winX64ContentStore.VfsLibrary.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(net5WinX64ContentStore.VfsLibrary.dll, "win-x64", true),
 

@@ -37,7 +37,7 @@ namespace BuildXL.Cache.Monitor.App
 
             public string KeyVaultUrl { get; set; } = Constants.DefaultKeyVaultUrl;
 
-            public AzureActiveDirectoryCredentials KeyVaultCredentials { get; set; } = Constants.MicrosoftTenantCredentials;
+            public AzureActiveDirectoryCredentials KeyVaultCredentials { get; set; } = Constants.PMETenantCredentials;
 
             public string IcmUrl { get; set; } = Constants.DefaultIcmUrl;
 

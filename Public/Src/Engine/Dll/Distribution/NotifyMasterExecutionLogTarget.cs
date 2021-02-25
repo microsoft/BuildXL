@@ -108,6 +108,14 @@ namespace BuildXL.Engine.Distribution
 
             public override void Flush()
             {
+                if (m_eventDataBuffer == null)
+                {
+                    // A flush action can be run after the stream is closed
+                    // because the action runs anyway on dispose (see FlushAction)
+                    // Ignore it, we already flushed everything while closing.
+                    return;
+                }
+                
                 if (m_eventDataBuffer.Length != 0)
                 {
                     m_notificationManager.FlushExecutionLog(m_eventDataBuffer);
@@ -119,7 +127,15 @@ namespace BuildXL.Engine.Distribution
 
             public override void Close()
             {
-                // Send residual data to master on close
+                if (m_eventDataBuffer == null)
+                {
+                    // Closed already
+                    return;
+                }
+
+                Deactivate();
+
+                // Report residual data on close
                 if (m_eventDataBuffer.Length != 0)
                 {
                     Flush();

@@ -74,7 +74,7 @@ config({
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.3.1" },
+                { id: "RuntimeContracts", version: "0.3.0" }, // Be very careful with updating this version, because CloudBuild and other repository needs to be updated as wwell
                 { id: "RuntimeContracts.Analyzer", version: "0.3.2" }, // The versions are different because the analyzer has higher version for now.
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0", osSkip: [ "macOS", "unix" ] },

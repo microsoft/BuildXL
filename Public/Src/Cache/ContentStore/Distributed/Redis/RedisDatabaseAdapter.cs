@@ -239,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             return _databaseFactory.GetEndPoints()
                 .Select(ep => _databaseFactory.GetServer(ep))
-                .Where(server => !server.IsSlave)
+                .Where(server => !server.IsReplica)
                 .Where(server => serverId == null || GetServerId(server) == serverId)
                 .Select(server => (server: server, serverId: GetServerId(server)!))
                 .Where(tpl => tpl.serverId != null)

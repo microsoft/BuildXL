@@ -969,7 +969,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "1.1.0"
+          "Version": "5.0.0"
         }
       }
     },
@@ -2355,7 +2355,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Pipelines.Sockets.Unofficial",
-          "Version": "2.1.6"
+          "Version": "2.2.0"
         }
       }
     },
@@ -2454,7 +2454,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "StackExchange.Redis",
-          "Version": "2.1.30"
+          "Version": "2.2.4"
         }
       }
     },
@@ -2778,7 +2778,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.PerformanceCounter",
-          "Version": "4.7.0"
+          "Version": "5.0.0"
         }
       }
     },
@@ -2968,15 +2968,6 @@
         "NuGet": {
           "Name": "System.IO.MemoryMappedFiles",
           "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.IO.Pipelines",
-          "Version": "4.7.2"
         }
       }
     },
@@ -3795,7 +3786,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Channels",
-          "Version": "4.7.0"
+          "Version": "5.0.0"
         }
       }
     },

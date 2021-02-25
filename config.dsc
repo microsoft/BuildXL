@@ -234,15 +234,16 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "1.1.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
-                { id: "StackExchange.Redis", version: "2.1.30",
-                    dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Threading.Channels", "Microsoft.Bcl.AsyncInterfaces", "Pipelines.Sockets.Unofficial"] },
-                { id: "Pipelines.Sockets.Unofficial", version: "2.1.6",
+                
+                { id: "StackExchange.Redis", version: "2.2.4",
+                    dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial"] },
+                { id: "Pipelines.Sockets.Unofficial", version: "2.2.0",
                     dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Runtime.CompilerServices.Unsafe", "Microsoft.Bcl.AsyncInterfaces"] },
-                { id: "System.Diagnostics.PerformanceCounter", version: "4.7.0" },
-                { id: "System.Threading.Channels", version: "4.7.0",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "System.Diagnostics.PerformanceCounter", version: "5.0.0" },
+                { id: "System.Threading.Channels", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+
                 { id: "System.Linq.Async", version: "4.0.0"},
                 { id: "Polly", version: "7.2.1" },
                 { id: "Polly.Contrib.WaitAndRetry", version: "1.1.1" },
@@ -305,8 +306,8 @@ config({
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"], alias: "System.IO.Pipelines.v5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                //{ id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.IO.Pipelines", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },// alias: "System.IO.Pipelines.v5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work

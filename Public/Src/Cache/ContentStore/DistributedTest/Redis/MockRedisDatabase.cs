@@ -69,7 +69,7 @@ namespace ContentStoreTest.Distributed.Redis
         {
             RedisValue value;
 
-            if (command == CommandFlags.PreferSlave)
+            if (command == CommandFlags.PreferReplica)
             {
                 _dbReplica.TryGetValue(key, out value);
             }

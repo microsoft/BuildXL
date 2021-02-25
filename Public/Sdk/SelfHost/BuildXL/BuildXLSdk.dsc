@@ -471,12 +471,13 @@ export function cacheBindingRedirects() {
                 oldVersion: "0.0.0.0-4.1.4.0",
                 newVersion: "4.1.4.0", // Corresponds to: { id: "System.Numerics.Vectors", version: "4.5.0" },
             },
+
             {
-                name: "System.IO.Pipelines",
+                name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-4.99.99.99",
-                newVersion: "4.0.2.1", // Corresponds to: { id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                oldVersion: "0.0.0.0-5.0.0.0",
+                newVersion: "5.0.0.0", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "5.0.0" },
             },
             {
                 name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51

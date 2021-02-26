@@ -3,12 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Notifications;
@@ -269,69 +265,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             await rule.Run(ruleContext);
             _notifier.Results.Count.Should().Be(2);
             _notifier.Results[0].Severity.Should().Be(Severity.Warning);
-        }
-
-        [Fact]
-        public async Task MachineReimagesRuleTestAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();
-            var configuration = new MachineReimagesRule.Configuration(baseConfiguration);
-            var rule = new MachineReimagesRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            var results = new object[] {
-                new MachineReimagesRule.Result() { Stamp = "S1", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 2 },
-                new MachineReimagesRule.Result() { Stamp = "S1", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 0 },
-                new MachineReimagesRule.Result() { Stamp = "S2", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 130 },
-                new MachineReimagesRule.Result() { Stamp = "S2", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 0 },
-                new MachineReimagesRule.Result() { Stamp = "S3", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 240 },
-                new MachineReimagesRule.Result() { Stamp = "S3", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 0 },
-                new MachineReimagesRule.Result() { Stamp = "S4", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 569 },
-                new MachineReimagesRule.Result() { Stamp = "S4", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 0 },
-            };
-
-            mockKusto.Add(results);
-
-            await rule.Run(ruleContext);
-
-            _notifier.Results.Count.Should().Be(3);
-            _notifier.Results[0].Severity.Should().Be(Severity.Warning);
-            _notifier.Results[1].Severity.Should().Be(Severity.Error);
-            _notifier.Results[2].Severity.Should().Be(Severity.Fatal);
-        }
-
-        [Fact]
-        public async Task MachineReimagesRuleTestWithLauncherAsync()
-        {
-            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();
-            var configuration = new MachineReimagesRule.Configuration(baseConfiguration);
-            var rule = new MachineReimagesRule(configuration);
-            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
-
-            var results = new object[] {
-                new MachineReimagesRule.Result() { Stamp = "S1", Service = Constants.CacheService, Total = 1000, Reimaged = 2 },
-                new MachineReimagesRule.Result() { Stamp = "S1", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 1000 },
-                new MachineReimagesRule.Result() { Stamp = "S1", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 3 },
-
-                new MachineReimagesRule.Result() { Stamp = "S2", Service = Constants.CacheService, Total = 1000, Reimaged = 120 },
-                new MachineReimagesRule.Result() { Stamp = "S2", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 1000 },
-                new MachineReimagesRule.Result() { Stamp = "S2", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 3 },
-
-                new MachineReimagesRule.Result() { Stamp = "S3", Service = Constants.CacheService, Total = 1000, Reimaged = 230 },
-                new MachineReimagesRule.Result() { Stamp = "S3", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 1000 },
-                new MachineReimagesRule.Result() { Stamp = "S3", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 2 },
-
-                new MachineReimagesRule.Result() { Stamp = "S4", Service = Constants.CacheService, Total = 1000, Reimaged = 569 },
-                new MachineReimagesRule.Result() { Stamp = "S4", Service = Constants.ContentAddressableStoreService, Total = 1000, Reimaged = 1000 },
-                new MachineReimagesRule.Result() { Stamp = "S4", Service = Constants.ContentAddressableStoreMasterService, Total = 3, Reimaged = 0 },
-            };
-
-            mockKusto.Add(results);
-
-            await rule.Run(ruleContext);
-
-            // Launcher is currently unsupported. Adjust this test when it is.
-            _notifier.Results.Count.Should().Be(0);
         }
 
         private async Task<(MockKustoClient, MultiStampRuleConfiguration, MockIcmClient)> CreateClientAndConfigAsync(int numStamps = 2)

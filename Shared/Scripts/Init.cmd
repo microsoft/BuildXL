@@ -86,6 +86,9 @@ REM *********************************
 		exit /b 1
 	)
 
+	REM Install latest Azure Artifacts Credentials Provider (https://github.com/microsoft/artifacts-credprovider)
+	powershell -Command "iex ""& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"""
+
 	set _BUILDXL_BOOTSTRAP_OUT=%ENLISTMENTROOT%\Out\BootStrap
 
 	REM use nuget to pull the current LKG down
@@ -108,11 +111,6 @@ REM *********************************
 	set BUILDXL_LKG_FEED_1=
 	set _BUILDXL_INIT_HASH=%_BUILDXL_INIT_HASH_NEW%
 	
-	REM We'll conditionally set the credential provider if not set on the machine.
-	REM If not set we will set it to the local one in the enlistment but iwth the b-drive substitution
-	if NOT DEFINED NUGET_CREDENTIALPROVIDERS_PATH (
-		set NUGET_CREDENTIALPROVIDERS_PATH=%TOOLROOT%
-	)
 	goto :EOF
 
 

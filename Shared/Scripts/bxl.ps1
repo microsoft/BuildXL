@@ -541,9 +541,7 @@ Log -NoNewline "Building using the ";
 Log-Emphasis -NoNewline $($useDeployment.description)
 Log " version of BuildXL.";
 
-$Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH");
-
-$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH";
+$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment)";
 
 $GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";

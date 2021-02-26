@@ -1169,6 +1169,25 @@ namespace Test.BuildXL.Processes
                 "The captured processes arguments are incorrect");
         }
 
+        [Theory]
+        [InlineData("$hi")]
+        [InlineData("${hi}")]
+        [InlineData("$(hi)")]
+        [InlineData("`hi`")]
+        [InlineData("` hi `")]
+        [InlineData("\"hi\"")]
+        [InlineData("\" hi \"")]
+        [InlineData("'hi'")]
+        [InlineData("' hi '")]
+        [InlineData("# hi")]
+        [InlineData("#hi")]
+        public async Task TestCmdLineArgEscaping(string echoMessage)
+        {
+            var info = GetEchoProcessInfo(echoMessage);
+            var result = await RunProcess(info);
+            await CheckEchoProcessResult(result, echoMessage);
+        }
+
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task TrackVForkAsync()
         {

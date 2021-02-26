@@ -234,7 +234,7 @@ namespace BuildXL.Utilities
 
         private static readonly HashSet<char> s_unixDelimiters = new HashSet<char>
         {
-            ' ', '\t', ';', '(', ')', '`'
+            ' ', '\t', ';', '(', ')', '`', '\''
         };
 
         private static bool ContainsDelimiter(string s)

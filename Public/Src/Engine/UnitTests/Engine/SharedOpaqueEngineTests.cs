@@ -373,7 +373,7 @@ namespace Test.BuildXL.Engine
                 // And we are closing the single quote here
                 if (OperatingSystemHelper.IsUnixOS)
                 {
-                    result += @", {value : ""'""}";
+                    result += @", {value: {value: ""'"", kind: ArgumentKind.rawText}}";
                 }
 
                 return result;

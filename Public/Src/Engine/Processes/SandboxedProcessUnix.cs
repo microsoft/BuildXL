@@ -465,7 +465,12 @@ namespace BuildXL.Processes
         private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
             string redirectedStdin = processStdinFileName != null ? $" < {ToPathInsideRootJail(processStdinFileName)}" : string.Empty;
-            string escapedArguments = (info.Arguments ?? string.Empty).Replace(Environment.NewLine, "\\" + Environment.NewLine);
+
+            // this additional round of escaping is needed because we are flushing the arguments to a shell script
+            string escapedArguments = (info.Arguments ?? string.Empty)
+                .Replace(Environment.NewLine, "\\" + Environment.NewLine)
+                .Replace("$", "\\$")
+                .Replace("`", "\\`");
             string cmdLine = $"{info.FileName} {escapedArguments} {redirectedStdin}";
 
             LogProcessState("Feeding stdin");
@@ -476,7 +481,7 @@ namespace BuildXL.Processes
 
             if (info.RootJailInfo != null)
             {
-                lines.Add($"sudo chroot --userspec={userIdExpr()}:{groupIdExpr()} \"{info.RootJailInfo?.RootJail}\" {ShellExecutable} <<{EofDelim}");
+                lines.Add($"sudo chroot --userspec={userIdExpr()}:{groupIdExpr()} \"{info.RootJailInfo?.RootJail}\" {ShellExecutable} <<'{EofDelim}'");
                 lines.Add("set -e");
                 lines.Add($"cd \"{info.WorkingDirectory}\"");
             }

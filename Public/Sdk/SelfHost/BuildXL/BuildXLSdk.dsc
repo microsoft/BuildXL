@@ -242,6 +242,12 @@ namespace Flags {
      */
     @@public
     export const embedSources = Environment.hasVariable("[Sdk.BuildXL]embedSources") ? Environment.getFlag("[Sdk.BuildXL]embedSources") : false;
+
+    /**
+     * Gets the default value for whether the C# compiler will report additional analyzer information, such as execution time.
+     */
+    @@public
+    export const reportAnalyzer = Environment.getFlag("[Sdk.BuildXL]reportAnalyzer");
 }
 
 @@public
@@ -610,6 +616,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     keyFile: args.skipAssemblySigning ? undefined : devKey,
                     shared: Flags.useManagedSharedCompilation,
                     embed: embedSources,
+                    reportAnalyzer: Flags.reportAnalyzer,
                 }
             },
             runCrossgenIfSupported: Flags.enableCrossgen,

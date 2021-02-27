@@ -153,17 +153,16 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
+            if (m_pip == null)
+            {
+                throw CommandLineUtilities.Error("Did not find a matching pip.");
+            }
+
             m_html = new HtmlHelper(PathTable, StringTable, SymbolTable, CachedGraph.PipTable);
         }
 
         public XDocument GetXDocument()
         {
-            if (m_pip == null)
-            {
-                Console.Error.WriteLine("Did not find matching pip");
-                return null;
-            }
-
             var basicRows = new List<object>();
             basicRows.Add(m_html.CreateRow("PipId", m_pip.PipId.Value.ToString(CultureInfo.InvariantCulture) + " (" + m_pip.PipId.Value.ToString("X16", CultureInfo.InvariantCulture) + ")"));
             basicRows.Add(m_html.CreateRow("SemiStableHash", m_pip.SemiStableHash.ToString("X16")));

@@ -1,0 +1,58 @@
+
+Transformer.execute({
+    tool: {exe: f`./path/to/npm`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "install",
+            "@ms/test@1.0.0",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--userconfig"],
+            },
+            p`./src/userprofile/.npmrc`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--globalconfig"],
+            },
+            p`./src/userprofile/global.npmrc`,
+            "--no-save",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--cache"],
+            },
+            p`./Out/npm/cache`,
+        ],
+    },
+    workingDirectory: d`./Out/target/folder`,
+    dependencies: [f`./path/to/npm`],
+    implicitOutputs: [d`./Out/target/folder`, d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`, d`./Out/npm/cache`],
+    environmentVariables: [
+        {name: "APPDATA", isPassThrough: true},
+        {name: "HOMEDRIVE", isPassThrough: true},
+        {name: "HOMEPATH", isPassThrough: true},
+        {name: "INETCOOKIES", isPassThrough: true},
+        {name: "INTERNETCACHE", isPassThrough: true},
+        {name: "INTERNETHISTORY", isPassThrough: true},
+        {name: "LOCALAPPDATA", isPassThrough: true},
+        {name: "LOCALLOW", isPassThrough: true},
+        {name: "NO_UPDATE_NOTIFIER", value: "1"},
+        {
+            name: "PATH",
+            value: [p`./path/to`],
+            separator: ";",
+        },
+        {name: "USERNAME", isPassThrough: true},
+        {name: "USERPROFILE", value: p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`},
+    ],
+    unsafe: {untrackedPaths: [p`./src/userprofile/.npmrc`, p`./src/userprofile/global.npmrc`]},
+    allowUndeclaredSourceReads: true,
+    allowedSurvivingChildProcessNames: [a`node.exe`],
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/target/folder`});
+Transformer.sealSharedDynamicDirectory({root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/npm/cache`});

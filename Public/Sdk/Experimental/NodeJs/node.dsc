@@ -3,6 +3,7 @@
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
+import { Npm } from "Sdk.JavaScript";
 
 namespace Node {
 
@@ -118,6 +119,46 @@ namespace Node {
         return pkgContents.getFile(executable);
     }
 
+    @@public 
+    export function runNpmInstall(
+        targetFolder: Directory, 
+        dependencies: (File | StaticDirectory)[]) : SharedOpaqueDirectory {
+        
+        return Npm.runNpmInstall({
+            nodeTool: tool,
+            npmTool: tool,
+            additionalArguments: [Cmd.argument(Artifact.input(npmCli))],
+            targetFolder: targetFolder,
+            additionalDependencies: dependencies,
+            noBinLinks: true,
+            userNpmrcLocation: "local",
+            globalNpmrcLocation: "local"
+            });
+    }
+
+    @@public 
+    export function runNpmPackageInstall(
+        targetFolder: Directory, 
+        dependencies: (File | StaticDirectory)[], 
+        package: {name: string, version: string}) : SharedOpaqueDirectory {
+        
+        const nodeModules = d`${targetFolder}/node_modules`;
+
+        const result = Npm.runNpmInstallWithAdditionalOutputs({
+            nodeTool: tool,
+            npmTool: tool,
+            additionalArguments: [Cmd.argument(Artifact.input(npmCli))],
+            package: package,
+            targetFolder: targetFolder,
+            additionalDependencies: dependencies,
+            noBinLinks: true,
+            userNpmrcLocation: "local",
+            globalNpmrcLocation: "local"}, 
+            [nodeModules]);
+        
+            return <SharedOpaqueDirectory> result.getOutputDirectory(nodeModules);
+    }
+
     @@public
     export function tscCompile(workingDirectory: Directory, dependencies: Transformer.InputArtifact[]) : SharedOpaqueDirectory {
         const outPath = d`${workingDirectory}/out`;
@@ -175,7 +216,7 @@ namespace Node {
         const srcCopy: SharedOpaqueDirectory = Transformer.composeSharedOpaqueDirectories(outputDir, srcCopies);
 
         // Install required npm packages
-        const npmInstall = Npm.npmInstall(srcCopy, [...(args.npmDependencies || []), ...srcCopies]);
+        const npmInstall = runNpmInstall(srcCopy.root, [srcCopy, ...(args.npmDependencies || []), ...srcCopies]);
 
         // Compile
         const compileOutDir: SharedOpaqueDirectory = Node.tscCompile(

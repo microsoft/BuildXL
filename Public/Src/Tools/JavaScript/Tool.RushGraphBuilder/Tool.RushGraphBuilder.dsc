@@ -3,7 +3,7 @@
 
 import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
-import {Node, Npm} from "Sdk.NodeJs";
+import {Node} from "Sdk.NodeJs";
 
 namespace JavaScript.RushGraphBuilder {
     export declare const qualifier: {};

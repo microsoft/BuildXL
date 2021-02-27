@@ -4,21 +4,17 @@
 import * as Managed from "Sdk.Managed";
 import * as MSBuild from "Sdk.Selfhost.MSBuild";
 import * as Frameworks from "Sdk.Managed.Frameworks";
-import * as Node from "Sdk.NodeJs";
+import {Node} from "Sdk.NodeJs";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Test.Rush {
     
     // Install Rush for tests
-    const rush = Node.Npm.install({
-        name: "@microsoft/rush", 
-        version: "5.22.0", 
-        destinationFolder: Context.getNewOutputDirectory(a`rush-test`)});
-    
-    const rushlib = Node.Npm.install({
-        name: "@microsoft/rush-lib", 
-        version: "5.22.0", 
-        destinationFolder: Context.getNewOutputDirectory(a`rushlib-test`)});
+    const rushTest = Context.getNewOutputDirectory(a`rush-test`);
+    const rush = Node.runNpmPackageInstall(rushTest, [], {name: "@microsoft/rush", version: "5.22.0"});
+
+    const rushLibTest = Context.getNewOutputDirectory(a`rushlib-test`);
+    const rushlib = Node.runNpmPackageInstall(rushLibTest, [], {name: "@microsoft/rush-lib", version: "5.22.0"});
 
     // TODO: to enable this, we should use an older version of NodeJs for Linux
     const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64" && !BuildXLSdk.isHostOsLinux;
@@ -78,16 +74,16 @@ namespace Test.Rush {
                 // rush-lib dependency in a nested location.
                 subfolder: r`rush/node_modules`,
                 contents: [
-                    rush.nodeModules,
+                    rush,
                     {
                         subfolder: r`@microsoft/rush/node_modules`,
-                        contents: [rushlib.nodeModules]
+                        contents: [rushlib]
                     }
                 ]
             },
             {
                 subfolder: a`node`,
-                contents: [Node.Node.nodeExecutables]
+                contents: [Node.nodeExecutables]
             },
         ],
     });

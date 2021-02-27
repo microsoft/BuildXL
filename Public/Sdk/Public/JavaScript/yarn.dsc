@@ -27,32 +27,7 @@ namespace Yarn {
      */
     @@public
     export function getYarnTool(yarnInstallation?: StaticDirectory, relativePathToInstallation?: RelativePath) : Transformer.ToolDefinition {
-        yarnInstallation = yarnInstallation || getDefaultYarnInstallation();
-
-        let yarnToolFile = undefined;
-        // If the specific location of yarn is not provided, try to find it under the static directory
-        if (!relativePathToInstallation) {
-            let yarnToolName = Context.isWindowsOS? a`yarn.cmd` : a`yarn`;
-            let yarnToolFound = yarnInstallation.contents.find((file, index, array) => array[index].name === yarnToolName);
-            if (yarnToolFound !== undefined) {
-                yarnToolFile = yarnToolFound;
-            }
-            else {
-                Contract.fail(`Could not find Yarn under the provided yarn installation.`);
-            }
-        }
-        else {
-            // Otherwise, just get it from the static directory as specified
-            yarnToolFile = yarnInstallation.getFile(relativePathToInstallation);
-        }
-        
-        return {
-            exe: yarnToolFile,
-            dependsOnWindowsDirectories: true,
-            dependsOnCurrentHostOSDirectories: true,
-            dependsOnAppDataDirectory: true,
-            runtimeDirectoryDependencies: [yarnInstallation],
-            prepareTempDirectory: true};
+        return getTool(yarnInstallation, getDefaultYarnInstallation, () => Context.isWindowsOS? a`yarn.cmd` : a`yarn`, relativePathToInstallation);
     }
 
     /**
@@ -60,15 +35,13 @@ namespace Yarn {
      * Required arguments are the yarn and node tools to use (yarn depends on node) and the root of the repo where to run install
      */
     @@public
-    export interface YarnInstallArguments {
+    export interface YarnInstallArguments extends InstallArgumentsCommon {
         yarnTool: Transformer.ToolDefinition,
-        nodeTool: Transformer.ToolDefinition,
         repoRoot: Directory,
         yarnCacheFolder?: Directory,
         frozenLockfile?: boolean,
-        additionalDependencies?: [File | StaticDirectory],
-        environment?: Transformer.EnvironmentVariable[],
-        retries?: number,
+        userNpmrcLocation?: NpmrcLocation,
+        globalNpmrcLocation?: NpmrcLocation,
     }
 
     /**
@@ -78,14 +51,23 @@ namespace Yarn {
     export function runYarnInstall(arguments: YarnInstallArguments) : Transformer.ExecuteResult {
         // If not specified explicitly, look for the nuget cache folder, otherwise use an arbitrary output folder
         const cacheFolder = arguments.yarnCacheFolder || 
-            Environment.hasVariable("NugetMachineInstallRoot") 
+            (Environment.hasVariable("NugetMachineInstallRoot") 
                 ? d`${Environment.getDirectoryValue("NugetMachineInstallRoot")}/.yarn-cache`
-                : Context.getNewOutputDirectory("yarnCache");
+                : Context.getNewOutputDirectory("yarnCache"));
+
+        const localUserProfile = Context.getNewOutputDirectory("userprofile");
+
+        let npmrc = resolveNpmrc(arguments.userNpmrcLocation, arguments.repoRoot, a`.npmrc`);
+        let globalNpmrc = resolveNpmrc(arguments.globalNpmrcLocation, arguments.repoRoot, a`global.npmrc`);
 
         // If not specified, the default environment sets node in the path, since the basic Yarn operations assume it there
-        const defaultEnv : Transformer.EnvironmentVariable[] = [{name: "PATH", separator: ";", value: [
-            arguments.nodeTool.exe.parent
-        ]}];
+        const defaultEnv : Transformer.EnvironmentVariable[] = [
+            {name: "PATH", separator: ";", value: [arguments.nodeTool.exe.parent]},
+            {name: "NO_UPDATE_NOTIFIER", value: "1"}, // Prevent npm from checking for the latest version online and write to the user folder with the check information
+            {name: "NPM_CONFIG_USERCONFIG", value: npmrc }, 
+            {name: "NPM_CONFIG_GLOBALCONFIG", value: globalNpmrc },
+            {name: "USERPROFILE", value: localUserProfile},
+        ];
 
         // Runtime dependencies on the node installation is not really required because of undeclared reads being on, but
         // it is better to specify those since we know them
@@ -105,12 +87,13 @@ namespace Yarn {
                 Cmd.args([Artifact.none(cacheFolder)])
             ],
             outputs: [
-                p`${Environment.getDirectoryValue("UserProfile")}/.yarnrc`,
+                p`${localUserProfile}/.yarnrc`,
             ],
             dependencies: additionalDependencies,
             unsafe: {
                 untrackedPaths: [
-                    f`${Environment.getDirectoryValue("UserProfile")}/.npmrc`
+                    npmrc,
+                    globalNpmrc,
                 ]
             }
         };
@@ -135,11 +118,15 @@ namespace Yarn {
             unsafe: {
                 untrackedScopes: [
                     cacheFolder,
-                    d`${Environment.getDirectoryValue("UserProfile")}`,
                     // Many times there are some accesses under .git folder that are sensitive to file content that introduce
                     // unwanted cache misses
                     d`${arguments.repoRoot}/.git`,
-                ]
+                ],
+                untrackedPaths: [
+                    npmrc,
+                    globalNpmrc
+                ],
+                passThroughEnvironmentVariables: defaultPassthroughVariables,
             },
             processRetries: arguments.retries,
             // Yarn install fails with exit code 1, which usually means some flaky network error that can be retried

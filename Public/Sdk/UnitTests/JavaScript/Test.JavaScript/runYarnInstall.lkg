@@ -1,0 +1,74 @@
+
+Transformer.execute({
+    tool: {exe: f`./path/to/yarn`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["config set cache-folder"],
+            },
+            p`./Out/path/to/pnpm/store`,
+        ],
+    },
+    workingDirectory: d`./Out/src`,
+    dependencies: [f`./path/to/yarn`],
+    implicitOutputs: [f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/.yarnrc`],
+    environmentVariables: [
+        {name: "NO_UPDATE_NOTIFIER", value: "1"},
+        {name: "NPM_CONFIG_GLOBALCONFIG", value: p`./src/userprofile/global.npmrc`},
+        {name: "NPM_CONFIG_USERCONFIG", value: p`./src/userprofile/.npmrc`},
+        {
+            name: "PATH",
+            value: [p`./path/to`],
+            separator: ";",
+        },
+        {name: "USERPROFILE", value: p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`},
+    ],
+    unsafe: {untrackedPaths: [p`./src/userprofile/.npmrc`, p`./src/userprofile/global.npmrc`]},
+    allowUndeclaredSourceReads: true,
+    allowedSurvivingChildProcessNames: [a`node.exe`],
+});
+Transformer.execute({
+    tool: {exe: f`./path/to/yarn`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["install"],
+            },
+        ],
+    },
+    workingDirectory: d`./Out/src`,
+    dependencies: [f`./path/to/yarn`, f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/.yarnrc`],
+    implicitOutputs: [d`./Out/src`],
+    environmentVariables: [
+        {name: "APPDATA", isPassThrough: true},
+        {name: "HOMEDRIVE", isPassThrough: true},
+        {name: "HOMEPATH", isPassThrough: true},
+        {name: "INETCOOKIES", isPassThrough: true},
+        {name: "INTERNETCACHE", isPassThrough: true},
+        {name: "INTERNETHISTORY", isPassThrough: true},
+        {name: "LOCALAPPDATA", isPassThrough: true},
+        {name: "LOCALLOW", isPassThrough: true},
+        {name: "NO_UPDATE_NOTIFIER", value: "1"},
+        {name: "NPM_CONFIG_GLOBALCONFIG", value: p`./src/userprofile/global.npmrc`},
+        {name: "NPM_CONFIG_USERCONFIG", value: p`./src/userprofile/.npmrc`},
+        {
+            name: "PATH",
+            value: [p`./path/to`],
+            separator: ";",
+        },
+        {name: "USERNAME", isPassThrough: true},
+        {name: "USERPROFILE", value: p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`},
+    ],
+    unsafe: {untrackedPaths: [p`./src/userprofile/.npmrc`, p`./src/userprofile/global.npmrc`], untrackedScopes: [p`./Out/path/to/pnpm/store`, p`./Out/src/.git`]},
+    allowUndeclaredSourceReads: true,
+    allowedSurvivingChildProcessNames: [a`node.exe`],
+});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/src`});

@@ -6,7 +6,7 @@ For this to be safe it means that this can only be a source directory. In other 
 
 For performance reasons Source Sealed Directories do not enumerate all the files from the file system at graph construction time, it does this as the pips read files from that folder. As a result the `contents` field of the `SealedDirectory` object is empty for these just like for [Opaque Sealed Directories](./Opaque-Sealed-Directories.md).
 
-If you want access to the list of files at graph construction time, you will need to use a regular fully sealed directory and produce the list of files using  [`glob`](/BuildXL/User-Guide/Script/Globbing) and [`globR`](/BuildXL/User-Guide/Script/Globbing) .
+If you want access to the list of files at graph construction time, you will need to use a regular fully sealed directory and produce the list of files using  [`glob`](../../DScript/Globbing.md) and [`globR`](../../DScript/Globbing.md) .
 
 Users can create two types of Source Sealed Directories, one that only allows the files in the directory by using the `topDirectoryOnly` option. If all files recursively should be part of this Sealed Directory you can use the `allDirectories` option.
 

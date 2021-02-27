@@ -26,9 +26,11 @@ namespace BuildXL.Scheduler.Distribution
         public override int EffectiveTotalProcessSlots => m_effectiveTotalProcessSlots;
 
         /// <summary>
-        /// Completes when the worker finishes the attachment process (successfully or otherwise)
+        /// Completes when the worker finishes the set up process 
+        /// (if successfull, the worker is in the Running state after this completes)
+        /// true indicates success, false indicates failure at some step (either attachment or validation of cache connection)
         /// </summary>
-        public abstract Task AttachCompletionTask { get; }
+        public abstract Task<bool> SetupCompletionTask { get; }
 
         /// <summary>
         /// Set effective total process slots based on the StatusReported event came from the remote worker

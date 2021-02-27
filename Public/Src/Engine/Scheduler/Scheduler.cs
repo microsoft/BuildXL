@@ -262,10 +262,10 @@ namespace BuildXL.Scheduler
         public int AvailableWorkersCount => Workers.Count(a => a.IsAvailable);
 
         /// <summary>
-        /// Completes when all remote workers finish the attachment process (successfully or otherwise)
-        /// in a distributed build.
+        /// Contains the result of the set up processes (success or failure) 
+        /// for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.SetupCompletionTask"/>)
         /// </summary>
-        private Task m_attachmentsCompletedTask;
+        private Task<bool[]> m_workersSetupResultsTask;
 
         /// <summary>
         /// Cached delegate for the main method which executes the pips
@@ -348,7 +348,7 @@ namespace BuildXL.Scheduler
 
         private void StartWorkers(LoggingContext loggingContext)
         {
-            Contract.Ensures(m_attachmentsCompletedTask != null);
+            Contract.Ensures(m_workersSetupResultsTask != null);
 
             m_workersStatusOperation = OperationTracker.StartOperation(Worker.WorkerStatusParentOperationKind, loggingContext);
 
@@ -368,8 +368,8 @@ namespace BuildXL.Scheduler
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
             }
-            
-            m_attachmentsCompletedTask = TaskUtilities.SafeWhenAll(m_workers.Skip(1).Select(static w => (w as RemoteWorkerBase).AttachCompletionTask));
+
+            m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(m_workers.Skip(1).Select(static w => (w as RemoteWorkerBase).SetupCompletionTask));
 
             m_allWorker = new AllWorker(m_workers.ToArray());
 
@@ -1656,13 +1656,13 @@ namespace BuildXL.Scheduler
 
         private async Task EnsureMinimumWorkersAsync(int minimumWorkers, int warningThreshold)
         {
-            Contract.Assert(m_attachmentsCompletedTask != null, "Attachments completed task shouldn't be null");
+            Contract.Assert(m_workersSetupResultsTask != null, "Attachments completed task shouldn't be null");
 
             // Wait for all attachment requests to complete
-            await m_attachmentsCompletedTask;
+            var setUpResults = await m_workersSetupResultsTask;
 
-            // Count all succesfully attached workers
-            int everAvailableWorkers = Workers.Count(a => a.EverAvailable);
+            // Count all workers that were running at some point (including the local worker)
+            int everAvailableWorkers = 1 + setUpResults.Count(a => a);
 
             if (m_drainThread.IsAlive)
             {
@@ -5793,7 +5793,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(loggingContext != null);
             Contract.Assert(!IsInitialized);
             Contract.Assert(!IsDistributedWorker);
-            Contract.Ensures(HasFailed || m_attachmentsCompletedTask != null);
+            Contract.Ensures(HasFailed || m_workersSetupResultsTask != null);
 
             using (var pm = PerformanceMeasurement.Start(
                     loggingContext,
@@ -5813,7 +5813,7 @@ namespace BuildXL.Scheduler
                     else
                     {
                         // No remote workers to wait for
-                        m_attachmentsCompletedTask = Task.CompletedTask;
+                        m_workersSetupResultsTask = Task.FromResult(Array.Empty<bool>());
                     }
                 }
 

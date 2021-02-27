@@ -62,7 +62,10 @@ namespace BuildXL.Engine.Distribution
         private volatile bool m_isConnectionLost;
 
         /// <inheritdoc />
-        public override Task AttachCompletionTask => m_attachCompletion.Task;
+        public override Task<bool> SetupCompletionTask => m_setupCompletion.Task;
+        private readonly TaskSourceSlim<bool> m_setupCompletion;
+
+
         private readonly TaskSourceSlim<bool> m_attachCompletion;
 
         private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
@@ -115,6 +118,7 @@ namespace BuildXL.Engine.Distribution
             m_masterService = masterService;
             m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
             m_attachCompletion = TaskSourceSlim.Create<bool>();
+            m_setupCompletion = TaskSourceSlim.Create<bool>();
             m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
 
             m_serviceLocation = serviceLocation;
@@ -1085,7 +1089,6 @@ namespace BuildXL.Engine.Distribution
             if (validateCacheSuccess)
             {
                 ChangeStatus(WorkerNodeStatus.Attached, WorkerNodeStatus.Running);
-                Volatile.Write(ref m_everAvailable, true);
                 m_sendThread.Start();
             }
             else
@@ -1189,10 +1192,16 @@ namespace BuildXL.Engine.Distribution
             if (toStatus == WorkerNodeStatus.Stopped || toStatus == WorkerNodeStatus.Stopping)
             {
                 m_attachCompletion.TrySetResult(false);
+                m_setupCompletion.TrySetResult(false);
             }
             else if (toStatus == WorkerNodeStatus.Attached)
             {
                 m_attachCompletion.TrySetResult(true);
+            }
+            else if (toStatus == WorkerNodeStatus.Running)
+            {
+                Volatile.Write(ref m_everAvailable, true);
+                m_setupCompletion.TrySetResult(true);
             }
 
             Logger.Log.DistributionWorkerChangedState(

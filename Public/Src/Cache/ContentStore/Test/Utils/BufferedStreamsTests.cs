@@ -1,17 +1,37 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Utils;
+using Google.Protobuf;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.Test.Utils
 {
-    public class BufferedWriteStreamTests
+    public class BufferedStreamsTests
     {
         [Fact]
-        public async Task DoesNotOverflowOnMoreThan2GB()
+        public async Task ReadStreamDoesNotOverflowOnMoreThan2GB()
+        {
+            // This test should never fail with OverflowException
+            var repeated = new byte["128 MB".ToSize()];
+
+            Func<Task<ByteString>> producer = async () => await Task.FromResult(ByteString.CopyFrom(repeated));
+
+            using (var readStream = new BufferedReadStream(producer))
+            {
+                var data = new byte["128 MB".ToSize()];
+                while (readStream.Position < "4 GB".ToSize())
+                {
+                    await readStream.ReadAsync(data, 0, data.Length);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task WriteStreamDoesNotOverflowOnMoreThan2GB()
         {
             // This test should never fail with OverflowException
             var storage = new byte[4096];

@@ -23,8 +23,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private ByteString? _storage; // buffer containing the next bytes to be read
         private int _readPointer; // the next index to be read from the storage buffer
 
-        private int _position; // total bytes that have been read
-        private int _length; // total bytes that have been ingested
+        private long _position; // total bytes that have been read
+        private long _bytesWritten; // total bytes that have been ingested
 
         public BufferedReadStream(Func<Task<ByteString?>> reader)
         {
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
 
                     _readPointer = 0;
-                    _length += _storage.Length;
+                    _bytesWritten += _storage.Length;
                 }
 
                 Contract.Assert(_storage != null);
@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public override void Flush() { }
 
-        public override long Length => _length;
+        public override long Length => _bytesWritten;
 
         public override long Position { get => _position; set => throw new NotSupportedException(); }
     }

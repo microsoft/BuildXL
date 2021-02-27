@@ -505,6 +505,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 (result.TimeSpentWritingToDisk.HasValue ? $"writeTime={result.TimeSpentWritingToDisk.Value.TotalMilliseconds}ms " : string.Empty) +
                                 (copySchedulingSummary is null ? string.Empty : $"{copySchedulingSummary} ") +
                                 $"BandwidthOptions=[{options.BandwidthConfiguration?.ToString() ?? "null"}] " +
+                                $"Compression=[{options.CompressionHint.ToString()}] " +
                                 (result.HeaderResponseTime.HasValue ? $"HeaderResponseTime={result.HeaderResponseTime} " : string.Empty) +
                                 (result.MinimumSpeedInMbPerSec.HasValue ? $"minBandwidthSpeed={result.MinimumSpeedInMbPerSec.Value}MiB/s " : string.Empty),
                             caller: "RemoteCopyFile",

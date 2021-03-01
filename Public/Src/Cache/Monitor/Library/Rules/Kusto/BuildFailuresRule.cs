@@ -41,6 +41,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             /// Avoid the case where we fail 1 out of 1 builds
             /// </summary>
             public long MinimumAmountOfBuildsForIcm { get; set; } = 5;
+
+            public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(1);
         }
 
         private readonly Configuration _configuration;
@@ -107,12 +109,13 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                     {
                         return EmitIcmAsync(
                             severity,
-                            title: $"{stamp}: High failure rate ({Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%)",
+                            title: $"{stamp}: build failure rate is higher than {threshold*100}%",
                             stamp,
                             machines: null,
                             correlationIds: null,
                             description: $"Build failure rate `{failed}/{total}={Math.Round(failureRate * 100.0, 4, MidpointRounding.AwayFromZero)}%` over last `{_configuration.LookbackPeriod}``",
-                            eventTimeUtc: now);
+                            eventTimeUtc: now,
+                            cacheTimeToLive: _configuration.IcmIncidentCacheTtl);
                     });
                 }
             }

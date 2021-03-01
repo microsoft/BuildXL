@@ -21,7 +21,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Failed to parse configuration: {message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportConfigurationParsingFailed(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -30,7 +30,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Failed to parse module configuration file: {message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportPackageConfigurationParsingFailed(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -39,7 +39,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Module configuration file is invalid. {message}.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidPackageConfigurationFileFormat(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -49,7 +49,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Unexpected statement in module configuration file. Only a single call to '" +
                 Names.ModuleConfigurationFunctionCall + "' function is allowed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportUnknownStatementInPackageConfigurationFile(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -59,7 +59,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The module configuration file must contain at least a single call to '" +
                 Names.ModuleConfigurationFunctionCall + "' function.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportAtLeastSingleFunctionCallInPackageConfigurationFile(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -68,7 +68,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Duplicate binding for '{name}'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportDuplicateBinding(LoggingContext context, Location location, string name);
 
         [GeneratedEvent(
@@ -78,7 +78,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Configuration declaration '" + Names.ConfigurationFunctionCall +
                 "' can only occur in the configuration file '" + Names.ConfigBc + "'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportConfigurationDeclarationIsOnlyInConfigurationFile(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -88,7 +88,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Module configuration declaration '" + Names.ModuleConfigurationFunctionCall +
                 "' can only occur in a module configuration file.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportPackageConfigurationDeclarationIsOnlyInConfigurationFile(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -97,7 +97,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "'{enumMember}' is invalid. A member of a constant enum must have an initializer that evaluates to a numeric value.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidEnumMember(LoggingContext context, Location location, string enumMember);
 
         [GeneratedEvent(
@@ -106,7 +106,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Local functions are not supported in DScript. Use lambda expressions instead.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportLocalFunctionsAreNotSupported(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -115,7 +115,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "{message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidPathInterpolationExpression(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -124,7 +124,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Left-hand side of an assignment expression must be a local variable.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportLeftHandSideOfAssignmentMustBeLocalVariable(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -133,7 +133,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Imported file '{path}' is not referenced and will be removed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportImportAliasIsNotReferencedAndWillBeRemoved(LoggingContext context, Location location, string path);
 
         [GeneratedEvent(
@@ -142,7 +142,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The operand of an increment or decrement operator must be a local variable.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void OperandOfIncrementOrDecrementOperatorMustBeLocalVariable(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -152,7 +152,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The configuration file '" + Names.ConfigBc +
                 "' must contain a single call to 'configure' function.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportOnlyASingleFunctionCallInConfigurationFile(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -163,7 +163,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Unexpected statement in configuration file '" +
                         Names.ConfigBc +
                         "'. Only a single call to '" + Names.ConfigurationFunctionCall + "' function is allowed.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportUnknownStatementInConfigurationFile(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -172,7 +172,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Configuration file '" + Names.ConfigBc + "' is invalid. {message}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidConfigurationFileFormat(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
@@ -190,7 +190,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Invalid relative path expression.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidRelativePathExpression(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -199,7 +199,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Invalid path atom expression.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidPathAtomExpression(LoggingContext context, Location location);
 
         [GeneratedEvent(
@@ -208,7 +208,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Referenced project path '{path}' is invalid.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportProjectPathIsInvalid(LoggingContext context, Location location, string path);
 
         [GeneratedEvent(
@@ -217,7 +217,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Referenced project '{moduleName}' contains invalid characters. The following characters are not allowed: {invalidCharacters}.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportModuleSpecifierContainsInvalidCharacters(LoggingContext context, Location location, string moduleName, string invalidCharacters);
 
         [GeneratedEvent(
@@ -226,7 +226,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Failed to compute absolute path for '{path}'.",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportProjectPathComputationFailed(LoggingContext context, Location location, string path);
 
         [GeneratedEvent(
@@ -235,7 +235,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Integral constant '{expression}' is too large.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportIntegralConstantIsTooLarge(LoggingContext context, Location location, string expression);
 
         [GeneratedEvent(
@@ -244,7 +244,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Left-hand side of assignment expression '{expression}' cannot be a constant.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportLeftHandSideOfAssignmentExpressionCannotBeAConstant(LoggingContext context, Location location, string expression);
 
         [GeneratedEvent(
@@ -253,7 +253,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "The operand of an increment or decrement operator cannot be a constant.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportTheOperandOfAnIncrementOrDecrementOperatorCannotBeAConstant(LoggingContext context, Location location, string expression);
 
         [GeneratedEvent(
@@ -262,7 +262,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Arithmetic operation '{expression}' resulted in an overflow.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportArithmeticOverflow(LoggingContext context, Location location, string expression);
 
         [GeneratedEvent(
@@ -271,7 +271,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Invalid radix was specified for '{expression}'. Valid values are 2, 8, 10 or 16, but got {radix}",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportInvalidRadix(LoggingContext context, Location location, string expression, int radix);
 
         [GeneratedEvent(
@@ -280,7 +280,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Name '{name}' cannot be found.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportNameCannotBeFound(LoggingContext context, Location location, string name);
 
         [GeneratedEvent(
@@ -289,7 +289,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Cannot capture enclosing variable '{name}' for mutation.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportOuterVariableCapturingForMutationIsNotSupported(LoggingContext context, Location location, string name);
 
         [GeneratedEvent(
@@ -298,7 +298,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Block scoped variable '{variableName}' used before its declaration.",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportBlockScopedVariableUsedBeforeDeclaration(LoggingContext context, Location location, string variableName);
 
         [GeneratedEvent(

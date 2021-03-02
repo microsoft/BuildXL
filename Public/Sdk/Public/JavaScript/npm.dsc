@@ -43,7 +43,7 @@ namespace Npm {
      * If the relative path to Npm is not provided, the first occurrence of Npm in the installation is used
      */
     @@public
-    export function getNpmTool(installation: StaticDirectory, relativePathToInstallation?: RelativePath) {
+    export function getNpmTool(installation: StaticDirectory, relativePathToInstallation?: RelativePath) : Transformer.ToolDefinition {
         return getTool(installation, getDefaultNpmInstallation, npmTool, relativePathToInstallation);
     }
 

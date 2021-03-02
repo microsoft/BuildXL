@@ -146,6 +146,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string BinManagerKey = "LocalLocationStore.BinManager";
 
+        private const string EventProcessingDelayKey = "LocalLocationStore.EventProcessingDelay";
+
         /// <summary>
         /// This is the machine state reported during heartbeat. Initialized as <see cref="MachineState.Unknown"/> in
         /// order to avoid updates at first.
@@ -776,6 +778,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             }
 
+            UpdateSerializableClusterStateValues(context);
+
+            return await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
+        }
+
+        private void UpdateSerializableClusterStateValues(OperationContext context)
+        {
             var manager = ClusterState.BinManager;
             if (manager != null)
             {
@@ -792,7 +801,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            return await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
+            Database.SetGlobalEntry(EventProcessingDelayKey, EventStore.GetMaxProcessingDelay().ToString());
         }
 
         private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
@@ -837,19 +846,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return possibleCheckpointResult;
                     }
 
+                    TimeSpan? eventProcessingDelay = null;
+                    if (Configuration.MaxProcessingDelayToReconcile.HasValue && Database.TryGetGlobalEntry(EventProcessingDelayKey, out var processingDelayString))
+                    {
+                        // ProcessingDelayString should only be empty if no events have been processed, so we want to reconcile.
+                        // This case shouldn't happen, but just a check to prevent exception thrown from parsing empty string to timespan.
+                        if (!string.IsNullOrEmpty(processingDelayString))
+                        {
+                            eventProcessingDelay = TimeSpan.Parse(processingDelayString);
+                        }
+                    }
+
                     Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Increment();
                     _lastCheckpointId = checkpointState.CheckpointId;
                     if (Configuration.ReconcileMode == ReconciliationMode.Checkpoint)
                     {
                         await CancelCurrentReconciliationAsync(context);
 
-                        if (Configuration.InlinePostInitialization)
+                        // If MaxProcessingDelayToReconcile is not set in the config we reconcile regardless
+                        // If no events were processed, meaning no delay, we reconcile as well. Should never really hapen.
+                        if (eventProcessingDelay >= Configuration.MaxProcessingDelayToReconcile)
                         {
-                            await ReconcilePerCheckpointAsync(context, _reconciliationTokenSource.Token).ThrowIfFailure();
+                            Tracer.Debug(context, $"Processing delay={eventProcessingDelay} is greater than limit {Configuration.MaxProcessingDelayToReconcile}, skipping reconciliation");
                         }
                         else
                         {
-                            _pendingReconciliationTask = ReconcilePerCheckpointAsync(context, _reconciliationTokenSource.Token).FireAndForgetAndReturnTask(context);
+                            if (Configuration.InlinePostInitialization)
+                            {
+                                await ReconcilePerCheckpointAsync(context, _reconciliationTokenSource.Token).ThrowIfFailure();
+                            }
+                            else
+                            {
+                                _pendingReconciliationTask = ReconcilePerCheckpointAsync(context, _reconciliationTokenSource.Token).FireAndForgetAndReturnTask(context);
+                            }
                         }
                     }
                 }

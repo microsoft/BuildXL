@@ -338,6 +338,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                             var eventTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
                             var eventProcessingDelay = DateTime.UtcNow - eventTimeUtc;
+                            EventQueueDelays[input.EventQueueDelayIndex] = eventProcessingDelay; // Need to check if index is valid and has entry in list
 
                             // Creating nested context with operationId as a guid. This helps to correlate operations on a worker and a master machines.
                             context = CreateNestedContext(context, operationId?.ToString());
@@ -568,6 +569,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             /// <nodoc />
             public int ActionBlockIndex { get; }
+
+            /// <nodoc />
+            public int EventQueueDelayIndex => ActionBlockIndex == -1 ? 0 : ActionBlockIndex;
 
             /// <nodoc />
             public ActionBlock<ProcessEventsInput>? EventProcessingBlock =>

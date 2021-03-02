@@ -837,6 +837,10 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ReconcileCacheLifetimeMinutes { get; set; }
 
         [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double? MaxProcessingDelayToReconcileMinutes { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? MachineStateRecomputeIntervalMinutes { get; set; }
 

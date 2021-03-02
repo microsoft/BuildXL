@@ -197,6 +197,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan ReconcileCacheLifetime { get; set; } = TimeSpan.FromMinutes(30);
 
         /// <summary>
+        /// We check whether max processing delay is below this limit to call reconcile per checkpoint
+        /// If not set, we do not check processing delay before reconciling
+        /// </summary>
+        public TimeSpan? MaxProcessingDelayToReconcile { get; set; } = null;
+
+        /// <summary>
         /// The threshold of machine locations over which additions are not sent to the global store but instead.
         /// only sent to event store
         /// </summary>

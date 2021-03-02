@@ -211,6 +211,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineActiveToExpiredInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.TouchFrequencyMinutes, v => redisContentLocationStoreConfiguration.TouchFrequency = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.ReconcileCacheLifetimeMinutes, v => redisContentLocationStoreConfiguration.ReconcileCacheLifetime = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MaxProcessingDelayToReconcileMinutes, v => redisContentLocationStoreConfiguration.MaxProcessingDelayToReconcile = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisContentLocationStoreConfiguration.EvictionMinAge = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisContentLocationStoreConfiguration.RetryWindow = TimeSpan.FromSeconds(v));
 

@@ -64,6 +64,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly IAbsFileSystem _fileSystem;
         private readonly DisposableDirectory _workingDisposableDirectory;
 
+        protected readonly TimeSpan?[] EventQueueDelays;
+
         /// <nodoc />
         protected readonly ContentLocationEventDataSerializer EventDataSerializer;
 
@@ -89,6 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             _storage = centralStorage;
             _workingDisposableDirectory = new DisposableDirectory(_fileSystem, workingDirectory);
             _workingDirectory = workingDirectory;
+            EventQueueDelays = new TimeSpan?[configuration.MaxEventProcessingConcurrency];
             EventHandler = eventHandler;
             Clock = clock;
             var tracer = new Tracer(name) { LogOperationStarted = false };
@@ -673,6 +676,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
 
             return result;
+        }
+
+        public TimeSpan? GetMaxProcessingDelay()
+        {
+            // If a queue had no events to process, it is possible to have null set as it's delay, but Max() handles null fine
+            return EventQueueDelays.Max();
         }
 
         /// <nodoc />

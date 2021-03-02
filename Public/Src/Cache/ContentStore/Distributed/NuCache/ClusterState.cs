@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return new ClusterState(default(MachineId), Array.Empty<MachineMapping>());
         }
-        
+
         /// <summary>
         /// Mutates the current cluster state value and returns the new one produced by the callback.
         /// </summary>

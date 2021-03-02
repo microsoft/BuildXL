@@ -1373,6 +1373,33 @@ namespace ContentStoreTest.Distributed.Sessions
             cycles.Should().Be(1);
         }
 
+        [Fact]
+        public Task TestReconciliationOverMaxProcessingDelay()
+        {
+            // We set processing delay in minutes to be 0, because in test our processing delay is only going to be a few seconds.
+            var processingDelayLimitMinutes = 0.0;
+            ConfigureReconciliationPerCheckpoint(addLimit: 100, removeLimit: 100, processingDelayLimitMinutes);
+
+            return RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var master = context.GetMaster();
+                    var worker = context.GetFirstWorker();
+                    var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
+
+                    var putResult0 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: false);
+
+                    worker.LocalLocationStore.Counters[ContentLocationStoreCounters.Reconcile].Value.Should().Be(0);
+
+                    await Task.Yield();
+                });
+
+        }
+
         private void ConfigureReconciliation(
             int reconciliationMaxCycleSize,
             int? reconciliationMaxRemoveHashesCycleSize,
@@ -1403,7 +1430,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        private void ConfigureReconciliationPerCheckpoint(int addLimit, int removeLimit)
+        private void ConfigureReconciliationPerCheckpoint(int addLimit, int removeLimit, double? processingDelayLimitMinutes = null)
         {
             ConfigureWithOneMaster(s =>
             {
@@ -1414,6 +1441,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.ReconciliationRemoveLimit = removeLimit;
                 s.ReconcileCacheLifetimeMinutes = 0;
                 s.ReconcileHashesLogLimit = 10;
+                s.MaxProcessingDelayToReconcileMinutes = processingDelayLimitMinutes;
             },
                 r =>
                 {

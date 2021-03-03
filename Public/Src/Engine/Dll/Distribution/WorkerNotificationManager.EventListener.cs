@@ -2,16 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Threading;
 using BuildXL.Engine.Distribution.OpenBond;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Processes.Tracing;
-using System.Threading.Tasks;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -95,6 +93,12 @@ namespace BuildXL.Engine.Distribution
                 {
                     // Do nothing. Exception filter handles the logic.
                 }
+            }
+
+            /// <nodoc />
+            internal void Cancel()
+            {
+                Events.Log.UnregisterEventListener(this);
             }
         }
     }

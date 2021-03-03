@@ -1454,7 +1454,8 @@ namespace BuildXL.Scheduler
                     Context,
                     new ServerConfig
                     {
-                        MaxConcurrentClients = 10, // not currently based on any science or experimentation
+                        MaxConcurrentClients = 1_000, // not currently based on any science or experimentation
+                        MaxConcurrentRequestsPerClient = 10,
                         StopOnFirstFailure = false,
                         Logger = CreateLoggerForApiServer(loggingContext),
                     },

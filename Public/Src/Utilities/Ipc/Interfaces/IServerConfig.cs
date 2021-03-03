@@ -19,6 +19,11 @@ namespace BuildXL.Ipc.Interfaces
         int MaxConcurrentClients { get; }
 
         /// <summary>
+        /// Maximum number of requests to serve concurrently.
+        /// </summary>
+        int MaxConcurrentRequestsPerClient { get; }
+
+        /// <summary>
         /// Terminate the daemon process after first failed operation (e.g., 'drop create' fails because the drop already exists).
         /// </summary>
         bool StopOnFirstFailure { get; }

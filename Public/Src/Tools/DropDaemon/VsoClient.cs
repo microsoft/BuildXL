@@ -57,6 +57,7 @@ namespace Tool.DropDaemon
             internal long TotalUploadTimeMs = 0;
             internal long TotalComputeFileBlobDescriptorForAssociateMs = 0;
             internal long TotalComputeFileBlobDescriptorForUploadMs = 0;
+            internal long TotalBuildManifestRegistrationDurationMs = 0;
             internal long FinalizeTimeMs = 0;
             internal long TotalUploadSizeMb = 0;
 
@@ -75,6 +76,7 @@ namespace Tool.DropDaemon
                 AddStat(dict, Statistics.TotalUploadTimeMs, ref TotalUploadTimeMs);
                 AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForAssociateMs, ref TotalComputeFileBlobDescriptorForAssociateMs);
                 AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForUploadMs, ref TotalComputeFileBlobDescriptorForUploadMs);
+                AddStat(dict, Statistics.TotalBuildManifestRegistrationDurationMs, ref TotalBuildManifestRegistrationDurationMs);
                 AddStat(dict, Statistics.FinalizeTimeMs, ref FinalizeTimeMs);
                 AddStat(dict, Statistics.TotalUploadSizeMb, ref TotalUploadSizeMb);
                 return dict;
@@ -157,12 +159,12 @@ namespace Tool.DropDaemon
 
         /// <summary>
         /// Takes a hash as string and registers its corresponding SHA-256 ContentHash using BuildXL Api.
-        /// Should be called only when DropConfig.EnableBuildManifestCreation is true.
+        /// Should be called only when DropConfig.GenerateSignedManifest is true.
         /// Returns an hashset of failing FullFilePaths.
         /// </summary>
         private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
         {
-            Contract.Requires(m_dropDaemon.DropConfig.EnableBuildManifestCreation == true, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(m_dropDaemon.DropConfig.GenerateSignedManifest == true, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
             var bxlResult = await m_dropDaemon.ApiClient.RegisterFilesForBuildManifest(m_dropDaemon.DropName, buildManifestEntries);
             if (!bxlResult.Succeeded)
             {
@@ -321,7 +323,7 @@ namespace Tool.DropDaemon
 
                 Task<HashSet<string>> registerFilesForBuildManifestTask = null;
                 // Register files for Build Manifest
-                if (m_dropDaemon.DropConfig.EnableBuildManifestCreation)
+                if (m_dropDaemon.DropConfig.GenerateSignedManifest)
                 {
                     BuildManifestEntry[] buildManifestEntries = dedupedBatch
                         .Where(dropItem => dropItem.BlobIdentifier != null)
@@ -350,6 +352,7 @@ namespace Tool.DropDaemon
                 SetResultForUploadedMissingItems(itemsLeftToUpload);
                 Interlocked.Add(ref Stats.TotalUploadSizeMb, blobsForUpload.Sum(b => b.FileSize ?? 0) >> 20);
 
+                startTime = DateTime.UtcNow;
                 foreach (var file in dedupedBatch)
                 {
                     RegisterFileForBuildManifestResult result = registerFilesForBuildManifestTask == null
@@ -359,6 +362,7 @@ namespace Tool.DropDaemon
                             : RegisterFileForBuildManifestResult.Registered;
                     file.BuildManifestTaskSource.TrySetResult(result);
                 }
+                Interlocked.Add(ref Stats.TotalBuildManifestRegistrationDurationMs, ElapsedMillis(startTime));
 
                 m_logger.Info("Done processing AddFile batch.");
             }

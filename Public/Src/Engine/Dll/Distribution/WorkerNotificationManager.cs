@@ -80,7 +80,7 @@ namespace BuildXL.Engine.Distribution
         {
             // Stop listening to events
             m_pipResultListener.Cancel();
-            m_forwardingEventListener?.Dispose();
+            m_forwardingEventListener?.Cancel();
 
             // The execution log target can be null if the worker failed to attach to master
             if (m_executionLogTarget != null)
@@ -90,8 +90,6 @@ namespace BuildXL.Engine.Distribution
                 // Remove the notify master target to ensure no further events are sent to it.
                 // Otherwise, the events that are sent to a disposed target would cause crashes.
                 m_scheduler.RemoveExecutionLogTarget(m_executionLogTarget);
-                // Dispose the execution log target to ensure all events are processed 
-                m_executionLogTarget.Dispose();
             }
 
             if (m_sendThread.IsAlive)
@@ -100,6 +98,8 @@ namespace BuildXL.Engine.Distribution
                 m_sendThread.Join();
             }
 
+            m_executionLogTarget?.Dispose();
+            m_forwardingEventListener?.Dispose();
             m_sendCancellationSource.Cancel();
         }
 
@@ -110,7 +110,7 @@ namespace BuildXL.Engine.Distribution
         {
             m_executionLogTarget?.Deactivate();
             m_pipResultListener.Cancel();
-            m_forwardingEventListener.Dispose();
+            m_forwardingEventListener.Cancel();
             m_sendCancellationSource.Cancel();
         }
 

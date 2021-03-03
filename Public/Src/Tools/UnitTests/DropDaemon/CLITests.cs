@@ -206,7 +206,9 @@ namespace Test.Tool.DropDaemon
             var cmd = StartCmd;
             var cmdline = cmd.Name + " --name 123 --service http://xyz "; // prepend required flags in all cases
 
-            foreach (var prop in confType.GetProperties().Where(p => !p.Name.StartsWith("Default") && !p.Name.StartsWith("MaxConcurrentClients") && !p.Name.StartsWith("Logger")))
+            var properties = confType.GetProperties().Where(
+                p => !p.Name.StartsWith("Default") && !p.Name.StartsWith("MaxConcurrentClients") && !p.Name.StartsWith("Logger") && !p.Name.StartsWith("MaxConcurrentRequestsPerClient"));
+            foreach (var prop in properties)
             {
                 // For current 'prop', try to find a corresponding option ('opt') in 'cmd.Options' and pick a
                 // representative value (according to its type) include in the command line.

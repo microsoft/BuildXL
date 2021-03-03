@@ -17,6 +17,9 @@ namespace BuildXL.Ipc.Common
         public int MaxConcurrentClients { get; set; } = 10;
 
         /// <inheritdoc />
+        public int MaxConcurrentRequestsPerClient { get; set; } = 10;
+
+        /// <inheritdoc />
         public bool StopOnFirstFailure { get; set; } = false;
     }
 }

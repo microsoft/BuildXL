@@ -36,6 +36,9 @@ namespace Tool.ServicePipDaemon
         public int MaxConcurrentClients => DefaultMaxConcurrentClients;
 
         /// <inheritdoc />
+        public int MaxConcurrentRequestsPerClient => DefaultMaxConcurrentClients;
+
+        /// <inheritdoc />
         public int MaxConnectRetries { get; }
 
         /// <inheritdoc />

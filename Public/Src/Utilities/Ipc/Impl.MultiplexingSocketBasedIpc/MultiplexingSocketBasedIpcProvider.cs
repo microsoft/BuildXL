@@ -59,7 +59,7 @@ namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
                 config.Logger,
                 connectivityProvider: new TcpIpConnectivity(port),
                 maxConcurrentClients: config.MaxConcurrentClients,
-                maxConcurrentRequestsPerClient: config.MaxConcurrentClients);
+                maxConcurrentRequestsPerClient: config.MaxConcurrentRequestsPerClient);
         }
     }
 }

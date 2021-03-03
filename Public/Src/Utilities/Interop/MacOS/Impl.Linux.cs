@@ -166,12 +166,28 @@ namespace BuildXL.Interop.Unix
         /// <summary>Linux specific implementation of <see cref="Memory.GetRamUsageInfo"/> </summary>
         internal static int GetRamUsageInfo(ref RamUsageInfo buffer)
         {
-            var sysinfoBuf = new sysinfo_buf();
-            var ret = sysinfo(ref sysinfoBuf);
-            if (ret != 0) return ERROR;
-            buffer.TotalBytes = sysinfoBuf.totalram;
-            buffer.FreeBytes = sysinfoBuf.freeram;
-            return 0;
+            try
+            {
+                string[] lines = System.IO.File.ReadAllLines("/proc/meminfo");
+                string memTotalLine = lines.FirstOrDefault(line => line.StartsWith("MemTotal:"));
+                string memAvailableLine = lines.FirstOrDefault(line => line.StartsWith("MemAvailable:"));
+                buffer.TotalBytes = ExtractValue(memTotalLine) * 1024;
+                buffer.FreeBytes = ExtractValue(memAvailableLine) * 1024;
+                return 0;
+            }
+            #pragma warning disable
+            catch (IOException)
+            {
+                return ERROR;
+            }
+            #pragma warning restore
+
+            ulong ExtractValue(string line)
+            {
+                return line != null && ulong.TryParse(line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)[1], out var val)
+                    ? val
+                    : 0;
+            }
         }
 
         internal static int GetPeakWorkingSetSize(int pid, ref ulong buffer)
@@ -189,15 +205,23 @@ namespace BuildXL.Interop.Unix
         /// <summary>Linux specific implementation of <see cref="Processor.GetCpuLoadInfo"/> </summary>
         internal static int GetCpuLoadInfo(ref CpuLoadInfo buffer, long bufferSize)
         {
-            if (!File.Exists(ProcStatPath)) return ERROR;
-            var firstLine = File.ReadAllLines(ProcStatPath).FirstOrDefault();
-            if (string.IsNullOrEmpty(firstLine)) return ERROR;
-            var splits = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
-            return  ulong.TryParse(splits[1], out buffer.UserTime) &&
-                    ulong.TryParse(splits[3], out buffer.SystemTime) &&
-                    ulong.TryParse(splits[4], out buffer.IdleTime)
-                ? 0 
-                : ERROR;
+            try
+            {
+                var firstLine = File.ReadAllLines(ProcStatPath).FirstOrDefault();
+                if (string.IsNullOrEmpty(firstLine)) return ERROR;
+                var splits = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
+                return  ulong.TryParse(splits[1], out buffer.UserTime) &&
+                        ulong.TryParse(splits[3], out buffer.SystemTime) &&
+                        ulong.TryParse(splits[4], out buffer.IdleTime)
+                    ? 0 
+                    : ERROR;
+            }
+            #pragma warning disable
+            catch (IOException)
+            {
+                return ERROR;
+            }
+            #pragma warning restore
         }
 
         // CODESYNC: NormalizeAndHashPath in StringOperations.cpp

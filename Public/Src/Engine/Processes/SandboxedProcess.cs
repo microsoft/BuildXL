@@ -213,7 +213,7 @@ namespace BuildXL.Processes
                 // We start measuring here to avoid being considered timed-out while we are doing the visitation below
                 m_detouredProcess.StartMeasuringSuspensionTime();
             }
-            var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
+            var visitResult = TryVisitJobObjectProcesses((processHandle, pid) =>
             {
                 emptyWorkingSetSuccess &= Interop.Windows.Memory.EmptyWorkingSet(processHandle.DangerousGetHandle());
 
@@ -256,7 +256,7 @@ namespace BuildXL.Processes
 
             if (isSuspend && !suspendSuccess)
             {
-                m_detouredProcess.StopMeasuringSuspensionTime(); // Not very important as we will be cancelled after this failure
+                m_detouredProcess?.StopMeasuringSuspensionTime(); // Not very important as we will be cancelled after this failure
                 result |= EmptyWorkingSetResult.SuspendFailed;
             }
 
@@ -272,7 +272,7 @@ namespace BuildXL.Processes
             }
 
             var success = true;
-            var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, pid) =>
+            var visitResult = TryVisitJobObjectProcesses((processHandle, pid) =>
             {
                 ulong peakWorkingSet = 0;
                 if (EngineEnvironmentSettings.SetMaxWorkingSetToPeakBeforeResume)
@@ -304,7 +304,7 @@ namespace BuildXL.Processes
             });
 
             // Whether or not there's failure, stop measuring suspension time.
-            m_detouredProcess.StopMeasuringSuspensionTime();
+            m_detouredProcess?.StopMeasuringSuspensionTime();
 
             return (visitResult != VisitJobObjectResult.Failed) && success;
         }
@@ -323,7 +323,7 @@ namespace BuildXL.Processes
             ulong lastCommitSize = 0;
             bool isCollectedData = false;
 
-            var visitResult = m_detouredProcess.TryVisitJobObjectProcesses((processHandle, _) =>
+            var visitResult = TryVisitJobObjectProcesses((processHandle, _) =>
             {
                 var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
                 if (memoryUsage != null)
@@ -359,6 +359,14 @@ namespace BuildXL.Processes
         }
 
         private bool IsDetouredProcessUsable => m_detouredProcess != null && m_detouredProcess.IsRunning;
+
+        private VisitJobObjectResult TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
+        {
+            // Callers of this method check IsDetouredProcessUsable before calling, 
+            // but there is technically a chance that we are disposed (so m_detouredProcess is null) 
+            // between that check and this call. In that case we just return TerminatedBeforeVisitation.
+            return m_detouredProcess?.TryVisitJobObjectProcesses(actionForProcess) ?? VisitJobObjectResult.TerminatedBeforeVisitation;
+        }
 
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize()

@@ -872,6 +872,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             IEnumerable<string> dynamicallyObservedFilePaths,
             IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
+            IEnumerable<string> dynamicallyObservedAbsentPathProbes,
             IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> outputDirectoriesContents,
             IEnumerable<string> untrackedScopes)
         {
@@ -905,6 +906,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 var dynamicallyObservedEnumeration = AbsolutePath.Create(m_internalPathTable, dynamicallyObservedEnumerationPath);
                 m_dynamicallyObservedEnumerations.AddEntry(pipStableId, dynamicallyObservedEnumeration);
             }
+
+            // TODO: Process dynamically observed absent path probes 
 
             foreach (var dynamicDirectoryContent in outputDirectoriesContents)
             {

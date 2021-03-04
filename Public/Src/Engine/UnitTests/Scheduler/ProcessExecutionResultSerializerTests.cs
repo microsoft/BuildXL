@@ -66,23 +66,17 @@ namespace Test.BuildXL.Scheduler
                 },
                 allowlistedFileAccessViolations: new ReportedFileAccess[0],
                 mustBeConsideredPerpetuallyDirty: true,
-                dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
-                    CreateSourceFile().Path,
-                    CreateSourceFile().Path
-                ),
-                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
-                    CreateSourceFile().Path,
-                    CreateSourceFile().Path,
-                    CreateSourceFile().Path
-                ),
-                dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
-                    CreateSourceFile().Path
+                dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.FromWithoutCopy(
+                    (CreateSourceFile().Path, DynamicObservationKind.ObservedFile),
+                    (CreateSourceFile().Path, DynamicObservationKind.ObservedFile),
+                    (CreateSourceFile().Path, DynamicObservationKind.ProbedFile),
+                    (CreateSourceFile().Path, DynamicObservationKind.ProbedFile),
+                    (CreateSourceFile().Path, DynamicObservationKind.ProbedFile),
+                    (CreateSourceFile().Path, DynamicObservationKind.Enumeration),
+                    (CreateSourceFile().Path, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory),
+                    (CreateSourceFile().Path, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
                 ),
                 allowedUndeclaredSourceReads: new ReadOnlyHashSet<AbsolutePath> {
-                    CreateSourceFile().Path,
-                    CreateSourceFile().Path
-                },
-                absentPathProbesUnderOutputDirectories: new ReadOnlyHashSet<AbsolutePath> {
                     CreateSourceFile().Path,
                     CreateSourceFile().Path
                 },
@@ -146,9 +140,7 @@ namespace Test.BuildXL.Scheduler
 
                 r => r.FileAccessViolationsNotAllowlisted.Count,
                 r => r.MustBeConsideredPerpetuallyDirty,
-                r => r.DynamicallyObservedFiles.Length,
-                r => r.DynamicallyProbedFiles.Length,
-                r => r.DynamicallyObservedEnumerations.Length,
+                r => r.DynamicObservations.Length,
                 r => r.AllowedUndeclaredReads.Count,
 
                 r => r.TwoPhaseCachingInfo.WeakFingerprint,
@@ -201,19 +193,9 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreSame(deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[0].Process,
                 deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[2].Process);
 
-            for (int i = 0; i < processExecutionResult.DynamicallyObservedFiles.Length; i++)
+            for (int i = 0; i < processExecutionResult.DynamicObservations.Length; i++)
             {
-                AssertEqual(processExecutionResult.DynamicallyObservedFiles[i], deserializedProcessExecutionResult.DynamicallyObservedFiles[i]);
-            }
-
-            for (int i = 0; i < processExecutionResult.DynamicallyProbedFiles.Length; i++)
-            {
-                AssertEqual(processExecutionResult.DynamicallyProbedFiles[i], deserializedProcessExecutionResult.DynamicallyProbedFiles[i]);
-            }
-
-            for (int i = 0; i < processExecutionResult.DynamicallyObservedEnumerations.Length; i++)
-            {
-                AssertEqual(processExecutionResult.DynamicallyObservedEnumerations[i], deserializedProcessExecutionResult.DynamicallyObservedEnumerations[i]);
+                AssertEqual(processExecutionResult.DynamicObservations[i], deserializedProcessExecutionResult.DynamicObservations[i]);
             }
 
             XAssert.AreSetsEqual(processExecutionResult.AllowedUndeclaredReads, deserializedProcessExecutionResult.AllowedUndeclaredReads, expectedResult: true);

@@ -35,7 +35,7 @@ namespace Test.BuildXL.Scheduler.Utils
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputContent) => true;
 
         /// <inheritdoc />
@@ -46,7 +46,7 @@ namespace Test.BuildXL.Scheduler.Utils
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {

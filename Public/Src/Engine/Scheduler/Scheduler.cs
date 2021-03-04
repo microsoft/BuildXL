@@ -3137,6 +3137,7 @@ namespace BuildXL.Scheduler
                                                 result.DynamicallyObservedFiles.Select(path => path.ToString(Context.PathTable)),
                                                 result.DynamicallyProbedFiles.Select(path => path.ToString(Context.PathTable)),
                                                 result.DynamicallyObservedEnumerations.Select(path => path.ToString(Context.PathTable)),
+                                                result.DynamicallyObservedAbsentPathProbes.Select(path => path.ToString(Context.PathTable)),
                                                 processPip.DirectoryOutputs.Select(
                                                     d =>
                                                         (

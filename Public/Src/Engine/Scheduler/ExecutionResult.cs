@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
@@ -50,16 +49,13 @@ namespace BuildXL.Scheduler
         private ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> m_directoryOutputs;
         private bool m_mustBeConsideredPerpetuallyDirty;
         private bool m_converged;
-        private ReadOnlyArray<AbsolutePath> m_dynamicallyObservedFiles;
-        private ReadOnlyArray<AbsolutePath> m_dynamicallyProbedFiles;
-        private ReadOnlyArray<AbsolutePath> m_dynamicallyObservedEnumerations;
+        private ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> m_dynamicObservations;
         private IReadOnlySet<AbsolutePath> m_allowedUndeclaredSourceReads;
-        private IReadOnlySet<AbsolutePath> m_absentPathProbesUnderOutputDirectories;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
-        private int m_ExitCode;
+        private int m_exitCode;
         private RetryInfo m_retryInfo;
         private IReadOnlySet<AbsolutePath> m_createdDirectories;
 
@@ -134,24 +130,6 @@ namespace BuildXL.Scheduler
             {
                 EnsureUnsealed();
                 m_createdDirectories = value;
-            }
-        }
-
-        /// <summary>
-        /// Observed absent path probes under output directory roots
-        /// </summary>
-        public IReadOnlySet<AbsolutePath> AbsentPathProbesUnderOutputDirectories
-        {
-            get
-            {
-                EnsureSealed();
-                return m_absentPathProbesUnderOutputDirectories;
-            }
-
-            set
-            {
-                EnsureUnsealed();
-                InnerUnsealedState.AbsentPathProbesUnderOutputDirectories = value;
             }
         }
 
@@ -301,6 +279,24 @@ namespace BuildXL.Scheduler
         #region Reported State
 
         /// <summary>
+        /// Dynamic observations
+        /// </summary>
+        public ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations
+        {
+            get
+            {
+                EnsureSealed();
+                return m_dynamicObservations;
+            }
+
+            set
+            {
+                EnsureUnsealed();
+                InnerUnsealedState.DynamicObservations = value;
+            }
+        }
+
+        /// <summary>
         /// Number of warnings raised by the process during execution
         /// </summary>
         public int NumberOfWarnings
@@ -352,54 +348,6 @@ namespace BuildXL.Scheduler
             }
         }
 
-        /// <nodoc />
-        public ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles
-        {
-            get
-            {
-                EnsureSealed();
-                return m_dynamicallyObservedFiles;
-            }
-
-            set
-            {
-                EnsureUnsealed();
-                InnerUnsealedState.DynamicallyObservedFiles = value;
-            }
-        }
-
-        /// <nodoc />
-        public ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles
-        {
-            get
-            {
-                EnsureSealed();
-                return m_dynamicallyProbedFiles;
-            }
-
-            set
-            {
-                EnsureUnsealed();
-                InnerUnsealedState.DynamicallyProbedFiles = value;
-            }
-        }
-
-        /// <nodoc />
-        public ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations
-        {
-            get
-            {
-                EnsureSealed();
-                return m_dynamicallyObservedEnumerations;
-            }
-
-            set
-            {
-                EnsureUnsealed();
-                InnerUnsealedState.DynamicallyObservedEnumerations = value;
-            }
-        }
-
         /// <summary>
         /// Directory outputs.
         /// </summary>
@@ -435,7 +383,7 @@ namespace BuildXL.Scheduler
         {
             get
             {
-                return m_ExitCode;
+                return m_exitCode;
             }
         }
 
@@ -477,11 +425,8 @@ namespace BuildXL.Scheduler
             IReadOnlyList<ReportedFileAccess> fileAccessViolationsNotAllowlisted,
             IReadOnlyList<ReportedFileAccess> allowlistedFileAccessViolations,
             bool mustBeConsideredPerpetuallyDirty,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
             TwoPhaseCachingInfo twoPhaseCachingInfo,
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
@@ -506,11 +451,8 @@ namespace BuildXL.Scheduler
                     m_fileAccessViolationsNotAllowlisted = fileAccessViolationsNotAllowlisted,
                     m_allowlistedFileAccessViolations = allowlistedFileAccessViolations,
                     m_mustBeConsideredPerpetuallyDirty = mustBeConsideredPerpetuallyDirty,
-                    m_dynamicallyObservedFiles = dynamicallyObservedFiles,
-                    m_dynamicallyProbedFiles = dynamicallyProbedFiles,
-                    m_dynamicallyObservedEnumerations = dynamicallyObservedEnumerations,
+                    m_dynamicObservations = dynamicObservations,
                     m_allowedUndeclaredSourceReads = allowedUndeclaredSourceReads,
-                    m_absentPathProbesUnderOutputDirectories = absentPathProbesUnderOutputDirectories,
                     m_twoPhaseCachingInfo = twoPhaseCachingInfo,
                     m_pipCacheDescriptorV2Metadata = pipCacheDescriptorV2Metadata,
                     Converged = converged,
@@ -521,7 +463,7 @@ namespace BuildXL.Scheduler
                     m_hasUserRetries = hasUserRetries,
                     m_retryInfo = pipRetryInfo,
                     m_createdDirectories = createdDirectories,
-                    m_ExitCode = exitCode
+                    m_exitCode = exitCode
                 };
             return processExecutionResult;
         }
@@ -552,11 +494,8 @@ namespace BuildXL.Scheduler
                 AllowlistedFileAccessViolations,
                 convergedCacheResult.MustBeConsideredPerpetuallyDirty,
                 // Converged result does not have values for the following dynamic observations. Use the observations from this result.
-                DynamicallyObservedFiles,
-                DynamicallyProbedFiles,
-                DynamicallyObservedEnumerations,
+                DynamicObservations,
                 AllowedUndeclaredReads,
-                AbsentPathProbesUnderOutputDirectories,
                 convergedCacheResult.TwoPhaseCachingInfo,
                 convergedCacheResult.PipCacheDescriptorV2Metadata,
                 converged: true,
@@ -587,11 +526,8 @@ namespace BuildXL.Scheduler
                 FileAccessViolationsNotAllowlisted,
                 AllowlistedFileAccessViolations,
                 MustBeConsideredPerpetuallyDirty,
-                DynamicallyObservedFiles,
-                DynamicallyProbedFiles,
-                DynamicallyObservedEnumerations,
+                DynamicObservations,
                 AllowedUndeclaredReads,
-                AbsentPathProbesUnderOutputDirectories,
                 TwoPhaseCachingInfo,
                 PipCacheDescriptorV2Metadata,
                 Converged,
@@ -651,7 +587,7 @@ namespace BuildXL.Scheduler
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
             CreatedDirectories = executionResult.CreatedDirectories;
-            m_ExitCode = executionResult.ExitCode;
+            m_exitCode = executionResult.ExitCode;
         }
 
         /// <summary>
@@ -760,11 +696,8 @@ namespace BuildXL.Scheduler
                     }
 
                     m_mustBeConsideredPerpetuallyDirty = m_unsealedState.MustBeConsideredPerpetuallyDirty;
-                    m_dynamicallyObservedFiles = m_unsealedState.DynamicallyObservedFiles;
-                    m_dynamicallyProbedFiles = m_unsealedState.DynamicallyProbedFiles;
-                    m_dynamicallyObservedEnumerations = m_unsealedState.DynamicallyObservedEnumerations;
+                    m_dynamicObservations = m_unsealedState.DynamicObservations;
                     m_allowedUndeclaredSourceReads = m_unsealedState.AllowedUndeclaredSourceReads;
-                    m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
                     m_createdDirectories ??= CollectionUtilities.EmptySet<AbsolutePath>();
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
@@ -819,13 +752,10 @@ namespace BuildXL.Scheduler
                 }
                 else
                 {
+                    m_dynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty;
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty;
                     m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.Empty;
-                    m_dynamicallyObservedFiles = ReadOnlyArray<AbsolutePath>.Empty;
-                    m_dynamicallyProbedFiles = ReadOnlyArray<AbsolutePath>.Empty;
-                    m_dynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
                     m_allowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
-                    m_absentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
                     m_createdDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
                 }
 
@@ -871,11 +801,8 @@ namespace BuildXL.Scheduler
             public DateTime ExecutionStart;
             public DateTime ExecutionStop;
             public bool MustBeConsideredPerpetuallyDirty;
-            public ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles = ReadOnlyArray<AbsolutePath>.Empty;
-            public ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles = ReadOnlyArray<AbsolutePath>.Empty;
-            public ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations = ReadOnlyArray<AbsolutePath>.Empty;
+            public ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty;
             public IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
-            public IReadOnlySet<AbsolutePath> AbsentPathProbesUnderOutputDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
 
             public readonly List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> OutputContent =
                 new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>();

@@ -17,11 +17,8 @@ namespace BuildXL.Scheduler.Fingerprints
             state => state.Clear());
 
         // NOTE: Be sure to add any collections created here to Clear
-        public readonly List<AbsolutePath> DynamicallyObservedFiles = new List<AbsolutePath>();
-        public readonly List<AbsolutePath> DynamicallyProbedFiles = new List<AbsolutePath>();
         public readonly HashSet<AbsolutePath> AllowedUndeclaredReads = new HashSet<AbsolutePath>();
-        public readonly HashSet<AbsolutePath> AbsentPathProbesUnderNonDependenceOutputDirectories = new HashSet<AbsolutePath>();
-        public readonly List<AbsolutePath> DynamicallyObservedEnumerations = new List<AbsolutePath>();
+        public readonly List<(AbsolutePath path, DynamicObservationKind observationType)> DynamicObservations = new List<(AbsolutePath, DynamicObservationKind)>();
         public readonly List<SourceSealWithPatterns> SourceDirectoriesAllDirectories = new List<SourceSealWithPatterns>();
         public readonly List<SourceSealWithPatterns> SourceDirectoriesTopDirectoryOnly = new List<SourceSealWithPatterns>();
         public readonly HashSet<AbsolutePath> ObservationArtifacts = new HashSet<AbsolutePath>();
@@ -41,11 +38,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
         private void Clear()
         {
-            DynamicallyObservedFiles.Clear();
-            DynamicallyProbedFiles.Clear();
+            DynamicObservations.Clear();
             AllowedUndeclaredReads.Clear();
-            AbsentPathProbesUnderNonDependenceOutputDirectories.Clear();
-            DynamicallyObservedEnumerations.Clear();
             SourceDirectoriesAllDirectories.Clear();
             SourceDirectoriesTopDirectoryOnly.Clear();
             ObservationArtifacts.Clear();

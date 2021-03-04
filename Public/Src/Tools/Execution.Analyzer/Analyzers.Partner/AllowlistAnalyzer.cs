@@ -220,7 +220,7 @@ namespace BuildXL.Execution.Analyzer
                             exclusiveOpaqueDirectoryContent: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.Empty,
                             sharedOpaqueDirectoryWriteAccesses: null,
                             allowedUndeclaredReads: null,
-                            absentPathProbesUnderOutputDirectories: null,
+                            dynamicObservations: null,
                             ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
                             out _);
                         ;

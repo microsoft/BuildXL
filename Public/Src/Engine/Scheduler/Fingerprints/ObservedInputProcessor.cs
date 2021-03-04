@@ -163,10 +163,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
                 var sourceDirectoriesAllDirectories = processingState.SourceDirectoriesAllDirectories;
                 var sourceDirectoriesTopDirectoryOnly = processingState.SourceDirectoriesTopDirectoryOnly;
-                var dynamicallyObservedFiles = processingState.DynamicallyObservedFiles;
-                var dynamicallyProbedFiles = processingState.DynamicallyProbedFiles;
+                var dynamicObservations = processingState.DynamicObservations;
                 var allowedUndeclaredSourceReads = processingState.AllowedUndeclaredReads;
-                var absentPathProbesUnderNonDependenceOutputDirectories = processingState.AbsentPathProbesUnderNonDependenceOutputDirectories;
                 var directoryDependencyContentsFilePaths = processingState.DirectoryDependencyContentsFilePaths;
                 var enumeratedDirectories = processingState.EnumeratedDirectories;
                 var searchPaths = processingState.SearchPaths;
@@ -566,27 +564,19 @@ namespace BuildXL.Scheduler.Fingerprints
                             case ObservedInputType.AbsentPathProbe:
                                 maybeProposed = ObservedInput.CreateAbsentPathProbe(path, flags);
 
-                                // We cannot add path resulting from absent path probe into dynamicallyObservedFiles.
-                                // Otherwise, the incremental scheduling cannot distinguish it from dynamic file reads.
-                                // In the journal scanning of incremental scheduling state, if there is a newly present path change, but
-                                // the path is treated as non-existent (possibly by consulting the pip graph file system),
-                                // then we should not throw away the incremental scheduling state. If we add the path into
-                                // dynamicallyObservedFiles, then the incremental scheduling state may think that the path is a result
-                                // of dynamic file read, and start dirtying affected pips.
-                                //
-                                // TODO: Uncomment when we fully handle anti-dependency in the incremental scheduling.
-                                // dynamicallyObservedAbsentPaths.Add(path);
-
-                                // Record that an absent file probe occurred under the root of a known output directory
-                                // We also exclude the probes of paths that we take a dependency on. This is done to cover the case where an upstream
-                                // pip produces an absent file (e.g., it produced and deleted a file), and a consuming pip probes this file.
-                                // The probe will be classified as AbsentFileProbe, and since there is a dependency between these pips, we allow the probe.
                                 if (environment.IsPathUnderOutputDirectory(path) 
                                     && !directoryDependencyContentsFilePaths.Contains(path))
                                 {
-                                    absentPathProbesUnderNonDependenceOutputDirectories.Add(path);
+                                    // Record that an absent file probe occurred under the root of a known output directory
+                                    // We also exclude the probes of paths that we take a dependency on. This is done to cover the case where an upstream
+                                    // pip produces an absent file (e.g., it produced and deleted a file), and a consuming pip probes this file.
+                                    // The probe will be classified as AbsentFileProbe, and since there is a dependency between these pips, we allow the probe.
+                                    dynamicObservations.Add((path, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory));
                                 }
-
+                                else
+                                {
+                                    dynamicObservations.Add((path, DynamicObservationKind.AbsentPathProbeOutsideOutputDirectory));
+                                }
                                 break;
                             case ObservedInputType.FileContentRead:
                                 if (pathContentInfo.Value.Hash.HashType == HashType.Unknown)
@@ -594,17 +584,17 @@ namespace BuildXL.Scheduler.Fingerprints
                                     throw Contract.AssertFailure($"Unknown content hash for path '{path.ToString(pathTable)}' and operation {type}");
                                 }
                                 maybeProposed = ObservedInput.CreateFileContentRead(path, pathContentInfo.Value.Hash);
-                                dynamicallyObservedFiles.Add(path);
+                                dynamicObservations.Add((path, DynamicObservationKind.ObservedFile));
                                 break;
                             case ObservedInputType.ExistingFileProbe:
                                 maybeProposed = ObservedInput.CreateExistingFileProbe(path);
-                                dynamicallyProbedFiles.Add(path);
+                                dynamicObservations.Add((path, DynamicObservationKind.ProbedFile));
                                 break;
                             case ObservedInputType.ExistingDirectoryProbe:
                                 maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path, flags);
 
                                 // Directory probe is just like file probe.
-                                dynamicallyProbedFiles.Add(path);
+                                dynamicObservations.Add((path, DynamicObservationKind.ProbedFile));
                                 break;
                             case ObservedInputType.DirectoryEnumeration:
                                 // TODO: TryQueryDirectoryFingerprint should be in agreement with the VirtualFileSystem somehow.
@@ -752,8 +742,10 @@ namespace BuildXL.Scheduler.Fingerprints
                     environment.Counters.IncrementCounter(PipExecutorCounter.NumPipsUsingMinimalGraphFileSystem);
                 }
 
-                var dynamicallyObservedEnumerations = enumeratedDirectories.Keys.ToList();
-
+                foreach (var path in enumeratedDirectories.Keys) {
+                    dynamicObservations.Add((path, DynamicObservationKind.Enumeration));
+                }
+                
                 environment.Counters.AddToCounter(PipExecutorCounter.NumAbsentPathsEliminated, numAbsentPathsEliminated);
                 environment.Counters.AddToCounter(PipExecutorCounter.AbsentPathProbes, numAbsentPathProbes);
                 environment.Counters.AddToCounter(PipExecutorCounter.DirectoryEnumerations, numDirectoryEnumerations);
@@ -779,11 +771,8 @@ namespace BuildXL.Scheduler.Fingerprints
                             ReadOnlyArray<ObservedInput>.FromWithoutCopy(observedInputs),
                             new ObservedInputExpandedPathComparer(pathComparer)),
                         observedAccessedFileNames: observedAccessedFileNames,
-                        dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedFiles),
-                        dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyProbedFiles),
-                        dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedEnumerations),
-                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet(),
-                        absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories.ToReadOnlySet());
+                        dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
+                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet());
                 }
                 else
                 {
@@ -792,11 +781,8 @@ namespace BuildXL.Scheduler.Fingerprints
                         status: status,
                         numberOfValidEntries: valid,
                         numberOfInvalidEntries: invalid,
-                        dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedFiles),
-                        dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyProbedFiles),
-                        dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedEnumerations),
-                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet(),
-                        absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories.ToReadOnlySet());
+                        dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
+                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet());
                 }
             }
         }
@@ -1338,30 +1324,16 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public readonly int NumberOfInvalidEntries;
 
+        
         /// <summary>
-        /// The list of dynamically observed read files.
+        /// The list of dynamic observations. 
         /// </summary>
-        public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
-
-        /// <summary>
-        /// The list of dynamically observed probed files. 
-        /// </summary>
-        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
-
-        /// <summary>
-        /// The list of dynamically observed enumerations. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
-        /// </summary>
-        public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations;
+        public readonly ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations;
 
         /// <summary>
         /// The set of undeclared reads (or probes) that occurred on source files
         /// </summary>
         public readonly IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads;
-
-        /// <summary>
-        /// The set of absent file probes that occurred under the cone of an output directory.
-        /// </summary>
-        public readonly IReadOnlySet<AbsolutePath> AbsentPathProbesUnderNonDependenceOutputDirectories;
 
         private readonly SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> m_observedInputs;
 
@@ -1373,31 +1345,22 @@ namespace BuildXL.Scheduler.Fingerprints
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessFileNames,
             int numberOfValidEntires,
             int numberOfInvalidEntries,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
+            ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
+            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads)
         {
             Contract.Requires(status != ObservedInputProcessingStatus.Success || observedInputs.IsValid);
             Contract.Requires(status != ObservedInputProcessingStatus.Success || observedAccessFileNames.IsValid);
             Contract.Requires((status != ObservedInputProcessingStatus.Success) || (numberOfInvalidEntries == 0));
-            Contract.Requires(dynamicallyObservedFiles.IsValid);
-            Contract.Requires(dynamicallyProbedFiles.IsValid);
-            Contract.Requires(dynamicallyObservedEnumerations.IsValid);
+            Contract.Requires(dynamicObservations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
-            Contract.Requires(absentPathProbesUnderNonDependenceOutputDirectories != null);
 
             Status = status;
             NumberOfValidEntries = numberOfValidEntires;
             NumberOfInvalidEntries = numberOfInvalidEntries;
-            DynamicallyObservedFiles = dynamicallyObservedFiles;
-            DynamicallyProbedFiles = dynamicallyProbedFiles;
-            DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
+            DynamicObservations = dynamicObservations;
             m_observedInputs = observedInputs;
             m_observedAccessFileNames = observedAccessFileNames;
             AllowedUndeclaredSourceReads = allowedUndeclaredSourceReads;
-            AbsentPathProbesUnderNonDependenceOutputDirectories = absentPathProbesUnderNonDependenceOutputDirectories;
         }
 
         /// <nodoc />
@@ -1405,18 +1368,12 @@ namespace BuildXL.Scheduler.Fingerprints
             ObservedInputProcessingStatus status,
             int numberOfValidEntries,
             int numberOfInvalidEntries,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
+            ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
+            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads)
         {
             Contract.Requires(status != ObservedInputProcessingStatus.Success);
-            Contract.Requires(dynamicallyObservedFiles.IsValid);
-            Contract.Requires(dynamicallyProbedFiles.IsValid);
-            Contract.Requires(dynamicallyObservedEnumerations.IsValid);
+            Contract.Requires(dynamicObservations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
-            Contract.Requires(absentPathProbesUnderNonDependenceOutputDirectories != null);
 
             return new ObservedInputProcessingResult(
                 status,
@@ -1424,26 +1381,18 @@ namespace BuildXL.Scheduler.Fingerprints
                 default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
                 numberOfValidEntires: numberOfValidEntries,
                 numberOfInvalidEntries: numberOfInvalidEntries,
-                dynamicallyObservedFiles: dynamicallyObservedFiles,
-                dynamicallyProbedFiles: dynamicallyProbedFiles,
-                dynamicallyObservedEnumerations: dynamicallyObservedEnumerations,
-                allowedUndeclaredSourceReads: allowedUndeclaredSourceReads,
-                absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories);
+                dynamicObservations: dynamicObservations,
+                allowedUndeclaredSourceReads: allowedUndeclaredSourceReads);
         }
 
         /// <nodoc />
         public static ObservedInputProcessingResult CreateForSuccess(
             SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> observedInputs,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
+            ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
+            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads)
         {
-            Contract.Requires(dynamicallyObservedFiles.IsValid);
-            Contract.Requires(dynamicallyProbedFiles.IsValid);
-            Contract.Requires(dynamicallyObservedEnumerations.IsValid);
+            Contract.Requires(dynamicObservations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
 
             return new ObservedInputProcessingResult(
@@ -1452,11 +1401,8 @@ namespace BuildXL.Scheduler.Fingerprints
                 observedAccessedFileNames,
                 numberOfValidEntires: observedInputs.Length,
                 numberOfInvalidEntries: 0,
-                dynamicallyObservedFiles: dynamicallyObservedFiles,
-                dynamicallyProbedFiles: dynamicallyProbedFiles,
-                dynamicallyObservedEnumerations: dynamicallyObservedEnumerations,
-                allowedUndeclaredSourceReads: allowedUndeclaredSourceReads,
-                absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories);
+                dynamicObservations: dynamicObservations,
+                allowedUndeclaredSourceReads: allowedUndeclaredSourceReads);
         }
 
         /// <summary>

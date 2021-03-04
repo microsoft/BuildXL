@@ -303,6 +303,7 @@ namespace BuildXL.Scheduler
                         symlinkChain,
                         ReadOnlyArray<AbsolutePath>.Empty,
                         ReadOnlyArray<AbsolutePath>.Empty,
+                        ReadOnlyArray<AbsolutePath>.Empty,
                         0);
                 }
                 catch (BuildXLException ex)
@@ -991,7 +992,7 @@ namespace BuildXL.Scheduler
                     || processExecutionResult.SharedDynamicDirectoryWriteAccesses != null
                     || exclusiveOpaqueDirectories.Length != 0
                     || processExecutionResult.AllowedUndeclaredReads != null
-                    || processExecutionResult.AbsentPathProbesUnderOutputDirectories != null)
+                    || processExecutionResult.DynamicObservations != null)
                 {
                     analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzePipViolations(
                         process,
@@ -1000,7 +1001,7 @@ namespace BuildXL.Scheduler
                         exclusiveOpaqueDirectories,
                         processExecutionResult.SharedDynamicDirectoryWriteAccesses,
                         processExecutionResult.AllowedUndeclaredReads,
-                        processExecutionResult.AbsentPathProbesUnderOutputDirectories,
+                        processExecutionResult.DynamicObservations,
                         processExecutionResult.OutputContent,
                         out allowedSameContentViolations);
                 }
@@ -1096,13 +1097,13 @@ namespace BuildXL.Scheduler
                 // File access violation analysis must be run before reporting the execution result output content.
                 var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 
-                if ((executionResult.SharedDynamicDirectoryWriteAccesses?.Count > 0 || executionResult.AllowedUndeclaredReads?.Count > 0 || executionResult.AbsentPathProbesUnderOutputDirectories?.Count > 0 || exclusiveOpaqueContent.Length > 0)
+                if ((executionResult.SharedDynamicDirectoryWriteAccesses?.Count > 0 || executionResult.AllowedUndeclaredReads?.Count > 0 || executionResult.DynamicObservations.Length > 0 || exclusiveOpaqueContent.Length > 0)
                     && !environment.FileMonitoringViolationAnalyzer.AnalyzeDynamicViolations(
                             pip,
                             exclusiveOpaqueContent,
                             executionResult.SharedDynamicDirectoryWriteAccesses,
                             executionResult.AllowedUndeclaredReads,
-                            executionResult.AbsentPathProbesUnderOutputDirectories,
+                            executionResult.DynamicObservations,
                             executionResult.OutputContent))
                 {
                     Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
@@ -1348,15 +1349,12 @@ namespace BuildXL.Scheduler
                             trackFileChanges: succeeded);
                     LogSubPhaseDuration(
                         operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseValidateObservedFileAccesses, DateTime.UtcNow.Subtract(start),
-                        $"(AbsPrb: {observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count}, DynFiles: {observedInputValidationResult.DynamicallyObservedFiles.Length})");
+                        $"(DynObs: {observedInputValidationResult.DynamicObservations.Length})");
                 }
 
                 // Store the dynamically observed accesses
-                processExecutionResult.DynamicallyObservedFiles = observedInputValidationResult.DynamicallyObservedFiles;
-                processExecutionResult.DynamicallyProbedFiles = observedInputValidationResult.DynamicallyProbedFiles;
-                processExecutionResult.DynamicallyObservedEnumerations = observedInputValidationResult.DynamicallyObservedEnumerations;
+                processExecutionResult.DynamicObservations = observedInputValidationResult.DynamicObservations;
                 processExecutionResult.AllowedUndeclaredReads = observedInputValidationResult.AllowedUndeclaredSourceReads;
-                processExecutionResult.AbsentPathProbesUnderOutputDirectories = observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories;
 
                 if (observedInputValidationResult.Status == ObservedInputProcessingStatus.Aborted)
                 {
@@ -1364,21 +1362,29 @@ namespace BuildXL.Scheduler
                     Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "No error was logged when ValidateObservedAccesses failed");
                 }
 
-                if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed
-                    && observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count > 0)
+                if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed)
                 {
-                    start = DateTime.UtcNow;
-                    bool isDirty = false;
-                    foreach (var absentPathProbe in observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories)
+                    var absentPathProbesUnderNonDependenceOutputDirectories = 
+                        observedInputValidationResult.DynamicObservations
+                        .Where(o => o.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
+                        .Select(o => o.Path);
+
+                    if (absentPathProbesUnderNonDependenceOutputDirectories.Any())
                     {
-                        if (!pip.DirectoryDependencies.Any(dir => absentPathProbe.IsWithin(pathTable, dir)))
+                        start = DateTime.UtcNow;
+                        bool isDirty = false;
+                        foreach (var absentPathProbe in absentPathProbesUnderNonDependenceOutputDirectories)
                         {
-                            isDirty = true;
-                            break;
+                            if (!pip.DirectoryDependencies.Any(dir => absentPathProbe.IsWithin(pathTable, dir)))
+                            {
+                                isDirty = true;
+                                break;
+                            }
                         }
+
+                        LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingIsDirty, DateTime.UtcNow.Subtract(start));
+                        processExecutionResult.MustBeConsideredPerpetuallyDirty = isDirty;
                     }
-                    LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingIsDirty, DateTime.UtcNow.Subtract(start));
-                    processExecutionResult.MustBeConsideredPerpetuallyDirty = isDirty;
                 }
 
                 // We have all violations now.
@@ -2871,20 +2877,11 @@ namespace BuildXL.Scheduler
                 return RunnableFromCacheResult.CreateForHit(
                     weakFingerprint,
                     // We use the weak fingerprint so that misses and hits are consistent (no strong fingerprint available on some misses).
-                    dynamicallyObservedFiles: observedInputProcessingResult.HasValue
-                        ? observedInputProcessingResult.Value.DynamicallyObservedFiles
-                        : ReadOnlyArray<AbsolutePath>.Empty,
-                    dynamicallyProbedFiles: observedInputProcessingResult.HasValue
-                        ? observedInputProcessingResult.Value.DynamicallyProbedFiles
-                        : ReadOnlyArray<AbsolutePath>.Empty,
-                    dynamicallyObservedEnumerations: observedInputProcessingResult.HasValue
-                        ? observedInputProcessingResult.Value.DynamicallyObservedEnumerations
-                        : ReadOnlyArray<AbsolutePath>.Empty,
+                    dynamicObservations: observedInputProcessingResult.HasValue
+                        ? observedInputProcessingResult.Value.DynamicObservations
+                        : ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty,
                     allowedUndeclaredSourceReads: observedInputProcessingResult.HasValue
                         ? observedInputProcessingResult.Value.AllowedUndeclaredSourceReads
-                        : CollectionUtilities.EmptySet<AbsolutePath>(),
-                    absentPathProbesUnderNonDependenceOutputDirectories: observedInputProcessingResult.HasValue
-                        ? observedInputProcessingResult.Value.AbsentPathProbesUnderNonDependenceOutputDirectories
                         : CollectionUtilities.EmptySet<AbsolutePath>(),
                     cacheHitData: cacheHitData);
             }
@@ -2931,11 +2928,8 @@ namespace BuildXL.Scheduler
             return cacheHitData != null
                 ? RunnableFromCacheResult.CreateForHit(
                     weakFingerprint: executionResult.TwoPhaseCachingInfo.WeakFingerprint,
-                    dynamicallyObservedFiles: executionResult.DynamicallyObservedFiles,
-                    dynamicallyProbedFiles: executionResult.DynamicallyProbedFiles,
-                    dynamicallyObservedEnumerations: executionResult.DynamicallyObservedEnumerations,
+                    dynamicObservations: executionResult.DynamicObservations,
                     allowedUndeclaredSourceReads: executionResult.AllowedUndeclaredReads,
-                    absentPathProbesUnderNonDependenceOutputDirectories: executionResult.AbsentPathProbesUnderOutputDirectories,
                     cacheHitData: cacheHitData)
                 : RunnableFromCacheResult.CreateForMiss(executionResult.TwoPhaseCachingInfo.WeakFingerprint);
         }
@@ -3267,11 +3261,8 @@ namespace BuildXL.Scheduler
             executionResult = new ExecutionResult
             {
                 MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip, environment.PipGraphView),
-                DynamicallyObservedFiles = runnableFromCacheCheckResult.DynamicallyObservedFiles,
-                DynamicallyProbedFiles = runnableFromCacheCheckResult.DynamicallyProbedFiles,
-                DynamicallyObservedEnumerations = runnableFromCacheCheckResult.DynamicallyObservedEnumerations,
+                DynamicObservations = runnableFromCacheCheckResult.DynamicObservations,
                 AllowedUndeclaredReads = runnableFromCacheCheckResult.AllowedUndeclaredReads,
-                AbsentPathProbesUnderOutputDirectories = runnableFromCacheCheckResult.AbsentPathProbesUnderNonDependenceOutputDirectories,
             };
 
             executionResult.PopulateCacheInfoFromCacheResult(runnableFromCacheCheckResult);

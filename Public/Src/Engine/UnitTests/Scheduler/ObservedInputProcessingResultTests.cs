@@ -133,11 +133,8 @@ namespace Test.BuildXL.Scheduler
             return ObservedInputProcessingResult.CreateForSuccess(
                 sorted, 
                 emptyObservedAccessFileNames, 
-                dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.Empty, 
-                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.Empty,
-                dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.Empty, 
-                allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(), 
-                absentPathProbesUnderNonDependenceOutputDirectories: CollectionUtilities.EmptySet<AbsolutePath>());
+                dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty, 
+                allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>());
         }
 
         private class FingerprintingHarness

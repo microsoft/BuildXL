@@ -758,6 +758,7 @@ namespace Test.BuildXL.Scheduler
                         result.DynamicallyObservedFiles,
                         result.DynamicallyProbedFiles,
                         result.DynamicallyObservedEnumerations,
+                        result.DynamicallyObservedAbsentPathProbes,
                         result.ExitCode);
                 }
             }

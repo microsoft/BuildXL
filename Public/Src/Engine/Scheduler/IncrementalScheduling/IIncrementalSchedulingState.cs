@@ -53,6 +53,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <param name="dynamicallyObservedFilePaths">Dynamically observed read files.</param>
         /// <param name="dynamicallyProbedFilePaths">Dynamically observed probed files.</param>
         /// <param name="dynamicallyObservedEnumerationPaths">Dynamically observed enumerations.</param>
+        /// <param name="dynamicallyObservedAbsentPathProbes">Dynamically observed absent path probes.</param>
         /// <param name="outputDirectoriesContents">Contents of output directories.</param>
         /// <param name="untrackedScopes">Untracked scopes.</param>
         /// <remarks>
@@ -74,6 +75,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             IEnumerable<string> dynamicallyObservedFilePaths,
             IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
+            IEnumerable<string> dynamicallyObservedAbsentPathProbes,
             IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> outputDirectoriesContents,
             IEnumerable<string> untrackedScopes);
 

@@ -36,27 +36,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The list of dynamically observed read files.
         /// </summary>
-        public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
-
-        /// <summary>
-        /// The list of dynamically observed probed files.
-        /// </summary>
-        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
-
-        /// <summary>
-        /// The list of dynamically observed enumerations. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
-        /// </summary>
-        public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations;
-
+        public readonly ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations;
+        
         /// <summary>
         /// Observed allowed undeclared source reads
         /// </summary>
         public readonly IReadOnlySet<AbsolutePath> AllowedUndeclaredReads;
-
-        /// <summary>
-        /// Absent path probes under opaque directory roots
-        /// </summary>
-        public readonly IReadOnlySet<AbsolutePath> AbsentPathProbesUnderNonDependenceOutputDirectories;
 
         /// <summary>
         /// Fields which are specific to a usable cache hit.
@@ -166,19 +151,13 @@ namespace BuildXL.Scheduler
         /// <nodoc />
         private RunnableFromCacheResult(
             WeakContentFingerprint weakFingerprint,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories,
             CacheHitData cacheHitData)
         {
             WeakFingerprint = weakFingerprint;
-            DynamicallyObservedFiles = dynamicallyObservedFiles;
-            DynamicallyProbedFiles = dynamicallyProbedFiles;
-            DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
+            DynamicObservations = dynamicObservations;
             AllowedUndeclaredReads = allowedUndeclaredSourceReads;
-            AbsentPathProbesUnderNonDependenceOutputDirectories = absentPathProbesUnderNonDependenceOutputDirectories;
             m_cacheHit = cacheHitData; // Maybe null for a miss.
         }
 
@@ -189,11 +168,8 @@ namespace BuildXL.Scheduler
         {
             return new RunnableFromCacheResult(
                 weakFingerprint,
-                dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.Empty,
-                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.Empty,
-                dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.Empty,
+                dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty,
                 allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(),
-                absentPathProbesUnderNonDependenceOutputDirectories: CollectionUtilities.EmptySet<AbsolutePath>(),
                 null);
         }
 
@@ -202,21 +178,15 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static RunnableFromCacheResult CreateForHit(
             WeakContentFingerprint weakFingerprint,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories,
             CacheHitData cacheHitData)
         {
             Contract.Requires(cacheHitData != null);
             return new RunnableFromCacheResult(
                 weakFingerprint,
-                dynamicallyObservedFiles,
-                dynamicallyProbedFiles,
-                dynamicallyObservedEnumerations,
+                dynamicObservations,
                 allowedUndeclaredSourceReads,
-                absentPathProbesUnderNonDependenceOutputDirectories,
                 cacheHitData);
         }
 

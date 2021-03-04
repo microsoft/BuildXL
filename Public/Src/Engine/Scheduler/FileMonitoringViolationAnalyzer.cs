@@ -293,7 +293,7 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
@@ -306,7 +306,7 @@ namespace BuildXL.Scheduler
                     (!m_validateDistribution || (allowlistedAccesses == null || allowlistedAccesses.Count == 0)) &&
                     (sharedOpaqueDirectoryWriteAccesses == null || sharedOpaqueDirectoryWriteAccesses.Count == 0) &&
                     (allowedUndeclaredReads == null || allowedUndeclaredReads.Count == 0) &&
-                    (absentPathProbesUnderOutputDirectories == null || absentPathProbesUnderOutputDirectories.Count == 0) &&
+                    (dynamicObservations == null || dynamicObservations.Count == 0) &&
                     (exclusiveOpaqueDirectoryContent == null || exclusiveOpaqueDirectoryContent.Count == 0))
                 {
                     allowedSameContentViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
@@ -393,7 +393,7 @@ namespace BuildXL.Scheduler
                     errorPaths.UnionWith(errors);
                 }
 
-                var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, absentPathProbesUnderOutputDirectories, outputArtifactInfo, allowedDoubleWriteViolations);
+                var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, dynamicObservations, outputArtifactInfo, allowedDoubleWriteViolations);
                 allowedSameContentViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
@@ -518,7 +518,7 @@ namespace BuildXL.Scheduler
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
         {
             Contract.Requires(pip != null);
@@ -535,7 +535,7 @@ namespace BuildXL.Scheduler
                     exclusiveOpaqueDirectoryContent,
                     sharedOpaqueDirectoryWriteAccesses,
                     allowedUndeclaredReads,
-                    absentPathProbesUnderOutputDirectories,
+                    dynamicObservations,
                     GetOutputArtifactInfoMap(pip, outputsContent),
                     // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
                     allowedDoubleWriteViolations: null);
@@ -553,11 +553,15 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectories,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            [CanBeNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
             [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
+            var absentPathProbesUnderOutputDirectories = dynamicObservations?
+                 .Where(o => o.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
+                 .Select(o => o.Path)
+                 .ToReadOnlySet();
 
             if (sharedOpaqueDirectoryWriteAccesses?.Count > 0)
             {
@@ -1390,10 +1394,11 @@ namespace BuildXL.Scheduler
                 {
                     // No pips have tried to access this path. Check if the pip probed a path under one of its
                     // directory dependencies, and if it's the case, proceed based on the config.
-                    // Since absentPathProbe is guaranteed to be a probe under an opaque directory (ObservedInputProcessor takes care of this),
+                    // Since absentPathProbe is guaranteed to be a probe under an opaque directory 
+                    // (we filtered on DynamicObservationKind.AbsentPathProbeUnderOutputDirectory),
                     // it is safe to enumerate over all directory dependencies here and not just 'opaque' dependencies. 
                     var allowProbe = pip.DirectoryDependencies.Any(dir => absentPathProbe.IsWithin(Context.PathTable, dir));
-                    
+
                     // If the probe is outside of input directories the pip depends on, we do not need to check whether the probed path
                     // matches file dependencies. If it did match, the access would have been classified as read rather than probe.
 

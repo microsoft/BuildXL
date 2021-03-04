@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -12,8 +14,9 @@ using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -575,14 +578,50 @@ namespace BuildXL.Scheduler
                 perf = PipExecutionPerformance.CreatePoint(result.Result);
             }
 
+            SplitDynamicObservations(result.DynamicObservations, out var observedFiles, out var probes, out var enumerations, out var absentPathProbes);
+
             return new PipResult(
                 result.Result,
                 perf,
                 result.MustBeConsideredPerpetuallyDirty,
-                result.DynamicallyObservedFiles,
-                result.DynamicallyProbedFiles,
-                result.DynamicallyObservedEnumerations,
+                observedFiles.ToReadOnlyArray(),
+                probes.ToReadOnlyArray(),
+                enumerations.ToReadOnlyArray(),
+                absentPathProbes.ToReadOnlyArray(),
                 result.ExitCode);
+        }
+
+        private static void SplitDynamicObservations(ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
+            out List<AbsolutePath> observedFiles, out List<AbsolutePath> probes, out List<AbsolutePath> enumerations, out List<AbsolutePath> absentPathProbes)
+        {
+            observedFiles = new List<AbsolutePath>();
+            probes = new List<AbsolutePath>();
+            enumerations = new List<AbsolutePath>();
+            absentPathProbes = new List<AbsolutePath>();
+
+            for (var i = 0; i < dynamicObservations.Length; i++)
+            {
+                switch (dynamicObservations[i].Kind)
+                {
+                    case DynamicObservationKind.ObservedFile:
+                        observedFiles.Add(dynamicObservations[i].Path);
+                        break;
+                    case DynamicObservationKind.Enumeration:
+                        enumerations.Add(dynamicObservations[i].Path);
+                        break;
+                    case DynamicObservationKind.ProbedFile:
+                        probes.Add(dynamicObservations[i].Path);
+                        break;
+                    case DynamicObservationKind.AbsentPathProbe:
+                    case DynamicObservationKind.AbsentPathProbeOutsideOutputDirectory:
+                    case DynamicObservationKind.AbsentPathProbeUnderOutputDirectory:
+                        absentPathProbes.Add(dynamicObservations[i].Path);
+                        break;
+                    default:
+                        Contract.Assume(false, "Unknown DynamicObservationKind");
+                        break;
+                }
+            }
         }
 
         /// <summary>

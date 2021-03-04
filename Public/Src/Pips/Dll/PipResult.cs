@@ -41,10 +41,14 @@ namespace BuildXL.Pips
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations;
 
         /// <nodoc />
+        public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedAbsentPathProbes;
+
+        /// <nodoc />
         public bool HasDynamicObservations =>
             DynamicallyObservedFiles.Length > 0
             || DynamicallyProbedFiles.Length > 0
-            || DynamicallyObservedEnumerations.Length > 0;
+            || DynamicallyObservedEnumerations.Length > 0
+            || DynamicallyObservedAbsentPathProbes.Length > 0;
 
         /// <nodoc />
         public PipResult(
@@ -54,12 +58,14 @@ namespace BuildXL.Pips
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedAbsentPathProbes,
             int exitCode)
         {
             Contract.Requires(!status.IndicatesExecution() == (performanceInfo == null));
             Contract.Requires(dynamicallyObservedFiles.IsValid);
             Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
+            Contract.Requires(dynamicallyObservedAbsentPathProbes.IsValid);
 
             Status = status;
             PerformanceInfo = performanceInfo;
@@ -67,6 +73,7 @@ namespace BuildXL.Pips
             DynamicallyObservedFiles = dynamicallyObservedFiles;
             DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
+            DynamicallyObservedAbsentPathProbes = dynamicallyObservedAbsentPathProbes;
             ExitCode = exitCode;
         }
 
@@ -81,6 +88,7 @@ namespace BuildXL.Pips
                 status,
                 PipExecutionPerformance.CreatePoint(status),
                 mustBeConsideredPerpetuallyDirty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
@@ -102,6 +110,7 @@ namespace BuildXL.Pips
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 exitCode);
         }
 
@@ -115,6 +124,7 @@ namespace BuildXL.Pips
                 status,
                 null,
                 mustBeConsideredPerpetuallyDirty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,

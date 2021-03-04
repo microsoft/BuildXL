@@ -165,7 +165,8 @@ namespace BuildXL.Execution.Analyzer
                                                          PathTable,
                                                          StringTable,
                                                          SymbolTable,
-                                                         m_pipGraph);
+                                                         m_pipGraph,
+                                                         LoggingContext);
                 }
             }
         }

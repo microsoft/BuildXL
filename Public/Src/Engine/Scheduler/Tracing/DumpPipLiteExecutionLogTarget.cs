@@ -128,7 +128,8 @@ namespace BuildXL.Scheduler.Tracing
                                                                                  m_pipExecutionContext.PathTable,
                                                                                  m_pipExecutionContext.StringTable,
                                                                                  m_pipExecutionContext.SymbolTable,
-                                                                                 m_pipGraph);
+                                                                                 m_pipGraph,
+                                                                                 m_loggingContext);
                     }
 
                     if (!(m_logPathCreated && dumpPipResult))

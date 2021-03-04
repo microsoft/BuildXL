@@ -34,7 +34,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <param name="loggingContext"> Logging context for logging any potential errors (can be null for post build). </param>
         /// <returns> True if log file was written successfully. </returns>
         /// <remarks> An error will be logged if this function returns false. </remarks>
-        public static bool DumpPip(Pip pip, string logPath, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, LoggingContext loggingContext = null)
+        public static bool DumpPip(Pip pip, string logPath, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, LoggingContext loggingContext)
         {
             var outputFilePath = Path.Combine(logPath, $"{pip.FormattedSemiStableHash}.json");
             var pipToBeLogged = CreateObjectForSerialization(pip, pathTable, stringTable, symbolTable, pipGraph);

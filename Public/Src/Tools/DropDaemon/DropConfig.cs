@@ -78,9 +78,9 @@ namespace Tool.DropDaemon
         public byte? DomainId { get; }
 
         /// <summary>
-        ///     Signed Build Manifest generation flag.
+        ///     Build Manifest generation flag.
         /// </summary>
-        public bool GenerateSignedManifest { get; }
+        public bool EnableBuildManifestCreation { get; }
 
         /// <summary>
         ///     Repo path of the code being build
@@ -106,16 +106,6 @@ namespace Tool.DropDaemon
         ///     Represents the BuildSessionInfo: bsi.json file path.
         /// </summary>
         public string BsiFileLocation { get; }
-
-        /// <summary>
-        ///     Represents the Path to makecat.exe for Build Manifest Catalog generation.
-        /// </summary>
-        public string MakeCatToolPath { get; }
-
-        /// <summary>
-        ///     Represents the Path to EsrpManifestSign.exe for Build Manifest Catalog Signing.
-        /// </summary>
-        public string EsrpManifestSignToolPath { get; }
         #endregion
 
         #region Defaults
@@ -148,7 +138,7 @@ namespace Tool.DropDaemon
         public static bool DefaultEnableChunkDedup { get; } = false;
 
         /// <nodoc/>
-        public static bool DefaultGenerateSignedManifest { get; } = false;
+        public static bool DefaultEnableBuildManifestCreation { get; } = false;
         #endregion
 
         // ==================================================================================================
@@ -169,14 +159,12 @@ namespace Tool.DropDaemon
             string artifactLogName = null,
             int? batchSize = null,
             byte? dropDomainId = null,
-            bool? generateSignedManifest = null,
+            bool? enableBuildManifestCreation = null,
             string repo = null,
             string branch = null,
             string commitId = null,
             string cloudBuildId = null,
-            string bsiFileLocation = null,
-            string makeCatToolPath = null,
-            string esrpManifestSignToolPath = null)
+            string bsiFileLocation = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -190,14 +178,12 @@ namespace Tool.DropDaemon
             ArtifactLogName = artifactLogName;
             BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
             DomainId = dropDomainId;
-            GenerateSignedManifest = generateSignedManifest ?? DefaultGenerateSignedManifest;
+            EnableBuildManifestCreation = enableBuildManifestCreation ?? DefaultEnableBuildManifestCreation;
             Repo = repo ?? string.Empty;
             Branch = branch ?? string.Empty;
             CommitId = commitId ?? string.Empty;
             CloudBuildId = cloudBuildId ?? string.Empty;
             BsiFileLocation = bsiFileLocation ?? string.Empty;
-            MakeCatToolPath = makeCatToolPath ?? string.Empty;
-            EsrpManifestSignToolPath = esrpManifestSignToolPath ?? string.Empty;
         }
     }
 }

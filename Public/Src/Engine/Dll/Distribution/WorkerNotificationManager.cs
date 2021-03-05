@@ -82,12 +82,12 @@ namespace BuildXL.Engine.Distribution
             m_pipResultListener.Cancel();
             m_forwardingEventListener?.Cancel();
 
-            // The execution log target can be null if the worker failed to attach to master
+            // The execution log target can be null if the worker failed to attach to the orchestrator
             if (m_executionLogTarget != null)
             {
                 m_executionLogTarget.Deactivate();
 
-                // Remove the notify master target to ensure no further events are sent to it.
+                // Remove the notify orchestrator target to ensure no further events are sent to it.
                 // Otherwise, the events that are sent to a disposed target would cause crashes.
                 m_scheduler.RemoveExecutionLogTarget(m_executionLogTarget);
             }

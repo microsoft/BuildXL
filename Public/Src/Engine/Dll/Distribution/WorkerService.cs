@@ -205,8 +205,8 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         public void Exit(string failure, bool isUnexpected = false)
         {
-            m_notificationManager.Exit();
-
+            // Can be null if the worker failed to attach to orchestrator
+            m_notificationManager?.Exit();
             m_masterClient?.CloseAsync().GetAwaiter().GetResult();
 
             m_attachCompletionSource.TrySetResult(false);
@@ -220,7 +220,7 @@ namespace BuildXL.Engine.Distribution
 
             if (isUnexpected && m_isMasterExited)
             {
-                // If the worker unexpectedly exits the build after master exits the build, 
+                // If the worker unexpectedly exits the build after orchestrator exits the build, 
                 // we should log a message to keep track of the frequency.
                 Logger.Log.DistributionWorkerUnexpectedFailureAfterMasterExits(m_appLoggingContext);
             }

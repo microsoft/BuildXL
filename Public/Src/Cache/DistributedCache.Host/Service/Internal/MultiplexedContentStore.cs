@@ -353,9 +353,9 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, FileSource source, CancellationToken token)
         {
-            return PerformStoreOperationAsync<IPushFileHandler, PutResult>(store => store.HandlePushFileAsync(context, hash, sourcePath, token));
+            return PerformStoreOperationAsync<IPushFileHandler, PutResult>(store => store.HandlePushFileAsync(context, hash, source, token));
         }
 
         /// <inheritdoc />

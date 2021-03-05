@@ -1029,7 +1029,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var r = await PutStreamImplAsync(context, stream, contentHash.HashType, pinRequest);
 
                 return r.ContentHash != contentHash && r.Succeeded
-                    ? new PutResult(r, contentHash, $"Calculated hash={r.ContentHash.ToShortString()} does not match caller's hash={contentHash.ToShortString()}")
+                    ? new PutResult(r, contentHash, $"Calculated hash={r.ContentHash} does not match caller's hash={contentHash}")
                     : r;
             });
         }

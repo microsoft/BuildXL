@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Host.Service;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service
@@ -26,6 +27,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalContentServer));
+
+        /// <inheritdoc />
+        protected override ICacheServerServices Services => _grpcContentServer;
 
         /// <nodoc />
         public LocalContentServer(

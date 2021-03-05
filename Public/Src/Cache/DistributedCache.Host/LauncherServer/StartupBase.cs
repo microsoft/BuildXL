@@ -52,7 +52,7 @@ namespace BuildXL.Launcher.Server
             /// <summary>
             /// Running as deployment proxy
             /// </summary>
-            DeploymentProxy,
+            CacheService,
         }
 
         private class ConfiguredControllerFeatureProvider : ControllerFeatureProvider
@@ -78,9 +78,9 @@ namespace BuildXL.Launcher.Server
                 {
                     return Mode == ServerMode.DeploymentService;
                 }
-                else if (typeInfo == typeof(DeploymentProxyController))
+                else if (typeInfo == typeof(DeploymentProxyController) || typeInfo == typeof(ContentCacheController))
                 {
-                    return Mode == ServerMode.DeploymentProxy;
+                    return Mode == ServerMode.CacheService;
                 }
 
                 return true;

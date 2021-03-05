@@ -37,6 +37,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public DistributedContentSettings DistributedContentSettings { get; set; }
 
+        [DataMember]
+        public ContentCacheConfiguration ContentCache { get; set; }
+
         /// <summary>
         /// Cache settings for the local cache.
         /// </summary>

@@ -122,15 +122,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public virtual async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
-            var tempFile = AbsolutePath.CreateRandomFileName(WorkingDirectory);
-            using (var file = File.OpenWrite(tempFile.Path))
-            {
-                await stream.CopyToAsync(file);
-            }
-
-            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, tempFile, CancellationToken.None);
-
-            File.Delete(tempFile.Path);
+            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, new FileSource(stream), CancellationToken.None);
 
             return result ? PushFileResult.PushSucceeded(result.ContentSize) : new PushFileResult(result);
         }

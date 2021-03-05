@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Sessions.Grpc;
@@ -27,6 +28,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheServer));
+
+        /// <inheritdoc />
+        protected override ICacheServerServices Services => _grpcCacheServer;
 
         /// <nodoc />
         public LocalCacheServer(

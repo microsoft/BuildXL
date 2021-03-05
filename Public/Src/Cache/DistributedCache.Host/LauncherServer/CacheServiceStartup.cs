@@ -30,8 +30,7 @@ using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 namespace BuildXL.Launcher.Server
 {
     /// <summary>
-    /// This is  rather convoluted class which handles running a cache service and deployment proxy
-    /// together.
+    /// This is  rather convoluted class which handles running a cache service and web host together.
     ///
     /// The main source of complexity here is tying together the two application lifetime models of
     /// the cache service and ASP.Net Core application host.
@@ -39,25 +38,27 @@ namespace BuildXL.Launcher.Server
     /// The cache service is started. In its startup (IDistributedCacheServiceHostInternal.OnStartingServiceAsync(...)),
     /// it starts the web host.
     /// </summary>
-    public class DeploymentProxyStartup : StartupBase
+    public class CacheServiceStartup : StartupBase
     {
-        public DeploymentProxyStartup(IConfiguration configuration)
+        public CacheServiceStartup(IConfiguration configuration)
             : base(configuration)
         {
         }
 
         /// <summary>
-        /// Indicate that only <see cref="DeploymentProxyController"/> should be surfaced on web api.
+        /// Indicate that only controllers surfaced by CacheService should be available on web api i.e.
+        /// <see cref="DeploymentController"/>
+        /// <see cref="ContentCacheController"/>
         /// </summary>
-        protected override ServerMode Mode => ServerMode.DeploymentProxy;
+        protected override ServerMode Mode => ServerMode.CacheService;
 
         /// <summary>
         /// Run the deployment proxy along side the cache service
         /// </summary>
         public static Task RunWithCacheServiceAsync(string[] commandLineArgs, CancellationToken token)
         {
-            var serviceHost = new ServiceHost(commandLineArgs);
-            var configuration = serviceHost.ProxyHost.Services.GetRequiredService<IConfiguration>();
+            var initialConfigurationHost = Host.CreateDefaultBuilder(commandLineArgs).Build();
+            var configuration = initialConfigurationHost.Services.GetRequiredService<IConfiguration>();
 
             var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
             var logger = new Logger(consoleLog);
@@ -69,7 +70,7 @@ namespace BuildXL.Launcher.Server
                 cacheConfigurationPath,
                 (hostParameters, config, token) =>
                 {
-                    serviceHost.HostParameters.Value = hostParameters;
+                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters);
                     return serviceHost;
                 },
                 requireServiceInterruptable: !standalone);
@@ -81,12 +82,12 @@ namespace BuildXL.Launcher.Server
         /// Configures the host builder to use the given values as services rather than creating its own on
         /// application initialization.
         /// </summary>
-        private static void UseExternalServices(IHostBuilder hostBuilder, BoxRef<OperationContext> operationContext, BoxRef<HostParameters> hostParameters)
+        private static void UseExternalServices(IHostBuilder hostBuilder, OperationContext operationContext, HostParameters hostParameters)
         {
             hostBuilder
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseStartup<DeploymentProxyStartup>();
+                    webBuilder.UseStartup<CacheServiceStartup>();
                 })
                 .ConfigureHostConfiguration(configBuilder =>
                 {
@@ -97,9 +98,9 @@ namespace BuildXL.Launcher.Server
                 })
                 .ConfigureServices(services =>
                 {
-                    services.AddSingleton<ILogger>(s => operationContext.Value.TracingContext.Logger);
-                    services.AddSingleton<BoxRef<OperationContext>>(s => operationContext);
-                    services.AddSingleton<HostParameters>(s => hostParameters.Value);
+                    services.AddSingleton<ILogger>(s => operationContext.TracingContext.Logger);
+                    services.AddSingleton<BoxRef<OperationContext>>(operationContext);
+                    services.AddSingleton<HostParameters>(hostParameters);
                 });
         }
 
@@ -127,7 +128,7 @@ namespace BuildXL.Launcher.Server
                 var hostParameters = sp.GetService<HostParameters>();
 
                 return context.PerformOperation(
-                    new Tracer(nameof(DeploymentProxyStartup)),
+                    new Tracer(nameof(CacheServiceStartup)),
                     () =>
                     {
                         var proxyConfiguration = CacheServiceRunner.LoadAndWatchPreprocessedConfig<DeploymentConfiguration, ProxyServiceConfiguration>(
@@ -152,7 +153,7 @@ namespace BuildXL.Launcher.Server
                 var configuration = sp.GetRequiredService<ProxyServiceConfiguration>();
 
                 return context.PerformOperation(
-                    new Tracer(nameof(DeploymentProxyStartup)),
+                    new Tracer(nameof(CacheServiceStartup)),
                     () =>
                     {
                         return Result.Success(new DeploymentProxyService(
@@ -169,46 +170,73 @@ namespace BuildXL.Launcher.Server
             /// The web application host. This is surfaced to allow access to services (namely configuration i.e. command
             /// line args) from the host.
             /// </summary>
-            public IHost ProxyHost { get; }
+            private IHost WebHost { get; set; }
+
+            private IHostBuilder WebHostBuilder { get; }
 
             // These references allow these variables to passed for use to the service provider/configuration
             // even though they are not immediately available when the ASP.Net core web application host
             // is built. (NOTE: They are available on Start).
-            private BoxRef<OperationContext> OperationContext { get; } = new BoxRef<OperationContext>();
-            public BoxRef<HostParameters> HostParameters { get; } = new BoxRef<HostParameters>();
+            public HostParameters HostParameters { get; }
+            public DistributedCacheServiceConfiguration ServiceConfiguration { get; }
             public ProxyConfigurationSource ConfigurationSource { get; } = new ProxyConfigurationSource();
 
             private DeploymentProxyService ProxyService { get; set; }
+            private ContentCacheService ContentCacheService { get; set; }
 
             /// <summary>
             /// Constructs the service host and takes command line arguments because
             /// ASP.Net core application host is used to parse command line.
             /// </summary>
-            public ServiceHost(string[] commandLineArgs)
+            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters)
             {
-                var hostBuilder = Host.CreateDefaultBuilder(commandLineArgs)
+                HostParameters = hostParameters;
+                ServiceConfiguration = configuration;
+                WebHostBuilder = Host.CreateDefaultBuilder(commandLineArgs)
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
-                        webBuilder.UseStartup<DeploymentProxyStartup>();
+                        webBuilder.UseStartup<CacheServiceStartup>();
                     });
 
-                hostBuilder.ConfigureHostConfiguration(cb => cb.Add(ConfigurationSource));
-
-                DeploymentProxyStartup.UseExternalServices(hostBuilder, OperationContext, HostParameters);
-                ProxyHost = hostBuilder.Build();
+                WebHostBuilder.ConfigureHostConfiguration(cb => cb.Add(ConfigurationSource));
             }
 
-            public async Task OnStartingServiceAsync(OperationContext context)
+            public async Task OnStartedServiceAsync(OperationContext context, ICacheServerServices cacheServices)
             {
-                OperationContext.Value = context;
-                ConfigurationSource.Configuration = ProxyHost.Services.GetService<ProxyServiceConfiguration>();
+                CacheServiceStartup.UseExternalServices(WebHostBuilder, context, HostParameters);
+
+                WebHostBuilder.ConfigureServices(services =>
+                {
+                    if (ServiceConfiguration.ContentCache != null)
+                    {
+                        if (cacheServices.PushFileHandler != null && cacheServices.StreamStore != null)
+                        {
+                            services.AddSingleton<ContentCacheService>(sp =>
+                            {
+                                return new ContentCacheService(
+                                    ServiceConfiguration.ContentCache,
+                                    cacheServices.PushFileHandler,
+                                    cacheServices.StreamStore);
+                            });
+                        }
+                    }
+                });
+
+                WebHost = WebHostBuilder.Build();
+                ConfigurationSource.Configuration = WebHost.Services.GetService<ProxyServiceConfiguration>();
 
                 // Get and start the DeploymentProxyService
-                ProxyService = ProxyHost.Services.GetService<DeploymentProxyService>();
+                ProxyService = WebHost.Services.GetService<DeploymentProxyService>();
+                ContentCacheService = WebHost.Services.GetService<ContentCacheService>();
 
-                await ProxyService.StartupAsync(context).IgnoreFailure();
+                await ProxyService.StartupAsync(context).ThrowIfFailureAsync();
 
-                await ProxyHost.StartAsync(context.Token);
+                if (ContentCacheService != null)
+                {
+                    await ContentCacheService.StartupAsync(context).ThrowIfFailureAsync();
+                }
+
+                await WebHost.StartAsync(context.Token);
             }
 
             public async Task OnStoppingServiceAsync(OperationContext context)
@@ -217,10 +245,16 @@ namespace BuildXL.Launcher.Server
                 {
                     await ProxyService.ShutdownAsync(context).IgnoreFailure();
                 }
-                // Not passing cancellation token since it will already be signaled
-                await ProxyHost.StopAsync();
 
-                ProxyHost.Dispose();
+                if (ContentCacheService != null)
+                {
+                    await ContentCacheService.ShutdownAsync(context).IgnoreFailure();
+                }
+
+                // Not passing cancellation token since it will already be signaled
+                await WebHost.StopAsync();
+
+                WebHost.Dispose();
             }
         }
 

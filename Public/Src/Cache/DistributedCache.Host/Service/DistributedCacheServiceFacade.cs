@@ -133,7 +133,7 @@ namespace BuildXL.Cache.Host.Service
                         throw new CacheException(startupResult.ToString());
                     }
 
-                    ReportServiceStarted(operationContext, host);
+                    await ReportServiceStartedAsync(operationContext, server, host);
 
                     await arguments.Cancellation.WaitForCancellationAsync();
                     await ReportShuttingDownServiceAsync(operationContext, host);
@@ -169,7 +169,7 @@ namespace BuildXL.Cache.Host.Service
             LifetimeTracker.ServiceStartupFailed(context, exception, startupDuration);
         }
 
-        private static async Task ReportStartingServiceAsync(
+        private static Task ReportStartingServiceAsync(
             OperationContext context,
             IDistributedCacheServiceHost host,
             DistributedCacheServiceArguments arguments)
@@ -182,22 +182,25 @@ namespace BuildXL.Cache.Host.Service
             
             LifetimeTracker.ServiceStarting(context, logInterval, logFilePath, arguments.TelemetryFieldsProvider.ServiceName);
 
-            if (host is IDistributedCacheServiceHostInternal hostInternal)
-            {
-                await hostInternal.OnStartingServiceAsync(context);
-            }
-
-            await host.OnStartingServiceAsync();
+            return host.OnStartingServiceAsync();
         }
 
         private static AbsolutePath GetPathForLifetimeTracking(DistributedCacheServiceConfiguration configuration) => configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName);
 
-        private static void ReportServiceStarted(
+        private static async Task ReportServiceStartedAsync(
             OperationContext context,
+            StartupShutdownSlimBase server,
             IDistributedCacheServiceHost host)
         {
             LifetimeTracker.ServiceStarted(context);
             host.OnStartedService();
+
+            if (host is IDistributedCacheServiceHostInternal hostInternal
+                && server is IServicesProvider sp
+                && sp.TryGetService<ICacheServerServices>(out var services))
+            {
+                await hostInternal.OnStartedServiceAsync(context, services);
+            }
         }
 
         private static async Task ReportShuttingDownServiceAsync(OperationContext context, IDistributedCacheServiceHost host)

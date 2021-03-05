@@ -32,6 +32,7 @@ using Grpc.Core;
 using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Cache.Host.Service;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -52,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <typeparam name="TSession">
     ///     Type of sessions that will be created. Must match the store.
     /// </typeparam>
-    public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>, ILocalContentServer<TStore>
+    public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>, ILocalContentServer<TStore>, IServicesProvider
         where TSession : IContentSession
         where TStore : IStartupShutdown
     {
@@ -92,6 +93,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         protected readonly ILogger Logger;
+
+        /// <nodoc />
+        protected abstract ICacheServerServices Services { get; }
 
         /// <summary>
         /// Collection of stores by name.
@@ -891,6 +895,19 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var expirationDateTime = new DateTime(info.ExpirationUtcTicks).ToLocalTime();
             return $"id=[{info.Id}] name=[{info.Session}] expiration=[{expirationDateTime}] capabilities=[{info.Capabilities}] pins=[{info.Pins.Count}]";
+        }
+
+        /// <inheritdoc />
+        public bool TryGetService<TService>(out TService? service)
+        {
+            if (Services is TService typedService)
+            {
+                service = typedService;
+                return true;
+            }
+
+            service = default;
+            return false;
         }
     }
 }

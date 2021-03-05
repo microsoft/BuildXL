@@ -240,11 +240,18 @@ namespace BuildXL.Cache.ContentStore.Stores
         public void PostInitializationCompleted(Context context, BoolResult result) { }
 
         /// <inheritdoc />
-        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, FileSource source, CancellationToken token)
         {
-            // TODO(jubayard): this can be optimized to move in some cases (i.e. GrpcContentServer creates a file just
-            // for this, no need to copy it)
-            return Store.PutFileAsync(context, sourcePath, FileRealizationMode.Copy, hash, pinRequest: null);
+            if (source.Path != null)
+            {
+                // TODO(jubayard): this can be optimized to move in some cases (i.e. GrpcContentServer creates a file just
+                // for this, no need to copy it)
+                return Store.PutFileAsync(context, source.Path, source.FileRealizationMode, hash, pinRequest: null);
+            }
+            else
+            {
+                return Store.PutStreamAsync(context, source.Stream!, hash, pinRequest: null);
+            }
         }
 
         /// <inheritdoc />

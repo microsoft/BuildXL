@@ -30,6 +30,7 @@ using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
 using static BuildXL.Utilities.ConfigurationHelper;
+using BuildXL.Cache.Host.Service;
 
 #nullable enable
 
@@ -72,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// <summary>
     /// A CAS server implementation based on GRPC.
     /// </summary>
-    public class GrpcContentServer : StartupShutdownSlimBase
+    public class GrpcContentServer : StartupShutdownSlimBase, ICacheServerServices, IDistributedStreamStore
     {
         private readonly Tracer _tracer = new Tracer(nameof(GrpcContentServer));
 
@@ -112,6 +113,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </remarks>
         protected virtual ISessionHandler<IContentSession> ContentSessionHandler { get; }
 
+        /// <inheritdoc />
+        public IPushFileHandler PushFileHandler { get; }
+
+        /// <inheritdoc />
+        public ICopyRequestHandler CopyRequestHandler { get; }
+
+        /// <inheritdoc />
+        public IDistributedStreamStore StreamStore => this;
+
         private readonly ConcurrencyLimiter<Guid> _copyFromConcurrencyLimiter;
 
         private readonly ConcurrencyLimiter<ContentHash> _ongoingPushesConcurrencyLimiter;
@@ -144,6 +154,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _workingDirectory = (localServerConfiguration?.DataRootPath ?? _fileSystem.GetTempPath()) / "GrpcContentServer";
 
             GrpcAdapter = new ContentServerAdapter(this);
+            PushFileHandler = storesByName.Values.OfType<IPushFileHandler>().FirstOrDefault()!;
+            CopyRequestHandler = _contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault()!;
 
             Logger = logger;
         }
@@ -258,6 +270,22 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 Header = ResponseHeader.Success(startTime),
                 FilesEvicted = filesEvicted
             };
+        }
+
+        /// <inheritdoc />
+        public async Task<OpenStreamResult> OpenStreamAsync(OperationContext context, ContentHash hash)
+        {
+            var result = await GetFileStreamAsync(context, hash);
+            if (!result.Succeeded && CopyRequestHandler != null)
+            {
+                var copyResult = await CopyRequestHandler.HandleCopyFileRequestAsync(context, hash, context.Token);
+                if (copyResult.Succeeded)
+                {
+                    return await GetFileStreamAsync(context, hash);
+                }
+            }
+
+            return result;
         }
 
         private async Task<OpenStreamResult> GetFileStreamAsync(Context context, ContentHash hash)
@@ -516,7 +544,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
             var token = shutdownTracker.Context.Token;
 
-            var store = _contentStoreByCacheName.Values.OfType<IPushFileHandler>().FirstOrDefault();
+            var store = PushFileHandler;
 
             using var limiter = PushCopyLimiter.Create(cacheContext, _ongoingPushesConcurrencyLimiter, hash, store);
             if (limiter.RejectionReason != RejectionReason.Accepted)
@@ -571,7 +599,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         }
 
                         Contract.Assert(store != null);
-                        result = await store.HandlePushFileAsync(cacheContext, hash, disposableFile.Path, token);
+                        result = await store.HandlePushFileAsync(cacheContext, hash, new FileSource(disposableFile.Path, FileRealizationMode.Move), token);
                     }
 
                     var response = result

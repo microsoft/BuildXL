@@ -349,11 +349,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, FileSource source, CancellationToken token)
         {
             if (ContentStore is IPushFileHandler handler)
             {
-                return handler.HandlePushFileAsync(context, hash, sourcePath, token);
+                return handler.HandlePushFileAsync(context, hash, source, token);
             }
 
             return Task.FromResult(new PutResult(new InvalidOperationException($"{nameof(ContentStore)} does not implement {nameof(IPushFileHandler)}"), hash));

@@ -4,7 +4,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.Host.Service
@@ -39,14 +41,12 @@ namespace BuildXL.Cache.Host.Service
     public interface IDistributedCacheServiceHostInternal : IDistributedCacheServiceHost
     {
         /// <summary>
-        /// Notifies host immediately before host is started and returns a task that completes when the service is ready to start
-        /// (for instance, the current service may wait for another service instance to stop).
+        /// Notifies host immediately after cache service is started.
         /// </summary>
-        Task OnStartingServiceAsync(OperationContext context);
+        Task OnStartedServiceAsync(OperationContext context, ICacheServerServices services);
 
         /// <summary>
-        /// Notifies host immediately before host is started and returns a task that completes when the service is ready to start
-        /// (for instance, the current service may wait for another service instance to stop).
+        /// Notifies host immediately before cache service is stopped.
         /// </summary>
         Task OnStoppingServiceAsync(OperationContext context);
     }

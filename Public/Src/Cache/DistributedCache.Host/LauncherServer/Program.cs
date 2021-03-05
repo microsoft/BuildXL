@@ -22,7 +22,7 @@ namespace BuildXL.Launcher.Server
             if (args.ElementAtOrDefault(0)?.Equals("cacheService", StringComparison.OrdinalIgnoreCase) == true)
             {
                 args = args.Skip(1).ToArray();
-                return DeploymentProxyStartup.RunWithCacheServiceAsync(args, token);
+                return CacheServiceStartup.RunWithCacheServiceAsync(args, token);
             }
 
             return CreateHostBuilder(args).Build().RunAsync(token);

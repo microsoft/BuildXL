@@ -2692,7 +2692,7 @@ namespace BuildXL.Scheduler
             {
                 int availableCommit = m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value;
 
-                if (perfInfo.CommitUsagePercentage.Value >= 98)
+                if (perfInfo.CommitUsagePercentage.Value >= m_configuration.Schedule.CriticalCommitUtilizationPercentage)
                 {
                     isCommitCriticalLevel = true;
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.CriticalLowCommitMemory);
@@ -2720,10 +2720,10 @@ namespace BuildXL.Scheduler
 
             if (isCommitCriticalLevel)
             {
-                // If commit usage is at the critical level (>= 98%), cancel pips to avoid out-of-page file errors.
+                // If commit usage is at the critical level (>= 98% by default), cancel pips to avoid out-of-page file errors.
                 int desiredCommitPercentToFreeSlack = EngineEnvironmentSettings.DesiredCommitPercentToFreeSlack.Value ?? 0;
 
-                // 98-95 = 3 + slack
+                // e.g., 98-95 = 3 + slack
                 int desiredCommitPercentToFree = (perfInfo.CommitUsagePercentage.Value - m_configuration.Schedule.MaximumCommitUtilizationPercentage) + desiredCommitPercentToFreeSlack;
 
                 // Ensure percentage to free is in valid percent range [0, 100]

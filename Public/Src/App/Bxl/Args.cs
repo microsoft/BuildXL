@@ -308,6 +308,9 @@ namespace BuildXL
                             "converge",
                             sign => engineConfiguration.Converge = sign),
                         OptionHandlerFactory.CreateOption(
+                            "criticalCommitUtilizationPercentage",
+                            opt => schedulingConfiguration.CriticalCommitUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
+                        OptionHandlerFactory.CreateOption(
                             "customLog",
                             opt => ParseCustomLogOption(opt, pathTable, loggingConfiguration.CustomLog)),
                         OptionHandlerFactory.CreateBoolOption(

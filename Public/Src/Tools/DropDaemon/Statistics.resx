@@ -60,4 +60,9 @@
     <value>TotalComputeFileBlobDescriptorForUploadMs</value>
     <comment>Total time taken to compute FileBlobDescriptors for 'UploadAndAssociate' calls</comment>
   </data>
+    <data name="TotalBuildManifestRegistrationDurationMs" xml:space="preserve">
+    <value>TotalBuildManifestRegistrationDurationMs</value>
+    <comment>Total time spent in Build Manifest Registrations during 'UploadAndAssociate' calls</comment>
+  </data>
+    
 </root>

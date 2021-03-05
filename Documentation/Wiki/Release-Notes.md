@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210226.4.1 (Release [98790](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=98790)) Released 3/04/2021
+-	Fix allowed same content source rewrite on convergence.
+-	Warn on writes declared outside mounts. 
+-	[Frontend] Add a method for getting a subdir of a shared opaque
+-	[Build Manifest] Improve perf and logging, and add additional counter.
+-	Add Azure Artifacts Credential Provider
+-	Correct successfully attached workers count
+-	Fix a crash in DumpPip analyzer
+
 # 0.1.0-20210205.3.1  (Release [96124](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=96124&_a=release-pipeline-progress)) Released 2/10/2021
 -	Added Dump pip lite analyzer
 -	Improved synchronization for detoured processes

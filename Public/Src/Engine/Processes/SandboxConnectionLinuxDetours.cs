@@ -80,6 +80,7 @@ namespace BuildXL.Processes
 
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
+            private readonly CancellationTokenSource m_waitToCompleteCts;
             private readonly bool m_isInTestMode;
 
             /// <remarks>
@@ -116,6 +117,7 @@ namespace BuildXL.Processes
                 FamPath = famPath;
                 DebugLogJailPath = debugLogPath;
 
+                m_waitToCompleteCts = new CancellationTokenSource();
                 m_pathCache = new Dictionary<string, PathCacheRecord>();
                 m_activeProcesses = new ConcurrentDictionary<int, byte>
                 {
@@ -210,7 +212,11 @@ namespace BuildXL.Processes
                 // The m_workerThread might still be processing access reports from the FIFO so don't complete m_accessReportProcessingBlock yet.
                 // However, in the event of a catastrophic filesystem failure, the worker thread might get stuck; to make sure we eventually
                 // make progress, here we complete the action block after a certain timeout.
-                Task.Delay(MaxWaitForReceiveAccessReports)
+                //
+                // NOTE: passing a cancellation token here which will get triggered as soon as this object is disposed.  Consequently, this "Delay"
+                //       task will be completed right after that instead of waiting for full 'MaxWaitForReceiveAccessReports'; otherwise, it would
+                //       continue to run even after this object has been disposed, holding a reference to 'this', and unnecessarily preventing garbage collection.
+                Task.Delay(MaxWaitForReceiveAccessReports, m_waitToCompleteCts.Token)
                     .ContinueWith(t => CompleteAccessReportProcessing(logWarningIfNotAlreadyCompleted: true))
                     .Forget();
             }
@@ -279,6 +285,8 @@ namespace BuildXL.Processes
             {
                 RequestStop();
                 m_activeProcessesChecker.Join();
+                m_waitToCompleteCts.Cancel();
+                m_waitToCompleteCts.Dispose();
                 m_pathCache.Clear();
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));
@@ -429,6 +437,7 @@ namespace BuildXL.Processes
                     if (numRead < messageLength)
                     {
                         LogError($"Read from FIFO {ReportsFifoPath} failed: read only {numRead} out of {messageLength} bytes");
+                        messageBytes.Dispose();
                         break;
                     }
 

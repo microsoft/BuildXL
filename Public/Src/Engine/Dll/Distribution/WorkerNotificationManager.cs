@@ -146,9 +146,19 @@ namespace BuildXL.Engine.Distribution
         public async Task ReportEventMessageAsync(EventMessage eventMessage)
         {
             // TODO: Associate eventMessage to pip id and delay queuing
-            if (!m_outgoingEvents.TryAdd(eventMessage) && !m_sendCancellationSource.IsCancellationRequested)
+            if (m_sendCancellationSource.IsCancellationRequested)
             {
-                // If m_outgoingEvents is completed, then send any events immediately
+                // We are not sending messages anymore
+                return;
+            }
+
+            try
+            {
+                m_outgoingEvents.Add(eventMessage);
+            }
+            catch (InvalidOperationException)
+            {
+                // m_outgoingEvents is already marked as complete: send the message immediately.
                 await m_masterClient.NotifyAsync(new WorkerNotificationArgs()
                 {
                     ForwardedEvents = new List<EventMessage> { eventMessage }

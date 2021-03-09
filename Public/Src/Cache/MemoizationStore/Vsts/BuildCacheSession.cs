@@ -153,7 +153,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     {
                         var debugString = $"Adding contentHashList=[{valueToAdd.ContentHashListWithDeterminism.ContentHashList}] " +
                                             $"determinism=[{valueToAdd.ContentHashListWithDeterminism.Determinism}] to VSTS with " +
-                                            $"contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}] and expirationUtc=[{expirationUtc}]";
+                                            $"contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}], expirationUtc=[{expirationUtc}], forceUpdate=[{ForceUpdateOnAddContentHashList}]";
                         Tracer.Debug(context, debugString);
                         ObjectResult<ContentHashListWithCacheMetadata> responseObject =
                             await ContentHashListAdapter.AddContentHashListAsync(
@@ -214,8 +214,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
                 },
                 traceOperationStarted: true,
-                extraStartMessage: $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}",
-                extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint}) {contentHashListWithDeterminism.ToTraceString()}");
+                extraStartMessage: $"StrongFingerprint=({strongFingerprint}), ForceUpdate=({ForceUpdateOnAddContentHashList}) {contentHashListWithDeterminism.ToTraceString()}",
+                extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint}), ForceUpdate=({ForceUpdateOnAddContentHashList}) {contentHashListWithDeterminism.ToTraceString()}");
         }
 
         private async Task<bool> CheckNeedToUpdateExistingValueAsync(

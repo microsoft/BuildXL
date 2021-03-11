@@ -479,11 +479,11 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc />
         public override async Task EarlyReleaseAsync()
         {
+            IsEarlyReleaseInitiated = true;
+            
             // Unblock scheduler
             await Task.Yield();
-
-            IsEarlyReleaseInitiated = true;
-
+            
             using (EarlyReleaseLock.AcquireWriteLock())
             {
                 if (!TryInitiateStop())

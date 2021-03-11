@@ -2563,9 +2563,9 @@ namespace BuildXL.Scheduler
         {
             long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsAllocatedSlots;
 
-            // Try releasing the remote  worker which has the lowest acquired slots for process execution.
+            // Try releasing the remote worker which has the lowest acquired slots for process execution.
             // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
-            var workerToReleaseCandidate = Workers.Where(a => a.IsRemote && a.IsAvailable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
+            var workerToReleaseCandidate = Workers.Where(workerisReleasable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
             if (workerToReleaseCandidate == null)
             {
                 return;
@@ -2576,7 +2576,7 @@ namespace BuildXL.Scheduler
                (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
-            if (numProcessPipsWaiting > 0 && (numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots))
+            if (numProcessPipsWaiting >= 0 && numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots)
             {
                 Logger.Log.InitiateWorkerRelease(
                         m_loggingContext,
@@ -2589,6 +2589,15 @@ namespace BuildXL.Scheduler
 
                 var task = workerToReleaseCandidate.EarlyReleaseAsync();
                 Analysis.IgnoreResult(task);
+            }
+
+            bool workerisReleasable(Worker w)
+            {
+                // Candidates for early release are remote workers that
+                //   a. Are available, or
+                //   b. were never available in the first place (i.e. they never attached)
+                // We also filter out the ones that were already picked for early release
+                return w.IsRemote && !w.IsEarlyReleaseInitiated && (w.IsAvailable || !w.EverAvailable);
             }
         }
 

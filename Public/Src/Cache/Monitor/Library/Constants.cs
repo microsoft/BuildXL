@@ -47,14 +47,11 @@ namespace BuildXL.Cache.Monitor.App
             AppKey = string.Empty,
         };
 
-        public static readonly AzureCredentials CloudBuildTestPMETenantCredentials = new AzureCredentials()
+        public static AzureCredentials CloudBuildTestAzureCredentials { get; } = new AzureCredentials()
         {
             Credentials = PMETenantCredentials,
             SubscriptionId = "bf933bbb-8131-491c-81d9-26d7b6f327fa"
         };
-
-
-        public static AzureCredentials CloudBuildTestAzureCredentials { get; } = CloudBuildTestPMETenantCredentials;
 
         public static KustoCredentials CloudBuildTestKustoCredentials { get; } = new KustoCredentials()
         {
@@ -62,13 +59,11 @@ namespace BuildXL.Cache.Monitor.App
             ClusterUrl = DefaultKustoClusterUrl
         };
 
-        public static readonly AzureCredentials CloudBuildProdMicrosoftTenantCredentials = new AzureCredentials()
+        public static AzureCredentials CloudBuildProdAzureCredentials { get; } = new AzureCredentials()
         {
-            Credentials = MicrosoftTenantCredentials,
-            SubscriptionId = "7965fc55-7602-4cf6-abe4-e081cf119567"
+            Credentials = PMETenantCredentials,
+            SubscriptionId = "7965fc55-7602-4cf6-abe4-e081cf119567",
         };
-
-        public static AzureCredentials CloudBuildProdAzureCredentials { get; } = CloudBuildProdMicrosoftTenantCredentials;
 
         public static KustoCredentials CloudBuildProdKustoCredentials { get; } = new KustoCredentials() {
             Credentials = MicrosoftTenantCredentials,

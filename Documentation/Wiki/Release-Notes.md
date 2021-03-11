@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210308.3 (Release [99402](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=99402)) Released 3/10/2021
+- [JavaScript] Add Yarn/Rush/Npm install to JavaScript SDK
+- [Build manifest] Generate and upload signed catalog file
+- Configurable critical commit level
+- Increase BuildXL API server concurrency to handle multiple daemons from service pips
+- Various bug fixes
+
 # 0.1.0-20210226.4.1 (Release [98790](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=98790)) Released 3/04/2021
 -	Fix allowed same content source rewrite on convergence.
 -	Warn on writes declared outside mounts. 

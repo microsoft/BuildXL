@@ -312,6 +312,16 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
+            OncePerEnvironment(arguments =>
+            {
+                var configuration = new MostRecentBuildsFailureRateRule.Configuration(arguments.BaseConfiguration);
+                return Analysis.Utilities.Yield(new Instantiation()
+                {
+                    Rule = new MostRecentBuildsFailureRateRule(configuration),
+                    PollingPeriod = TimeSpan.FromMinutes(45),
+                });
+            }, watchlist);
+
             // TODO: fire-and-forget exceptions are now being reported on the dashboards. We should see if this can be recycled.
             //OncePerStamp(arguments =>
             //{

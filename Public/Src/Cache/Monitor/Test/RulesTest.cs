@@ -66,6 +66,30 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
         }
 
         [Fact]
+        public async Task MostRecentBuildsFailureRateTestAsync()
+        {
+            (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync(3);
+            var configuration = new MostRecentBuildsFailureRateRule.Configuration(baseConfiguration);
+            var rule = new MostRecentBuildsFailureRateRule(configuration);
+            var ruleContext = new RuleContext(Guid.NewGuid(), SystemClock.Instance.UtcNow, new CancellationToken());
+
+            mockKusto.Add(new object[] {
+                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S1", Failed = 5 },
+                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S2", Failed = 10 },
+                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S3", Failed = 50 },
+                new MostRecentBuildsFailureRateRule.Result() { Stamp = "DM_S4", Failed = 30 },
+            });
+
+            await rule.Run(ruleContext);
+            _notifier.Results.Count.Should().Be(3);
+
+            mockIcm.Incidents.Count.Should().Be(3);
+            mockIcm.Incidents[0].Severity.Should().Be(4);
+            mockIcm.Incidents[1].Severity.Should().Be(2);
+            mockIcm.Incidents[2].Severity.Should().Be(3);
+        }
+
+        [Fact]
         public async Task CheckpointSizeTestAsync()
         {
             (var mockKusto, var baseConfiguration, var mockIcm) = await CreateClientAndConfigAsync();

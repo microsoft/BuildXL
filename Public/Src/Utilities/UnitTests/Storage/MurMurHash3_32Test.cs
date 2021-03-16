@@ -37,12 +37,12 @@ namespace Test.BuildXL.Storage
             random.NextBytes(bytes);
 
             var hash1 = MurmurHash3_32.Create(bytes);
-            Assert.Equal(new byte[] {61, 24, 204, 102} , hash1.ToByteArray());
+            Assert.Equal(new byte[] {195, 253, 92, 171} , hash1.ToByteArray());
 
             // Flip a byte
             bytes[8] = 0xff;
             var hash2 = MurmurHash3_32.Create(bytes);
-            Assert.Equal(new byte[] {61, 24, 204, 102} , hash2.ToByteArray());
+            Assert.Equal(new byte[] {193, 111, 203, 1} , hash2.ToByteArray());
         }
 
     }

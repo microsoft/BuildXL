@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 var blocks = (uint*)(data + numBlocks * 4);
 
-                for(int i = -numBlocks; i > 0; i++)
+                for(int i = -numBlocks; i < 0; i++)
                 {
                     uint k1 = blocks[i];
 

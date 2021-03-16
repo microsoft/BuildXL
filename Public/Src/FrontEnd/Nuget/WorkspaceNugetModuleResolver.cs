@@ -1409,7 +1409,10 @@ namespace BuildXL.FrontEnd.Nuget
                         "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
 
                         // Auth material needed for low-privilege build.
-                        "QAUTHMATERIALROOT"
+                        "QAUTHMATERIALROOT",
+
+                        // Used by the artifacts credential provider. See here for more information on how this variable is configured - https://github.com/microsoft/artifacts-credprovider#azure-devops-server
+                        "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS"
                     })
                 .Override(
                     new Dictionary<string, string>()

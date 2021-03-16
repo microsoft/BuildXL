@@ -498,7 +498,8 @@ const cbEnvironmentVariables: string[] = [
     "ARTIFACT_CREDENTIALPROVIDERS_PATH",
     "__CLOUDBUILD_AUTH_HELPER_ROOT__",
     "__Q_DPAPI_Secrets_Dir",
-    "__CREDENTIAL_PROVIDER_LOG_DIR"
+    "__CREDENTIAL_PROVIDER_LOG_DIR",
+    "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH" // Cloudbuild auth helper executable path for build cache, symbol, and drop
 ];
 
 function applyCloudBuildDefaultsAndSetEnvVars(args: SymbolCreateArguments): SymbolCreateArguments {

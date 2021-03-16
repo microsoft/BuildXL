@@ -450,6 +450,7 @@ export namespace DropDaemonRunner {
     const cloudBuildVars: string[] = [
         "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 
         "QAUTHMATERIALROOT",                  // Auth material for low-privilege build.
+        "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH", // Cloudbuild auth helper executable path for build cache, symbol, and drop
         ...cloudBuildVarsPointingToDirs];
     /**
      * Sets the values of the 'forwardEnvironmentVars'

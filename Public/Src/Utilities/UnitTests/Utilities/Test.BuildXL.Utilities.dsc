@@ -17,6 +17,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("Newtonsoft.Json").pkg
         ],
     });
 }

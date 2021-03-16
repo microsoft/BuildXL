@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
@@ -102,10 +103,6 @@ namespace Tool.DropDaemon
         private static IAppTraceSource Tracer => DropAppTraceSource.SingleInstance;
 
         private static CacheContext CacheContext => null; // not needed for anything but "get", which we don't do
-
-        private VssCredentials GetCredentials() =>
-            new VsoCredentialHelper(m => m_logger.Verbose(m))
-                .GetCredentials(m_config.Service, true, null, null, PromptBehavior.Never);
 
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
@@ -648,6 +645,24 @@ namespace Tool.DropDaemon
                     return await FileBlobDescriptorForUploadAsync(chunkDedup, cancellationToken);
                 }
             }
+        }
+
+        /// <summary>
+        /// Try to acquire credentials using the Azure Artifacts Helper first, if that fails then fallback to VsoCredentialHelper
+        /// </summary>
+        /// <returns>Credentials for PAT that was acquired.</returns>
+        private VssCredentials GetCredentials()
+        {
+            Action<string> loggerAction = m => m_logger.Verbose(m);
+            var adoCredentialHelper = new AzureArtifactsCredentialHelper(loggerAction);
+            var credentialHelperResult = adoCredentialHelper.AcquirePat(m_config.Service, PatType.VstsDropReadWrite).Result;
+
+            if (credentialHelperResult.Result == AzureArtifactsCredentialHelperResultType.Success)
+            {
+                return new VsoCredentialHelper(loggerAction).GetPATCredentials(credentialHelperResult.Pat);
+            }
+
+            return new VsoCredentialHelper(loggerAction).GetCredentials(serviceUri: m_config.Service, useAad: true, existingAadTokenCacheBytes: null, pat: null, promptBehavior: PromptBehavior.Never);
         }
     }
 }

@@ -56,10 +56,6 @@ namespace Tool.SymbolDaemon
         private readonly ActionQueue m_fileUploadQueue;
         private int m_batchCount;
 
-        private VssCredentials GetCredentials() =>
-            new VsoCredentialHelper(m => m_logger.Verbose(m))
-                .GetCredentials(m_config.Service, true, null, null, PromptBehavior.Never);
-
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
                 credentials: GetCredentials(),
@@ -471,6 +467,24 @@ namespace Tool.SymbolDaemon
             NumFilesUploaded,
 
             TotalUploadSize,
+        }
+
+        /// <summary>
+        /// Try to acquire credentials using the Azure Artifacts Helper first, if that fails then fallback to VsoCredentialHelper
+        /// </summary>
+        /// <returns>Credentials for PAT that was acquired.</returns>
+        private VssCredentials GetCredentials()
+        {
+            Action<string> loggerAction = m => m_logger.Verbose(m);
+            var adoCredentialHelper = new AzureArtifactsCredentialHelper(loggerAction);
+            var credentialHelperResult = adoCredentialHelper.AcquirePat(m_config.Service, PatType.SymbolsReadWrite).Result;
+
+            if (credentialHelperResult.Result == AzureArtifactsCredentialHelperResultType.Success)
+            {
+                return new VsoCredentialHelper(loggerAction).GetPATCredentials(credentialHelperResult.Pat);
+            }
+
+            return new VsoCredentialHelper(loggerAction).GetCredentials(serviceUri: m_config.Service, useAad: true, existingAadTokenCacheBytes: null, pat: null, promptBehavior: PromptBehavior.Never);
         }
 
         /// <summary>

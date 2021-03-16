@@ -9,6 +9,9 @@
 #include <string.h>
 #endif
 
+#define _MAX_EXTENDED_DIR_LENGTH (_MAX_EXTENDED_PATH_LENGTH - _MAX_DRIVE - _MAX_FNAME - _MAX_EXT - 4)
+#define _MAX_EXTENDED_PATH_LENGTH 32768 // see https://docs.microsoft.com/en-us/cpp/c-runtime-library/path-field-limits?view=vs-2019
+
 // Magic numbers known to provide good hash distributions.
 // See here: http://www.isthe.com/chongo/tech/comp/fnv/
 
@@ -425,6 +428,56 @@ size_t GetRootLength(PCPathChar path)
     }
 
     return i;
+}
+
+// Returns a collection of all path atoms of the given path
+int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements)
+{
+    auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
+    auto directory = std::make_unique<wchar_t[]>(_MAX_EXTENDED_DIR_LENGTH);
+    auto file_name = std::make_unique<wchar_t[]>(_MAX_FNAME);
+    auto extension = std::make_unique<wchar_t[]>(_MAX_EXT);
+
+    errno_t err = _wsplitpath_s(
+        path.c_str(),
+        drive.get(), _MAX_DRIVE,
+        directory.get(), _MAX_EXTENDED_DIR_LENGTH,
+        file_name.get(), _MAX_FNAME,
+        extension.get(), _MAX_EXT);
+
+    if (err != 0)
+    {
+        return err;
+    }
+
+    std::wstring wdrive = drive.get();
+    if (wdrive.size() > 0)
+    {
+        elements.push_back(std::move(wdrive));
+    }
+
+    wchar_t* context;
+    wchar_t* next = wcstok_s(directory.get(), L"\\/", &context);
+    while (next)
+    {
+        std::wstring dirAtom = next;
+        if (dirAtom.size() > 0)
+        {
+            elements.push_back(std::move(next));
+        }
+
+        next = wcstok_s(nullptr, L"\\/", &context);
+    }
+
+    std::wstring filenameAndExtension = file_name.get();
+    filenameAndExtension.append(extension.get());
+
+    if (filenameAndExtension.size() > 0)
+    {
+        elements.push_back(std::move(filenameAndExtension));
+    }
+
+    return 0;
 }
 
 #endif // _WIN32

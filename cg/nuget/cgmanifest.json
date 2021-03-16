@@ -4010,6 +4010,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "boost",
+          "Version": "1.71.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "microsoft.dotnet.xunitconsolerunner",
           "Version": "2.5.1-beta.19270.4"
         }

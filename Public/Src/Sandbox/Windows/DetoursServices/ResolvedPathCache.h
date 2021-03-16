@@ -4,6 +4,7 @@
 #include <map>
 #include <shared_mutex>
 #include <vector>
+#include "PathTree.h"
 
 typedef std::shared_mutex ResolvedPathCacheLock;
 typedef std::unique_lock<ResolvedPathCacheLock> ResolvedPathCacheWriteLock;
@@ -22,40 +23,84 @@ public:
     inline bool InsertResolvingCheckResult(const std::wstring& path, bool result)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
-        return m_resolverCache.emplace(path, result).second;
+
+        const std::wstring normalizedPath = Normalize(path);
+        if (!m_pathTree.TryInsert(normalizedPath))
+        {
+            return false;
+        }
+
+        return m_resolverCache.emplace(normalizedPath, result).second;
     }
 
     inline const bool* GetResolvingCheckResult(const std::wstring& path)
     {
-        return Find(m_resolverCache, path);
+        return Find(m_resolverCache, Normalize(path));
     }
 
     inline bool InsertResolvedPathWithType(const std::wstring& path, std::wstring& resolved, DWORD type)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
-        return m_targetCache.emplace(path, std::make_pair(resolved, type)).second;
+        const std::wstring normalizedPath = Normalize(path);
+        if (!m_pathTree.TryInsert(Normalize(normalizedPath)))
+        {
+            return false;
+        }
+
+        return m_targetCache.emplace(normalizedPath, std::make_pair(resolved, type)).second;
     }
 
     inline const std::pair<std::wstring, DWORD>* GetResolvedPathAndType(const std::wstring& path)
     {
-        return Find(m_targetCache, path);
+        return Find(m_targetCache, Normalize(path));
     }
 
     inline bool InsertResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath, std::vector<std::wstring>&& insertion_order, std::map<std::wstring, ResolvedPathType>&& resolved_paths)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
-        return m_paths.emplace(std::make_pair(path, preserveLastReparsePointInPath), std::make_pair(insertion_order, resolved_paths)).second;
+
+        const std::wstring normalizedPath = Normalize(path);
+
+        if (!m_pathTree.TryInsert(Normalize(normalizedPath)))
+        {
+            return false;
+        }
+
+        for (auto iter = resolved_paths.begin(); iter != resolved_paths.end(); ++iter) {
+            if (!m_pathTree.TryInsert(Normalize(iter->first)))
+            {
+                return false;
+            }
+        }
+
+        return m_paths.emplace(std::make_pair(normalizedPath, preserveLastReparsePointInPath), std::make_pair(insertion_order, resolved_paths)).second;
     }
 
     inline const ResolvedPathCacheEntries* GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
     {
-        return Find(m_paths, std::make_pair(path, preserveLastReparsePointInPath));
+        return Find(m_paths, std::make_pair(Normalize(path), preserveLastReparsePointInPath));
     }
 
     void Invalidate(const std::wstring& path)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
+        
+        const std::wstring normalizedPath = Normalize(path);
 
+        InvalidateThisPath(Normalize(normalizedPath));
+
+        // Invalidate all its descendants
+        std::vector<std::wstring> descendants;
+        m_pathTree.RetrieveAndRemoveAllDescendants(normalizedPath, descendants);
+
+        for (auto iter = descendants.begin(); iter != descendants.end(); ++iter)
+        {
+            InvalidateThisPath(*iter);
+        }
+    }
+    
+    void InvalidateThisPath(const std::wstring & path)
+    {
         m_resolverCache.erase(path);
         m_targetCache.erase(path);
 
@@ -100,6 +145,19 @@ private:
         return nullptr;
     }
 
+    // CanonicalPath does not canonicalize trailing slashes for directories
+    // But the cache structures need exact string matching, so we do it here
+    inline std::wstring Normalize(const std::wstring& path)
+    {
+        if (path.size() > 0 && IsDirectorySeparator(path.back()))
+        {
+            std::wstring normal = path.substr(0, path.size() - 1);
+            return normal;
+        }
+
+        return path;
+    }
+
     ResolvedPathCacheLock m_lock;
 
     // A mapping used to cache if base paths need to be resolved (no entry) or have previously been fully resolved
@@ -111,4 +169,7 @@ private:
     // A mapping used to cache all intermediate paths and the final fully resolved path (value) of an unresolved base 
     // path where its last segment has to be resolved or not(key)
     std::map<std::pair<std::wstring, bool>, ResolvedPathCacheEntries> m_paths;
+
+    // All the paths the cache is aware of
+    PathTree m_pathTree;
 };

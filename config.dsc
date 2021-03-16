@@ -404,7 +404,10 @@ config({
                     osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                         ? []
                         : [ "win", "macOS", "unix" ]
-                }
+                },
+
+                // For C++ testing
+                {id: "boost", version: "1.71.0.0"}
             ],
 
             doNotEnforceDependencyVersions: true,

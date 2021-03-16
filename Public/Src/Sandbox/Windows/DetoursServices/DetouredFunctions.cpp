@@ -353,34 +353,19 @@ static bool ShouldResolveReparsePointsInPath(
         return *result;
     }
 
-    auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
-    auto directory = std::make_unique<wchar_t[]>(_MAX_EXTENDED_DIR_LENGTH);
-    auto file_name = std::make_unique<wchar_t[]>(_MAX_FNAME);
-    auto extension = std::make_unique<wchar_t[]>(_MAX_EXT);
-
-    errno_t err = _wsplitpath_s(
-        path.GetPathStringWithoutTypePrefix(),
-        drive.get(),     _MAX_DRIVE,
-        directory.get(), _MAX_EXTENDED_DIR_LENGTH,
-        file_name.get(), _MAX_FNAME,
-        extension.get(), _MAX_EXT);
-
+    std::vector<std::wstring> atoms;
+    int err = TryDecomposePath(path.GetPathStringWithoutTypePrefix(), atoms);
     if (err != 0)
     {
         Dbg(L"ShouldResolveReparsePointsInPath: _wsplitpath_s failed, not resolving path: %d", err);
         return false;
     }
 
-    wstring resolver = drive.get();
     wstring target;
-
-    wchar_t* context;
-    wchar_t* next = wcstok_s(directory.get(), L"\\/", &context);
-
-    while (next)
+    wstring resolver;
+    for(auto iter = atoms.begin(); iter != atoms.end(); iter++)
     {
-        resolver.append(L"\\");
-        resolver.append(next);
+        resolver.append(*iter);
 
         if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target))
         {
@@ -388,12 +373,11 @@ static bool ShouldResolveReparsePointsInPath(
             return true;
         }
 
-        next = wcstok_s(nullptr, L"\\/", &context);
+        resolver.append(L"\\");
     }
 
-    resolver.append(L"\\");
-    resolver.append(file_name.get());
-    resolver.append(extension.get());
+    // remove the trailing backslash
+    resolver.pop_back();
 
     if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target))
     {
@@ -403,6 +387,18 @@ static bool ShouldResolveReparsePointsInPath(
 
     ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), false);
     return false;
+}
+
+// If the given path does not contain reparse points but the handle was open for write and open reparse point flag was passed,
+// then this may be the step previous to turning that directory into a reparse point. We don't detour the actual ioctl call, but conservatively we
+// invalidate the path from the cache. Otherwise, if the ioctl call actually happens, all subsequent reads on the path won't be resolved.
+static void InvalidateReparsePointCacheIfNeeded(bool pathContainsReparsePoints, DWORD desiredAccess, DWORD flagsAndAttributes, const wchar_t* path)
+{
+    if (!pathContainsReparsePoints && !IgnoreReparsePoints() && !IgnoreFullReparsePointResolving() && WantsWriteAccess(desiredAccess) &&
+        FlagsAndAttributesContainReparsePointFlag(flagsAndAttributes))
+    {
+        ResolvedPathCache::Instance().Invalidate(path);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2879,7 +2875,9 @@ HANDLE WINAPI Detoured_CreateFileW(
     }
 
     bool isHandleToReparsePoint = (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath().GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
+
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(policyResult.GetCanonicalizedPath().GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes);
+    if (shouldResolveReparsePointsInPath)
     {
         bool accessResult = EnforceChainOfReparsePointAccesses(
             policyResult.GetCanonicalizedPath(),
@@ -2914,6 +2912,8 @@ HANDLE WINAPI Detoured_CreateFileW(
     ReportIfNeeded(accessCheck, opContext, policyResult, error, usn);
 
 SkipReportingDueToResolvingAndEnforcingAccess:
+
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, dwDesiredAccess, dwFlagsAndAttributes, policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     // It is possible that we only reached a deny action under some access check combinations above (rather than a direct check),
     // so log and maybe break here as well now that it is final.
@@ -6137,7 +6137,8 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     }
 
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes);
+    if (shouldResolveReparsePointsInPath)
     {
         // Note that handle can be invalid because users can CreateFileW of a symlink whose target is non-existent.
         NTSTATUS ntStatus;
@@ -6178,6 +6179,9 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
 
 SkipReportingDueToResolvingAndEnforcingAccess:
+
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes,
+        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
     if (accessCheck.ShouldDenyAccess())
@@ -6434,7 +6438,8 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     }
 
     bool isHandleToReparsePoint = (CreateOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes);
+    if (shouldResolveReparsePointsInPath)
     {
         NTSTATUS ntStatus;
 
@@ -6475,6 +6480,9 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
 
 SkipReportingDueToResolvingAndEnforcingAccess:
+
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes,
+        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
 
@@ -6704,7 +6712,8 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     }
 
     bool isHandleToReparsePoint = (OpenOptions & FILE_OPEN_REPARSE_POINT) != 0;
-    if (ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes))
+    bool shouldResolveReparsePointsInPath = ShouldResolveReparsePointsInPath(path.GetPathString(), opContext.DesiredAccess, opContext.FlagsAndAttributes);
+    if (shouldResolveReparsePointsInPath)
     {
         NTSTATUS ntStatus;
 
@@ -6744,6 +6753,9 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
 
 SkipReportingDueToResolvingAndEnforcingAccess:
+
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes,
+        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
     if (accessCheck.ShouldDenyAccess())

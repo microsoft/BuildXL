@@ -1390,6 +1390,60 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
+        [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        public void ReparsePointCreationInvalidatesTheCache()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            // Create the following layout
+            // sodA 
+            //  -- nestedDir
+            //    -- output.txt 
+            // sodB 
+            //  -- junction -> sodA 
+
+            AbsolutePath sodA = CreateUniqueDirectory(prefix: "sodA");
+            AbsolutePath sodB = CreateUniqueDirectory(prefix: "sodB");
+
+            var nestedDirPath = sodA.Combine(Context.PathTable, "nestedDir").ToString(Context.PathTable);
+            FileUtilities.CreateDirectory(nestedDirPath);
+
+            DirectoryArtifact nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodA.Combine(Context.PathTable, "nestedDir"));
+            DirectoryArtifact junctionDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodB.Combine(Context.PathTable, "junction"));
+            DirectoryArtifact nestedDirViaJunction = DirectoryArtifact.CreateWithZeroPartialSealId(junctionDir.Path.Combine(Context.PathTable, "nestedDir"));
+
+            FileArtifact outputViaJunction = FileArtifact.CreateOutputFile(nestedDirViaJunction.Path.Combine(Context.PathTable, "output.txt"));
+            FileArtifact outputViaRealPath = FileArtifact.CreateOutputFile(nestedDir.Path.Combine(Context.PathTable, "output.txt"));
+
+            var writerBuilder = CreatePipBuilder(new Operation[]
+            {
+                // absent, and therefore cached as not needing reparse point resolution 
+                Operation.Probe(outputViaJunction, doNotInfer: true), 
+                // the junction creation should invalidate the reparse point cache, and also invalidate its
+                // descendants, which includes the above probe
+                Operation.CreateJunction(junctionDir, DirectoryArtifact.CreateWithZeroPartialSealId(sodA), doNotInfer: true),  
+                Operation.WriteFile(outputViaRealPath, doNotInfer: true),
+                // present now via the creation of the junction and the output. Since the cache should have 
+                // invalidated this entry, now this should be flagged as needing resolution
+                Operation.ReadFile(outputViaJunction, doNotInfer: true), 
+            });
+
+            writerBuilder.AddOutputDirectory(sodA, SealDirectoryKind.SharedOpaque); 
+            writerBuilder.AddOutputDirectory(sodB, SealDirectoryKind.SharedOpaque);
+            writerBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var writer = SchedulePipBuilder(writerBuilder);
+
+            RunScheduler().AssertSuccess();
+
+            // Simulate scrubbing
+            FileUtilities.DeleteFile(junctionDir.Path.ToString(Context.PathTable));
+            FileUtilities.DeleteFile(outputViaRealPath.Path.ToString(Context.PathTable));
+
+            // A cache hit guarantees that all paths that need resolution are actually resolved
+            RunScheduler().AssertCacheHit(writer.Process.PipId);
+        }
+
         /// <summary>
         /// Pips delete their outputs before running. When a symlink is declared as output,
         /// we should delete the symlink itself and not the underlying target file.

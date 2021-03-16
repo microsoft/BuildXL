@@ -4,5 +4,6 @@
 import {Transformer} from "Sdk.Transformers";
 
 namespace Detours.Include {
+    @@public
     export const includes: StaticDirectory = Transformer.sealSourceDirectory(d`.`);
 }

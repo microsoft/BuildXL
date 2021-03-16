@@ -39,8 +39,11 @@ namespace Core {
         f`UniqueHandle.h`,
         f`SubstituteProcessExecution.h`,
         f`FilesCheckedForAccess.h`,
-        f`ResolvedPathCache.h`
+        f`ResolvedPathCache.h`,
+        f`PathTree.h`
     ];
+
+    @@public export const includes = Transformer.sealPartialDirectory(d`.`, headers);
 
     export const pathToDeviceMapLib: PathAtom = a`${qualifier.platform.replace("x", qualifier.configuration)}`;
 
@@ -71,6 +74,7 @@ namespace Core {
             ],
     });
 
+    @@public
     export const nativesDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
         sharedSettings.merge<Native.Dll.Arguments>({
             outputFileName: PathAtom.create("BuildXLNatives.dll"),
@@ -88,6 +92,7 @@ namespace Core {
                 f`SendReport.cpp`,
                 f`DetouredProcessInjector.cpp`,
                 f`SubstituteProcessExecution.cpp`,
+                f`PathTree.cpp`
             ],
 
             exports: [
@@ -106,6 +111,43 @@ namespace Core {
         })
     );
 
+    // This dll contains libraries used in detours that are consumed by tests (which do not run under detours)
+    @@public
+    export const testDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
+    {
+        outputFileName: PathAtom.create("BuildXLTestNatives.dll"),
+        preprocessorSymbols: [
+            {name: "BUILDXL_NATIVES_LIBRARY"}, 
+            {name: "TEST"}],
+        includes: [
+            f`PathTree.h`,
+            f`stdafx.h`,
+            f`stdafx-win.h`,
+            f`targetver.h`,
+            f`UtilityHelpers.h`,
+            f`DataTypes.h`,
+            f`StringOperations.h`,
+            f`DebuggingHelpers.h`,
+            f`Assertions.h`,
+            Detours.Include.includes,
+            importFrom("WindowsSdk").UM.include,
+            importFrom("WindowsSdk").Shared.include,
+            importFrom("WindowsSdk").Ucrt.include,
+            importFrom("VisualCpp").include,
+        ],
+        sources: [
+            f`Assertions.cpp`,
+            f`StringOperations.cpp`,
+            f`PathTree.cpp`
+        ],
+        libraries: [
+            ...importFrom("WindowsSdk").UM.standardLibs,
+            importFrom("VisualCpp").lib,
+            importFrom("WindowsSdk").Ucrt.lib
+        ]
+    });
+
+    @@public
     export const detoursDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
         sharedSettings.merge<Native.Dll.Arguments>({
             outputFileName: PathAtom.create("DetoursServices.dll"),
@@ -130,7 +172,8 @@ namespace Core {
                 f`DeviceMap.cpp`,
                 f`DetouredProcessInjector.cpp`,
                 f`SubstituteProcessExecution.cpp`,
-                f`FilesCheckedForAccess.cpp`
+                f`FilesCheckedForAccess.cpp`,
+                f`PathTree.cpp`
             ],
 
             exports: [

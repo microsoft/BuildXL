@@ -245,3 +245,8 @@ bool IsPathToNamedStream(PCPathChar const path, size_t pathLength);
 
 // Gets root length of a path.
 size_t GetRootLength(PCPathChar path);
+
+#if _WIN32
+// Returns a collection of all path atoms of the given path
+int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);
+#endif

@@ -5,6 +5,19 @@ config({
             projectRoot: d`.`,
             moduleName: "Project",
             buildDirectory: r`Example`,
+            
+            // Uncommenting this line makes the resolver search for the CMake executable in the specified directory 
+            // rather than using the `PATH` environment variable:
+            // cMakeSearchLocations: [d`C:\Program Files\CMake\bin`],
+            
+            // cacheEntries specify "-D Key=Value" arguments to add to the CMake invocation.
+            // Note that these entries are persisted in the CMake cache (located in Out\Example\CMakeCache.txt after the build)
+            // They can be unset (BuildXL will pass "-U Var" to CMake) specifying undefined as the value in this dictionary.
+            // cacheEntries: { 
+            //     CMAKE_MAKE_PROGRAM: "C:\\Path\\To\\ninja.exe",
+            //     CMAKE_CXX_COMPILER: "C:\\Path\To\\CXX\\compiler.exe",
+            //     VAR_TO_UNSET: undefined,
+            // }
         }
     ]
 });

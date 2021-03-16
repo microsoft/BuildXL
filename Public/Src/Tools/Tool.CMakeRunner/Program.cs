@@ -94,7 +94,7 @@ namespace NinjaGraphBuilderTool
             {
                 foreach (KeyValuePair<string, string> entry in args.CacheEntries)
                 {
-                    builder.Append(entry.Value != null ? $" -D{entry.Key}={entry.Value}" : " $-U{entry.Key}");
+                    builder.Append(entry.Value != null ? $" -D{entry.Key}={entry.Value}" : $" -U{entry.Key}");
                 }
             }
 

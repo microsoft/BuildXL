@@ -219,7 +219,7 @@ namespace BuildXL.FrontEnd.CMake
                 }
             }
 
-            var environment = FrontEndUtilities.GetEngineEnvironment(m_host.Engine, Name);
+            var environment = FrontEndUtilities.GetEngineEnvironment(m_host.Engine, CMakeResolverName);
 
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
             var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
@@ -292,7 +292,7 @@ namespace BuildXL.FrontEnd.CMake
 
 
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                Name,
+                CMakeResolverName,
                 m_context,
                 m_host.Engine,
                 cmakeSearchLocations,

@@ -110,6 +110,11 @@ namespace Rush {
                     // unwanted cache misses
                     d`${arguments.repoRoot}/.git`,
                 ],
+                untrackedPaths: [
+                    // Changes in the user profile .npmrc shouldn't induce a cache miss
+                    f`${localUserProfile}/.npmrc`,
+                    f`${localUserProfile}/global.npmrc`,
+                ],
                 passThroughEnvironmentVariables: defaultPassthroughVariables,
             },
         };

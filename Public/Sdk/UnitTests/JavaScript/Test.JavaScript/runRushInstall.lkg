@@ -71,7 +71,10 @@ Transformer.execute({
         {name: "USERNAME", isPassThrough: true},
         {name: "USERPROFILE", value: p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`},
     ],
-    unsafe: {untrackedScopes: [p`./Out/path/to/pnpm/store`, p`./Out/src/.git`]},
+    unsafe: {
+        untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/.npmrc`, p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile/global.npmrc`],
+        untrackedScopes: [p`./Out/path/to/pnpm/store`, p`./Out/src/.git`],
+    },
     allowUndeclaredSourceReads: true,
     allowedSurvivingChildProcessNames: [a`node.exe`],
 });

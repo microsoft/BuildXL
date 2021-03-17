@@ -43,8 +43,7 @@ namespace BuildXL.Engine.Distribution
                 return Process.GetCurrentProcess().StartTime.ToUniversalTime();
             }
 
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
-            protected override async void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
+            protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
             {
                 if ((level != EventLevel.Error) && (level != EventLevel.Warning))
                 {
@@ -78,7 +77,7 @@ namespace BuildXL.Engine.Distribution
                         };
                     }
 
-                    await m_notificationManager.ReportEventMessageAsync(new EventMessage()
+                    m_notificationManager.ReportEventMessage(new EventMessage()
                     {
                         Id = Interlocked.Increment(ref m_nextEventId),
                         Level = (int)level,

@@ -143,7 +143,7 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        public async Task ReportEventMessageAsync(EventMessage eventMessage)
+        public void ReportEventMessage(EventMessage eventMessage)
         {
             // TODO: Associate eventMessage to pip id and delay queuing
             if (m_sendCancellationSource.IsCancellationRequested)
@@ -158,11 +158,14 @@ namespace BuildXL.Engine.Distribution
             }
             catch (InvalidOperationException)
             {
-                // m_outgoingEvents is already marked as complete: send the message immediately.
-                await m_masterClient.NotifyAsync(new WorkerNotificationArgs()
-                {
-                    ForwardedEvents = new List<EventMessage> { eventMessage }
-                }, null, m_sendCancellationSource.Token);
+                Contract.Assert(m_outgoingEvents.IsAddingCompleted);
+                // m_outgoingEvents is marked as complete: this means we are shutting down,
+                // don't try to send more events to the orchestrator.
+                //
+                // Events can occur after the shutdown in communications is started: in
+                // builds with FireForgetMaterializeOutputs we may still be executing output
+                // materialization while closing down communications with the orchestrator 
+                // (which called Exit on the worker already after sending the MaterializeOutput requests).
             }
         }
 
@@ -265,7 +268,7 @@ namespace BuildXL.Engine.Distribution
             }
 
             m_finishedSendingPipResults = true;
-            m_outgoingEvents.CompleteAdding();  // Future events will be forwarded without queuing
+            m_outgoingEvents.CompleteAdding(); 
             DistributionServices.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToMaster, m_numBatchesSent);
         }
     }

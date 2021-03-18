@@ -65,7 +65,10 @@ Transformer.execute({
         {name: "LOCALAPPDATA", isPassThrough: true},
         {name: "LOCALLOW", isPassThrough: true},
         {name: "NO_UPDATE_NOTIFIER", value: "1"},
-        {name: "PATH", value: [p`./path/to`, p`\${Context.getMount('Windows').path}/System32/windowspowershell/v1.0`]},
+        {
+            name: "PATH",
+            value: [p`./path/to`, p`\${Context.getMount('Windows').path}/System32/windowspowershell/v1.0`, p`\${Context.getMount('Windows').path}/System32`],
+        },
         {name: "RUSH_ABSOLUTE_SYMLINKS", value: "FALSE"},
         {name: "RUSH_PNPM_STORE_PATH", value: p`./Out/path/to/pnpm/store`},
         {name: "USERNAME", isPassThrough: true},

@@ -39,6 +39,7 @@ namespace Rush {
         repoRoot: Directory,
         absoluteSymlinks?: boolean,
         pnpmStorePath?: Directory,
+        untrackedScopes?: Directory[]
     }
 
     /**
@@ -72,7 +73,9 @@ namespace Rush {
             {name: "PATH", separator: ";", value: [
                 arguments.nodeTool.exe.parent,
                 // On Windows, Rush depends on powershell being on the PATH
-                ...addIf(Context.getCurrentHost().os === "win", p`${Context.getMount("Windows").path}/system32/windowspowershell/v1.0/`)]},
+                ...addIf(Context.getCurrentHost().os === "win", p`${Context.getMount("Windows").path}/system32/windowspowershell/v1.0/`),
+                // On Windows, Rush depends on cmd.exe being on the PATH
+                ...addIf(Context.getCurrentHost().os === "win", p`${Context.getMount("Windows").path}/system32/`)]},
             {name: "RUSH_ABSOLUTE_SYMLINKS", value: arguments.absoluteSymlinks? "TRUE" : "FALSE"},
             {name: "USERPROFILE", value: localUserProfile},
             {name: "RUSH_PNPM_STORE_PATH", value: cacheFolder},
@@ -109,6 +112,7 @@ namespace Rush {
                     // Many times there are some accesses under .git folder that are sensitive to file content that introduce
                     // unwanted cache misses
                     d`${arguments.repoRoot}/.git`,
+                    ...(arguments.untrackedScopes || [])
                 ],
                 untrackedPaths: [
                     // Changes in the user profile .npmrc shouldn't induce a cache miss

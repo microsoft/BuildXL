@@ -74,7 +74,8 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 | summarize Reimaged = dcount(Machine), Machines = make_set(Machine) by Stamp
                 | extend Machines = tostring(Machines)
                 | lookup Machines on Stamp
-                | where not(isnull(Total))";
+                | where not(isnull(Total))
+                | where isnotempty(Stamp)";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             GroupByStampAndCallHelper(results, result => result.Stamp, rule);

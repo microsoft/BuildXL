@@ -70,9 +70,15 @@ namespace BuildXL.Cache.Monitor.Library.Rules
         protected void GroupByStampAndCallHelper<T>(List<T> results, Func<T, string> stampSelector, Action<string, List<T>> helperFunc)
         {
             var grouping = results.GroupBy(stampSelector);
-            var missingStamps = _configuration.WatchList.EnvStamps[_configuration.Environment].Where(stamp => !grouping.Any(group => group.Key == stamp.Name));
+            var missingStamps = _configuration.WatchList.EnvStamps[_configuration.Environment]
+                .Where(stamp => !grouping.Any(group => group.Key == stamp.Name));
             foreach (var group in grouping)
             {
+                if (string.IsNullOrWhiteSpace(group.Key))
+                {
+                    continue;
+                }
+
                 helperFunc(group.Key, group.ToList());
             }
 
@@ -85,9 +91,15 @@ namespace BuildXL.Cache.Monitor.Library.Rules
         protected async Task GroupByStampAndCallHelperAsync<T>(List<T> results, Func<T, string> stampSelector, Func<string, List<T>, Task> helperFunc)
         {
             var grouping = results.GroupBy(stampSelector);
-            var missingStamps = _configuration.WatchList.EnvStamps[_configuration.Environment].Where(stamp => !grouping.Any(group => group.Key == stamp.Name));
+            var missingStamps = _configuration.WatchList.EnvStamps[_configuration.Environment]
+                .Where(stamp => !grouping.Any(group => group.Key == stamp.Name));
             foreach (var group in grouping)
             {
+                if (string.IsNullOrWhiteSpace(group.Key))
+                {
+                    continue;
+                }
+
                 await helperFunc(group.Key, group.ToList());
             }
 

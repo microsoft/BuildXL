@@ -134,11 +134,25 @@ namespace BuildXL.Cache.Monitor.App
                 icmClient = new MockIcmClient();
             }
 
+            var environmentResources = await CreateEnvironmentResourcesAsync(context, configuration.Environments);
+
+            context.Token.ThrowIfCancellationRequested();
+            return new Monitor(
+                configuration,
+                kustoIngestClient,
+                icmClient,
+                SystemClock.Instance,
+                environmentResources,
+                context.TracingContext.Logger);
+        }
+
+        internal static async Task<Dictionary<MonitorEnvironment, EnvironmentResources>> CreateEnvironmentResourcesAsync(OperationContext context, IReadOnlyDictionary<MonitorEnvironment, EnvironmentConfiguration> configurations)
+        {
             var environmentResources = new Dictionary<MonitorEnvironment, EnvironmentResources>();
 
             // This does a bunch of Azure API calls, which are really slow. Making them a bit faster by doing them
             // concurrently.
-            await configuration.Environments.ParallelForEachAsync(async (keyValuePair) =>
+            await configurations.ParallelForEachAsync(async (keyValuePair) =>
             {
                 var environment = keyValuePair.Key;
                 var environmentConfiguration = keyValuePair.Value;
@@ -152,14 +166,7 @@ namespace BuildXL.Cache.Monitor.App
                 }
             });
 
-            context.Token.ThrowIfCancellationRequested();
-            return new Monitor(
-                configuration,
-                kustoIngestClient,
-                icmClient,
-                SystemClock.Instance,
-                environmentResources,
-                context.TracingContext.Logger);
+            return environmentResources;
         }
 
         private static async Task<EnvironmentResources> CreateEnvironmentResourcesAsync(OperationContext context, EnvironmentConfiguration configuration)

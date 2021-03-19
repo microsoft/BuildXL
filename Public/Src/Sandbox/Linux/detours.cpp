@@ -396,7 +396,24 @@ INTERPOSE(int, symlinkat, const char *target, int dirfd, const char *linkPath)({
     return bxl->check_and_fwd_symlinkat(check, ERROR_RETURN_VALUE, target, dirfd, linkPath);
 })
 
-INTERPOSE(ssize_t, readlink, const char *path, char *buf, size_t bufsize)({
+INTERPOSE_SOMETIMES(
+    ssize_t,
+    readlink,
+    // rustc uses jemalloc
+    // During it's initialization, jemalloc grabs a lock and then calls readlink on "/etc/malloc.conf"
+    // libDomino hooks readlink
+    // libDomino's readlink hook calls dlsym
+    // dlsym calls calloc
+    // calloc calls jemalloc
+    // jemalloc tries to grab the lock, but this same thread already holds it.
+    // To break this deadlock, we ideally would route this to real_readlink, but it is not initialized yet.
+    // As a stopgap, we just assume it doesn't exist.
+    if (path != NULL && (strcmp(path, "/etc/malloc.conf") == 0)) {
+        errno = ENOENT;
+        return -1;
+    }, 
+    const char *path, char *buf, size_t bufsize)(
+{
     auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, path, O_NOFOLLOW);
     return bxl->check_and_fwd_readlink(check, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
 })

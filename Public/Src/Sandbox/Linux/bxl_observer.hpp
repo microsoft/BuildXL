@@ -57,11 +57,18 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
         B \
     }
 
-    #define INTERPOSE(ret, name, ...) \
+    // It's important to have an option to bail out early, *before*
+    // the call to BxlObserver::GetInstance() because we might not
+    // have the process initialized far enough for that call to succeed.
+    #define INTERPOSE_SOMETIMES(ret, name, short_circuit_check, ...) \
     ret name(__VA_ARGS__) { \
+        short_circuit_check \
         BxlObserver *bxl = BxlObserver::GetInstance(); \
         BXL_LOG_DEBUG(bxl, "Intercepted %s", #name); \
         MAKE_BODY
+
+    #define INTERPOSE(ret, name, ...) \
+        INTERPOSE_SOMETIMES(ret, name, ;, __VA_ARGS__)
 #else
     #define GEN_FN_DEF_REAL(ret, name, ...)                                         \
         typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \

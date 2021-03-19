@@ -392,9 +392,9 @@ static bool ShouldResolveReparsePointsInPath(
 // If the given path does not contain reparse points but the handle was open for write and open reparse point flag was passed,
 // then this may be the step previous to turning that directory into a reparse point. We don't detour the actual ioctl call, but conservatively we
 // invalidate the path from the cache. Otherwise, if the ioctl call actually happens, all subsequent reads on the path won't be resolved.
-static void InvalidateReparsePointCacheIfNeeded(bool pathContainsReparsePoints, DWORD desiredAccess, DWORD flagsAndAttributes, const wchar_t* path)
+static void InvalidateReparsePointCacheIfNeeded(bool pathContainsReparsePoints, DWORD desiredAccess, DWORD flagsAndAttributes, bool isDirectory, const wchar_t* path)
 {
-    if (!pathContainsReparsePoints && !IgnoreReparsePoints() && !IgnoreFullReparsePointResolving() && WantsWriteAccess(desiredAccess) &&
+    if (!pathContainsReparsePoints && isDirectory && !IgnoreReparsePoints() && !IgnoreFullReparsePointResolving() && WantsWriteAccess(desiredAccess) &&
         FlagsAndAttributesContainReparsePointFlag(flagsAndAttributes))
     {
         ResolvedPathCache::Instance().Invalidate(path);
@@ -2913,7 +2913,7 @@ HANDLE WINAPI Detoured_CreateFileW(
 
 SkipReportingDueToResolvingAndEnforcingAccess:
 
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, dwDesiredAccess, dwFlagsAndAttributes, policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, dwDesiredAccess, dwFlagsAndAttributes, readContext.OpenedDirectory, policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     // It is possible that we only reached a deny action under some access check combinations above (rather than a direct check),
     // so log and maybe break here as well now that it is final.
@@ -6180,7 +6180,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
 SkipReportingDueToResolvingAndEnforcingAccess:
 
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes,
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes, readContext.OpenedDirectory,
         policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
@@ -6481,7 +6481,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
 SkipReportingDueToResolvingAndEnforcingAccess:
 
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes,
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes, readContext.OpenedDirectory,
         policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
@@ -6754,7 +6754,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
 
 SkipReportingDueToResolvingAndEnforcingAccess:
 
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes,
+    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes, readContext.OpenedDirectory,
         policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);

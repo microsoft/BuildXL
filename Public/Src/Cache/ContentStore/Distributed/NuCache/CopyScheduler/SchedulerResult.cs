@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 #nullable enable
@@ -14,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
     {
         public SchedulerFailureCode? Reason { get; }
 
-        public ImmediateRejectionReason? RejectionReason { get; private set; }
+        public ThrottleReason? ThrottleReason { get; private set; }
 
         public CopySchedulerResult(T result) : base(result, isNullAllowed: false) {}
 
@@ -39,21 +40,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             Reason = reason;
         }
 
-        public static CopySchedulerResult<T> TimeOut()
+        public static CopySchedulerResult<T> TimeOut(TimeSpan? deadline)
         {
+            deadline ??= Timeout.InfiniteTimeSpan;
+
             return new CopySchedulerResult<T>(
                 reason: SchedulerFailureCode.Timeout,
-                errorMessage: "Timed out while waiting for the scheduler");
+                errorMessage: $"Timed out while waiting `{deadline}` for the scheduler");
         }
 
-        public static CopySchedulerResult<T> Reject(ImmediateRejectionReason rejectionReason)
+        public static CopySchedulerResult<T> Throttle(ThrottleReason reason)
         {
-            Contract.Requires(rejectionReason != ImmediateRejectionReason.NotRejected);
+            Contract.Requires(reason != CopyScheduling.ThrottleReason.NotThrottled);
             return new CopySchedulerResult<T>(
-                reason: SchedulerFailureCode.Rejected,
-                errorMessage: "Rejected")
+                reason: SchedulerFailureCode.Throttled,
+                errorMessage: $"Throttled due to `{reason}`")
             {
-                RejectionReason = rejectionReason,
+                ThrottleReason = reason,
             };
         }
     }

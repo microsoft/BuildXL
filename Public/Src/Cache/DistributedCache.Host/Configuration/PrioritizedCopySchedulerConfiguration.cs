@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 #nullable enable
@@ -44,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         /// <summary>
         /// Maximum number of pending copies inside the rejectable classes before we start rejecting copies
         /// </summary>
-        public int MaximumPendingUntilRejection { get; init; } = 128;
+        public int MaximumPendingUntilThrottle { get; init; } = 128;
 
         /// <summary>
         /// Strategy to use when computing the amount of copies to be performed on each priority class
@@ -57,5 +58,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         public double PriorityQuotaFixedRate { get; set; } = 0.5;
 
         public PrioritizedCopySchedulerPriorityAssignmentStrategy PriorityAssignmentStrategy { get; }
+
+        /// <summary>
+        /// Timeout for the copy scheduler to dispatch the copy
+        /// </summary>
+        public TimeSpan? SchedulerTimeout { get; set; }
     }
 }

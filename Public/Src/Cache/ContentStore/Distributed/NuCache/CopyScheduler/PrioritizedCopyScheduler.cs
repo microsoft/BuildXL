@@ -33,10 +33,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
     /// </summary>
     public sealed class PrioritizedCopyScheduler : StartupShutdownSlimBase, ICopyScheduler
     {
-        private const string CopySchedulerMetricMetricNamePrefix = "CopyScheduler_Executed_P";
-        // Caching the metric names to avoid excessive allocations during metric names construction.
-        private static readonly string[] CopySchedulerMetricNames =  Enumerable.Range(1, 10).Select(n => CopySchedulerMetricMetricNamePrefix + n.ToString()).ToArray();
-        
         private record CopyTask
         {
             public TaskSourceSlim<object> TaskSource { get; } = TaskSourceSlim.Create<object>();
@@ -46,6 +42,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             public int Priority { get; }
 
             public StopwatchSlim Stopwatch { get; }
+
+            public int Dequeued = 0;
 
             public CopyTask(CopyOperationBase request, int priority)
             {
@@ -66,9 +64,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private readonly int[] _numPendingByPriority;
 
         private int _numInflight;
-        private readonly int[] _numInflightByPriority;
 
         private readonly ICopySchedulerPriorityAssigner _assigner;
+
+        // Caching the metric names to avoid excessive allocations during metric names construction.
+        private readonly string[] _createdMetricNames;
+        private readonly string[] _throttledMetricNames;
+        private readonly string[] _failedAddMetricNames;
+        private readonly string[] _timeoutMetricNames;
+        private readonly string[] _enqueuedMetricNames;
+        private readonly string[] _executedMetricNames;
 
         // NOTE: we don't dispose of this field because copies may take some amount of time to cancel, so if we did
         // that we could end up throwing ObjectDisposedException on copies when shutting down.
@@ -92,7 +97,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             }
 
             _numPendingByPriority = new int[_assigner.MaxPriority + 1];
-            _numInflightByPriority = new int[_assigner.MaxPriority + 1];
 
             switch (configuration.QueuePopOrder)
             {
@@ -105,6 +109,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 default:
                     throw new NotImplementedException($"Unsupported {nameof(SemaphoreOrder)} value {configuration.QueuePopOrder}");
             }
+
+            _createdMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Created_P{n}").ToArray();
+            _throttledMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Throttled_P{n}").ToArray();
+            _failedAddMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_FailedAdd_P{n}").ToArray();
+            _timeoutMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Timeout_P{n}").ToArray();
+            _enqueuedMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Enqueued_P{n}").ToArray();
+            _executedMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Executed_P{n}").ToArray();
         }
 
         private Task? _schedulerTask;
@@ -250,6 +261,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                         continue;
                     }
 
+                    Interlocked.Exchange(ref candidate.Dequeued, 1);
+
                     var request = candidate.Request;
 
                     var summary = new CopySchedulingSummary(
@@ -279,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                         continue;
                     }
 
-                    Tracer.TrackMetric(context, getMetricName(priority), 1);
+                    Tracer.TrackMetric(context, _executedMetricNames[priority], 1);
                     state.CycleLeftover--;
                 }
             }
@@ -288,15 +301,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             state.NumPendingAtEnd = _numPending;
 
             return state;
-
-            static string getMetricName(int priority)
-            {
-                // This method is called a lot, so instead of computing the metric name all the time,
-                // using a cache of the most probable metric names.
-                return priority < CopySchedulerMetricNames.Length
-                    ? CopySchedulerMetricNames[priority]
-                    : CopySchedulerMetricMetricNamePrefix + priority;
-            }
         }
 
         private void Execute<T>(OperationContext context, CopyTask candidate, Func<OperationContext, Task<T>> taskFactory)
@@ -343,11 +347,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 // WARNING: the number if inflight operations is always an underestimate of the real number of inflight
                 // operations, the reason being that there is no way to force the task's execution to start after this
                 Interlocked.Increment(ref _numInflight);
-                Interlocked.Increment(ref _numInflightByPriority[priority]);
 
                 copyTask.ContinueWith(antecedent =>
                 {
-                    Interlocked.Decrement(ref _numInflightByPriority[priority]);
                     Interlocked.Decrement(ref _numInflight);
 
                     // This must happen at this point in order to ensure that we don't recompute quota without taking into
@@ -446,29 +448,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private async Task<CopySchedulerResult<T>> EnqueueAsync<T>(CopyOperationBase request)
             where T : class
         {
-            var priority = _assigner.Prioritize(request);
-            Tracer.TrackMetric(request.Context, $"CopyScheduler_Created_P{priority}", 1);
+            using var schedulerTimeoutCts = new CancellationTokenSource(delay: _configuration.SchedulerTimeout ?? Timeout.InfiniteTimeSpan);
 
-            if (IsImmediateRejectionCandidate(request) && _numPendingByPriority[priority] > _configuration.MaximumPendingUntilRejection)
+            var priority = _assigner.Prioritize(request);
+            Tracer.TrackMetric(request.Context, _createdMetricNames[priority], 1);
+
+            if (IsImmediateRejectionCandidate(request) && _numPendingByPriority[priority] > _configuration.MaximumPendingUntilThrottle)
             {
-                Tracer.TrackMetric(request.Context, $"CopyScheduler_Rejected_P{priority}", 1);
-                return CopySchedulerResult<T>.Reject(ImmediateRejectionReason.QueueTooLong);
+                Tracer.TrackMetric(request.Context, _throttledMetricNames[priority], 1);
+                return CopySchedulerResult<T>.Throttle(ThrottleReason.QueueTooLong);
             }
 
             var copy = new CopyTask(request, priority);
-            var addResult = _pending[priority].TryAdd(copy);
-            if (!addResult)
-            {
-                return new CopySchedulerResult<T>(
-                    reason: SchedulerFailureCode.Unknown,
-                    errorMessage: "Failed to enqueue request");
-            }
-
             Interlocked.Increment(ref _numPending);
             Interlocked.Increment(ref _numPendingByPriority[priority]);
 
-            Tracer.TrackMetric(request.Context, $"CopyScheduler_Enqueued_P{priority}", 1);
-            var result = await copy.TaskSource.Task;
+            var addResult = _pending[priority].TryAdd(copy);
+            if (!addResult)
+            {
+                // We failed to add, so the scheduler won't be updating these numbers and we need to do so manually
+                Interlocked.Decrement(ref _numPending);
+                Interlocked.Decrement(ref _numPendingByPriority[priority]);
+
+                Tracer.TrackMetric(request.Context, _failedAddMetricNames[priority], 1);
+                return new CopySchedulerResult<T>(
+                    reason: SchedulerFailureCode.Unknown,
+                    errorMessage: $"{nameof(PrioritizedCopyScheduler)} failed to enqueue request");
+            }
+            Tracer.TrackMetric(request.Context, _enqueuedMetricNames[priority], 1);
+
+            var resultTask = copy.TaskSource.Task;
+            _ = await Task.WhenAny(resultTask, schedulerTimeoutCts.Token.WaitForCancellationAsync());
+            if (copy.Dequeued == 0 && schedulerTimeoutCts.Token.IsCancellationRequested)
+            {
+                Tracer.TrackMetric(request.Context, _timeoutMetricNames[priority], 1);
+
+                return CopySchedulerResult<T>.TimeOut(_configuration.SchedulerTimeout);
+            }
+
+            var result = await resultTask;
             return new CopySchedulerResult<T>((result as T)!);
         }
 
@@ -478,8 +496,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             {
                 case CopyReason.None:
                 case CopyReason.ProactiveBackground:
-                case CopyReason.ProactiveCopyOnPut:
                     return true;
+                case CopyReason.ProactiveCopyOnPut:
                 case CopyReason.AsyncCopyOnPin:
                 case CopyReason.CentralStorage:
                 case CopyReason.ProactiveCopyOnPin:

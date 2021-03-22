@@ -7,10 +7,10 @@
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 {
     /// <nodoc />
-    public enum ImmediateRejectionReason
+    public enum ThrottleReason
     {
         /// <nodoc />
-        NotRejected,
+        NotThrottled,
 
         /// <nodoc />
         QueueTooLong,

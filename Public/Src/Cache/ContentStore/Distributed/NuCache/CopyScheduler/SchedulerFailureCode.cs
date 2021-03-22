@@ -15,6 +15,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         Timeout,
 
         /// <nodoc />
-        Rejected,
+        Throttled,
     }
 }

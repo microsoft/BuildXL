@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 },
                 request.Context.Token,
                 _configuration.OutboundPullConfiguration.WaitTimeout,
-                onTimeout: _ => CopySchedulerResult<CopyFileResult>.TimeOut());
+                onTimeout: _ => CopySchedulerResult<CopyFileResult>.TimeOut(_configuration.OutboundPullConfiguration.WaitTimeout));
         }
 
         /// <inheritdoc />
@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 },
                 request.Context.Token,
                 _configuration.OutboundPushConfiguration.WaitTimeout,
-                onTimeout: _ => CopySchedulerResult<T>.TimeOut());
+                onTimeout: _ => CopySchedulerResult<T>.TimeOut(_configuration.OutboundPushConfiguration.WaitTimeout));
         }
     }
 }

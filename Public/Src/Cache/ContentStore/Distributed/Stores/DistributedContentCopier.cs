@@ -271,7 +271,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             Func<TResult, CopyResultCode> statusFunc) where TResult : ResultBase
         {
             CopySchedulingSummary? copySchedulingSummary = null;
-            var ioGateTimedOut = true;
+            var ioGateTimedOut = false;
 
             return context.PerformOperationAsync(
                 Tracer,
@@ -295,12 +295,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             ioGateTimedOut = true;
                         }
 
+                        // NOTE: this is here to avoid making the code flow analysis mad
                         throw new ResultPropagationException(schedulerResult);
                     }
                     else
                     {
-                        ioGateTimedOut = false;
-
                         return schedulerResult.Value!;
                     }
                 },

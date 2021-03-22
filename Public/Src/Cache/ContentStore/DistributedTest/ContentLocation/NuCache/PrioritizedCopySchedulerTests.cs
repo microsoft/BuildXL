@@ -24,8 +24,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         {
             return RunTest(async (context, scheduler) =>
                {
-                  // This only schedules the task, but it won't run until the cycle happens.
-                  var resultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, _ => Task.FromResult(new CopyFileResult())));
+                   // This only schedules the task, but it won't run until the cycle happens.
+                   var resultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, _ => Task.FromResult(new CopyFileResult())));
 
                    var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
                    var result = await resultTask;
@@ -82,13 +82,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                  var lowPriorityTaskQueueTime = TimeSpan.MinValue;
                  var highPriorityTaskQueueTime = TimeSpan.MinValue;
 
-                // Schedule a lower priority copy followed by a higher priority one. Then check that the higher
-                // priority one happens before the lower priority
-                var lowPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, arguments =>
-                 {
-                     lowPriorityTaskQueueTime = arguments.Summary.QueueWait;
-                     return Task.FromResult(new CopyFileResult());
-                 }));
+                 // Schedule a lower priority copy followed by a higher priority one. Then check that the higher
+                 // priority one happens before the lower priority
+                 var lowPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, arguments =>
+                  {
+                      lowPriorityTaskQueueTime = arguments.Summary.QueueWait;
+                      return Task.FromResult(new CopyFileResult());
+                  }));
 
                  var highPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
                  {
@@ -102,8 +102,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                  highPriorityTaskResult.ShouldBeSuccess();
                  highPriorityTaskResult.Value.ShouldBeSuccess();
 
-                // Low priority task shouldn't have run
-                lowPriorityTaskQueueTime.Should().Be(TimeSpan.MinValue);
+                 // Low priority task shouldn't have run
+                 lowPriorityTaskQueueTime.Should().Be(TimeSpan.MinValue);
 
                  var secondCycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
 
@@ -111,8 +111,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                  lowPriorityTaskResult.ShouldBeSuccess();
                  lowPriorityTaskResult.Value.ShouldBeSuccess();
 
-                // Higher priority task's queue time should reflect that it waited less
-                highPriorityTaskQueueTime.Should().BeLessOrEqualTo(lowPriorityTaskQueueTime);
+                 // Higher priority task's queue time should reflect that it waited less
+                 highPriorityTaskQueueTime.Should().BeLessOrEqualTo(lowPriorityTaskQueueTime);
              });
         }
 
@@ -244,7 +244,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             });
         }
 
-        public async Task RunTest(Func<OperationContext, PrioritizedCopyScheduler, Task> func)
+        [Fact]
+        public Task SchedulerTimeoutIsRespected()
+        {
+            // This test won't ever fail, it will just hang
+            return RunTest(async (context, scheduler) =>
+            {
+                var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ =>
+                {
+                    return Task.FromResult(new CopyFileResult());
+                }));
+                result.Reason.Should().Be(SchedulerFailureCode.Timeout);
+            }, new PrioritizedCopySchedulerConfiguration()
+            {
+                SchedulerTimeout = TimeSpan.FromSeconds(0)
+            });
+        }
+
+        public async Task RunTest(Func<OperationContext, PrioritizedCopyScheduler, Task> func, PrioritizedCopySchedulerConfiguration prioritizedCopySchedulerConfiguration = null)
         {
             var logger = TestGlobal.Logger;
             var context = new Context(logger);
@@ -253,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var configuration = new CopySchedulerConfiguration()
             {
                 Type = CopySchedulerType.Prioritized,
-                PrioritizedCopySchedulerConfiguration = new PrioritizedCopySchedulerConfiguration(),
+                PrioritizedCopySchedulerConfiguration = prioritizedCopySchedulerConfiguration ?? new PrioritizedCopySchedulerConfiguration(),
             };
 
             var scheduler = (configuration.Create(context) as PrioritizedCopyScheduler)!;

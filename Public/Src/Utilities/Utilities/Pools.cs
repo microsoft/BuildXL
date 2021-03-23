@@ -102,6 +102,14 @@ namespace BuildXL.Utilities
             sb => { sb.Clear(); return sb; });
 
         /// <summary>
+        /// Global pool of AbsolutePathAncestorChecker instances.
+        /// </summary>
+        public static ObjectPool<AbsolutePathAncestorChecker> AbsolutePathAncestorCheckerPool { get; } = new ObjectPool<AbsolutePathAncestorChecker>(
+            () => new AbsolutePathAncestorChecker(),
+            // Use Func instead of Action to avoid redundant delegate reconstruction.
+            checker => { checker.Clear(); return checker; });
+
+        /// <summary>
         /// Global pool of List&lt;string&gt; instances.
         /// </summary>
         public static ObjectPool<List<string>> StringListPool { get; } = CreateListPool<string>();
@@ -426,6 +434,19 @@ namespace BuildXL.Utilities
         public static PooledObjectWrapper<HashSet<AbsolutePath>> GetAbsolutePathSet()
         {
             return AbsolutePathSetPool.GetInstance();
+        }
+
+        /// <summary>
+        /// Gets an HashSet&lt;AbsolutePathAncestorChecker&gt; instance from a common object pool.
+        /// </summary>
+        /// <remarks>
+        /// You are expected to call the Dispose method on the returned PooledObjectWrapper instance
+        /// when you are done with the set. Calling Dispose returns the set to the
+        /// pool.
+        /// </remarks>
+        public static PooledObjectWrapper<AbsolutePathAncestorChecker> GetAbsolutePathAncestorChecker()
+        {
+            return AbsolutePathAncestorCheckerPool.GetInstance();
         }
 
         /// <summary>

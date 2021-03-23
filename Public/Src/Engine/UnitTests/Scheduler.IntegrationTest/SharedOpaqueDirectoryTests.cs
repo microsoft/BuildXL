@@ -2174,6 +2174,87 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
+        [Fact]
+        public void UntrackedPathsAsSharedOpaqueInputsAreHonored()
+        {
+            // First create a pip that produces a couple outputs under a shared opaque
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            var sharedOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir1");
+            var sharedOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir);
+            var sharedOpaqueSubDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDirPath);
+
+            FileArtifact outputInSharedOpaqueSubDir = CreateOutputFileArtifact(sharedOpaqueSubDirPath);
+            FileArtifact dummyOutput = FileArtifact.CreateOutputFile(sharedOpaqueDirPath.Combine(Context.PathTable, "dummy.txt"));
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, "content", doNotInfer:true),
+                Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer: true),
+                Operation.WriteFile(outputInSharedOpaqueSubDir, "content", doNotInfer: true)
+            });
+
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            // Then create a pip that depends on pipA shared opaque, but untracks the consumed files
+            // (as files and as cones)
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.ReadFile(outputInSharedOpaqueSubDir, doNotInfer:true),
+                Operation.WriteFile(dummyOutput, "dummy output")
+            });
+
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            builderB.AddUntrackedFile(outputInSharedOpaque.Path);
+            builderB.AddUntrackedDirectoryScope(sharedOpaqueSubDirPath);
+
+            var pipB = SchedulePipBuilder(builderB);
+
+            // Run once
+            RunScheduler().AssertSuccess();
+
+            // Simulate scrubbing
+            File.Delete(outputInSharedOpaque.Path.ToString(Context.PathTable));
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDirPath.ToString(Context.PathTable), deleteRootDirectory: true);
+
+            // Reset and re-add pips, but now A producing files with different content
+            ResetPipGraphBuilder();
+
+            builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, "new content", doNotInfer:true),
+                Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer: true),
+                Operation.WriteFile(outputInSharedOpaqueSubDir, "new content", doNotInfer: true)
+            });
+
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            pipA = SchedulePipBuilder(builderA);
+
+            builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.ReadFile(outputInSharedOpaqueSubDir, doNotInfer:true),
+                Operation.WriteFile(dummyOutput, "dummy output")
+            });
+
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            builderB.AddUntrackedFile(outputInSharedOpaque.Path);
+            builderB.AddUntrackedDirectoryScope(sharedOpaqueSubDirPath);
+
+            pipB = SchedulePipBuilder(builderB);
+
+            // Pip A should be a miss, but pip B should still be a hit because the output files that changed were untracked
+            RunScheduler()
+                .AssertCacheMiss(pipA.Process.PipId)
+                .AssertCacheHit(pipB.Process.PipId);
+        }
+
         [Theory]
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void MultiplePipsProduceTheSameTemporaryFile(bool dependencyBetweenPips, bool secondPipDeletesFile)
@@ -2440,8 +2521,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(Exists(fileOutsideSod));
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        public void UnresolvedAbsentProbesContainingReparsePointsAreProperlyHandled()
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void UnresolvedAbsentAccessesContainingReparsePointsAreProperlyHandled(bool doProbe)
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
 
@@ -2458,8 +2541,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var builder = CreatePipBuilder(new Operation[]
             {
-                // Probe the file via the symlink. This is an absent probe, the symlink is not there yet
-                Operation.Probe(FileArtifact.CreateSourceFile(fileViaSymlink), doNotInfer: true),
+                // Probe or read the file via the symlink. This is an absent access, the symlink is not there yet
+                doProbe
+                ? Operation.Probe(FileArtifact.CreateSourceFile(fileViaSymlink), doNotInfer: true)
+                : Operation.ReadFile(FileArtifact.CreateSourceFile(fileViaSymlink), doNotInfer: true),
                 // Create the dir symlink. That makes the path that was probed above become a present one.
                 Operation.CreateSymlink(DirectoryArtifact.CreateWithZeroPartialSealId(symlink), DirectoryArtifact.CreateWithZeroPartialSealId(symlinkTarget), Operation.SymbolicLinkFlag.DIRECTORY, doNotInfer: true),
             });

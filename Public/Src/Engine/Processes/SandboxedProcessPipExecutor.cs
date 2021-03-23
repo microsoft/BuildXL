@@ -2252,9 +2252,11 @@ namespace BuildXL.Processes
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.Deny);
 
-            using (var poolPathSet = Pools.GetAbsolutePathSet())
+            using (var processedPathWrapper = Pools.GetAbsolutePathSet())
+            using (var untrackedPathsWrapper = Pools.GetAbsolutePathSet())
+            using (var untrackedScopesWrapper = Pools.GetAbsolutePathAncestorChecker())
             {
-                var processedPaths = poolPathSet.Instance;
+                var processedPaths = processedPathWrapper.Instance;
                 using (var wrapper = Pools.GetAbsolutePathSet())
                 {
                     var outputIds = wrapper.Instance;
@@ -2290,27 +2292,28 @@ namespace BuildXL.Processes
                     ? AbsolutePath.Create(m_pathTable, VmConstants.UserProfile.Path)
                     : AbsolutePath.Invalid;
 
+                HashSet<AbsolutePath> untrackedPaths = untrackedPathsWrapper.Instance;
                 foreach (AbsolutePath path in pip.UntrackedPaths)
                 {
                     // We mask Report to simplify handling of explicitly-reported directory-dependency or transitive-dependency accesses
                     // (they should never fail for untracked accesses, which should be invisible).
 
                     // We allow the real input timestamp to be seen for untracked paths. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    addUntrackedPath(path, processedPaths);
+                    addUntrackedPath(path, processedPaths, untrackedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
-                    addUntrackedPath(correspondingPath, processedPaths);
+                    addUntrackedPath(correspondingPath, processedPaths, untrackedPaths);
 
                     if (ShouldSandboxedProcessExecuteInVm)
                     {
                         var vmPath = CreatePathForVmAdminUserProfile(vmAdminProfilePath, path, userProfilePath, redirectedUserProfilePath);
-                        addUntrackedPath(vmPath, processedPaths);
+                        addUntrackedPath(vmPath, processedPaths, untrackedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        addUntrackedPath(m_loggingConfiguration.LogsDirectory, processedPaths);
+                        addUntrackedPath(m_loggingConfiguration.LogsDirectory, processedPaths, untrackedPaths);
                     }
                 }
 
@@ -2323,6 +2326,7 @@ namespace BuildXL.Processes
                     m_fileAccessManifest.AddScope(redirectedUserProfilePath, values: FileAccessPolicy.AllowCreateDirectory, mask: FileAccessPolicy.AllowAll);
                 }
 
+                AbsolutePathAncestorChecker untrackedScopesChecker = untrackedScopesWrapper.Instance;
                 foreach (AbsolutePath path in pip.UntrackedScopes)
                 {
                     // Note that untracked scopes are quite dangerous. We allow writes, reads, and probes for non-existent files.
@@ -2331,21 +2335,21 @@ namespace BuildXL.Processes
 
                     // The default mask for untracked scopes is to not report anything.
                     // We block input timestamp faking for untracked scopes. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    addUntrackedScope(path, processedPaths);
+                    addUntrackedScope(path, processedPaths, untrackedScopesChecker);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
-                    addUntrackedScope(correspondingPath, processedPaths);
+                    addUntrackedScope(correspondingPath, processedPaths, untrackedScopesChecker);
 
                     if (ShouldSandboxedProcessExecuteInVm)
                     {
                         var vmPath = CreatePathForVmAdminUserProfile(vmAdminProfilePath, path, userProfilePath, redirectedUserProfilePath);
-                        addUntrackedScope(vmPath, processedPaths);
+                        addUntrackedScope(vmPath, processedPaths, untrackedScopesChecker);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        addUntrackedScope(m_loggingConfiguration.LogsDirectory, processedPaths);
+                        addUntrackedScope(m_loggingConfiguration.LogsDirectory, processedPaths, untrackedScopesChecker);
                     }
                 }
 
@@ -2396,7 +2400,7 @@ namespace BuildXL.Processes
                         if (directory.IsSharedOpaque)
                         {
                             // All members of the shared opaque need to be added to the manifest explicitly so timestamp faking happens for them.
-                            AddSharedOpaqueInputContentToManifest(directory, allInputPathsUnderSharedOpaques);
+                            AddSharedOpaqueInputContentToManifest(directory, allInputPathsUnderSharedOpaques, untrackedPaths, untrackedScopesChecker);
                         }
 
                         // If this directory dependency is also a directory output, then we don't set any additional policy, i.e.,
@@ -2453,19 +2457,21 @@ namespace BuildXL.Processes
                 }
             }
 
-            void addUntrackedPath(AbsolutePath untrackedPath, HashSet<AbsolutePath> processedPaths)
+            void addUntrackedPath(AbsolutePath untrackedPath, HashSet<AbsolutePath> processedPaths, HashSet<AbsolutePath> untrackedPaths)
             {
                 if (untrackedPath.IsValid)
                 {
+                    untrackedPaths.Add(untrackedPath);
                     AddUntrackedPathToManifest(untrackedPath);
                     AllowCreateDirectoryForDirectoriesOnPath(untrackedPath, processedPaths);
                 }
             }
 
-            void addUntrackedScope(AbsolutePath untrackedScope, HashSet<AbsolutePath> processedPaths)
+            void addUntrackedScope(AbsolutePath untrackedScope, HashSet<AbsolutePath> processedPaths, AbsolutePathAncestorChecker untrackedScopeChecker)
             {
                 if (untrackedScope.IsValid)
                 {
+                    untrackedScopeChecker.AddPath(untrackedScope);
                     AddUntrackedScopeToManifest(untrackedScope);
                     AllowCreateDirectoryForDirectoriesOnPath(untrackedScope, processedPaths);
                 }
@@ -2550,15 +2556,23 @@ namespace BuildXL.Processes
             return AbsolutePath.Invalid;
         }
 
-        private void AddSharedOpaqueInputContentToManifest(DirectoryArtifact directory, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
+        private void AddSharedOpaqueInputContentToManifest(
+            DirectoryArtifact directory,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            HashSet<AbsolutePath> untrackedPaths,
+            AbsolutePathAncestorChecker untrackedScopeChecker)
         {
             var content = m_directoryArtifactContext.ListSealDirectoryContents(directory, out var temporaryFiles);
-
+            
             foreach (var fileArtifact in content)
             {
                 // A shared opaque might contain files that are marked as 'absent'. Essentially these are "temp" files produced by a pip in the cone
                 // of that shared opaque. We do not add these paths to the manifest, so detours would not block write accesses.
-                if (!temporaryFiles.Contains(fileArtifact.Path))
+                if (!temporaryFiles.Contains(fileArtifact.Path) &&
+                    // If the shared opaque input is an untracked path of this pip, or is under an untracked scope, then we don't add it
+                    // since we already added untracked artifacts and this operation will change the appropriate untracked masks & values
+                    !untrackedPaths.Contains(fileArtifact.Path) &&
+                    !untrackedScopeChecker.HasKnownAncestor(m_pathTable, fileArtifact.Path))
                 {
                     AddDynamicInputFileAndAncestorsToManifest(fileArtifact, allInputPathsUnderSharedOpaques, directory.Path);
                 }
@@ -3755,13 +3769,13 @@ namespace BuildXL.Processes
                 using (PooledObjectWrapper<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> dynamicWriteAccessWrapper = ProcessPools.DynamicWriteAccesses.GetInstance())
                 using (PooledObjectWrapper<Dictionary<AbsolutePath, ObservedFileAccess>> accessesUnsortedWrapper = ProcessPools.AccessUnsorted.GetInstance())
                 using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
-                using (var maybeUnresolvedAbsentProbesWrapper = Pools.GetAbsolutePathSet())
+                using (var maybeUnresolvedAbsentAccessessWrapper = Pools.GetAbsolutePathSet())
                 using (var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet())
                 using (var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet())
                 {
                     var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
                     var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
-                    var maybeUnresolvedAbsentProbes = maybeUnresolvedAbsentProbesWrapper.Instance;
+                    var maybeUnresolvedAbsentAccesses = maybeUnresolvedAbsentAccessessWrapper.Instance;
 
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
@@ -3881,16 +3895,17 @@ namespace BuildXL.Processes
                             }
                         }
 
+                        // Absent accesses may still contain reparse points. If we are fully resolving them, keep track of them for further processing
+                        if (!hasEnumeration && m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
+                        {
+                            maybeUnresolvedAbsentAccesses.Add(entry.Key);
+                        }
+
                         ObservationFlags observationFlags = ObservationFlags.None;
 
                         if (isProbe)
                         {
                             observationFlags |= ObservationFlags.FileProbe;
-                            // Absent probes may still contain reparse points. If we are fully resolving them, keep track of them for further processing
-                            if (m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
-                            {
-                                maybeUnresolvedAbsentProbes.Add(entry.Key);
-                            }
                         }
 
                         if (isDirectoryLocation != null && isDirectoryLocation.Value)
@@ -4037,44 +4052,46 @@ namespace BuildXL.Processes
 
                     if (m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && reparsePointProduced)
                     {
-                        foreach(AbsolutePath absentProbe in maybeUnresolvedAbsentProbes)
+                        foreach(AbsolutePath absentAccess in maybeUnresolvedAbsentAccesses)
                         {
-                            // If the probe is still absent, there is nothing to resolve
-                            if (FileUtilities.TryProbePathExistence(absentProbe.ToString(m_pathTable), followSymlink: false) is var existence &&
+                            // If the access is still absent, there is nothing to resolve
+                            if (FileUtilities.TryProbePathExistence(absentAccess.ToString(m_pathTable), followSymlink: false) is var existence &&
                                 (!existence.Succeeded || existence.Result == PathExistence.Nonexistent))
                             {
                                 continue;
                             }
 
                             // If the resolved path is the same as the original one, the probe didn't contain reparse points
-                            var resolvedPath = m_reparsePointResolver.ResolveIntermediateDirectoryReparsePoints(absentProbe);
-                            if (resolvedPath == absentProbe)
+                            var resolvedPath = m_reparsePointResolver.ResolveIntermediateDirectoryReparsePoints(absentAccess);
+                            if (resolvedPath == absentAccess)
                             {
                                 continue;
                             }
 
-                            // We have a probe that was originally absent, now it is present, and contains unresolved reparse points. Let exclude it from the
+                            // We have an access that was originally absent, now it is present, and contains unresolved reparse points. Let exclude it from the
                             // acceses.
-                            excludedPaths.Add(absentProbe);
+                            excludedPaths.Add(absentAccess);
 
-                            // We only include a synthetic resolved one if the path is not an output of the pip (we never report probes on outputs)
+                            // We only include a synthetic resolved one if the path is not an output of the pip (we never report accesses on outputs)
                             // It is not expected that a pip contains too many output directories, so going through each of them should be fine.
                             if (dynamicWriteAccesses.All(kvp => !kvp.Value.Contains(resolvedPath)))
                             {
-                                // The first reported access for the probe is good enough
-                                ReportedFileAccess originalProbe = accessesByPath[absentProbe].First();
-
                                 m_fileAccessManifest.TryFindManifestPathFor(resolvedPath, out AbsolutePath manifestPath, out _);
-                                ReportedFileAccess syntheticProbe = originalProbe.CreateWithPathAndAttributes(resolvedPath == manifestPath ? null : resolvedPath.ToString(m_pathTable), manifestPath, originalProbe.FlagsAndAttributes);
+                                
+                                // Generate equivalent accesses with the resolved path
+                                foreach (ReportedFileAccess originalAccess in accessesByPath[absentAccess])
+                                {
+                                    ReportedFileAccess syntheticAccess = originalAccess.CreateWithPathAndAttributes(resolvedPath == manifestPath ? null : resolvedPath.ToString(m_pathTable), manifestPath, originalAccess.FlagsAndAttributes);
 
-                                // Check if there is already an access with that path, and add to it in that case
-                                if (accessesUnsorted.TryGetValue(resolvedPath, out var observedFileAccess))
-                                {
-                                    accessesUnsorted[resolvedPath] = new ObservedFileAccess(resolvedPath, observedFileAccess.ObservationFlags, observedFileAccess.Accesses.Add(syntheticProbe));
-                                }
-                                else
-                                {
-                                    accessesUnsorted.Add(resolvedPath, new ObservedFileAccess(resolvedPath, ObservationFlags.FileProbe, new CompactSet<ReportedFileAccess>().Add(syntheticProbe)));
+                                    // Check if there is already an access with that path, and add to it in that case
+                                    if (accessesUnsorted.TryGetValue(resolvedPath, out var observedFileAccess))
+                                    {
+                                        accessesUnsorted[resolvedPath] = new ObservedFileAccess(resolvedPath, observedFileAccess.ObservationFlags, observedFileAccess.Accesses.Add(syntheticAccess));
+                                    }
+                                    else
+                                    {
+                                        accessesUnsorted.Add(resolvedPath, new ObservedFileAccess(resolvedPath, ObservationFlags.FileProbe, new CompactSet<ReportedFileAccess>().Add(syntheticAccess)));
+                                    }
                                 }
                             }
                         }

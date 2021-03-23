@@ -1105,7 +1105,7 @@ namespace BuildXL.Processes
 
                 if (SandboxedProcessNeedsExecuteRemote)
                 {
-                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
+                    Tracing.Logger.Log.PipProcessStartRemoteExecution(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
@@ -1215,7 +1215,7 @@ namespace BuildXL.Processes
                         string stdOut = Environment.NewLine + "StdOut:" + Environment.NewLine + externalSandboxedProcess.StdOut;
                         string stdErr = Environment.NewLine + "StdErr:" + Environment.NewLine + externalSandboxedProcess.StdErr;
 
-                        if (process is ExternalToolSandboxedProcess externalToolSandboxedProcess)
+                        if (process is ExternalToolSandboxedProcess)
                         {
                             Tracing.Logger.Log.PipProcessFinishedExternalTool(
                                 m_loggingContext,
@@ -1242,6 +1242,16 @@ namespace BuildXL.Processes
                                     RetryInfo.GetDefault(RetryReason.VmExecutionError),
                                     primaryProcessTimes: result.PrimaryProcessTimes);
                             }
+                        }
+                        else if (process is RemoteSandboxedProcess)
+                        {
+                            Tracing.Logger.Log.PipProcessFinishedRemoteExecution(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pipDescription,
+                                exitCode,
+                                stdOut,
+                                stdErr);
                         }
                     }
                 }
@@ -2151,7 +2161,11 @@ namespace BuildXL.Processes
             }
 
             m_fileAccessManifest.ReportUnexpectedFileAccesses = true;
-            m_fileAccessManifest.ReportFileAccesses = m_sandboxConfig.LogObservedFileAccesses;
+            m_fileAccessManifest.ReportFileAccesses =
+                m_sandboxConfig.LogObservedFileAccesses
+                // When sandboxed process needs to be remoted, the remoting infrastructure, like AnyBuild, typically requires all
+                // reported file accesses.
+                || SandboxedProcessNeedsExecuteRemote;
             m_fileAccessManifest.BreakOnUnexpectedAccess = m_sandboxConfig.BreakOnUnexpectedFileAccess;
             m_fileAccessManifest.FailUnexpectedFileAccesses = m_sandboxConfig.FailUnexpectedFileAccesses;
             m_fileAccessManifest.ReportProcessArgs = m_sandboxConfig.LogProcesses;

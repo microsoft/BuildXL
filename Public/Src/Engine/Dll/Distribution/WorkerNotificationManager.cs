@@ -192,9 +192,9 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 // 1. Pip results
+                m_executionResults.Clear();
                 if (firstItem != null)
                 {
-                    m_executionResults.Clear();
                     m_executionResults.Add(firstItem);
 
                     while (m_executionResults.Count < m_maxMessagesPerBatch && m_pipResultListener.ReadyToSendResultList.TryTake(out var item))

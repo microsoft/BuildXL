@@ -5,7 +5,7 @@
 namespace System.Runtime.CompilerServices
 {
     /// <nodoc />
-    public sealed class IsExternalInit
+    internal sealed class IsExternalInit
     {
     }
 }

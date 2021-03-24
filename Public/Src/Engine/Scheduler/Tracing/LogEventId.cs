@@ -501,6 +501,8 @@ namespace BuildXL.Scheduler.Tracing
         BuildManifestGeneratorFoundDuplicateHash = 14529,
         GenerateBuildManifestFileListResult = 14530,
 
+        LogCachedPipOutput = 14531,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

@@ -3866,7 +3866,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "BuildManifestGenerator received a file path with multiple hash registeration attempts: [ DropName: '{dropName}', RelativePath: '{relativePath}', RecordedHash: '{recordedHash}', RejectedHash: '{rejectedHash}' ].")]
+            Message = "BuildManifestGenerator received a file path with multiple hash registration attempts: [ DropName: '{dropName}', RelativePath: '{relativePath}', RecordedHash: '{recordedHash}', RejectedHash: '{rejectedHash}' ].")]
         internal abstract void BuildManifestGeneratorFoundDuplicateHash(LoggingContext loggingContext, string dropName, string relativePath, string recordedHash, string rejectedHash);
 
         [GeneratedEvent(
@@ -3877,6 +3877,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "GenerateBuildManifestFileList successfully generated a list of {fileListCount} files for Drop: '{dropName}'.")]
         internal abstract void GenerateBuildManifestFileListResult(LoggingContext loggingContext, string dropName, int fileListCount);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.LogCachedPipOutput,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipSemistableHash}] Cached pip output '{filePath}', hash '{hash}'.")]
+        internal abstract void LogCachedPipOutput(LoggingContext loggingContext, string pipSemistableHash, string filePath, string hash);
     }
 }
 #pragma warning restore CA1823 // Unused field

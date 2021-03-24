@@ -1094,6 +1094,25 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+                var semistableHash = pip.FormattedSemiStableHash;
+                if (environment.Configuration.Logging.LogCachedPipOutputs)
+                {
+                    foreach (var (file, fileInfo, origin) in executionResult.OutputContent)
+                    {
+                        if (!file.IsOutputFile || fileInfo.Hash.IsSpecialValue())
+                        {
+                            // only log real output content
+                            continue;
+                        }
+
+                        Logger.Log.LogCachedPipOutput(
+                            operationContext,
+                            semistableHash,
+                            file.Path.ToString(environment.Context.PathTable),
+                            fileInfo.Hash.ToHex());
+                    }
+                }
+
                 // File access violation analysis must be run before reporting the execution result output content.
                 var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 

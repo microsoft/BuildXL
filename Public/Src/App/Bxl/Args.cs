@@ -616,6 +616,9 @@ namespace BuildXL
                             "launchDebugger",
                             sign => configuration.LaunchDebugger = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "logCachedPipOutputs",
+                            sign => loggingConfiguration.LogCachedPipOutputs = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "logCounters",
                             sign => loggingConfiguration.LogCounters = sign),
                         OptionHandlerFactory.CreateBoolOption(

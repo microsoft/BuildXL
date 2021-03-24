@@ -20,6 +20,8 @@ namespace Tool.DropDaemon
     public class DropItemForFile : IDropItem
     {
         private const int UnknownFileLength = 0;
+        private const int MaxNonLongFileNameLength = 260;
+        private const string LongFileNamePrefix = @"\\?\";
 
         /// <summary>
         ///     Constructor.
@@ -38,6 +40,12 @@ namespace Tool.DropDaemon
             Contract.Requires(fileFullPath != null);
 
             FullFilePath = Path.GetFullPath(fileFullPath);
+            if (FullFilePath.Length >= MaxNonLongFileNameLength && !FullFilePath.StartsWith(LongFileNamePrefix))
+            {
+                // this file has a long file name, need to add a prefix to it
+                FullFilePath = $"{LongFileNamePrefix}{FullFilePath}";
+            }
+
             RelativeDropPath = relativeDropPath ?? Path.GetFileName(FullFilePath);
             if (fileContentInfo != null)
             {

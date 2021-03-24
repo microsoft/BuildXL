@@ -17,12 +17,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the value that the associated process specified when it terminated.
         /// </summary>
-        public int ExitCode { get; internal set; }
+        public int ExitCode { get; set; }
 
         /// <summary>
         /// Whether an attempt was made to kill the process (or any nested child process); if this is set, you might want to ignore the <code>ExitCode</code>.
         /// </summary>
-        public bool Killed { get; internal set; }
+        public bool Killed { get; set; }
 
         /// <summary>
         /// Whether the time limit was exceeded; if this is set, you might want to ignore the <code>ExitCode</code>.
@@ -30,12 +30,12 @@ namespace BuildXL.Processes
         /// <remarks>
         /// If true, implies <code>Killed</code>.
         /// </remarks>
-        public bool TimedOut { get; internal set; }
+        public bool TimedOut { get; set; }
 
         /// <summary>
         /// Whether there are failures in the detouring code.
         /// </summary>
-        public bool HasDetoursInjectionFailures { get; internal set; }
+        public bool HasDetoursInjectionFailures { get; set; }
 
         /// <summary>
         /// Optional set (can be null). Paths to a surviving child process; <code>null</code> if there were non, otherwise (a subset of) all remaining
@@ -44,85 +44,85 @@ namespace BuildXL.Processes
         /// <remarks>
         /// If non-empty, implies <code>Killed</code>.
         /// </remarks>
-        public IEnumerable<ReportedProcess> SurvivingChildProcesses { get; internal set; }
+        public IEnumerable<ReportedProcess> SurvivingChildProcesses { get; set; }
 
         /// <summary>
         /// Gets the timings of the primary process (the one started directly). This does not account for any child processes.
         /// </summary>
-        public ProcessTimes PrimaryProcessTimes { get; internal set; }
+        public ProcessTimes PrimaryProcessTimes { get; set; }
 
         /// <summary>
         /// If available, gets the accounting information for the job representing the entire process tree that was executed (i.e., including child processes).
         /// </summary>
-        public JobObject.AccountingInformation? JobAccountingInformation { get; internal set; }
+        public JobObject.AccountingInformation? JobAccountingInformation { get; set; }
 
         /// <summary>
         /// Redirected standard output.
         /// </summary>
-        public SandboxedProcessOutput StandardOutput { get; internal set; }
+        public SandboxedProcessOutput StandardOutput { get; set; }
 
         /// <summary>
         /// Redirected standard error.
         /// </summary>
-        public SandboxedProcessOutput StandardError { get; internal set; }
+        public SandboxedProcessOutput StandardError { get; set; }
 
         /// <summary>
         /// Optional set of all file and scope accesses, only non-null when file access monitoring was requested and ReportFileAccesses was specified in manifest
         /// </summary>
-        public ISet<ReportedFileAccess> FileAccesses { get; internal set; }
+        public ISet<ReportedFileAccess> FileAccesses { get; set; }
 
         /// <summary>
         /// Optional set of all file accesses that were reported due to <see cref="FileAccessPolicy.ReportAccess"/> being set, only non-null when file access monitoring was requested
         /// </summary>
-        public ISet<ReportedFileAccess> ExplicitlyReportedFileAccesses { get; internal set; }
+        public ISet<ReportedFileAccess> ExplicitlyReportedFileAccesses { get; set; }
 
         /// <summary>
         /// Optional set of all file access violations, only non-null when file access monitoring was requested and ReportUnexpectedFileAccesses was specified in manifest
         /// </summary>
-        public ISet<ReportedFileAccess> AllUnexpectedFileAccesses { get; internal set; }
+        public ISet<ReportedFileAccess> AllUnexpectedFileAccesses { get; set; }
 
         /// <summary>
         /// Optional list of all launched processes, including nested processes, only non-null when file access monitoring was requested
         /// </summary>
-        public IReadOnlyList<ReportedProcess> Processes { get; internal set; }
+        public IReadOnlyList<ReportedProcess> Processes { get; set; }
 
         /// <summary>
         /// Optional list of all Detouring Status messages received.
         /// </summary>
-        public IReadOnlyList<ProcessDetouringStatusData> DetouringStatuses { get; internal set; }
+        public IReadOnlyList<ProcessDetouringStatusData> DetouringStatuses { get; set; }
 
         /// <summary>
         /// Path of the memory dump created if a process times out. This may be null if the process did not time out
         /// or if capturing the dump failed. By default, this will be placed in the process's working directory.
         /// </summary>
-        public string DumpFileDirectory { get; internal set; }
+        public string DumpFileDirectory { get; set; }
 
         /// <summary>
         /// Exception describing why creating a memory dump may have failed.
         /// </summary>
-        public Exception DumpCreationException { get; internal set; }
+        public Exception DumpCreationException { get; set; }
 
         /// <summary>
         /// Exception describing why writing standard input may have failed.
         /// </summary>
-        public Exception StandardInputException { get; internal set; }
+        public Exception StandardInputException { get; set; }
 
         /// <summary>
         /// Whether there were ReadWrite access requests changed to Read access requests.
         /// </summary>
-        public bool HasReadWriteToReadFileAccessRequest { get; internal set; }
+        public bool HasReadWriteToReadFileAccessRequest { get; set; }
 
         /// <summary>
         /// Indicates if there was a failure in parsing of the message coming throught the async pipe.
         /// This could happen if the child process is killed while writing a message in the pipe.
         /// If null there is no error, otherwise the Faiulure object contains string, describing the error.
         /// </summary>
-        public Failure<string> MessageProcessingFailure { get; internal set; }
+        public Failure<string> MessageProcessingFailure { get; set; }
 
         /// <summary>
         /// Time (in ms.) spent for startiing the process.
         /// </summary>
-        public long ProcessStartTime { get; internal set; }
+        public long ProcessStartTime { get; set; }
 
         /// <summary>
         /// Number of warnings.

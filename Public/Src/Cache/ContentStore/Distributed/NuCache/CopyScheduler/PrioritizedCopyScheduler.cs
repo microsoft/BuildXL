@@ -75,9 +75,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private readonly string[] _enqueuedMetricNames;
         private readonly string[] _executedMetricNames;
 
-        // NOTE: we don't dispose of this field because copies may take some amount of time to cancel, so if we did
+        // NOTE: we don't dispose of these fields because copies may take some amount of time to cancel, so if we did
         // that we could end up throwing ObjectDisposedException on copies when shutting down.
         private readonly EventWaitHandle _copyCompletedEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset);
+        private readonly EventWaitHandle _copyAddedEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset);
 
         /// <nodoc />
         public PrioritizedCopyScheduler(PrioritizedCopySchedulerConfiguration configuration)
@@ -163,6 +164,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
             while (!context.Token.IsCancellationRequested)
             {
+                // Go to sleep if there are no pending copies
+                if (_numPending == 0)
+                {
+                    Tracer.Info(context, $"No copies for current cycle. Sleeping for next copy addition");
+                    _copyAddedEvent.Reset();
+                    _copyAddedEvent.WaitOne();
+                }
+
                 // Compute amount of copies to dispatch in this cycle
                 var cycleQuota = ComputeCycleQuota();
                 if (cycleQuota == 0)
@@ -477,6 +486,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             }
             Tracer.TrackMetric(request.Context, _enqueuedMetricNames[priority], 1);
 
+            _copyAddedEvent.Set();
             var resultTask = copy.TaskSource.Task;
             _ = await Task.WhenAny(resultTask, schedulerTimeoutCts.Token.WaitForCancellationAsync());
             if (copy.Dequeued == 0 && schedulerTimeoutCts.Token.IsCancellationRequested)

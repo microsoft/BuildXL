@@ -318,7 +318,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (!gcMetadata && !gcContent)
                     {
-                        return new BoolResult(errorMessage: "No garbage collection round run");
+                        Tracer.Debug(context, "No garbage collection round run");
+                        return BoolResult.Success;
                     }
 
                     var metadataGcResult = BoolResult.SuccessTask;

@@ -210,6 +210,7 @@ namespace BuildXL.Processes.Remoting
 
             if (m_cancellationToken.IsCancellationRequested
                 || !IsProcessingCompleted
+                || !ExitCode.HasValue
                 || ExitCode.Value != 0)
             {
                 return CreateResultForFailure();

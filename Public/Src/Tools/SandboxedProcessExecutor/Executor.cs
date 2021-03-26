@@ -338,7 +338,7 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
-            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryFolders(info))
+            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryDirectories(info) || !TryPreparePreCreatedDirectories(info))
             {
                 return false;
             }
@@ -346,6 +346,56 @@ namespace BuildXL.SandboxedProcessExecutor
             SetSandboxConnectionIfNeeded(info);
 
             return true;
+        }
+
+        private bool TryPreparePreCreatedDirectories(SandboxedProcessInfo info)
+        {
+            if (info.RemoteSandboxedProcessData == null)
+            {
+                return true;
+            }
+
+            foreach (var dir in info.RemoteSandboxedProcessData.TempDirectories)
+            {
+                var result = EnsureDirectoryExists(dir);
+                if (!result.Succeeded)
+                {
+                    m_logger.LogError($"Failed to prepare pre-created directory '{dir}': {result.Failure.DescribeIncludingInnerFailures()}");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private Possible<UnitValue> EnsureDirectoryExists(string directory)
+        {
+            try
+            {
+                bool exists = false;
+
+                if (FileUtilities.DirectoryExistsNoFollow(directory))
+                {
+                    FileUtilities.DeleteDirectoryContents(directory, deleteRootDirectory: false);
+                    exists = true;
+                }
+                else if (FileUtilities.FileExistsNoFollow(directory))
+                {
+                    // We expect to produce a directory, but a file with the same name exists on disk.
+                    FileUtilities.DeleteFile(directory);
+                }
+
+                if (!exists)
+                {
+                    FileUtilities.CreateDirectory(directory);
+                }
+
+                return UnitValue.Unit;
+            }
+            catch (BuildXLException e)
+            {
+                return new Failure<string>(e.ToStringDemystified());
+            }
         }
 
         private void SetSandboxConnectionIfNeeded(SandboxedProcessInfo info)
@@ -397,7 +447,7 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private bool TryPrepareTemporaryFolders(SandboxedProcessInfo info)
+        private bool TryPrepareTemporaryDirectories(SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
 
@@ -405,14 +455,10 @@ namespace BuildXL.SandboxedProcessExecutor
             {
                 foreach (var redirection in info.RedirectedTempFolders)
                 {
-                    try
+                    var result = EnsureDirectoryExists(redirection.target);
+                    if (!result.Succeeded)
                     {
-                        FileUtilities.DeleteDirectoryContents(redirection.target, deleteRootDirectory: false);
-                        FileUtilities.CreateDirectory(redirection.target);
-                    }
-                    catch (BuildXLException e)
-                    {
-                        m_logger.LogError($"Failed to prepare temporary folder '{redirection.target}': {e.ToStringDemystified()}");
+                        m_logger.LogError($"Failed to prepare temporary directory '{redirection.target}': {result.Failure.DescribeIncludingInnerFailures()}");
                         return false;
                     }
                 }
@@ -423,16 +469,27 @@ namespace BuildXL.SandboxedProcessExecutor
                 if (info.EnvironmentVariables.ContainsKey(tmpEnvVar))
                 {
                     string tempPath = info.EnvironmentVariables[tmpEnvVar];
-
-                    try
+                    var result = EnsureDirectoryExists(tempPath);
+                    if (!result.Succeeded)
                     {
-                        FileUtilities.CreateDirectory(tempPath);
-                    }
-                    catch (BuildXLException e)
-                    {
-                        m_logger.LogError($"Failed to prepare temporary folder '{tempPath}': {e.ToStringDemystified()}");
+                        m_logger.LogError($"Failed to prepare temporary directory '{tempPath}': {result.Failure.DescribeIncludingInnerFailures()}");
                         return false;
-                    }
+                    }   
+                }
+            }
+
+            if (info.RemoteSandboxedProcessData == null)
+            {
+                return true;
+            }
+
+            foreach (var dir in info.RemoteSandboxedProcessData.TempDirectories)
+            {
+                var result = EnsureDirectoryExists(dir);
+                if (!result.Succeeded)
+                {
+                    m_logger.LogError($"Failed to prepare temporary directory '{dir}': {result.Failure.DescribeIncludingInnerFailures()}");
+                    return false;
                 }
             }
 

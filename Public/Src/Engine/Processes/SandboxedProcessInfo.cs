@@ -15,6 +15,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
 using static BuildXL.Utilities.BuildParameters;
+using BuildXL.Processes.Remoting;
 
 namespace BuildXL.Processes
 {
@@ -296,6 +297,11 @@ namespace BuildXL.Processes
         public Action<string> StandardErrorObserver { get; set; }
 
         /// <summary>
+        /// Data needed for remote execution.
+        /// </summary>
+        public RemoteSandboxedProcessData RemoteSandboxedProcessData { get; set; }
+
+        /// <summary>
         /// Allowed surviving child processes.
         /// </summary>
         public string[] AllowedSurvivingChildProcessNames { get; set; }
@@ -522,6 +528,7 @@ namespace BuildXL.Processes
                 writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
                 writer.Write(CreateJobObjectForCurrentProcess);
                 writer.WriteNullableString(DetoursFailureFile);
+                writer.Write(RemoteSandboxedProcessData, (w, v) => v.Serialize(w));
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -566,6 +573,8 @@ namespace BuildXL.Processes
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();
                 var detoursFailureFile = reader.ReadNullableString();
+                var remoteSandboxedProcessData = reader.ReadNullable(r => RemoteSandboxedProcessData.Deserialize(r));
+
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
@@ -602,7 +611,8 @@ namespace BuildXL.Processes
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor,
                     RedirectedTempFolders = redirectedTempFolder,
-                    DetoursFailureFile = detoursFailureFile
+                    DetoursFailureFile = detoursFailureFile,
+                    RemoteSandboxedProcessData = remoteSandboxedProcessData
                 };
             }
         }

@@ -1105,6 +1105,8 @@ namespace BuildXL.Processes
 
                 if (SandboxedProcessNeedsExecuteRemote)
                 {
+                    PopulateRemoteSandboxedProcessData(info);
+
                     Tracing.Logger.Log.PipProcessStartRemoteExecution(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
@@ -1148,6 +1150,31 @@ namespace BuildXL.Processes
             }
 
             return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+        }
+
+        private void PopulateRemoteSandboxedProcessData(SandboxedProcessInfo info)
+        {
+            if (!SandboxedProcessNeedsExecuteRemote)
+            {
+                return;
+            }
+
+            // <see cref="RemoteSandboxedProcessData"/> for the reason why one should not add output directories
+            // when populating remote data.
+
+            var tempDirectories = new HashSet<string>(OperatingSystemHelper.PathComparer);
+
+            if (m_pip.TempDirectory.IsValid)
+            {
+                tempDirectories.Add(m_pip.TempDirectory.ToString(m_pathTable));
+            }
+
+            foreach (var tempDir in m_pip.AdditionalTempDirectories)
+            {
+                tempDirectories.Add(tempDir.ToString(m_pathTable));
+            }
+
+            info.RemoteSandboxedProcessData = new RemoteSandboxedProcessData(tempDirectories.ToList());
         }
 
         /// <summary>

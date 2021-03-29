@@ -241,7 +241,7 @@ namespace BuildXL.Processes.Remoting
             return CreateResultForFailure(
                 exitCode: m_cancellationToken.IsCancellationRequested
                     ? ExitCodes.Killed
-                    : (IsProcessingCompleted ? ExitCode.Value : -1),
+                    : (IsProcessingCompleted ? (ExitCode ?? -1) : -1),
                 killed: m_cancellationToken.IsCancellationRequested,
                 timedOut: false,
                 output: output,

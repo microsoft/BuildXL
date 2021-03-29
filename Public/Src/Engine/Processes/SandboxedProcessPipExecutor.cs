@@ -1232,6 +1232,12 @@ namespace BuildXL.Processes
                         if (process is RemoteSandboxedProcess remoteSandboxedProcess && remoteSandboxedProcess.ShouldRunLocally == true)
                         {
                             m_forceExecuteLocally = true;
+                            
+                            if (!SetMessageCountSemaphoreIfRequested())
+                            {
+                                return SandboxedProcessPipExecutionResult.PreparationFailure();
+                            }
+
                             return await RunAsync(
                                 cancellationToken,
                                 remoteSandboxedProcess.SandboxedProcessInfo.SandboxConnection,
@@ -2199,9 +2205,9 @@ namespace BuildXL.Processes
             m_fileAccessManifest.EnforceAccessPoliciesOnDirectoryCreation = m_sandboxConfig.EnforceAccessPoliciesOnDirectoryCreation;
 
             bool allowInternalErrorsLogging = m_sandboxConfig.AllowInternalDetoursErrorNotificationFile;
-            bool checkMessageCount = m_fileAccessManifest.CheckDetoursMessageCount = m_sandboxConfig.CheckDetoursMessageCount;
+            m_fileAccessManifest.CheckDetoursMessageCount = m_sandboxConfig.CheckDetoursMessageCount;
 
-            if (allowInternalErrorsLogging || checkMessageCount)
+            if (allowInternalErrorsLogging || m_fileAccessManifest.CheckDetoursMessageCount)
             {
                 // Create unique file name.
                 m_detoursFailuresFile = GetDetoursInternalErrorFilePath();
@@ -2217,18 +2223,9 @@ namespace BuildXL.Processes
                     m_fileAccessManifest.InternalDetoursErrorNotificationFile = m_detoursFailuresFile;
                 }
 
-                // TODO: named semaphores are not supported in NetStandard2.0
-                if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
-                    && !m_sandboxConfig.RemoteAllProcesses
-                    && checkMessageCount
-                    && !OperatingSystemHelper.IsUnixOS)
+                if (!SetMessageCountSemaphoreIfRequested())
                 {
-                    // Semaphore names don't allow '\\' chars.
-                    if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
-                    {
-                        Tracing.Logger.Log.LogMessageCountSemaphoreExists(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                        return false;
-                    }
+                    return false;
                 }
             }
 
@@ -2241,6 +2238,29 @@ namespace BuildXL.Processes
             }
 
             return true;
+        }
+
+        private bool SetMessageCountSemaphoreIfRequested()
+        {
+            if (!m_fileAccessManifest.CheckDetoursMessageCount)
+            {
+                return true;
+            }
+
+            if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
+                && (!m_sandboxConfig.RemoteAllProcesses || m_forceExecuteLocally)
+                && !OperatingSystemHelper.IsUnixOS)
+            {
+                // Semaphore names don't allow '\\' chars.
+                if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
+                {
+                    Tracing.Logger.Log.LogMessageCountSemaphoreExists(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
+                    return false;
+                }
+            }
+
+            return true;
+
         }
 
         private void AddUntrackedScopeToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddScope(
@@ -3066,6 +3086,9 @@ namespace BuildXL.Processes
 
                 var outputDirectories = outputDirectoriesWrapper.Instance;
 
+                // Standard directory can contain outputs, and so its existence should be ensured.
+                PrepareStandardDirectory(outputDirectories);
+
                 foreach (FileArtifactWithAttributes output in m_pip.FileOutputs)
                 {
                     // Only subset of all outputs should be deleted, because some times we may want a tool to see its prior outputs
@@ -3147,6 +3170,17 @@ namespace BuildXL.Processes
             }
 
             return true;
+        }
+
+        private void PrepareStandardDirectory(HashSet<AbsolutePath> outputDirectories)
+        {
+            if (m_pip.StandardDirectory.IsValid
+                && (outputDirectories == null || outputDirectories.Add(m_pip.StandardDirectory)))
+            {
+                // Ensure parent directory exists.
+                FileUtilities.CreateDirectory(GetStandardDirectory());
+            }
+
         }
 
         private bool DeleteSharedOpaqueOutputsRecordedInSidebandFile()

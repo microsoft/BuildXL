@@ -17,32 +17,32 @@ namespace Test.BuildXL.Utilities
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(" d", "src", "123", "bar"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(" b", "foo", "bar")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(" x", "foo", "bar")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "bar"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("b", "foo", "bar")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("x", "foo", "bar")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "bar  '") +
                 (OperatingSystemHelper.IsPathComparisonCaseSensitive
-                    ? PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")
+                    ? PathGeneratorUtilities.GetAbsolutePath("X", "FOO", "BAR")
                     : PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR")),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("b", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("x", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("X", "FOO", "BAR")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(" d", "src", "123", "bar  '") +
                 (OperatingSystemHelper.IsPathComparisonCaseSensitive
-                    ? PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")
+                    ? PathGeneratorUtilities.GetAbsolutePath("X", "FOO", "BAR")
                     : PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR")),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(" b", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(" x", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("X", "FOO", "BAR")));
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath("where is my head", "src", "foo", "bar  '") +
                 (OperatingSystemHelper.IsPathComparisonCaseSensitive
-                    ? PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")
+                    ? PathGeneratorUtilities.GetAbsolutePath("X", "FOO", "BAR")
                     : PathGeneratorUtilities.GetAbsolutePath("d", "src", "123", "BAR")),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("where is my head", "src", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("B", "FOO", "BAR")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("where is my head", "src", "foo", "bar  '") + PathGeneratorUtilities.GetAbsolutePath("X", "FOO", "BAR")));
         }
 
         [Fact]
@@ -52,19 +52,19 @@ namespace Test.BuildXL.Utilities
 
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(@"logging a path: [d", "src", "123", "bar]"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"logging a path: [b", "foo", "bar]")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"logging a path: [x", "foo", "bar]")));
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(@"##vso[task.uploadsummary]d", "src", "123", "bar"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"##vso[task.uploadsummary]b", "foo", "bar")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"##vso[task.uploadsummary]x", "foo", "bar")));
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(@" \\?\d", "src", "123", "bar"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@" \\?\b", "foo", "bar")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@" \\?\x", "foo", "bar")));
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(@"\\?\d", "src", "123", "bar"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"\\?\b", "foo", "bar")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"\\?\x", "foo", "bar")));
             XAssert.AreEqual(
                 PathGeneratorUtilities.GetAbsolutePath(@"\??\d", "src", "123", "bar"),
-                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"\??\b", "foo", "bar")));
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"\??\x", "foo", "bar")));
         }
 
         [Fact]
@@ -76,8 +76,8 @@ namespace Test.BuildXL.Utilities
             if (OperatingSystemHelper.IsUnixOS)
             {
                 XAssert.AreEqual(
-                    PathGeneratorUtilities.GetAbsolutePath(null, @"\\?b", "foo", "bar"),
-                    pt.Translate(PathGeneratorUtilities.GetAbsolutePath(null, @"\\?b", "foo", "bar")));
+                    PathGeneratorUtilities.GetAbsolutePath(null, @"\\?x", "foo", "bar"),
+                    pt.Translate(PathGeneratorUtilities.GetAbsolutePath(null, @"\\?x", "foo", "bar")));
                 XAssert.AreEqual(
                     PathGeneratorUtilities.GetAbsolutePath(null, @"comb", "foo", "bar"),
                     pt.Translate(PathGeneratorUtilities.GetAbsolutePath(null, @"comb", "foo", "bar")));
@@ -85,18 +85,61 @@ namespace Test.BuildXL.Utilities
             else
             {
                 XAssert.AreEqual(
-                    PathGeneratorUtilities.GetAbsolutePath(@"\\?b", "foo", "bar"),
-                    pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"\\?b", "foo", "bar")));
+                    PathGeneratorUtilities.GetAbsolutePath(@"\\?x", "foo", "bar"),
+                    pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"\\?x", "foo", "bar")));
                 XAssert.AreEqual(
                     PathGeneratorUtilities.GetAbsolutePath(@"comb", "foo", "bar"),
                     pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"comb", "foo", "bar")));
             }
         }
 
+        [Fact]
+        public void PrefixedPaths()
+        {
+            var pt = GetPathTranslator();
+            // Quotes
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: type \"d", "src", "123", "a directory", "bar\""),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: type \"x", "foo", "a directory", "bar\"")));
+
+            // @
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: cmd.exe @d", "src", "123", "bar"),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: cmd.exe @x", "foo", "bar")));
+
+            // @"..."
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: cmd.exe @\"d", "src", "123", "a directory", "bar\""),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: cmd.exe @\"x", "foo", "a directory", "bar\"")));
+
+            // Colon
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Path:d", "src", "123", "bar\""),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("[Log] Path:x", "foo", "bar\"")));
+
+            // Pipe
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: a.bat|d", "src", "123", "bar\""),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: a.bat|x", "foo", "bar\"")));
+
+            // Redirectors
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: a.bat >d", "src", "123", "bar"),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"[Log] Command line: a.bat >x", "foo", "bar")));
+
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: a.bat >>d", "src", "123", "bar"),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"[Log] Command line: a.bat >>x", "foo", "bar")));
+
+            XAssert.AreEqual(
+                PathGeneratorUtilities.GetAbsolutePath("[Log] Command line: a.bat <d", "src", "123", "bar"),
+                pt.Translate(PathGeneratorUtilities.GetAbsolutePath(@"[Log] Command line: a.bat <x", "foo", "bar")));
+        }
+
         private PathTranslator GetPathTranslator()
         {
             return new PathTranslator(
-                PathGeneratorUtilities.GetAbsolutePath("b", "foo"),
+                PathGeneratorUtilities.GetAbsolutePath("x", "foo"),
                 PathGeneratorUtilities.GetAbsolutePath("d", "src", "123")
             );
         }

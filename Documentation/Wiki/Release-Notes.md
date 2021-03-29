@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210319.2 (Release [101111](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=101111)) Released 3/24/2021
+- Fix reparse point cache invalidation logic
+- Add azure artifacts credential helper support
+- Ignore events sent to orchestrator when pip results marked as complete
+- Invalidate reparse point creations on directories
+- Fix MachineReimagesRule with empty stamp
+- Other bug fixes, auth fixes and unit test improvements.
+
 # 0.1.0-20210312.6 (Release [100149](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=100149)) Released 3/17/2021
 - Improve early worker release logic
 

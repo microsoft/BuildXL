@@ -19,5 +19,8 @@ config({
             //     VAR_TO_UNSET: undefined,
             // }
         }
-    ]
+    ],
+    
+    // Inbox SDK is not currently working with the CMake resolver
+    disableInBoxSdkSourceResolver: true,
 });

@@ -1087,6 +1087,26 @@ int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
     return ValidateResolvedPathPreservingLastSegmentCache();
 }
 
+int CallMoveFileExWWithTrailingBackSlash()
+{
+    std::wstring fullPath;
+    if (!TryGetNtFullPath(L"moveFileWithTrailingSlash", fullPath))
+    {
+        return (int)GetLastError();
+    }
+
+    fullPath.append(L"\\");
+
+    bool result = MoveFileExW(fullPath.c_str(), L"moveFileWithTrailingSlashCopied", MOVEFILE_REPLACE_EXISTING);
+
+    if (!result)
+    {
+        return (int)GetLastError();
+    }
+
+    return 0;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1130,6 +1150,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateSelfForWrite);
     IF_COMMAND(CallDetoursResolvedPathCacheTests);
     IF_COMMAND(CallDetoursResolvedPathPreservingLastSegmentCacheTests);
+    IF_COMMAND(CallMoveFileExWWithTrailingBackSlash);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

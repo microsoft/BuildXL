@@ -249,4 +249,9 @@ size_t GetRootLength(PCPathChar path);
 #if _WIN32
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);
+
+// CombineAsPath
+//
+// Combines a path with a suffix separated by a backslash
+std::wstring CombineAsPath(std::wstring path, std::wstring suffix);
 #endif

@@ -480,4 +480,21 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
     return 0;
 }
 
+std::wstring CombineAsPath(std::wstring path, std::wstring suffix)
+{
+    std::wstring appendedPath;
+
+    // Some file APIs will return STATUS_OBJECT_NAME_INVALID if there are two consecutive backslashes
+    if (!path.empty() && path.back() == '\\')
+    {
+        appendedPath = path + suffix;
+    }
+    else
+    {
+        appendedPath = path + L"\\" + suffix;
+    }
+
+    return appendedPath;
+}
+
 #endif // _WIN32

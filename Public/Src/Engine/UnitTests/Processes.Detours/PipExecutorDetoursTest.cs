@@ -7163,6 +7163,51 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        /// <summary>
+        /// Verfies that a trailing slash at the end of a directory specified in a MoveFile call
+        /// does not cause the call to return name invalid.
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        public async Task CallMoveFileExWWithTrailingBackSlash()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var sourceDir = tempFiles.GetDirectory(pathTable, "moveFileWithTrailingSlash");
+                var destDir = AbsolutePath.Create(context.PathTable, Path.Combine(tempFiles.RootDirectory, "moveFileWithTrailingSlashCopied"));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallMoveFileExWWithTrailingBackSlash",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(new[] { sourceDir, destDir }));
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                XAssert.IsTrue(!Directory.Exists(sourceDir.ToString(context.PathTable)));
+                XAssert.IsTrue(Directory.Exists(destDir.ToString(context.PathTable)));
+                VerifyNormalSuccess(context, result);
+            }
+        }
+
         private static Process CreateDetourProcess(
             BuildXLContext context,
             PathTable pathTable,

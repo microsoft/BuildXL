@@ -111,6 +111,38 @@ namespace ContentStoreTest.Stores
             });
         }
 
+        [Fact]
+        public Task PutFileMoveAppliesDenyWrites()
+        {
+            var context = new Context(Logger);
+            return TestStore(context, Clock, async store =>
+            {
+                byte[] bytes = ThreadSafeRandom.GetBytes(ValueSize);
+                ContentHash contentHash = bytes.CalculateHash(ContentHashType);
+
+                // Verify content doesn't exist yet in store
+                Assert.False(await store.ContainsAsync(context, contentHash, null));
+
+                using (var tempDirectory = new DisposableDirectory(FileSystem))
+                {
+                    AbsolutePath pathToContent = tempDirectory.Path / "tempContent.txt";
+                    FileSystem.WriteAllBytes(pathToContent, bytes);
+
+                    // Put the content into the store w/ hard link
+                    var r = await store.PutFileAsync(
+                        context, pathToContent, FileRealizationMode.Move, ContentHashType, null);
+
+                    // File should be deleted from original location
+                    FileSystem.FileExists(pathToContent).Should().BeFalse();
+
+                    r.ContentHash.Should().Be(contentHash);
+                    var pathInStore = store.GetPrimaryPathFor(r.ContentHash);
+
+                    await AbsFileSystemTests.VerifyThrowsOnOpenForWriteOfDenyWriteFileAsync(FileSystem, pathInStore);
+                }
+            });
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

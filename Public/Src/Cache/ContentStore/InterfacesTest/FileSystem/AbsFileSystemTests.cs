@@ -805,15 +805,20 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
                 Assert.False(FileSystem.GetFileAttributes(sourcePath).HasFlag(FileAttributes.ReadOnly));
 
-                Func<Task> a = async () =>
-                {
-                    using (await FileSystem.OpenAsync(sourcePath, FileAccess.Write, FileMode.Open, ShareDelete))
-                    {
-                    }
-                };
-
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                await VerifyThrowsOnOpenForWriteOfDenyWriteFileAsync(FileSystem, sourcePath);
             }
+        }
+
+        public static Task VerifyThrowsOnOpenForWriteOfDenyWriteFileAsync(IAbsFileSystem fileSystem, AbsolutePath path)
+        {
+            Func<Task> a = async () =>
+            {
+                using (await fileSystem.OpenAsync(path, FileAccess.Write, FileMode.Open, ShareDelete))
+                {
+                }
+            };
+
+            return Assert.ThrowsAsync<UnauthorizedAccessException>(a);
         }
 
         [Fact]

@@ -788,7 +788,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                                                  {
                                                      if (realizationMode == FileRealizationMode.Move)
                                                      {
-                                                         return Task.Run(() => FileSystem.MoveFile(path, primaryPath, replaceExisting: false));
+                                                         return Task.Run(() =>
+                                                         {
+                                                             ApplyPermissions(context, path, FileAccessMode.ReadOnly);
+                                                             FileSystem.MoveFile(path, primaryPath, replaceExisting: false);
+                                                         });
                                                      }
                                                      else
                                                      {
@@ -1218,7 +1222,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private void ApplyPermissions(Context context, AbsolutePath path, FileAccessMode accessMode)
+        internal void ApplyPermissions(Context context, AbsolutePath path, FileAccessMode accessMode)
         {
             using var trace = _tracer.ApplyPerms();
             if (accessMode == FileAccessMode.ReadOnly)

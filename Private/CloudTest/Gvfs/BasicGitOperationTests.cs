@@ -21,7 +21,16 @@ namespace BuildXL.CloudTest.Gvfs
         public static IEnumerable<object[]> RepoConfigData()
         {
             // args: (RepoConfig repoCfg)
-            yield return new object[] { new RepoConfig(RepoKind.Gvfs, RepoInit.Clone) };
+            // TODO: journal tracking inside a cloned gvfs repo is failing in CloudTest with
+            //   Failed to open a path as part of a change-tracking probe (existence only): C:\Users\CLOUDT~1\AppData\Local\Temp\73d30194-37f1-4865-9e5a-cb5658df8a9c\cab472e31c0d4b02b5c9\src\src\files\changingFile.txt: 
+            //   Opening a file handle failed: 
+            //   Native: 0x171: The provider that supports file system virtualization is temporarily unavailable.
+            //   Expected: True
+            //   Actual:   False
+            //     at Test.BuildXL.TestUtilities.Xunit.XAssert.PossiblySucceeded[T](Possible`1 result, String message) in \.\Public\Src\Utilities\UnitTests\TestUtilities.XUnit\XAssert.cs:line 582
+            //     at BuildXL.CloudTest.Gvfs.JournalHelper.TrackPath(String path) in \.\Private\CloudTest\Gvfs\JournalHelper.cs:line 75
+            //     at BuildXL.CloudTest.Gvfs.BasicGitOperationTests.EditFile(RepoConfig repoCfg) in \.\Private\CloudTest\Gvfs\BasicGitOperationTests.cs:line 389
+            // yield return new object[] { new RepoConfig(RepoKind.Gvfs, RepoInit.Clone) };
             yield return new object[] { new RepoConfig(RepoKind.Gvfs, RepoInit.UseExisting) };
             yield return new object[] { new RepoConfig(RepoKind.Git, RepoInit.UseExisting) };
         }

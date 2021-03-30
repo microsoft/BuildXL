@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -32,6 +33,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// The buffer to fill as much as possible before calling TransformBlock or ComputeHash on it.
         /// </summary>
         Pool<byte[]>.PoolHandle GetBufferFromPool();
+    }
+
+    /// <summary>
+    /// All <see cref="HashAlgorithm"/> have <see cref="HashAlgorithm.Initialize"/> method, 
+    /// but some hashers may decide to do something not only before computing the hash, but also after doing so.
+    /// For instance, if the hasher uses an object pool the object will be obtained in 'Initialize' and
+    /// released to pool in 'Cleanup' method.
+    /// </summary>
+    public interface IHashAlgorithmWithCleanup
+    {
+        /// <summary>
+        /// Cleans up a transient state.
+        /// </summary>
+        void Cleanup();
     }
 
     /// <summary>

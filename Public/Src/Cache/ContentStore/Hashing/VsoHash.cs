@@ -24,7 +24,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public static readonly BlobIdentifierWithBlocks OfNothing;
 
-        private static readonly ByteArrayPool PoolLocalBlockBuffer = new ByteArrayPool(BlockSize);
         private static readonly Pool<List<byte>> PoolLocalPageIdsBuffer = new Pool<List<byte>>(factory: () => new List<byte>(PagesPerBlock), reset: list => list.Clear());
         private static readonly Pool<SHA256CryptoServiceProvider> PoolSHA256CryptoServiceProvider = new Pool<SHA256CryptoServiceProvider>(() => new SHA256CryptoServiceProvider());
 
@@ -250,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             bool disposeNeeded = true;
             try
             {
-                Pool<byte[]>.PoolHandle blockBufferHandle = PoolLocalBlockBuffer.Get();
+                Pool<byte[]>.PoolHandle blockBufferHandle = GlobalObjectPools.TwoMbByteArrayPool.Get();
                 try
                 {
                     byte[] blockBuffer = blockBufferHandle.Value;
@@ -306,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             bool disposeNeeded = true;
             try
             {
-                Pool<byte[]>.PoolHandle blockBufferHandle = PoolLocalBlockBuffer.Get();
+                Pool<byte[]>.PoolHandle blockBufferHandle = GlobalObjectPools.TwoMbByteArrayPool.Get();
                 try
                 {
                     byte[] blockBuffer = blockBufferHandle.Value;

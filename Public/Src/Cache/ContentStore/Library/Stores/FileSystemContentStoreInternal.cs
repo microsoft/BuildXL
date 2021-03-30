@@ -1057,7 +1057,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 long contentSize;
 
-                var hasher = ContentHashers.Get(hashType);
+                var hasher = HashInfoLookup.GetContentHasher(hashType);
                 long length = stream.CanSeek ? stream.Length : -1;
                 using (var hashingStream = hasher.CreateReadHashingStream(length, stream))
                 {
@@ -1212,7 +1212,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             try
             {
-                ContentHash contentHash = await ContentHashers.Get(hashType).GetContentHashAsync(stream);
+                ContentHash contentHash = await HashInfoLookup.GetContentHasher(hashType).GetContentHashAsync(stream);
                 return new ContentHashWithSize(contentHash, stream.Length);
             }
             catch (Exception e)
@@ -1979,7 +1979,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             var code = PlaceFileResult.ResultCode.Unknown;
             ContentHash computedHash = new ContentHash(contentHash.HashType);
-            var hasher = ContentHashers.Get(contentHash.HashType);
+            var hasher = HashInfoLookup.GetContentHasher(contentHash.HashType);
 
             using (StreamWithLength? contentStream =
                 await OpenStreamInternalWithLockAsync(context, contentHash, pinRequest: null, FileShare.Read | FileShare.Delete))

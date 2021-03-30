@@ -274,8 +274,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterLocationStore = context.GetLocationStore(masterIndex);
 
                     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-                    var hashInfo = HashInfoLookup.Find(ContentHashType);
-                    var contentHash = hashInfo.CreateContentHasher().GetContentHash(content);
                     var path = context.Directories[0].CreateRandomFileName();
                     FileSystem.WriteAllBytes(path, content);
 
@@ -403,8 +401,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var session2 = context.GetDistributedSession(2);
 
                     var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
-                    var hashInfo = HashInfoLookup.Find(ContentHashType);
-                    var contentHash = hashInfo.CreateContentHasher().GetContentHash(content);
                     var path = context.Directories[0].CreateRandomFileName();
                     FileSystem.WriteAllBytes(path, content);
 

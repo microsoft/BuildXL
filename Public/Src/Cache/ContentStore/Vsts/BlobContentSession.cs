@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     StreamBufferSize))
                 {
                     contentSize = hashingStream.Length;
-                    contentHash = await HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHashAsync(hashingStream).ConfigureAwait(false);
+                    contentHash = await HashInfoLookup.GetContentHasher(hashType).GetContentHashAsync(hashingStream).ConfigureAwait(false);
                 }
 
                 using (var streamToPut = FileStreamUtils.OpenFileStreamForAsync(
@@ -176,8 +176,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 {
                     Contract.Assert(streamToPut.Stream.CanSeek);
                     long contentSize = streamToPut.Length;
-                    var contentHash = await HashInfoLookup.Find(hashType)
-                        .CreateContentHasher()
+                    var contentHash = await HashInfoLookup.GetContentHasher(hashType)
                         .GetContentHashAsync(streamToPut)
                         .ConfigureAwait(false);
                     streamToPut.Stream.Seek(0, SeekOrigin.Begin);

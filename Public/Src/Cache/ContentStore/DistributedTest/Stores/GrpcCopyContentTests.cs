@@ -187,7 +187,7 @@ namespace ContentStoreTest.Distributed.Stores
                               {
                                   var input = Enumerable.Range(1, numberOfPushes)
                                       .Select(r => ThreadSafeRandom.GetBytes(1 + 42))
-                                      .Select(data => (stream: new MemoryStream(data), hash: ContentHashers.Get(HashType.Vso0).GetContentHash(data)))
+                                      .Select(data => (stream: new MemoryStream(data), hash: HashInfoLookup.GetContentHasher(HashType.Vso0).GetContentHash(data)))
                                       .ToList();
 
                                   var pushTasks = input.Select(
@@ -226,7 +226,7 @@ namespace ContentStoreTest.Distributed.Stores
                               {
                                   var bytes = ThreadSafeRandom.GetBytes(1 + 42);
                                   var input = Enumerable.Range(1, numberOfPushes)
-                                      .Select(data => (stream: new MemoryStream(bytes), hash: ContentHashers.Get(HashType.Vso0).GetContentHash(bytes)))
+                                      .Select(data => (stream: new MemoryStream(bytes), hash: HashInfoLookup.GetContentHasher(HashType.Vso0).GetContentHash(bytes)))
                                       .ToList();
 
                                   var pushTasks = input.Select(

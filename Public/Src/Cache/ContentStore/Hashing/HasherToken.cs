@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public readonly struct HasherToken : IEquatable<HasherToken>, IDisposable
     {
-        private readonly IPoolHandle<HashAlgorithm> _poolHandle;
+        private readonly Pool<HashAlgorithm>.PoolHandle _poolHandle;
 
         /// <summary>
         ///     Gets hash algorithm this token uses.
@@ -25,11 +25,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>
         ///     When the token is disposed, the hasher will be added back to the object pool.
         /// </remarks>
-        public HasherToken(IPoolHandle<HashAlgorithm> pooledHasher)
+        public HasherToken(Pool<HashAlgorithm>.PoolHandle pooledHasher)
         {
             Contract.Requires(pooledHasher.Value != null);
 
             Hasher = pooledHasher.Value;
+            Hasher.Initialize();
             _poolHandle = pooledHasher;
 
         }
@@ -37,7 +38,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public void Dispose()
         {
-            Hasher.Initialize();
+            if (Hasher is IHashAlgorithmWithCleanup cleanUp)
+            {
+                cleanUp.Cleanup();
+            }
+            
             _poolHandle.Dispose();
         }
 
@@ -50,9 +55,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public override bool Equals(object? obj)
         {
-            if (obj is HasherToken)
+            if (obj is HasherToken token)
             {
-                return Equals((HasherToken)obj);
+                return Equals(token);
             }
 
             return false;

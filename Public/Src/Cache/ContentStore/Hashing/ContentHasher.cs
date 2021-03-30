@@ -31,9 +31,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>
         ///     Cap the number of idle reserve instances in the pool so as to not unnecessarily hold large amounts of memory
         /// </remarks>
-        private readonly Pool<T> _algorithmsPool = new Pool<T>(() => new T(), maxReserveInstances: HashInfoLookup.ContentHasherIdlePoolSize);
+        private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T(), maxReserveInstances: HashInfoLookup.ContentHasherIdlePoolSize);
 
-        private readonly ByteArrayPool _bufferPool = new ByteArrayPool(FileSystemConstants.FileIOBufferSize);
+        private static readonly ByteArrayPool _bufferPool = new ByteArrayPool(FileSystemConstants.FileIOBufferSize);
 
         private long _calls;
         private long _ticks;
@@ -69,7 +69,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public HasherToken CreateToken() => new HasherToken(_algorithmsPool.Get());
+        public HasherToken CreateToken()
+        {
+            var poolHandle = _algorithmsPool.Get();
+            return new HasherToken(poolHandle);
+        }
 
         /// <summary>
         /// GetContentHashInternalAsync - for internal use only.
@@ -85,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 using var hasherHandle = CreateToken();
                 var hasher = hasherHandle.Hasher;
 
-                IPoolHandle<byte[]> bufferHandle;
+                Pool<byte[]>.PoolHandle bufferHandle;
                 if (hasher is IHashAlgorithmBufferPool bufferPool)
                 {
                     bufferHandle = bufferPool.GetBufferFromPool();

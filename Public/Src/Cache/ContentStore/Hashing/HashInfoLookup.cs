@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public static class HashInfoLookup
     {
-        private static readonly IReadOnlyDictionary<HashType, HashInfo> HashInfoByType = new Dictionary<HashType, HashInfo>
+        private static readonly Dictionary<HashType, HashInfo> HashInfoByType = new Dictionary<HashType, HashInfo>
         {
             {HashType.SHA1, SHA1HashInfo.Instance},
             {HashType.SHA256, SHA256HashInfo.Instance},
@@ -25,16 +25,35 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {HashType.Murmur, MurmurHashInfo.Instance},
         };
 
+        private static readonly Dictionary<HashType, IContentHasher> ContentHasherByType = CreateAll();
+
         /// <summary>
-        ///     Create a HashInfo instance from HashType.
+        ///     Gets a <see cref="HashInfo"/> instance from <paramref name="hashType"/>.
         /// </summary>
         public static HashInfo Find(HashType hashType)
         {
-            var hit = HashInfoByType.TryGetValue(hashType, out var hashInfo);
-            if (!hit) {throw new NotImplementedException($"Invalid HashType passed for HashInfoLookup: {hashType.Serialize()}, hashCode: {hashType.GetHashCode()}");}
-#pragma warning disable CS8603 // Possible null reference return.
+            if (!HashInfoByType.TryGetValue(hashType, out var hashInfo))
+            {
+                throw new ArgumentException($"Can't find 'HashInfo' by the unknown HashType {hashType}", nameof(hashType));
+            }
+
             return hashInfo;
-#pragma warning restore CS8603 // Possible null reference return.
+        }
+
+        /// <summary>
+        ///     Gets a <see cref="HashInfo"/> instance from <paramref name="hashType"/>.
+        /// </summary>
+        /// <remarks>
+        ///     DO NOT Dispose the instance produced by this method, because its global and lives for the duration of the application.
+        /// </remarks>
+        public static IContentHasher GetContentHasher(HashType hashType)
+        {
+            if (!ContentHasherByType.TryGetValue(hashType, out var hasher))
+            {
+                throw new ArgumentException($"Can't find 'IContentHasher' by the unknown HashType {hashType}", nameof(hashType));
+            }
+
+            return hasher;
         }
 
         /// <summary>

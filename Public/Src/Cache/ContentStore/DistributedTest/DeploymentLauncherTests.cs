@@ -358,7 +358,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
             {
                 var bytes = Encoding.UTF8.GetBytes(content);
 
-                var hash = ContentHashers.Get(HashType.MD5).GetContentHash(bytes).ToString();
+                var hash = HashInfoLookup.GetContentHasher(HashType.MD5).GetContentHash(bytes).ToString();
                 var downloadUrl = $"casaas://files?hash={hash}";
                 Content[downloadUrl] = bytes;
                 return new DeploymentManifest.FileSpec()

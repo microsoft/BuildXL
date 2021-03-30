@@ -169,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
                     return await session.PutStreamAsync(c, hashType, stream, ct).ConfigureAwait(false);
                 }
 
-                var hash = HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHash(data);
+                var hash = HashInfoLookup.GetContentHasher(hashType).GetContentHash(data);
                 return await session.PutStreamAsync(c, hash, stream, ct).ConfigureAwait(false);
             }
         }
@@ -186,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             var hashType = HashType.SHA256;
             using (var stream = new MemoryStream(data))
             {
-                var hash = HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHash(data);
+                var hash = HashInfoLookup.GetContentHasher(hashType).GetContentHash(data);
                 return await session.PutStreamAsync(c, hash, stream, CancellationToken.None).ConfigureAwait(false);
             }
         }
@@ -242,7 +242,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
                 return session.PutFileAsync(c, hashType, path, FileRealizationMode.Any, ct);
             }
 
-            var hash = HashInfoLookup.Find(hashType).CreateContentHasher().GetContentHash(data);
+            var hash = HashInfoLookup.GetContentHasher(hashType).GetContentHash(data);
             return session.PutFileAsync(c, hash, path, FileRealizationMode.Any, ct);
         }
     }

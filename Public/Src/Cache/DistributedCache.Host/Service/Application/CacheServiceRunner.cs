@@ -80,7 +80,7 @@ namespace BuildXL.Cache.Host.Service
         {
             hostParameters ??= HostParameters.FromEnvironment();
             var configJson = File.ReadAllText(configurationPath);
-            configHash = ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex();
+            configHash = HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(configJson)).ToHex();
 
             var preprocessor = DeploymentUtilities.GetHostJsonPreprocessor(hostParameters);
 

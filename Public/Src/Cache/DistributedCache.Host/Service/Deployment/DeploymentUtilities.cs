@@ -259,7 +259,7 @@ namespace BuildXL.Cache.Host.Service
         /// </summary>
         public static string ComputeContentId(string value)
         {
-            return ContentHashers.Get(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex();
+            return HashInfoLookup.GetContentHasher(HashType.Murmur).GetContentHash(Encoding.UTF8.GetBytes(value)).ToHex();
         }
 
         /// <summary>

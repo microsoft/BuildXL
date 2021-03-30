@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
 
 namespace BuildXL.Cache.ContentStore.Hashing
@@ -13,9 +15,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <remarks>
     /// The implementation delegates the computation to <see cref="VsoHash"/>.
     /// </remarks>
-    public class VsoHashAlgorithm : HashAlgorithm
+    public class VsoHashAlgorithm : HashAlgorithm, IHashAlgorithmWithCleanup
     {
-        private readonly byte[] _buffer = new byte[VsoHash.BlockSize];
+        private static readonly byte[] EmptyArray = new byte[0]; // Not using Array.Empty<byte>() because this assembly can target lower framework versions.
+        private Pool<byte[]>.PoolHandle _bufferHandle;
+        private byte[]? _buffer;
         private readonly List<BlobBlockHash> _blockHashes = new List<BlobBlockHash>();
         private int _currentOffset;
 
@@ -24,11 +28,27 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _currentOffset = 0;
             _blockHashes.Clear();
+
+            if (_buffer == null)
+            {
+                // Initialize can be called more than once per instance, once during construction, and another time by HasherToken.
+                // This is not happening concurrently, so no need for any synchronization.
+                _bufferHandle = GlobalObjectPools.TwoMbByteArrayPool.Get();
+                _buffer = _bufferHandle.Value;
+            }
+        }
+
+        void IHashAlgorithmWithCleanup.Cleanup()
+        {
+            _buffer = null;
+            _bufferHandle.Dispose();
         }
 
         /// <inheritdoc />
         protected override void HashCore(byte[] array, int ibStart, int cbSize)
         {
+            Contract.AssertDebug(_buffer != null);
+            
             while (cbSize > 0)
             {
                 if (_currentOffset == _buffer.Length)
@@ -48,6 +68,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         protected override byte[] HashFinal()
         {
+            Contract.AssertDebug(_buffer != null);
+            
             var rollingId = new VsoHash.RollingBlobIdentifier();
 
             // Flush out buffer
@@ -59,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             // if there are no blocks add an empty block
             if (_blockHashes.Count == 0)
             {
-                _blockHashes.Add(VsoHash.HashBlock(new byte[] { }, 0));
+                _blockHashes.Add(VsoHash.HashBlock(EmptyArray, 0));
             }
 
             for (int i = 0; i < _blockHashes.Count - 1; i++)

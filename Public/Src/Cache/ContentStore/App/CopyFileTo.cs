@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
             }
 
-            var hasher = ContentHashers.Get(HashType.MD5);
+            var hasher = HashInfoLookup.GetContentHasher(HashType.MD5);
             var bytes = File.ReadAllBytes(sourcePath);
             var hash = hasher.GetContentHash(bytes);
 

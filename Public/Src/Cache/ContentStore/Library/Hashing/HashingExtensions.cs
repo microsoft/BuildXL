@@ -22,10 +22,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static ContentHash CalculateHash(this byte[] content, HashType hashType)
         {
-            using (var hasher = HashInfoLookup.Find(hashType).CreateContentHasher())
-            {
-                return hasher.GetContentHash(content);
-            }
+            return HashInfoLookup.GetContentHasher(hashType).GetContentHash(content);
         }
 
         /// <summary>
@@ -44,12 +41,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Calculate content hash of content in a stream.
         /// </summary>
-        public static async Task<ContentHash> CalculateHashAsync(this StreamWithLength stream, HashType hashType)
+        public static Task<ContentHash> CalculateHashAsync(this StreamWithLength stream, HashType hashType)
         {
-            using (var hasher = HashInfoLookup.Find(hashType).CreateContentHasher())
-            {
-                return await hasher.GetContentHashAsync(stream);
-            }
+            var hasher = HashInfoLookup.GetContentHasher(hashType);
+            return hasher.GetContentHashAsync(stream);
         }
 
         /// <summary>

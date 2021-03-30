@@ -10,5 +10,6 @@ namespace BuildXL.Engine.Distribution
     {
         void Start(int port);
         Task ShutdownAsync();
+        Task DisposeAsync();
     }
 }

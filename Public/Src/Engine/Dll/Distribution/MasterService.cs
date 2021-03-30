@@ -20,6 +20,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -250,16 +251,15 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        public async Task DisposeAsync()
         {
             DistributionServices.LogStatistics(m_loggingContext);
 
-            m_masterServer.Dispose();
-
-            // Consider switching to `IAsyncDisposable.DisposeAsync` in this code to avoid blocking calls in Dispose method.
             if (m_remoteWorkers != null)
             {
-                // Finish and dispose all workers
                 var tasks = m_remoteWorkers
                     .Select(
                         static async w =>
@@ -271,8 +271,11 @@ namespace BuildXL.Engine.Distribution
                             }
                         })
                     .ToArray();
-                Task.WaitAll(tasks);
+                
+                await TaskUtilities.SafeWhenAll(tasks);
             }
+
+            await m_masterServer.DisposeAsync();
         }
 
         bool IDistributionService.Initialize()

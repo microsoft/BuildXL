@@ -44,8 +44,11 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_server.Start();
         }
 
-        /// <nodoc/>
-        public void Dispose() => ShutdownAsync().GetAwaiter().GetResult();
+        /// <inheritdoc />
+        public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
+
+        /// <inheritdoc />
+        public Task DisposeAsync() => ShutdownAsync();
 
         /// <nodoc />
         public async Task ShutdownAsync()

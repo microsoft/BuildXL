@@ -62,8 +62,11 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
         }
 
-        /// <nodoc/>
-        public void Dispose() => ShutdownAsync().GetAwaiter().GetResult();
+        /// <inheritdoc />
+        public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
+
+        /// <inheritdoc />
+        public Task DisposeAsync() => ShutdownAsync();
 
         #region Service Methods
 

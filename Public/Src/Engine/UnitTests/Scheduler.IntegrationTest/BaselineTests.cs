@@ -712,6 +712,33 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+        /// <summary>
+        /// Tests whether a directory probe will cause an underbuild.
+        /// </summary>
+        /// <remarks>See bug 1816341 for more context on what is being tested here.</remarks>
+        [Feature(Features.DirectoryProbe)]
+        [Fact]
+        public void ValidatePipUnderbuildWithDirectoryProbes()
+        {
+            DirectoryArtifact directoryToProbe = CreateOutputDirectoryArtifact();
+            Directory.CreateDirectory(ArtifactToString(directoryToProbe));
+
+            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.DirProbe(directoryToProbe),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            Directory.Delete(ArtifactToString(directoryToProbe));
+
+            // Since detours does not report directory probes, we see a cache hit here even though we expect a cache miss (causing an underbuild)
+            // See where the explicitReport variable is being calcuated in PolicyResult::CheckReadAccess to see why these are not reported
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
         [Feature(Features.DirectoryProbe)]
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // we currently cannot simulate directory probes for macOS.
         [InlineData(true)]

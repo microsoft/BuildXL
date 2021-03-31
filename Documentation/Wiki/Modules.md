@@ -1,6 +1,6 @@
 In BuildXL, Modules represent a group of Projects which exposes a set of public (tagged with `@@public` values. Modules can include references to other Module, Project and List files. The default top-level module file is named "module.config.bm"
 
-A module can import values from another module using `importFrom` or `import` (see [Import and Exports](./DScript/Import-export)).
+A module can import values from another module using `importFrom` or `import` (see [Import and Exports](./DScript/Import-export.md)).
 
 ## Module size guidelines
 How big should a module be? A module is intended to be roughly equivalent to a solution file: it contains closely related code and its validation. This could mean that one module contains anything from one team's code to an entire (small) product. 

@@ -23,7 +23,7 @@ See the `Examples/` folder for basic project examples. See the [Demos](Public/Sr
 # Building the Code
 
 ## Build Status - Azure DevOps Pipelines
-[![Build status](https://dev.azure.com/mseng/Domino/_apis/build/status/BuildXL/BuildXL%20Rolling?branchName=master)](https://dev.azure.com/mseng/Domino/_build/latest?definitionId=8196)
+[![Build status](https://dev.azure.com/mseng/Domino/_apis/build/status/8196?branchName=master)](https://dev.azure.com/mseng/Domino/_build/latest?definitionId=8196)
 
 ## Command Line Build and Test
 See the [Developer Guide](Documentation/Wiki/DeveloperGuide.md) for instructions on compiling BuildXL.

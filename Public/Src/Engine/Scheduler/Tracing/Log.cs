@@ -3830,8 +3830,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "Dump pip lite analysis utilities unable to serialize pip '{pipHash}' at '{path}' due to a bad output path provided to the file writer, and has been disabled for the remainder of this build. Reason: {exceptionMessage}.")]
-        internal abstract void DumpPipLiteUnableToSerializePipDueToBadPath(LoggingContext loggingContext, string pipHash, string path, string exceptionMessage);
+            Message = "Dump pip lite analysis utilities unable to serialize pip '{pipHash}' at log path '{logPath}' due to a bad output path provided to the file writer, and has been disabled for the remainder of this build. Reason: {exceptionMessage}.")]
+        internal abstract void DumpPipLiteUnableToSerializePipDueToBadPath(LoggingContext loggingContext, string pipHash, string logPath, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.RuntimeDumpPipLiteLogLimitReached,

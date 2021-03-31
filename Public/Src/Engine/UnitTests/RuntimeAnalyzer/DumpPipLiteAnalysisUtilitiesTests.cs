@@ -23,6 +23,7 @@ namespace Test.BuildXL.RuntimeAnalyzer
         public DumpPipLiteAnalysisUtilitiesTests(ITestOutputHelper output) : base(output)
         {
             m_logPath = GetFullPath("Logs");
+            RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
         }
 
         [Fact]
@@ -81,6 +82,21 @@ namespace Test.BuildXL.RuntimeAnalyzer
             PipGraphBuilder.AddWriteFile(pip);
 
             RunAndAssertDumpPip(pip);
+        }
+
+        [Fact]
+        public void TestBadPath()
+        {
+            FileArtifact outputFile = CreateOutputFileArtifact();
+            WriteFile pip = CreateWriteFile(outputFile, string.Empty, new[] { "some content" });
+
+            PipGraphBuilder.AddWriteFile(pip);
+            var graph = PipGraphBuilder.Build();
+
+            var success = DumpPipLiteAnalysisUtilities.DumpPip(pip, @"X:\not\a\real\path\", Context.PathTable, Context.StringTable, Context.SymbolTable, graph, LoggingContext);
+
+            Assert.False(success);
+            AssertWarningEventLogged(LogEventId.DumpPipLiteUnableToSerializePipDueToBadPath);
         }
 
         #region HelperFunctions

@@ -60,7 +60,7 @@ namespace BuildXL.Scheduler.Tracing
                 else if (ex is PathTooLongException || ex is DirectoryNotFoundException || ex is IOException || ex is UnauthorizedAccessException)
                 {
                     // File writer most likely failed due to a bad path
-                    Logger.Log.DumpPipLiteUnableToSerializePipDueToBadPath(loggingContext, pip.FormattedSemiStableHash, outputFilePath, ex.GetLogEventMessage());
+                    Logger.Log.DumpPipLiteUnableToSerializePipDueToBadPath(loggingContext, pip.FormattedSemiStableHash, logPath, ex.GetLogEventMessage());
                 }
                 else
                 {

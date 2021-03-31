@@ -513,6 +513,13 @@ export function cacheBindingRedirects() {
                 oldVersion: "0.0.0.0-4.5.1.0",
                 newVersion: "4.5.1.0", // Corresponds to: { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.2.6",
             },
+            {
+                name: "System.Text.Encodings.Web",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.0.5.1",
+                newVersion: "4.0.5.1", // Corresponds to { id: "System.Text.Encodings.Web", version: "4.7.2" },
+            }
         ];
 }
 

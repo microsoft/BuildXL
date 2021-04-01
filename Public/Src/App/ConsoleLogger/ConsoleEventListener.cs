@@ -426,8 +426,8 @@ namespace BuildXL
                     if (messageStart != -1)
                     {
                         // Note - the MessageLevel below are really just for the sake of colorization
-                        Output(EventLevel.Informational, eventData, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
-                        Output(EventLevel.Error, eventData, output);
+                        Output(MessageLevel.ErrorNoColor, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
+                        Output(MessageLevel.Error, output);
                         return;
                     }
                 }
@@ -520,7 +520,12 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
-            m_console.WriteOutputLine(ConvertLevel(level), text.TrimEnd(s_newLineCharArray));
+            Output(ConvertLevel(level), text);
+        }
+
+        private void Output(MessageLevel level, string text)
+        {
+            m_console.WriteOutputLine(level, text.TrimEnd(s_newLineCharArray));
         }
 
         private void OutputUpdatable(EventLevel level, string standardText, string updatableText, bool onlyIfOverwriteIsSupported)

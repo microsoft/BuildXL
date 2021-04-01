@@ -5,3 +5,4 @@
 
 int ValidateResolvedPathCache();
 int ValidateResolvedPathPreservingLastSegmentCache();
+int ValidateResolvedPathCacheDealsWithUnicode();

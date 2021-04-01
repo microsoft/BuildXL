@@ -20,6 +20,7 @@
 #include "ResolvedPathCacheTests.h"
 
 // Used to test the in process ResolvedPathCache 
+// Path casing is intendedly changed throughout the test to make sure the cache deals with casing properly
 int ValidateResolvedPathCache() 
 {
     std::string content = "Some text";
@@ -49,7 +50,7 @@ int ValidateResolvedPathCache()
 
     // Read the created file through a symlink
     hFile = CreateFileW(
-        L"First_DirectorySymlink\\output.txt",
+        L"First_DirectorySymlink\\OUTPUT.txt",
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
         NULL,
@@ -73,7 +74,7 @@ int ValidateResolvedPathCache()
     CloseHandle(hFile);
 
     // Invalidate the resolved path cache
-    if (!RemoveDirectoryW(L"Second_DirectorySymlink"))
+    if (!RemoveDirectoryW(L"SECOND_DirectorySymlink"))
     {
         return (int)GetLastError();
     }
@@ -86,7 +87,7 @@ int ValidateResolvedPathCache()
 
     // Read the created file through a symlink again
     hFile = CreateFileW(
-        L"First_DirectorySymlink\\output.txt",
+        L"FIRST_DirectorySymlink\\output.txt",
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
         NULL,
@@ -150,5 +151,93 @@ int ValidateResolvedPathPreservingLastSegmentCache()
 
     CloseHandle(hFile);
 
+    return 0;
+}
+
+int ValidateResolvedPathCacheDealsWithUnicode()
+{
+    std::string content = "Some text";
+
+    // Create a file through a symlink
+    HANDLE hFile = CreateFileW(
+        L"First_DirectorySymlinkﬂ\\outputﬂ.txt",
+        GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    DWORD bytes_written;
+    if (!WriteFile(hFile, content.c_str(), (DWORD)content.size(), &bytes_written, nullptr))
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    // Read the created file through a symlink
+    hFile = CreateFileW(
+        L"FIRST_DirectorySymlinkﬂ\\OUTPUTﬂ.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    DWORD bytes_read = 0;
+    char buffer[1024];
+
+    if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    // Invalidate the resolved path cache
+    if (!RemoveDirectoryW(L"FIRST_DirectorySymlinkﬂ"))
+    {
+        return (int)GetLastError();
+    }
+
+    // Recreate the symbolic link chain
+    if (!TestCreateSymbolicLinkW(L"First_DirectorySymlinkﬂ", L"SourceDirectoryﬂ", SYMBOLIC_LINK_FLAG_DIRECTORY))
+    {
+        return (int)GetLastError();
+    }
+
+    // Read the created file through a symlink again
+    hFile = CreateFileW(
+        L"FIRST_DirectorySymlinkﬂ\\outputﬂ.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
     return 0;
 }

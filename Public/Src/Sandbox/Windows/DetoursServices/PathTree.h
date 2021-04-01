@@ -7,14 +7,14 @@
 
 #define EXPORT __declspec( dllexport )
 
-#include <unordered_map>
+#include <map>
 #include <stack>
 #include "UtilityHelpers.h"
 
 // A node in a PathTree
 struct TreeNode {
     // Edges to children, with the path atom that leads to it
-    std::unordered_map<std::wstring, TreeNode*, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer> children;
+    std::map<std::wstring, TreeNode*, CaseInsensitiveStringLessThan> children;
     // Whether the node is an intermediate node or it represents a path that was explicitly inserted
     bool intermediate;
 };

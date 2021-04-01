@@ -7034,6 +7034,81 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDetoursResolvedPathCacheDealsWithUnicode()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var targetDirectory = tempFiles.GetDirectory(pathTable, "SourceDirectoryﬂ");
+                var targetDirectoryArtifact = CreateDirectory(pathTable, targetDirectory);
+                var expandedDirectoryPath = targetDirectory.Expand(pathTable).ToString();
+
+                var firstDirectorySymlink = tempFiles.GetFileName(pathTable, "First_DirectorySymlinkﬂ");
+
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(firstDirectorySymlink.ToString(pathTable), expandedDirectoryPath, false));
+
+                var outputFile = tempFiles.GetFileName(pathTable, "SourceDirectoryﬂ\\outputﬂ.txt");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDetoursResolvedPathCacheDealsWithUnicode",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[] { FileArtifact.CreateSourceFile(firstDirectorySymlink) }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { targetDirectoryArtifact }),
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(firstDirectorySymlink), FileExistence.Required),
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(outputFile), FileExistence.Required)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var directlyReportedFileAccesses = new List<ReportedFileAccess>();
+                var accumulator = new AccessReportAccumulator(context, process.Executable, (ReportedFileAccess report) => directlyReportedFileAccesses.Add(report));
+                accumulator.SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false,
+                    detoursListener: accumulator);
+
+                VerifyNormalSuccess(context, result);
+
+                // Assert the initial write through the symbolic link happened and populated the resolved path cache and the subsequent read returned cached results
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    // Uncached initial ReparsePointTarget reports
+                    (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+                    (outputFile, RequestedAccess.Write, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTarget)),
+
+                    // ResolvedPathCache reports ReparsePointTargetCached reports
+                    (firstDirectorySymlink, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                    (outputFile, RequestedAccess.Read, FileAccessStatus.Allowed, new ReportedFileOperation?(ReportedFileOperation.ReparsePointTargetCached)),
+                });
+
+                // We use a Detours event listener to get every reported file access to avoid deduplication in the sandboxed process results, if we don't the same reports after
+                // invalidating the cache only show up once.
+                XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
+                // Assert we have four ReparsePointTarget reports, two before the cache got populated and two after the cache got invalidated
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count() == 4);
+                // Assert we have two ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
+                // does not need to happen again, as the cache is populated
+                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 2);
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public async Task CallDetoursResolvedPathPreservingLastSegmentCacheTests()
         {
             var context = BuildXLContext.CreateInstanceForTesting();

@@ -705,7 +705,7 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 /// <summary>
 /// Gets chains of the paths leading to and including the final path given the file name.
 /// </summary>
-static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& order, _Inout_ map<wstring, ResolvedPathType>& finalPaths)
+static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& order, _Inout_ map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>& finalPaths)
 {
     order.push_back(path.GetPathString());
     finalPaths.emplace(path.GetPathString(), ResolvedPathType::Intermediate);
@@ -1008,7 +1008,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     const wchar_t* input = (wchar_t*)path.GetPathStringWithoutTypePrefix();
 
     vector<wstring> order;
-    map<wstring, ResolvedPathType> resolvedPaths;
+    map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan> resolvedPaths;
 
     while (true)
     {
@@ -1043,7 +1043,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         {
             resolved += L"\\";
             resolved += next;
-
+            
             bool result = TryGetReparsePointTarget(resolved, INVALID_HANDLE_VALUE, target);
             bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
             if (result && !isFilteredPath)
@@ -1078,9 +1078,14 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
             target = L"";
         }
 
-        resolved += L"\\";
-        resolved += file_name.get();
-        resolved += extension.get();
+        // If the original path ends with a trailing slash, then file name and extension are both an empty string
+        // So make sure we don't append a trailing slash in that case
+        if (lstrlenW(file_name.get()) + lstrlenW(extension.get()) > 0)
+        {
+            resolved += L"\\";
+            resolved += file_name.get();
+            resolved += extension.get();
+        }
 
         if (reparsepoint_found)
         {
@@ -1227,7 +1232,7 @@ static bool EnforceChainOfReparsePointAccesses(
         if (IgnoreFullReparsePointResolving())
         {
             auto order = vector<wstring>();
-            auto paths = map<wstring, ResolvedPathType>();
+            auto paths = map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>();
 
             DetourGetFinalPaths(path, reparsePointHandle, order, paths);
             ResolvedPathCache::Instance().InsertResolvedPaths(

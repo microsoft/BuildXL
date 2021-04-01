@@ -1082,6 +1082,11 @@ int CallDetoursResolvedPathCacheTests()
     return ValidateResolvedPathCache();
 }
 
+int CallDetoursResolvedPathCacheDealsWithUnicode()
+{
+    return ValidateResolvedPathCacheDealsWithUnicode();
+}
+
 int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
 {
     return ValidateResolvedPathPreservingLastSegmentCache();
@@ -1149,6 +1154,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDeleteOnOpenedHardlink);
     IF_COMMAND(CallCreateSelfForWrite);
     IF_COMMAND(CallDetoursResolvedPathCacheTests);
+    IF_COMMAND(CallDetoursResolvedPathCacheDealsWithUnicode);
     IF_COMMAND(CallDetoursResolvedPathPreservingLastSegmentCacheTests);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlash);
 

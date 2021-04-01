@@ -16,8 +16,30 @@ enum class ResolvedPathType
     FullyResolved // Identifies the fully resolved path that does not contain any reparse point parts anymore
 };
 
-typedef std::pair<std::vector<std::wstring>, std::map<std::wstring, ResolvedPathType>> ResolvedPathCacheEntries;
+typedef std::pair<std::vector<std::wstring>, std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> ResolvedPathCacheEntries;
 
+static CaseInsensitiveStringLessThan caseInsensitiveLessThan = CaseInsensitiveStringLessThan();
+
+// Case insensitive comparer for the target cache to handle pairs (wstring, bool). Delegates the wstrings to
+// the CaseInsensitiveStringLessThan class.
+struct CaseInsensitiveTargetCacheLessThan : public std::binary_function<std::pair<std::wstring, bool>, std::pair<std::wstring, bool>, bool> {
+    bool operator()(const std::pair<std::wstring, bool>& lhs, const std::pair<std::wstring, bool>& rhs) const {
+        if (lhs.second != rhs.second)
+        { 
+            return lhs.second;
+        }
+        else
+        {
+            return caseInsensitiveLessThan.operator()(lhs.first, rhs.first);
+        }
+    }
+};
+
+// A note on how paths are stored in the cache: Paths coming from detoured functions may vary in casing and may or may not
+// have a trailing slash. Standard path canonicalization done as part of setting up the detours policy does not take care of these 
+// differences, but the resolved path cache should treat those as equivalent paths (e.g C:\foo, C:\FOO and C:\foo\ should be considered equivalent directories).
+// All cache related structures use a case insensitive comparer for paths. Observe this doesn't change any user-facing paths (i.e. 
+// paths reported or used for real accesses)
 class ResolvedPathCache {
 public:
     inline bool InsertResolvingCheckResult(const std::wstring& path, bool result)
@@ -29,7 +51,7 @@ public:
         {
             return false;
         }
-
+        
         return m_resolverCache.emplace(normalizedPath, result).second;
     }
 
@@ -42,7 +64,7 @@ public:
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
         const std::wstring normalizedPath = Normalize(path);
-        if (!m_pathTree.TryInsert(Normalize(normalizedPath)))
+        if (!m_pathTree.TryInsert(normalizedPath))
         {
             return false;
         }
@@ -55,13 +77,13 @@ public:
         return Find(m_targetCache, Normalize(path));
     }
 
-    inline bool InsertResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath, std::vector<std::wstring>&& insertion_order, std::map<std::wstring, ResolvedPathType>&& resolved_paths)
+    inline bool InsertResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath, std::vector<std::wstring>&& insertion_order, std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>&& resolved_paths)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
 
         const std::wstring normalizedPath = Normalize(path);
 
-        if (!m_pathTree.TryInsert(Normalize(normalizedPath)))
+        if (!m_pathTree.TryInsert(normalizedPath))
         {
             return false;
         }
@@ -87,7 +109,7 @@ public:
         
         const std::wstring normalizedPath = Normalize(path);
 
-        InvalidateThisPath(Normalize(normalizedPath));
+        InvalidateThisPath(normalizedPath);
 
         // Invalidate all its descendants
         std::vector<std::wstring> descendants;
@@ -131,8 +153,8 @@ public:
     }
 
 private:
-    template<typename K, typename V>
-    const V* Find(const std::map<K, V>& map, const K& path)
+    template<typename K, typename V, typename C>
+    const V* Find(const std::map<K, V, C>& map, const K& path)
     {
         ResolvedPathCacheReadLock r_lock(m_lock);
 
@@ -161,14 +183,14 @@ private:
     ResolvedPathCacheLock m_lock;
 
     // A mapping used to cache if base paths need to be resolved (no entry) or have previously been fully resolved
-    std::map<std::wstring, bool> m_resolverCache;
+    std::map<std::wstring, bool, CaseInsensitiveStringLessThan> m_resolverCache;
 
     // A mapping used to cache DeviceControl calls when querying targets of reparse points, used to avoid unnecessary I/O
-    std::map<std::wstring, std::pair<std::wstring, DWORD>> m_targetCache;
+    std::map<std::wstring, std::pair<std::wstring, DWORD>, CaseInsensitiveStringLessThan> m_targetCache;
 
     // A mapping used to cache all intermediate paths and the final fully resolved path (value) of an unresolved base 
     // path where its last segment has to be resolved or not(key)
-    std::map<std::pair<std::wstring, bool>, ResolvedPathCacheEntries> m_paths;
+    std::map<std::pair<std::wstring, bool>, ResolvedPathCacheEntries, CaseInsensitiveTargetCacheLessThan> m_paths;
 
     // All the paths the cache is aware of
     PathTree m_pathTree;

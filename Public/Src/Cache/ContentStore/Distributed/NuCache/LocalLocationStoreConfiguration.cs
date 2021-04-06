@@ -446,6 +446,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Optional settings for validating CAS consistency used by DistributedCentralStorage.
         /// </summary>
         public SelfCheckSettings? SelfCheckSettings { get; set; }
+
+        /// <summary>
+        /// Whether to proactively copy checkpoint files to another machine.
+        /// </summary>
+        public bool ProactiveCopyCheckpointFiles { get; set; } = false;
+
+        /// <summary>
+        /// Whether to inline proactive copies done for checkpoint files or to do them asynchronously.
+        /// </summary>
+        public bool InlineCheckpointProactiveCopies { get; set; } = false;
     }
 
     /// <summary>

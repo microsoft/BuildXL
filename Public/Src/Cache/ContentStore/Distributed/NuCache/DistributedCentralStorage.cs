@@ -12,11 +12,13 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -159,6 +161,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Add the file to CAS and register with global content location store.
             var putResult = await PutAndRegisterFileAsync(context, file, hash: null);
 
+            if (putResult.Succeeded && _configuration.ProactiveCopyCheckpointFiles)
+            {
+                var hashWithSize = new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
+                var pushResult = await PushCheckpointFileAsync(context, hashWithSize)
+                    .FireAndForgetOrInlineAsync(context, _configuration.InlineCheckpointProactiveCopies);
+
+                if (!pushResult.Succeeded)
+                {
+                    return new Result<string>(pushResult);
+                }
+            }
+
             string fallbackStorageId = await _fallbackStorage.UploadFileAsync(
                 context,
                 file,
@@ -166,6 +180,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 garbageCollect).ThrowIfFailureAsync();
 
             return CreateCompositeStorageId(putResult.ContentHash, fallbackStorageId);
+        }
+
+        /// <summary>
+        /// TODO: try to refactor this to use the same logic as ReadOnlyDistributedContentSession.
+        /// </summary>
+        private Task<PushFileResult> PushCheckpointFileAsync(OperationContext context, ContentHashWithSize hashWithSize)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var destinationMachineResult = _locationStore.ClusterState.GetRandomMachineLocation(Array.Empty<MachineLocation>());
+                if (!destinationMachineResult.Succeeded)
+                {
+                    return new PushFileResult(destinationMachineResult, "Failed to get a location to proactively copy the checkpoint file.");
+                }
+
+                var destionationMachine = destinationMachineResult.Value;
+
+                var streamResult = await _privateCas.OpenStreamAsync(context, hashWithSize.Hash, pinRequest: null);
+                if (!streamResult.Succeeded)
+                {
+                    return new PushFileResult(streamResult, "Should have been able to open the stream from the local CAS");
+                }
+
+                using var stream = streamResult.Stream!;
+                return await _copier.PushFileAsync(
+                    context,
+                    hashWithSize,
+                    destionationMachine,
+                    stream,
+                    isInsideRing: false,
+                    CopyReason.ProactiveCheckpointCopy,
+                    ProactiveCopyLocationSource.Random,
+                    attempt: 0);
+            },
+            extraStartMessage: $"Hash=[{hashWithSize.Hash.ToShortString()}]",
+            extraEndMessage: _ => $"Hash=[{hashWithSize.Hash.ToShortString()}]");
         }
 
         private async Task<Result<ContentHashWithSize>> TryGetAndPutFileAsync(OperationContext context, string storageId, AbsolutePath targetFilePath, bool isImmutable)

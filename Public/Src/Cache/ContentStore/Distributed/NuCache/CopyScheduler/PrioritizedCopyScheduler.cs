@@ -514,6 +514,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 case CopyReason.OpenStream:
                 case CopyReason.Place:
                 case CopyReason.Pin:
+                case CopyReason.ProactiveCheckpointCopy:
                     return false;
                 default:
                     throw new NotImplementedException($"Attempt to compute immediate rejection for a request with type `{request.GetType()}` and reason `{request.Reason}` is unhandled");

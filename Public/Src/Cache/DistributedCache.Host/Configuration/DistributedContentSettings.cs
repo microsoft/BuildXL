@@ -629,6 +629,12 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
         public double? DistributedCentralStoragePeerToPeerCopyTimeoutSeconds { get; set; } = null;
 
+        [DataMember]
+        public bool ProactiveCopyCheckpointFiles { get; set; } = false;
+
+        [DataMember]
+        public bool InlineCheckpointProactiveCopies { get; set; } = false;
+
         #endregion
 
         [DataMember]

@@ -617,7 +617,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                     MaxRetentionGb = _distributedSettings.MaxCentralStorageRetentionGb,
                     PropagationDelay = TimeSpan.FromSeconds(_distributedSettings.CentralStoragePropagationDelaySeconds),
                     PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
-                    MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies
+                    MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies,
+                    ProactiveCopyCheckpointFiles = _distributedSettings.ProactiveCopyCheckpointFiles,
+                    InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies
                 };
 
                 if (_distributedSettings.UseSelfCheckSettingsForDistributedCentralStorage)

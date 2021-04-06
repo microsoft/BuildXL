@@ -35,5 +35,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         /// <nodoc />
         Pin,
+
+        /// <nodoc />
+        ProactiveCheckpointCopy,
     }
 }

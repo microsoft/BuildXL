@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// <summary>
     /// Represents a result of pushing a file.
     /// </summary>
-    public sealed class PushFileResult : ResultBase, ICopyResult
+    public sealed class PushFileResult : BoolResult, ICopyResult
     {
         /// <nodoc />
         public CopyResultCode Status { get; }

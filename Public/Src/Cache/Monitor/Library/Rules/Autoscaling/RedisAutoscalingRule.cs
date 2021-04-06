@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Analysis;
 using BuildXL.Cache.Monitor.Library.Rules;
 using BuildXL.Cache.Monitor.Library.Rules.Autoscaling;
 
@@ -116,7 +117,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 try
                 {
                     await EmitIcmAsync(
-                        severity: 2,
+                        severity: _configuration.Environment.IsProduction() ? 2 : 3,
                         title: $"Redis instances {primary.Name} and {secondary.Name} are in a failed state",
                         description: "Both instances fell into a failed state, permanently blocking autoscaling for their corresponding stamp. Please monitor it and open a Sev 2 IcM against the Windows Azure Cache team (https://aka.ms/redisicm) for support if needed.",
                         machines: null,
@@ -205,8 +206,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
                 // Force downscales to happen during very comfortable business hours in PST, to ensure we're always
                 // available if things go wrong. We disregard holidays because it's a pain to handle them.
-                var nowPst = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_configuration.Clock.UtcNow, "Pacific Standard Time");
-                if (!IsAutoscaleTimeAllowed(nowPst))
+                if (!TimeConstraints.BusinessHours.SatisfiedPST(_configuration.Clock.UtcNow))
                 {
                     Emit(context, "Autoscale", Severity.Info, $"Refused autoscale from `{currentClusterSize}` to `{targetClusterSize}` via scale path `{currentClusterSize} -> {string.Join(" -> ", modelOutput.ScalePath)}` for instance `{redisInstance.Name}` due to business hours constraints");
                     return false;
@@ -240,21 +240,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             {
                 Emit(context, "Autoscale", Severity.Error, $"Autoscale attempt from `{currentClusterSize}` to `{targetClusterSize}` for instance `{redisInstance.Name}` failed. Result=[{scaleResult}]");
                 scaleResult.ThrowIfFailure();
-            }
-
-            return true;
-        }
-
-        private static bool IsAutoscaleTimeAllowed(DateTime nowPst)
-        {
-            if (nowPst.DayOfWeek == DayOfWeek.Saturday || nowPst.DayOfWeek == DayOfWeek.Sunday)
-            {
-                return false;
-            }
-
-            if (nowPst.Hour < 10 || nowPst.Hour > 16)
-            {
-                return false;
             }
 
             return true;

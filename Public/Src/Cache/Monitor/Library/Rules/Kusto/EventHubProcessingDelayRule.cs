@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Scheduling;
+using BuildXL.Cache.Monitor.Library.Analysis;
 using BuildXL.Cache.Monitor.Library.Rules;
 using Kusto.Data.Common;
 using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
@@ -30,6 +31,13 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             {
                 Warning = TimeSpan.FromMinutes(30),
                 Error = TimeSpan.FromHours(1),
+            };
+
+            public IcmThresholds<double> EventProcessingDelayIcmThresholdsInHours = new IcmThresholds<double>()
+            {
+                Sev4 = 0.5,
+                Sev3 = 1,
+                Sev2 = 3,
             };
         }
 
@@ -83,10 +91,9 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 | order by PreciseTimeStamp desc";
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, eventHubProcessingDelayHelper);
+            await GroupByStampAndCallHelperAsync<Result>(results, result => result.Stamp, eventHubProcessingDelayHelper);
 
-            // TODO (minlam): replace async void with returning a Task
-            async void eventHubProcessingDelayHelper(string stamp, List<Result> results)
+            async Task eventHubProcessingDelayHelper(string stamp, List<Result> results)
             {
                 if (results.Count == 0)
                 {
@@ -124,6 +131,17 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                             $"No events processed for at least `{_configuration.LookbackPeriod}`",
                             stamp,
                             eventTimeUtc: now);
+
+                        await EmitIcmAsync(
+                            severity: _configuration.Environment.IsProduction() ? 2 : 3,
+                            title: $"{stamp}: master event processing issues",
+                            stamp,
+                            machines: null,
+                            correlationIds: null,
+                            description: $"No events processed for at least `{_configuration.LookbackPeriod}`",
+                            eventTimeUtc: now,
+                            cacheTimeToLive: _configuration.LookbackPeriod);
+
                         return;
                     }
 
@@ -136,6 +154,16 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                                 $"Master hasn't processed any events in the last `{_configuration.LookbackPeriod}`, but has `{result.OutstandingBatches.Value}` batches pending.",
                                 stamp,
                                 eventTimeUtc: now);
+
+                            await EmitIcmAsync(
+                                severity: _configuration.Environment.IsProduction() ? 2 : 3,
+                                title: $"{stamp}: master event processing issues",
+                                stamp,
+                                machines: null,
+                                correlationIds: null,
+                                description: $"Master hasn't processed any events in the last `{_configuration.LookbackPeriod}`, but has `{result.OutstandingBatches.Value}` batches pending.",
+                                eventTimeUtc: now,
+                                cacheTimeToLive: _configuration.LookbackPeriod);
                         }
                     }
 
@@ -149,6 +177,31 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                         $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is `{results[0].Machine}`",
                         stamp,
                         eventTimeUtc: results[0].PreciseTimeStamp);
+                });
+
+                await _configuration.EventProcessingDelayIcmThresholdsInHours.CheckAsync(delay.TotalHours, (severity, threshold) =>
+                {
+                    if (severity >= 2)
+                    {
+                        if (!_configuration.Environment.IsProduction())
+                        {
+                            severity = 3;
+                        }
+                        else if (!TimeConstraints.BusinessHours.SatisfiedPST(utcNow: _configuration.Clock.UtcNow))
+                        {
+                            severity = 3;
+                        }
+                    }
+
+                    return EmitIcmAsync(
+                        severity,
+                        title: $"{stamp}: master event processing issues",
+                        stamp,
+                        machines: new[] { results[0].Machine },
+                        correlationIds: null,
+                        description: $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is `{results[0].Machine}`",
+                        eventTimeUtc: now,
+                        cacheTimeToLive: _configuration.LookbackPeriod);
                 });
             }
         }

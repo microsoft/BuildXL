@@ -20,7 +20,15 @@ namespace BuildXL.Cache.Monitor.App
             MonitorEnvironment.CloudBuildContinuousIntegration => "ci",
             MonitorEnvironment.CloudBuildProduction => "prod",
             MonitorEnvironment.CloudBuildTest => "test",
-            _ => throw new NotImplementedException($"Environment `{environment}` does not have an abbreviation"),
+            _ => throw new NotImplementedException($"Environment `{environment}` is not handled"),
+        };
+
+        public static bool IsProduction(this MonitorEnvironment environment) => environment switch
+        {
+            MonitorEnvironment.CloudBuildProduction => true,
+            MonitorEnvironment.CloudBuildTest => false,
+            MonitorEnvironment.CloudBuildContinuousIntegration => false,
+            _ => throw new NotImplementedException($"Environment `{environment}` is not handled"),
         };
     }
 }

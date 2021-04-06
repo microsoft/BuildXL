@@ -9,6 +9,10 @@
 #include <string.h>
 #endif
 
+#if _WIN32
+#include "pathcch.h"
+#endif
+
 #define _MAX_EXTENDED_DIR_LENGTH (_MAX_EXTENDED_PATH_LENGTH - _MAX_DRIVE - _MAX_FNAME - _MAX_EXT - 4)
 #define _MAX_EXTENDED_PATH_LENGTH 32768 // see https://docs.microsoft.com/en-us/cpp/c-runtime-library/path-field-limits?view=vs-2019
 
@@ -480,21 +484,35 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
     return 0;
 }
 
-std::wstring CombineAsPath(std::wstring path, std::wstring suffix)
+HRESULT PathCombine(PCPathChar const fragment1, PCPathChar const fragment2, PathChar* buffer, size_t bufferSize)
 {
-    std::wstring appendedPath;
+    return PathCchCombineEx(
+        buffer,
+        bufferSize,
+        fragment1,
+        fragment2,
+        PATHCCH_ALLOW_LONG_PATHS | PATHCCH_DO_NOT_NORMALIZE_SEGMENTS);
+}
 
-    // Some file APIs will return STATUS_OBJECT_NAME_INVALID if there are two consecutive backslashes
-    if (!path.empty() && path.back() == '\\')
+std::wstring TryPathCombine(PCPathChar const fragment1, PCPathChar const fragment2, HRESULT& result)
+{
+    size_t f1Length = wcslen(fragment1);
+    size_t f2Length = wcslen(fragment2);
+
+    // For paths not exceeding MAX_PATH, avoid heap allocation.
+
+    if (f1Length + f2Length + 2 < MAX_PATH)
     {
-        appendedPath = path + suffix;
+        PathChar buffer[MAX_PATH + 1];
+        result = PathCombine(fragment1, fragment2, buffer, MAX_PATH + 1);
+        return result == S_OK ? std::wstring(buffer) : std::wstring(L"");
     }
     else
     {
-        appendedPath = path + L"\\" + suffix;
+        auto buffer = std::make_unique<PathChar[]>(PATHCCH_MAX_CCH + 1);
+        result = PathCombine(fragment1, fragment2, buffer.get(), PATHCCH_MAX_CCH + 1);
+        return result == S_OK ? std::wstring(buffer.get()) : std::wstring(L"");
     }
-
-    return appendedPath;
 }
 
 #endif // _WIN32

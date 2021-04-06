@@ -3,6 +3,6 @@
 
 #pragma once
 
-int ValidateResolvedPathCache();
-int ValidateResolvedPathPreservingLastSegmentCache();
-int ValidateResolvedPathCacheDealsWithUnicode();
+int CallDetoursResolvedPathCacheTests();
+int CallDetoursResolvedPathPreservingLastSegmentCacheTests();
+int CallDetoursResolvedPathCacheDealsWithUnicode();

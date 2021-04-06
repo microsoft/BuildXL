@@ -250,8 +250,7 @@ size_t GetRootLength(PCPathChar path);
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);
 
-// CombineAsPath
-//
-// Combines a path with a suffix separated by a backslash
-std::wstring CombineAsPath(std::wstring path, std::wstring suffix);
+// Combines two path fragments into a single path separated by a directory separator.
+// The caller should check if <see paramref="result"/> is S_OK before using the returned string.
+std::wstring TryPathCombine(PCPathChar const fragment1, PCPathChar const fragment2, HRESULT& result);
 #endif

@@ -21,7 +21,7 @@
 
 // Used to test the in process ResolvedPathCache 
 // Path casing is intendedly changed throughout the test to make sure the cache deals with casing properly
-int ValidateResolvedPathCache() 
+int CallDetoursResolvedPathCacheTests()
 {
     std::string content = "Some text";
 
@@ -111,7 +111,7 @@ int ValidateResolvedPathCache()
 
 // Tests the resolved path cache works as expected when the same path has to be resolved with and without preserving
 // its last reparse point segment
-int ValidateResolvedPathPreservingLastSegmentCache()
+int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
 {
     // GetFileAttributes preserves the last reparse point
     GetFileAttributes(L"Directory\\FileSymlink");
@@ -154,7 +154,7 @@ int ValidateResolvedPathPreservingLastSegmentCache()
     return 0;
 }
 
-int ValidateResolvedPathCacheDealsWithUnicode()
+int CallDetoursResolvedPathCacheDealsWithUnicode()
 {
     std::string content = "Some text";
 

@@ -1077,21 +1077,6 @@ int CallCreateSelfForWrite()
     return (int)GetLastError();
 }
 
-int CallDetoursResolvedPathCacheTests()
-{
-    return ValidateResolvedPathCache();
-}
-
-int CallDetoursResolvedPathCacheDealsWithUnicode()
-{
-    return ValidateResolvedPathCacheDealsWithUnicode();
-}
-
-int CallDetoursResolvedPathPreservingLastSegmentCacheTests()
-{
-    return ValidateResolvedPathPreservingLastSegmentCache();
-}
-
 int CallMoveFileExWWithTrailingBackSlash()
 {
     std::wstring fullPath;
@@ -1153,9 +1138,6 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDeleteWithoutSharing);
     IF_COMMAND(CallDeleteOnOpenedHardlink);
     IF_COMMAND(CallCreateSelfForWrite);
-    IF_COMMAND(CallDetoursResolvedPathCacheTests);
-    IF_COMMAND(CallDetoursResolvedPathCacheDealsWithUnicode);
-    IF_COMMAND(CallDetoursResolvedPathPreservingLastSegmentCacheTests);
     IF_COMMAND(CallMoveFileExWWithTrailingBackSlash);
 
 #undef IF_COMMAND1
@@ -1198,6 +1180,22 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallProbeDirectorySymlinkTargetWithoutReparsePointFlag);
     IF_COMMAND(CallValidateFileSymlinkAccesses);
     
+#undef IF_COMMAND1
+#undef IF_COMMAND2
+#undef IF_COMMAND
+}
+
+static void ResolvedPathCacheTests(const string& verb)
+{
+#define IF_COMMAND1(NAME)   { if (verb == #NAME) { exit(NAME()); } }
+#define IF_COMMAND2(NAME)   { if (verb == ("2" ## #NAME)) { NAME(); NAME(); exit(ERROR_SUCCESS); } }
+
+#define IF_COMMAND(NAME)    { IF_COMMAND1(NAME); IF_COMMAND2(NAME); }
+
+    IF_COMMAND(CallDetoursResolvedPathCacheTests);
+    IF_COMMAND(CallDetoursResolvedPathCacheDealsWithUnicode);
+    IF_COMMAND(CallDetoursResolvedPathPreservingLastSegmentCacheTests);
+
 #undef IF_COMMAND1
 #undef IF_COMMAND2
 #undef IF_COMMAND
@@ -1310,6 +1308,7 @@ int main(int argc, char **argv)
 
     LoggingTests(verb);
     SymlinkTests(verb);
+    ResolvedPathCacheTests(verb);
     CorrelationCallTests(verb);
     GenericTests(verb);
 

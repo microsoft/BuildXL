@@ -21,6 +21,6 @@ namespace BuildXL.Launcher.Server.Controllers
     {
         // NOTE: Attribute is purely to inform what route attribute should be on controller method
         [Route("content")]
-        Task<ActionResult> GetContentAsync(Guid contextId, string hash, string accessToken);
+        Task<ActionResult> GetContentAsync(string contextId, string hash, string accessToken);
     }
 }

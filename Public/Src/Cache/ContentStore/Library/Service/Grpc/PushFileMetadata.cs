@@ -18,10 +18,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public ContentHash Hash { get; }
 
         /// <nodoc />
-        public Guid TraceId { get; }
+        public string TraceId { get; }
 
         /// <nodoc />
-        public PushRequest(ContentHash hash, Guid traceId)
+        public PushRequest(ContentHash hash, string traceId)
         {
             Hash = hash;
             TraceId = traceId;
@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             byte[]? hashBytes = null;
             var hashType = HashType.Unknown;
-            Guid traceId = default;
+            string? traceId = default;
 
             foreach (var header in metadata)
             {
@@ -40,14 +40,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     case "hash-bin": hashBytes = header.ValueBytes; break;
                     case "hash_type": Enum.TryParse(header.Value, out hashType); break;
-                    case "trace_id": traceId = new Guid(header.Value); break;
+                    case "trace_id": traceId = header.Value; break;
                 }
             }
 
             Contract.Check(hashBytes != null)?.Assert($"Can not create PushRequest instance from metadata because 'hash-bin' key is missing. Known keys: {string.Join(", ", metadata.Select(k => k.Key))}");
             var hash = new ContentHash(hashType, hashBytes);
 
-            return new PushRequest(hash, traceId);
+            return new PushRequest(hash, traceId ?? Guid.NewGuid().ToString());
         }
 
         /// <nodoc />
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 { "hash-bin", Hash.ToHashByteArray() }, // -bin suffix required to send bytes directly
                 { "hash_type", Hash.HashType.ToString() },
-                { "trace_id", TraceId.ToString() }
+                { "trace_id", TraceId }
             };
         }
     }

@@ -88,12 +88,12 @@ namespace BuildXL.Cache.Roxis.Server
                 // TODO: operation context via HTTP headers
                 // TODO: resource handling here.
 
-                Guid operationId = _context.TracingContext.Id;
+                string operationId = _context.TracingContext.TraceId;
                 foreach (var header in callContext.RequestHeaders)
                 {
                     if (header.Key.Equals("X-Cache-Operation-Id", StringComparison.OrdinalIgnoreCase))
                     {
-                        Guid.TryParse(header.Value, out operationId);
+                        operationId = header.Value;
                         break;
                     }
                 }

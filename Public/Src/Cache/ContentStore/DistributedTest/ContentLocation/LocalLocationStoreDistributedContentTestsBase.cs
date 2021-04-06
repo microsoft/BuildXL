@@ -53,7 +53,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool _poolSecondaryRedisDatabase = true;
         protected bool _registerAdditionalLocationPerMachine = false;
 
-        protected readonly ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase> _localDatabases = new ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase>();
+        protected readonly ConcurrentDictionary<(string, int), LocalRedisProcessDatabase> _localDatabases = new();
 
         protected Func<AbsolutePath, int, RedisContentLocationStoreConfiguration> CreateContentLocationStoreConfiguration { get; set; }
         protected LocalRedisProcessDatabase PrimaryGlobalStoreDatabase { get; private set; }
@@ -98,10 +98,10 @@ namespace ContentStoreTest.Distributed.Sessions
 
             index++;
 
-            if (!_localDatabases.TryGetValue((context.Id, index), out var localDatabase))
+            if (!_localDatabases.TryGetValue((context.TraceId, index), out var localDatabase))
             {
                 localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-                _localDatabases.TryAdd((context.Id, index), localDatabase);
+                _localDatabases.TryAdd((context.TraceId, index), localDatabase);
             }
 
             return localDatabase;

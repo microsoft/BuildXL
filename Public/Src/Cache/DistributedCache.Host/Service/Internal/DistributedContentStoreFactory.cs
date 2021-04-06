@@ -479,6 +479,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             ApplyIfNotNull(settings.UseAsynchronousFileStreamOptionByDefault, v => FileSystemDefaults.UseAsynchronousFileStreamOptionByDefault = v);
 
+            ApplyIfNotNull(settings.UseHierarchicalTraceIds, v => Context.UseHierarchicalIds = v);
+
             return result;
         }
 

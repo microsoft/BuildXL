@@ -110,7 +110,7 @@ namespace BuildXL.Launcher.Server
         {
             static string escape(string value) => Uri.EscapeDataString(value);
 
-            return $"{baseAddress.TrimEnd('/')}/content?contextId={escape(context.Id.ToString())}&hash={escape(hash)}&accessToken={escape(accessToken)}";
+            return $"{baseAddress.TrimEnd('/')}/content?contextId={escape(context.TraceId)}&hash={escape(hash)}&accessToken={escape(accessToken)}";
         }
 
         public Task<Stream> GetContentAsync(OperationContext context, string hash, string accessToken)

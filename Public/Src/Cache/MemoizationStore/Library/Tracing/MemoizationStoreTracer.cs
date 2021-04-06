@@ -123,7 +123,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.StartupStart(context.Id.ToString());
+                _eventSource.StartupStart(context.TraceId);
             }
 
             base.StartupStart(context);
@@ -133,7 +133,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.StartupStop(context.Id.ToString(), result.Succeeded, result.ErrorMessage);
+                _eventSource.StartupStop(context.TraceId, result.Succeeded, result.ErrorMessage);
             }
 
             base.StartupStop(context, result);
@@ -143,7 +143,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.ShutdownStart(context.Id.ToString());
+                _eventSource.ShutdownStart(context.TraceId);
             }
 
             base.ShutdownStart(context);
@@ -153,7 +153,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.ShutdownStop(context.Id.ToString(), result.Succeeded, result.ErrorMessage);
+                _eventSource.ShutdownStop(context.TraceId, result.Succeeded, result.ErrorMessage);
             }
 
             base.ShutdownStop(context, result);
@@ -185,7 +185,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.GetSelectorsStart(context.Id.ToString(), fingerprint.ToHex());
+                _eventSource.GetSelectorsStart(context.TraceId, fingerprint.ToHex());
             }
 
             _getSelectorsCallCounter.Started();
@@ -204,7 +204,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.GetSelectorsStop(context.Id.ToString());
+                _eventSource.GetSelectorsStop(context.TraceId);
             }
 
             _getSelectorsCallCounter.Completed(duration.Ticks);
@@ -224,7 +224,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 var weakHash = fingerprint.WeakFingerprint.ToString();
                 var contentHash = fingerprint.Selector.ContentHash.ToString();
                 var outputBytes = fingerprint.Selector.Output?.Length ?? 0;
-                _eventSource.GetContentHashListStart(context.Id.ToString(), weakHash, contentHash, outputBytes);
+                _eventSource.GetContentHashListStart(context.TraceId, weakHash, contentHash, outputBytes);
             }
 
             _getContentHashListCallCounter.Started();
@@ -234,7 +234,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.GetContentHashListStop(context.Id.ToString(), result.Succeeded, result.ErrorMessage);
+                _eventSource.GetContentHashListStop(context.TraceId, result.Succeeded, result.ErrorMessage);
             }
 
             _getContentHashListCallCounter.Completed(result.Duration.Ticks);
@@ -268,7 +268,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 var weakHash = fingerprint.WeakFingerprint.ToString();
                 var contentHash = fingerprint.Selector.ContentHash.ToString();
                 var outputBytes = fingerprint.Selector.Output?.Length ?? 0;
-                _eventSource.AddOrGetContentHashListStart(context.Id.ToString(), weakHash, contentHash, outputBytes);
+                _eventSource.AddOrGetContentHashListStart(context.TraceId, weakHash, contentHash, outputBytes);
             }
 
             _addOrGetContentHashListCallCounter.Started();
@@ -278,7 +278,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.AddOrGetContentHashListStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
+                _eventSource.AddOrGetContentHashListStop(context.TraceId, (int)result.Code, result.ErrorMessage);
             }
 
             _addOrGetContentHashListCallCounter.Completed(result.Duration.Ticks);
@@ -309,7 +309,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.IncorporateStrongFingerprintsStart(context.Id.ToString());
+                _eventSource.IncorporateStrongFingerprintsStart(context.TraceId);
             }
 
             _incorporateStrongFingerprintsCallCounter.Started();
@@ -324,7 +324,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.IncorporateStrongFingerprintsStop(context.Id.ToString(), result.Succeeded, result.ErrorMessage);
+                _eventSource.IncorporateStrongFingerprintsStop(context.TraceId, result.Succeeded, result.ErrorMessage);
             }
 
             _incorporateStrongFingerprintsCallCounter.Completed(result.Duration.Ticks);
@@ -339,7 +339,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.TouchStart(context.Id.ToString(), count);
+                _eventSource.TouchStart(context.TraceId, count);
             }
         }
 
@@ -347,7 +347,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.TouchStop(context.Id.ToString());
+                _eventSource.TouchStop(context.TraceId);
             }
 
             if (!context.IsEnabled)
@@ -362,7 +362,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PurgeStart(context.Id.ToString(), count);
+                _eventSource.PurgeStart(context.TraceId, count);
             }
         }
 
@@ -370,7 +370,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PurgeStop(context.Id.ToString());
+                _eventSource.PurgeStop(context.TraceId);
             }
 
             if (!context.IsEnabled)
@@ -393,7 +393,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (eventSourceEnabled)
             {
-                _eventSource.Message(context.Id.ToString(), (int)severity, message);
+                _eventSource.Message(context.TraceId, (int)severity, message);
             }
 
             if (contextEnabled)

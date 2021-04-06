@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
@@ -16,9 +17,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
     public class Context
     {
         /// <summary>
-        ///     Cached string representation of <see cref="Id"/> property for performance reasons
+        /// If true, then the nested contexts will use tree-like hierarchical ids, like parent_Id.1 parent_id.2 etc.
         /// </summary>
+        public static bool UseHierarchicalIds = false;
+
+        private int _currentChildId;
+        
         private readonly string _idAsString;
+        private const int MaxIdLength = 100;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
@@ -27,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         ///     Caller's logger to be invoked as processing occurs.
         /// </param>
         public Context(ILogger logger)
-            : this(Guid.NewGuid(), logger)
+            : this(Guid.NewGuid().ToString(), logger)
         {
         }
 
@@ -36,7 +42,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public Context(Guid id, ILogger logger)
         {
-            Id = id;
             Logger = logger;
             _idAsString = id.ToString();
         }
@@ -44,24 +49,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, string componentName = null, [CallerMemberName]string? caller = null)
-            : this(other, Guid.NewGuid(), componentName, caller)
+        public Context(string id, ILogger logger)
         {
+            Logger = logger;
+            _idAsString = id;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, Guid id, [CallerMemberName]string? caller = null)
-            : this(id, other.Logger)
+        public Context(Context other, string? componentName = null, [CallerMemberName]string? caller = null)
+            : this(other, CreateNestedId(other), componentName, caller)
         {
-            Debug($"{caller}: {other._idAsString} parent to {_idAsString}", operation: caller, component: nameof(Context));
         }
-
+        
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, Guid id, string componentName, [CallerMemberName]string? caller = null)
+        public Context(Context other, string id, string? componentName, [CallerMemberName]string? caller = null)
             : this(id, other.Logger)
         {
             string prefix = caller!;
@@ -70,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 prefix = string.Concat(componentName, ".", prefix);
             }
 
-            Debug($"{prefix}: {other._idAsString} parent to {_idAsString}", component: componentName, operation: caller);
+            Debug($"{prefix}: {other._idAsString} parent to {_idAsString}", component: componentName ?? string.Empty, operation: caller);
         }
 
         /// <nodoc />
@@ -80,15 +85,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <nodoc />
-        public Context CreateNested(Guid id, string componentName, [CallerMemberName]string? caller = null)
+        public Context CreateNested(string id, string componentName, [CallerMemberName]string? caller = null)
         {
             return new Context(this, id, componentName, caller);
+        }
+
+        private static string CreateNestedId(Context other)
+        {
+            var traceId = other.TraceId;
+            if (traceId.Length >= MaxIdLength || !UseHierarchicalIds)
+            {
+                // A safeguard to avoid indefinite growth of the id.
+                // Or hierarchical ids are disabled.
+                return Guid.NewGuid().ToString();
+            }
+            
+            return string.Concat(traceId, ".", Interlocked.Increment(ref other._currentChildId).ToString());
         }
 
         /// <summary>
         ///     Gets the unique Id.
         /// </summary>
-        public Guid Id { get; }
+        public string TraceId => _idAsString;
 
         /// <summary>
         ///     Gets the associated tracing logger.

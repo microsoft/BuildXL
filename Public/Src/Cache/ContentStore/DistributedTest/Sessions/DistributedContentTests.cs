@@ -119,7 +119,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                         TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                     }
-
                 }
             }
 
@@ -130,7 +129,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 idBytes[0] = (byte)index;
                 idBytes[5] = (byte)iteration;
 
-                return new Context(Context, new Guid(idBytes));
+                var nestedContextId = $"{Context.TraceId}.Idx_{index}.Iteration_{iteration}";
+                return new Context(Context, nestedContextId, componentName: _tracer.Name);
             }
 
             public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)

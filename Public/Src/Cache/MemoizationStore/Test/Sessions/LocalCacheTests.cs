@@ -177,7 +177,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var context = new Context(Logger);
             return RunTestAsync(context, async cache =>
              {
-                 var createSessionResult = cache.CreateSession(context, context.Id.ToString(), ImplicitPin.None);
+                 var createSessionResult = cache.CreateSession(context, context.TraceId, ImplicitPin.None);
                  createSessionResult.ShouldBeSuccess();
 
                  using (ICacheSession session = createSessionResult.Session)

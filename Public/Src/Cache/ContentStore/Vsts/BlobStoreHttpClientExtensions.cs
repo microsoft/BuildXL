@@ -104,7 +104,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 },
                 cancellationToken: cts,
                 continueOnCapturedContext: false,
-                context: context.Id.ToString());
+                context: context.TraceId);
         }
     }
 }

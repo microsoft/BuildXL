@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<CreateSessionResponse> CreateSessionAsync(CreateSessionRequest request, CancellationToken token)
         {
-            var cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var cacheContext = new Context(request.TraceId, Logger);
             var sessionCreationResult = await ContentSessionHandler.CreateSessionAsync(
                 new OperationContext(cacheContext, token),
                 request.SessionName,
@@ -211,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<ShutdownResponse> ShutdownSessionAsync(ShutdownRequest request, CancellationToken token)
         {
-            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
+            var cacheContext = new Context(request.Header.TraceId, Logger);
             await ContentSessionHandler.ReleaseSessionAsync(new OperationContext(cacheContext, token), request.Header.SessionId);
             return new ShutdownResponse();
         }
@@ -230,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public async Task<GetStatsResponse> GetStatsAsync(GetStatsRequest request, CancellationToken token)
         {
-            var cacheContext = new Context(Guid.NewGuid(), Logger);
+            var cacheContext = new Context(Logger);
             var counters = await ContentSessionHandler.GetStatsAsync(new OperationContext(cacheContext, token));
             if (!counters)
             {
@@ -251,7 +251,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             CancellationToken token)
         {
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var cacheContext = new Context(request.TraceId, Logger);
             using var shutdownTracker = TrackShutdown(cacheContext, token);
 
             var removeFromTrackerResult = await ContentSessionHandler.RemoveFromTrackerAsync(shutdownTracker.Context);
@@ -328,7 +328,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private async Task HandleCopyRequestAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
         {
-            var cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var cacheContext = new Context(request.TraceId, Logger);
             var operationContext = new OperationContext(cacheContext);
 
             var result = await operationContext
@@ -926,7 +926,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             bool trace = traceStartAndStop ?? TraceGrpcOperations;
 
-            var tracingContext = new Context(Guid.Parse(header.TraceId), Logger);
+            var tracingContext = new Context(header.TraceId, Logger);
             using var shutdownTracker = TrackShutdown(tracingContext, token);
 
             var context = new RequestContext(startTime: DateTime.UtcNow, shutdownTracker.Context);

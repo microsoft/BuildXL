@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
         {
-            RemoveFromTrackerResponse response = await RunClientActionAndThrowIfFailedAsync(context, async () => await _client.RemoveFromTrackerAsync(new RemoveFromTrackerRequest { TraceId = context.Id.ToString() }));
+            RemoveFromTrackerResponse response = await RunClientActionAndThrowIfFailedAsync(context, async () => await _client.RemoveFromTrackerAsync(new RemoveFromTrackerRequest { TraceId = context.TraceId }));
 
             if (response.Header.Succeeded)
             {

@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.StartupStart(context.Id.ToString());
+                _eventSource.StartupStart(context.TraceId);
             }
 
             base.StartupStart(context);
@@ -166,7 +166,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.StartupStop(context.Id.ToString(), result.Succeeded, result.ErrorMessage);
+                _eventSource.StartupStop(context.TraceId, result.Succeeded, result.ErrorMessage);
             }
 
             base.StartupStop(context, result);
@@ -176,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.ShutdownStart(context.Id.ToString());
+                _eventSource.ShutdownStart(context.TraceId);
             }
 
             base.ShutdownStart(context);
@@ -186,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.ShutdownStop(context.Id.ToString(), result.Succeeded, result.ErrorMessage);
+                _eventSource.ShutdownStop(context.TraceId, result.Succeeded, result.ErrorMessage);
             }
 
             base.ShutdownStop(context, result);
@@ -216,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.OpenStreamStart(context.Id.ToString(), contentHash.ToString());
+                _eventSource.OpenStreamStart(context.TraceId, contentHash.ToString());
             }
 
             base.OpenStreamStart(context, contentHash);
@@ -226,7 +226,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.OpenStreamStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
+                _eventSource.OpenStreamStop(context.TraceId, (int)result.Code, result.ErrorMessage);
             }
 
             base.OpenStreamStop(context, contentHash, result, successSeverity: DiagnosticLevelSeverity(result.Duration));
@@ -236,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PinStart(context.Id.ToString(), contentHash.ToString());
+                _eventSource.PinStart(context.TraceId, contentHash.ToString());
             }
 
             PinStart(context);
@@ -246,7 +246,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PinStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
+                _eventSource.PinStop(context.TraceId, (int)result.Code, result.ErrorMessage);
             }
 
             // Unlike PlaceFile, PutFile and OpenStream
@@ -266,7 +266,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             if (_eventSource.IsEnabled())
             {
                 _eventSource.PlaceFileStart(
-                    context.Id.ToString(), contentHash.ToString(), path.Path, (int)accessMode, (int)replacementMode, (int)realizationMode);
+                    context.TraceId, contentHash.ToString(), path.Path, (int)accessMode, (int)replacementMode, (int)realizationMode);
             }
 
             base.PlaceFileStart(context, contentHash, path, accessMode, replacementMode, realizationMode);
@@ -276,7 +276,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PlaceFileStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
+                _eventSource.PlaceFileStop(context.TraceId, (int)result.Code, result.ErrorMessage);
             }
 
             base.PlaceFileStop(context, contentHash, result, path, accessMode, replacementMode, realizationMode, successSeverity: DiagnosticLevelSeverity(result.Duration));
@@ -286,7 +286,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PutFileStart(context.Id.ToString(), path.Path, (int)mode, hashType.ToString());
+                _eventSource.PutFileStart(context.TraceId, path.Path, (int)mode, hashType.ToString());
             }
 
             base.PutFileStart(context, path, mode, hashType, trusted);
@@ -296,7 +296,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PutFileStart(context.Id.ToString(), path.Path, (int)mode, contentHash.ToString());
+                _eventSource.PutFileStart(context.TraceId, path.Path, (int)mode, contentHash.ToString());
             }
 
             base.PutFileStart(context, path, mode, contentHash, trusted);
@@ -307,7 +307,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             if (_eventSource.IsEnabled())
             {
                 _eventSource.PutFileStop(
-                    context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
+                    context.TraceId, result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
             base.PutFileStop(context, result, trusted, path, mode, successSeverity: DiagnosticLevelSeverity(result.Duration));
@@ -317,7 +317,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PutStreamStart(context.Id.ToString(), hashType.ToString());
+                _eventSource.PutStreamStart(context.TraceId, hashType.ToString());
             }
 
             base.PutStreamStart(context, hashType);
@@ -327,7 +327,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PutStreamStart(context.Id.ToString(), contentHash.ToString());
+                _eventSource.PutStreamStart(context.TraceId, contentHash.ToString());
             }
 
             base.PutStreamStart(context, contentHash);
@@ -338,7 +338,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             if (_eventSource.IsEnabled())
             {
                 _eventSource.PutStreamStop(
-                    context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
+                    context.TraceId, result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
             base.PutStreamStop(context, result, DiagnosticLevelSeverity(result.Duration));
@@ -355,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.CreateHardLink(context.Id.ToString(), (int)result, source.Path, destination.Path, (int)mode, replace);
+                _eventSource.CreateHardLink(context.TraceId, (int)result, source.Path, destination.Path, (int)mode, replace);
             }
 
             _createHardLinkCallCounter.Completed(duration.Ticks);
@@ -373,7 +373,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (_eventSource.IsEnabled())
             {
-                _eventSource.PlaceFileCopy(context.Id.ToString(), path.Path, contentHash.ToString());
+                _eventSource.PlaceFileCopy(context.TraceId, path.Path, contentHash.ToString());
             }
 
             _placeFileCopyCallCounter.Completed(duration.Ticks);
@@ -628,7 +628,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             if (eventSourceEnabled)
             {
-                _eventSource.Message(context.Id.ToString(), (int)severity, message);
+                _eventSource.Message(context.TraceId, (int)severity, message);
             }
 
             if (contextEnabled)

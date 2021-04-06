@@ -347,7 +347,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                 CacheName = cacheName,
                                 SessionName = name,
                                 ImplicitPin = (int)implicitPin,
-                                TraceId = context.Id.ToString(),
+                                TraceId = context.TraceId,
                                 Capabilities = (int)_clientCapabilities
                             });
             CreateSessionResponse response = await SendGrpcRequestAsync(context, func);
@@ -636,7 +636,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             /// <nodoc />
-            public RequestHeader CreateHeader() => new RequestHeader(TracingContext.Id, SessionId);
+            public RequestHeader CreateHeader() => new RequestHeader(TracingContext.TraceId, SessionId);
         }
 
     }

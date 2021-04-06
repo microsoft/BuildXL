@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// operations. We also use Component and Operation, but those fields may not be available in all logs we have
         /// to look at. This guarantees we always have a deterministic way to search in such cases.
         /// </summary>
-        private static readonly Guid GrpcGuid = Guid.Parse("62447f16-eea2-411c-af0d-c5a2e6661da3");
+        private static readonly string GrpcOperationId = "62447f16-eea2-411c-af0d-c5a2e6661da3";
 
         /// <nodoc />
         public const string LocalHost = "localhost";
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public static void Initialize(ILogger? logger = null, GrpcEnvironmentOptions? options = null, bool overwriteSafeOptions = false)
         {
-            var tracingContext = new Context(GrpcGuid, logger ?? NullLogger.Instance);
+            var tracingContext = new Context(GrpcOperationId, logger ?? NullLogger.Instance);
             var context = new OperationContext(tracingContext);
             options ??= new GrpcEnvironmentOptions();
 

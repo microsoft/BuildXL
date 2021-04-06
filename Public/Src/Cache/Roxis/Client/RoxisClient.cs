@@ -64,7 +64,7 @@ namespace BuildXL.Cache.Roxis.Client
                     .WithCancellationToken(context.Token)
                     .WithHeaders(new Metadata() {
                         { "X-Cache-Client-Version", "0.0" },
-                        { "X-Cache-Operation-Id", context.TracingContext.Id.ToString() },
+                        { "X-Cache-Operation-Id", context.TracingContext.TraceId },
                     });
 
                 Contract.AssertNotNull(_client);

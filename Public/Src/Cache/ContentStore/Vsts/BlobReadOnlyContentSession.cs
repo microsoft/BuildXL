@@ -493,7 +493,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 },
                 cancellationToken: context.Token,
                 continueOnCapturedContext: false,
-                context: context.TracingContext.Id.ToString());
+                context: context.TracingContext.TraceId);
         }
 
 #if PLATFORM_WIN

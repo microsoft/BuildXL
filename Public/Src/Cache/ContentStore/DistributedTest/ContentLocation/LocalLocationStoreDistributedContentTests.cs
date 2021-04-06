@@ -1240,16 +1240,25 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task TestReconciliation()
         {
-            // A small (normal) reconciliation that must be done in one cycle.
-            ConfigureReconciliation(
-                reconciliationMaxCycleSize: 100_000,
-                reconciliationMaxRemoveHashesCycleSize: null,
-                reconciliationCycleFrequencyMinutes: 30,
-                reconciliationMaxRemoveHashesAddPercentage: null
+            try
+            {
+                Context.UseHierarchicalIds = true;
+                
+                // A small (normal) reconciliation that must be done in one cycle.
+                ConfigureReconciliation(
+                    reconciliationMaxCycleSize: 100_000,
+                    reconciliationMaxRemoveHashesCycleSize: null,
+                    reconciliationCycleFrequencyMinutes: 30,
+                    reconciliationMaxRemoveHashesAddPercentage: null
                 );
 
-            var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 10);
-            cycles.Should().Be(1);
+                var cycles = await ReconcileAndGetNumberOfReconciliationCycles(removeCount: 100, addCount: 10);
+                cycles.Should().Be(1);
+            }
+            finally
+            {
+                Context.UseHierarchicalIds = false;
+            }
         }
 
         [Fact]

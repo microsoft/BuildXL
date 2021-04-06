@@ -51,9 +51,16 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public OperationContext CreateNested(Guid id, string componentName, [CallerMemberName]string? caller = null)
+        public OperationContext CreateNested(string id, string componentName, [CallerMemberName]string? caller = null)
         {
             return new OperationContext(new Context(TracingContext, id, componentName, caller), Token);
+        }
+
+        /// <nodoc />
+        public OperationContext CreateNested(CancellationToken linkedCancellationToken, [CallerMemberName] string? caller = null)
+        {
+            var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
+            return new OperationContext(new Context(TracingContext, caller!), token);
         }
 
         /// <summary>
@@ -64,12 +71,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             return new CancellableOperationContext(this, linkedCancellationToken);
         }
 
-        /// <nodoc />
-        public OperationContext CreateNested(CancellationToken linkedCancellationToken, [CallerMemberName]string? caller = null)
-        {
-            var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
-            return new OperationContext(new Context(TracingContext, caller!), token);
-        }
 
         /// <nodoc />
         public async Task<T> WithTimeoutAsync<T>(Func<OperationContext, Task<T>> func, TimeSpan timeout, Func<T>? getTimeoutResult = null)

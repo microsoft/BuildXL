@@ -212,7 +212,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 CopyFileRequest request = new CopyFileRequest()
                                           {
-                                              TraceId = context.TracingContext.Id.ToString(),
+                                              TraceId = context.TracingContext.TraceId.ToString(),
                                               HashType = (int)hash.HashType,
                                               ContentHash = hash.ToByteString(),
                                               Offset = 0,
@@ -390,7 +390,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 var request = new RequestCopyFileRequest
                 {
-                    TraceId = context.TracingContext.Id.ToString(),
+                    TraceId = context.TracingContext.TraceId.ToString(),
                     ContentHash = hash.ToByteString(),
                     HashType = (int)hash.HashType
                 };
@@ -421,7 +421,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 var startingPosition = stream.Position;
 
-                var pushRequest = new PushRequest(hash, traceId: context.TracingContext.Id);
+                var pushRequest = new PushRequest(hash, traceId: context.TracingContext.TraceId);
                 var headers = pushRequest.GetMetadata();
 
                 using var call = _client.PushFile(options: GetDefaultGrpcOptions(headers, token));

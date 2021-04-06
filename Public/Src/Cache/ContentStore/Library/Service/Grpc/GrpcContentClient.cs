@@ -174,7 +174,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             int sessionId = sessionContext.Value.SessionId;
 
             var pinResults = new List<Indexed<PinResult>>();
-            var bulkPinRequest = new PinBulkRequest { Header = new RequestHeader(context.Id, sessionId) };
+            var bulkPinRequest = new PinBulkRequest { Header = new RequestHeader(context.TraceId, sessionId) };
             foreach (var contentHash in chunk)
             {
                 bulkPinRequest.Hashes.Add(
@@ -413,7 +413,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 DeleteContentRequest request = new DeleteContentRequest()
                 {
-                    TraceId = context.TracingContext.Id.ToString(),
+                    TraceId = context.TracingContext.TraceId.ToString(),
                     HashType = (int)hash.HashType,
                     ContentHash = hash.ToByteString(),
                     DeleteLocalOnly = deleteLocalOnly

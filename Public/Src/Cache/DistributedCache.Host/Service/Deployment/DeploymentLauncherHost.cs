@@ -92,7 +92,7 @@ namespace BuildXL.Cache.Host.Service
             {
                 static string escape(string value) => Uri.EscapeDataString(value);
 
-                return $"{baseAddress}/getproxyaddress?contextId={escape(context.TracingContext.Id.ToString())}&accessToken={escape(accessToken)}";
+                return $"{baseAddress}/getproxyaddress?contextId={escape(context.TracingContext.TraceId)}&accessToken={escape(accessToken)}";
             }
 
             private async Task<string> PostJsonAsync<TBody>(OperationContext context, string url, TBody body)

@@ -281,7 +281,7 @@ namespace BuildXL.Cache.Host.Service
             return context.PerformOperationAsync(Tracer, async () =>
             {
                 // Set the trace id
-                Settings.DeploymentParameters.ContextId = context.TracingContext.Id;
+                Settings.DeploymentParameters.ContextId = context.TracingContext.TraceId;
 
                 // Query for launcher manifest from remote service
                 var manifest = await client.GetLaunchManifestAsync(context, Settings);

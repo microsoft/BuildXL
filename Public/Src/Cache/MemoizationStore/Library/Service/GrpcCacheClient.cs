@@ -93,7 +93,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             {
                 var request = new GetSelectorsRequest()
                 {
-                    Header = new RequestHeader(context.TracingContext.Id, sessionContext.SessionId),
+                    Header = new RequestHeader(context.TracingContext.TraceId, sessionContext.SessionId),
                     WeakFingerprint = FromGrpc(weakFingerprint),
                     Level = level,
                 };
@@ -119,7 +119,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 {
                     var request = new IncorporateStrongFingerprintsRequest()
                     {
-                        Header = new RequestHeader(context.TracingContext.Id, sessionContext.SessionId),
+                        Header = new RequestHeader(context.TracingContext.TraceId, sessionContext.SessionId),
                     };
 
                     request.StrongFingerprints.AddRange(sfBatch.Select(sf => sf.ToGrpc()));

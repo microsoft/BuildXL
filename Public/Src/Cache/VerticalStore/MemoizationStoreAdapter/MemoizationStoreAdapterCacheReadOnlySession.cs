@@ -259,7 +259,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <inheritdoc />
         public async Task<Possible<CacheSessionStatistics[], Failure>> GetStatisticsAsync(Guid activityId)
         {
-            var cacheStats = await Cache.GetStatsAsync(new Context(activityId, Logger)).ConfigureAwait(false);
+            var cacheStats = await Cache.GetStatsAsync(new Context(activityId.ToString(), Logger)).ConfigureAwait(false);
             if (!cacheStats.Succeeded)
             {
                 return new Possible<CacheSessionStatistics[], Failure>(new CacheFailure(cacheStats.ErrorMessage));

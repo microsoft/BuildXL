@@ -135,7 +135,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
 
             DateTime startTime = DateTime.UtcNow;
             
-            using var shutdownTracker = TrackShutdown(new OperationContext(new Context(new Guid(request.Header.TraceId), Logger), token), token);
+            using var shutdownTracker = TrackShutdown(new OperationContext(new Context(request.Header.TraceId, Logger), token), token);
             var tracingContext = shutdownTracker.Context;
             
             var sessionId = request.Header.SessionId;

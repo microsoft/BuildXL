@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using Test.BuildXL.TestUtilities;
 using Xunit.Abstractions;
 
 namespace ContentStoreTest.Test
@@ -38,6 +38,7 @@ namespace ContentStoreTest.Test
         protected TestBase(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, ITestOutputHelper output = null)
             : this(logger, new Lazy<IAbsFileSystem>(createFileSystemFunc), output)
         {
+            Context.UseHierarchicalIds = true;
         }
 
         protected TestBase(ILogger logger, Lazy<IAbsFileSystem> fileSystem, ITestOutputHelper output = null)

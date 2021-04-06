@@ -168,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 eventDatas = SerializeEventData(context, events);
             }
 
-            var operationId = context.TracingContext.Id;
+            var operationId = context.TracingContext.TraceId;
 
             for (var eventNumber = 0; eventNumber < eventDatas.Count; eventNumber++)
             {
@@ -396,12 +396,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private static OperationContext CreateNestedContext(OperationContext context, string? operationId, [CallerMemberName]string? caller = null)
         {
-            if (!Guid.TryParse(operationId, out var guid))
-            {
-                guid = Guid.NewGuid();
-            }
-
-            return context.CreateNested(guid, nameof(EventHubContentLocationEventStore), caller);
+            operationId ??= Guid.NewGuid().ToString();
+            
+            return context.CreateNested(operationId, nameof(EventHubContentLocationEventStore), caller);
         }
 
         /// <inheritdoc />

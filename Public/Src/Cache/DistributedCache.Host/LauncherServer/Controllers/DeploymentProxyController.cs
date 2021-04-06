@@ -28,7 +28,7 @@ namespace BuildXL.Launcher.Server.Controllers
 
         [HttpGet]
         [Route("content")]
-        public async Task<ActionResult> GetContentAsync(Guid contextId, string hash, string accessToken)
+        public async Task<ActionResult> GetContentAsync(string contextId, string hash, string accessToken)
         {
             OperationContext context = new OperationContext(new Context(contextId, _logger));
 

@@ -890,6 +890,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? SilentOperationDurationThreshold { get; set; }
 
         [DataMember]
+        public bool? UseHierarchicalTraceIds { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? DefaultPendingOperationTracingIntervalInMinutes { get; set; }
 

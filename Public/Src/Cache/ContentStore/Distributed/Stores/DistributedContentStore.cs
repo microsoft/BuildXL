@@ -128,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private Task<Result<ReadOnlyDistributedContentSession>> CreateCopySession(Context context)
         {
-            var sessionId = Guid.NewGuid();
+            var sessionId = Guid.NewGuid().ToString();
 
             var operationContext = OperationContext(context.CreateNested(sessionId, nameof(DistributedContentStore)));
             return operationContext.PerformOperationAsync(_tracer,

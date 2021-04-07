@@ -115,7 +115,7 @@ namespace BuildXL.Native.IO
         /// Use care when using this option, because files created with this flag may not be accessible by applications that are
         /// written for MS-DOS or 16-bit Windows.
         /// </summary>
-        FileFlagPosixSemantics = 0x0100000,
+        FileFlagPosixSemantics = 0x01000000,
 
         /// <summary>
         /// Access is intended to be random. The system can use this as a hint to optimize file caching.
@@ -148,6 +148,9 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// This is actually <c>SECURITY_SQOS_PRESENT</c> which makes <c>CreateFile</c> respect SQQS flags; those flags are ignored unless this is specified.
         /// But <c>SECURITY_ANONYMOUS</c> is zero; so think of this as those two flags together (much easier to use correctly).
+        ///
+        /// Please also note that SECURITY_SQOS_PRESENT is the same value as FILE_FLAG_OPEN_NO_RECALL.
+        /// See the comment here for example: https://github.com/rust-lang/rust/blob/master/library/std/src/sys/windows/ext/fs.rs
         /// </remarks>
         SecurityAnonymous = 0x00100000,
     }

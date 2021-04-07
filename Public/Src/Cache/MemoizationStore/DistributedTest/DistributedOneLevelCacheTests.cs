@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using ContentStoreTest.Distributed.Redis;
@@ -152,7 +153,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                        false,
                        RandomContentByteCount,
                        Token).ShouldBeSuccess();
-                   contentHashList = new ContentHashList(new[] {putResult.ContentHash});
+                   contentHashList = new ContentHashList(new[] { putResult.ContentHash });
                    await workerCache0.AddOrGetContentHashListAsync(
                        context,
                        sf,
@@ -175,6 +176,79 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                    getTouchedFingerprintLastAccessTime(masterStore).Should().Be(TestClock.UtcNow);
                    getTouchedFingerprintLastAccessTime(workerStore1).Should().Be(TestClock.UtcNow);
                });
+        }
+
+        [Fact]
+        public Task RespectPreferSharedWithSinglePhaseNonDeterminism()
+        {
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.TouchContentHashLists = true;
+            });
+
+            return RunTestAsync(
+                3,
+                async context =>
+                {
+                    var sf = StrongFingerprint.Random();
+
+                    var workerCaches = context.EnumerateWorkersIndices().Select(i => context.CacheSessions[i]).ToArray();
+                    var workerCache0 = workerCaches[0];
+
+                    var workerStores = context.EnumerateWorkersIndices().Select(i => context.GetLocalLocationStore(i)).ToArray();
+                    var workerStore0 = workerStores[0];
+                    var masterStore = context.GetLocalLocationStore(context.GetMasterIndex());
+
+                    var putResult = await workerCache0.PutRandomAsync(
+                        context,
+                        ContentHashType,
+                        false,
+                        RandomContentByteCount,
+                        Token).ShouldBeSuccess();
+                    var contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+
+                    var addResult = await workerCache0.AddOrGetContentHashListAsync(
+                        context,
+                        sf,
+                        new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.SinglePhaseNonDeterministic),
+                        Token).ShouldBeSuccess();
+                    addResult.ContentHashListWithDeterminism.ContentHashList.Should().BeNull();
+                    
+                    TestClock.UtcNow += TimeSpan.FromDays(1);
+
+                    // Restore (update) db on worker 1
+                    await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
+                    await workerStore0.HeartbeatAsync(context, inline: true, forceRestore: true).ShouldBeSuccess();
+
+                    // Making sure that we can get the content hash list
+                    var contentHashListResult = await workerCache0.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
+                    contentHashListResult.Source.Should().Be(ContentHashListSource.Local);
+                    contentHashListResult.ContentHashListWithDeterminism.ContentHashList.Should().Be(contentHashList);
+
+                    // Replace entry
+                    putResult = await workerCache0.PutRandomAsync(
+                        context,
+                        ContentHashType,
+                        false,
+                        RandomContentByteCount,
+                        Token).ShouldBeSuccess();
+                    var newContentHashList = new ContentHashList(new[] { putResult.ContentHash });
+                    var updateResult = await workerCache0.AddOrGetContentHashListAsync(
+                        context,
+                        sf,
+                        new ContentHashListWithDeterminism(newContentHashList, CacheDeterminism.SinglePhaseNonDeterministic),
+                        Token).ShouldBeSuccess();
+
+                    updateResult.ContentHashListWithDeterminism.ContentHashList.Should().BeNull("The update result should return a previous content hash list.");
+
+                    var localContentHashListResult = await workerCache0.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
+                    localContentHashListResult.Source.Should().Be(ContentHashListSource.Local);
+                    localContentHashListResult.ContentHashListWithDeterminism.ContentHashList.Should().Be(contentHashList); // should be the old content hash list
+
+                    var sharedContentHashListResult = await workerCache0.GetContentHashListAsync(context, sf, Token, UrgencyHint.PreferShared).ShouldBeSuccess();
+                    sharedContentHashListResult.ContentHashListWithDeterminism.ContentHashList.Should().Be(newContentHashList); // Should get a new content hash list from the global store.
+                    sharedContentHashListResult.Source.Should().Be(ContentHashListSource.Shared);
+                });
         }
 
         protected Task RunTestAsync(

@@ -210,10 +210,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if result is not successful.
         /// </summary>
-        public static async Task ThrowIfFailureAsync<TResult>(this Task<TResult> task) where TResult : ResultBase
+        public static async Task<TResult> ThrowIfFailureAsync<TResult>(this Task<TResult> task) where TResult : ResultBase
         {
             var result = await task;
             result.ThrowIfFailure();
+
+            return result;
         }
 
         /// <summary>

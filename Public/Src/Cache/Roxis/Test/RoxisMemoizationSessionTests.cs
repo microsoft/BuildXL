@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
@@ -47,6 +48,42 @@ namespace BuildXL.Cache.Roxis.Test
             };
 
             return new RoxisDatabase(databaseConfiguration, _clock);
+        }
+
+
+
+        [Fact]
+        public Task PreferSharedUrgencyHintIsRespected()
+        {
+            var context = new Context(Logger);
+            var weakFingerprint = Fingerprint.Random();
+            var selector1 = Selector.Random();
+            var selector2 = Selector.Random();
+            var strongFingerprint1 = new StrongFingerprint(weakFingerprint, selector1);
+            var strongFingerprint2 = new StrongFingerprint(weakFingerprint, selector2);
+            var contentHashListWithDeterminism1 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+            var contentHashListWithDeterminism2 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
+            return RunTestAsync(context, async session =>
+                                         {
+                                             await session.AddOrGetContentHashListAsync(context, strongFingerprint1, contentHashListWithDeterminism1, Token).ShouldBeSuccess();
+                                             _clock.Increment();
+                                             await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
+                                             _clock.Increment();
+
+                                             var contentHashList = session.GetContentHashListAsync(context, strongFingerprint1, Token, UrgencyHint.PreferShared);
+
+                                             List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync(CancellationToken.None);
+                                             Assert.Equal(2, getSelectorResults.Count);
+
+                                             GetSelectorResult r1 = getSelectorResults[0];
+                                             Assert.True(r1.Succeeded);
+                                             Assert.True(r1.Selector == selector2);
+
+                                             GetSelectorResult r2 = getSelectorResults[1];
+                                             Assert.True(r2.Succeeded);
+                                             Assert.True(r2.Selector == selector1);
+                                         });
         }
 
         [Fact]

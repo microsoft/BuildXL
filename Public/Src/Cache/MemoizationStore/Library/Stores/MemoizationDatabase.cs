@@ -64,18 +64,30 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         /// Load a ContentHashList and the token used to replace it.
         /// </summary>
-        public Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        public Task<ContentHashListResult> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 nestedContext => GetContentHashListCoreAsync(nestedContext, strongFingerprint, preferShared),
                 extraStartMessage: $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}]",
-                extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}] Result=[{result.GetValueOrDefault().contentHashListInfo.ToTraceString()}] Token=[{result.GetValueOrDefault().replacementToken}]",
+                extraEndMessage: result => getStringResult(result),
                 timeout: _timeout);
+
+            string getStringResult(ContentHashListResult result)
+            {
+                var resultString = $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}] Result=[{result.GetValueOrDefault().contentHashListInfo.ToTraceString()}] Token=[{result.GetValueOrDefault().replacementToken}]";
+
+                if (result.Source != ContentHashListSource.Unknown)
+                {
+                    resultString += $", Source=[{result.Source}]";
+                }
+                
+                return resultString;
+            }
         }
 
         /// <nodoc />
-        protected abstract Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared);
+        protected abstract Task<ContentHashListResult> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared);
 
         /// <summary>
         /// Enumerates all strong fingerprints

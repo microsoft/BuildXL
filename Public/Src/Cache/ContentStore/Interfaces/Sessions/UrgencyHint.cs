@@ -37,6 +37,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         /// <summary>
         ///     Absolute maximum urgency - there is nothing above this
         /// </summary>
-        Maximum = int.MaxValue
+        Maximum = int.MaxValue,
+
+        /// <summary>
+        ///     A hint that the cache should prefer shared datastore instead of using a local one.
+        ///     Used only by memoization stores.
+        /// </summary>
+        PreferShared = Maximum,
     }
 }

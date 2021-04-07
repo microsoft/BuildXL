@@ -52,12 +52,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        protected override Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        protected override Task<ContentHashListResult> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var contentHashListResult = Database.GetContentHashList(context, strongFingerprint);
             return contentHashListResult.Succeeded
-                ? Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>((contentHashListResult.ContentHashListWithDeterminism, string.Empty)))
-                : Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>(contentHashListResult));
+                ? Task.FromResult(new ContentHashListResult(contentHashListResult.ContentHashListWithDeterminism, string.Empty))
+                : Task.FromResult(new ContentHashListResult(contentHashListResult));
         }
 
         /// <inheritdoc />

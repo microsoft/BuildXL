@@ -19,6 +19,8 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Stores
 {
     /// <summary>
@@ -53,16 +55,6 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             _tracer = new MemoizationStoreTracer(database.Name);
             Database = database;
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
-        /// </summary>
-        protected DatabaseMemoizationStore(ILogger logger, string name)
-        {
-            Contract.RequiresNotNull(logger);
-
-            _tracer = new MemoizationStoreTracer(name);
         }
 
         /// <inheritdoc />
@@ -116,23 +108,23 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable(() => Database.EnumerateStrongFingerprintsAsync(ctx));
         }
 
-        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
+        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, bool preferShared = false)
         {
-            var ctx = new OperationContext(context, cts);
+            var ctx = new OperationContext(context, token);
             return ctx.PerformOperationAsync(_tracer, async () =>
             {
-                var result = await Database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: false);
+                var result = await Database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: preferShared);
                 return result.Succeeded
-                    ? new GetContentHashListResult(result.Value.contentHashListInfo)
-                    : new GetContentHashListResult(result);
+                    ? new GetContentHashListResult(result.Value.contentHashListInfo, result.Source)
+                    : new GetContentHashListResult(result, result.Source);
             },
             extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}]",
             traceOperationStarted: false);
         }
 
-        internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken cts)
+        internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken token)
         {
-            var ctx = new OperationContext(context, cts);
+            var ctx = new OperationContext(context, token);
 
             return ctx.PerformOperationAsync(_tracer, async () =>
             {
@@ -147,7 +139,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     var determinism = contentHashListWithDeterminism.Determinism;
 
                     // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                    var (oldContentHashListInfo, replacementToken) = await Database.GetContentHashListAsync(
+                    var (oldContentHashListInfo, replacementToken, _) = await Database.GetContentHashListAsync(
                         ctx,
                         strongFingerprint,
                         // Prefer shared result because conflicts are resolved at shared level
@@ -181,12 +173,13 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                             continue;
                         }
 
+                        // Returning null as the content hash list to indicate that the new value was accepted.
                         return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism));
                     }
 
                     // If we didn't accept the new value because it is the same as before, just with a not
                     // necessarily better determinism, then let the user know.
-                    if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
+                    if (oldContentHashList.Equals(contentHashList))
                     {
                         return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism));
                     }

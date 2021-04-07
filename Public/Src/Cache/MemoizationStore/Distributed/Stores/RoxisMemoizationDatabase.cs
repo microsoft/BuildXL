@@ -142,7 +142,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         private DateTime? ComputeDefaultTTL(DateTime now) => _configuration.DefaultTimeToLive == null ? null : now + _configuration.DefaultTimeToLive;
 
         /// <inheritdoc />
-        protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        protected override async Task<ContentHashListResult> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var strongFingerprintKey = Serialize(strongFingerprint);
             var replacementTokenKey = GetReplacementTokenKey(strongFingerprintKey);
@@ -162,29 +162,30 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             var serverResponse = await _client.ExecuteAsync(context, request);
             if (!serverResponse)
             {
-                return new Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>(serverResponse);
+                return new ContentHashListResult(serverResponse);
             }
 
             var response = serverResponse.Value!;
             var getKeyResult = response.Results[0] as GetResult;
-            Contract.AssertNotNull(getKeyResult);
+            Contract.Assert(getKeyResult != null);
 
             var getReplacementTokenResult = response.Results[1] as GetResult;
-            Contract.AssertNotNull(getReplacementTokenResult);
+            Contract.Assert(getReplacementTokenResult != null);
 
             var replacementToken = getReplacementTokenResult.Value?.ToString() ?? DefaultReplacementToken;
+            
             if (getKeyResult.Value == null)
             {
-                return new Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>((
-                        contentHashListInfo: new ContentHashListWithDeterminism(null, CacheDeterminism.None),
+                return new ContentHashListResult(
+                        new ContentHashListWithDeterminism(null, CacheDeterminism.None),
                         replacementToken
-                    ));
+                    );
             }
 
-            return new Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>((
-                    contentHashListInfo: DeserializeContentHashListWithDeterminism(getKeyResult.Value),
+            return new ContentHashListResult(
+                    DeserializeContentHashListWithDeterminism(getKeyResult.Value),
                     replacementToken
-                ));
+                );
         }
 
         /// <inheritdoc />
@@ -248,6 +249,5 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return _serializationPool.Deserialize(data, r => ContentHashListWithDeterminism.Deserialize(r));
         }
         #endregion
-
     }
 }

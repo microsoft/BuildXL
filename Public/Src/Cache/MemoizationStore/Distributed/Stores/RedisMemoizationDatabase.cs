@@ -137,7 +137,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(
+        protected override async Task<ContentHashListResult> GetContentHashListCoreAsync(
             OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
             if (metadata == null)
             {
-                return new Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>((default, string.Empty));
+                return new ContentHashListResult(contentHashListInfo: default, string.Empty);
             }
 
             // Update the time, only if no one else has changed it in the mean time. We don't
@@ -205,7 +205,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 metadata.Value.ContentHashListWithDeterminism,
                 replacementToken).IgnoreFailure();
 
-            return new Result<(ContentHashListWithDeterminism, string)>((metadata.Value.ContentHashListWithDeterminism, replacementToken));
+            return new ContentHashListResult(metadata.Value.ContentHashListWithDeterminism, replacementToken);
         }
 
         /// <inheritdoc />

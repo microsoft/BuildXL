@@ -9,6 +9,27 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
 {
     /// <summary>
+    /// A source of content hash list.
+    /// </summary>
+    public enum ContentHashListSource
+    {
+        /// <summary>
+        /// The source is unknown.
+        /// </summary>
+        Unknown,
+        
+        /// <summary>
+        /// A content hash list was obtained from a shared source (i.e. redis).
+        /// </summary>
+        Shared,
+
+        /// <summary>
+        /// A content hash list was obtained from a local database.
+        /// </summary>
+        Local,
+    }
+    
+    /// <summary>
     ///     Result of the Get call
     /// </summary>
     public class GetContentHashListResult : BoolResult, IEquatable<GetContentHashListResult>
@@ -16,8 +37,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="GetContentHashListResult"/> class.
         /// </summary>
-        public GetContentHashListResult(ContentHashListWithDeterminism contentHashListWithDeterminism)
+        public GetContentHashListResult(ContentHashListWithDeterminism contentHashListWithDeterminism, ContentHashListSource source = ContentHashListSource.Unknown)
         {
+            Source = source;
             ContentHashListWithDeterminism = contentHashListWithDeterminism;
         }
 
@@ -50,6 +72,15 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         }
 
         /// <summary>
+        ///     Initializes a new instance of the <see cref="GetContentHashListResult"/> class.
+        /// </summary>
+        public GetContentHashListResult(ResultBase other, ContentHashListSource source)
+            : base(other, message: null)
+        {
+            Source = source;
+        }
+
+        /// <summary>
         ///     Gets the resulting stored value.
         /// </summary>
         /// <remarks>
@@ -57,6 +88,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         ///     Also contains the determinism guarantee, if any, associated with the value.
         /// </remarks>
         public readonly ContentHashListWithDeterminism ContentHashListWithDeterminism;
+
+        /// <summary>
+        ///     Gets the source of the result.
+        /// </summary>
+        public readonly ContentHashListSource Source;
 
         /// <summary>
         ///     Indicates whether the current object is equal to another object of the same type.
@@ -94,7 +130,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
             }
 
             var hitOrMiss = ContentHashListWithDeterminism.ContentHashList != null ? "hit" : "miss";
-            return $"Success {hitOrMiss} Determinism=[{ContentHashListWithDeterminism.Determinism}]";
+            var result = $"Success {hitOrMiss} Determinism=[{ContentHashListWithDeterminism.Determinism}]";
+
+            if (Source != ContentHashListSource.Unknown)
+            {
+                result += $", Source=[{Source}]";
+            }
+            
+            return result;
         }
 
         /// <inheritdoc />

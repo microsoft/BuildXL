@@ -43,7 +43,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <inheritdoc />
         public Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return MemoizationStore.GetContentHashListAsync(context, strongFingerprint, cts);
+            bool preferShared = urgencyHint == UrgencyHint.PreferShared;
+            return MemoizationStore.GetContentHashListAsync(context, strongFingerprint, cts, preferShared);
         }
 
         /// <inheritdoc />

@@ -64,7 +64,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        protected override async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        protected override async Task<ContentHashListResult> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var result = await GetContentHashListMultiLevelAsync(context, strongFingerprint, preferShared);
             if (_localLocationStore.Configuration.TouchContentHashLists && result.Succeeded && result.Value.contentHashListInfo.ContentHashList != null)
@@ -81,21 +81,26 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             return result;
         }
 
-        private async Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListMultiLevelAsync(
+        private async Task<ContentHashListResult> GetContentHashListMultiLevelAsync(
             OperationContext context, 
             StrongFingerprint strongFingerprint, 
             bool preferShared)
         {
             var firstDatabase = preferShared ? _sharedDatabase : _localDatabase;
             var secondDatabase = preferShared ? _localDatabase : _sharedDatabase;
+            var firstDatabaseSource = preferShared ? ContentHashListSource.Shared : ContentHashListSource.Local;
+            var secondDatabaseSource = preferShared ? ContentHashListSource.Local : ContentHashListSource.Shared;
 
             var firstResult = await firstDatabase.GetContentHashListAsync(context, strongFingerprint, preferShared);
             if (!firstResult.Succeeded || firstResult.Value.contentHashListInfo.ContentHashList != null)
             {
+                firstResult.Source = firstDatabaseSource;
                 return firstResult;
             }
 
-            return await secondDatabase.GetContentHashListAsync(context, strongFingerprint, preferShared);
+            var secondResult = await secondDatabase.GetContentHashListAsync(context, strongFingerprint, preferShared);
+            secondResult.Source = secondDatabaseSource;
+            return secondResult;
         }
 
         /// <inheritdoc />

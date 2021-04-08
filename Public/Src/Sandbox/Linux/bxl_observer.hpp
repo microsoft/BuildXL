@@ -168,6 +168,15 @@ private:
     std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
 
+    // In a typical case, a process will not have more than 1024 open file descriptors at a time.
+    // File descriptors start at 3 (1 and 2 are reserved for stdout and stderr).
+    // Whenever a new file descriptor is created, the smallest available positive integer is assigned to it. 
+    // Whenever a file descriptor is closed, its value is returned to the pool and will be used for new ones.
+    // Setting the size of this table to 1024 should accommodate most of the common cases.
+    // File descriptors can be greater than 1024, and if that happens we just won't cache their paths.
+    static const int MAX_FD = 1024;
+    std::string fdTable_[MAX_FD];
+
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;
     Sandbox *sandbox_;
@@ -178,6 +187,8 @@ private:
     bool Send(const char *buf, size_t bufsiz);
     bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
     char** ensure_env_value_with_log(char *const envp[], char const *envName);
+
+    ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz);
 
     inline bool IsValid()   { return sandbox_ != NULL; }
     inline bool IsEnabled()
@@ -243,12 +254,13 @@ public:
 
     AccessCheckResult report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
     AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, int oflags = 0);
-    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath);
+    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath);
 
     AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
     AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0);
 
-    ssize_t fd_to_path(int fd, char *buf, size_t bufsiz);
+    void reset_fd_table_entry(int fd);
+    std::string fd_to_path(int fd);
     std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);
 
     inline bool LogDebugEnabled()

@@ -400,7 +400,7 @@ config({
                 // Runtime dependencies for Linux
                 {
                     id: "runtime.linux-x64.BuildXL",
-                    version: "0.0.43",
+                    version: "0.0.45",
                     osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                         ? []
                         : [ "win", "macOS", "unix" ]

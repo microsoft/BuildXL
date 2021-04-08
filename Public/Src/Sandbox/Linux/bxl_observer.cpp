@@ -236,7 +236,7 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
     report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file);
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const std::string &reportPath, const std::string &secondPath)
 {
     if (IsCacheHit(eventType, reportPath, secondPath))
     {
@@ -286,12 +286,10 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_t
 
 AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd)
 {
-    char fullpath[PATH_MAX] = {0};
-    fd_to_path(fd, fullpath, PATH_MAX);
-
+    std::string fullpath = fd_to_path(fd);
     return fullpath[0] == '/'
-        ? report_access(syscallName, eventType, std::string(fullpath), empty_str)
-        : sNotChecked; // this file descriptor is not a non-file (e.g., a pipe, or socket, etc.) so we don't care about it
+        ? report_access(syscallName, eventType, fullpath, empty_str)
+        : sNotChecked; // this file descriptor is a non-file (e.g., a pipe, or socket, etc.) so we don't care about it
 }
 
 AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags)
@@ -309,7 +307,9 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     }
     else
     {
-        len = fd_to_path(dirfd, fullpath, PATH_MAX);
+        std::string dirPath = fd_to_path(dirfd);
+        len = dirPath.length();
+        strcpy(fullpath, dirPath.c_str());
     }
 
     if (len <= 0)
@@ -321,7 +321,7 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
     return report_access(syscallName, eventType, fullpath, flags);
 }
 
-ssize_t BxlObserver::fd_to_path(int fd, char *buf, size_t bufsiz)
+ssize_t BxlObserver::read_path_for_fd(int fd, char *buf, size_t bufsiz)
 {
     char procPath[100] = {0};
     sprintf(procPath, "/proc/self/fd/%d", fd);
@@ -329,17 +329,47 @@ ssize_t BxlObserver::fd_to_path(int fd, char *buf, size_t bufsiz)
     return result;
 }
 
+void BxlObserver::reset_fd_table_entry(int fd)
+{
+    if (fd >= 0 && fd < MAX_FD)
+    {
+        fdTable_[fd] = empty_str;
+    }
+}
+
+std::string BxlObserver::fd_to_path(int fd)
+{
+    char path[PATH_MAX] = {0};
+
+    // ignore if fd is out of range
+    if (fd < 0 || fd >= MAX_FD)
+    {
+        read_path_for_fd(fd, path, PATH_MAX);
+        return path;
+    }
+
+    // check the file descriptor table
+    if (fdTable_[fd].length() > 0)
+    {
+        return fdTable_[fd];
+    }
+
+    // read from the filesystem and update the file descriptor table
+    read_path_for_fd(fd, path, PATH_MAX);
+    fdTable_[fd] = path;
+    return path;
+}
+
 std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags)
 {
-    char fullpath[PATH_MAX] = {0};
-    size_t len = 0;
-
     // no pathname given --> read path for dirfd
     if (pathname == NULL)
     {
-        fd_to_path(dirfd, fullpath, PATH_MAX);
-        return fullpath;
+        return fd_to_path(dirfd);
     }
+
+    char fullpath[PATH_MAX] = {0};
+    size_t len = 0;
 
     // if relative path --> resolve it against dirfd
     if (*pathname != '/' && *pathname != '~')
@@ -354,7 +384,9 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
         }
         else
         {
-            len = fd_to_path(dirfd, fullpath, PATH_MAX);
+            std::string dirPath = fd_to_path(dirfd);
+            len = dirPath.length();
+            strcpy(fullpath, dirPath.c_str());
         }
 
         if (len <= 0)

@@ -315,6 +315,25 @@ static bool ShouldSubstituteShim(
         : !foundMatch || !filterMatch;
  }
 
+void WINAPI FreeModifiedArguments(LPWSTR modifiedArguments)
+{
+    if (modifiedArguments == nullptr)
+    {
+        return;
+    }
+
+    HANDLE hDefaultProcessHeap = GetProcessHeap();
+
+    if (hDefaultProcessHeap == NULL)
+    {
+        Dbg(L"Shim: Failed to retrieve the default process heap with LastError %d", GetLastError());
+    }
+    else if (HeapFree(hDefaultProcessHeap, 0, (LPVOID)modifiedArguments) == FALSE)
+    {
+        Dbg(L"Shim: Failed to free allocation of modified arguments from default process heap");
+    }
+}
+
 BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _In_opt_    LPCWSTR               lpApplicationName,
     _In_opt_    LPCWSTR               lpCommandLine,
@@ -328,61 +347,61 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim)
 {
-    if (g_SubstituteProcessExecutionShimPath != nullptr && (lpCommandLine != nullptr || lpApplicationName != nullptr))
+    if (g_SubstituteProcessExecutionShimPath == nullptr)
     {
-        // When lpCommandLine is null we just use lpApplicationName as the command line to parse.
-        // When lpCommandLine is not null, it contains the command, possibly with quotes containing spaces,
-        // as the first whitespace-delimited token; we can ignore lpApplicationName in this case.
-        Dbg(L"Shim: Finding command and args from lpApplicationName='%s', lpCommandLine='%s'", lpApplicationName, lpCommandLine);
-        LPCWSTR cmdLine = lpCommandLine == nullptr ? lpApplicationName : lpCommandLine;
-        wstring command;
-        wstring commandArgs;
-        FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
-        Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpApplicationName, lpCommandLine);
-
-        LPWSTR modifiedArguments = nullptr;
-
-        if (ShouldSubstituteShim(command, commandArgs, lpEnvironment, lpCurrentDirectory, &modifiedArguments))
-        {
-            // Instead of Detouring the child, run the requested shim
-            // passing the original command line, but only for appropriate commands.
-            
-            if (modifiedArguments != nullptr)
-            {
-                Dbg(L"Shim: Modified arguments command='%s', args='%s', modifedArgs:'%s'", command.c_str(), commandArgs.c_str(), modifiedArguments);
-
-                commandArgs.assign(modifiedArguments);
-
-                HANDLE hDefaultProcessHeap = GetProcessHeap();
-
-                if (hDefaultProcessHeap == NULL) 
-                {
-                    Dbg(L"Shim: Failed to retrieve the default process heap with LastError %d", GetLastError());
-                }
-                else if (HeapFree(hDefaultProcessHeap, 0, (LPVOID)modifiedArguments) == FALSE)
-                {
-                    Dbg(L"Shim: Failed to free allocation of modified arguments from default process heap");
-                }
-            }
-
-            Dbg(L"Shim: Inject shim command='%s', args='%s'", command.c_str(), commandArgs.c_str());
-
-            injectedShim = true;
-            return InjectShim(
-                command,
-                commandArgs,
-                lpProcessAttributes,
-                lpThreadAttributes,
-                bInheritHandles,
-                dwCreationFlags,
-                lpEnvironment,
-                lpCurrentDirectory,
-                lpStartupInfo,
-                lpProcessInformation);
-        }
+        return FALSE;
     }
 
-    injectedShim = false;
+    if (lpCommandLine == nullptr && lpApplicationName == nullptr)
+    {
+        Dbg(L"Shim: Not inject shim because command line and application name are not found");
+    }
 
+    // When lpCommandLine is null we just use lpApplicationName as the command line to parse.
+    // When lpCommandLine is not null, it contains the command, possibly with quotes containing spaces,
+    // as the first whitespace-delimited token; we can ignore lpApplicationName in this case.
+    Dbg(L"Shim: Finding command and args from lpApplicationName='%s', lpCommandLine='%s'", lpApplicationName, lpCommandLine);
+    LPCWSTR cmdLine = lpCommandLine == nullptr ? lpApplicationName : lpCommandLine;
+    wstring command;
+    wstring commandArgs;
+    FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
+    Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpApplicationName, lpCommandLine);
+
+    LPWSTR modifiedArguments = nullptr;
+    
+    if (ShouldSubstituteShim(command, commandArgs, lpEnvironment, lpCurrentDirectory, &modifiedArguments))
+    {
+        // Instead of Detouring the child, run the requested shim
+        // passing the original command line, but only for appropriate commands.
+
+        if (modifiedArguments != nullptr)
+        {
+            Dbg(L"Shim: Modified arguments command='%s', args='%s', modifedArgs:'%s'", command.c_str(), commandArgs.c_str(), modifiedArguments);
+
+            commandArgs.assign(modifiedArguments);
+            FreeModifiedArguments(modifiedArguments);
+        }
+
+        Dbg(L"Shim: Inject shim command='%s', args='%s'", command.c_str(), commandArgs.c_str());
+
+        injectedShim = true;
+        return InjectShim(
+            command,
+            commandArgs,
+            lpProcessAttributes,
+            lpThreadAttributes,
+            bInheritHandles,
+            dwCreationFlags,
+            lpEnvironment,
+            lpCurrentDirectory,
+            lpStartupInfo,
+            lpProcessInformation);
+    }
+
+    FreeModifiedArguments(modifiedArguments);
+
+    Dbg(L"Shim: Not substitute command='%s', args='%s'", command.c_str(), commandArgs.c_str());
+    
+    injectedShim = false;
     return FALSE;
 }

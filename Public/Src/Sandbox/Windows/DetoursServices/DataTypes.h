@@ -157,7 +157,7 @@ enum FileAccessStatus
     FileAccessStatus_CannotDeterminePolicy = 3
 };
 
-// Keep this in sync with the C# version declared in ReportType.cs
+// Keep this in sync with the C# version declared in ProcessDetouringStatus.cs
 enum class ProcessDetouringStatus
 {
     ProcessDetouringStatus_None = 0,

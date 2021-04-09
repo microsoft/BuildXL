@@ -2845,8 +2845,10 @@ namespace BuildXL.Scheduler
                 // Set resources to available to allow executing further work
                 Logger.Log.ResumingProcessExecutionAfterSufficientResources(m_executePhaseLoggingContext,
                     availableRam: perfInfo.AvailableRamMb ?? 0,
+                    effectiveAvailableRam: perfInfo.EffectiveAvailableRamMb ?? 0,
                     minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
                     ramUtilization: perfInfo.RamUsagePercentage ?? 0,
+                    effectiveRamUtilization: perfInfo.EffectiveRamUsagePercentage ?? 0,
                     maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
 
                 LocalWorker.MemoryResource = memoryResource;

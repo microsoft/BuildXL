@@ -446,7 +446,7 @@ function optionsToCmdLineArgs(opts: ClOptions, includeLocalDir: boolean, include
         Cmd.flag("/P",          opts.preprocessorOutputToAFile),
         Cmd.option("/Fi",       Artifact.none(opts.preprocessorOutputDirectory)),
         Cmd.sign("/guard:cf",   opts.guardControlFlow, true),
-        Cmd.flag("/brepro",     opts.compilerDeterminism),
+        Cmd.flag("/Brepro",     opts.compilerDeterminism),
         Cmd.flag("/ZH:SHA_256", opts.useSha256ForChecksum),
     ];
 }
@@ -1224,7 +1224,7 @@ export interface ClOptions {
     /**
         * Guarantees C/C++ deterministic binaries and hides /d2threads:1 for different scenarios.
         */
-    @@Tool.option("/brepro")
+    @@Tool.option("/Brepro")
     compilerDeterminism?: boolean;
 
     /**

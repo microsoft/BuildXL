@@ -126,6 +126,10 @@ export interface Arguments extends Transformer.RunnerArguments {
 
     /** Displays details about the progress of the session, including names of the .obj files being added. */
     verbosity?: Verbosity;
+
+    /** Guarantee deterministic output. */
+    @@Tool.option("/Brepro")
+    libDeterminism?: boolean;
 }
 
 /**
@@ -210,6 +214,8 @@ export function evaluate(args: Arguments): Result {
             let dataStr = e.symbolType === Link.ExportSymbolType.dataType ? ",DATA" : "";
             return e.name + ordStr + hideStr + dataStr;
         })),
+
+        Cmd.flag("/Brepro", args.libDeterminism),
     ];
 
     let result = Transformer.execute({

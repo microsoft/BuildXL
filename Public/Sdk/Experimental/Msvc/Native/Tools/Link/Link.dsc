@@ -130,6 +130,7 @@ export function evaluate(args: Arguments): Result {
         Cmd.option("/IMPLIB:", Artifact.output(impLibOutFile)),
         Cmd.option("/PGD:", Artifact.output(pgdOutFile)),
         Cmd.options("/EXPORT:", exportStrings),
+        Cmd.flag("/Brepro", args.linkDeterminism),
 
         Cmd.args(Artifact.outputs(midlProxyOutFiles)),
         Cmd.args(Artifact.outputs(midlHeaderOutFiles)),
@@ -1215,6 +1216,10 @@ export interface Arguments extends Transformer.RunnerArguments {
     /** Specifies the file name for the Windows Runtime Metadata (.winmd) output file */
     @@Tool.option("/WINMDFILE")
     windowsMetadataFile?: PathAtom;
+
+    /** Guarantee deterministic output. */
+    @@Tool.option("/Brepro")
+    linkDeterminism?: boolean;
 }
 
 /**

@@ -17,9 +17,18 @@ namespace Detours.Lib {
         preprocessorSymbols: [...preprocessorSymbols.items],
         disableSpecificWarnings: [4505, 4702, 4722],
         runtimeTypeInfo: false,
+        compilerDeterminism: true,
     });
+
+    export const libRunnerDefaultValue = Native.Templates.nativeBuildersLibRunnerTemplate.merge({ libDeterminism: true });
+    export const linkRunnerDefaultValue = Native.Templates.nativeBuildersLinkRunnerTemplate.merge({ linkDeterminism: true });
     
-    export const detoursNativeBinaryInnerTemplates = Native.Templates.defaultNativeBinaryInnerTemplates.merge({clRunner: clRunnerDefaultValue});
+    export const detoursNativeBinaryInnerTemplates = Native.Templates.defaultNativeBinaryInnerTemplates.merge(
+        {
+            clRunner: clRunnerDefaultValue,
+            libRunner: libRunnerDefaultValue,
+            linkRunner: linkRunnerDefaultValue,
+        });
     
     export const staticLibraryBuilderDefaultValue = {
         innerTemplates: detoursNativeBinaryInnerTemplates,
@@ -41,7 +50,12 @@ namespace Detours.Lib {
     
     export const clRunnerForDetoursLib = clRunnerDefaultValue.merge({warningLevel: Native.Cl.ClWarningLevel.level4});
     
-    export const detoursNativeBinaryInnerTemplatesForLib = detoursNativeBinaryInnerTemplates.merge({clRunner: clRunnerForDetoursLib});
+    export const detoursNativeBinaryInnerTemplatesForLib = detoursNativeBinaryInnerTemplates.merge(
+        {
+            clRunner: clRunnerForDetoursLib,
+            libRunner: libRunnerDefaultValue,
+            linkRunner: linkRunnerDefaultValue,
+        });
     
     export const lib = Native.StaticLibrary.build(
         staticLibraryBuilderDefaultValue.merge<Native.StaticLibrary.Arguments>({

@@ -9,6 +9,7 @@ using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Engine.Distribution.DistributionHelpers;
+using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -19,7 +20,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly ClientConnectionManager m_connectionManager;
         private readonly Worker.WorkerClient m_client;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOutAsync)
+        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);

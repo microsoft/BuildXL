@@ -19,6 +19,13 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// <nodoc/>
     internal sealed class ClientConnectionManager
     {
+        public class ConnectionTimeoutEventArgs : EventArgs
+        {
+            public string Details { get; init; }
+
+            public ConnectionTimeoutEventArgs(string details) => Details = details;
+        }
+
         /// <summary>
         /// Default channel options for clients/servers to send/receive unlimited messages.
         /// </summary>
@@ -31,7 +38,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly LoggingContext m_loggingContext;
         private readonly string m_buildId;
         private readonly Task m_monitorConnectionTask;
-        public event EventHandler OnConnectionTimeOutAsync;
+        public event EventHandler<ConnectionTimeoutEventArgs> OnConnectionTimeOutAsync;
         private volatile bool m_isShutdownInitiated;
         private volatile bool m_isExitCalledForServer;
 
@@ -96,6 +103,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             await Task.Yield();
 
             ChannelState state = ChannelState.Idle;
+            var transientFailureTimer = new Stopwatch();
             while (state != ChannelState.Shutdown)
             {
                 await Channel.WaitForStateChangedAsync(state);
@@ -104,6 +112,28 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 state = Channel.State;
 
+                // Check if we're stuck in transient failure
+                // In this situation, the state will alternate between "Connecting" and "TransientFailure"
+                if (state == ChannelState.TransientFailure)
+                {
+                    if (!transientFailureTimer.IsRunning)
+                    {
+                        transientFailureTimer.Start();
+                    }
+
+                    if (transientFailureTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
+                    {
+                        OnConnectionTimeOutAsync?.Invoke(this, new ConnectionTimeoutEventArgs($"Timed out trying to recover from the TRANSIENT_FAILURE channel state. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
+                        break;
+                    }
+                }
+                else if (state != ChannelState.Connecting)
+                {
+                    // We assume we are out of the "transient failure" situation
+                    // if the state is no longer TransientFailure or Connecting
+                    transientFailureTimer.Reset();
+                }
+
                 // If we requested 'exit' for the server, the channel can go to 'Idle' state.
                 // We should not reconnect the channel again in that case.
                 if (state == ChannelState.Idle && !m_isExitCalledForServer)
@@ -111,7 +141,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     bool isReconnected = await TryReconnectAsync();
                     if (!isReconnected)
                     {
-                        OnConnectionTimeOutAsync?.Invoke(this, EventArgs.Empty);
+                        OnConnectionTimeOutAsync?.Invoke(this, new ConnectionTimeoutEventArgs("Reconnection attempts failed"));
                         break;
                     }
                 }

@@ -350,6 +350,8 @@ namespace BuildXL.Engine.Tracing
         RemoteWorkerProcessedExecutionBlob = 7045,
         // 7046 in use by SharedLogEventId
 
+        DistributionConnectionTimeout = 7047,
+
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,
         ForceSkipDependenciesEnabled = 7052,

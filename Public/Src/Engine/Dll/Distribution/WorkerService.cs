@@ -26,6 +26,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Distribution
@@ -316,8 +317,10 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
+        private async void OnConnectionTimeOutAsync(object sender, ConnectionTimeoutEventArgs e)
         {
+            Logger.Log.DistributionConnectionTimeout(m_appLoggingContext, e?.Details ?? "");
+
             // Stop sending messages
             m_notificationManager.Cancel();
            

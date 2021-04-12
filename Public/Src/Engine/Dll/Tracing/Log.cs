@@ -721,6 +721,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerTimeoutFailure(LoggingContext context);
 
         [GeneratedEvent(
+        (ushort)LogEventId.DistributionConnectionTimeout,
+        EventGenerators = EventGenerators.LocalOnly,
+        EventLevel = Level.Verbose,
+        Keywords = (int)(Keywords.UserMessage),
+        EventTask = (ushort)Tasks.Distribution,
+        Message = "Connection with the orchestrator timed out. Details: {details}.")]
+        public abstract void DistributionConnectionTimeout(LoggingContext context, string details);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionTryMaterializeInputsFailedRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Failed to materialize inputs for pip. Number of remaining retries: {remainingRetryCount}.",

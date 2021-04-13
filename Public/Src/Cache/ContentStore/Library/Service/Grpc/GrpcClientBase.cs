@@ -261,11 +261,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var targetMachine = Configuration.GrpcHost;
                 Tracer.Info(context, $"Starting up GRPC client against service on '{targetMachine}' on port {Configuration.GrpcPort} with timeout {waitMs}.");
 
-                if (!LocalContentServer.EnsureRunning(context, Scenario, waitMs))
-                {
-                    throw new ClientCanRetryException(context, $"{nameof(GrpcContentClient)} failed to detect running service for scenario '{Scenario}' during startup.");
-                }
-
                 HelloResponse helloResponse;
                 using (var ct = new CancellationTokenSource(waitMs > 0 ? waitMs : Timeout.Infinite))
                 {

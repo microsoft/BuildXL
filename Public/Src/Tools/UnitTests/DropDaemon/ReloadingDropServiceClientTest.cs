@@ -229,7 +229,12 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<IEnumerable<DropItem>> IDropServiceClient.ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions, IDomainId domainId)
+        Task<IEnumerable<DropItem>> IDropServiceClient.ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions, IDomainId domainId, int pageSize, string continueFromDropName)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<IAsyncEnumerator<IEnumerable<DropItem>>> IDropServiceClient.ListStreamedAsync(string dropNamePrefix, PathOptions pathOptions, CancellationToken cancellationToken, DropItemFilterOptions filterOptions, DropItemPaginationOptions paginationOptions)
         {
             throw new NotImplementedException();
         }

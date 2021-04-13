@@ -20,7 +20,11 @@ using BuildXL.Cache.MemoizationStore.Distributed.Metadata.Tracing;
 using BuildXL.Cache.MemoizationStore.Distributed.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
 {

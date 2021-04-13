@@ -8,8 +8,15 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+using Microsoft.Caching.Redis.Profiling;
+using ExportOptions = Microsoft.Caching.Redis.ExportOptions;
+#else
 using StackExchange.Redis;
 using StackExchange.Redis.Profiling;
+using ExportOptions = StackExchange.Redis.ExportOptions;
+#endif
 
 namespace ContentStoreTest.Distributed.Redis
 {
@@ -79,7 +86,7 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
-        public void ExportConfiguration(Stream destination, StackExchange.Redis.ExportOptions options = (StackExchange.Redis.ExportOptions)(-1))
+        public void ExportConfiguration(Stream destination, ExportOptions options = (ExportOptions)(-1))
         {
             throw new NotImplementedException();
         }

@@ -8,7 +8,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 using Xunit;
 
 namespace ContentStoreTest.Distributed.Redis

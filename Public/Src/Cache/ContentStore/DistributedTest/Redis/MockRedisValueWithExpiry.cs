@@ -2,7 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace ContentStoreTest.Distributed.Redis
 {

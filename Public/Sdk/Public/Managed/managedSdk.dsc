@@ -117,6 +117,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
             ...framework.conditionalCompileDefines,
             ...targetRuntimeDefines,
             ...(args.defineConstants || []),
+            ...(Environment.getFlag("[Sdk.BuildXL]microsoftInternal") ? ["MICROSOFT_INTERNAL"] : [])
         ],
         nullable: args.nullable,
         nullabilityContext: args.nullabilityContext,

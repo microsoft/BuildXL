@@ -14,8 +14,13 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using ContentStoreTest.Extensions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+using Microsoft.Caching.Redis.KeyspaceIsolation;
+#else
 using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
+#endif
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace ContentStoreTest.Distributed.Redis

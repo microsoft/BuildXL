@@ -24,7 +24,11 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {

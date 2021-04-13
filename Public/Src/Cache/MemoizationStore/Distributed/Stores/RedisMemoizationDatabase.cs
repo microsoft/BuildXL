@@ -17,7 +17,11 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {

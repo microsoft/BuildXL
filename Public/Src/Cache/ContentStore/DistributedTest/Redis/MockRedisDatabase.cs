@@ -8,7 +8,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace ContentStoreTest.Distributed.Redis
 {

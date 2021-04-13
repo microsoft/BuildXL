@@ -12,6 +12,13 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+using Microsoft.Caching.Redis.KeyspaceIsolation;
+#else
+using StackExchange.Redis;
+using StackExchange.Redis.KeyspaceIsolation;
+#endif
 
 #nullable enable
 
@@ -100,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     return PutBlobResult.OutOfCapacity(hash, blob.Length, capacityKey, reservationResult.ErrorMessage);
                 }
 
-                var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
+                var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, When.Always, context.Token);
 
                 if (success)
                 {
@@ -126,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             var newUsedCapacity = await _redis.ExecuteBatchAsync(context, async batch =>
             {
-                var stringSetTask = batch.StringSetAsync(capacityKey, 0, _capacityExpiryTime, StackExchange.Redis.When.NotExists);
+                var stringSetTask = batch.StringSetAsync(capacityKey, 0, _capacityExpiryTime, When.NotExists);
                 var incrementTask = batch.StringIncrementAsync(capacityKey, byValue: byteCount);
 
                 await Task.WhenAll(stringSetTask, incrementTask);

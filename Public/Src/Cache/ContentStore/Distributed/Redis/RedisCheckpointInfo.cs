@@ -6,7 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {

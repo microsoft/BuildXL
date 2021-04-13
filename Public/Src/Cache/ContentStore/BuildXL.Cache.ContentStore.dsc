@@ -13,7 +13,7 @@ export const NetFx = BuildXLSdk.NetFx;
 
 @@public
 export const redisPackages = [
-    importFrom("StackExchange.Redis").pkg,
+    BuildXLSdk.Flags.isMicrosoftInternal ? importFrom("Microsoft.Caching.Redis").pkg : importFrom("StackExchange.Redis").pkg,
     ...(BuildXLSdk.isFullFramework 
         ? [ 
             // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.

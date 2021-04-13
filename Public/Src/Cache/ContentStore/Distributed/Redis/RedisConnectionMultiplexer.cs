@@ -11,7 +11,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis

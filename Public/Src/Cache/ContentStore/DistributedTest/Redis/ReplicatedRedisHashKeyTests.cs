@@ -17,7 +17,11 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ContentStoreTest.Test;
 using FluentAssertions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 using Xunit;
 using Xunit.Abstractions;
 

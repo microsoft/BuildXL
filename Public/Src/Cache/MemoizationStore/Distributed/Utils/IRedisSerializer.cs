@@ -3,7 +3,11 @@
 
 using System.Collections.Generic;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Utils
 {

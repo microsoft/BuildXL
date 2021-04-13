@@ -1058,6 +1058,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Caching.Redis",
+          "Version": "3.0.46"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Analyzers",
           "Version": "3.0.0"
         }

@@ -11,8 +11,13 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+using Microsoft.Caching.Redis.KeyspaceIsolation;
+#else
 using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
+#endif
 
 #nullable enable
 

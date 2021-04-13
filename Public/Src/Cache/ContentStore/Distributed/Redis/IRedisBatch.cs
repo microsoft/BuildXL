@@ -6,7 +6,11 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {

@@ -8,7 +8,11 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Utils
 {

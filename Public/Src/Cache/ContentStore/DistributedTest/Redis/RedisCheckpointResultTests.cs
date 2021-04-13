@@ -5,7 +5,11 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using ContentStoreTest.Distributed.ContentLocation;
+#if MICROSOFT_INTERNAL
+using Microsoft.Caching.Redis;
+#else
 using StackExchange.Redis;
+#endif
 using Xunit;
 
 namespace ContentStoreTest.Distributed.Redis

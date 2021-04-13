@@ -63,6 +63,10 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "System.ServiceModel.Http", version: "4.7.0" },
     { id: "System.ServiceModel.Primitives", version: "4.7.0" },
     { id: "System.Private.ServiceModel", version: "4.7.0" },
+
+    // Internal version of Redis
+    { id: "Microsoft.Caching.Redis", version: "3.0.46", 
+        dependentPackageIdsToSkip: [ "System.Runtime.CompilerServices.Unsafe", "System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial" ] },
 ] : [
 
     // Artifact packages and dependencies in OSS

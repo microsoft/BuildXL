@@ -60,9 +60,12 @@
     <value>TotalComputeFileBlobDescriptorForUploadMs</value>
     <comment>Total time taken to compute FileBlobDescriptors for 'UploadAndAssociate' calls</comment>
   </data>
-    <data name="TotalBuildManifestRegistrationDurationMs" xml:space="preserve">
+  <data name="TotalBuildManifestRegistrationDurationMs" xml:space="preserve">
     <value>TotalBuildManifestRegistrationDurationMs</value>
     <comment>Total time spent in Build Manifest Registrations during 'UploadAndAssociate' calls</comment>
   </data>
-    
+  <data name="TotalAssociateSizeMb" xml:space="preserve">
+    <value>TotalAssociateSizeMb</value>
+    <comment>Total size of all associated files in megabytes (note that these files were not actually uploaded, i.e., they were not transfered across the network)</comment>
+  </data>
 </root>

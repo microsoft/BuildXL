@@ -60,7 +60,8 @@ namespace Tool.DropDaemon
             internal long TotalComputeFileBlobDescriptorForUploadMs = 0;
             internal long TotalBuildManifestRegistrationDurationMs = 0;
             internal long FinalizeTimeMs = 0;
-            internal long TotalUploadSizeMb = 0;
+            internal long TotalAssociateSizeBytes = 0;
+            internal long TotalUploadSizeBytes = 0;
 
             internal IDictionary<string, long> ToDictionary()
             {
@@ -79,13 +80,15 @@ namespace Tool.DropDaemon
                 AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForUploadMs, ref TotalComputeFileBlobDescriptorForUploadMs);
                 AddStat(dict, Statistics.TotalBuildManifestRegistrationDurationMs, ref TotalBuildManifestRegistrationDurationMs);
                 AddStat(dict, Statistics.FinalizeTimeMs, ref FinalizeTimeMs);
-                AddStat(dict, Statistics.TotalUploadSizeMb, ref TotalUploadSizeMb);
+                // we track the total size of files in bytes, but log it in megabytes
+                AddStat(dict, Statistics.TotalAssociateSizeMb, ref TotalAssociateSizeBytes, size => size >> 20);
+                AddStat(dict, Statistics.TotalUploadSizeMb, ref TotalUploadSizeBytes, size => size >> 20);
                 return dict;
             }
 
-            private static void AddStat(IDictionary<string, long> stats, string key, ref long value)
+            private static void AddStat(IDictionary<string, long> stats, string key, ref long value, Func<long, long> converter = null)
             {
-                stats[I($"DropDaemon.{key}")] = Volatile.Read(ref value);
+                stats[I($"DropDaemon.{key}")] = converter != null ? converter(Volatile.Read(ref value)) : Volatile.Read(ref value);
             }
         }
         #endregion
@@ -347,7 +350,7 @@ namespace Tool.DropDaemon
                 // run 'UploadAndAssociate' for the missing files.
                 await UploadAndAssociateAsync(associateStatus, blobsForUpload);
                 SetResultForUploadedMissingItems(itemsLeftToUpload);
-                Interlocked.Add(ref Stats.TotalUploadSizeMb, blobsForUpload.Sum(b => b.FileSize ?? 0) >> 20);
+                Interlocked.Add(ref Stats.TotalUploadSizeBytes, blobsForUpload.Sum(b => b.FileSize ?? 0));
 
                 startTime = DateTime.UtcNow;
                 foreach (var file in dedupedBatch)
@@ -512,16 +515,18 @@ namespace Tool.DropDaemon
         ///     (as indicated by <paramref name="associateStatus"/>), and returns <see cref="AddFileItem"/>s
         ///     for those that are missing (<see cref="AssociationsStatus.Missing"/>).
         /// </summary>
-        private static async Task<IReadOnlyList<AddFileItem>> SetResultForAssociatedNonMissingItemsAsync(AddFileItem[] batch, AssociationsStatus associateStatus, bool chunkDedup, CancellationToken cancellationToken)
+        private async Task<IReadOnlyList<AddFileItem>> SetResultForAssociatedNonMissingItemsAsync(AddFileItem[] batch, AssociationsStatus associateStatus, bool chunkDedup, CancellationToken cancellationToken)
         {
             var missingItems = new List<AddFileItem>();
             var missingBlobIds = new HashSet<BlobIdentifier>(associateStatus.Missing);
+            long totalSizeOfAssociatedFiles = 0;
             foreach (AddFileItem item in batch)
             {
                 var itemFileBlobDescriptor = await item.FileBlobDescriptorForAssociateAsync(chunkDedup, cancellationToken);
                 if (!missingBlobIds.Contains(itemFileBlobDescriptor.BlobIdentifier))
                 {
                     item.DropResultTaskSource.SetResult(AddFileResult.Associated);
+                    totalSizeOfAssociatedFiles += item.PrecomputedFileLength;
                 }
                 else
                 {
@@ -529,6 +534,7 @@ namespace Tool.DropDaemon
                 }
             }
 
+            Interlocked.Add(ref Stats.TotalAssociateSizeBytes, totalSizeOfAssociatedFiles);
             return missingItems;
         }
 
@@ -551,6 +557,12 @@ namespace Tool.DropDaemon
             internal string RelativeDropFilePath => m_dropItem.RelativeDropPath;
 
             internal BlobIdentifier BlobIdentifier => m_dropItem.BlobIdentifier;
+
+            /// <summary>
+            /// Optional pre-computed file length. This field is set only for files that have known length
+            /// and that originated from BuildXL. In all other cases the field is set to 0.
+            /// </summary>
+            internal long PrecomputedFileLength => m_dropItem.FileLength;
 
             internal AddFileItem(IDropItem item)
             {

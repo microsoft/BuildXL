@@ -25,8 +25,8 @@ export const redisPackages = [
         : [
             importFrom("System.IO.Pipelines").pkg,
             importFrom("System.Threading.Channels").pkg,
-            // Don't need to add Unsafe for net5.0
-            ...(qualifier.targetFramework === "net5.0" ? [] : [importFrom("System.Runtime.CompilerServices.Unsafe").pkg]),
+            // Don't need to add Unsafe for netcoreapp3.1 or net5.0
+            ...(BuildXLSdk.isDotNetCoreApp ? [] : [importFrom("System.Runtime.CompilerServices.Unsafe").pkg]),
             importFrom("Pipelines.Sockets.Unofficial").pkg,
           ]),
     ...BuildXLSdk.bclAsyncPackages,

@@ -3399,7 +3399,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Runtime.CompilerServices.Unsafe",
-          "Version": "4.7.0"
+          "Version": "5.0.0"
         }
       }
     },

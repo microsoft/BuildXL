@@ -34,7 +34,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc/>
         public override void RecordFileForBuildManifest(RecordFileForBuildManifestEventData data)
         {
-            m_buildManifestGenerator.RecordFileForBuildManifest(data.DropName, data.RelativePath, data.AzureArtifactsHash, data.BuildManifestHash);
+            m_buildManifestGenerator.RecordFileForBuildManifest(data.Records);
         }
     }
 }

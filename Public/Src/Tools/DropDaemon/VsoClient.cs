@@ -164,6 +164,7 @@ namespace Tool.DropDaemon
         /// </summary>
         private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
         {
+            await Task.Yield();
             Contract.Requires(m_dropDaemon.DropConfig.GenerateSignedManifest == true, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
             var bxlResult = await m_dropDaemon.ApiClient.RegisterFilesForBuildManifest(m_dropDaemon.DropName, buildManifestEntries);
             if (!bxlResult.Succeeded)
@@ -330,7 +331,10 @@ namespace Tool.DropDaemon
                         .Select(dropItem => new BuildManifestEntry(dropItem.RelativeDropFilePath, dropItem.BlobIdentifier.ToContentHash(), dropItem.FullFilePath))
                         .ToArray();
 
-                    registerFilesForBuildManifestTask = Task.Run(() => RegisterFilesForBuildManifestAsync(buildManifestEntries));
+                    if (buildManifestEntries.Length > 0) // dropItem.BlobIdentifier = null for files generated in the DropDaemon
+                    {
+                        registerFilesForBuildManifestTask = Task.Run(() => RegisterFilesForBuildManifestAsync(buildManifestEntries));
+                    }
                 }
 
                 // compute blobs for associate
@@ -353,6 +357,7 @@ namespace Tool.DropDaemon
                 Interlocked.Add(ref Stats.TotalUploadSizeBytes, blobsForUpload.Sum(b => b.FileSize ?? 0));
 
                 startTime = DateTime.UtcNow;
+
                 foreach (var file in dedupedBatch)
                 {
                     RegisterFileForBuildManifestResult result = registerFilesForBuildManifestTask == null

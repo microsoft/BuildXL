@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -23,6 +22,7 @@ using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
@@ -47,9 +47,11 @@ namespace BuildXL.Scheduler
 
         private LoggingContext m_loggingContext;
 
-        private readonly ConcurrentDictionary<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
+        private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
+        private readonly ActionBlockSlim<List<Tracing.BuildManifestRecord>> m_recordFileForBuildManifestQueue;
 
         private const int GetBuildManifestHashFromLocalFileRetryLimit = 3;
+        private const int BuildManifestRecordBatchSize = 20;
 
         /// <nodoc />
         public ApiServer(
@@ -75,7 +77,14 @@ namespace BuildXL.Scheduler
             m_engineCache = engineCache;
             m_executionLog = executionLog;
             m_buildManifestGenerator = buildManifestGenerator;
-            m_inMemoryBuildManifestStore = new ConcurrentDictionary<ContentHash, ContentHash>();
+            m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, ContentHash>();
+
+            m_recordFileForBuildManifestQueue = new ActionBlockSlim<List<Tracing.BuildManifestRecord>>(
+                Environment.ProcessorCount,
+                new Action<List<Tracing.BuildManifestRecord>>(records =>
+                {
+                    m_executionLog.RecordFileForBuildManifest(new Tracing.RecordFileForBuildManifestEventData(records));
+                }));
         }
 
         /// <summary>
@@ -196,6 +205,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public Task Stop()
         {
+            m_recordFileForBuildManifestQueue.Complete();
             m_server.RequestStop();
             return m_server.Completion;
         }
@@ -203,6 +213,7 @@ namespace BuildXL.Scheduler
         /// <inheritdoc/>
         public void Dispose()
         {
+            m_recordFileForBuildManifestQueue.Complete();
             m_server.Dispose();
         }
 
@@ -360,8 +371,8 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Executes <see cref="RegisterFilesForBuildManifestCommand"/>. Checks if local files exist and computes their ContentHash.
-        /// Else checks if Cache contains SHA-256 Hashes for given <see cref="BuildManifestEntry"/>.
+        /// Executes <see cref="RegisterFilesForBuildManifestCommand"/>. Checks if Cache contains SHA-256 Hashes for given <see cref="BuildManifestEntry"/>.
+        /// Else checks if local files exist and computes their ContentHash.
         /// Returns an empty array on success. Any failing BuildManifestEntries are returned for logging.
         /// If SHA-256 ContentHashes do not exists, the files are materialized using <see cref="ExecuteMaterializeFileAsync"/>, the build manifest hashes are computed and stored into cache.
         /// </summary>
@@ -370,28 +381,45 @@ namespace BuildXL.Scheduler
             Contract.Requires(cmd != null);
 
             var tasks = cmd.BuildManifestEntries
-                .Select(buildManifestEntry => ExecuteRecordBuildManifestHashAsync(cmd.DropName, buildManifestEntry))
+                .Select(buildManifestEntry => ExecuteRecordBuildManifestHashWithXLGAsync(cmd.DropName, buildManifestEntry))
                 .ToArray();
 
             var result = await TaskUtilities.SafeWhenAll(tasks);
 
-            BuildManifestEntry[] failedEntries = result.Where(value => value != null).ToArray();
+            if (result.Any(value => !value.IsValid))
+            {
+                BuildManifestEntry[] failures = result.Where(value => value.IsValid)
+                    .Select(value => new BuildManifestEntry(value.DropName, value.AzureArtifactsHash, value.RelativePath))
+                    .ToArray();
 
-            return IpcResult.Success(cmd.RenderResult(failedEntries));
+                return IpcResult.Success(cmd.RenderResult(failures));
+            }
+            else
+            {
+                var xlgEvents = result.ToList();
+                while (xlgEvents.Count > 0)
+                {
+                    var xlgBatch = xlgEvents.Take(BuildManifestRecordBatchSize).ToList();
+                    m_recordFileForBuildManifestQueue.Post(xlgBatch);
+                    xlgEvents.RemoveRange(0, xlgBatch.Count);
+                }
+
+                return IpcResult.Success(cmd.RenderResult(new BuildManifestEntry[0]));
+            }
         }
 
         /// <summary>
-        /// Returns the BuildManifestEntry when hash read/computation fails. Else returns null.
+        /// Returns an invalid <see cref="Tracing.BuildManifestRecord"/> when file read or hash computation fails. 
+        /// Else returns a valid <see cref="Tracing.BuildManifestRecord"/> on success.
         /// </summary>
-        private async Task<BuildManifestEntry> ExecuteRecordBuildManifestHashAsync(string dropName, BuildManifestEntry buildManifestEntry)
+        private async Task<Tracing.BuildManifestRecord> ExecuteRecordBuildManifestHashWithXLGAsync(string dropName, BuildManifestEntry buildManifestEntry)
         {
             await Task.Yield(); // Yield to ensure hashing happens asynchronously
 
             // (1) Attempt hash read from in-memory store
             if (m_inMemoryBuildManifestStore.TryGetValue(buildManifestEntry.Hash, out var buildManifestHash))
             {
-                RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHash);
-                return null;
+                return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHash);
             }
 
             // (2) Attempt hash read from cache
@@ -399,8 +427,7 @@ namespace BuildXL.Scheduler
             if (hashFromCache.HasValue)
             {
                 m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
-                RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
-                return null;
+                return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
             }
 
             // (3) Attempt to compute hash for locally existing file (Materializes non-existing files)
@@ -410,22 +437,14 @@ namespace BuildXL.Scheduler
                 if (computeHashResult.Succeeded)
                 {
                     m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, computeHashResult.Result);
-                    RecordFileForBuildManifestInXLG(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
                     await StoreBuildManifestHashAsync(buildManifestEntry.Hash, computeHashResult.Result);
-
-                    return null;
+                    return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
                 }
 
                 Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromLocalFileFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             }
 
-            return buildManifestEntry;
-        }
-
-        private void RecordFileForBuildManifestInXLG(string dropName, string relativePath, ContentHash azureArtifactsHash, ContentHash buildManifestHash)
-        {
-            Tracing.RecordFileForBuildManifestEventData data = new Tracing.RecordFileForBuildManifestEventData(dropName, relativePath, azureArtifactsHash, buildManifestHash);
-            m_executionLog.RecordFileForBuildManifest(data);
+            return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, new ContentHash(HashType.Unknown));
         }
 
         /// <summary>

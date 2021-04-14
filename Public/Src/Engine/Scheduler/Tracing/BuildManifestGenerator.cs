@@ -62,38 +62,43 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Record details of a file added to drop.
         /// </summary>
-        public void RecordFileForBuildManifest(
-            string dropName,
-            string relativePath,
-            ContentHash azureArtifactsHash,
-            ContentHash buildManifestHash)
+        public void RecordFileForBuildManifest(List<BuildManifestRecord> records)
         {
+            Contract.Requires(records != null, "Build Manifest Records can't be null");
+
             using (Counters.StartStopwatch(BuildManifestCounters.ReceiveRecordFileForBuildManifestEventOnMasterDuration))
             {
-                if (m_generateBuildManifestFileListInvoked)
+                foreach (var record in records)
                 {
-                    Logger.Log.RecordFileForBuildManifestAfterGenerateBuildManifestFileList(m_loggingContext, dropName, relativePath, azureArtifactsHash.Serialize(), buildManifestHash.Serialize());
-                }
+                    if (m_generateBuildManifestFileListInvoked)
+                    {
+                        Logger.Log.RecordFileForBuildManifestAfterGenerateBuildManifestFileList(m_loggingContext,
+                            record.DropName,
+                            record.RelativePath,
+                            record.AzureArtifactsHash.Serialize(),
+                            record.BuildManifestHash.Serialize());
+                    }
 
-                RelativePath relativePathObj = RelativePath.Create(m_stringTable, relativePath);
-                StringId dropNameId = StringId.Create(m_stringTable, dropName);
+                    RelativePath relativePathObj = RelativePath.Create(m_stringTable, record.RelativePath);
+                    StringId dropNameId = StringId.Create(m_stringTable, record.DropName);
 
-                Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
+                    Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
 
-                var existingEntry = BuildManifestEntries.GetOrAdd((dropNameId, relativePathObj), new BuildManifestEntry(
-                    dropNameId,
-                    relativePathObj,
-                    azureArtifactsHash,
-                    buildManifestHash));
+                    var existingEntry = BuildManifestEntries.GetOrAdd((dropNameId, relativePathObj), new BuildManifestEntry(
+                        dropNameId,
+                        relativePathObj,
+                        record.AzureArtifactsHash,
+                        record.BuildManifestHash));
 
-                if (existingEntry.IsFound &&
-                    !azureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
-                {
-                    m_duplicateEntries.Add((dropName, relativePath, existingEntry.Item.Value.AzureArtifactsHash.Serialize(), azureArtifactsHash.Serialize()));
-                }
-                else
-                {
-                    Counters.IncrementCounter(BuildManifestCounters.UniqueRecordFileForBuildManifestCalls);
+                    if (existingEntry.IsFound &&
+                        !record.AzureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
+                    {
+                        m_duplicateEntries.Add((record.DropName, record.RelativePath, existingEntry.Item.Value.AzureArtifactsHash.Serialize(), record.AzureArtifactsHash.Serialize()));
+                    }
+                    else
+                    {
+                        Counters.IncrementCounter(BuildManifestCounters.UniqueRecordFileForBuildManifestCalls);
+                    }
                 }
             }
         }
@@ -183,6 +188,40 @@ namespace BuildXL.Scheduler.Tracing
                 BuildManifestHash = buildManifestHash;
             }
         }
+    }
+
+    /// <summary>
+    /// Build Manifest individual XLG registration record
+    /// </summary>
+    public readonly struct BuildManifestRecord
+    {
+        /// <nodoc/>
+        public string DropName { get; }
+
+        /// <nodoc/>
+        public string RelativePath { get; }
+
+        /// <nodoc/>
+        public ContentHash AzureArtifactsHash { get; }
+
+        /// <nodoc/>
+        public ContentHash BuildManifestHash { get; }
+
+        /// <nodoc/>
+        public BuildManifestRecord(
+            string dropName,
+            string relativePath,
+            ContentHash azureArtifactsHash,
+            ContentHash buildManifestHash)
+        {
+            DropName = dropName;
+            RelativePath = relativePath;
+            AzureArtifactsHash = azureArtifactsHash;
+            BuildManifestHash = buildManifestHash;
+        }
+
+        /// <nodoc/>
+        public bool IsValid => !string.IsNullOrEmpty(DropName) && !string.IsNullOrEmpty(RelativePath) && AzureArtifactsHash.IsValid && BuildManifestHash.IsValid;
     }
 
     /// <summary>

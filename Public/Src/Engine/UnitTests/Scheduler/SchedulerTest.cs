@@ -2695,17 +2695,20 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestRecordFileForBuildManifest()
         {
-            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, Context.StringTable);
+            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, Context.StringTable ?? new StringTable());
 
             string relativePath = "/a/b";
             ContentHash hash0 = ContentHash.Random();
             ContentHash hash1 = ContentHash.Random();
 
-            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash0, hash0);     // Will be added
-            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash0, hash0);     // Duplicate entry will be ignored
-            buildManifestGenerator.RecordFileForBuildManifest("drop0", relativePath, hash1, hash1);     // Records duplicate entry
-            buildManifestGenerator.RecordFileForBuildManifest("drop1", relativePath, hash0, hash0);     // Will be added
-            buildManifestGenerator.RecordFileForBuildManifest("drop2", relativePath, hash0, hash0);     // Will be added
+            List<BuildManifestRecord> targets = new List<BuildManifestRecord>();
+            targets.Add(new BuildManifestRecord("drop0", relativePath, hash0, hash0));     // Will be added
+            targets.Add(new BuildManifestRecord("drop0", relativePath, hash0, hash0));     // Duplicate entry will be ignored
+            targets.Add(new BuildManifestRecord("drop0", relativePath, hash1, hash1));     // Records duplicate entry
+            targets.Add(new BuildManifestRecord("drop1", relativePath, hash0, hash0));     // Will be added
+            targets.Add(new BuildManifestRecord("drop2", relativePath, hash0, hash0));     // Will be added
+
+            buildManifestGenerator.RecordFileForBuildManifest(targets);
 
             XAssert.AreEqual(3, buildManifestGenerator.BuildManifestEntries.Count);
             XAssert.AreEqual(1, buildManifestGenerator.DuplicateEntries("drop0").Count);

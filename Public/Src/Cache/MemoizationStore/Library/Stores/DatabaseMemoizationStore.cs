@@ -118,7 +118,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     ? new GetContentHashListResult(result.Value.contentHashListInfo, result.Source)
                     : new GetContentHashListResult(result, result.Source);
             },
-            extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}]",
+            extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}] PreferShared=[{preferShared}]",
             traceOperationStarted: false);
         }
 

@@ -48,8 +48,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 nestedContext => CompareExchangeCore(nestedContext, strongFingerprint, expectedReplacementToken, expected, replacement),
-                extraStartMessage: $"StrongFingerprint=({strongFingerprint}) expected=[{expected.ToTraceString()}] replacement=[{replacement.ToTraceString()}]",
-                extraEndMessage: _ => $"StrongFingerprint=({strongFingerprint})  expected=[{expected.ToTraceString()}] replacement=[{replacement.ToTraceString()}]",
+                extraStartMessage: $"StrongFingerprint=[{strongFingerprint}] ExpectedReplacementToken=[{expectedReplacementToken}] Expected=[{expected.ToTraceString()}] Replacement=[{replacement.ToTraceString()}]",
+                extraEndMessage: result => $"StrongFingerprint=[{strongFingerprint}] ExpectedReplacementToken=[{expectedReplacementToken}] Expected=[{expected.ToTraceString()}] Replacement=[{replacement.ToTraceString()}] Exchanged=[{result.GetValueOrDefault(false)}]",
                 timeout: _timeout);
         }
 
@@ -102,8 +102,18 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 nestedContext => GetLevelSelectorsCoreAsync(nestedContext, weakFingerprint, level),
-                extraEndMessage: _ => $"WeakFingerprint=[{weakFingerprint}], Level=[{level}]",
-                traceErrorsOnly: true,
+                extraEndMessage: result =>
+                {
+                    var numSelectors = 0;
+                    bool hasMore = false;
+                    if (result.Succeeded)
+                    {
+                        numSelectors = result.Value.Selectors.Count;
+                        hasMore = result.Value.HasMore;
+                    }
+
+                    return $"WeakFingerprint=[{weakFingerprint}] Level=[{level}] NumSelectors=[{numSelectors}] HasMore=[{hasMore}]";
+                },
                 timeout: _timeout);
         }
 

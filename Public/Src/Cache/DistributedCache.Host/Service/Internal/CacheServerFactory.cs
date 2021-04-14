@@ -123,6 +123,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (distributedSettings?.EnableMetadataStore == true)
             {
+                _logger.Always("Creating local server with content and metadata store");
+
                 var factory = CreateDistributedContentStoreFactory();
 
                 Func<AbsolutePath, ICache> cacheFactory = path =>
@@ -143,6 +145,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
             else
             {
+                _logger.Always("Creating local server with content store only");
+
                 return new LocalContentServer(
                     _fileSystem,
                     _logger,
@@ -174,6 +178,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
+                _logger.Always("Creating distributed server with content and metadata store");
+
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
                     if (distributedSettings.EnableDistributedCache)
@@ -206,6 +212,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
             else
             {
+                _logger.Always("Creating distributed server with content store only");
+
                 return new LocalContentServer(
                     _fileSystem,
                     _logger,

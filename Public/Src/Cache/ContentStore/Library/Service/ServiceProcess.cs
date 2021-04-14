@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     ///     Helper for managing the launching and shutdown of the cache in a separate process.
     /// </summary>
-    public sealed class ServiceProcess : IStartupShutdown
+    public class ServiceProcess : IStartupShutdown
     {
         private static readonly Tracer Tracer = new Tracer(nameof(ServiceProcess));
         private readonly ServiceConfiguration _configuration;
@@ -75,10 +75,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
             await Task.Run(() =>
             {
-                AbsolutePath appExeDirPath = new AbsolutePath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
-                var appExePath = appExeDirPath / (OperatingSystemHelper.IsUnixOS ? "ContentStoreApp" : "ContentStoreApp.exe");
+                var appExePath = GetExecutablePath();
 
-                _args = _configuration.GetCommandLineArgs(scenario: _scenario);
+                _args = GetCommandLineArgs();
 
                 Tracer.Debug(context, $"Running cmd=[{appExePath} {_args}]");
 
@@ -170,6 +169,19 @@ namespace BuildXL.Cache.ContentStore.Service
         public string? GetLogs()
         {
             return _process?.GetLogs();
+        }
+
+        /// <nodoc />
+        protected virtual AbsolutePath GetExecutablePath()
+        {
+            AbsolutePath appExeDirPath = new AbsolutePath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
+            return appExeDirPath / (OperatingSystemHelper.IsUnixOS ? "ContentStoreApp" : "ContentStoreApp.exe");
+        }
+
+        /// <nodoc />
+        protected virtual string GetCommandLineArgs()
+        {
+            return _configuration.GetCommandLineArgs(scenario: _scenario);
         }
 
         /// <inheritdoc />

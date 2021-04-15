@@ -1391,6 +1391,65 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        public void DirectoryRemovalInvalidatesTheCache()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            // Create the following layout
+            // sodA 
+            //  -- nestedDir
+            //    -- output.txt 
+            // sodB 
+            //  -- junction -> sodA 
+            // Then change the layout to:
+            // sodA 
+            //  -- nestedDir
+            //    -- output.txt 
+            // sodB 
+            //  -- nestedDir
+            //    -- symlink -> output.txt
+
+
+            AbsolutePath sodA = CreateUniqueDirectory(prefix: "sodA");
+            AbsolutePath sodB = CreateUniqueDirectory(prefix: "sodB");
+
+            var nestedDirPath = sodA.Combine(Context.PathTable, "nestedDir").ToString(Context.PathTable);
+            FileUtilities.CreateDirectory(nestedDirPath);
+
+            DirectoryArtifact nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodA.Combine(Context.PathTable, "nestedDir"));
+            DirectoryArtifact junctionDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodB.Combine(Context.PathTable, "junction"));
+            DirectoryArtifact nestedDirViaJunction = DirectoryArtifact.CreateWithZeroPartialSealId(junctionDir.Path.Combine(Context.PathTable, "nestedDir"));
+
+            FileArtifact outputViaJunction = FileArtifact.CreateOutputFile(nestedDirViaJunction.Path.Combine(Context.PathTable, "output.txt"));
+            FileArtifact outputViaRealPath = FileArtifact.CreateOutputFile(nestedDir.Path.Combine(Context.PathTable, "output.txt"));
+
+
+            FileUtilities.CreateDirectory(ArtifactToString(nestedDir));
+            File.WriteAllText(ArtifactToString(outputViaRealPath), System.Guid.NewGuid().ToString());
+
+            var writerBuilder = CreatePipBuilder(new Operation[]
+            {
+                // absent, and therefore cached as not needing reparse point resolution 
+                Operation.Probe(outputViaJunction, doNotInfer: true), 
+                // the junction creation should invalidate the reparse point cache, and also invalidate its
+                // descendants, which includes the above probe
+                Operation.CreateJunction(junctionDir, DirectoryArtifact.CreateWithZeroPartialSealId(sodA), doNotInfer: true),
+                // If not done correctly, the mapping in the cache for the juntion will still exist, and writing under this path will be like writing under sodA and produce an error.
+                Operation.DeleteDir(junctionDir, doNotInfer: true),
+                Operation.CreateDir(junctionDir, doNotInfer: true),
+                Operation.WriteFile(outputViaJunction, System.Guid.NewGuid().ToString(), doNotInfer: true)
+            });
+
+            writerBuilder.AddOutputDirectory(sodB, SealDirectoryKind.Opaque);
+            writerBuilder.Options |= Process.Options.AllowPreserveOutputs;
+
+            var writer = SchedulePipBuilder(writerBuilder);
+
+            // If this fails, then detours likely thinks the junction is still there.
+            RunScheduler().AssertSuccess();
+        }
+
+        [FactIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
         public void ReparsePointCreationInvalidatesTheCache()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;

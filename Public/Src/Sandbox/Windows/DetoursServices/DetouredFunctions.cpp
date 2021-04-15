@@ -5232,6 +5232,13 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
         return FALSE;
     }
 
+    BOOL result = Real_RemoveDirectoryW(lpPathName);
+    DWORD error = ERROR_SUCCESS;
+    if (!result)
+    {
+        error = GetLastError();
+    }
+
     ResolvedPathCache::Instance().Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true))
@@ -5247,13 +5254,6 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
         ReportIfNeeded(accessCheck, opContext, policyResult, denyError);
         accessCheck.SetLastErrorToDenialError();
         return FALSE;
-    }
-
-    BOOL result = Real_RemoveDirectoryW(lpPathName);
-    DWORD error = ERROR_SUCCESS;
-    if (!result)
-    {
-        error = GetLastError();
     }
 
     ReportIfNeeded(accessCheck, opContext, policyResult, error);

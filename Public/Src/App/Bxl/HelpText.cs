@@ -387,6 +387,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_DumpFailedPips);
 
             hw.WriteOption(
+                "/dumpFailedPipsWithDynamicData[+|-]",
+                Strings.HelpText_DisplayHelp_DumpFailedPipsWithDynamicData);
+
+            hw.WriteOption(
                 "/dumpFailedPipsLogLimit:<number>",
                 Strings.HelpText_DisplayHelp_DumpFailedPipsLogLimit);
             

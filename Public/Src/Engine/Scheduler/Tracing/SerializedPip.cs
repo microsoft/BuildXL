@@ -33,6 +33,8 @@ namespace BuildXL.Scheduler.Tracing
         public SealDirectorySpecificDetails SealDirectorySpecificDetails { get; set; }
         [JsonPropertyName("WriteFile Pip Details")]
         public WriteFileSpecificDetails WriteFileSpecificDetails { get; set; }
+        public List<ReportedProcessData> ReportedProcesses { get; set; }
+        public List<ReportedFileAccessData> ReportedFileAccesses { get; set; }
     }
 
     /// <nodoc/>
@@ -267,6 +269,42 @@ namespace BuildXL.Scheduler.Tracing
         public string FileEncoding { get; set; }
     }
     #endregion WriteFileSpecificDetails
+
+    #region ObservedFileAccesses
+    public class ReportedProcessData
+    {
+        public uint ProcessId { get; set; }
+        public uint ParentProcessId { get; set; }
+        public string Path { get; set; }
+        public string ProcessArgs { get; set; }
+        public string CreationTime { get; set; }
+        public string ExitTime { get; set; }
+        public uint ExitCode { get; set; }
+        public long? KernelTime { get; set; }
+        public long? UserTime { get; set; }
+        public string IOCountersRead { get; set; }
+        public string IOCountersWrite { get; set; }
+        public string IOCountersOther { get; set; }
+    }
+
+    public class ReportedFileAccessData
+    { 
+        public string Path { get; set; }
+        public string RequestedAccess { get; set; }
+        public string CreationDisposition { get; set; }
+        public string DesiredAccess { get; set; }
+        public string ShareMode { get; set; }
+        public string Status { get; set; }
+        public string Operation { get; set; }
+        public string FlagsAndAttributes { get; set; }
+        public uint Error { get; set; }
+        public ulong Usn { get; set; }
+        public string ManifestPath { get; set; }
+        public uint Process { get; set; }
+        public bool ExplicitlyReported { get; set; }
+        public string EnumeratePattern { get; set; }
+    }
+    #endregion ObservedFileAccesses
 
 #pragma warning restore 1591
 }

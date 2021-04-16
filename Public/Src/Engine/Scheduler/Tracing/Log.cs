@@ -3843,6 +3843,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void RuntimeDumpPipLiteLogLimitReached(LoggingContext loggingContext, int maxFiles);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DumpPipLiteSettingsMismatch,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "DumpFailedPipsWithDynamicData flag is set for the dump pip lite analyzer, but the LogObservedFileAccesses and/or LogProcesses flags were not set. Therefore, dump pip lite will not record observed file accesses.")]
+        internal abstract void DumpPipLiteSettingsMismatch(LoggingContext loggingContext);
+
+        [GeneratedEvent(
             (ushort)LogEventId.RecordFileForBuildManifestAfterGenerateBuildManifestFileList,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

@@ -351,6 +351,9 @@ namespace BuildXL
                             "dumpFailedPipsLogLimit",
                             opt => loggingConfiguration.DumpFailedPipsLogLimit = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "dumpFailedPipsWithDynamicData",
+                            opt => loggingConfiguration.DumpFailedPipsWithDynamicData = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
                             sign => distributionConfiguration.EarlyWorkerRelease = sign),
                         OptionHandlerFactory.CreateOption(

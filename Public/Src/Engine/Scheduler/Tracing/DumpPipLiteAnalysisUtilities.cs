@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.IO;
@@ -10,10 +11,11 @@ using System.Text.Json;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
-using System.Diagnostics.ContractsLight;
+using BuildXL.Processes;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -36,8 +38,25 @@ namespace BuildXL.Scheduler.Tracing
         /// <remarks> An error will be logged if this function returns false. </remarks>
         public static bool DumpPip(Pip pip, string logPath, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, LoggingContext loggingContext)
         {
+            return DumpPip(pip, dynamicData: null, logPath, pathTable, stringTable, symbolTable, pipGraph, loggingContext);
+        }
+
+        /// <summary>
+        /// Dumps the specified Pip to a json file named {pip.SemiStableHash}.json.
+        /// </summary>
+        /// <param name="pip"> Pip to be dumped. </param>
+        /// <param name="dynamicData"> Contains dynamic observations to be dumped. </param>
+        /// <param name="logPath"> Directory where the pip dump will be written. </param>
+        /// <param name="pathTable"> Path table. </param>
+        /// <param name="stringTable"> String table. </param>
+        /// <param name="symbolTable"> Symbol table. </param>
+        /// <param name="pipGraph"> Pip graph for resolving qualifier ids. </param>
+        /// <param name="loggingContext"> Logging context for logging any potential errors (can be null for post build). </param>
+        /// <returns> True if log file was written successfully. </returns>
+        /// <remarks> An error will be logged if this function returns false. </remarks>
+        public static bool DumpPip(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, string logPath, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, LoggingContext loggingContext)
+        {
             var outputFilePath = Path.Combine(logPath, $"{pip.FormattedSemiStableHash}.json");
-            var pipToBeLogged = CreateObjectForSerialization(pip, pathTable, stringTable, symbolTable, pipGraph);
             var serializerOptions = new JsonSerializerOptions
             {
                 WriteIndented = true,
@@ -46,7 +65,8 @@ namespace BuildXL.Scheduler.Tracing
 
             try
             {
-                var dumpContents = JsonSerializer.SerializeToUtf8Bytes<SerializedPip>(pipToBeLogged, serializerOptions);
+                var pipToBeLogged = CreateObjectForSerialization(pip, dynamicData, pathTable, stringTable, symbolTable, pipGraph);
+                var dumpContents = JsonSerializer.SerializeToUtf8Bytes(pipToBeLogged, serializerOptions);
                 File.WriteAllBytes(outputFilePath, dumpContents);
             }
             catch (Exception ex)
@@ -66,7 +86,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     // General case for any other exceptions that may occur so that we don't fail the build due to an uncaught exception
                     Logger.Log.DumpPipLiteUnableToSerializePip(loggingContext, pip.FormattedSemiStableHash, outputFilePath, ex.GetLogEventMessage());
-                }                
+                }
 
                 return false;
             }
@@ -89,7 +109,6 @@ namespace BuildXL.Scheduler.Tracing
             }
             catch (Exception ex)
             {
-                // TODO: Determine if this should be a warning or verbose
                 // If log directory creation fails, then disable the runtime analyzer for this build and log the exception.
                 Logger.Log.DumpPipLiteUnableToCreateLogDirectory(loggingContext, logPath, ex.GetLogEventMessage());
 
@@ -105,12 +124,13 @@ namespace BuildXL.Scheduler.Tracing
         /// Prepares a pip to be serialized.
         /// </summary>
         /// <param name="pip"></param>
+        /// <param name="dynamicData"></param>
         /// <param name="pathTable"></param>
         /// <param name="stringTable"></param>
         /// <param name="symbolTable"></param>
         /// <param name="pipGraph"></param>
         /// <returns>Serialized Pip object.</returns>
-        public static SerializedPip CreateObjectForSerialization(Pip pip, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph)
+        public static SerializedPip CreateObjectForSerialization(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph)
         {
             SerializedPip serializedPip = new SerializedPip
             {
@@ -149,6 +169,27 @@ namespace BuildXL.Scheduler.Tracing
                 default:
                     Contract.Assert(false, $"Specified pip type '{pip.PipType}' does not match any known pip types.");
                     break;
+            }
+
+            if (dynamicData.HasValue)
+            {
+                if (dynamicData.Value.ReportedProcesses != null && dynamicData.Value.ReportedProcesses.Count > 0)
+                {
+                    serializedPip.ReportedProcesses = new List<ReportedProcessData>();
+                    foreach (var reportedProcess in dynamicData.Value.ReportedProcesses)
+                    {
+                        serializedPip.ReportedProcesses.Add(CreateReportedProcessData(reportedProcess));
+                    }
+                }
+
+                if (dynamicData.Value.ReportedFileAccesses != null && dynamicData.Value.ReportedFileAccesses.Count > 0)
+                {
+                    serializedPip.ReportedFileAccesses = new List<ReportedFileAccessData>();
+                    foreach (var reportedFileAccess in dynamicData.Value.ReportedFileAccesses)
+                    {
+                        serializedPip.ReportedFileAccesses.Add(CreateReportedFileAccessData(reportedFileAccess, pathTable));
+                    }
+                }
             }
 
             return serializedPip;
@@ -212,7 +253,7 @@ namespace BuildXL.Scheduler.Tracing
                 Arguments = CreateString(pip.Arguments, pathTable),
                 ResponseFilePath = CreateString(pip.ResponseFile, pathTable),
                 ReponseFileContents = CreateString(pip.ResponseFileData, pathTable),
-                EnvironmentVariables = pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"))).ToList(),
+                EnvironmentVariables = pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"))).ToList()
             };
         }
 
@@ -375,6 +416,48 @@ namespace BuildXL.Scheduler.Tracing
         }
         #endregion WriteFileSpecificDetails
 
+        #region ObservedFileAccesses
+        private static ReportedProcessData CreateReportedProcessData(ReportedProcess data)
+        {
+            return new ReportedProcessData
+            {
+                ProcessId = data.ProcessId,
+                ParentProcessId = data.ParentProcessId,
+                Path = data.Path,
+                ProcessArgs = data.ProcessArgs,
+                CreationTime = CreateString(data.CreationTime),
+                ExitTime = CreateString(data.ExitTime),
+                ExitCode = data.ExitCode,
+                KernelTime = CreateNumeric(data.KernelTime),
+                UserTime = CreateNumeric(data.UserTime),
+                IOCountersRead = CreateString(data.IOCounters.ReadCounters),
+                IOCountersWrite = CreateString(data.IOCounters.WriteCounters),
+                IOCountersOther = CreateString(data.IOCounters.OtherCounters)
+            };
+        }
+
+        private static ReportedFileAccessData CreateReportedFileAccessData(ReportedFileAccess data, PathTable pathTable)
+        {
+            return new ReportedFileAccessData
+            {
+                Path = string.IsNullOrWhiteSpace(data.Path) ? CreateString(data.ManifestPath, pathTable) : data.Path,
+                RequestedAccess = CreateString(data.RequestedAccess),
+                CreationDisposition = CreateString(data.CreationDisposition),
+                DesiredAccess = CreateString(data.DesiredAccess),
+                ShareMode = CreateString(data.ShareMode),
+                Status = CreateString(data.Status),
+                Operation = CreateString(data.Operation),
+                FlagsAndAttributes = CreateString(data.FlagsAndAttributes),
+                Error = data.Error,
+                Usn = data.Usn.Value,
+                ManifestPath = CreateString(data.ManifestPath, pathTable),
+                Process = data.Process.ProcessId,
+                ExplicitlyReported = data.ExplicitlyReported,
+                EnumeratePattern = data.EnumeratePattern
+            };
+        }
+        #endregion ObservedFileAccesses
+
         #region StringHelperFunctions
         private static string CreateString(AbsolutePath value, PathTable pathTable)
         {
@@ -444,6 +527,26 @@ namespace BuildXL.Scheduler.Tracing
         private static List<string> CreateString(IEnumerable<FileArtifactWithAttributes> values, PathTable pathTable)
         {
             return values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable) + " (" + Enum.Format(typeof(FileExistence), value.FileExistence, "f") + ")").ToList();
+        }
+
+        private static string CreateString(DateTime value)
+        {
+            return value.ToLongTimeString();
+        }
+
+        private static string CreateString(IOTypeCounters value)
+        {
+            return value != null ? $"opCount: {value.OperationCount}, transferCount: {value.TransferCount}" : null;
+        }
+
+        private static string CreateString(RequestedAccess value)
+        {
+            return $"[{value}]";
+        }
+
+        private static string CreateString<T>(T value) where T : Enum
+        {
+            return value != null ? Enum.Format(typeof(T), value, "f") : null;
         }
 
         private static long? CreateNumeric(TimeSpan? value)

@@ -403,6 +403,11 @@ namespace BuildXL.Utilities.Configuration
         public int? DumpFailedPipsLogLimit { get; }
 
         /// <summary>
+        /// When enabled, dump pip lite will dump dynamic file/process observations (must have logfileaccesses and/or logprocesses set)
+        /// </summary>
+        public bool? DumpFailedPipsWithDynamicData { get; set; }
+
+        /// <summary>
         /// Whether all cached pip outputs should be logged.
         /// </summary>
         public bool LogCachedPipOutputs { get; }

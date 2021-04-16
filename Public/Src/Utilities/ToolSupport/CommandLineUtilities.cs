@@ -218,9 +218,18 @@ namespace BuildXL.ToolSupport
         public static TEnum ParseEnumOption<TEnum>(Option opt)
             where TEnum : struct
         {
+            return ParseEnumOption<TEnum>(opt, e => Enum.IsDefined(typeof(TEnum), e));
+        }
+
+        /// <summary>
+        /// Parses an option that produces an enum with custom validation.
+        /// </summary>
+        public static TEnum ParseEnumOption<TEnum>(Option opt, Predicate<TEnum> isValidEnum)
+            where TEnum : struct
+        {
             string value = ParseStringOption(opt);
             TEnum enumValue;
-            if (Enum.TryParse(value, ignoreCase: true, result: out enumValue) && Enum.IsDefined(typeof(TEnum), enumValue))
+            if (Enum.TryParse(value, ignoreCase: true, result: out enumValue) && isValidEnum(enumValue))
             {
                 return enumValue;
             }

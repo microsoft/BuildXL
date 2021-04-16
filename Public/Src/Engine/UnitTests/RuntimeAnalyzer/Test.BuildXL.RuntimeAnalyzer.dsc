@@ -27,6 +27,10 @@ namespace Test.BuildXL.RuntimeAnalyzer {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe
+        ],
+        runtimeContent: [
+            importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
         ]
     });
 }

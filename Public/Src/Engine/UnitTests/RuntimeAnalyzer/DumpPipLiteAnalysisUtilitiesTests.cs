@@ -114,7 +114,7 @@ namespace Test.BuildXL.RuntimeAnalyzer
         private bool VerifyContentWrittenToFile(Pip pip, PipGraph graph)
         {
             var success = true;
-            var serializedPip = DumpPipLiteAnalysisUtilities.CreateObjectForSerialization(pip, Context.PathTable, Context.StringTable, Context.SymbolTable, graph);
+            var serializedPip = DumpPipLiteAnalysisUtilities.CreateObjectForSerialization(pip, dynamicData: null, Context.PathTable, Context.StringTable, Context.SymbolTable, graph);
             var pipWrittenToFile = File.ReadAllBytes(GetDumpFilePath(pip));
             var serializerOptions = new JsonSerializerOptions
             {

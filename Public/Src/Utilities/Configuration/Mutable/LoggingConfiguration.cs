@@ -53,6 +53,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedLogsDirectory = AbsolutePath.Invalid;
             DumpFailedPips = true;
             DumpFailedPipsLogLimit = 50;
+            DumpFailedPipsWithDynamicData = false;
             LogCachedPipOutputs = false;
         }
 
@@ -149,6 +150,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxNumPipTelemetryBatches = template.MaxNumPipTelemetryBatches;
             DumpFailedPips = template.DumpFailedPips;
             DumpFailedPipsLogLimit = template.DumpFailedPipsLogLimit;
+            DumpFailedPipsWithDynamicData = template.DumpFailedPipsWithDynamicData;
             LogCachedPipOutputs = template.LogCachedPipOutputs;
         }
 
@@ -386,6 +388,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public int? DumpFailedPipsLogLimit { get; set; }
+
+        /// <inheritdoc/>
+        public bool? DumpFailedPipsWithDynamicData { get; set; }
 
         /// <inheritdoc/>
         public bool LogCachedPipOutputs { get; set; }

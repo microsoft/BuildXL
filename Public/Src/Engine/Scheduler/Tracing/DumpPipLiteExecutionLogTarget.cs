@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Concurrent;
 using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -62,6 +64,16 @@ namespace BuildXL.Scheduler.Tracing
         private bool m_loggingErrorOccured;
 
         /// <summary>
+        /// Holds data collected by this execution log target until it is ready to be dumped.
+        /// </summary>
+        private readonly ConcurrentDictionary<PipId, ProcessExecutionMonitoringReportedEventData?> m_dynamicDataDictionary;
+
+        /// <summary>
+        /// Indicates whether any data other than just static pip data should be dumped.
+        /// </summary>
+        private readonly bool m_shouldDumpDynamicData;
+
+        /// <summary>
         /// Intialize execution log target and create log directory.
         /// </summary>
         /// <remarks>
@@ -82,6 +94,19 @@ namespace BuildXL.Scheduler.Tracing
             m_loggingErrorOccured = false;
             m_maxLogFiles = configuration.Logging.DumpFailedPipsLogLimit.GetValueOrDefault();
             m_numLogFilesGenerated = 0;
+            m_dynamicDataDictionary = new ConcurrentDictionary<PipId, ProcessExecutionMonitoringReportedEventData?>();
+            m_shouldDumpDynamicData = configuration.Logging.DumpFailedPipsWithDynamicData.HasValue &&
+                                      configuration.Logging.DumpFailedPipsWithDynamicData.Value &&
+                                      ((configuration.Sandbox.UnsafeSandboxConfiguration.MonitorFileAccesses && 
+                                      configuration.Sandbox.LogObservedFileAccesses) ||
+                                      configuration.Sandbox.LogProcesses);
+
+            if (!m_shouldDumpDynamicData &&
+                configuration.Logging.DumpFailedPipsWithDynamicData.HasValue &&
+                configuration.Logging.DumpFailedPipsWithDynamicData.Value)
+            {
+                Logger.Log.DumpPipLiteSettingsMismatch(m_loggingContext);
+            }
         }
 
         /// <inheritdoc/>
@@ -110,40 +135,82 @@ namespace BuildXL.Scheduler.Tracing
 
                 if (currentNumLogFiles <= m_maxLogFiles)
                 {
-                    var dumpPipResult = false;
-
-                    if (!m_logPathCreated)
+                    var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.DumpPipLiteAnalyzer);
+                    ProcessExecutionMonitoringReportedEventData? dynamicData = null;
+                    
+                    if (m_shouldDumpDynamicData)
                     {
-                        // A log entry should have been generated already if this fails
-                        m_logPathCreated = DumpPipLiteAnalysisUtilities.CreateLoggingDirectory(m_logPath.ToString(m_pipExecutionContext.PathTable), m_loggingContext);
+                        m_dynamicDataDictionary.TryRemove(data.PipId, out dynamicData);
                     }
 
-                    if (m_logPathCreated)
-                    {
-                        var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.DumpPipLiteAnalyzer);
-
-                        // A log entry should have been generated already if this fails
-                        dumpPipResult = DumpPipLiteAnalysisUtilities.DumpPip(pip,
-                                                                                 m_logPath.ToString(m_pipExecutionContext.PathTable),
-                                                                                 m_pipExecutionContext.PathTable,
-                                                                                 m_pipExecutionContext.StringTable,
-                                                                                 m_pipExecutionContext.SymbolTable,
-                                                                                 m_pipGraph,
-                                                                                 m_loggingContext);
-                    }
-
-                    if (!(m_logPathCreated && dumpPipResult))
-                    {
-                        // This failure was already logged in DumpPipLiteAnalysisUtilies
-                        m_loggingErrorOccured = true;
-                    }
-
-                    if (currentNumLogFiles >= m_maxLogFiles)
-                    {
-                        // Log limit reached, log this once
-                        Logger.Log.RuntimeDumpPipLiteLogLimitReached(m_loggingContext, m_maxLogFiles);
-                    }
+                    DumpPip(pip, dynamicData, currentNumLogFiles);
                 }
+            }
+            else
+            {
+                // If m_loggingErrorOccured is set to true, then no data is being added to the dictionary anyway, so there is no need to remove
+                if (!m_loggingErrorOccured && m_shouldDumpDynamicData)
+                {
+                    // The pip is not in a failed state, so it does not need to be dumped.
+                    m_dynamicDataDictionary.TryRemove(data.PipId, out _);
+                }
+            }
+        }
+
+        /// <summary>
+        /// This event will get data about reported file accesses and reported processes.
+        /// The data will be added to <see cref="m_dynamicDataDictionary"/>, and will be dumped if the pip fails
+        /// in the PipExecutionPerformance event.
+        /// </summary>
+        /// <param name="data"></param>
+        public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
+        {
+            if (m_shouldDumpDynamicData && !m_loggingErrorOccured && m_numLogFilesGenerated < m_maxLogFiles)
+            {
+                m_dynamicDataDictionary.TryAdd(data.PipId, data);
+            }
+        }
+
+        /// <summary>
+        /// Ensures that a log path is created, calls <see cref="o:DumpPipLiteAnalysisUtilities.DumpPip"/>, and updates
+        /// the state of the analyzer if it runs into an error.
+        /// </summary>
+        /// <param name="pip">Pip to be dumped.</param>
+        /// <param name="dynamicData"> Dynamic data to be dumped.</param>
+        /// <param name="currentNumLogFiles">The current number of dump pip lite files that have been created.</param>
+        private void DumpPip(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, int currentNumLogFiles)
+        {
+            var dumpPipResult = false;
+
+            if (!m_logPathCreated)
+            {
+                // A log entry should have been generated already if this fails
+                m_logPathCreated = DumpPipLiteAnalysisUtilities.CreateLoggingDirectory(m_logPath.ToString(m_pipExecutionContext.PathTable), m_loggingContext);
+            }
+
+            if (m_logPathCreated)
+            {
+                // A log entry should have been generated already if this fails
+                dumpPipResult = DumpPipLiteAnalysisUtilities.DumpPip(pip,
+                                                                     dynamicData,
+                                                                     m_logPath.ToString(m_pipExecutionContext.PathTable),
+                                                                     m_pipExecutionContext.PathTable,
+                                                                     m_pipExecutionContext.StringTable,
+                                                                     m_pipExecutionContext.SymbolTable,
+                                                                     m_pipGraph,
+                                                                     m_loggingContext);
+            }
+
+            if (!(m_logPathCreated && dumpPipResult))
+            {
+                // This failure was already logged in DumpPipLiteAnalysisUtilies
+                m_loggingErrorOccured = true;
+            }
+
+            if (currentNumLogFiles >= m_maxLogFiles)
+            {
+                // Log limit reached, log this once
+                Logger.Log.RuntimeDumpPipLiteLogLimitReached(m_loggingContext, m_maxLogFiles);
             }
         }
     }

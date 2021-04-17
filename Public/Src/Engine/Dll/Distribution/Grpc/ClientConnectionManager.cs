@@ -106,7 +106,18 @@ namespace BuildXL.Engine.Distribution.Grpc
             var transientFailureTimer = new Stopwatch();
             while (state != ChannelState.Shutdown)
             {
-                await Channel.WaitForStateChangedAsync(state);
+                try
+                {
+                    await Channel.TryWaitForStateChangedAsync(state);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The channel has been already shutdown and handle was disposed
+                    // (https://github.com/grpc/grpc/blob/master/src/csharp/Grpc.Core/Channel.cs#L160)
+                    // We shouldn't fail or leave this unobserved, instead we just stop monitoring
+                    Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {state} -> Disposed. Assuming shutdown was requested");
+                    break;
+                }
 
                 Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {state} -> {Channel.State}");
 

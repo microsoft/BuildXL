@@ -21,12 +21,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private Pool<byte[]>.PoolHandle _bufferHandle;
         private byte[]? _buffer;
         private readonly List<BlobBlockHash> _blockHashes = new List<BlobBlockHash>();
+        private VsoHash.RollingBlobIdentifier _rollingId = new VsoHash.RollingBlobIdentifier();
         private int _currentOffset;
+
+#if NET_COREAPP
+        private readonly byte[] _hashBuffer = new byte[VsoHash.HashSize];
+#endif
 
         /// <inheritdoc />
         public override void Initialize()
         {
             _currentOffset = 0;
+            _rollingId = new VsoHash.RollingBlobIdentifier();
             _blockHashes.Clear();
 
             if (_buffer == null)
@@ -53,7 +59,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 if (_currentOffset == _buffer.Length)
                 {
-                    _blockHashes.Add(VsoHash.HashBlock(_buffer, _buffer.Length));
+                    var blockHash = HashBlock(_buffer, _buffer.Length);
+                    _rollingId.Update(blockHash);
                     _currentOffset = 0;
                 }
 
@@ -70,26 +77,31 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.AssertDebug(_buffer != null);
             
-            var rollingId = new VsoHash.RollingBlobIdentifier();
+            // Here, either the buffer has data, or there were no blocks.
 
             // Flush out buffer
             if (_currentOffset != 0)
             {
-                _blockHashes.Add(VsoHash.HashBlock(_buffer, _currentOffset));
+                var blockHash = HashBlock(_buffer, _currentOffset);
+                return _rollingId.Finalize(blockHash).Bytes;
             }
 
             // if there are no blocks add an empty block
-            if (_blockHashes.Count == 0)
-            {
-                _blockHashes.Add(VsoHash.HashBlock(EmptyArray, 0));
-            }
-
-            for (int i = 0; i < _blockHashes.Count - 1; i++)
-            {
-                rollingId.Update(_blockHashes[i]);
-            }
-
-            return rollingId.Finalize(_blockHashes[_blockHashes.Count - 1]).Bytes;
+            var emptyBlockHash = HashBlock(new byte[] { }, 0);
+            return _rollingId.Finalize(emptyBlockHash).Bytes;
         }
+
+#if NET_COREAPP
+        private byte[] HashBlock(byte[] block, int lengthToHash)
+        {
+            VsoHash.HashBlockBytes(block, lengthToHash, _hashBuffer);
+            return _hashBuffer;
+        }
+#else
+        private BlobBlockHash HashBlock(byte[] block, int lengthToHash)
+        {
+            return VsoHash.HashBlock(block, lengthToHash);
+        }
+#endif
     }
 }

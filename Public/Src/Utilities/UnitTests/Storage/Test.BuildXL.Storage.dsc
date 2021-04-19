@@ -8,6 +8,8 @@ namespace Storage {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Storage",
         allowUnsafeBlocks: true,
+        appConfig: f`App.config`,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         runTestArgs: {
             unsafeTestRunArguments: {
                 // when run as admin, tests leave some files around that causes qtest to fail with
@@ -27,6 +29,8 @@ namespace Storage {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
+
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
         runtimeContent: [
             dummyWaiterExe

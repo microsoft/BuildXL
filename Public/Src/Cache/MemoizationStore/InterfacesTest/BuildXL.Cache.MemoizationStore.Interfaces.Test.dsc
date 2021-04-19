@@ -18,6 +18,8 @@ namespace InterfacesTest {
             importFrom("BuildXL.Utilities").Collections.dll,
             ...BuildXLSdk.bclAsyncPackages,
             ContentStore.Test.dll,
+
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
     });
 }

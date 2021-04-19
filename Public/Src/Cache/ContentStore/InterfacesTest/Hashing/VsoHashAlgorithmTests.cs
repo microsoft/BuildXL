@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Linq;
+using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using Xunit;
@@ -32,6 +33,21 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                         Assert.True(hashAlgoBytes.SequenceEqual(blobId.Bytes));
                     }
                 }
+            }
+        }
+
+        [Fact]
+        public void HashAlgorithmIsStable()
+        {
+            // We want to test with multiple blocks.
+            var bytes = new byte[VsoHash.BlockSize * 5];
+
+            using (var hashAlgorithm = new VsoHashAlgorithm())
+            {
+                hashAlgorithm.Initialize();
+                byte[] hashAlgoBytes = hashAlgorithm.ComputeHash(bytes);
+                var hash = new ContentHash(HashType.Vso0, hashAlgoBytes);
+                Assert.Equal("VSO0:36668B653DB0B48D3AA1F2FDDCEA481B34A310C166B9B041A5B23B59BE02E5DB00", hash.ToString());
             }
         }
     }

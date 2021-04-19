@@ -287,6 +287,19 @@ export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNuget
             importFrom("System.Threading.Tasks.Dataflow").pkg,
         ];
 
+@@public 
+export const systemMemoryDeployment = isDotNetCoreApp
+    ? []
+    : [
+        importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Buffers").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+
+        // It works to reference .NET472 all the time because netstandard.dll targets .NET4 so it's safe for .NET462 to do so.
+        $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+    ];
+
 /**
  * Builds a BuildXL executable project, resulting in an EXE.
  * Does so by invoking `build` specifying `exe` as the target type.

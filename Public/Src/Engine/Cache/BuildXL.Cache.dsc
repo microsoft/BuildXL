@@ -38,6 +38,8 @@ namespace Cache {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("JsonDiffPatch.Net").pkg,
             importFrom("Newtonsoft.Json").pkg,
+            
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
     });
 }

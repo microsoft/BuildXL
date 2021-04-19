@@ -14,6 +14,7 @@ namespace Interfaces {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             ...BuildXLSdk.bclAsyncPackages,
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
     });
 }

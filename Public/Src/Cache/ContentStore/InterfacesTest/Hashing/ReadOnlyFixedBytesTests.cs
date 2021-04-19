@@ -255,8 +255,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.Equal(v1, v2);
         }
 
-#if NET_COREAPP
-
         [Fact]
         public void BufferRoundtripViaSpan()
         {
@@ -267,8 +265,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             var v2 = new ReadOnlyFixedBytes(sb);
             Assert.Equal(v1, v2);
         }
-
-#endif
 
         [Fact]
         public void BufferPositiveOffsetRoundtrip()

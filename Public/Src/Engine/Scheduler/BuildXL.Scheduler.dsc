@@ -44,6 +44,8 @@ namespace Scheduler {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
+            
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
         internalsVisibleTo: [
             "bxlanalyzer",

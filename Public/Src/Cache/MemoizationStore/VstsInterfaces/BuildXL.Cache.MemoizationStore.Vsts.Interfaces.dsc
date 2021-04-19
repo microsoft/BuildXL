@@ -14,6 +14,8 @@ namespace VstsInterfaces {
             Interfaces.dll,
             NetFx.System.Runtime.Serialization.dll,
             importFrom("Newtonsoft.Json").pkg,
+
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
     });
 }

@@ -27,8 +27,8 @@ namespace VBCSCompilerLogger {
         runtimeContent:[
             importFrom("System.Reflection.Metadata.ForVBCS").pkg,
             importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-            importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
-            importFrom("SystemNumericsVectorsForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         ],
         runtimeContentToSkip: [
             importFrom("System.Collections.Immutable").pkg,

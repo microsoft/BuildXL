@@ -19,6 +19,8 @@ namespace Storage {
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
         embeddedResources: [{resX: f`Strings.resx`}],
         internalsVisibleTo: [

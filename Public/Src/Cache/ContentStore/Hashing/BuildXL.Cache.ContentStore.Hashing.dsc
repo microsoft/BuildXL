@@ -20,6 +20,7 @@ namespace Hashing {
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll,
             ]),
+            ...BuildXLSdk.systemMemoryDeployment,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         runtimeContent: Context.getCurrentHost().os !== "win" ? [] : [

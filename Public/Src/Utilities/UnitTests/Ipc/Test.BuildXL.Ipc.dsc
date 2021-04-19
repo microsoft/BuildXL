@@ -5,6 +5,8 @@ namespace Ipc {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Ipc",
+        appConfig: f`App.config`,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

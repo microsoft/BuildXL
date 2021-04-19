@@ -319,6 +319,7 @@ namespace NugetPackages {
             ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             importFrom("RuntimeContracts").withQualifier(net472PackageQualifer).pkg,
+            importFrom("System.Memory").withQualifier(net472PackageQualifer).pkg,
         ]
     });
 

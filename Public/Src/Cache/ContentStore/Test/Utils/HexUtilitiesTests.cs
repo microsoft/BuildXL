@@ -42,7 +42,6 @@ namespace ContentStoreTest.Utils
             AssertBytes(new byte[] {0x98, 0x76}, bytes);
         }
 
-#if NET_COREAPP
         [Fact]
         public void PreallocatedHexToBytesBasics()
         {
@@ -57,7 +56,6 @@ namespace ContentStoreTest.Utils
             bytes = HexUtilities.HexToBytes("fAbCd", buffer);
             AssertBytes(new byte[] {0xFA, 0xBC}, bytes);
         }
-#endif
 
         [Fact]
         public void BytesToHexBasics()
@@ -127,16 +125,14 @@ namespace ContentStoreTest.Utils
             }
         }
 
-#if NET_COREAPP
-    // ReSharper disable once UnusedParameter.Local
-    private static void AssertBytes(byte[] expected, ReadOnlySpan<byte> actual)
-    {
-        Assert.Equal(expected.Length, actual.Length);
-        for (int i = 0; i < expected.Length; i++)
+        // ReSharper disable once UnusedParameter.Local
+        private static void AssertBytes(byte[] expected, ReadOnlySpan<byte> actual)
         {
-            Assert.Equal(expected[i], actual[i]);
+            Assert.Equal(expected.Length, actual.Length);
+            for (int i = 0; i < expected.Length; i++)
+            {
+                Assert.Equal(expected[i], actual[i]);
+            }
         }
-    }
-#endif
     }
 }

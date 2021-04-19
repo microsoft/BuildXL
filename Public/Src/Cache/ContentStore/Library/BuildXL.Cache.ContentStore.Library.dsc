@@ -41,6 +41,8 @@ namespace Library {
             importFrom("Polly.Contrib.WaitAndRetry").pkg,
 
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
+
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
         runtimeContent: [
             importFrom("Sdk.Protocols.Grpc").runtimeContent,

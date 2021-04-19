@@ -14,6 +14,7 @@ export namespace DropDaemon {
         assemblyName: "DropDaemon",
         rootNamespace: "Tool.DropDaemon",
         appConfig: f`DropDaemon.exe.config`,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
         embeddedResources: [
             {

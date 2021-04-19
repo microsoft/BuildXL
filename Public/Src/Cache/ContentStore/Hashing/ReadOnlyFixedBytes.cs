@@ -75,8 +75,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
         }
 
-#if NET_COREAPP
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyFixedBytes"/> struct.
         /// </summary>
@@ -91,8 +89,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 buffer.Slice(offset, len).CopyTo(span);
             }
         }
-
-#endif
 
         /// <summary>
         ///     Creates a new instance of the <see cref="ReadOnlyFixedBytes"/> by reading the <paramref name="length"/> bytes from the <paramref name="reader"/>.

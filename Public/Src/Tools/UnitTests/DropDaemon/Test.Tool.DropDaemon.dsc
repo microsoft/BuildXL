@@ -8,6 +8,7 @@ namespace Test.Tool.DropDaemon {
         assemblyName: "Test.Tool.DropDaemon",
         sources: globR(d`.`, "*.cs"),
         appConfig: f`Test.Tool.DropDaemon.dll.config`,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

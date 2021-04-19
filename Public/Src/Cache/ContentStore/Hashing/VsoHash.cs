@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -22,8 +24,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public const int PageSize = 64 * 1024;
         public const int BlockSize = PagesPerBlock * PageSize; // 32 * 64 * 1024 = 2MB
 
+        public const int HashSize = 32;
+
         public static readonly BlobIdentifierWithBlocks OfNothing;
 
+        private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
         private static readonly Pool<List<byte>> PoolLocalPageIdsBuffer = new Pool<List<byte>>(factory: () => new List<byte>(PagesPerBlock), reset: list => list.Clear());
         private static readonly Pool<SHA256CryptoServiceProvider> PoolSHA256CryptoServiceProvider = new Pool<SHA256CryptoServiceProvider>(() => new SHA256CryptoServiceProvider());
 
@@ -51,6 +56,85 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private delegate void BlockReadComplete(Pool<byte[]>.PoolHandle blockBufferHandle, int blockLength, BlobBlockHash blockHash);
 
+#if NET_COREAPP
+        public static BlobBlockHash HashBlock(byte[] block, int lengthToHash, int startIndex = 0)
+        {
+            var buffer = new byte[HashSize];
+            HashBlockBytes(block, lengthToHash, buffer, startIndex);
+            return new BlobBlockHash(buffer);
+        }
+
+        /// <summary>
+        /// Expose method which does not allocate a BlobBlockHash
+        /// </summary>
+        public static void HashBlockBytes(byte[] block, int lengthToHash, byte[] resultBuffer, int startIndex = 0)
+        {
+            using (var sha256Handle = PoolSHA256CryptoServiceProvider.Get())
+            {
+                int pageCounter = 0;
+                int currentIndex = startIndex;
+                int endIndex = startIndex + lengthToHash;
+
+                int expectedPages = (int)Math.Ceiling(lengthToHash * 1.0 / PageSize);
+                int bytesPerPage = sha256Handle.Value.HashSize / 8;
+                var totalBytes = expectedPages * bytesPerPage;
+
+                Contract.CheckDebug(bytesPerPage == HashSize)?.Assert($"HashSize constant is not consistent with crypto provider value. HashSize=[{HashSize}], Provider=[{bytesPerPage}]");
+                Contract.CheckDebug(resultBuffer.Length == HashSize)?.Assert($"The resultBuffer has length {resultBuffer.Length} but it should have length {HashSize}");
+                Contract.CheckDebug(expectedPages <= PagesPerBlock)?.Assert($"Block will have {expectedPages}, which is greater than the maximum of {PagesPerBlock}");
+
+                var buffer = ArrayPool.Rent(totalBytes);
+                var bufferSpan = buffer.AsSpan().Slice(0, totalBytes);
+                try
+                {
+                    while (endIndex > currentIndex)
+                    {
+                        int bytesToCopy = Math.Min(endIndex - currentIndex, PageSize);
+                        var page = block.AsSpan().Slice(currentIndex, bytesToCopy);
+                        var pageBuffer = bufferSpan.Slice(pageCounter * bytesPerPage);
+                        var succeeded = sha256Handle.Value.TryComputeHash(page, pageBuffer, out var bytesWritten);
+                        if (!succeeded)
+                        {
+                            // From the docs: TryComputeHash will return true if destination is long enough to receive the hash value; otherwise, false.
+                            throw new InvalidOperationException("Page buffer is not big enough to receive the hash value.");
+                        }
+
+                        Contract.CheckDebug(bytesWritten == bytesPerPage)?.Assert($"Unexpected amount of bytes written.Expected =[{bytesPerPage}] Actual =[{bytesWritten}]");
+
+                        pageCounter++;
+                        currentIndex += PageSize;
+                    }
+
+                    // calculate the block buffer as we have make pages or have a partial page
+                    var resultSucceeded = TryComputeSHA256Hash(bufferSpan, resultBuffer);
+                    if (!resultSucceeded)
+                    {
+                        // From the docs: TryComputeHash will return true if destination is long enough to receive the hash value; otherwise, false.
+                        throw new InvalidOperationException("Result buffer is not big enough to receive the hash value.");
+                    }
+                }
+                finally
+                {
+                    ArrayPool.Return(buffer);
+                }
+            }
+        }
+
+        private static bool TryComputeSHA256Hash(ReadOnlySpan<byte> bytes, Span<byte> result)
+        {
+            using (var sha256Handle = PoolSHA256CryptoServiceProvider.Get())
+            {
+                var succeeded = sha256Handle.Value.TryComputeHash(bytes, result, out var bytesWritten);
+#if DEBUG
+                if (succeeded && bytesWritten != HashSize)
+                {
+                    throw new Exception($"Expected crypto service provider to write {HashSize} bytes, but it wrote {bytesWritten} bytes instead.");
+                }
+#endif
+                return succeeded;
+            }
+        }
+#else
         public static BlobBlockHash HashBlock(byte[] block, int lengthToHash, int startIndex = 0)
         {
             using (var pageIdsHandle = PoolLocalPageIdsBuffer.Get())
@@ -77,6 +161,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return new BlobBlockHash(ComputeSHA256Hash(pageIdentifiersBuffer.ToArray()));
             }
         }
+#endif
 
         public static async Task<BlobIdentifierWithBlocks> WalkAllBlobBlocksAsync(
             Stream stream,
@@ -576,7 +661,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private byte[] _rollingId = InitialRollingId;
             private bool _finalAdded;
 
-            public void Update(BlobBlockHash currentBlockIdentifier)
+            private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
+
+#if NET_COREAPP
+            public void Update(byte[] currentBlockIdentifier)
             {
                 // TODO:if we want to enforce this we should implement BlobBlockHash.BlockSize (bug 1365340)
                 //
@@ -588,7 +676,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 UpdateInternal(currentBlockIdentifier, false);
             }
 
-            public BlobIdentifier Finalize(BlobBlockHash currentBlockIdentifier)
+            public BlobIdentifier Finalize(byte[] currentBlockIdentifier)
             {
                 // TODO:if we want to enforce this we should implement BlobBlockHash.BlockSize (bug 1365340)
                 //
@@ -600,6 +688,56 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return new BlobIdentifier(_rollingId, VsoAlgorithmId);
             }
 
+            private void UpdateInternal(byte[] currentBlockIdentifier, bool isFinalBlock)
+            {
+                if (_finalAdded && isFinalBlock)
+                {
+                    throw new InvalidOperationException("Final block already added.");
+                }
+
+                int combinedBufferLength = _rollingId.Length + currentBlockIdentifier.Length + 1;
+                var combinedBuffer = ArrayPool.Rent(combinedBufferLength);
+                try
+                {
+                    Array.Copy(_rollingId, combinedBuffer, _rollingId.Length);
+                    Array.Copy(currentBlockIdentifier, 0, combinedBuffer, _rollingId.Length, currentBlockIdentifier.Length);
+                    combinedBuffer[combinedBufferLength - 1] = Convert.ToByte(isFinalBlock);
+
+                    if (_rollingId == InitialRollingId)
+                    {
+                        // Initial ID has a different size from the rest. Need to allocate new array.
+
+                        // It's possible that the rented array is not the exact size needed.
+                        var bufferToHash = combinedBuffer;
+                        if (combinedBuffer.Length != combinedBufferLength)
+                        {
+                            bufferToHash = new byte[combinedBufferLength];
+                            Array.Copy(combinedBuffer, 0, bufferToHash, 0, combinedBufferLength);
+                        }
+
+                        _rollingId = ComputeSHA256Hash(bufferToHash);
+                    }
+                    else
+                    {
+                        // Can reuse same buffer.
+                        var succeeded = TryComputeSHA256Hash(combinedBuffer.AsSpan().Slice(0, combinedBufferLength), _rollingId);
+                        if (!succeeded)
+                        {
+                            throw new InvalidOperationException($"rollingId.Length=[{_rollingId.Length}] is not large enough to receive hash value.");
+                        }
+                    }
+                }
+                finally
+                {
+                    ArrayPool.Return(combinedBuffer);
+                }
+
+                if (isFinalBlock)
+                {
+                    _finalAdded = true;
+                }
+            }
+#else
             private void UpdateInternal(BlobBlockHash currentBlockIdentifier, bool isFinalBlock)
             {
                 if (_finalAdded && isFinalBlock)
@@ -618,6 +756,41 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {
                     _finalAdded = true;
                 }
+            }
+#endif
+
+            public void Update(BlobBlockHash currentBlockIdentifier)
+            {
+                // TODO:if we want to enforce this we should implement BlobBlockHash.BlockSize (bug 1365340)
+                //
+                // var currentBlockSize = currentBlockIdentifier.BlockSize;
+                // if (currentBlockSize != BlockSize)
+                // {
+                //     throw new InvalidOperationException($"Non-final blocks must be of size {BlockSize}; but the given block has size {currentBlockSize}");
+                // }
+
+#if NET_COREAPP
+                UpdateInternal(currentBlockIdentifier.HashBytes, false);
+#else
+                UpdateInternal(currentBlockIdentifier, false);
+#endif
+            }
+
+            public BlobIdentifier Finalize(BlobBlockHash currentBlockIdentifier)
+            {
+                // TODO:if we want to enforce this we should implement BlobBlockHash.BlockSize (bug 1365340)
+                //
+                // if (blockSize > BlockSize)
+                // {
+                //     throw new InvalidOperationException("Blocks cannot be bigger than BlockSize.");
+                // }
+
+#if NET_COREAPP
+                UpdateInternal(currentBlockIdentifier.HashBytes, true);
+#else
+                UpdateInternal(currentBlockIdentifier, true);
+#endif
+                return new BlobIdentifier(_rollingId, VsoAlgorithmId);
             }
         }
     }

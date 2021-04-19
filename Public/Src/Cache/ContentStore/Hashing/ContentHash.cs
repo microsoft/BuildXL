@@ -101,8 +101,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _bytes = new ReadOnlyFixedBytes(buffer, hashBytesLength, offset);
         }
 
-#if NET_COREAPP
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHash" /> struct from byte array
         /// </summary>
@@ -119,8 +117,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _hashType = hashType;
             _bytes = new ReadOnlyFixedBytes(buffer, hashBytesLength, offset);
         }
-
-#endif
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ContentHash" /> struct from byte array

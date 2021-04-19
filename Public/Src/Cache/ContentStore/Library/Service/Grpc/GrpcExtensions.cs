@@ -31,8 +31,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public static ContentHash ToContentHash(this ByteString byteString, HashType hashType)
         {
-            byte[] contentHashByteArray = byteString.ToByteArray();
-            return new ContentHash(hashType, contentHashByteArray);
+            return new ContentHash(hashType, byteString.Span);
         }
 
         /// <summary>

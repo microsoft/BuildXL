@@ -275,8 +275,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.True(h2 > h1);
         }
 
-#if NET_COREAPP
-
         [Theory]
         [InlineData(HashType.MD5)]
         [InlineData(HashType.SHA1)]
@@ -315,7 +313,5 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
             Assert.Equal(h1, h2);
         }
-
-#endif
     }
 }

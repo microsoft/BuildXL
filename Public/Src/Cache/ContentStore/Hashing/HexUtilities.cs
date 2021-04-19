@@ -130,7 +130,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
             return result;
         }
 
-#if NET_COREAPP
         /// <summary>
         /// Parses hexadecimal strings of the form '1234abcd' or '0x9876fedb' into
         /// a pre-allocated array of bytes.
@@ -163,7 +162,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
 
             return buffer.AsSpan(0, index);
         }
-#endif
 
         /// <summary>
         /// Converts the provided bytes into a hexadecimal string of the form '1234abcd'.

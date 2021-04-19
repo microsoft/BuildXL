@@ -27,5 +27,7 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Native.dll,
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+
+        ...BuildXLSdk.systemMemoryDeployment,
     ],
 });

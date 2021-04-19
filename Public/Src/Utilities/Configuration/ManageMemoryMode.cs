@@ -34,8 +34,8 @@ namespace BuildXL.Utilities.Configuration
         Resume,
 
         /// <summary>
-        /// Cancel suspended processes
+        /// Cancel processes based on commit usage, starting from suspended ones first
         /// </summary>
-        CancelSuspended
+        CancelSuspendedFirst
     }
 }

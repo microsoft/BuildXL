@@ -14,7 +14,7 @@ using BuildXL.Interop;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler
 {
@@ -72,6 +72,16 @@ namespace BuildXL.Scheduler
 
         private static readonly IComparer<ResourceScope> s_largestCommitSizeFirstComparer =
             Comparer<ResourceScope>.Create((s1, s2) => -s1.MemoryCounters.LastCommitSizeMb.CompareTo(s2.MemoryCounters.LastCommitSizeMb));
+
+        /// This comparer considers suspended scopes as less-than non-suspended ones. 
+        /// If both are suspended or non-suspended they are considered equal
+        private static readonly IComparer<ResourceScope> s_suspendedFirstComparer =
+            Comparer<ResourceScope>.Create((s1, s2) => (s1.IsSuspended == s2.IsSuspended) ? 0 : s1.IsSuspended ? -1 : 1);
+
+        /// <summary>
+        /// Comparer used to get pips in largest-commit-size-first order, but with all suspended pips coming before non-suspended pips
+        /// </summary>
+        private static readonly IComparer<ResourceScope> s_largestCommitSuspendedFirstComparer = s_suspendedFirstComparer.AndThen(s_largestCommitSizeFirstComparer);
 
         /// <nodoc />
         public long TotalUsedWorkingSet { get; private set; }
@@ -165,10 +175,10 @@ namespace BuildXL.Scheduler
                 IComparer<ResourceScope> comparer;
                 switch (mode)
                 {
-                    case ManageMemoryMode.CancelSuspended:
+                    case ManageMemoryMode.CancelSuspendedFirst:
                         isEligible = (scope) => scope.IsSuspended;
-                        // When cancelling suspended processes, we start from the processes having the largest commit charge.
-                        comparer = s_largestCommitSizeFirstComparer;
+                        // Cancel by largest commit size, prioritizing suspended processes
+                        comparer = s_largestCommitSuspendedFirstComparer;
                         break;
 
                     case ManageMemoryMode.CancellationRam:
@@ -227,7 +237,7 @@ namespace BuildXL.Scheduler
                 {
                     case ManageMemoryMode.CancellationRam:
                     case ManageMemoryMode.CancellationCommit:
-                    case ManageMemoryMode.CancelSuspended:
+                    case ManageMemoryMode.CancelSuspendedFirst:
                     {
                         sizeMb = mode == ManageMemoryMode.CancellationRam ? scope.MemoryCounters.LastWorkingSetMb : scope.MemoryCounters.LastCommitSizeMb;
 

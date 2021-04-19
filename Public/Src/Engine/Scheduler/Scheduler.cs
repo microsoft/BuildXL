@@ -2668,9 +2668,10 @@ namespace BuildXL.Scheduler
                 else if (isAvailableRamCritical && perfInfo.ModifiedPagelistPercentage > 50)
                 {
                     // Ram >= 98% and ModifiedPageSet > 50%  
-                    // Thrashing is an issue
+                    // Thrashing is an issue - try to cancel suspended processes, if any,
+                    // or even running processes to alleviate the pressure.
                     memoryResource |= MemoryResource.LowRam;
-                    defaultManageMemoryMode = ManageMemoryMode.CancelSuspended;
+                    defaultManageMemoryMode = ManageMemoryMode.CancelSuspendedFirst;
                 }
             }
 

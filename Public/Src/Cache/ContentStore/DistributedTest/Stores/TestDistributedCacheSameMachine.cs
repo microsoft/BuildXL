@@ -55,12 +55,12 @@ namespace ContentStoreTest.Distributed.Stores
                 // Define cache 1
                 var distributedConfig1 = CreateRandomDistributedConfig(d, stampId, ringId);
                 var putScenario = ThreadSafeRandom.Generator.Next().ToString();
-                var cacheProcess1 = new ServiceProcess(distributedConfig1, null, putScenario, ReadyWaitMs, ShutdownWaitMs);
+                var cacheProcess1 = new ServiceProcess(distributedConfig1, putScenario, ReadyWaitMs, ShutdownWaitMs);
 
                 // Define cache 2
                 var distributedConfig2 = CreateRandomDistributedConfig(d, stampId, ringId);
                 var placeScenario = ThreadSafeRandom.Generator.Next().ToString();
-                var cacheProcess2 = new ServiceProcess(distributedConfig2, null, placeScenario, ReadyWaitMs, ShutdownWaitMs);
+                var cacheProcess2 = new ServiceProcess(distributedConfig2, placeScenario, ReadyWaitMs, ShutdownWaitMs);
 
                 using (cacheProcess1)
                 using (cacheProcess2)
@@ -96,7 +96,7 @@ namespace ContentStoreTest.Distributed.Stores
                                 distributedConfig1.CacheName,
                                 null);
 
-                            var putProcess = new ServiceProcess(putConfiguration, null, putScenario, ReadyWaitMs, ShutdownWaitMs, true);
+                            var putProcess = new ServiceProcess(putConfiguration, putScenario, ReadyWaitMs, ShutdownWaitMs, true);
 
                             using (putProcess)
                             {
@@ -125,7 +125,7 @@ namespace ContentStoreTest.Distributed.Stores
                                 distributedConfig2.GrpcPort,
                                 distributedConfig2.CacheName,
                                 null);
-                            var placeProcess = new ServiceProcess(placeConfiguration, null, placeScenario, ReadyWaitMs, ShutdownWaitMs, true);
+                            var placeProcess = new ServiceProcess(placeConfiguration, placeScenario, ReadyWaitMs, ShutdownWaitMs, true);
 
                             using (placeProcess)
                             {

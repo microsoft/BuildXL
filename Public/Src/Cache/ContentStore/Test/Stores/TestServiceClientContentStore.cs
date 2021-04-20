@@ -43,7 +43,7 @@ namespace ContentStoreTest.Stores
             _logger = logger;
 
             _localContentServerConfiguration = localContentServerConfiguration;
-            _serviceProcess = new ServiceProcess(_configuration, localContentServerConfiguration, configuration.Scenario, WaitForServerReadyTimeoutMs, WaitForExitTimeoutMs);
+            _serviceProcess = new ServiceProcess(_configuration, configuration.Scenario, WaitForServerReadyTimeoutMs, WaitForExitTimeoutMs);
             _configuration = serviceConfiguration;
             _heartbeatInterval = heartbeatInterval;
         }
@@ -68,7 +68,7 @@ namespace ContentStoreTest.Stores
             await _serviceProcess.ShutdownAsync(context).ShouldBeSuccess();
             _serviceProcess.Dispose();
 
-            _serviceProcess = new ServiceProcess(_configuration, _localContentServerConfiguration, Configuration.Scenario, WaitForServerReadyTimeoutMs, WaitForExitTimeoutMs);
+            _serviceProcess = new ServiceProcess(_configuration, Configuration.Scenario, WaitForServerReadyTimeoutMs, WaitForExitTimeoutMs);
             await _serviceProcess.StartupAsync(context).ShouldBeSuccess();
         }
 

@@ -54,7 +54,7 @@ namespace ContentStoreTest.Sessions
 
         protected override IStartupShutdown CreateServer(ServiceConfiguration serviceConfiguration)
         {
-            return new ServiceProcess(serviceConfiguration, LocalContentServerConfiguration, Scenario, WaitForServerReadyTimeoutMs, WaitForExitTimeoutMs);
+            return new ServiceProcess(serviceConfiguration, Scenario, WaitForServerReadyTimeoutMs, WaitForExitTimeoutMs);
         }
     }
 }

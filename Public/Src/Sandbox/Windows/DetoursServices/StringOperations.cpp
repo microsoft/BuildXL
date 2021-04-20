@@ -484,35 +484,27 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
     return 0;
 }
 
-HRESULT PathCombine(PCPathChar const fragment1, PCPathChar const fragment2, PathChar* buffer, size_t bufferSize)
+std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2)
 {
-    return PathCchCombineEx(
-        buffer,
-        bufferSize,
-        fragment1,
-        fragment2,
-        PATHCCH_ALLOW_LONG_PATHS | PATHCCH_DO_NOT_NORMALIZE_SEGMENTS);
-}
-
-std::wstring TryPathCombine(PCPathChar const fragment1, PCPathChar const fragment2, HRESULT& result)
-{
-    size_t f1Length = wcslen(fragment1);
-    size_t f2Length = wcslen(fragment2);
-
-    // For paths not exceeding MAX_PATH, avoid heap allocation.
-
-    if (f1Length + f2Length + 2 < MAX_PATH)
+    if (fragment2.size() == 0)
     {
-        PathChar buffer[MAX_PATH + 1];
-        result = PathCombine(fragment1, fragment2, buffer, MAX_PATH + 1);
-        return result == S_OK ? std::wstring(buffer) : std::wstring(L"");
+        return fragment1;
     }
-    else
-    {
-        auto buffer = std::make_unique<PathChar[]>(PATHCCH_MAX_CCH + 1);
-        result = PathCombine(fragment1, fragment2, buffer.get(), PATHCCH_MAX_CCH + 1);
-        return result == S_OK ? std::wstring(buffer.get()) : std::wstring(L"");
-    }
-}
 
+    if (fragment1.size() == 0)
+    {
+        return fragment2;
+    }
+
+    if (GetRootLength(fragment2.c_str()) > 0)
+    {
+        return fragment2;
+    }
+
+    auto ch = fragment1.back();
+
+    return ch != NT_DIRECTORY_SEPARATOR && ch != UNIX_DIRECTORY_SEPARATOR && ch != NT_VOLUME_SEPARATOR
+        ? fragment1 + NT_DIRECTORY_SEPARATOR + fragment2
+        : fragment1 + fragment2;
+}
 #endif // _WIN32

@@ -1077,14 +1077,8 @@ int CallCreateSelfForWrite()
     return (int)GetLastError();
 }
 
-int CallMoveFileExWWithTrailingBackSlash()
+int CallMoveFileExWWithTrailingBackSlash(wstring& fullPath)
 {
-    std::wstring fullPath;
-    if (!TryGetNtFullPath(L"moveFileWithTrailingSlash", fullPath))
-    {
-        return (int)GetLastError();
-    }
-
     fullPath.append(L"\\");
 
     bool result = MoveFileExW(fullPath.c_str(), L"moveFileWithTrailingSlashCopied", MOVEFILE_REPLACE_EXISTING);
@@ -1095,6 +1089,28 @@ int CallMoveFileExWWithTrailingBackSlash()
     }
 
     return 0;
+}
+
+int CallMoveFileExWWithTrailingBackSlashNtObject()
+{
+    std::wstring fullPath;
+    if (!TryGetNtFullPath(L"moveFileWithTrailingSlash", fullPath))
+    {
+        return (int)GetLastError();
+    }
+
+    return CallMoveFileExWWithTrailingBackSlash(fullPath);
+}
+
+int CallMoveFileExWWithTrailingBackSlashNtEscape()
+{
+    std::wstring fullPath;
+    if (!TryGetNtEscapedFullPath(L"moveFileWithTrailingSlash", fullPath))
+    {
+        return (int)GetLastError();
+    }
+
+    return CallMoveFileExWWithTrailingBackSlash(fullPath);
 }
 
 // ----------------------------------------------------------------------------
@@ -1138,7 +1154,8 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDeleteWithoutSharing);
     IF_COMMAND(CallDeleteOnOpenedHardlink);
     IF_COMMAND(CallCreateSelfForWrite);
-    IF_COMMAND(CallMoveFileExWWithTrailingBackSlash);
+    IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtObject);
+    IF_COMMAND(CallMoveFileExWWithTrailingBackSlashNtEscape);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

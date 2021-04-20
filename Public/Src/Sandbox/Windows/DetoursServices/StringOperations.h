@@ -251,6 +251,5 @@ size_t GetRootLength(PCPathChar path);
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);
 
 // Combines two path fragments into a single path separated by a directory separator.
-// The caller should check if <see paramref="result"/> is S_OK before using the returned string.
-std::wstring TryPathCombine(PCPathChar const fragment1, PCPathChar const fragment2, HRESULT& result);
+std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2);
 #endif

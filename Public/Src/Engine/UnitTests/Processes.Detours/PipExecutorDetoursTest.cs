@@ -7243,8 +7243,10 @@ namespace Test.BuildXL.Processes.Detours
         /// does not cause the call to return name invalid.
         /// </summary>
         /// <returns></returns>
-        [Fact]
-        public async Task CallMoveFileExWWithTrailingBackSlash()
+        [Theory]
+        [InlineData("CallMoveFileExWWithTrailingBackSlashNtObject")]
+        [InlineData("CallMoveFileExWWithTrailingBackSlashNtEscape")]
+        public async Task CallMoveFileExWWithTrailingBackSlash(string method)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -7252,13 +7254,16 @@ namespace Test.BuildXL.Processes.Detours
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
                 var sourceDir = tempFiles.GetDirectory(pathTable, "moveFileWithTrailingSlash");
+                var file = tempFiles.GetFileName(sourceDir.Expand(pathTable).ExpandedPath, "file");
+                File.WriteAllText(file, string.Empty);
+
                 var destDir = AbsolutePath.Create(context.PathTable, Path.Combine(tempFiles.RootDirectory, "moveFileWithTrailingSlashCopied"));
 
                 var process = CreateDetourProcess(
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: "CallMoveFileExWWithTrailingBackSlash",
+                    argumentStr: method,
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
@@ -7280,6 +7285,11 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.IsTrue(!Directory.Exists(sourceDir.ToString(context.PathTable)));
                 XAssert.IsTrue(Directory.Exists(destDir.ToString(context.PathTable)));
                 VerifyNormalSuccess(context, result);
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (AbsolutePath.Create(pathTable, file), RequestedAccess.Write, FileAccessStatus.Allowed),
+                    (destDir.Combine(pathTable, "file"), RequestedAccess.Write, FileAccessStatus.Allowed),
+                });
             }
         }
 

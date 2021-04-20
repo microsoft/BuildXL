@@ -92,7 +92,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public Task<GetStatsResult> GetStatsAsync(Context context) => _client.GetStatsAsync(context);
 
         /// <inheritdoc />
-        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _client.EnumerateStrongFingerprints(context);
+        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _client.EnumerateStrongFingerprints(context);
 
         private static void SetThreadPoolSizes()
         {

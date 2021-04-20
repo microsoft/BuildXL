@@ -10,12 +10,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     public static class StructResult
     {
         /// <nodoc />
-        public static StructResult<T> Create<T>(T data) where T: struct
+        public static StructResult<T> Create<T>(T data) where T : struct => new StructResult<T>(data);
+
+        /// <nodoc />
+        public static StructResult<T> FromResult<T>(Result<T> result) where T : struct
+        {
+            if (result)
+            {
+                return new StructResult<T>(result.Value);
+            }
+
+            return new StructResult<T>(result);
+        }
+
+        /// <nodoc />
+        public static StructResult<T> Success<T>(T data) where T : struct
             => new StructResult<T>(data);
     }
 
     /// <summary>
     ///     A boolean operation that returns a struct on success.
+    ///     The type is obsolete in favor of <see cref="Result{T}"/>, please don't use it for new API.
     /// </summary>
     /// <remarks>
     /// Wrapper for value types over object types and created separately.

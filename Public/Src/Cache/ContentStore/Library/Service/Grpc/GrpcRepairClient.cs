@@ -41,17 +41,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Triggers removal of local location from the content tracker.
         /// </summary>
-        public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
+        public async Task<Result<long>> RemoveFromTrackerAsync(Context context)
         {
             RemoveFromTrackerResponse response = await RunClientActionAndThrowIfFailedAsync(context, async () => await _client.RemoveFromTrackerAsync(new RemoveFromTrackerRequest { TraceId = context.TraceId }));
 
             if (response.Header.Succeeded)
             {
-                return new StructResult<long>(response.FilesEvicted);
+                return new Result<long>(response.FilesEvicted);
             }
             else
             {
-                return new StructResult<long>(response.Header.ErrorMessage, response.Header.Diagnostics);
+                return new Result<long>(response.Header.ErrorMessage, response.Header.Diagnostics);
             }
         }
 

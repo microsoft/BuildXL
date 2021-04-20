@@ -235,11 +235,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
+        public Task<Result<long>> RemoveFromTrackerAsync(Context context)
         {
             return RemoveFromTrackerCall<ContentStoreTracer>.RunAsync(Tracer, new OperationContext(context), async () =>
             {
-                var removeTaskByStore = new Dictionary<string, Task<StructResult<long>>>();
+                var removeTaskByStore = new Dictionary<string, Task<Result<long>>>();
 
                 var store1 = ContentStore1 as IRepairStore;
                 if (store1 != null)
@@ -270,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var removeTrackerResult = await kvp.Value;
                     if (removeTrackerResult.Succeeded)
                     {
-                        filesTrimmed += removeTrackerResult.Data;
+                        filesTrimmed += removeTrackerResult.Value;
                     }
                     else
                     {
@@ -280,11 +280,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (sb.Length > 0)
                 {
-                    return new StructResult<long>(sb.ToString());
+                    return new Result<long>(sb.ToString());
                 }
                 else
                 {
-                    return new StructResult<long>(filesTrimmed);
+                    return new Result<long>(filesTrimmed);
                 }
             });
         }

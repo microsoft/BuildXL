@@ -185,7 +185,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
 
             public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(new CounterSet()));
 
-            public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => null;
+            public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => null;
         }
     }
 }

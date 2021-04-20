@@ -36,7 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         }
 
         /// <inheritdoc />
-        public async Task<ObjectResult<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>> GetSelectorsAsync(
+        public async Task<Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>> GetSelectorsAsync(
             Context context,
             string cacheNamespace,
             Fingerprint weakFingerprint,
@@ -67,16 +67,19 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                             selectorAndPossible.ContentHashList?.ContentHashListWithCacheMetadata));
                 }
 
-                return new ObjectResult<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(selectorsToReturn);
+                return new Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(selectorsToReturn);
             }
             catch (Exception ex)
             {
-                return new ObjectResult<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(ex);
+                return new Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(ex);
             }
         }
 
         /// <inheritdoc />
-        public async Task<ObjectResult<ContentHashListWithCacheMetadata>> GetContentHashListAsync(Context context, string cacheNamespace, StrongFingerprint strongFingerprint)
+        public async Task<Result<ContentHashListWithCacheMetadata>> GetContentHashListAsync(
+            Context context,
+            string cacheNamespace,
+            StrongFingerprint strongFingerprint)
         {
             try
             {
@@ -92,33 +95,33 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 // our response should never be null.
                 if (response.ContentHashListWithCacheMetadata != null)
                 {
-                    return new ObjectResult<ContentHashListWithCacheMetadata>(response.ContentHashListWithCacheMetadata);
+                    return new Result<ContentHashListWithCacheMetadata>(response.ContentHashListWithCacheMetadata);
                 }
 
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (CacheServiceException ex) when (ex.ReasonCode == CacheErrorReasonCode.ContentHashListNotFound)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (ContentBagNotFoundException)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (VssServiceResponseException serviceEx) when (serviceEx.HttpStatusCode == HttpStatusCode.NotFound)
             {
                 // Currently expect the Item-based service to return VssServiceResponseException on misses,
                 // but the other catches have been left for safety/compat.
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (Exception ex)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(ex);
+                return new Result<ContentHashListWithCacheMetadata>(ex);
             }
         }
 
         /// <inheritdoc />
-        public async Task<ObjectResult<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
+        public async Task<Result<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
             Context context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
@@ -147,7 +150,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 if (addResult?.ContentHashListWithCacheMetadata == null)
                 {
                     return
-                        new ObjectResult<ContentHashListWithCacheMetadata>(
+                        new Result<ContentHashListWithCacheMetadata>(
                             new ContentHashListWithCacheMetadata(
                                 new ContentHashListWithDeterminism(null, valueToAdd.ContentHashListWithDeterminism.Determinism),
                                 valueToAdd.GetRawExpirationTimeUtc(),
@@ -157,7 +160,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 else if (addResult.ContentHashListWithCacheMetadata.ContentHashListWithDeterminism.ContentHashList != null
                          && addResult.ContentHashListWithCacheMetadata.HashOfExistingContentHashList == null)
                 {
-                    return new ObjectResult<ContentHashListWithCacheMetadata>(
+                    return new Result<ContentHashListWithCacheMetadata>(
                         new ContentHashListWithCacheMetadata(
                             addResult.ContentHashListWithCacheMetadata.ContentHashListWithDeterminism,
                             addResult.ContentHashListWithCacheMetadata.GetRawExpirationTimeUtc(),
@@ -166,12 +169,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 }
                 else
                 {
-                    return new ObjectResult<ContentHashListWithCacheMetadata>(addResult.ContentHashListWithCacheMetadata);
+                    return new Result<ContentHashListWithCacheMetadata>(addResult.ContentHashListWithCacheMetadata);
                 }
             }
             catch (Exception ex)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(ex);
+                return new Result<ContentHashListWithCacheMetadata>(ex);
             }
         }
 

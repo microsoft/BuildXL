@@ -339,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (readConfigResult.Succeeded)
                 {
-                    return (readConfigResult.Data!, configFileExists: true);
+                    return (readConfigResult.Value!, configFileExists: true);
                 }
                 else if (_configurationModel.InProcessConfiguration != null)
                 {

@@ -220,7 +220,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc/>
-        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return _records.Select(record => new StructResult<StrongFingerprint>(record.StrongFingerprint)).ToAsyncEnumerable();
         }

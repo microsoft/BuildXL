@@ -155,7 +155,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                                             $"determinism=[{valueToAdd.ContentHashListWithDeterminism.Determinism}] to VSTS with " +
                                             $"contentAvailabilityGuarantee=[{valueToAdd.ContentGuarantee}], expirationUtc=[{expirationUtc}], forceUpdate=[{ForceUpdateOnAddContentHashList}]";
                         Tracer.Debug(context, debugString);
-                        ObjectResult<ContentHashListWithCacheMetadata> responseObject =
+                        Result<ContentHashListWithCacheMetadata> responseObject =
                             await ContentHashListAdapter.AddContentHashListAsync(
                                 context,
                                 CacheNamespace,
@@ -168,7 +168,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                             return new AddOrGetContentHashListResult(responseObject);
                         }
 
-                        ContentHashListWithCacheMetadata response = responseObject.Data;
+                        ContentHashListWithCacheMetadata response = responseObject.Value;
                         var inconsistencyErrorMessage = CheckForResponseInconsistency(response);
                         if (inconsistencyErrorMessage != null)
                         {

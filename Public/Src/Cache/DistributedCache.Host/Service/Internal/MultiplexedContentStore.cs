@@ -184,7 +184,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
+        public async Task<Result<long>> RemoveFromTrackerAsync(Context context)
         {
             using (var operationContext = TrackShutdown(context, CancellationToken.None))
             {
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     Tracer,
                     async () =>
                     {
-                        var removeTaskByStore = new Dictionary<string, Task<StructResult<long>>>();
+                        var removeTaskByStore = new Dictionary<string, Task<Result<long>>>();
 
                         foreach (var kvp in DrivesWithContentStore)
                         {
@@ -211,7 +211,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                             var removeFromTrackerResult = await kvp.Value;
                             if (removeFromTrackerResult.Succeeded)
                             {
-                                filesTrimmed += removeFromTrackerResult.Data;
+                                filesTrimmed += removeFromTrackerResult.Value;
                             }
                             else
                             {
@@ -221,11 +221,11 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                         if (sb.Length > 0)
                         {
-                            return new StructResult<long>(sb.ToString());
+                            return new Result<long>(sb.ToString());
                         }
                         else
                         {
-                            return new StructResult<long>(filesTrimmed);
+                            return new Result<long>(filesTrimmed);
                         }
                     });
             }

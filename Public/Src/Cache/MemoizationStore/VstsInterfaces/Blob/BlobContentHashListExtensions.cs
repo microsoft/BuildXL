@@ -26,24 +26,22 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob
         /// <summary>
         /// Gets a ContentHashlistWithDeterminism stored in the blob.
         /// </summary>
-        public static async Task<StructResult<ContentHashListWithDeterminism>> UnpackFromBlob(
-            Func<ContentHash, CancellationToken, Task<ObjectResult<Stream>>> streamFactory,
+        public static async Task<Result<ContentHashListWithDeterminism>> UnpackFromBlob(
+            Func<ContentHash, CancellationToken, Task<Result<Stream>>> streamFactory,
             BlobIdentifier blobId)
         {
-            ObjectResult<Stream> sourceStreamResult;
-
-            sourceStreamResult = await streamFactory(
+            Result<Stream> sourceStreamResult = await streamFactory(
                 new ContentHash(HashType.Vso0, blobId.Bytes),
                 CancellationToken.None);
 
             if (!sourceStreamResult.Succeeded)
             {
-                return new StructResult<ContentHashListWithDeterminism>(sourceStreamResult);
+                return new Result<ContentHashListWithDeterminism>(sourceStreamResult);
             }
 
             try
             {
-                using (Stream fileStream = sourceStreamResult.Data)
+                using (Stream fileStream = sourceStreamResult.Value)
                 {
                     using (GZipStream stream = new GZipStream(fileStream, CompressionMode.Decompress))
                     {
@@ -54,7 +52,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob
                                 JsonSerializer serializer = new JsonSerializer();
                                 serializer.Converters.Add(new ContentHashListWithDeterminismConverter());
                                 return
-                                    new StructResult<ContentHashListWithDeterminism>(
+                                    new Result<ContentHashListWithDeterminism>(
                                         serializer.Deserialize<ContentHashListWithDeterminism>(jsonreader));
                             }
                         }
@@ -63,15 +61,15 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob
             }
             catch (Exception ex)
             {
-                return new StructResult<ContentHashListWithDeterminism>(ex);
+                return new Result<ContentHashListWithDeterminism>(ex);
             }
         }
 
         /// <summary>
         ///  Packs a contenthashlist into a blob and returns a blob id.
         /// </summary>
-        public static async Task<StructResult<ContentHash>> PackInBlob(
-            Func<Stream, CancellationToken, Task<StructResult<ContentHash>>> putStreamFunc,
+        public static async Task<Result<ContentHash>> PackInBlob(
+            Func<Stream, CancellationToken, Task<Result<ContentHash>>> putStreamFunc,
             ContentHashListWithDeterminism contentHashListWithDeterminism)
         {
             try
@@ -102,15 +100,15 @@ namespace BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob
 
                     if (!contentHashResult.Succeeded)
                     {
-                        return new StructResult<ContentHash>(contentHashResult);
+                        return new Result<ContentHash>(contentHashResult);
                     }
 
-                    return new StructResult<ContentHash>(contentHashResult.Data);
+                    return new Result<ContentHash>(contentHashResult.Value);
                 }
             }
             catch (Exception ex)
             {
-                return new StructResult<ContentHash>(ex);
+                return new Result<ContentHash>(ex);
             }
         }
     }

@@ -28,21 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
             return $"{prefix}{result.Diagnostics}";
         }
-
-        /// <summary>
-        /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
-        /// </summary>
-        public static async Task<ObjectResult<TResult>> TraceIfFailure<TResult>(this Task<ObjectResult<TResult>> task, Context context, [CallerMemberName]string? operationName = null) where TResult : class
-        {
-            var result = await task;
-            if (!result)
-            {
-                context.Warning($"Operation '{operationName}' failed with an error={result}", Component, operation: operationName);
-            }
-
-            return result;
-        }
-
+        
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>
@@ -276,38 +262,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
 
             return result.Value!;
-        }
-
-        /// <summary>
-        /// Gets the value from <paramref name="result"/> if operation succeeded or throws <see cref="ResultPropagationException"/> otherwise.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="StructResult{T}.Data"/>, this method will not throw contract violation if the result is not successful.
-        /// </remarks>
-        public static T GetValueOrThrow<T>(this StructResult<T> result) where T : struct
-        {
-            if (!result)
-            {
-                throw new ResultPropagationException(result);
-            }
-
-            return result.Data!;
-        }
-
-        /// <summary>
-        /// Gets the value from <paramref name="result"/> if operation succeeded or throws <see cref="ResultPropagationException"/> otherwise.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="ObjectResult{T}.Data"/>, this method will not throw contract violation if the result is not successful.
-        /// </remarks>
-        public static T? GetValueOrThrow<T>(this ObjectResult<T> result) where T : class
-        {
-            if (!result)
-            {
-                throw new ResultPropagationException(result);
-            }
-
-            return result.Data!;
         }
 
         /// <summary>

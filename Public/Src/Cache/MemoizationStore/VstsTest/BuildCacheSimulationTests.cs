@@ -357,10 +357,10 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                 // Raw expiration is only visible to the adapter, not through the ICacheSession APIs.
                 // This also has the nice (non-)side-effect of not updating the expiration as part of *this* read.
                 IContentHashListAdapter buildCacheHttpClientAdapter = buildCacheSession.ContentHashListAdapter;
-                ObjectResult<ContentHashListWithCacheMetadata> getResult = await buildCacheHttpClientAdapter.GetContentHashListAsync(context, cacheNamespace, strongFingerprint);
+                Result<ContentHashListWithCacheMetadata> getResult = await buildCacheHttpClientAdapter.GetContentHashListAsync(context, cacheNamespace, strongFingerprint);
                 Assert.True(getResult.Succeeded);
-                Assert.NotNull(getResult.Data);
-                DateTime? rawExpiration = getResult.Data.GetRawExpirationTimeUtc();
+                Assert.NotNull(getResult.Value);
+                DateTime? rawExpiration = getResult.Value.GetRawExpirationTimeUtc();
                 Assert.NotNull(rawExpiration);
 
                 // Verify that the raw expiration (i.e. the value's TTL w/o consideration for content existence or whether the value might be replaced) is visible and correct

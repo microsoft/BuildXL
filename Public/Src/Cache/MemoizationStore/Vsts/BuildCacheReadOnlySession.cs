@@ -514,16 +514,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 {
                     // TODO: Get the content hash list in a more efficient manner which does not require us to talk to BuildCache.
                     var hashListResult = await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, fingerprint.StrongFingerprint);
-                    if (!hashListResult.Succeeded || hashListResult.Data?.ContentHashListWithDeterminism.ContentHashList == null)
+                    if (!hashListResult.Succeeded || hashListResult.Value?.ContentHashListWithDeterminism.ContentHashList == null)
                     {
                         return new BoolResult(hashListResult, "Failed to get content hash list when attempting to extend its conetnts' lifetimes.");
                     }
 
-                    var expirationDate = new DateTime(Math.Max(hashListResult.Data.GetRawExpirationTimeUtc()?.Ticks ?? 0, fingerprint.ExpirationDateUtc.Ticks), DateTimeKind.Utc);
+                    var expirationDate = new DateTime(Math.Max(hashListResult.Value.GetRawExpirationTimeUtc()?.Ticks ?? 0, fingerprint.ExpirationDateUtc.Ticks), DateTimeKind.Utc);
 
                     var pinResults = await Task.WhenAll(await BackingContentSession.PinAsync(
                         context,
-                        hashListResult.Data.ContentHashListWithDeterminism.ContentHashList.Hashes,
+                        hashListResult.Value.ContentHashListWithDeterminism.ContentHashList.Hashes,
                         expirationDate));
 
                     if (pinResults.Any(r => !r.Succeeded))
@@ -572,12 +572,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     return Result.FromError<Selector[]>(responseResult);
                 }
 
-                if (responseResult.Data == null)
+                if (responseResult.Value == null)
                 {
                     return Result.Success(CollectionUtilities.EmptyArray<Selector>());
                 }
 
-                foreach (var selectorAndPossible in responseResult.Data)
+                foreach (var selectorAndPossible in responseResult.Value)
                 {
                     var selector = selectorAndPossible.Selector;
                     if (selectorAndPossible.ContentHashList != null)
@@ -598,8 +598,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     }
                 }
 
-                Tracer.MemoizationStoreTracer.GetSelectorsCount(context, weakFingerprint, responseResult.Data.Count());
-                return responseResult.Data.Select(responseData => responseData.Selector).ToArray();
+                Tracer.MemoizationStoreTracer.GetSelectorsCount(context, weakFingerprint, responseResult.Value.Count());
+                return responseResult.Value.Select(responseData => responseData.Selector).ToArray();
             }
             catch (Exception e)
             {
@@ -655,7 +655,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     }
 
                     // No pre-fetched data. Need to query the server.
-                    ObjectResult<ContentHashListWithCacheMetadata> responseObject =
+                    Result<ContentHashListWithCacheMetadata> responseObject =
                         await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, strongFingerprint).ConfigureAwait(false);
 
                     if (!responseObject.Succeeded)
@@ -663,7 +663,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         return new GetContentHashListResult(responseObject);
                     }
 
-                    ContentHashListWithCacheMetadata response = responseObject.Data;
+                    ContentHashListWithCacheMetadata response = responseObject.Value;
                     if (response.ContentHashListWithDeterminism.ContentHashList == null)
                     {
                         // Miss
@@ -842,7 +842,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     return new AddOrGetContentHashListResult(contentHashListResponseObject);
                 }
 
-                var contentHashListResponse = contentHashListResponseObject.Data;
+                var contentHashListResponse = contentHashListResponseObject.Value;
                 var inconsistencyErrorMessage = CheckForResponseInconsistency(contentHashListResponse);
                 if (inconsistencyErrorMessage != null)
                 {

@@ -182,11 +182,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             _trimOrGetLastAccessTimeCallCounter.Started();
         }
 
-        public void TrimOrGetLastAccessTimeStop(Context context, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> input, ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>> result)
+        public void TrimOrGetLastAccessTimeStop(Context context, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> input, Result<IList<ContentHashWithLastAccessTimeAndReplicaCount>> result)
         {
             if (context.IsEnabled)
             {
-                var stringResult = result.Succeeded ? string.Join(",", result.Data) : result.ErrorMessage;
+                var stringResult = result.Succeeded ? string.Join(",", result.Value) : result.ErrorMessage;
                 TracerOperationFinished(context, result, $"{Name}.{TrimOrGetLastAccessTimeCallName}({input.Count}) stop {result.DurationMs}ms result=[{stringResult}]");
             }
 

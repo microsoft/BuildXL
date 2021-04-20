@@ -11,13 +11,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
     /// <summary>
     ///     Instance of a RemoveFromTracker operation for tracing purposes.
     /// </summary>
-    public sealed class RemoveFromTrackerCall<TTracer> : TracedCall<TTracer, StructResult<long>>, IDisposable
+    public sealed class RemoveFromTrackerCall<TTracer> : TracedCall<TTracer, Result<long>>, IDisposable
         where TTracer : ContentStoreTracer
     {
         /// <summary>n
         ///     Run the call.
         /// </summary>
-        public static async Task<StructResult<long>> RunAsync(TTracer tracer, OperationContext context, Func<Task<StructResult<long>>> funcAsync)
+        public static async Task<Result<long>> RunAsync(TTracer tracer, OperationContext context, Func<Task<Result<long>>> funcAsync)
         {
             using (var call = new RemoveFromTrackerCall<TTracer>(tracer, context))
             {
@@ -35,9 +35,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         }
 
         /// <inheritdoc />
-        protected override StructResult<long> CreateErrorResult(Exception exception)
+        protected override Result<long> CreateErrorResult(Exception exception)
         {
-            return new StructResult<long>(exception);
+            return new Result<long>(exception);
         }
 
         /// <inheritdoc />

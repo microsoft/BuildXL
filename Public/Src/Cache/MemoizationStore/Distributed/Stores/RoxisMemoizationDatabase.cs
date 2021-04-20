@@ -73,7 +73,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<IEnumerable<StructResult<StrongFingerprint>>> EnumerateStrongFingerprintsAsync(OperationContext context)
+        public override Task<IEnumerable<Result<StrongFingerprint>>> EnumerateStrongFingerprintsAsync(OperationContext context)
         {
             throw new NotImplementedException("Enumerating all strong fingerprints is not supported");
         }

@@ -74,6 +74,15 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public void StressTest()
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                TraceWithMultipleStartupAndShutdown();
+            }
+        }
+        
+        [Fact]
         public void TraceWithMultipleStartupAndShutdown()
         {
             var memoryClock = new MemoryClock();

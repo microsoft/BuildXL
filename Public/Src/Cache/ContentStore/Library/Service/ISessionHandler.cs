@@ -1,14 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -60,41 +58,5 @@ namespace BuildXL.Cache.ContentStore.Service
             session = sessionHandler.GetSession(sessionId);
             return session != null;
         }
-    }
-
-    /// <summary>
-    /// A handler for sessions.
-    /// </summary>
-    public interface ISessionHandler
-    {
-        /// <summary>
-        /// Try gets a session.
-        /// </summary>
-        bool TryGetSessionValue(int sessionId, out SessionHandle sessionHandle);
-
-        /// <summary>
-        /// Whether or not processing should stop
-        /// </summary>
-        bool ShouldStop();
-
-        /// <summary>
-        /// Releases the session with the specified session id
-        /// </summary>
-        Task ReleaseSessionAsync(Context context, int sessionId);
-
-        /// <summary>
-        /// Creates a session with the parameter specified.
-        /// </summary>
-        Task<StructResult<int>> CreateSessionAsync(
-            Context context,
-            string sessionName,
-            string cacheName,
-            ImplicitPin implicitPin,
-            Capabilities capabilities);
-
-        /// <summary>
-        /// Returns a list of all session ids tracked by this server.
-        /// </summary>
-        IList<int> GetSessionIds();
     }
 }

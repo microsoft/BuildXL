@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Deserialize a ContentStoreConfiguration from JSON in the standard filename in a CAS root directory.
         /// </summary>
-        public static async Task<ObjectResult<ContentStoreConfiguration>> ReadContentStoreConfigurationAsync(
+        public static async Task<Result<ContentStoreConfiguration>> ReadContentStoreConfigurationAsync(
             this IAbsFileSystem fileSystem, AbsolutePath rootPath)
         {
             Contract.Requires(fileSystem != null);
@@ -39,12 +39,12 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (!fileSystem.DirectoryExists(rootPath))
             {
-                return new ObjectResult<ContentStoreConfiguration>($"Directory path=[{rootPath}] does not exist");
+                return new Result<ContentStoreConfiguration>($"Directory path=[{rootPath}] does not exist");
             }
 
             if (!fileSystem.FileExists(jsonPath))
             {
-                return new ObjectResult<ContentStoreConfiguration>($"ContentStoreConfiguration not present at path=[{jsonPath}]");
+                return new Result<ContentStoreConfiguration>($"ContentStoreConfiguration not present at path=[{jsonPath}]");
             }
 
             using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
@@ -54,10 +54,10 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (!configuration.IsValid)
             {
-                return new ObjectResult<ContentStoreConfiguration>($"Invalid content store configuration at path=[{jsonPath}]");
+                return new Result<ContentStoreConfiguration>($"Invalid content store configuration at path=[{jsonPath}]");
             }
 
-            return new ObjectResult<ContentStoreConfiguration>(configuration);
+            return new Result<ContentStoreConfiguration>(configuration);
         }
 
         /// <summary>

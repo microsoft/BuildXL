@@ -1,23 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
-    /// <summary>
-    ///     Check content tracker for last access time.
-    /// </summary>
-    public delegate Task<ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>> TrimOrGetLastAccessTimeAsync(Context context, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint);
-
     /// <summary>
     ///     Common interface for all quota rules.
     /// </summary>
@@ -68,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     public static class QuotaRuleExtensions
     {
         /// <nodoc />
-        public static bool GetOnlyUnlinked(this IQuotaRule /*Can Be Null*/ rule)
+        public static bool GetOnlyUnlinked(this IQuotaRule? rule)
         {
             return rule?.OnlyUnlinked ?? false;
         }

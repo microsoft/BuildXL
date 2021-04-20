@@ -34,10 +34,10 @@ namespace BuildXL.Cache.ContentStore.App
 
             if (string.IsNullOrEmpty(maxSize) && string.IsNullOrEmpty(diskFreePercent))
             {
-                ObjectResult<ContentStoreConfiguration> result = _fileSystem.ReadContentStoreConfigurationAsync(rootPath).Result;
+                Result<ContentStoreConfiguration> result = _fileSystem.ReadContentStoreConfigurationAsync(rootPath).Result;
                 if (result.Succeeded)
                 {
-                    ShowConfiguration(result.Data, json);
+                    ShowConfiguration(result.Value, json);
                 }
                 else
                 {

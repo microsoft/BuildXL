@@ -754,9 +754,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
+        public override IEnumerable<Result<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
         {
-            var result = new List<StructResult<StrongFingerprint>>();
+            var result = new List<Result<StrongFingerprint>>();
             var status = _keyValueStore.Use(
                 static (store, state) =>
                 {
@@ -765,7 +765,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // TODO(jubayard): since this method only needs the keys and not the values, it wouldn't hurt
                         // to make an alternative prefix search that doesn't even read the values from RocksDB.
                         var strongFingerprint = state.@this.DeserializeStrongFingerprint(kvp.Key);
-                        state.result.Add(StructResult.Create(strongFingerprint));
+                        state.result.Add(Result.Success(strongFingerprint));
                     }
 
                     return state.result;
@@ -773,7 +773,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (!status.Succeeded)
             {
-                result.Add(new StructResult<StrongFingerprint>(status.Failure.CreateException()));
+                result.Add(new Result<StrongFingerprint>(status.Failure.CreateException()));
             }
 
             return result;

@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     return Result.FromError<long>(result);
                 }
 
-                return Result.Success(result.Data);
+                return Result.Success(result.Value);
             }
 
             Logger.Debug($"Repair handling not enabled for {storeName}'s content store.");

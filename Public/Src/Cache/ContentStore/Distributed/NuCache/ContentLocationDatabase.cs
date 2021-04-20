@@ -792,7 +792,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         ///     Warning: this function should only ever be used on tests.
         /// </remarks>
-        public abstract IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context);
+        public abstract IEnumerable<Result<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context);
 
         private object GetLock(ShortHash hash)
         {

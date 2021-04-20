@@ -45,7 +45,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         }
 
         /// <inheritdoc />
-        public async Task<ObjectResult<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>> GetSelectorsAsync(
+        public async Task<Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>> GetSelectorsAsync(
             Context context,
             string cacheNamespace,
             Fingerprint weakFingerprint,
@@ -87,16 +87,19 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                             null));
                 }
 
-                return new ObjectResult<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(selectorsToReturn);
+                return new Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(selectorsToReturn);
             }
             catch (Exception ex)
             {
-                return new ObjectResult<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(ex);
+                return new Result<IEnumerable<SelectorAndContentHashListWithCacheMetadata>>(ex);
             }
         }
 
         /// <inheritdoc />
-        public async Task<ObjectResult<ContentHashListWithCacheMetadata>> GetContentHashListAsync(Context context, string cacheNamespace, StrongFingerprint strongFingerprint)
+        public async Task<Result<ContentHashListWithCacheMetadata>> GetContentHashListAsync(
+            Context context,
+            string cacheNamespace,
+            StrongFingerprint strongFingerprint)
         {
             try
             {
@@ -118,30 +121,30 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 // but the other catches have been left for safety/compat.
                 if (blobCacheMetadata == null)
                 {
-                    return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                    return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
                 }
 
                 return await UnpackBlobContentHashListAsync(context, blobCacheMetadata);
             }
             catch (ContentBagNotFoundException)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (CacheServiceException ex) when (ex.ReasonCode == CacheErrorReasonCode.ContentHashListNotFound)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (VssServiceResponseException serviceEx) when (serviceEx.HttpStatusCode == HttpStatusCode.NotFound)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(EmptyContentHashList);
+                return new Result<ContentHashListWithCacheMetadata>(EmptyContentHashList);
             }
             catch (Exception ex)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(ex);
+                return new Result<ContentHashListWithCacheMetadata>(ex);
             }
         }
         /// <inheritdoc />
-        public async Task<ObjectResult<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
+        public async Task<Result<ContentHashListWithCacheMetadata>> AddContentHashListAsync(
             Context context,
             string cacheNamespace,
             StrongFingerprint strongFingerprint,
@@ -150,32 +153,32 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         {
             try
             {
-                Func<System.IO.Stream, System.Threading.CancellationToken, Task<StructResult<ContentHash>>> putStreamFunc =
+                Func<System.IO.Stream, System.Threading.CancellationToken, Task<Result<ContentHash>>> putStreamFunc =
                     async (stream, cts) =>
                     {
                         PutResult putResult = await _blobContentSession.PutStreamAsync(context, HashType.Vso0, stream, cts);
                         if (putResult.Succeeded)
                         {
-                            return new StructResult<ContentHash>(putResult.ContentHash);
+                            return new Result<ContentHash>(putResult.ContentHash);
                         }
 
-                        return new StructResult<ContentHash>(putResult);
+                        return new Result<ContentHash>(putResult);
                     };
 
-                StructResult<ContentHash> blobIdOfContentHashListResult =
+                Result<ContentHash> blobIdOfContentHashListResult =
                     await BlobContentHashListExtensions.PackInBlob(
                         putStreamFunc,
                         valueToAdd.ContentHashListWithDeterminism);
 
                 if (!blobIdOfContentHashListResult.Succeeded)
                 {
-                    return new ObjectResult<ContentHashListWithCacheMetadata>(blobIdOfContentHashListResult);
+                    return new Result<ContentHashListWithCacheMetadata>(blobIdOfContentHashListResult);
                 }
 
                 var blobContentHashListWithDeterminism =
                     new BlobContentHashListWithDeterminism(
                         valueToAdd.ContentHashListWithDeterminism.Determinism.EffectiveGuid,
-                        BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(blobIdOfContentHashListResult.Data));
+                        BuildXL.Cache.ContentStore.Hashing.BlobIdentifierHelperExtensions.ToBlobIdentifier(blobIdOfContentHashListResult.Value));
 
                 var blobContentHashListWithCacheMetadata = new BlobContentHashListWithCacheMetadata(
                     blobContentHashListWithDeterminism,
@@ -198,7 +201,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 if (addResult.ContentHashListWithCacheMetadata == null)
                 {
                     return
-                        new ObjectResult<ContentHashListWithCacheMetadata>(
+                        new Result<ContentHashListWithCacheMetadata>(
                             new ContentHashListWithCacheMetadata(
                                new ContentHashListWithDeterminism(null, blobContentHashListWithCacheMetadata.Determinism),
                                blobContentHashListWithCacheMetadata.GetRawExpirationTimeUtc(),
@@ -211,7 +214,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             }
             catch (Exception ex)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(ex);
+                return new Result<ContentHashListWithCacheMetadata>(ex);
             }
         }
 
@@ -225,12 +228,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             }
         }
 
-        private async Task<ObjectResult<ContentHashListWithCacheMetadata>> UnpackBlobContentHashListAsync(Context context, BlobContentHashListWithCacheMetadata blobCacheMetadata)
+        private async Task<Result<ContentHashListWithCacheMetadata>> UnpackBlobContentHashListAsync(Context context, BlobContentHashListWithCacheMetadata blobCacheMetadata)
         {
             Contract.Assert(blobCacheMetadata != null);
             if (blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier == null)
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(
+                return new Result<ContentHashListWithCacheMetadata>(
                     new ContentHashListWithCacheMetadata(
                         new ContentHashListWithDeterminism(null, blobCacheMetadata.Determinism),
                         blobCacheMetadata.GetRawExpirationTimeUtc(),
@@ -240,18 +243,18 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
             BlobIdentifier blobId = blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier;
 
-            Func<ContentHash, CancellationToken, Task<ObjectResult<Stream>>> openStreamFunc = async (hash, cts) =>
+            Func<ContentHash, CancellationToken, Task<Result<Stream>>> openStreamFunc = async (hash, cts) =>
             {
                 OpenStreamResult openStreamResult = await _blobContentSession.OpenStreamAsync(context, hash, cts);
                 if (openStreamResult.Succeeded)
                 {
-                    return new ObjectResult<Stream>(openStreamResult.Stream);
+                    return new Result<Stream>(openStreamResult.Stream);
                 }
 
-                return new ObjectResult<Stream>(openStreamResult);
+                return new Result<Stream>(openStreamResult);
             };
 
-            StructResult<ContentHashListWithDeterminism> contentHashListResult =
+            Result<ContentHashListWithDeterminism> contentHashListResult =
                 await BlobContentHashListExtensions.UnpackFromBlob(
                     openStreamFunc,
                     blobId);
@@ -259,15 +262,15 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             if (contentHashListResult.Succeeded)
             {
                 var contentHashListWithCacheMetadata = new ContentHashListWithCacheMetadata(
-                    contentHashListResult.Data,
+                    contentHashListResult.Value,
                     blobCacheMetadata.GetRawExpirationTimeUtc(),
                     blobCacheMetadata.ContentGuarantee,
                     blobCacheMetadata.HashOfExistingContentHashList);
-                return new ObjectResult<ContentHashListWithCacheMetadata>(contentHashListWithCacheMetadata);
+                return new Result<ContentHashListWithCacheMetadata>(contentHashListWithCacheMetadata);
             }
             else
             {
-                return new ObjectResult<ContentHashListWithCacheMetadata>(contentHashListResult);
+                return new Result<ContentHashListWithCacheMetadata>(contentHashListResult);
             }
         }
 

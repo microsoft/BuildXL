@@ -203,7 +203,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
         }
 
-        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             throw new NotImplementedException();
         }

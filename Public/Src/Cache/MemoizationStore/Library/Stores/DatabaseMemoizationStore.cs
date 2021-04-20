@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -102,10 +104,16 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             var ctx = new OperationContext(context);
-            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable(() => Database.EnumerateStrongFingerprintsAsync(ctx));
+            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable(() => EnumerateStrongFingerprintsAsync(ctx));
+        }
+
+        private async Task<IEnumerable<StructResult<StrongFingerprint>>> EnumerateStrongFingerprintsAsync(OperationContext context)
+        {
+            var result = await Database.EnumerateStrongFingerprintsAsync(context);
+            return result.Select(r => StructResult.FromResult(r));
         }
 
         internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken token, bool preferShared = false)

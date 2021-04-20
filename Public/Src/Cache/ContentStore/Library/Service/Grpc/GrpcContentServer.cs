@@ -108,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// Session handler for <see cref="IContentSession"/>
         /// </summary>
         /// <remarks>
-        /// This is a hack to allow for an <see cref="ISessionHandler"/> with other sessions that inherit from
+        /// This is a hack to allow for an <see cref="ISessionHandler{T}"/> with other sessions that inherit from
         /// <see cref="IContentSession"/> to be used instead.
         /// </remarks>
         protected virtual ISessionHandler<IContentSession> ContentSessionHandler { get; }

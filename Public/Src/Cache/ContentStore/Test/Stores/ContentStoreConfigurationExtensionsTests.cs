@@ -34,7 +34,7 @@ namespace ContentStoreTest.Stores
             await configuration1.Write(_fileSystem, _rootPath);
 
             var result = await _fileSystem.ReadContentStoreConfigurationAsync(_rootPath);
-            var configuration2 = result.Data;
+            var configuration2 = result.Value;
 
             configuration2.MaxSizeQuota.Hard.Should().Be(10L * 1024 * 1024 * 1024);
             configuration2.MaxSizeQuota.Soft.Should().Be(7L * 1024 * 1024 * 1024);

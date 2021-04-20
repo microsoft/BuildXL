@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -68,7 +69,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <nodoc />
-        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
         }
@@ -92,7 +93,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> IMemoizationStore.EnumerateStrongFingerprints(Context context)
+        IAsyncEnumerable<StructResult<StrongFingerprint>> IMemoizationStore.EnumerateStrongFingerprints(Context context)
         {
             return EnumerateStrongFingerprints(context);
         }

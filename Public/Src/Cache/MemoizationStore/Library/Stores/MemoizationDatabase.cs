@@ -92,7 +92,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         /// Enumerates all strong fingerprints
         /// </summary>
-        public abstract Task<IEnumerable<StructResult<StrongFingerprint>>> EnumerateStrongFingerprintsAsync(OperationContext context);
+        public abstract Task<IEnumerable<Result<StrongFingerprint>>> EnumerateStrongFingerprintsAsync(OperationContext context);
 
         /// <summary>
         /// <see cref="ILevelSelectorsProvider.GetLevelSelectorsAsync(Context, Fingerprint, CancellationToken, int)"/>

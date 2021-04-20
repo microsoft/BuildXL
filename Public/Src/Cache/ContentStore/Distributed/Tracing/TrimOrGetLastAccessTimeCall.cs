@@ -15,17 +15,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
     /// <summary>
     /// Instance of a getting last access time operation for tracing purposes.
     /// </summary>
-    public sealed class TrimOrGetLastAccessTimeCall : TracedCallWithInput<RedisContentLocationStoreTracer, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>>, ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>>, IDisposable
+    public sealed class TrimOrGetLastAccessTimeCall : TracedCallWithInput<RedisContentLocationStoreTracer, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>>, Result<IList<ContentHashWithLastAccessTimeAndReplicaCount>>>, IDisposable
     {
         /// <summary>
         ///     Run the call.
         /// </summary>
-        public static async Task<ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>> RunAsync(
+        public static async Task<Result<IList<ContentHashWithLastAccessTimeAndReplicaCount>>> RunAsync(
             RedisContentLocationStoreTracer tracer,
             OperationContext context,
             IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> contentHashesWithInfo,
             MachineId? machineId,
-            Func<Task<ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>>> funcAsync)
+            Func<Task<Result<IList<ContentHashWithLastAccessTimeAndReplicaCount>>>> funcAsync)
         {
             using (var call = new TrimOrGetLastAccessTimeCall(tracer, context, contentHashesWithInfo, machineId))
             {
@@ -47,9 +47,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         }
 
         /// <inheritdoc />
-        protected override ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>> CreateErrorResult(Exception exception)
+        protected override Result<IList<ContentHashWithLastAccessTimeAndReplicaCount>> CreateErrorResult(Exception exception)
         {
-            return new ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>(exception);
+            return new Result<IList<ContentHashWithLastAccessTimeAndReplicaCount>>(exception);
         }
 
         /// <inheritdoc />

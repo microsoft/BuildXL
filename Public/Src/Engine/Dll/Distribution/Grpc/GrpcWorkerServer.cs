@@ -67,7 +67,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         #region Service Methods
-
+        /// Note: The logic of service methods should be replicated in Test.BuildXL.Distribution.WorkerServerMock
         /// <inheritdoc/>
         public override Task<RpcResponse> Attach(BuildStartData message, ServerCallContext context)
         {

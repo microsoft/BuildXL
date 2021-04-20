@@ -14,7 +14,7 @@ using BuildXL.Pips.Operations;
 
 namespace BuildXL.Engine.Distribution
 {
-    public sealed partial class WorkerNotificationManager
+    internal sealed partial class WorkerNotificationManager
     {
         /// <summary>
         /// Event listener for pip execution results which will be forwarded to the orchestrator

@@ -55,6 +55,7 @@ namespace Engine {
             "BxlPipGraphFragmentGenerator",
             "IntegrationTest.BuildXL.Scheduler",
             "Test.BuildXL.Engine",
+            "Test.BuildXL.Distribution",
             "Test.BuildXL.EngineTestUtilities",
             "Test.BuildXL.FrontEnd.Script",
             "Test.BuildXL.FrontEnd.Core",

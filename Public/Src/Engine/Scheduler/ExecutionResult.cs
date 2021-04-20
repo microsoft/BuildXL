@@ -650,6 +650,17 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Gets a failure result for testing purposes.
+        /// </summary>
+        public static ExecutionResult GetFailureResultForTesting()
+        {
+            var result = new ExecutionResult();
+            result.InnerUnsealedState.Result = PipResultStatus.Failed;
+            result.Seal();
+            return result;
+        }
+
+        /// <summary>
         /// Gets a canceled result without run information for retry on another worker.
         /// </summary>
         public static ExecutionResult GetRetryableNotRunResult(LoggingContext loggingContext, RetryInfo retryInfo)

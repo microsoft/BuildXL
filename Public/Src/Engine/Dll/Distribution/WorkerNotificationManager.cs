@@ -16,29 +16,58 @@ using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Engine.Distribution
 {
+    internal interface IWorkerNotificationManager 
+    {
+        /// <summary>
+        /// Starts the notification manager, which will start to listen
+        /// and forwarding events to the orchestrator
+        /// </summary>
+        void Start(IMasterClient masterClient, EngineSchedule schedule);
+
+        /// <summary>
+        /// Report an (error / warning) event
+        /// </summary>
+        void ReportEventMessage(EventMessage eventMessage);
+
+        /// <summary>
+        /// Report a pip result
+        /// </summary>
+        public void ReportResult(ExtendedPipCompletionData pipCompletion);
+
+        /// <summary>
+        /// Stop trying to communicate with the orchestrator and processing messages
+        /// </summary>
+        public void Cancel();
+
+        /// <summary>
+        /// Stop listening for events and wait for any pending messages to be sent
+        /// </summary>
+        public void Exit();
+    }
+
     /// <summary>
     /// Manages notification sending from worker to orchestrator
     /// </summary>
-    public partial class WorkerNotificationManager
+    internal partial class WorkerNotificationManager : IWorkerNotificationManager
     {
         internal readonly WorkerService WorkerService;
         internal readonly DistributionServices DistributionServices;
-        private readonly Scheduler.Scheduler m_scheduler;
-        private readonly CancellationTokenSource m_sendCancellationSource;
-        private readonly IPipExecutionEnvironment m_environment;
+        private Scheduler.Scheduler m_scheduler;
+        private CancellationTokenSource m_sendCancellationSource;
+        private IPipExecutionEnvironment m_environment;
+        private volatile bool m_started;
 
         /// Individual sources for notifications
-        private readonly PipResultListener m_pipResultListener;
-        private readonly ForwardingEventListener m_forwardingEventListener;
+        private PipResultListener m_pipResultListener;
+        private ForwardingEventListener m_forwardingEventListener;
         private readonly BlockingCollection<EventMessage> m_outgoingEvents = new BlockingCollection<EventMessage>();
         private NotifyMasterExecutionLogTarget m_executionLogTarget;
         private readonly MemoryStream m_flushedExecutionLog = new MemoryStream();
 
         /// Notification sending
         private IMasterClient m_masterClient;
-        private readonly Thread m_sendThread;
+        private Thread m_sendThread;
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
-
 
         private int m_xlgBlobSequenceNumber = 0;
         private int m_numBatchesSent = 0;
@@ -52,35 +81,44 @@ namespace BuildXL.Engine.Distribution
         internal uint WorkerId => WorkerService.WorkerId;
         
         /// <nodoc/>
-        public WorkerNotificationManager(WorkerService workerService, EngineSchedule schedule, IPipExecutionEnvironment environment, DistributionServices services)
+        public WorkerNotificationManager(WorkerService workerService, DistributionServices services)
         {
             WorkerService = workerService;
             DistributionServices = services;
-
-            m_scheduler = schedule.Scheduler;
-            m_environment = environment;
-
-            m_forwardingEventListener = new ForwardingEventListener(this);
-            m_sendCancellationSource = new CancellationTokenSource();
-            m_pipResultListener = new PipResultListener(this, schedule, environment);
-            m_sendThread = new Thread(() => SendNotifications(m_sendCancellationSource.Token));
         }
 
-        internal void Start(IMasterClient masterClient)
+        public void Start(IMasterClient masterClient, EngineSchedule schedule)
         {
             Contract.AssertNotNull(masterClient);
 
+            m_scheduler = schedule.Scheduler;
+            m_environment = m_scheduler;
             m_masterClient = masterClient;
+
+            
             m_executionLogTarget = new NotifyMasterExecutionLogTarget(this, m_environment.Context, m_scheduler.PipGraph.GraphId, m_scheduler.PipGraph.MaxAbsolutePathIndex);
             m_scheduler.AddExecutionLogTarget(m_executionLogTarget);
+
+            m_forwardingEventListener = new ForwardingEventListener(this);
+
+            m_pipResultListener = new PipResultListener(this, schedule, m_environment);
+            m_sendCancellationSource = new CancellationTokenSource();
+            m_sendThread = new Thread(() => SendNotifications(m_sendCancellationSource.Token));
             m_sendThread.Start();
+
+            m_started = true;
         }
 
-        internal void Exit()
+        public void Exit()
         {
+            if (!m_started)
+            {
+                return;
+            }
+
             // Stop listening to events
             m_pipResultListener.Cancel();
-            m_forwardingEventListener?.Cancel();
+            m_forwardingEventListener.Cancel();
 
             // The execution log target can be null if the worker failed to attach to the orchestrator
             if (m_executionLogTarget != null)
@@ -103,22 +141,26 @@ namespace BuildXL.Engine.Distribution
             m_sendCancellationSource.Cancel();
         }
 
-        /// <summary>
-        /// Stop trying to communicate with the orchestrator and processing messages
-        /// </summary>
-        internal void Cancel()
+        /// <inheritdoc/>
+        public void Cancel()
         {
-            m_executionLogTarget?.Deactivate();
-            m_pipResultListener.Cancel();
-            m_forwardingEventListener.Cancel();
-            m_sendCancellationSource.Cancel();
+            if (m_started)
+            {
+                m_executionLogTarget?.Deactivate();
+                m_pipResultListener.Cancel();
+                m_forwardingEventListener.Cancel();
+                m_sendCancellationSource.Cancel();
+            }
         }
 
-        internal void ReportResult(ExtendedPipCompletionData pipCompletion) => m_pipResultListener.ReportResult(pipCompletion);
+        public void ReportResult(ExtendedPipCompletionData pipCompletion)
+        {
+            Contract.Assert(m_started);
+            m_pipResultListener.ReportResult(pipCompletion);
+        }
 
         internal void FlushExecutionLog(MemoryStream listenerStream)
         {
-            
             // Because the execution log target is filling its own 
             // buffer in a different thread, we have to copy its current buffer
             // to our own buffer to have a static blob to send with the notification
@@ -145,6 +187,8 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         public void ReportEventMessage(EventMessage eventMessage)
         {
+            Contract.Assert(m_started);
+
             // TODO: Associate eventMessage to pip id and delay queuing
             if (m_sendCancellationSource.IsCancellationRequested)
             {

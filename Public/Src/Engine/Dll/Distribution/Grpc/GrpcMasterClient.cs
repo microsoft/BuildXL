@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -15,25 +16,40 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// <nodoc/>
     internal sealed class GrpcMasterClient : IMasterClient
     {
-        private readonly Master.MasterClient m_client;
-        private readonly ClientConnectionManager m_connectionManager;
+        private readonly string m_buildId;
+        private Master.MasterClient m_client;
+        private ClientConnectionManager m_connectionManager;
         private readonly LoggingContext m_loggingContext;
+        private volatile bool m_initialized;
 
-        public GrpcMasterClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
+        public GrpcMasterClient(LoggingContext loggingContext, string buildId)
         {
+            m_buildId = buildId;
             m_loggingContext = loggingContext;
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, buildId);
+        }
+
+        public void Initialize(string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
+        {
+            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, m_buildId);
             m_connectionManager.OnConnectionTimeOutAsync += onConnectionTimeOutAsync;
             m_client = new Master.MasterClient(m_connectionManager.Channel);
+            m_initialized = true;
         }
 
         public Task CloseAsync()
         {
+            if (!m_initialized)
+            {
+                return Task.CompletedTask;
+            }
+
             return m_connectionManager.CloseAsync();
         }
 
         public Task<RpcCallResult<Unit>> AttachCompletedAsync(OpenBond.AttachCompletionInfo message)
         {
+            Contract.Assert(m_initialized);
+
             var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
                 async (callOptions) => await m_client.AttachCompletedAsync(grpcMessage, options: callOptions),
@@ -43,6 +59,8 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> NotifyAsync(OpenBond.WorkerNotificationArgs message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)
         {
+            Contract.Assert(m_initialized);
+
             var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
                async (callOptions) => await m_client.NotifyAsync(grpcMessage, options: callOptions),

@@ -1196,6 +1196,7 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallProbeDirectorySymlinkTargetWithReparsePointFlag);
     IF_COMMAND(CallProbeDirectorySymlinkTargetWithoutReparsePointFlag);
     IF_COMMAND(CallValidateFileSymlinkAccesses);
+    IF_COMMAND(CallOpenFileThroughMultipleDirectorySymlinks);
     
 #undef IF_COMMAND1
 #undef IF_COMMAND2
@@ -1212,6 +1213,7 @@ static void ResolvedPathCacheTests(const string& verb)
     IF_COMMAND(CallDetoursResolvedPathCacheTests);
     IF_COMMAND(CallDetoursResolvedPathCacheDealsWithUnicode);
     IF_COMMAND(CallDetoursResolvedPathPreservingLastSegmentCacheTests);
+    IF_COMMAND(CallDeleteDirectorySymlinkThroughDifferentPath);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

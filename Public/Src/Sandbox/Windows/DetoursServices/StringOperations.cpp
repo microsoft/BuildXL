@@ -380,11 +380,16 @@ bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) {
 
 size_t GetRootLength(PCPathChar path)
 {
+    if (path == nullptr)
+    {
+        return 0;
+    }
+
     size_t i = 0;
     size_t volumeSeparatorLength = 2;  // Length to the colon "C:"
     size_t uncRootLength = 2;          // Length to the start of the server name "\\"
 
-    bool extendedSyntax = HasPrefix(path, NT_LONG_PATH_PREFIX);
+    bool extendedSyntax = HasPrefix(path, NT_LONG_PATH_PREFIX) || HasPrefix(path, NT_PATH_PREFIX);
     bool extendedUncSyntax = HasPrefix(path, LONG_UNC_PATH_PREFIX);
     size_t pathLength = pathlen(path);
 

@@ -6,3 +6,4 @@
 int CallDetoursResolvedPathCacheTests();
 int CallDetoursResolvedPathPreservingLastSegmentCacheTests();
 int CallDetoursResolvedPathCacheDealsWithUnicode();
+int CallDeleteDirectorySymlinkThroughDifferentPath();

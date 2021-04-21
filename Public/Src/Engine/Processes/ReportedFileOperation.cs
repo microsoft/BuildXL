@@ -146,6 +146,11 @@ namespace BuildXL.Processes
         RemoveDirectory,
 
         /// <summary>
+        /// RemoveDirectory (source; written)
+        /// </summary>
+        RemoveDirectorySource,
+
+        /// <summary>
         /// NtQueryDirectoryFile
         /// </summary>
         NtQueryDirectoryFile,

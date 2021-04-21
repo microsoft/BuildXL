@@ -620,3 +620,24 @@ int CallValidateFileSymlinkAccesses()
 
     return (int)GetLastError();
 }
+
+int CallOpenFileThroughMultipleDirectorySymlinks()
+{
+    HANDLE hFile = CreateFileW(
+        L"A\\B.lnk\\C\\D.lnk\\e.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}

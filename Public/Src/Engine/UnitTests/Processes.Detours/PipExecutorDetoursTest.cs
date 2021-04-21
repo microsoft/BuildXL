@@ -2429,7 +2429,11 @@ namespace Test.BuildXL.Processes.Detours
                     new[]
                     {
                         (createdInputPaths[testDirPath], RequestedAccess.Write, FileAccessStatus.Denied),
-                        });
+                    },
+                    new[]
+                    {
+                        firstAbsPath
+                    });
             }
         }
 
@@ -2464,6 +2468,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, firstTestFile);
                 createdInputPaths[testDirPath] = inputDirPath;
                 untrackedPaths.Add(inputDirPath);
+                untrackedPaths.Add(firstAbsPath);
 
                 FileArtifact firstFileArtifact = FileArtifact.CreateSourceFile(firstAbsPath);
                 if (File.Exists(firstTestFile))
@@ -2544,6 +2549,7 @@ namespace Test.BuildXL.Processes.Detours
                     new[]
                     {
                         (createdInputPaths[testDirPath], RequestedAccess.Write, FileAccessStatus.Allowed),
+                        (firstAbsPath, RequestedAccess.Write, FileAccessStatus.Allowed),
                     });
             }
         }
@@ -7026,7 +7032,7 @@ namespace Test.BuildXL.Processes.Detours
                 // invalidating the cache only show up once.
                 XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
                 // Assert we have six ReparsePointTarget reports, three before the cache got populated and three after the cache got invalidated
-                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count() == 6);
+                XAssert.AreEqual(6, directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count());
                 // Assert we have three ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
                 // does not need to happen again, as the cache is populated
                 XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 3);
@@ -7101,7 +7107,7 @@ namespace Test.BuildXL.Processes.Detours
                 // invalidating the cache only show up once.
                 XAssert.IsTrue(directlyReportedFileAccesses.Count > 0);
                 // Assert we have four ReparsePointTarget reports, two before the cache got populated and two after the cache got invalidated
-                XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count() == 4);
+                XAssert.AreEqual(4, directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTarget).Count());
                 // Assert we have two ReparsePointTargetCached reports, those get reported once the process tries to read the output file through the symbolic link chain and resolving
                 // does not need to happen again, as the cache is populated
                 XAssert.IsTrue(directlyReportedFileAccesses.Where(report => report.Operation == ReportedFileOperation.ReparsePointTargetCached).Count() == 2);
@@ -7234,6 +7240,167 @@ namespace Test.BuildXL.Processes.Detours
                     // as specified in the native 'CallValidateFileSymlinkAccesses()' test harness
                     (fileSymlinkAbsolutePath, RequestedAccess.ReadWrite, FileAccessStatus.Denied),
                     (outputFile, RequestedAccess.ReadWrite, FileAccessStatus.Denied)
+                });
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallOpenFileThroughMultipleDirectorySymlinksAsync()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var directory_A = tempFiles.GetDirectory(pathTable, "A");
+                var directory_A_B2 = tempFiles.GetDirectory(pathTable, @"A\B2");
+                var directory_A_B2_C = tempFiles.GetDirectory(pathTable, @"A\B2\C");
+                var directory_A_B2_C_D2 = tempFiles.GetDirectory(pathTable, @"A\B2\C\D2");
+                var file_A_B2_C_D2_eTxt = tempFiles.GetFileName(pathTable, @"A\B2\C\D2\e.txt");
+                File.WriteAllText(file_A_B2_C_D2_eTxt.Expand(pathTable).ExpandedPath, "test");
+
+                // Create symlink from A\B1.lnk -> A\B2
+                var symlink_A_B1Lnk = tempFiles.GetFileName(pathTable, @"A\B1.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_A_B1Lnk.Expand(pathTable).ExpandedPath, "B2", isTargetFile: false));
+
+                // Create symlink from A\B.lnk -> A\B1.lnk
+                var symlink_A_BLnk = tempFiles.GetFileName(pathTable, @"A\B.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_A_BLnk.Expand(pathTable).ExpandedPath, "B1.lnk", isTargetFile: false));
+
+                // Create symlink from A\B2\C\D1.lnk -> A\B2\C\D2
+                var symlink_A_B2_C_D1Lnk = tempFiles.GetFileName(pathTable, @"A\B2\C\D1.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_A_B2_C_D1Lnk.Expand(pathTable).ExpandedPath, "D2", isTargetFile: false));
+
+                // Create symlink from A\B2\C\D.lnk -> A\B2\C\D1.lnk
+                var symlink_A_B2_C_DLnk = tempFiles.GetFileName(pathTable, @"A\B2\C\D.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_A_B2_C_DLnk.Expand(pathTable).ExpandedPath, "D1.lnk", isTargetFile: false));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallOpenFileThroughMultipleDirectorySymlinks",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                        new FileArtifact[]
+                        {
+                            FileArtifact.CreateSourceFile(symlink_A_BLnk),
+                            FileArtifact.CreateSourceFile(symlink_A_B1Lnk),
+                            FileArtifact.CreateSourceFile(symlink_A_B2_C_DLnk),
+                            FileArtifact.CreateSourceFile(symlink_A_B2_C_D1Lnk),
+                            FileArtifact.CreateSourceFile(file_A_B2_C_D2_eTxt)
+                        }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty); ;
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (symlink_A_BLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_A_B1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_A_B2_C_DLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_A_B2_C_D1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (file_A_B2_C_D2_eTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
+                },
+                new[]
+                {
+                    tempFiles.GetFileName(pathTable, @"A\B1\C\D1.lnk"),
+                    tempFiles.GetFileName(pathTable, @"A\B1\C\D1.lnk\e.txt")
+                });
+            }
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallDeleteDirectorySymlinkThroughDifferentPath()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var directory_D = tempFiles.GetDirectory(pathTable, @"D");
+                var directory_D_E = tempFiles.GetDirectory(pathTable, @"D\E");
+                var directory_D_X = tempFiles.GetDirectory(pathTable, @"D\X");
+                var file_D_E_fTxt = tempFiles.GetFileName(pathTable, @"D\E\f.txt");
+                File.WriteAllText(file_D_E_fTxt.Expand(pathTable).ExpandedPath, "testE");
+
+                var file_D_X_fTxt = tempFiles.GetFileName(pathTable, @"D\X\f.txt");
+                File.WriteAllText(file_D_X_fTxt.Expand(pathTable).ExpandedPath, "testX");
+
+                // Create symlink from D\E.lnk -> D\E
+                var symlink_D_ELnk = tempFiles.GetFileName(pathTable, @"D\E.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_D_ELnk.Expand(pathTable).ExpandedPath, "E", isTargetFile: false));
+
+                // Create symlink from D1.lnk -> D
+                var symlink_D1Lnk = tempFiles.GetFileName(pathTable, @"D1.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_D1Lnk.Expand(pathTable).ExpandedPath, "D", isTargetFile: false));
+
+                // Create symlink from D2.lnk -> D
+                var symlink_D2Lnk = tempFiles.GetFileName(pathTable, @"D2.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_D2Lnk.Expand(pathTable).ExpandedPath, "D", isTargetFile: false));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDeleteDirectorySymlinkThroughDifferentPath",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                        new FileArtifact[]
+                        {
+                            FileArtifact.CreateSourceFile(file_D_E_fTxt),
+                            FileArtifact.CreateSourceFile(symlink_D_ELnk),
+                            FileArtifact.CreateSourceFile(symlink_D1Lnk),
+                            FileArtifact.CreateSourceFile(symlink_D2Lnk),
+                            FileArtifact.CreateSourceFile(file_D_X_fTxt),
+                        }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                        new FileArtifactWithAttributes[]
+                        {
+                            FileArtifact.CreateOutputFile(symlink_D_ELnk).WithAttributes(FileExistence.Required),
+                        }),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty); ;
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: false);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (file_D_E_fTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_D_ELnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_D1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_D2Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (file_D_X_fTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
                 });
             }
         }

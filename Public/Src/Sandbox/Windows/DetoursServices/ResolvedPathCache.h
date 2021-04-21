@@ -1,9 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#pragma once
+
 #include <map>
 #include <shared_mutex>
 #include <vector>
+
 #include "PathTree.h"
 
 typedef std::shared_mutex ResolvedPathCacheLock;
@@ -77,7 +80,11 @@ public:
         return Find(m_targetCache, Normalize(path));
     }
 
-    inline bool InsertResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath, std::vector<std::wstring>&& insertion_order, std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>&& resolved_paths)
+    inline bool InsertResolvedPaths(
+        const std::wstring& path,
+        bool preserveLastReparsePointInPath,
+        std::vector<std::wstring>&& insertion_order,
+        std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>&& resolved_paths)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
 
@@ -88,7 +95,8 @@ public:
             return false;
         }
 
-        for (auto iter = resolved_paths.begin(); iter != resolved_paths.end(); ++iter) {
+        for (auto iter = resolved_paths.begin(); iter != resolved_paths.end(); ++iter)
+        {
             if (!m_pathTree.TryInsert(Normalize(iter->first)))
             {
                 return false;
@@ -106,7 +114,7 @@ public:
     void Invalidate(const std::wstring& path)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
-        
+
         const std::wstring normalizedPath = Normalize(path);
 
         InvalidateThisPath(normalizedPath);
@@ -130,6 +138,7 @@ public:
         m_paths.erase(std::make_pair(path, true));
         m_paths.erase(std::make_pair(path, false));
 
+        // This invalidation is rather expensive as it traverses the whole cache to remove entries.
         for (auto it = m_paths.begin(), it_next = it; it != m_paths.end(); it = it_next)
         {
             ++it_next;
@@ -192,6 +201,11 @@ private:
     // path where its last segment has to be resolved or not(key)
     std::map<std::pair<std::wstring, bool>, ResolvedPathCacheEntries, CaseInsensitiveTargetCacheLessThan> m_paths;
 
-    // All the paths the cache is aware of
+    // All the paths the cache is aware of.
+    //
+    // This path tree is used for cache invalidation. Suppose that a process accesses D1 and D1\E1 where both D1 and E1 are
+    // symlinks. The cache will have entries for both D1 and D1\E1. If D1 is removed (e.g., by calling RemoveDirectory), then
+    // the entry for D1\E1 in the cache needs to be removed as well. Otherwise, if subsequently the process decides to create
+    // D1\E1 again but D1 points to a different target, then any access of D1\E1 will get the wrong entry from the cache.
     PathTree m_pathTree;
 };

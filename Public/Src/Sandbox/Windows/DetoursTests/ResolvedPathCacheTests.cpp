@@ -20,7 +20,7 @@
 #include "ResolvedPathCacheTests.h"
 
 // Used to test the in process ResolvedPathCache 
-// Path casing is intendedly changed throughout the test to make sure the cache deals with casing properly
+// Path casing is intentionally changed throughout the test to make sure the cache deals with casing properly
 int CallDetoursResolvedPathCacheTests()
 {
     std::string content = "Some text";
@@ -234,6 +234,56 @@ int CallDetoursResolvedPathCacheDealsWithUnicode()
     }
 
     if (!ReadFile(hFile, buffer, 1024, &bytes_read, nullptr))
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+    return 0;
+}
+
+int CallDeleteDirectorySymlinkThroughDifferentPath()
+{
+    // Create a file through a symlink
+    HANDLE hFile = CreateFileW(
+        L"D1.lnk\\E.lnk\\f.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    // Invalidate the resolved path cache
+    if (!RemoveDirectoryW(L"D2.lnk\\E.lnk"))
+    {
+        return (int)GetLastError();
+    }
+
+    // Recreate the symbolic link chain
+    if (!TestCreateSymbolicLinkW(L"D\\E.lnk", L"X", SYMBOLIC_LINK_FLAG_DIRECTORY))
+    {
+        return (int)GetLastError();
+    }
+
+    // Read the created file through a symlink again
+    hFile = CreateFileW(
+        L"D1.lnk\\E.lnk\\f.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
     {
         return (int)GetLastError();
     }

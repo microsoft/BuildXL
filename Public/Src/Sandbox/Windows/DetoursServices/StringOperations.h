@@ -112,7 +112,7 @@ inline bool IsDriveLetter(PathChar c)
 
 inline bool IsDriveBasedAbsolutePath(PCPathChar path)
 {
-    if (path[0] != 0 && IsDriveLetter(path[0]) && path[1] == L':' && IsDirectorySeparator(path[2]))
+    if (path[0] != 0 && IsDriveLetter(path[0]) && path[1] == NT_VOLUME_SEPARATOR && IsDirectorySeparator(path[2]))
     {
         return true;
     }

@@ -1277,7 +1277,7 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             Contract.Assert(!OperatingSystemHelper.IsUnixOS);
 
-            var maybeSymlink = FileUtilities.TryCreateReparsePointIfNotExistsOrTargetsDoNotMatch(LinkPathAsString, PathAsString, ReparsePointType.Junction, out var created);
+            var maybeSymlink = FileUtilities.TryCreateReparsePoint(LinkPathAsString, PathAsString, ReparsePointType.Junction);
             if (!maybeSymlink.Succeeded)
             {
                 throw maybeSymlink.Failure.CreateException();

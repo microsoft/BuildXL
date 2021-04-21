@@ -781,6 +781,53 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(newInfo.Hash, maybeTrackedFileContentInfo.Result.Hash);
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
+        public async Task SymlinkMaterialization()
+        {
+            var harness = CreateHarness(useDummyFileContentTable: true);
+            
+            AbsolutePath targetPath = harness.GetFullPath("target");
+            File.WriteAllText(targetPath.ToString(harness.Context.PathTable), "File content");
+
+            AbsolutePath symlink = harness.GetFullPath("symlink");
+            string symlinkPath = symlink.ToString(harness.Context.PathTable);
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink.ToString(harness.Context.PathTable), targetPath.ToString(harness.Context.PathTable), true));
+            Possible<ReparsePointType> reparsePointType = FileUtilities.TryGetReparsePointType(symlinkPath);
+            XAssert.IsTrue(reparsePointType.Succeeded);
+            bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
+            XAssert.IsTrue(actReparsePoint);
+
+            var possiblyStored = await harness.Store.TryStoreAsync(harness.ContentCache, FileRealizationMode.Copy, symlink, tryFlushPageCacheToFileSystem: true, isReparsePoint: true);
+            XAssert.IsTrue(possiblyStored.Succeeded);
+
+            // Materialization data
+            var contentHash = possiblyStored.Result.FileContentInfo.Hash;
+            var info = ReparsePointInfo.Create(reparsePointType.Result, targetPath.ToString(harness.Context.PathTable));
+
+            // 1. Change target 
+            File.Delete(symlinkPath);
+            AbsolutePath newTargetPath = harness.GetFullPath("newTarget");
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink.ToString(harness.Context.PathTable), newTargetPath.ToString(harness.Context.PathTable), true));
+            await harness.VerifyMaterialization(symlink, contentHash, ContentMaterializationOrigin.DeployedFromCache, info);
+
+            // 2. Delete and replace with a file
+            File.Delete(symlinkPath);
+            File.WriteAllText(symlinkPath, "Some file contents");
+            await harness.VerifyMaterialization(symlink, contentHash, ContentMaterializationOrigin.DeployedFromCache, info);
+
+            // 3. Delete and replace with an empty directory
+            File.Delete(symlinkPath);
+            Directory.CreateDirectory(symlinkPath);
+            await harness.VerifyMaterialization(symlink, contentHash, ContentMaterializationOrigin.DeployedFromCache, info);
+
+            // 4. Delete and replace with a directory with some contents
+            File.Delete(symlinkPath);
+            Directory.CreateDirectory(symlinkPath);
+            File.WriteAllText(Path.Combine(symlinkPath, "file.txt"), "Some file contents");
+            await harness.VerifyMaterialization(symlink, contentHash, ContentMaterializationOrigin.DeployedFromCache, info);
+        }
+
         private Harness CreateHarness(
             bool useDummyFileContentTable = false, 
             DirectoryTranslator directoryTranslator = null,
@@ -916,14 +963,15 @@ namespace Test.BuildXL.Engine.Cache
                 Tracker.AssertExistenceOfPathIsNotTracked(expandedPath);
             }
 
-            public async Task VerifyMaterialization(AbsolutePath path, ContentHash hash, ContentMaterializationOrigin expectedOrigin)
+            public async Task VerifyMaterialization(AbsolutePath path, ContentHash hash, ContentMaterializationOrigin expectedOrigin, ReparsePointInfo? reparsePointInfo = null)
             {
                 Possible<ContentMaterializationResult> possiblyMaterialized =
                     await Store.TryMaterializeAsync(
                         ContentCache,
                         FileRealizationMode.Copy,
                         path,
-                        hash);
+                        hash,
+                        reparsePointInfo: reparsePointInfo);
                 if (!possiblyMaterialized.Succeeded)
                 {
                     XAssert.Fail("Failed to materialize content: {0}", possiblyMaterialized.Failure.DescribeIncludingInnerFailures());

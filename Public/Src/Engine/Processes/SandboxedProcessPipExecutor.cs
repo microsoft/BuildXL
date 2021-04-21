@@ -5295,7 +5295,7 @@ namespace BuildXL.Processes
             Contract.Requires(filePath.IsValid);
 
             string expandedFilePath = filePath.ToString(m_pathTable);
-            var mayBeDeleted = FileUtilities.TryDeletePathIfExists(expandedFilePath, m_tempDirectoryCleaner);
+            var mayBeDeleted = FileUtilities.TryDeletePathIfExists(expandedFilePath, tempDirectoryCleaner: m_tempDirectoryCleaner);
 
             if (!mayBeDeleted.Succeeded)
             {

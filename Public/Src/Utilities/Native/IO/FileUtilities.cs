@@ -316,7 +316,14 @@ namespace BuildXL.Native.IO
         /// <param name="tempDirectoryCleaner">Temporary directory cleaner.</param>
         public static Possible<string, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempCleaner tempDirectoryCleaner = null)
         {
-            if (FileExistsNoFollow(fileOrDirectoryPath))
+            var maybeExistence = TryProbePathExistence(fileOrDirectoryPath, followSymlink: false);
+            if (!maybeExistence.Succeeded)
+            {
+                return maybeExistence.Failure;
+            }
+
+            var existence = maybeExistence.Result;
+            if (existence == PathExistence.ExistsAsFile)
             {
                 var possibleDeletion = TryDeleteFile(
                     fileOrDirectoryPath,
@@ -328,7 +335,7 @@ namespace BuildXL.Native.IO
                     return possibleDeletion.WithGenericFailure();
                 }
             }
-            else if (DirectoryExistsNoFollow(fileOrDirectoryPath))
+            else if (existence == PathExistence.ExistsAsDirectory)
             {
                 DeleteDirectoryContents(fileOrDirectoryPath, deleteRootDirectory: true, tempDirectoryCleaner: tempDirectoryCleaner);
             }
@@ -639,14 +646,17 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryCreateSymbolicLink(symLinkFileName, targetFileName, isTargetFile);
         }
 
-        /// <summary>
-        /// Tries to create a reparse point if it does not exist or targets do not match.
-        /// </summary>
-        public static Possible<Unit> TryCreateReparsePointIfNotExistsOrTargetsDoNotMatch(string reparsePoint, string reparsePointTarget, ReparsePointType type, out bool created)
-        {
-            created = false;
-            bool shouldCreate = true;
 
+
+        /// <summary>
+        /// Tries to create a reparse point if targets do not match.
+        /// </summary>
+        /// <remarks>
+        /// The first parameter should be a path to an existing reparse point 
+        /// </remarks>
+        public static Possible<Unit> TryCreateReparsePointIfTargetsDoNotMatch(string reparsePoint, string reparsePointTarget, ReparsePointType type)
+        {
+            bool shouldCreate = true;
             if (IsReparsePointActionable(type))
             {
                 var openResult = TryCreateOrOpenFile(
@@ -676,30 +686,40 @@ namespace BuildXL.Native.IO
             if (shouldCreate)
             {
                 s_fileUtilities.DeleteFile(reparsePoint, retryOnFailure: true);
+                return TryCreateReparsePoint(reparsePoint, reparsePointTarget, type);
+            }
 
-                if (type == ReparsePointType.Junction)
-                {
-                    try
-                    {
-                        s_fileSystem.CreateJunction(reparsePoint, reparsePointTarget, allowNonExistentTarget: true);
-                    }
-                    catch (Exception e)
-                    {
-                        return new Failure<Exception>(e);
-                    }
-                }
-                else
-                {
-                    CreateDirectory(Path.GetDirectoryName(reparsePoint));
-                    
-                    var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(reparsePoint, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
-                    if (!maybeSymbolicLink.Succeeded)
-                    {
-                        return maybeSymbolicLink.Failure;
-                    }
-                }
+            return Unit.Void;
+        }
 
-                created = true;
+        /// <summary>
+        /// Tries to create a reparse point in the indicated path
+        /// </summary>
+        /// <remarks>
+        /// The path should be absent before calling this method
+        /// </remarks>
+        public static Possible<Unit> TryCreateReparsePoint(string path, string reparsePointTarget, ReparsePointType type)
+        {
+            if (type == ReparsePointType.Junction)
+            {
+                try
+                {
+                    s_fileSystem.CreateJunction(path, reparsePointTarget, allowNonExistentTarget: true);
+                }
+                catch (Exception e)
+                {
+                    return new Failure<Exception>(e);
+                }
+            }
+            else
+            {
+                CreateDirectory(Path.GetDirectoryName(path));
+
+                var maybeSymbolicLink = s_fileSystem.TryCreateSymbolicLink(path, reparsePointTarget, isTargetFile: type != ReparsePointType.DirectorySymlink);
+                if (!maybeSymbolicLink.Succeeded)
+                {
+                    return maybeSymbolicLink.Failure;
+                }
             }
 
             return Unit.Void;

@@ -2,13 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Scheduling;
 using Kusto.Data.Common;
-using static BuildXL.Cache.Monitor.App.Analysis.Utilities;
 
 namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 {
@@ -21,12 +20,6 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
             }
 
             public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(1);
-
-            public Thresholds<long> MachineCountThreshold = new Thresholds<long>()
-            {
-                Error = 1,
-                Fatal = 3,
-            };
         }
 
         public DiskCorruptionRule(Configuration configuration) : base(configuration) => _configuration = configuration;
@@ -39,9 +32,6 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
 #pragma warning disable CS0649
         internal record Result
         {
-            public long Count;
-            public string Component = string.Empty;
-            public string Operation = string.Empty;
             public string Machine = string.Empty;
             public string Stamp = string.Empty;
         }
@@ -52,30 +42,41 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
             var now = _configuration.Clock.UtcNow;
             var query =
                 $@"
-                let end = now();
-                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                table('{_configuration.CacheTableName}')
+                let end = now(); let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                let RocksDbErrors = table('{_configuration.CacheTableName}')
                 | where PreciseTimeStamp between(start .. end)
                 | where Component != 'DistributedContentCopier'
                 | where Message has_any('The file or directory is corrupted and unreadable', 'Corruption: block checksum mismatch: ', 'IOException: Incorrect function')  
                 | project PreciseTimeStamp, Stamp, Machine, Component, Operation, Message
                 | summarize Count = count(), any(Message) by Component, Operation, Machine, Stamp
-                | summarize arg_max(Count, Component, Operation, any_Message) by Machine, Stamp";
+                | distinct Stamp, Machine;
+                let SelfCheckErrors = table('{_configuration.CacheTableName}')
+                | where PreciseTimeStamp between (start .. end)
+                | where Operation == 'SelfCheckContentDirectoryAsync'
+                | where isnotempty(Duration)
+                | parse Message with * 'InvalidFiles=' InvalidFiles: long ', TotalProcessedFiles=' TotalProcessedFiles: long
+                | where InvalidFiles > 0
+                | project Stamp, Machine, Ratio = (toreal(InvalidFiles) / TotalProcessedFiles) * 100
+                | where Ratio > 1
+                | project - away Ratio;
+                RocksDbErrors
+                | union SelfCheckErrors
+                | distinct Stamp, Machine
+                | sort by Stamp asc";
 
             var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
-            GroupByStampAndCallHelper<Result>(results, result => result.Stamp, corruptionRuleHelper);
-
-            void corruptionRuleHelper(string stamp, List<Result> results)
+            if (results.Count > 0)
             {
-                _configuration.MachineCountThreshold.Check(results.Count, (severity, pct) =>
-                { 
-                    var machinesNames = string.Join(", ", results.Select(result => $"`{result.Machine}`"));
-                    Emit(context, "MachineCorruption", severity,
-                        $"{results.Count} machines have had corruption issues in the last {_configuration.LookbackPeriod}: {machinesNames}",
-                        stamp,
-                        eventTimeUtc: now);
-                });
+                var envStr = _configuration.Environment == App.MonitorEnvironment.CloudBuildProduction ? "PROD" : "TEST";
+
+                var commands = string.Join("\n", results.Select(r => $"Reimage-Machine {envStr} {r.Stamp} {r.Machine}"));
+                var stamps = string.Join(", ", results.Select(r => r.Stamp).Distinct());
+
+                Emit(context, "MachineCorruption", Severity.Warning,
+                    $"{results.Count} machines have had corruption issues in the last {_configuration.LookbackPeriod}:\n{commands}",
+                    stamps,
+                    eventTimeUtc: now);
             }
         }
     }

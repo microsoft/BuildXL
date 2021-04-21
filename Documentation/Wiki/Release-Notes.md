@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210416.5 (Release [104096](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104096)) Released 4/21/2021
+- Dump Pip Lite - Track observed file accesses for failed pips 
+- Build Manifest: XLG event batching
+-	Track the size of the associated files in the drop
+- Bug fixes for grpc communication layer.
+
 # 0.1.0-20210409.1.1 (Release [103647](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=103647)) Released 4/15/2021
 - Implement a file descriptor table in the Linux sandbox
 - (AnyBuild) Ensure deterministic output of DLLs for native builders

@@ -291,8 +291,7 @@ namespace NugetPackages {
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackages(false),
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier(net472PackageQualifer).pkg,
-            importFrom("RocksDbNative").withQualifier(net472PackageQualifer).pkg,
-            importFrom("RocksDbSharpSigned").withQualifier(net472PackageQualifer).pkg,
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472PackageQualifer).getRocksDbPackages(false),
             importFrom("NLog").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly").withQualifier(net472PackageQualifer).pkg,
             importFrom("Polly.Contrib.WaitAndRetry").withQualifier(net472PackageQualifer).pkg,
@@ -383,8 +382,7 @@ namespace NugetPackages {
             ]
         },
         dependencies: [
-            importFrom("RocksDbSharpSigned").withQualifier(net472PackageQualifer).pkg,
-            importFrom("RocksDbNative").withQualifier(net472PackageQualifer).pkg,
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472PackageQualifer).getRocksDbPackages(false),
             importFrom("Google.Protobuf").withQualifier(net472PackageQualifer).pkg,
             importFrom("RuntimeContracts").withQualifier(net472PackageQualifer).pkg,
         ],

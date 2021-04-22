@@ -288,17 +288,27 @@ export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNuget
         ];
 
 @@public 
-export const systemMemoryDeployment = isDotNetCoreApp
-    ? []
-    : [
-        importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Buffers").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+export const systemMemoryDeployment = getSystemMemoryPackages(true);
 
-        // It works to reference .NET472 all the time because netstandard.dll targets .NET4 so it's safe for .NET462 to do so.
-        $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+// This is meant to be used only when declaring NuGet packages' dependencies. In that particular case, you should be
+// calling this function with includeNetStandard: false
+@@public 
+export function getSystemMemoryPackages(includeNetStandard: boolean) {
+    return [
+        ...(isDotNetCoreApp ? [] : [
+            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Buffers").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            ...(includeNetStandard ? [
+                // It works to reference .NET472 all the time because netstandard.dll targets .NET4 so it's safe for .NET462 to do so.
+                $.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+            ]
+            : []),
+        ]
+        ),
     ];
+}
 
 /**
  * Builds a BuildXL executable project, resulting in an EXE.

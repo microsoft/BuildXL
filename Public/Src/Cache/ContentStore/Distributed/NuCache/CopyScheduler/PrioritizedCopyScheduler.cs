@@ -75,6 +75,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private readonly string[] _enqueuedMetricNames;
         private readonly string[] _executedMetricNames;
 
+        private Task? _schedulerTask;
+
         // NOTE: we don't dispose of these fields because copies may take some amount of time to cancel, so if we did
         // that we could end up throwing ObjectDisposedException on copies when shutting down.
         private readonly EventWaitHandle _copyCompletedEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset);
@@ -119,8 +121,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             _executedMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Executed_P{n}").ToArray();
         }
 
-        private Task? _schedulerTask;
-
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
@@ -152,6 +152,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             // it to complete.
             if (_schedulerTask != null)
             {
+                // If the StartupAsync is called, we need to set the event to potentially unblock the Scheduler method that may be block
+                // and waiting for new requests.
+                _copyAddedEvent.Set();
                 await _schedulerTask;
             }
 
@@ -164,12 +167,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
             while (!context.Token.IsCancellationRequested)
             {
-                // Go to sleep if there are no pending copies
-                if (_numPending == 0)
+                if (Volatile.Read(ref _numPending) == 0)
                 {
-                    Tracer.Info(context, $"No copies for current cycle. Sleeping for next copy addition");
+                    // There are no pending copies. Sleep until a new one is added.
                     _copyAddedEvent.Reset();
-                    _copyAddedEvent.WaitOne();
+
+                    // WARNING: having a timeout here is essential to ensure that shutdown happens in a timely manner.
+                    _copyAddedEvent.WaitOne(_configuration.MaximumEmptyCycleWait);
+                    continue;
                 }
 
                 // Compute amount of copies to dispatch in this cycle
@@ -177,8 +182,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 if (cycleQuota == 0)
                 {
                     // There's no quota in this cycle. Sleep until the next transfer completes
-                    Tracer.Info(context, $"No quota available for current cycle. Sleeping for next copy completion or `{_configuration.MaximumEmptyCycleWait}`");
                     _copyCompletedEvent.Reset();
+
+                    // WARNING: having a timeout here is essential to ensure that shutdown happens in a timely manner.
                     _copyCompletedEvent.WaitOne(_configuration.MaximumEmptyCycleWait);
                     continue;
                 }
@@ -186,9 +192,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 SchedulerCycle(context, cycleQuota).TraceIfFailure(context);
             }
 
-            // There is no need for us to do any kind of shutdown logic here. Copies' cancellation token will be
-            // triggered, so they'll prune themselves out as they complete.
             Tracer.Info(context, "Copy scheduler shutting down");
+            // There's two kinds of copies that we need to deal with here:
+            //  1. Inflight. These have already started, and are handled by the cancellation token that's passed into them.
+            //  2. Pending. These are currently enqueued, and are waiting on the task source. We need to cancel them
+            foreach (var priority in ComputePriorityTraversalOrder())
+            {
+                var candidates = _pending[priority];
+                while (candidates.TryTake(out var pending))
+                {
+                    pending.TaskSource.SetCanceled();
+                }
+            }
         }
 
         public Result<SchedulerCycleMetadata> SchedulerCycle(OperationContext context, int cycleQuota)
@@ -373,7 +388,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
         private int ComputeCycleQuota()
         {
-            var availableQuota = _configuration.MaximumConcurrentCopies - _numInflight;
+            var availableQuota = _configuration.MaximumConcurrentCopies - Volatile.Read(ref _numInflight);
             if (availableQuota <= 0)
             {
                 return 0;

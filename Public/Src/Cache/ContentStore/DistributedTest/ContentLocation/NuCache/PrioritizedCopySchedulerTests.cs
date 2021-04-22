@@ -20,6 +20,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
     public class PrioritizedCopySchedulerTests
     {
         [Fact]
+        public async Task ShutdownShouldNotBlock()
+        {
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration: null);
+            await scheduler.StartupAsync(context).ShouldBeSuccess();
+
+            await scheduler.ShutdownAsync(context).ShouldBeSuccess();
+        }
+
+        [Fact]
         public Task SingleCopyShouldGetScheduled()
         {
             return RunTest(async (context, scheduler) =>
@@ -263,30 +272,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
         public async Task RunTest(Func<OperationContext, PrioritizedCopyScheduler, Task> func, PrioritizedCopySchedulerConfiguration prioritizedCopySchedulerConfiguration = null)
         {
-            var logger = TestGlobal.Logger;
-            var context = new Context(logger);
-            var operationContext = new OperationContext(context);
-
-            var configuration = new CopySchedulerConfiguration()
-            {
-                Type = CopySchedulerType.Prioritized,
-                PrioritizedCopySchedulerConfiguration = prioritizedCopySchedulerConfiguration ?? new PrioritizedCopySchedulerConfiguration(),
-            };
-
-            var scheduler = (configuration.Create(context) as PrioritizedCopyScheduler)!;
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration);
 
             // NOTE: We do not startup the scheduler here in order to avoid launching the background task that
             // effectively schedules copies. This is done only for testing purposes.
             try
             {
-                await func(operationContext, scheduler);
+                await func(context, scheduler);
             }
             finally
             {
                 // We do shut it down, so that any ongoing copies get cancelled
                 await scheduler.ShutdownAsync(context).ShouldBeSuccess();
             }
+        }
 
+        private static (OperationContext context, PrioritizedCopyScheduler scheduler) CreateContextAndScheduler(
+            PrioritizedCopySchedulerConfiguration prioritizedCopySchedulerConfiguration)
+        {
+            var logger = TestGlobal.Logger;
+            var context = new Context(logger);
+            var operationContext = new OperationContext(context);
+
+            var configuration = new CopySchedulerConfiguration()
+                                {
+                                    Type = CopySchedulerType.Prioritized,
+                                    PrioritizedCopySchedulerConfiguration =
+                                        prioritizedCopySchedulerConfiguration ?? new PrioritizedCopySchedulerConfiguration(),
+                                };
+
+            var scheduler = (PrioritizedCopyScheduler) configuration.Create(context);
+            return (operationContext, scheduler);
         }
     }
 }

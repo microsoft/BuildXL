@@ -145,7 +145,7 @@ namespace BuildXL.Cache.Host.Service
                 }
                 finally
                 {
-                    var timeoutInMinutes = arguments.Configuration?.DistributedContentSettings?.MaxShutdownDurationInMinutes ?? 30;
+                    var timeoutInMinutes = arguments.Configuration?.DistributedContentSettings?.MaxShutdownDurationInMinutes ?? 5;
                     var result = await server
                         .ShutdownAsync(context)
                         .WithTimeoutAsync("Server shutdown", TimeSpan.FromMinutes(timeoutInMinutes));

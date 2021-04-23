@@ -290,6 +290,7 @@ export function runQTest(args: QTestArguments): Result {
                 Artifact.none(sandboxDir)
             ),
             Cmd.flag("--inPlaceTestExecution", true),
+            Cmd.flag("--isManaged", false),
         ];
 
         commandLineArgs = commandLineArgs.concat(jsProjectArguments);

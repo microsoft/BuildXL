@@ -400,7 +400,7 @@ namespace Test.BuildXL.Scheduler
                 Contract.Assert(cacheLayer != null);
 
                 Contract.Assume(scheduler != null);
-                scheduler.InitForMaster(LoggingContext, sandboxConnectionKext: GetSandboxConnection());
+                scheduler.InitForOrchestrator(LoggingContext, sandboxConnectionKext: GetSandboxConnection());
                 scheduler.Start(LoggingContext);
 
                 bool success = scheduler.WhenDone().Result;
@@ -1335,7 +1335,7 @@ namespace Test.BuildXL.Scheduler
                 directoryTranslator: directoryTranslator,
                 testHooks: testHooks);
 
-            bool success = m_scheduler.InitForMaster(LoggingContext, filter);
+            bool success = m_scheduler.InitForOrchestrator(LoggingContext, filter);
             XAssert.IsTrue(success);
 
             m_scheduler.Start(LoggingContext);
@@ -3012,7 +3012,7 @@ namespace Test.BuildXL.Scheduler
                 tempCleaner: MoveDeleteCleaner,
                 testHooks: new SchedulerTestHooks());
 
-            newScheduler.InitForMaster(LoggingContext, filter);
+            newScheduler.InitForOrchestrator(LoggingContext, filter);
 
             testQueue.Unpause();
             newScheduler.Start(LoggingContext);

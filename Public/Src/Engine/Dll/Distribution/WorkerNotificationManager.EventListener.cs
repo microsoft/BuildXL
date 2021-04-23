@@ -50,7 +50,7 @@ namespace BuildXL.Engine.Distribution
                     return;
                 }
 
-                if (((long)eventData.Keywords & (long)Keywords.NotForwardedToMaster) > 0)
+                if (((long)eventData.Keywords & (long)Keywords.NotForwardedToOrchestrator) > 0)
                 { 
                     return;
                 }

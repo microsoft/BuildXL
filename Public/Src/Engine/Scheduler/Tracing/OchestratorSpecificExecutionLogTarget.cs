@@ -16,7 +16,7 @@ namespace BuildXL.Scheduler.Tracing
     /// <summary>
     /// Execution log events that need to be intercepted only on non-worker machines.
     /// </summary>
-    public sealed class MasterSpecificExecutionLogTarget : ExecutionLogTargetBase
+    public sealed class OchestratorSpecificExecutionLogTarget : ExecutionLogTargetBase
     {
         private readonly LoggingContext m_loggingContext;
 
@@ -39,13 +39,13 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
         {
-            return new MasterSpecificExecutionLogTarget(m_loggingContext, m_scheduler, (int)workerId);
+            return new OchestratorSpecificExecutionLogTarget(m_loggingContext, m_scheduler, (int)workerId);
         }
 
         /// <summary>
         /// Constructor.
         /// </summary>
-        public MasterSpecificExecutionLogTarget(
+        public OchestratorSpecificExecutionLogTarget(
             LoggingContext loggingContext,
             Scheduler scheduler,
             int workerId = 0)

@@ -16,7 +16,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Specifies that the current node acts as the build coordinator
         /// </summary>
-        Master = 1,
+        Orchestrator = 1,
 
         /// <summary>
         /// Specifies that the current node acts as a build worker

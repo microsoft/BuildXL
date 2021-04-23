@@ -7,17 +7,17 @@ This document describes the high level design and the components of distributed 
 - **Cache** - the [cache](../../Public/Src/Cache/README.md) is used to exchange files between the orchestrator and the worker (e.g. files for reconstructing the pip graph, input files for execution)    
 - [**Worker**](../../Public/Src/Engine/Scheduler/Distribution/Worker.cs) object -  A local or remote worker capable of executing processes and IPC pips. The scheduler keeps a list of Workers (wich always has a single local worker, and additionally the remote workers when running distributed builds). 
 - [**PipExecutionStep**](../../Public/Src/Engine/Scheduler/PipExecutionStep.cs) - A specific step in a pip's execution. Some of these steps can be distributed and executed in a remote worker.
-- [**MasterService**](../../Public/Src/Engine/Dll/Distribution/MasterService.cs) - This service runs only in the orchestrator and is in charge of keeping track of the remote workers and receiving their messages (i.e., attachment and pip execution completions, and error events). `MasterService` does not directly _send_ messages to the workers: this is done mainly by the scheduler itself through a `RemoteWorker` instance. 
+- [**OrchestratorService**](../../Public/Src/Engine/Dll/Distribution/OrchestratorService.cs) - This service runs only in the orchestrator and is in charge of keeping track of the remote workers and receiving their messages (i.e., attachment and pip execution completions, and error events). `OrchestratorService` does not directly _send_ messages to the workers: this is done mainly by the scheduler itself through a `RemoteWorker` instance. 
 - [**WorkerService**](../../Public/Src/Engine/Dll/Distribution/WorkerService.cs) - This service runs only in the workers and is in charge of communicating with the orchestrator, both receiving and sending messages (for orchestrator attachment, pip step execution requests/results and warning/error events).
-- [**RemoteWorker**](../../Public/Src/Engine/Dll/Distribution/RemoteWorker.cs) -  A subclass of `Worker` capable of executing processes on external machines. These objects live in the orchestrator (in the scheduler's worker list and in the `MasterService`) and are ultimately the ones that issue the different messages that will go through gRPC to the corresponding remote `WorkerService`s.
+- [**RemoteWorker**](../../Public/Src/Engine/Dll/Distribution/RemoteWorker.cs) -  A subclass of `Worker` capable of executing processes on external machines. These objects live in the orchestrator (in the scheduler's worker list and in the `OrchestratorService`) and are ultimately the ones that issue the different messages that will go through gRPC to the corresponding remote `WorkerService`s.
 
 ## Remote communication
 The communication between the orchestrator and workers is carried out through remote procedure calls using [gRPC](https://grpc.io/). The RPC endpoints are implemented in:
 
-- [**GrpcMasterClient**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcMasterClient.cs) - Held by workers to send messages to the master
+- [**GrpcOrchestratorClient**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcOrchestratorClient.cs) - Held by workers to send messages to the orchestrator
 - [**GrpcWorkerClient**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcWorkerClient.cs) - Held by the orchestrator to send messages to a worker 
 - [**GrpcWorkerServer**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcWorkerServer.cs) - Receives messages on the worker and calls `WorkerService` methods appropriately 
-- [**GrpcWorkerServer**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcMasterServer.cs) - Receives messages on the orchestrator and calls `MasterService` methods appropriately 
+- [**GrpcWorkerServer**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcOrchestratorServer.cs) - Receives messages on the orchestrator and calls `OrchestratorService` methods appropriately 
 - [**ClientConnectionManager**](../../Public/Src/Engine/Dll/Distribution/Grpc/ClientConnectionManager.cs) - Manages the gRPC channels, monitoring the connection status and logging events
 
 

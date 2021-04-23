@@ -1147,7 +1147,7 @@ namespace BuildXL
         /// Computes session identifier which allows easier searching in Kusto for
         /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
         ///
-        /// Search for masters: '| where sessionId has "0001-FFFF"'
+        /// Search for orchestrators: '| where sessionId has "0001-FFFF"'
         /// Search for workers: '| where sessionId has "0002-FFFF"'
         /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
         /// </summary>
@@ -2327,7 +2327,7 @@ namespace BuildXL
                     }
                 }
 
-                // The performance summary looks at counters that don't get aggregated and sent back to the master from
+                // The performance summary looks at counters that don't get aggregated and sent back to the orchestrator from
                 // all workers. So it only applies to single machine builds.
                 if (config.Distribution.BuildWorkers == null || config.Distribution.BuildWorkers.Count == 0)
                 {

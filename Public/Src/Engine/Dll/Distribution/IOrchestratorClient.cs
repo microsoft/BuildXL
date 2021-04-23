@@ -11,7 +11,7 @@ using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 
 namespace BuildXL.Engine.Distribution
 {
-    internal interface IMasterClient
+    internal interface IOrchestratorClient
     {
         void Initialize(string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync);        
         Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo);

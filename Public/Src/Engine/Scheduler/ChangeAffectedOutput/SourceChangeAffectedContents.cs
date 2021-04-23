@@ -27,8 +27,8 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         /// </summary>
         /// <remarks>
         /// This list should be initialized by the input change list provided from the InputChanges configuration option.
-        /// On the master, this list contains all the affected files of the build. It is maintained by calling the function ReportSourceChangeAffectedOutputs() after execution of each pip.
-        /// On the workers, this list contains all the affected files distributed to the worker. It is maintained by calling the function ReportSourceChangedAffectedFile() when reporting a file input from master by worker.  
+        /// On the orchestrator, this list contains all the affected files of the build. It is maintained by calling the function ReportSourceChangeAffectedOutputs() after execution of each pip.
+        /// On the workers, this list contains all the affected files distributed to the worker. It is maintained by calling the function ReportSourceChangedAffectedFile() when reporting a file input from orchestrator by worker.  
         /// </remarks>
         private readonly ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedFiles = new ConcurrentBigSet<AbsolutePath>();
 
@@ -138,7 +138,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         }
 
         /// <summary>
-        /// This function executes on the master to maintain the globle source change affected contents
+        /// This function executes on the orchestrator to maintain the globle source change affected contents
         /// </summary>
         public void ReportSourceChangeAffectedFiles(
             Pip pip,

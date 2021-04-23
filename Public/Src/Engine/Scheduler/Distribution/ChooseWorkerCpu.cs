@@ -207,7 +207,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         private Worker ChooseWorker(RunnablePip runnablePip, WorkerSetupCost[] workerSetupCosts, out WorkerResource? limitingResource)
         {
-            if (MustRunOnMaster(runnablePip))
+            if (MustRunOnOrchestrator(runnablePip))
             {
                 // This is shortcut for the single-machine builds and distributed workers.
                 return LocalWorker.TryAcquire(runnablePip, out limitingResource, loadFactor: MaxLoadFactor) ? LocalWorker : null;
@@ -386,7 +386,7 @@ namespace BuildXL.Scheduler.Distribution
             /// </summary>
             public void EstimateAndSortSetupCostPerWorker(RunnablePip runnablePip)
             {
-                if (m_context.MustRunOnMaster(runnablePip))
+                if (m_context.MustRunOnOrchestrator(runnablePip))
                 {
                     // Only estimate setup costs for pips which can execute remotely
                     return;

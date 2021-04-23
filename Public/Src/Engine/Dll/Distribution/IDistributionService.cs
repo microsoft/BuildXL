@@ -6,7 +6,7 @@ using System;
 namespace BuildXL.Engine.Distribution
 {
     /// <summary>
-    /// Exposes common members between master and worker distribution services.
+    /// Exposes common members between orchestrator and worker distribution services.
     /// </summary>
     public interface IDistributionService : IDisposable
     {

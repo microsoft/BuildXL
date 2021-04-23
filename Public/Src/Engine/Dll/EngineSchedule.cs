@@ -1024,7 +1024,7 @@ namespace BuildXL.Engine
             }
 
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            bool initResult = Scheduler.InitForMaster(loggingContext, filter, schedulerState);
+            bool initResult = Scheduler.InitForOrchestrator(loggingContext, filter, schedulerState);
             enginePerformanceInfo.SchedulerInitDurationMs = initStopwatch.ElapsedMilliseconds;
 
             return initResult;

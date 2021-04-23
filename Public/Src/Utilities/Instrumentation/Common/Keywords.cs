@@ -73,9 +73,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public const EventKeywords UserError = (EventKeywords)(1 << 7);
 
         /// <summary>
-        /// Events that should not be forwarded to the master
+        /// Events that should not be forwarded to the orchestrator
         /// </summary>
-        public const EventKeywords NotForwardedToMaster = (EventKeywords)(1 << 8);
+        public const EventKeywords NotForwardedToOrchestrator = (EventKeywords)(1 << 8);
 
         /// <summary>
         /// Events that should be in included only custom logs which selectively enable the event

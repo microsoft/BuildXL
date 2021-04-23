@@ -27,7 +27,7 @@ namespace BuildXL.Engine.Distribution
     /// <summary>
     /// A pip executor which can distributed work to remote workers
     /// </summary>
-    public sealed class MasterService : IDistributionService
+    public sealed class OrchestratorService : IDistributionService
     {
         internal IPipExecutionEnvironment Environment
         {
@@ -54,7 +54,7 @@ namespace BuildXL.Engine.Distribution
         private ExecutionResultSerializer m_resultSerializer;
         private PipGraphCacheDescriptor m_cachedGraphDescriptor;
         private readonly ushort m_buildServicePort;
-        private readonly IServer m_masterServer;
+        private readonly IServer m_orchestratorServer;
 
         internal readonly DistributionServices DistributionServices;
 
@@ -62,9 +62,9 @@ namespace BuildXL.Engine.Distribution
         /// Class constructor
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "RemoteWorker disposes the workerClient")]
-        public MasterService(IDistributionConfiguration config, LoggingContext loggingContext, string buildId)
+        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, string buildId)
         {
-            Contract.Requires(config != null && config.BuildRole == DistributedBuildRoles.Master);
+            Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
             Contract.Ensures(m_remoteWorkers != null);
 
             // Create all remote workers
@@ -82,11 +82,11 @@ namespace BuildXL.Engine.Distribution
                 m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation);
             }
 
-            m_masterServer = new Grpc.GrpcMasterServer(loggingContext, this, buildId);
+            m_orchestratorServer = new Grpc.GrpcOrchestratorServer(loggingContext, this, buildId);
         }
 
         /// <summary>
-        /// The port on which the master is listening.
+        /// The port on which the orchestrator is listening.
         /// </summary>
         public int Port => m_buildServicePort;
 
@@ -113,7 +113,7 @@ namespace BuildXL.Engine.Distribution
         public ContentHash SymlinkFileContentHash { get; set; } = WellKnownContentHashes.AbsentFile;
 
         /// <summary>
-        /// Prepares the master for pips execution
+        /// Prepares the orchestrator for pips execution
         /// </summary>
         public void EnableDistribution(EngineSchedule schedule)
         {
@@ -156,7 +156,7 @@ namespace BuildXL.Engine.Distribution
                 EventLevel eventLevel = (EventLevel)forwardedEvent.Level;
 
                 // For some errors, we need to exit the worker.
-                // Those errors should not make the master fail, 
+                // Those errors should not make the orchestrator fail, 
                 // so we override the level with Warning.
                 if (await worker.NotifyInfrastructureErrorAsync(forwardedEvent))
                 {
@@ -275,7 +275,7 @@ namespace BuildXL.Engine.Distribution
                 await TaskUtilities.SafeWhenAll(tasks);
             }
 
-            await m_masterServer.DisposeAsync();
+            await m_orchestratorServer.DisposeAsync();
         }
 
         bool IDistributionService.Initialize()
@@ -285,11 +285,11 @@ namespace BuildXL.Engine.Distribution
             {
                 try
                 {
-                    m_masterServer.Start(m_buildServicePort);
+                    m_orchestratorServer.Start(m_buildServicePort);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log.DistributionServiceInitializationError(m_loggingContext, DistributedBuildRole.Master.ToString(), m_buildServicePort, ExceptionUtilities.GetLogEventMessage(ex));
+                    Logger.Log.DistributionServiceInitializationError(m_loggingContext, DistributedBuildRole.Orchestrator.ToString(), m_buildServicePort, ExceptionUtilities.GetLogEventMessage(ex));
                     return false;
                 }
             }

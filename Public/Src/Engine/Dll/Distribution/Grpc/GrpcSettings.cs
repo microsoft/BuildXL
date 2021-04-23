@@ -16,7 +16,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public const int MaxRetry = 3;
 
         /// <summary>
-        /// Maximum time for a Grpc call (both master->worker and worker->master)
+        /// Maximum time for a Grpc call (both orchestrator->worker and worker->orchestrator)
         /// </summary>
         /// <remarks>
         /// Default: 5 minutes
@@ -24,7 +24,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public static TimeSpan CallTimeout => EngineEnvironmentSettings.DistributionConnectTimeout;
 
         /// <summary>
-        /// Maximum time to wait for the master to connect to a worker.
+        /// Maximum time to wait for the orchestrator to connect to a worker.
         /// </summary>
         /// <remarks>
         /// Default: 75 minutes

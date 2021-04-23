@@ -75,7 +75,7 @@ namespace BuildXL.Scheduler.Cache
         /// PathSet or Metadata content hashes that are newly added in the current session.
         /// </summary>
         /// <remarks>
-        /// BuildXL only sends the new hashes to master from worker
+        /// BuildXL only sends the new hashes to orchestrator from worker
         /// </remarks>
         private readonly ConcurrentBigMap<ContentHash, bool> m_newContentEntries;
 

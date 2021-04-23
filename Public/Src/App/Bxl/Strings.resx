@@ -499,13 +499,13 @@
     <value>Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple).  (short form: /dbw)</value>
   </data>
   <data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
-    <value>Specifies the TCP port of a locally running distributed build service (master or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp)</value>
+    <value>Specifies the TCP port of a locally running distributed build service (orchestrator or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp)</value>
   </data>
   <data name="Args_DistributedBuildRole_UnsupportedValue" xml:space="preserve">
-    <value>Unsupported value for distributed build role {0}, should be [N]one, [M]aster, or [W]orker.</value>
+    <value>Unsupported value for distributed build role {0}, should be None, Orchestrator, or Worker.</value>
   </data>
   <data name="HelpText_DisplayHelp_DistributedBuildRole" xml:space="preserve">
-    <value>Specifies the role the node plays in the distributed build: [N]one, [M]aster, or [W]orker. This argument is required for executing a distributed build. (short form: /dbr)</value>
+    <value>Specifies the role the node plays in the distributed build: None, Orchestrator, or Worker. This argument is required for executing a distributed build. (short form: /dbr)</value>
   </data>
   <data name="Args_DistributedBuildWorker_InvalidServiceLocation" xml:space="preserve">
     <value>Invalid distributed build worker location '{0}'. Ensure location is of the form &lt;IP address or host name&gt;:&lt;port&gt;. &lt;IP address or host name&gt;should be a non-empty string and &lt;port&gt;must be a valid port number.</value>
@@ -964,13 +964,13 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_MsBuild_EnableEngineTracing" xml:space="preserve">
     <value>Controls whether MSBuild engine/scheduler tracing should be enabled for the build. WARNING: Use this option only temporarily as it will significantly increase build times.</value>
   </data>
-  <data name="HelpText_DisplayHelp_MasterCpuMultiplier" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_OrchestratorCpuMultiplier" xml:space="preserve">
     <value>Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0.</value>
   </data>
   <data name="HelpText_DisplayHelp_LaunchDebugger" xml:space="preserve">
     <value>Launches the debugger during boot (in the server process if applicable).</value>
   </data>
-  <data name="HelpText_DisplayHelp_MasterCacheLookupMultiplier" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_OrchestratorCacheLookupMultiplier" xml:space="preserve">
     <value>Specifies the cachelookup queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0.</value>
   </data>
   <data name="HelpText_DisplayHelp_IgnoreDynamicWritesOnAbsentProbes" xml:space="preserve">

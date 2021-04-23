@@ -881,13 +881,13 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/masterCpuMultiplier:<double>",
-                Strings.HelpText_DisplayHelp_MasterCpuMultiplier,
+                "/orchestratorCpuMultiplier:<double>",
+                Strings.HelpText_DisplayHelp_OrchestratorCpuMultiplier,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/masterCacheLookupMultiplier:<double>",
-                Strings.HelpText_DisplayHelp_MasterCacheLookupMultiplier,
+                "/orchestratorCacheLookupMultiplier:<double>",
+                Strings.HelpText_DisplayHelp_OrchestratorCacheLookupMultiplier,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

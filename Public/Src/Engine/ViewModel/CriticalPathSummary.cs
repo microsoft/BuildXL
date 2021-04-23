@@ -22,7 +22,7 @@ namespace BuildXL.ViewModel
         public TimeSpan ExeDurationCriticalPath { get; set; }
 
         /// <nodoc />
-        public TimeSpan TotalMasterQueueTime { get; set; }
+        public TimeSpan TotalOrchestratorQueueTime { get; set; }
 
         /// <nodoc />
         internal void RenderMarkdown(MarkDownWriter writer)
@@ -41,7 +41,7 @@ namespace BuildXL.ViewModel
             writer.WriteTableRow(
                 TotalCriticalPathRuntime.MakeFriendly(),
                 ExeDurationCriticalPath.MakeFriendly(),
-                TotalMasterQueueTime.MakeFriendly(),
+                TotalOrchestratorQueueTime.MakeFriendly(),
                 string.Empty,
                 string.Empty,
                 string.Empty,

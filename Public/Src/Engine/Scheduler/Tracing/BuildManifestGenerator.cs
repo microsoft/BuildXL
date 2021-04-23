@@ -66,7 +66,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             Contract.Requires(records != null, "Build Manifest Records can't be null");
 
-            using (Counters.StartStopwatch(BuildManifestCounters.ReceiveRecordFileForBuildManifestEventOnMasterDuration))
+            using (Counters.StartStopwatch(BuildManifestCounters.ReceiveRecordFileForBuildManifestEventOnOrchestratorDuration))
             {
                 foreach (var record in records)
                 {
@@ -224,7 +224,7 @@ namespace BuildXL.Scheduler.Tracing
         /// Time spent storing hashes for build manifest
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        ReceiveRecordFileForBuildManifestEventOnMasterDuration,
+        ReceiveRecordFileForBuildManifestEventOnOrchestratorDuration,
 
         /// <summary>
         /// Number of <see cref="BuildManifestGenerator.RecordFileForBuildManifest"/> calls

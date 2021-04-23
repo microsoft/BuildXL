@@ -69,9 +69,9 @@ namespace BuildXL.Engine
 
         /// <summary>
         /// Manages interactions with workers/coordinator for distributed builds.
-        /// Exists only when engine runs in master mode.
+        /// Exists only when engine runs in orchestrator mode.
         /// </summary>
-        private readonly MasterService m_masterService;
+        private readonly OrchestratorService m_orchestratorService;
 
         /// <summary>
         /// The worker service - exists only when the engine runs in worker mode.
@@ -246,7 +246,7 @@ namespace BuildXL.Engine
         [CanBeNull]
         private readonly string m_buildVersion;
 
-        private bool IsDistributedMaster => Configuration.Distribution.BuildRole == DistributedBuildRoles.Master;
+        private bool IsDistributedOrchestrator => Configuration.Distribution.BuildRole.IsOrchestrator();
 
         private bool IsDistributedWorker => Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker;
 
@@ -301,10 +301,10 @@ namespace BuildXL.Engine
             // Activity id is unique per the CB session. However, this is not enough as we invoke more than one BuildXL per machine per CB session due to the Office workflow.
             // That's why, we also concat the environment to the id.
             var distributedBuildId = I($"{Configuration.Logging.RelatedActivityId}-{Configuration.Logging.Environment}");
-            if (IsDistributedMaster)
+            if (IsDistributedOrchestrator)
             {
-                m_masterService = new MasterService(Configuration.Distribution, loggingContext, distributedBuildId);
-                m_distributionService = m_masterService;
+                m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedBuildId);
+                m_distributionService = m_orchestratorService;
             }
             else if (IsDistributedWorker)
             {
@@ -874,7 +874,7 @@ namespace BuildXL.Engine
             }
 
             // Distribution overrides
-            if (mutableConfig.Distribution.BuildRole == DistributedBuildRoles.Master)
+            if (mutableConfig.Distribution.BuildRole.IsOrchestrator())
             {
                 if (!mutableConfig.Distribution.BuildWorkers.Any())
                 {
@@ -895,7 +895,7 @@ namespace BuildXL.Engine
                         mutableConfig.Distribution.LowWorkersWarningThreshold = Math.Min(remoteWorkerCount + 1, mutableConfig.Distribution.LowWorkersWarningThreshold.Value);
                     }
                     
-                    // Force graph caching because the master needs to communicate it to the worker.
+                    // Force graph caching because the orchestrator needs to communicate it to the worker.
                     mutableConfig.Cache.CacheGraph = true;
                 }
             }
@@ -904,7 +904,7 @@ namespace BuildXL.Engine
                 mutableConfig.Distribution.LowWorkersWarningThreshold = 0;
             }
 
-            if (mutableConfig.Distribution.BuildRole != DistributedBuildRoles.Master)
+            if (!mutableConfig.Distribution.BuildRole.IsOrchestrator())
             {
                 // No additional choose worker threads needed in single machine builds or workers
                 mutableConfig.Schedule.MaxChooseWorkerCpu = 1;
@@ -913,7 +913,7 @@ namespace BuildXL.Engine
 
             if (mutableConfig.Distribution.BuildRole == DistributedBuildRoles.Worker)
             {
-                // No reason for the worker to interact with HistoricPerformanceInfo. Scheduling decisions are handled by the master
+                // No reason for the worker to interact with HistoricPerformanceInfo. Scheduling decisions are handled by the orchestrator
                 mutableConfig.Schedule.UseHistoricalPerformanceInfo = false;
             }
 
@@ -1233,7 +1233,7 @@ namespace BuildXL.Engine
                 // TODO: Remove this once reduced metabuild materialization is fully tested
                 if (mutableConfig.Distribution.ReplicateOutputsToWorkers == null
                     && mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab
-                    && mutableConfig.Distribution.BuildRole == DistributedBuildRoles.Master)
+                    && mutableConfig.Distribution.BuildRole.IsOrchestrator())
                 {
                     mutableConfig.Distribution.ReplicateOutputsToWorkers = true;
                 }
@@ -1881,12 +1881,12 @@ namespace BuildXL.Engine
                             {
                                 if (Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
                                 {
-                                    if (!m_workerService.WaitForMasterAttach())
+                                    if (!m_workerService.WaitForOrchestratorAttach())
                                     {
                                         // Worker timeout logs a warning but no error. It is not considered a failure wrt the worker
                                         Contract.Assert(
                                             engineLoggingContext.ErrorWasLogged,
-                                            "An error should have been logged during waiting for attaching to the master.");
+                                            "An error should have been logged during waiting for attaching to the orchestrator.");
                                         return BuildXLEngineResult.Failed(engineState);
                                     }
                                 }
@@ -1970,7 +1970,7 @@ namespace BuildXL.Engine
                                     CleanUpFrontEndOnSuccess(success, constructScheduleResult);
                                 }
 
-                                // Build workers don't allow CleanOnly builds since the master selects which pips they run
+                                // Build workers don't allow CleanOnly builds since the orchestrator selects which pips they run
                                 if (success && Configuration.Engine.CleanOnly && Configuration.Distribution.BuildRole != DistributedBuildRoles.Worker)
                                 {
                                     Contract.Assert(
@@ -2056,7 +2056,7 @@ namespace BuildXL.Engine
 
                                 Task<bool> postExecutionTasks = Task.FromResult(true);
 
-                                // Post execution tasks are only performed on master.
+                                // Post execution tasks are only performed on orchestrator.
                                 if (Configuration.Distribution.BuildRole != DistributedBuildRoles.Worker && engineSchedule != null)
                                 {
                                     // Even if the execution phase failed or was skipped, we want to persist / finish persisting some structures like the exported pip graph.
@@ -2114,7 +2114,7 @@ namespace BuildXL.Engine
 
                                 LogStats(loggingContext, engineSchedule, cacheInitializationTask, constructScheduleResult);
 
-                                Context.EngineCounters.MeasuredDispose(m_masterService, EngineCounter.MasterServiceDisposeDuration);
+                                Context.EngineCounters.MeasuredDispose(m_orchestratorService, EngineCounter.OrchestratorServiceDisposeDuration);
 
                                 Context.EngineCounters.MeasuredDispose(m_workerService, EngineCounter.WorkerServiceDisposeDuration);
 
@@ -3073,7 +3073,7 @@ namespace BuildXL.Engine
                                 mountsTable.MountsByName);
                         }
 
-                        if (IsDistributedMaster)
+                        if (IsDistributedOrchestrator)
                         {
                             // In a distributed build, we must synchronously wait for the graph to be placed in the content cache.
                             if (!m_graphCacheContentCachePut.GetAwaiter().GetResult())
@@ -3110,9 +3110,9 @@ namespace BuildXL.Engine
                 }
 
                 // Now that graph is constructed and saved, workers can be attached
-                if (IsDistributedMaster && phase.HasFlag(EnginePhases.Execute))
+                if (IsDistributedOrchestrator && phase.HasFlag(EnginePhases.Execute))
                 {
-                    m_masterService.EnableDistribution(engineSchedule);
+                    m_orchestratorService.EnableDistribution(engineSchedule);
                 }
 
                 if (!engineSchedule.PrepareForBuild(
@@ -3428,9 +3428,9 @@ namespace BuildXL.Engine
                                 Logger.Log.PipGraphIdentfier(tb.LoggingContext, identifierFingerprint.Value.ToString());
                             }
 
-                            if (success && Configuration.Distribution.BuildRole == DistributedBuildRoles.Master)
+                            if (success && Configuration.Distribution.BuildRole.IsOrchestrator())
                             {
-                                m_masterService.CachedGraphDescriptor = cachedGraphDescriptor.Value;
+                                m_orchestratorService.CachedGraphDescriptor = cachedGraphDescriptor.Value;
                             }
                         }
 

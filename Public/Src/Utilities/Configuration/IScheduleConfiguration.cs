@@ -265,12 +265,12 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected.
         /// </summary>
-        double? MasterCpuMultiplier { get; }
+        double? OrchestratorCpuMultiplier { get; }
 
         /// <summary>
         /// Specifies the cachelookup queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected.
         /// </summary>
-        double? MasterCacheLookupMultiplier { get; }
+        double? OrchestratorCacheLookupMultiplier { get; }
 
         /// <summary>
         /// Skip hash source file pips during graph creation.

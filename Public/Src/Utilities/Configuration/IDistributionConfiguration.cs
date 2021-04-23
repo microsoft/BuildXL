@@ -12,12 +12,12 @@ namespace BuildXL.Utilities.Configuration
     public interface IDistributionConfiguration
     {
         /// <summary>
-        /// Specifies the roles the node plays in the distributed build: [N]one, [M]aster or [W]orker. This argument is required for executing a distributed build. (short form: /dbr)
+        /// Specifies the roles the node plays in the distributed build: None, Orchestrator or Worker. This argument is required for executing a distributed build. (short form: /dbr)
         /// </summary>
         DistributedBuildRoles BuildRole { get; }
 
         /// <summary>
-        /// Specifies the TCP port of a locally running distributed build service (master or worker) which peers can connect to during a distributed build. This argument is required for
+        /// Specifies the TCP port of a locally running distributed build service (orchestrator or worker) which peers can connect to during a distributed build. This argument is required for
         /// executing a distributed build.  (short form: /dbsp)
         /// </summary>
         ushort BuildServicePort { get; }
@@ -70,12 +70,12 @@ namespace BuildXL.Utilities.Configuration
         double EarlyWorkerReleaseMultiplier { get; }
 
         /// <summary>
-        /// Indicates whether the master should wait for the results of materializeoutput step on remote workers.
+        /// Indicates whether the orchestrator should wait for the results of materializeoutput step on remote workers.
         /// </summary>
         bool FireForgetMaterializeOutput { get; }
 
         /// <summary>
-        /// Indicates number of times the master should retry failing pips due to lost workers on a different worker.
+        /// Indicates number of times the orchestrator should retry failing pips due to lost workers on a different worker.
         /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
         /// </summary>
         int? NumRetryFailedPipsOnAnotherWorker { get; }

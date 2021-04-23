@@ -824,13 +824,13 @@ namespace BuildXL.Scheduler
                     {
                         // IPC pips specify an execution result which is reported back to the scheduler
                         // which then reports the output content to the file content manager on the worker
-                        // and master machines in distributed builds
+                        // and orchestrator machines in distributed builds
                         executionResult.ReportOutputContent(destinationFile, fileContentInfo, outputOrigin);
                     }
                     else
                     {
                         // Write file pips do not specify execution result since they are not distributed
-                        // (i.e. they only run on the master). Given that, they report directly to the file content manager.
+                        // (i.e. they only run on the orchestrator). Given that, they report directly to the file content manager.
                         fileContentManager.ReportOutputContent(
                             operationContext,
                             pipInfo.SemiStableHash,
@@ -1465,7 +1465,7 @@ namespace BuildXL.Scheduler
                         skipCaching = false;
                     }
 
-                    // TODO: Maybe all counter updates should occur on distributed build master.
+                    // TODO: Maybe all counter updates should occur on distributed build orchestrator.
                     if (skipCaching)
                     {
                         counters.IncrementCounter(PipExecutorCounter.ProcessPipsExecutedButUncacheable);
@@ -2913,7 +2913,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         /// <remarks>
         /// This method is used for distributed cache look-up. The result of cache look-up done on the worker is transferred back
-        /// to the master as <see cref="ExecutionResult"/> (for the sake of reusing existing transport structure). This method
+        /// to the orchestrator as <see cref="ExecutionResult"/> (for the sake of reusing existing transport structure). This method
         /// then converts it to <see cref="RunnableFromCacheResult"/> that can be consumed by the scheduler's cache look-up step.
         /// </remarks>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters")]
@@ -4279,7 +4279,7 @@ namespace BuildXL.Scheduler
         /// The pip's outputs will be stored into the <see cref="IArtifactContentCache"/> of <see cref="IPipExecutionEnvironment.Cache"/>,
         /// and (if caching is enabled) a cache entry (the types varies; either single-phase or two-phase depending on configuration) will be created.
         /// The cache entry itself is not immediately stored, and is instead placed on the <paramref name="processExecutionResult"/>. This is so that
-        /// in distributed builds, workers can handle output processing and validation but defer all metadata storage to the master.
+        /// in distributed builds, workers can handle output processing and validation but defer all metadata storage to the orchestrator.
         /// </summary>
         /// <remarks>
         /// This may be called even if the execution environment lacks a cache, in which case the outputs are hashed and reported (but nothing else).

@@ -14,26 +14,26 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Engine.Distribution
 {
     /// <summary>
-    /// Logging target on master for sending execution logs in distributed builds
+    /// Logging target on orchestrator for sending execution logs in distributed builds
     /// </summary>
-    public class NotifyMasterExecutionLogTarget : ExecutionLogFileTarget
+    public class NotifyOrchestratorExecutionLogTarget : ExecutionLogFileTarget
     {
         private volatile bool m_isDisposed = false;
         private readonly NotifyStream m_notifyStream;
         private readonly BinaryLogger m_logger;
 
-        internal NotifyMasterExecutionLogTarget(WorkerNotificationManager notificationManager, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
+        internal NotifyOrchestratorExecutionLogTarget(WorkerNotificationManager notificationManager, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
             : this(new NotifyStream(notificationManager), context, logId, lastStaticAbsolutePathIndex)
         {
         }
 
-        private NotifyMasterExecutionLogTarget(NotifyStream notifyStream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex) 
+        private NotifyOrchestratorExecutionLogTarget(NotifyStream notifyStream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex) 
             : this(CreateBinaryLogger(notifyStream, context, logId, lastStaticAbsolutePathIndex))
         {
             m_notifyStream = notifyStream;
         }
 
-        private NotifyMasterExecutionLogTarget(BinaryLogger logger)
+        private NotifyOrchestratorExecutionLogTarget(BinaryLogger logger)
             : base(logger, closeLogFileOnDispose: true)
         {
             m_logger = logger;

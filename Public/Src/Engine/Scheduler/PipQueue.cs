@@ -52,7 +52,7 @@ namespace BuildXL.Scheduler
         /// Whether the queue can accept new external work items.
         /// </summary>
         /// <remarks>
-        /// In distributed builds, new work items can come from external requests after draining is started (i.e., workers get requests from the master)
+        /// In distributed builds, new work items can come from external requests after draining is started (i.e., workers get requests from the orchestrator)
         /// In single machine builds, after draining is started, new work items are only scheduled from the items that are being executed, not external requests.
         /// </remarks>
         private volatile bool m_isFinalized;
@@ -78,7 +78,7 @@ namespace BuildXL.Scheduler
         /// The total number of process slots in the build.
         /// </summary>
         /// <remarks>
-        /// For the master, this is a sum of process slots of all available workers.
+        /// For the orchestrator, this is a sum of process slots of all available workers.
         /// For a worker, this is the number of process slots on that worker.
         /// </remarks>
         private int m_totalProcessSlots;
@@ -100,7 +100,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         /// <returns>
         /// If there are no items running or pending in the queues, we need to check whether this pipqueue can accept new external work.
-        /// If this is a worker, we cannot finish dispatcher because master can still send new work items to the worker.
+        /// If this is a worker, we cannot finish dispatcher because orchestrator can still send new work items to the worker.
         /// </returns>
         public bool IsFinished => IsCancelled || (Volatile.Read(ref m_numRunningOrQueued) == 0 && m_isFinalized);
 
@@ -197,8 +197,8 @@ namespace BuildXL.Scheduler
                 m_scheduleConfig.MaxProcesses,
                 m_scheduleConfig.MaxMaterialize,
                 m_scheduleConfig.MaxLightProcesses,
-                m_scheduleConfig.MasterCacheLookupMultiplier.ToString(),
-                m_scheduleConfig.MasterCpuMultiplier.ToString());
+                m_scheduleConfig.OrchestratorCacheLookupMultiplier.ToString(),
+                m_scheduleConfig.OrchestratorCpuMultiplier.ToString());
         }
 
         /// <inheritdoc/>

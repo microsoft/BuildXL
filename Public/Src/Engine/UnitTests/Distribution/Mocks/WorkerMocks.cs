@@ -55,7 +55,7 @@ namespace Test.BuildXL.Distribution
             ReportResultCalls++;
         }
 
-        void IWorkerNotificationManager.Start(IMasterClient orchestratorClient, EngineSchedule schedule)
+        void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule)
         {
             StartCalls++;
         }

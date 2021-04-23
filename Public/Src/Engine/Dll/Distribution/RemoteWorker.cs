@@ -46,7 +46,7 @@ namespace BuildXL.Engine.Distribution
 
         private readonly ConcurrentDictionary<PipId, PipCompletionTask> m_pipCompletionTasks = new ConcurrentDictionary<PipId, PipCompletionTask>();
         private readonly LoggingContext m_appLoggingContext;
-        private readonly MasterService m_masterService;
+        private readonly OrchestratorService m_orchestratorService;
 
         private readonly ServiceLocation m_serviceLocation;
         private BondContentHash m_cacheValidationContentHash;
@@ -111,12 +111,12 @@ namespace BuildXL.Engine.Distribution
         public RemoteWorker(
             LoggingContext appLoggingContext,
             uint workerId,
-            MasterService masterService,
+            OrchestratorService orchestratorService,
             ServiceLocation serviceLocation)
             : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"))
         {
             m_appLoggingContext = appLoggingContext;
-            m_masterService = masterService;
+            m_orchestratorService = orchestratorService;
             m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
             m_attachCompletion = TaskSourceSlim.Create<bool>();
             m_setupCompletion = TaskSourceSlim.Create<bool>();
@@ -125,7 +125,7 @@ namespace BuildXL.Engine.Distribution
             m_serviceLocation = serviceLocation;
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext, 
-                masterService.DistributionServices.BuildId, 
+                orchestratorService.DistributionServices.BuildId, 
                 serviceLocation.IpAddress, 
                 serviceLocation.Port, 
                 OnConnectionTimeOutAsync);
@@ -158,7 +158,7 @@ namespace BuildXL.Engine.Distribution
                     break;
                 }
 
-                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_PrepareAndSendBuildRequestsDuration))
+                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_PrepareAndSendBuildRequestsDuration))
                 {
                     m_pipCompletionTaskList.Clear();
                     m_buildRequestList.Clear();
@@ -173,7 +173,7 @@ namespace BuildXL.Engine.Distribution
                         m_buildRequestList.Add(item.Item2);
                     }
 
-                    using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_ExtractHashesDuration))
+                    using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_ExtractHashesDuration))
                     {
                         Parallel.ForEach(m_pipCompletionTaskList, (task) =>
                         {
@@ -185,7 +185,7 @@ namespace BuildXL.Engine.Distribution
                     TimeSpan sendDuration;
                     RpcCallResult<Unit> callResult;
 
-                    using (var watch = m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
+                    using (var watch = m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
                     {
                         callResult = m_workerClient.ExecutePipsAsync(new PipBuildRequest
                             {
@@ -211,22 +211,22 @@ namespace BuildXL.Engine.Distribution
                         // This seems to be very inefficient; but it is so rare that we completely fail to send the build request to the worker after retries.
                         ResetAvailableHashes(m_pipGraph);
 
-                        m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
+                        m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
                     }
                     else
                     {
-                        m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesSentToWorkers);
-                        m_masterService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesSentToWorkers, m_hashList.Count);
+                        m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesSentToWorkers);
+                        m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesSentToWorkers, m_hashList.Count);
                         
                         foreach (var task in m_pipCompletionTaskList)
                         {
                             task.SetRequestDuration(dateTimeBeforeSend, sendDuration);
 
-                            bool fireForgetMaterializeOutputEnabled = m_masterService.Environment.Configuration.Distribution.FireForgetMaterializeOutput;
+                            bool fireForgetMaterializeOutputEnabled = m_orchestratorService.Environment.Configuration.Distribution.FireForgetMaterializeOutput;
                             if (task.RunnablePip.Step == PipExecutionStep.MaterializeOutputs && fireForgetMaterializeOutputEnabled)
                             {
                                 // We do not wait for the result of MaterializeOutputs steps on the workers.
-                                // That's why, we return an empty success result to unblock the master.
+                                // That's why, we return an empty success result to unblock the orchestrator.
                                 task.TrySet(ExecutionResult.GetEmptySuccessResult(m_appLoggingContext));
                             }
                         }
@@ -241,8 +241,8 @@ namespace BuildXL.Engine.Distribution
 
             if (m_executionBlobQueue.IsCompleted)
             {
-                // If master already decided to shut-down the worker, there was a connection issue with the worker for a long time and  master was forced to exit the worker. 
-                // However, we received execution log event from worker, it means that the worker was still able to connect to master via its Channel.
+                // If orchestrator already decided to shut-down the worker, there was a connection issue with the worker for a long time and orchestrator was forced to exit the worker. 
+                // However, we received execution log event from worker, it means that the worker was still able to connect to orchestrator via its Channel.
                 // In that case, we do not process that log event. 
                 return;
             }
@@ -253,9 +253,9 @@ namespace BuildXL.Engine.Distribution
             await Task.Yield();
 
             // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
-            using (m_masterService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogWaitDuration].Start())
+            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogWaitDuration].Start())
             using (await m_logBlobMutex.AcquireAsync())
-            using (m_masterService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogDuration].Start())
+            using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogDuration].Start())
             {
                 // We need to dequeue and process the blobs in order. 
                 // Here, we do not necessarily process the blob that is just added to the queue above.
@@ -275,9 +275,9 @@ namespace BuildXL.Engine.Distribution
 
                 try
                 {
-                    // Workers send execution log blobs one-at-a-time, waiting for a response from the master between each message.
+                    // Workers send execution log blobs one-at-a-time, waiting for a response from the orchestrator between each message.
                     // A sequence number higher than the last logged blob sequence number indicates a worker sent a subsequent blob without waiting for a response.
-                    Contract.Assert(blobSequenceNumber <= m_lastBlobSeqNumber + 1, "Workers should not send a new execution log blob until receiving a response from the master for all previous blobs.");
+                    Contract.Assert(blobSequenceNumber <= m_lastBlobSeqNumber + 1, "Workers should not send a new execution log blob until receiving a response from the orchestrator for all previous blobs.");
 
                     // Due to network latency and retries, it's possible to receive a message multiple times.
                     // Ignore any low numbered blobs since they should have already been logged and ack'd at some point before
@@ -303,7 +303,7 @@ namespace BuildXL.Engine.Distribution
 
                     if (m_executionLogBinaryReader == null)
                     {
-                        m_executionLogBinaryReader = new BinaryLogReader(m_executionLogBufferStream, m_masterService.Environment.Context);
+                        m_executionLogBinaryReader = new BinaryLogReader(m_executionLogBufferStream, m_orchestratorService.Environment.Context);
                         m_executionLogReader = new ExecutionLogFileReader(m_executionLogBinaryReader, m_workerExecutionLogTarget);
                     }
 
@@ -312,7 +312,7 @@ namespace BuildXL.Engine.Distribution
                     // Read all events into worker execution log target
                     if (!m_executionLogReader.ReadAllEvents())
                     {
-                        Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), "Failed to read all worker events");
+                        Logger.Log.DistributionCallOrchestratorCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), "Failed to read all worker events");
                         // Disable further processing of execution log since an error was encountered during processing
                         m_workerExecutionLogTarget = null;
                     }
@@ -323,7 +323,7 @@ namespace BuildXL.Engine.Distribution
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), ex.ToStringDemystified() + Environment.NewLine
+                    Logger.Log.DistributionCallOrchestratorCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), ex.ToStringDemystified() + Environment.NewLine
                                                                     + "Message sequence number: " + blobSequenceNumber
                                                                     + " Last sequence number logged: " + m_lastBlobSeqNumber);
                     // Disable further processing of execution log since an exception was encountered during processing
@@ -394,15 +394,15 @@ namespace BuildXL.Engine.Distribution
             {
                 SessionId = m_appLoggingContext.Session.Id,
                 WorkerId = WorkerId,
-                CachedGraphDescriptor = m_masterService.CachedGraphDescriptor,
-                SymlinkFileContentHash = m_masterService.SymlinkFileContentHash.ToBondContentHash(),
-                FingerprintSalt = m_masterService.Environment.ContentFingerprinter.FingerprintSalt,
+                CachedGraphDescriptor = m_orchestratorService.CachedGraphDescriptor,
+                SymlinkFileContentHash = m_orchestratorService.SymlinkFileContentHash.ToBondContentHash(),
+                FingerprintSalt = m_orchestratorService.Environment.ContentFingerprinter.FingerprintSalt,
                 MasterLocation = new ServiceLocation
                 {
                     IpAddress = Dns.GetHostName(),
-                    Port = m_masterService.Port,
+                    Port = m_orchestratorService.Port,
                 },
-                EnvironmentVariables = m_masterService.Environment.State.PipEnvironment
+                EnvironmentVariables = m_orchestratorService.Environment.State.PipEnvironment
                        .FullEnvironmentVariables.ToDictionary().ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
             };
 
@@ -509,7 +509,7 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            m_masterService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
+            m_orchestratorService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
 
             Contract.Assert(m_pipCompletionTasks.IsEmpty || !isDrainedWithSuccess, "There cannot be pending completion tasks when we drain the pending tasks successfully");
 
@@ -575,7 +575,7 @@ namespace BuildXL.Engine.Distribution
 
                 m_executionBlobQueue.CompleteAdding();
 
-                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
+                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
                 {
                     bool isQueueCompleted = false;
                     using (await m_logBlobMutex.AcquireAsync())
@@ -693,7 +693,7 @@ namespace BuildXL.Engine.Distribution
             // For all steps except materializeoutputs, we already send the build requests to available (running) workers;
             // so this code below might seem redundant. However, for distributed metabuild, we materialize outputs 
             // on all workers and send the materializeoutput request to all workers, even the ones that are not available.
-            // That's why, the master now waits for the workers to be available until it is done executing all pips.
+            // That's why, the orchestrator now waits for the workers to be available until it is done executing all pips.
             var firstCompletedTask = await Task.WhenAny(m_attachCompletion.Task, m_schedulerCompletion.Task);
 
             var pipId = runnable.PipId;
@@ -787,7 +787,7 @@ namespace BuildXL.Engine.Distribution
                 var files = pooledFileSet.Instance;
                 var dynamicFiles = pooledDynamicFileMultiDirectoryMap.Instance;
 
-                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_CollectPipFilesToMaterializeDuration))
+                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_CollectPipFilesToMaterializeDuration))
                 {
                     environment.State.FileContentManager.CollectPipFilesToMaterialize(
                         isMaterializingInputs: !materializingOutputs,
@@ -804,7 +804,7 @@ namespace BuildXL.Engine.Distribution
                         shouldIncludeServiceFiles: servicePipId => TryAddAvailableHash(servicePipId) ?? true);
                 }
 
-                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_CreateFileArtifactKeyedHashDuration))
+                using (m_orchestratorService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_CreateFileArtifactKeyedHashDuration))
                 {
                     // Now we have to consider both dynamicFiles map and files set so we union into the files set. If we only rely on files, then the following incorrect build can happen.
                     // Suppose that we have pip P that specifies D as an opaque output directory and D\f as an output file. Pip Q consumes D\f directly (not via directory dependency on D).
@@ -1007,7 +1007,7 @@ namespace BuildXL.Engine.Distribution
             if (executionResult.Result == PipResultStatus.Failed)
             {
                 // Failure
-                m_masterService.Environment.Counters.IncrementCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessPipsFailedRemotely : PipExecutorCounter.IpcPipsFailedRemotely);
+                m_orchestratorService.Environment.Counters.IncrementCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessPipsFailedRemotely : PipExecutorCounter.IpcPipsFailedRemotely);
                 return;
             }
 
@@ -1019,7 +1019,7 @@ namespace BuildXL.Engine.Distribution
             // Success
             if (pipType == PipType.Process)
             {
-                m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipsSucceededRemotely);
+                m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipsSucceededRemotely);
 
                 // NOTE: Process outputs will be reported later during the PostProcess step.
             }
@@ -1027,7 +1027,7 @@ namespace BuildXL.Engine.Distribution
             {
                 Contract.Assert(pipType == PipType.Ipc);
 
-                m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.IpcPipsSucceededRemotely);
+                m_orchestratorService.Environment.Counters.IncrementCounter(PipExecutorCounter.IpcPipsSucceededRemotely);
 
                 // NOTE: Output content is reported for IPC but not Process because Process outputs will be reported
                 // later during PostProcess because cache convergence can change which outputs for a process are used
@@ -1064,7 +1064,7 @@ namespace BuildXL.Engine.Distribution
                 // If the status is not changed to Attached due to the current status,
                 // then no need to validate cache connection.
                 // The worker might have already validated the cache and it is running.
-                // Or the worker might have been stopped due to the master termination.
+                // Or the worker might have been stopped due to the orchestrator termination.
                 return;
             }
 
@@ -1133,9 +1133,9 @@ namespace BuildXL.Engine.Distribution
 
                 var description = pipCompletionTask.RunnablePip.Description;
                 int dataSize = pipCompletionData.ResultBlob.Count;
-                m_masterService.Environment.Counters.AddToCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataSize);
+                m_orchestratorService.Environment.Counters.AddToCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataSize);
 
-                ExecutionResult result = m_masterService.ResultSerializer.DeserializeFromBlob(
+                ExecutionResult result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
                     pipCompletionData.ResultBlob,
                     WorkerId);
 
@@ -1165,7 +1165,7 @@ namespace BuildXL.Engine.Distribution
             }
 
             if (eventId == (int)LogEventId.PipFailedToMaterializeItsOutputs &&
-                m_masterService.Environment.MaterializeOutputsInBackground)
+                m_orchestratorService.Environment.MaterializeOutputsInBackground)
             {
                 isInfraError = true;
             }
@@ -1251,7 +1251,7 @@ namespace BuildXL.Engine.Distribution
         {
             var cacheValidationContentHash = m_cacheValidationContentHash.ToContentHash();
 
-            IArtifactContentCache contentCache = m_masterService.Environment.Cache.ArtifactContentCache;
+            IArtifactContentCache contentCache = m_orchestratorService.Environment.Cache.ArtifactContentCache;
             var cacheValidationContentRetrieval = await contentCache.TryLoadAvailableContentAsync(new[]
             {
                 cacheValidationContentHash,

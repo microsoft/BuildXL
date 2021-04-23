@@ -358,7 +358,7 @@ namespace BuildXL.Scheduler
         private IIpcResult ExecuteGenerateBuildManifestFileList(GenerateBuildManifestFileListCommand cmd)
         {
             Contract.Requires(cmd != null);
-            Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on master");
+            Contract.Requires(m_buildManifestGenerator != null, "Build Manifest data can only be generated on orchestrator");
 
             if (!m_buildManifestGenerator.TryGenerateBuildManifestFileList(cmd.DropName, out string error, out var buildManifestFileList))
             {

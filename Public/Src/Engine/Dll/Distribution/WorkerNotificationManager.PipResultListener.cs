@@ -97,7 +97,7 @@ namespace BuildXL.Engine.Distribution
                     // TODO: ToArray is expensive here. Think about alternatives.
                     var dataByte = ((MemoryStream)writer.BaseStream).ToArray();
                     completionData.SerializedData.ResultBlob = new ArraySegment<byte>(dataByte);
-                    m_notificationManager.WorkerService.ReportingPipToMaster(completionData);
+                    m_notificationManager.WorkerService.ReportingPipToOrchestrator(completionData);
                     m_environment.Counters.AddToCounter(m_pipTable.GetPipType(pipId) == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataByte.Length);
                 }
             }

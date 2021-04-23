@@ -116,36 +116,36 @@ namespace Test.BuildXL.Distribution
 
         public void Exit(BuildEndData message)
         {
-            WorkerService.ExitCallReceivedFromMaster();
+            WorkerService.ExitCallReceivedFromOrchestrator();
             WorkerService.Exit(failure: message.Failure);
         }
     }
 
-    public sealed class OrchestratorClientMock : IMasterClient
+    public sealed class OrchestratorClientMock : IOrchestratorClient
     {
         private static RpcCallResult<Unit> SuccessResult => new RpcCallResult<Unit>(Unit.Void, 1, TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
 
         private readonly TaskCompletionSource<bool> m_attachmentCompletedSource = new TaskCompletionSource<bool>();
         public Task<bool> AttachmentCompleted => m_attachmentCompletedSource.Task;
         
-        Task<RpcCallResult<Unit>> IMasterClient.AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo)
+        Task<RpcCallResult<Unit>> IOrchestratorClient.AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo)
         {
             m_attachmentCompletedSource.TrySetResult(true);
             return Task.FromResult(SuccessResult);
         }
 
-        Task IMasterClient.CloseAsync()
+        Task IOrchestratorClient.CloseAsync()
         {
             m_attachmentCompletedSource.TrySetResult(false);
             return Task.CompletedTask;
         }
 
-        Task<RpcCallResult<Unit>> IMasterClient.NotifyAsync(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes, CancellationToken cancellationToken)
+        Task<RpcCallResult<Unit>> IOrchestratorClient.NotifyAsync(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes, CancellationToken cancellationToken)
         {
             return Task.FromResult(SuccessResult);
         }
 
-        void IMasterClient.Initialize(string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
+        void IOrchestratorClient.Initialize(string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
         {
 
         }

@@ -27,7 +27,7 @@ namespace BuildXL.Engine
         CacheDisposeDuration,
 
         [CounterType(CounterType.Stopwatch)]
-        MasterServiceDisposeDuration,
+        OrchestratorServiceDisposeDuration,
 
         [CounterType(CounterType.Stopwatch)]
         WorkerServiceDisposeDuration,

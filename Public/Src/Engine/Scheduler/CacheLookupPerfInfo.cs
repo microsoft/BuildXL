@@ -9,7 +9,7 @@ using BuildXL.Utilities;
 namespace BuildXL.Scheduler
 {
     /// <summary>
-    /// CacheLookup counters per pip, which is also transferred from workers to master.
+    /// CacheLookup counters per pip, which is also transferred from workers to orchestrator.
     /// </summary>
     public sealed class CacheLookupPerfInfo
     {

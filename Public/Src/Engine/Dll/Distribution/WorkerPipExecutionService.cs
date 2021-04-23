@@ -120,7 +120,7 @@ namespace BuildXL.Engine.Distribution
                 m_operationTracker = m_scheduler.OperationTracker;
                 m_environment = m_scheduler;
                 m_environment.ContentFingerprinter.FingerprintSalt = buildStartData.FingerprintSalt;
-                m_environment.State.PipEnvironment.MasterEnvironmentVariables = buildStartData.EnvironmentVariables;
+                m_environment.State.PipEnvironment.OrchestratorEnvironmentVariables = buildStartData.EnvironmentVariables;
             }
 
             /// <inheritdoc/>

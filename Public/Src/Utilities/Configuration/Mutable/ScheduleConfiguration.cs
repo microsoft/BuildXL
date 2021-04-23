@@ -143,8 +143,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             TelemetryTagPrefix = template.TelemetryTagPrefix;
 
-            MasterCpuMultiplier = template.MasterCpuMultiplier;
-            MasterCacheLookupMultiplier = template.MasterCacheLookupMultiplier;
+            OrchestratorCpuMultiplier = template.OrchestratorCpuMultiplier;
+            OrchestratorCacheLookupMultiplier = template.OrchestratorCacheLookupMultiplier;
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
@@ -332,10 +332,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public string TelemetryTagPrefix { get; set; }
 
         /// <inheritdoc />
-        public double? MasterCpuMultiplier { get; set; }
+        public double? OrchestratorCpuMultiplier { get; set; }
 
         /// <inheritdoc />
-        public double? MasterCacheLookupMultiplier { get; set; }
+        public double? OrchestratorCacheLookupMultiplier { get; set; }
 
         /// <inheritdoc />
         public bool SkipHashSourceFile { get; set; }

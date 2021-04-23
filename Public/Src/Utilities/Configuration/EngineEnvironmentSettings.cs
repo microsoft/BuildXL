@@ -111,7 +111,7 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> SkipExtraneousPins = CreateSetting("BuildXLSkipExtraneousPins", value => value == "1");
 
         /// <summary>
-        /// Specifies whether remote workers should inline and block waiting for execution log notification messages sent to master to be processed.
+        /// Specifies whether remote workers should inline and block waiting for execution log notification messages sent to orchestrator to be processed.
         /// </summary>
         public static readonly Setting<bool> InlineWorkerXLGHandling = CreateSetting("BuildXLInlineWorkerXLGHandling", value => value == "1");
 
@@ -146,13 +146,13 @@ namespace BuildXL.Utilities.Configuration
         #region Distribution-related timeouts
 
         /// <summary>
-        /// Allows optionally specifying an alternative timeout for workers to wait for attach from master
+        /// Allows optionally specifying an alternative timeout for workers to wait for attach from orchestrator
         /// </summary>
         public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
             TimeSpan.FromMinutes(75));
 
         /// <summary>
-        /// Maximum time to wait while establishing a connection to the remote machine (both master->worker and worker->master)
+        /// Maximum time to wait while establishing a connection to the remote machine (both orchestrator->worker and worker->orchestrator)
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionConnectTimeout = CreateSetting("BuildXLDistribConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ??
             TimeSpan.FromMinutes(5));

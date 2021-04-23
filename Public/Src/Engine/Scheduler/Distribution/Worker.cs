@@ -937,7 +937,7 @@ namespace BuildXL.Scheduler.Distribution
 
             if (IsContentTrackingEnabled)
             {
-                // Only perform this operation for distributed master.
+                // Only perform this operation for distributed orchestrator.
                 var pip = runnable.Pip;
                 Logger.Log.DistributionExecutePipRequest(operationContext, pip.FormattedSemiStableHash, Name, runnable.Step.AsString());
             }
@@ -952,7 +952,7 @@ namespace BuildXL.Scheduler.Distribution
         {
             if (!IsContentTrackingEnabled)
             {
-                // Only perform this operation for distributed master.
+                // Only perform this operation for distributed orchestrator.
                 return;
             }
 
@@ -993,7 +993,7 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     // NOTE: Available content is not added to the content tracking set here as the content
                     // may be changed due to cache convergence
-                    Logger.Log.DistributionMasterWorkerProcessOutputContent(
+                    Logger.Log.DistributionOrchestratorWorkerProcessOutputContent(
                         operationContext,
                         pip.FormattedSemiStableHash,
                         outputFile.fileArtifact.Path.ToString(runnable.Environment.Context.PathTable),

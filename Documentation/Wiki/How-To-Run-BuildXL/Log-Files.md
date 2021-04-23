@@ -9,5 +9,5 @@ The below logs and stat files get generated when BuildXL runs. These file names 
 * BuildXL.status.csv - BuildXL regularly logs build status information to this CSV file every specified seconds (default: 2) during the build. Some of the information that this file contains: Resource (cpu, mem, disks, network) usage, number of pips in each pip state and execution step, worker usage statistics (acquired slots, status, etc.), scheduler statistics. 
 * BuildXL.CacheMiss.log - This file contains the detailed reasons of the cache misses if [Runtime Cache Miss Analysis](../Advanced-Features/Cache-Miss-Analysis.md) feature is enabled.
 * BuildXL.Dev.log - This file is a small subset of [BuildXL.log](./Log-Files/BuildXL.log.md). As the main log can be sometimes very large, developers skim over *Dev.log* to troubleshoot issues. 
-* BuildXL.DistributionRpc.log - This file contains the communication logs between master and workers if distributed build is enabled.
+* BuildXL.DistributionRpc.log - This file contains the communication logs between orchestrator and workers if distributed build is enabled.
 * BuildXL.PipOutput.log - This file contains the process pip output messages. 

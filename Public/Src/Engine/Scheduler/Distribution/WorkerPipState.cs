@@ -82,7 +82,7 @@ namespace BuildXL.Scheduler.Distribution
     public static class WorkerPipStateExtensions
     {
         /// <summary>
-        /// Gets whether the given state is reported to the master
+        /// Gets whether the given state is reported to the orchestrator
         /// </summary>
         public static bool IsReportedState(this WorkerPipState state)
         {

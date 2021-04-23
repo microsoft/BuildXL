@@ -669,7 +669,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
              (ushort)LogEventId.PipInputVerificationMismatch,
              EventGenerators = EventGenerators.LocalOnly,
-             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from master.",
+             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from orchestrator.",
              EventLevel = Level.Error,
              EventTask = (ushort)Tasks.Distribution,
              Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
@@ -678,7 +678,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
              (ushort)LogEventId.PipInputVerificationMismatchForSourceFile,
              EventGenerators = EventGenerators.LocalOnly,
-             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from master. Ensure that source files are properly replicated from the master.",
+             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from orchestrator. Ensure that source files are properly replicated from the orchestrator.",
              EventLevel = Level.Error,
              EventTask = (ushort)Tasks.Distribution,
              Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
@@ -687,7 +687,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipInputVerificationMismatchExpectedExistence,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Pip input '{filePath}' not found locally, but exists on the master. Ensure that source files are properly replicated from the master.",
+            Message = "Pip input '{filePath}' not found locally, but exists on the orchestrator. Ensure that source files are properly replicated from the orchestrator.",
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
@@ -696,7 +696,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipInputVerificationMismatchExpectedNonExistence,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Pip input '{filePath}' found locally, but does NOT exist on the master. Ensure that old files are cleaned up and source files are properly replicated from the master.",
+            Message = "Pip input '{filePath}' found locally, but does NOT exist on the orchestrator. Ensure that old files are cleaned up and source files are properly replicated from the orchestrator.",
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
@@ -714,7 +714,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipInputVerificationMismatchRecovery,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from master. Attempting to materialize file from cache.",
+            Message = "[{pipDescription}] Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from orchestrator. Attempting to materialize file from cache.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
@@ -723,7 +723,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipInputVerificationMismatchRecoveryExpectedExistence,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip input '{filePath}' not found locally, but exists on the master. Attempting to materialize file from cache.",
+            Message = "[{pipDescription}] Pip input '{filePath}' not found locally, but exists on the orchestrator. Attempting to materialize file from cache.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
@@ -732,7 +732,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipInputVerificationMismatchRecoveryExpectedNonExistence,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip input '{filePath}' found locally, but does NOT exist on the master. File will be deleted.",
+            Message = "[{pipDescription}] Pip input '{filePath}' found locally, but does NOT exist on the orchestrator. File will be deleted.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
@@ -759,13 +759,13 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DistributionFinishedPipRequest(LoggingContext context, string pipSemiStableHash, string workerName, string step);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionMasterWorkerProcessOutputContent,
+            (ushort)LogEventId.DistributionOrchestratorWorkerProcessOutputContent,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{formattedSemiStableHash}] Pip output '{filePath}' with hash '{hash} reported from worker '{workerName}'. {reparsePointInfo}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, string formattedSemiStableHash, string filePath, string hash, string reparsePointInfo, string workerName);
+        public abstract void DistributionOrchestratorWorkerProcessOutputContent(LoggingContext context, string formattedSemiStableHash, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
             (ushort)LogEventId.InitiateWorkerRelease,
@@ -2348,8 +2348,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "Initialized PipQueue with concurrencies: IO:{0}, ChooseWorkerCacheLookup:{1}, CacheLookup:{2}, ChooseWorkerCpu:{3}, CPU:{4}, Materialize:{5}, Light:{6}, MasterCacheLookupMultiplier: {7}, MasterCpuMultiplier: {8}")]
-        public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCacheLookup, int cacheLookup, int chooseWorkerCpu, int cpu, int materialize, int light, string masterCacheLookupMultiplier, string masterCpuMultiplier);
+            Message = "Initialized PipQueue with concurrencies: IO:{0}, ChooseWorkerCacheLookup:{1}, CacheLookup:{2}, ChooseWorkerCpu:{3}, CPU:{4}, Materialize:{5}, Light:{6}, OrchestratorCacheLookupMultiplier: {7}, OrchestratorCpuMultiplier: {8}")]
+        public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCacheLookup, int cacheLookup, int chooseWorkerCpu, int cpu, int materialize, int light, string orchestratorCacheLookupMultiplier, string orchestratorCpuMultiplier);
 
         [GeneratedEvent(
             (int)LogEventId.UnableToCreateExecutionLogFile,

@@ -14,11 +14,11 @@ using Grpc.Core.Interceptors;
 namespace BuildXL.Engine.Distribution.Grpc
 {
     /// <summary>
-    /// GrpcMaster service impl
+    /// Orchestrator service impl
     /// </summary>
-    public sealed class GrpcMasterServer : Master.MasterBase, IServer
+    public sealed class GrpcOrchestratorServer : Master.MasterBase, IServer
     {
-        private readonly MasterService m_masterService;
+        private readonly OrchestratorService m_orchestratorService;
         private readonly LoggingContext m_loggingContext;
         private readonly string m_buildId;
 
@@ -27,10 +27,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcMasterServer(LoggingContext loggingContext, MasterService masterService, string buildId)
+        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, string buildId)
         {
             m_loggingContext = loggingContext;
-            m_masterService = masterService;
+            m_orchestratorService = orchestratorService;
             m_buildId = buildId;
         }
 
@@ -75,7 +75,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var bondMessage = message.ToOpenBond();
 
-            m_masterService.AttachCompleted(bondMessage);
+            m_orchestratorService.AttachCompleted(bondMessage);
 
             return Task.FromResult(new RpcResponse());
         }
@@ -85,7 +85,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var bondMessage = message.ToOpenBond();
 
-            var notifyTask = m_masterService.ReceivedWorkerNotificationAsync(bondMessage);
+            var notifyTask = m_orchestratorService.ReceivedWorkerNotificationAsync(bondMessage);
             if (EngineEnvironmentSettings.InlineWorkerXLGHandling)
             {
                 await notifyTask;

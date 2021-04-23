@@ -170,7 +170,7 @@ namespace BuildXL.Engine
                     .RetrievePipReferencesOfType(PipType.Process)
                     .Select(pipRef => pipRef.PipId.ToNodeId());
             }
-            // TODO(#1657322): FilterNodesToBuild can be pretty expensive, so we should avoid doing this twice (here and in Scheduler.InitForMaster)
+            // TODO(#1657322): FilterNodesToBuild can be pretty expensive, so we should avoid doing this twice (here and in Scheduler.InitForOrchestrator)
             else if (Scheduler.PipGraph.FilterNodesToBuild(LoggingContext, RootFilter, out var nodesRangeSet))
             {
                 return nodesRangeSet.Where(nodeId => Scheduler.GetPipType(nodeId.ToPipId()) == PipType.Process);

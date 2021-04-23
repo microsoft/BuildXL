@@ -35,12 +35,12 @@ namespace BuildXL.Processes
         public IBuildParameters FullEnvironmentVariables { get; }
 
         /// <summary>
-        /// Environment variables in the master machine
+        /// Environment variables in the orchestrator machine
         /// </summary>
         /// <remarks>
-        /// Null if the build is not distributed and the current node is master.
+        /// Null if the build is not distributed and the current node is orchestrator.
         /// </remarks>
-        public IReadOnlyDictionary<string, string> MasterEnvironmentVariables { get; set; }
+        public IReadOnlyDictionary<string, string> OrchestratorEnvironmentVariables { get; set; }
 
         private readonly IBuildParameters m_baseEnvironmentVariables;
 
@@ -121,12 +121,12 @@ namespace BuildXL.Processes
             // Append any passthrough environment variables if they're specified
             passThroughEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? passThroughEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : passThroughEnvNames;
 
-            IBuildParameters fullEnvironmentForPassThrough = MasterEnvironmentVariables != null ?
+            IBuildParameters fullEnvironmentForPassThrough = OrchestratorEnvironmentVariables != null ?
 
                 // We first look at the env variables from the worker,
-                // then if the pass through variable is unset, we look at the env variables from the master.
-                // That's why, if MasterEnvironmentVariables is not null, it is overridden by the current environment variables.
-                GetFactory(ReportDuplicateVariable).PopulateFromDictionary(MasterEnvironmentVariables).Override(FullEnvironmentVariables.ToDictionary()) :
+                // then if the pass through variable is unset, we look at the env variables from the orchestrator.
+                // That's why, if OrchestratorEnvironmentVariables is not null, it is overridden by the current environment variables.
+                GetFactory(ReportDuplicateVariable).PopulateFromDictionary(OrchestratorEnvironmentVariables).Override(FullEnvironmentVariables.ToDictionary()) :
                 FullEnvironmentVariables;
 
             IBuildParameters effectiveVariables = m_baseEnvironmentVariables

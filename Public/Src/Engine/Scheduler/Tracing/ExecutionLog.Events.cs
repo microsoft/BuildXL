@@ -110,7 +110,7 @@ namespace BuildXL.Scheduler.Tracing
         void BxlInvocation(BxlInvocationEventData data);
 
         /// <summary>
-        /// Creates a worker target that logs back to master for distributed builds
+        /// Creates a worker target that logs back to orchestrator for distributed builds
         /// </summary>
         /// <param name="workerId"></param>
         IExecutionLogTarget CreateWorkerTarget(uint workerId);

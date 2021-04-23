@@ -48,7 +48,7 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool FingerprintStoreEnabled(this IConfiguration configuration)
         {
-            // Distributed workers send their execution events back to master,
+            // Distributed workers send their execution events back to orchestrator,
             // to reduce storage needed on workers, workers do not need a fingerprint store
 
             return configuration.Logging.StoreFingerprints.HasValue

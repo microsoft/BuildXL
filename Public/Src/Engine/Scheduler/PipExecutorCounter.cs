@@ -50,7 +50,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         /// <remarks>
         /// In distributed builds, this counter only includes processes executed on one machine, even if the machine
-        /// was acting as master for that build
+        /// was acting as orchestrator for that build
         /// </remarks>
         [CounterType(CounterType.Stopwatch)]
         ExecuteProcessDuration,
@@ -1100,7 +1100,7 @@ namespace BuildXL.Scheduler
         AnalyzeFileAccessViolationsDuration,
 
         /// <summary>
-        /// The time spent to report metadata and pathset on master
+        /// The time spent to report metadata and pathset on orchestrator
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         ReportRemoteMetadataAndPathSetDuration,
@@ -1314,7 +1314,7 @@ namespace BuildXL.Scheduler
     /// Select counters that are aggregated for a group of pips that match a specified criteria.
     /// </summary>
     /// <remarks>
-    /// In distributed builds, these counters on the master will include pips executed on workers.
+    /// In distributed builds, these counters on the orchestrator will include pips executed on workers.
     /// </remarks>
     public enum PipCountersByGroup
     {

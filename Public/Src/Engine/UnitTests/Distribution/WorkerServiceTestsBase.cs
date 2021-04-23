@@ -113,7 +113,7 @@ namespace Test.BuildXL.Distribution
 
             public void WaitForOrchestratorAttach(bool expectSuccess = true)
             {
-                bool attached = WorkerService.WaitForMasterAttach();
+                bool attached = WorkerService.WaitForOrchestratorAttach();
                 Assert.Equal(expectSuccess, attached);
             }
 

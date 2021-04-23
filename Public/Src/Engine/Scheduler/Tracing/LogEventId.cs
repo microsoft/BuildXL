@@ -288,9 +288,9 @@ namespace BuildXL.Scheduler.Tracing
 
         DistributionExecutePipRequest = 5011,
         DistributionFinishedPipRequest = 5012,
-        DistributionMasterWorkerProcessOutputContent = 5013,
-        // DistributionStartDownThrottleMasterLocal = 5014,
-        // DistributionStopDownThrottleMasterLocal = 5015,
+        DistributionOrchestratorWorkerProcessOutputContent = 5013,
+        // DistributionStartDownThrottleOrchestratorLocal = 5014,
+        // DistributionStopDownThrottleOrchestratorLocal = 5015,
 
         CriticalPathPipRecord = 5016,
         CriticalPathChain = 5017,

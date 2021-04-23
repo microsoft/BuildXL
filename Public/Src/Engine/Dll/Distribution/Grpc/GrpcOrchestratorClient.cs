@@ -14,7 +14,7 @@ using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 namespace BuildXL.Engine.Distribution.Grpc
 {
     /// <nodoc/>
-    internal sealed class GrpcMasterClient : IMasterClient
+    internal sealed class GrpcOrchestratorClient : IOrchestratorClient
     {
         private readonly string m_buildId;
         private Master.MasterClient m_client;
@@ -22,7 +22,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly LoggingContext m_loggingContext;
         private volatile bool m_initialized;
 
-        public GrpcMasterClient(LoggingContext loggingContext, string buildId)
+        public GrpcOrchestratorClient(LoggingContext loggingContext, string buildId)
         {
             m_buildId = buildId;
             m_loggingContext = loggingContext;

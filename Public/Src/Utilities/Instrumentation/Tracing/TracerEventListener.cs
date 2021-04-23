@@ -85,8 +85,8 @@ namespace BuildXL.Tracing
 
                 if (ts < 0)
                 {
-                    // There might be some worker events that have occurred before master is started.
-                    // As those will be sent when the master and worker are attached, it is safe to ignore them here.
+                    // There might be some worker events that have occurred before orchestrator is started.
+                    // As those will be sent when the orchestrator and worker are attached, it is safe to ignore them here.
                     return;
                 }
                 

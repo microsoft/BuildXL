@@ -22,7 +22,7 @@ namespace BuildXL.Engine.Distribution
         /// Starts the notification manager, which will start to listen
         /// and forwarding events to the orchestrator
         /// </summary>
-        void Start(IMasterClient masterClient, EngineSchedule schedule);
+        void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule);
 
         /// <summary>
         /// Report an (error / warning) event
@@ -61,11 +61,11 @@ namespace BuildXL.Engine.Distribution
         private PipResultListener m_pipResultListener;
         private ForwardingEventListener m_forwardingEventListener;
         private readonly BlockingCollection<EventMessage> m_outgoingEvents = new BlockingCollection<EventMessage>();
-        private NotifyMasterExecutionLogTarget m_executionLogTarget;
+        private NotifyOrchestratorExecutionLogTarget m_executionLogTarget;
         private readonly MemoryStream m_flushedExecutionLog = new MemoryStream();
 
         /// Notification sending
-        private IMasterClient m_masterClient;
+        private IOrchestratorClient m_orchestratorClient;
         private Thread m_sendThread;
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
@@ -87,16 +87,16 @@ namespace BuildXL.Engine.Distribution
             DistributionServices = services;
         }
 
-        public void Start(IMasterClient masterClient, EngineSchedule schedule)
+        public void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule)
         {
-            Contract.AssertNotNull(masterClient);
+            Contract.AssertNotNull(orchestratorClient);
 
             m_scheduler = schedule.Scheduler;
             m_environment = m_scheduler;
-            m_masterClient = masterClient;
+            m_orchestratorClient = orchestratorClient;
 
             
-            m_executionLogTarget = new NotifyMasterExecutionLogTarget(this, m_environment.Context, m_scheduler.PipGraph.GraphId, m_scheduler.PipGraph.MaxAbsolutePathIndex);
+            m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(this, m_environment.Context, m_scheduler.PipGraph.GraphId, m_scheduler.PipGraph.MaxAbsolutePathIndex);
             m_scheduler.AddExecutionLogTarget(m_executionLogTarget);
 
             m_forwardingEventListener = new ForwardingEventListener(this);
@@ -172,7 +172,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // A final flush of the execution log may come after all the pip results are sent
                 // In that case, we send the blob individually:
-                m_masterClient.NotifyAsync(new WorkerNotificationArgs()
+                m_orchestratorClient.NotifyAsync(new WorkerNotificationArgs()
                 {
                     ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++,
                     ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length)
@@ -285,7 +285,7 @@ namespace BuildXL.Engine.Distribution
 
                 using (DistributionServices.Counters.StartStopwatch(DistributionCounter.SendNotificationDuration))
                 {
-                    var callResult = m_masterClient.NotifyAsync(m_notification, 
+                    var callResult = m_orchestratorClient.NotifyAsync(m_notification, 
                         m_executionResults.Select(a => a.SemiStableHash).ToList(),
                         cancellationToken).GetAwaiter().GetResult();
 
@@ -293,7 +293,7 @@ namespace BuildXL.Engine.Distribution
                     {
                         foreach (var result in m_executionResults)
                         {
-                            WorkerService.PipReportedToMaster(result);
+                            WorkerService.PipReportedToOrchestrator(result);
                         }
                         
                         m_numBatchesSent++;
@@ -301,9 +301,9 @@ namespace BuildXL.Engine.Distribution
                     else if (!cancellationToken.IsCancellationRequested)
                     {
                         // Fire-forget exit call with failure.
-                        // If we fail to send notification to master and we were not cancelled, the worker should fail.
+                        // If we fail to send notification to orchestrator and we were not cancelled, the worker should fail.
                         m_executionLogTarget.Deactivate();
-                        WorkerService.ExitAsync(failure: "Notify event failed to send to master", isUnexpected: true);
+                        WorkerService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true);
                         break;
                     }
                 }
@@ -313,7 +313,7 @@ namespace BuildXL.Engine.Distribution
 
             m_finishedSendingPipResults = true;
             m_outgoingEvents.CompleteAdding(); 
-            DistributionServices.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToMaster, m_numBatchesSent);
+            DistributionServices.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToOrchestrator, m_numBatchesSent);
         }
     }
 }

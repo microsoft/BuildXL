@@ -684,11 +684,11 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "masterCpuMultiplier",
                             opt =>
-                            schedulingConfiguration.MasterCpuMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
+                            schedulingConfiguration.OrchestratorCpuMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                        OptionHandlerFactory.CreateOption(
                             "masterCacheLookupMultiplier",
                             opt =>
-                            schedulingConfiguration.MasterCacheLookupMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
+                            schedulingConfiguration.OrchestratorCacheLookupMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
                             "maxCacheLookup",
                             opt => schedulingConfiguration.MaxCacheLookup = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
@@ -804,6 +804,14 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "adoTaskLogging",
                             sign => loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "orchestratorCpuMultiplier",
+                            opt =>
+                            schedulingConfiguration.OrchestratorCpuMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
+                       OptionHandlerFactory.CreateOption(
+                            "orchestratorCacheLookupMultiplier",
+                            opt =>
+                            schedulingConfiguration.OrchestratorCacheLookupMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",
                             opt => schedulingConfiguration.OutputFileExtensionsForSequentialScanHandleOnHashing.AddRange(CommandLineUtilities.ParseRepeatingPathAtomOption(opt, pathTable.StringTable, ";"))),

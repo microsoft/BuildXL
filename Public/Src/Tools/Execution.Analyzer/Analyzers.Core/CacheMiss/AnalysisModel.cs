@@ -234,7 +234,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
                 return true;
             }
 
-            // Hedge for future optimization where only master's data is logged when worker's data is the same as the masters.
+            // Hedge for future optimization where only orchestrator's data is logged when worker's data is the same as the orchestrator's.
             if (workerId != DistributionConstants.LocalWorkerId)
             {
                 if (DirectoryData.TryGetValue((DistributionConstants.LocalWorkerId, path, pipId, enumeratePatternRegex), out data))

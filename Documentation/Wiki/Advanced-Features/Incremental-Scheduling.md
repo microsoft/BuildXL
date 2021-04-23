@@ -49,7 +49,7 @@ Incremental scheduling is a cross-cutting feature. In this section we describe f
 
 
 ### Distributed build
-Incremental scheduling is incompatible with distributed builds because pips built on datacenter machines rely on a peer-to-peer cache to get inputs that are produced by other pips built on different machines. In the above example, suppose that `Process3` is built on machine `W3`, and `Process4` is built on machine `W4`. When `Process3` finishes, the machine puts the output `fileE` to the cache. `Process4` simply gets `fileE` from the cache, but it cannot get `fileC` because it is not guaranteed to be in the cache because of possible eviction, as no one builds it. `fileC` may exist on the master build machine.
+Incremental scheduling is incompatible with distributed builds because pips built on datacenter machines rely on a peer-to-peer cache to get inputs that are produced by other pips built on different machines. In the above example, suppose that `Process3` is built on machine `W3`, and `Process4` is built on machine `W4`. When `Process3` finishes, the machine puts the output `fileE` to the cache. `Process4` simply gets `fileE` from the cache, but it cannot get `fileC` because it is not guaranteed to be in the cache because of possible eviction, as no one builds it. `fileC` may exist on the orchestrator build machine.
 
 BuildXL disables incremental scheduling completely when distributed build is requested.
 

@@ -61,7 +61,7 @@ namespace BuildXL.Engine.Distribution
         WorkerFlushExecutionLogDuration,
 
         /// <nodoc/>
-        BuildResultBatchesSentToMaster,
+        BuildResultBatchesSentToOrchestrator,
 
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]

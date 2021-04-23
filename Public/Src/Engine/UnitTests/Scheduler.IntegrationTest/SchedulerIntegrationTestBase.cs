@@ -532,7 +532,7 @@ namespace Test.BuildXL.Scheduler
                 var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
                 EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner, filter);
 
-                XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
+                XAssert.IsTrue(testScheduler.InitForOrchestrator(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
                 if (ShouldCreateLogDir || ShouldLogSchedulerStats)
                 {

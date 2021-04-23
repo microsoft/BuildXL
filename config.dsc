@@ -410,7 +410,7 @@ config({
                 },
 
                 // For C++ testing
-                {id: "boost", version: "1.71.0.0"}
+                { id: "boost", version: "1.71.0.0" }
             ],
 
             doNotEnforceDependencyVersions: true,

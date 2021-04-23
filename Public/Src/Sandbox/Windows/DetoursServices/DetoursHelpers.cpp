@@ -1118,7 +1118,7 @@ bool EnumerateDirectory(
 
         directoriesToEnumerate.pop();
 
-        hFind = FindFirstFileW(spec.c_str(), &ffd);
+        hFind = FindFirstFileW(NormalizePath(spec).c_str(), &ffd);
         if (hFind == INVALID_HANDLE_VALUE) {
             return false;
         }

@@ -489,6 +489,36 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
     return 0;
 }
 
+std::wstring NormalizePath(const std::wstring& path)
+{
+    if (GetRootLength(path.c_str()) == 0)
+    {
+        return std::wstring(path);
+    }
+
+    std::wstring normalizedPath;
+    if (path.length() < MAX_PATH)
+    {
+        PathChar buffer[MAX_PATH];
+
+        // Deliberately not using PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS to align the long-name capability with
+        // what the process is capable of natively.
+        PathCchCanonicalizeEx(buffer, MAX_PATH, path.c_str(), PATHCCH_ALLOW_LONG_PATHS);
+        normalizedPath.assign(buffer);
+    }
+    else
+    {
+        auto buffer = std::make_unique<PathChar[]>(PATHCCH_MAX_CCH);
+
+        // Deliberately not using PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS to align the long-name capability with
+        // what the process is capable of natively.
+        PathCchCanonicalizeEx(buffer.get(), PATHCCH_MAX_CCH, path.c_str(), PATHCCH_ALLOW_LONG_PATHS);
+        normalizedPath.assign(buffer.get());
+    }
+
+    return normalizedPath;
+}
+
 std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2)
 {
     if (fragment2.size() == 0)

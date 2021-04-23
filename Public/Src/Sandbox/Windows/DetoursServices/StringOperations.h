@@ -252,4 +252,11 @@ int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elemen
 
 // Combines two path fragments into a single path separated by a directory separator.
 std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& fragment2);
+
+// Normalizes path.
+// When the path is a relative path, then the path is returned as is.
+// When the path is an absolute path, then the normalization uses PathCchCanonicalizeEx with PATHCCH_ALLOW_LONG_PATHS
+// to normalize the path.
+__declspec( dllexport )
+std::wstring NormalizePath(const std::wstring& path);
 #endif

@@ -1474,7 +1474,7 @@ static bool ValidateMoveDirectory(
         const DWORD& fileAttributes = elem.second;
 
         // Validate deletion of source.
-
+        wstring normalizedSourceFile = NormalizePath(file);
         FileOperationContext sourceOpContext = FileOperationContext(
             sourceContext,
             DELETE,
@@ -1483,10 +1483,10 @@ static bool ValidateMoveDirectory(
             // We are interested in knowing whether the source path is a directory, so make sure
             // we reflect that in the report
             FILE_ATTRIBUTE_NORMAL | (fileAttributes & FILE_ATTRIBUTE_DIRECTORY),
-            file.c_str());
+            normalizedSourceFile.c_str());
 
         PolicyResult sourcePolicyResult;
-        if (!sourcePolicyResult.Initialize(file.c_str()))
+        if (!sourcePolicyResult.Initialize(normalizedSourceFile.c_str()))
         {
             sourcePolicyResult.ReportIndeterminatePolicyAndSetLastError(sourceOpContext);
             return false;
@@ -1512,6 +1512,8 @@ static bool ValidateMoveDirectory(
         {
             file.replace(0, sourceDirectory.length(), targetDirectory);
 
+            wstring normalizedTargetFile = NormalizePath(file);
+
             FileOperationContext destinationOpContext = FileOperationContext(
                 destinationContext,
                 GENERIC_WRITE,
@@ -1520,12 +1522,12 @@ static bool ValidateMoveDirectory(
                 // We are interested in knowing whether the source path is a directory, so make sure
                 // we reflect that in the report
                 FILE_ATTRIBUTE_NORMAL | (fileAttributes & FILE_ATTRIBUTE_DIRECTORY),
-                file.c_str());
+                normalizedTargetFile.c_str());
             destinationOpContext.Correlate(sourceOpContext);
 
             PolicyResult destPolicyResult;
 
-            if (!destPolicyResult.Initialize(file.c_str()))
+            if (!destPolicyResult.Initialize(normalizedTargetFile.c_str()))
             {
                 destPolicyResult.ReportIndeterminatePolicyAndSetLastError(destinationOpContext);
                 return false;

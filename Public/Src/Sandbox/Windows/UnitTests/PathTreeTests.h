@@ -1,11 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#define BOOST_TEST_MAIN
-// TODO: Directly including the .hpp makes compiling the test unit infra a little bit time consuming
-// If these tests become more widespread, consider integrating it with the corresponding boost .lib, also distributed as part of the framework
-#include <boost/test/included/unit_test.hpp>
 #include <PathTree.h>
+
+BOOST_AUTO_TEST_SUITE(PathTreeTests)
 
 bool contains(std::vector<std::wstring>& collection, const std::wstring& element);
 
@@ -130,7 +128,6 @@ BOOST_AUTO_TEST_CASE( CasePreservingPaths )
     BOOST_CHECK(contains(desc, L"C:\\a\\path\\to\\ELSE"));
 }
 
-
 bool contains(std::vector<std::wstring>& collection, const std::wstring& element)
 {
     for (auto iter = collection.begin(); iter != collection.end(); iter++)
@@ -143,3 +140,5 @@ bool contains(std::vector<std::wstring>& collection, const std::wstring& element
 
     return false;
 }
+
+BOOST_AUTO_TEST_SUITE_END()

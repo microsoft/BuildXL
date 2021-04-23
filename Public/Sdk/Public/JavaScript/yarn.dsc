@@ -128,7 +128,6 @@ namespace Yarn {
                 ],
                 passThroughEnvironmentVariables: defaultPassthroughVariables,
             },
-            processRetries: arguments.retries,
             // Yarn install fails with exit code 1, which usually means some flaky network error that can be retried
             retryExitCodes: [1],
         };

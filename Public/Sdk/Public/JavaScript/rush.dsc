@@ -98,7 +98,7 @@ namespace Rush {
             environmentVariables: arguments.environment || defaultEnv,
             arguments:[
                 Cmd.rawArgument("install"),
-                Cmd.option("--max-install-attempts", arguments.retries),
+                Cmd.option("--max-install-attempts", arguments.processRetries),
             ],
             outputs: [
                 {kind: "shared", directory: localUserProfile},

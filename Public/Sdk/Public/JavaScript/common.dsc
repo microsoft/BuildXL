@@ -16,6 +16,8 @@ export const defaults: Transformer.ExecuteArguments = {
     doubleWritePolicy: "allowSameContentDoubleWrites",
     // In some cases node.exe lingers around for some time, but should be safe to kill on teardown
     allowedSurvivingChildProcessNames: [a`node.exe`],
+    // Default is to retry 3 times (for the cases where retry codes are specified, which is decided per tool)
+    processRetries: 3,
 };
 
 /**
@@ -112,7 +114,7 @@ export interface InstallArgumentsCommon {
     nodeTool: Transformer.ToolDefinition,
     additionalDependencies?: (File | StaticDirectory)[],
     environment?: Transformer.EnvironmentVariable[],
-    retries?: number,
+    processRetries?: number,
 }
 
 

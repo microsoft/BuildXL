@@ -383,6 +383,10 @@ namespace BuildXL.FrontEnd.JavaScript
             // Otherwise in Windows we force path sets to be all uppercase
             processBuilder.Options |= Process.Options.PreservePathSetCasing;
 
+            // Let's honor the global untracked scopes. This is also the default on DScript side, and for now we are not aware of any scenario that deserves
+            // this to be off
+            processBuilder.Options |= Process.Options.RequireGlobalDependencies;
+
             // By default the double write policy is to allow same content double writes and safe rewrites.
             // Otherwise we honor the double write policy specified in the resolver configuration
             processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue ? 

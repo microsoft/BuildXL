@@ -195,7 +195,10 @@ namespace BuildXL.Processes
             var runRequest = new RunRequest
             {
                 AbsolutePath = m_tool.ExecutablePath,
-                Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile, SandboxedProcessExecutorTestHookFile),
+                Arguments = m_tool.CreateArguments(
+                    SandboxedProcessInfoFile,
+                    SandboxedProcessResultsFile,
+                    SandboxedProcessExecutorTestHook != null ? SandboxedProcessExecutorTestHookFile : null),
                 WorkingDirectory = WorkingDirectory
             };
 

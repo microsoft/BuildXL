@@ -2,14 +2,56 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
+    /// <nodoc />
+    public interface ISessionData
+    {
+        /// <nodoc />
+        public string Name { get; }
+
+        /// <nodoc />
+        public Capabilities Capabilities { get; }
+    }
+
+    /// <nodoc />
+    public interface ISessionHandle<out TSession, out TSessionData>
+        where TSessionData : ISessionData
+    {
+        /// <nodoc />
+        public string CacheName { get; }
+
+        /// <nodoc />
+        public TSession Session { get; }
+
+        /// <nodoc />
+        public TSessionData SessionData { get; }
+
+        /// <summary>
+        /// Gets the session's expiration time, in ticks.
+        /// </summary>
+        public long SessionExpirationUtcTicks { get; }
+
+        /// <nodoc />
+        public DateTime SessionExpirationDateTime { get; }
+
+        /// <summary>
+        /// Reset the timeout based on the current time.
+        /// </summary>
+        public void BumpExpiration();
+
+        /// <summary>
+        /// Gets a string representation of a session handle with a given session id.
+        /// </summary>
+        public string ToString(int sessionId);
+    }
+
     /// <summary>
     /// Handle to a session.
     /// </summary>
-    public class SessionHandle<TSession>
+    public class SessionHandle<TSession, TSessionData> : ISessionHandle<TSession, TSessionData>
+        where TSessionData : ISessionData
     {
         private readonly long _timeoutTicks;
 
@@ -17,16 +59,10 @@ namespace BuildXL.Cache.ContentStore.Service
         public string CacheName { get; }
 
         /// <nodoc />
-        public string SessionName { get; }
-
-        /// <nodoc />
         public TSession Session { get; }
 
         /// <nodoc />
-        public ImplicitPin ImplicitPin { get; }
-
-        /// <nodoc />
-        public Capabilities SessionCapabilities { get; }
+        public TSessionData SessionData { get; }
 
         /// <summary>
         /// Gets the session's expiration time, in ticks.
@@ -37,24 +73,20 @@ namespace BuildXL.Cache.ContentStore.Service
         public DateTime SessionExpirationDateTime => new DateTime(SessionExpirationUtcTicks).ToLocalTime();
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SessionHandle{T}"/> class.
+        /// Initializes a new instance of the <see cref="SessionHandle{TSession, TSessionData}"/> class.
         /// </summary>
         public SessionHandle(
             TSession session,
-            string sessionName,
+            TSessionData sessionData,
             string cacheName,
-            ImplicitPin implicitPin,
-            Capabilities capabilities,
             long sessionExpirationUtcTicks,
             TimeSpan timeout)
         {
             Session = session;
-            SessionName = sessionName;
             CacheName = cacheName;
-            ImplicitPin = implicitPin;
-            SessionCapabilities = capabilities;
             SessionExpirationUtcTicks = sessionExpirationUtcTicks;
             _timeoutTicks = timeout.Ticks;
+            SessionData = sessionData;
         }
 
         /// <summary>
@@ -70,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public string ToString(int sessionId)
         {
-            return $"id=[{sessionId}] name=[{SessionName}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionCapabilities}]";
+            return $"id=[{sessionId}] name=[{SessionData.Name}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionData.Capabilities}]";
         }
     }
 }

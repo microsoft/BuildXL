@@ -29,8 +29,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
             ServiceClientContentSessionTracer tracer,
             IAbsFileSystem fileSystem,
             ServiceClientRpcConfiguration configuration,
-            string scenario)
-            : base(tracer, fileSystem, configuration, scenario, Capabilities.All)
+            string scenario,
+            Capabilities capabilities = Capabilities.AllNonPublishing)
+            : base(tracer, fileSystem, configuration, scenario, capabilities)
         {
         }
 

@@ -32,18 +32,28 @@ namespace BuildXL.Cache.ContentStore.Service
         Memoization = 1 << 2,
 
         /// <summary>
+        /// Is capable of creating sessions that publish to the L3.
+        /// </summary>
+        Publishing = 1 << 3,
+
+        /// <summary>
         /// Is capable of sending or receiving content-related requests but not memoization operations.
         /// </summary>
-        ContentOnly = All & ~Memoization,
+        ContentOnly = All & ~Memoization & ~Publishing,
 
         /// <summary>
         /// All capabilities.
         /// </summary>
-        All = Heartbeat | GetStats | Memoization,
+        All = Heartbeat | GetStats | Memoization | Publishing,
+
+        /// <summary>
+        /// Is capable of receiving all requests except creating publishing sessions.
+        /// </summary>
+        AllNonPublishing = All & ~Publishing,
 
         /// <summary>
         /// Set of required capabilities, meaning if a client requests them a service must provide them as well.
         /// </summary>
-        RequiredCapabilitiesMask = Memoization,
+        RequiredCapabilitiesMask = Memoization | Publishing,
     }
 }

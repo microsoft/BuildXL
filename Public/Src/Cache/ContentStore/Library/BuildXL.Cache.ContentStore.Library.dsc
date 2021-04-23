@@ -17,7 +17,12 @@ namespace Library {
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Data.dll,
                 NetFx.System.Runtime.Serialization.dll,
-                NetFx.Netstandard.dll
+                NetFx.Netstandard.dll,
+                NetFx.System.Security.dll
+            ),
+
+            ...addIf(BuildXLSdk.isDotNetCoreBuild,
+                importFrom("System.Security.Cryptography.ProtectedData").pkg
             ),
 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
@@ -42,6 +47,7 @@ namespace Library {
 
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
 
+            ...getSystemTextJson(/*includeNetStandard*/true),
             ...BuildXLSdk.systemMemoryDeployment,
         ],
         runtimeContent: [

@@ -323,8 +323,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     // Create a session against LocalContentServerBase (i.e. ISessionHandler<IContentSession>)
                     // NOTE: We don't shutdown so that session will be hibernated
-                    var server = (ISessionHandler<IContentSession>)context.Servers[0];
-                    var sessionInfo = await server.CreateSessionAsync(context, "TestHibernatedSession", "Default", ImplicitPin.PutAndGet, Capabilities.ContentOnly).ShouldBeSuccess();
+                    var server = (ISessionHandler<IContentSession, LocalContentServerSessionData>)context.Servers[0];
+                    var sessionData = new LocalContentServerSessionData("TestHibernatedSession", Capabilities.ContentOnly, ImplicitPin.PutAndGet, pins: null);
+                    var sessionInfo = await server.CreateSessionAsync(context, sessionData, "Default").ShouldBeSuccess();
 
                     var session = server.GetSession(sessionInfo.Value.sessionId);
 

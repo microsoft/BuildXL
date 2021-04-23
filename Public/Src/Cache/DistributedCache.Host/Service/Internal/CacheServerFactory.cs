@@ -18,6 +18,9 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
+#if MICROSOFT_INTERNAL
+using BuildXL.Cache.MemoizationStore.Vsts;
+#endif
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -129,11 +132,24 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    return new OneLevelCache(
+                    var distributedCache = new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
                         memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
+
+                    ICache cacheToReturn = distributedCache;
+#if MICROSOFT_INTERNAL
+                    if (distributedSettings.EnablePublishingCache)
+                    {
+                        cacheToReturn = new PublishingCache(
+                            local: distributedCache,
+                            remote: new BuildCachePublishingStore(contentSource: distributedCache, _fileSystem, distributedSettings.PublishingConcurrencyLimit),
+                            Guid.NewGuid());
+                    }
+#endif
+
+                    return cacheToReturn;
                 };
 
                 return new LocalCacheServer(
@@ -141,7 +157,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration);
+                    localServerConfiguration,
+                    capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing);
             }
             else
             {
@@ -184,10 +201,23 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     if (distributedSettings.EnableDistributedCache)
                     {
-                        return new DistributedOneLevelCache(topLevelAndPrimaryStore.topLevelStore,
+                        var distributedCache = new DistributedOneLevelCache(topLevelAndPrimaryStore.topLevelStore,
                             topLevelAndPrimaryStore.primaryDistributedStore,
                             Guid.NewGuid(),
                             passContentToMemoization: true);
+
+                        ICache cacheToReturn = distributedCache;
+#if MICROSOFT_INTERNAL
+                        if (distributedSettings.EnablePublishingCache)
+                        {
+                            cacheToReturn = new PublishingCache(
+                                local: distributedCache,
+                                remote: new BuildCachePublishingStore(contentSource: distributedCache, _fileSystem, distributedSettings.PublishingConcurrencyLimit),
+                                Guid.NewGuid());
+                        }
+#endif
+
+                        return cacheToReturn;
                     }
                     else
                     {
@@ -208,7 +238,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration);
+                    localServerConfiguration,
+                    capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing);
             }
             else
             {

@@ -18,6 +18,8 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
@@ -42,8 +44,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
             ILogger logger,
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer sessionTracer,
-            ServiceClientContentStoreConfiguration configuration)
-            : base(name, implicitPin, logger, fileSystem, sessionTracer, configuration, () => GetRpcClient(fileSystem, sessionTracer, configuration))
+            ServiceClientContentStoreConfiguration configuration,
+            Func<IRpcClient> rpcClientFactory = null)
+            : base(name, implicitPin, logger, fileSystem, sessionTracer, configuration, rpcClientFactory ?? (() => GetRpcClient(fileSystem, sessionTracer, configuration)))
         {
             // RpcClient is created by the base class constructor, but we know that this is the result of GetPrcClient call
             // that actually returns GrpcCacheClient instance.

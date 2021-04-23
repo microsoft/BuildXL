@@ -34,9 +34,15 @@ namespace DistributedTest {
             InterfacesTest.dll,
             Interfaces.dll,
             Library.dll,
+            Test.dll,
+
+            ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [Vsts.dll]),
 
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,

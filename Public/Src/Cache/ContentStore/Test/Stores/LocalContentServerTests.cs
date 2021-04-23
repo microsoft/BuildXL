@@ -42,6 +42,7 @@ namespace ContentStoreTest.Stores
         public async Task RestoredSessionReleasedAfterInactivity()
         {
             const string scenario = nameof(RestoredSessionReleasedAfterInactivity);
+            var fileName = $"{Guid.NewGuid()}.json";
 
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
@@ -50,9 +51,9 @@ namespace ContentStoreTest.Stores
                 var contentHash = ContentHash.Random();
 
                 var pins = new List<string> {contentHash.Serialize()};
-                var hibernatedSessionInfo = new HibernatedSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, DateTime.UtcNow.Ticks, Capabilities.None);
-                var hibernatedSessions = new HibernatedSessions(new List<HibernatedSessionInfo> {hibernatedSessionInfo});
-                await hibernatedSessions.WriteAsync(FileSystem, rootPath);
+                var hibernatedSessionInfo = new HibernatedContentSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, DateTime.UtcNow.Ticks, Capabilities.None);
+                var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> {hibernatedSessionInfo});
+                await hibernatedSessions.WriteAsync(FileSystem, rootPath, fileName);
 
                 var namedCacheRoots = new Dictionary<string, AbsolutePath> {{ CacheName, rootPath}};
 
@@ -98,6 +99,7 @@ namespace ContentStoreTest.Stores
         public async Task SessionForLegacyClientRetainedLongerAfterInactivity()
         {
             const string scenario = nameof(SessionForLegacyClientRetainedLongerAfterInactivity);
+            var fileName = $"{Guid.NewGuid()}.json";
 
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
@@ -106,9 +108,9 @@ namespace ContentStoreTest.Stores
                 var contentHash = ContentHash.Random();
 
                 var pins = new List<string> { contentHash.Serialize() };
-                var hibernatedSessionInfo = new HibernatedSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, 0, Capabilities.None);
-                var hibernatedSessions = new HibernatedSessions(new List<HibernatedSessionInfo> { hibernatedSessionInfo });
-                await hibernatedSessions.WriteAsync(FileSystem, rootPath);
+                var hibernatedSessionInfo = new HibernatedContentSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, 0, Capabilities.None);
+                var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> { hibernatedSessionInfo });
+                await hibernatedSessions.WriteAsync(FileSystem, rootPath, fileName);
 
                 var namedCacheRoots = new Dictionary<string, AbsolutePath> { { CacheName, rootPath } };
 
@@ -161,6 +163,7 @@ namespace ContentStoreTest.Stores
         public async Task HibernationDataNotLoadedIfStoreStartupFails()
         {
             const string scenario = nameof(HibernationDataNotLoadedIfStoreStartupFails);
+            var fileName = $"{Guid.NewGuid()}.json";
 
             var context = new Context(Logger);
             using (var directory = new DisposableDirectory(FileSystem))
@@ -169,9 +172,9 @@ namespace ContentStoreTest.Stores
                 var contentHash = ContentHash.Random();
 
                 var pins = new List<string> { contentHash.Serialize() };
-                var hibernatedSessionInfo = new HibernatedSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, 0, Capabilities.None);
-                var hibernatedSessions = new HibernatedSessions(new List<HibernatedSessionInfo> { hibernatedSessionInfo });
-                await hibernatedSessions.WriteAsync(FileSystem, rootPath);
+                var hibernatedSessionInfo = new HibernatedContentSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, 0, Capabilities.None);
+                var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> { hibernatedSessionInfo });
+                await hibernatedSessions.WriteAsync(FileSystem, rootPath, fileName);
 
                 var namedCacheRoots = new Dictionary<string, AbsolutePath> { { CacheName, rootPath } };
 
@@ -194,7 +197,7 @@ namespace ContentStoreTest.Stores
                     var r = await server.StartupAsync(context);
 
                     r.ShouldBeError(TestFailingContentStore.FailureMessage);
-                    FileSystem.HibernatedSessionsExists(rootPath).Should().BeTrue("The hibernation data should not have been read/deleted");
+                    FileSystem.HibernatedSessionsExists(rootPath, fileName).Should().BeTrue("The hibernation data should not have been read/deleted");
                 }
             }
         }

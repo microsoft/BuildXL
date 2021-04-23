@@ -44,9 +44,9 @@ namespace Cache.NugetPackages {
             {
                 subfolder: r`tools`,
                 contents: [
-                    net472ContentStore.App.exe,
                     net472DistributedCacheHost.Configuration.dll,
-                    net472DistributedCacheHost.Service.dll,
+                    net472ContentStore.App.exe,
+                    net472DistributedCacheHost.Service.dll
                 ]
             },
         ]

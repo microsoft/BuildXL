@@ -2,8 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -21,8 +27,13 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// IPC interface to a file system content cache.
     /// </summary>
-    public class LocalContentServer : LocalContentServerBase<IContentStore, IContentSession>
+    public class LocalContentServer : LocalContentServerBase<IContentStore, IContentSession, LocalContentServerSessionData>
     {
+        /// <summary>
+        ///     Name of serialized data file.
+        /// </summary>
+        public const string HibernatedSessionsFileName = "sessions.json";
+
         private readonly GrpcContentServer _grpcContentServer;
 
         /// <inheritdoc />
@@ -50,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Service
         protected override Task<GetStatsResult> GetStatsAsync(IContentStore store, OperationContext context) => store.GetStatsAsync(context);
 
         /// <inheritdoc />
-        protected override CreateSessionResult<IContentSession> CreateSession(IContentStore store, OperationContext context, string name, ImplicitPin implicitPin) => store.CreateSession(context, name, implicitPin);
+        protected override CreateSessionResult<IContentSession> CreateSession(IContentStore store, OperationContext context, LocalContentServerSessionData sessionData) => store.CreateSession(context, sessionData.Name, sessionData.ImplicitPin);
 
         /// <summary>
         ///     Check if the service is running.
@@ -79,5 +90,136 @@ namespace BuildXL.Cache.ContentStore.Service
 
             return result;
         }
+
+        /// <inheritdoc />
+        protected override Task<IReadOnlyList<HibernatedSessionInfo>> RestoreHibernatedSessionDatasAsync(OperationContext context)
+            => RestoreHibernatedSessionDatasAsync(FileSystem, Config.DataRootPath);
+
+        /// <nodoc />
+        public static async Task<IReadOnlyList<HibernatedSessionInfo>> RestoreHibernatedSessionDatasAsync(
+            IAbsFileSystem fileSystem,
+            AbsolutePath rootPath)
+        {
+            var sessions = await fileSystem.ReadHibernatedSessionsAsync<HibernatedContentSessionInfo>(rootPath, HibernatedSessionsFileName);
+            return sessions.Sessions.Select(si =>
+                new HibernatedSessionInfo(
+                    si.Id,
+                    si.Cache,
+                    si.ExpirationUtcTicks,
+                    new LocalContentServerSessionData(si.Session, si.Capabilities, si.Pin, si.Pins),
+                    si.Pins?.Count ?? 0)).ToList();
+        }
+
+        /// <inheritdoc />
+        protected override Task RestoreHibernatedSessionStateAsync(OperationContext context, IContentSession session, LocalContentServerSessionData sessionData)
+            => RestoreHibernatedSessionStateCoreAsync(context, session, sessionData);
+
+        /// <nodoc />
+        public static async Task RestoreHibernatedSessionStateCoreAsync(
+            OperationContext context,
+            IContentSession session,
+            LocalContentServerSessionData sessionData)
+        {
+            if (sessionData.Pins != null && sessionData.Pins.Any())
+            {
+                // Restore pins
+                var contentHashes = sessionData.Pins.Select(x => new ContentHash(x)).ToList();
+                if (session is IHibernateContentSession hibernateSession)
+                {
+                    await hibernateSession.PinBulkAsync(context, contentHashes);
+                }
+                else
+                {
+                    foreach (var contentHash in contentHashes)
+                    {
+                        // Failure should be logged. We can ignore the error in this case.
+                        await session.PinAsync(context, contentHash, CancellationToken.None).IgnoreFailure();
+                    }
+                }
+            }
+        }
+
+        /// <inheritdoc />
+        protected override Task HibernateSessionsAsync(Context context, IDictionary<int, ISessionHandle<IContentSession, LocalContentServerSessionData>> sessionHandles)
+            => HibernateSessionsAsync(context, sessionHandles, Config, Tracer, FileSystem);
+
+        /// <nodoc />
+        public static async Task HibernateSessionsAsync(
+            Context context,
+            IDictionary<int, ISessionHandle<IContentSession, LocalContentServerSessionData>> sessionHandles,
+            LocalServerConfiguration config,
+            Tracer tracer,
+            IAbsFileSystem fileSystem)
+        {
+            var sessionInfoList = new List<HibernatedContentSessionInfo>(sessionHandles.Count);
+
+            foreach (var (sessionId, handle) in sessionHandles)
+            {
+                IContentSession session = handle.Session;
+
+                if (session is IHibernateContentSession hibernateSession)
+                {
+                    if (config.ShutdownEvictionBeforeHibernation)
+                    {
+                        // Calling shutdown of eviction before hibernating sessions to prevent possible race condition of evicting pinned content
+                        await hibernateSession.ShutdownEvictionAsync(context).ThrowIfFailure();
+                    }
+
+                    var pinnedContentHashes = hibernateSession.EnumeratePinnedContentHashes().Select(x => x.Serialize()).ToList();
+
+                    tracer.Debug(context, $"Hibernating session {handle.ToString(sessionId)}.");
+                    sessionInfoList.Add(new HibernatedContentSessionInfo(
+                        sessionId,
+                        handle.SessionData.Name,
+                        handle.SessionData.ImplicitPin,
+                        handle.CacheName,
+                        pinnedContentHashes,
+                        handle.SessionExpirationUtcTicks,
+                        handle.SessionData.Capabilities));
+                }
+                else
+                {
+                    tracer.Warning(context, $"Shutdown of non-hibernating dangling session id={sessionId}");
+                }
+
+                await session.ShutdownAsync(context).ThrowIfFailure();
+                session.Dispose();
+            }
+
+            if (sessionInfoList.Any())
+            {
+                var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(sessionInfoList);
+
+                try
+                {
+                    var sw = Stopwatch.StartNew();
+                    await hibernatedSessions.WriteAsync(fileSystem, config.DataRootPath, HibernatedSessionsFileName);
+                    sw.Stop();
+                    tracer.Debug(
+                        context, $"Wrote hibernated sessions to root=[{config.DataRootPath}] in {sw.Elapsed.TotalMilliseconds}ms");
+                }
+                catch (Exception exception)
+                {
+                    tracer.Warning(context, $"Failed to write hibernated sessions root=[{config.DataRootPath}]: {exception}");
+                    tracer.Error(context, exception);
+                }
+            }
+        }
+
+        /// <inheritdoc />
+        protected override bool HibernatedSessionsExist()
+            => HibernatedSessionsExist(Config.DataRootPath, FileSystem);
+
+        /// <nodoc />
+        public static bool HibernatedSessionsExist(AbsolutePath rootPath, IAbsFileSystem fileSystem)
+            => fileSystem.HibernatedSessionsExists(rootPath, HibernatedSessionsFileName);
+
+        /// <inheritdoc />
+        protected override Task CleanupHibernatedSessions()
+            => CleanupHibernatedSessions(Config.DataRootPath, FileSystem);
+
+        /// <nodoc />
+        public static Task CleanupHibernatedSessions(AbsolutePath rootPath, IAbsFileSystem fileSystem)
+            => fileSystem.DeleteHibernatedSessions(rootPath, HibernatedSessionsFileName);
     }
 }

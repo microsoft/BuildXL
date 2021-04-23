@@ -8,6 +8,9 @@ namespace Interfaces {
         assemblyName: "BuildXL.Cache.MemoizationStore.Interfaces",
         sources: globR(d`.`, "*.cs"),
         references: [
+            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
+                NetFx.System.Runtime.Serialization.dll
+            ]),
             ContentStore.UtilitiesCore.dll,
             ContentStore.Hashing.dll,
             ContentStore.Interfaces.dll,

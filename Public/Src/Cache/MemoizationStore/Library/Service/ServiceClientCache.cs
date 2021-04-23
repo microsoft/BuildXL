@@ -56,7 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <nodoc />
-        public new CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
+        public new virtual CreateSessionResult<ICacheSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
             var operationContext = OperationContext(context);
             return operationContext.PerformOperation(

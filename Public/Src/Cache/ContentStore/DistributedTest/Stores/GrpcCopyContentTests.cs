@@ -359,7 +359,8 @@ namespace ContentStoreTest.Distributed.Stores
                 var server = new LocalContentServer(FileSystem, Logger, testName, contentStoreFactory, new LocalServerConfiguration(configuration));
 
                 await server.StartupAsync(_context).ShouldBeSuccess();
-                var createSessionResult = await server.CreateSessionAsync(new OperationContext(_context), testName, cacheName, ImplicitPin.PutAndGet, Capabilities.ContentOnly);
+                var sessionData = new LocalContentServerSessionData(testName, Capabilities.ContentOnly, ImplicitPin.PutAndGet, pins: null);
+                var createSessionResult = await server.CreateSessionAsync(new OperationContext(_context), sessionData, cacheName);
                 createSessionResult.ShouldBeSuccess();
 
                 (int sessionId, _) = createSessionResult.Value;

@@ -10,7 +10,8 @@ namespace Library {
         sources: globR(d`.`,"*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Data.dll
+                NetFx.System.Data.dll,
+                NetFx.System.Runtime.Serialization.dll
             ),
             ContentStore.Distributed.dll,
             ContentStore.UtilitiesCore.dll,

@@ -21,7 +21,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     An IReadOnlyCacheSession implemented with one level of content and memoization.
     /// </summary>
-    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateContentSession, IConfigurablePin
+    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
@@ -31,12 +31,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     The content session backing the session.
         /// </summary>
-        protected IReadOnlyContentSession _contentReadOnlySession;
+        protected IReadOnlyContentSession ContentReadOnlySession;
 
         /// <summary>
         ///     The memoization store backing the session.
         /// </summary>
-        protected IReadOnlyMemoizationSession _memoizationReadOnlySession;
+        protected IReadOnlyMemoizationSession MemoizationReadOnlySession;
 
         private bool _disposed;
 
@@ -52,8 +52,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             Name = name;
             ImplicitPin = implicitPin;
-            _memoizationReadOnlySession = memoizationSession;
-            _contentReadOnlySession = contentSession;
+            MemoizationReadOnlySession = memoizationSession;
+            ContentReadOnlySession = contentSession;
         }
 
         /// <inheritdoc />
@@ -76,18 +76,18 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             StartupStarted = true;
 
-            var startupContentResult = await _contentReadOnlySession.StartupAsync(context).ConfigureAwait(false);
+            var startupContentResult = await ContentReadOnlySession.StartupAsync(context).ConfigureAwait(false);
             if (!startupContentResult.Succeeded)
             {
                 StartupCompleted = true;
                 return new BoolResult(startupContentResult, "Content session startup failed");
             }
 
-            var startupMemoizationResult = await _memoizationReadOnlySession.StartupAsync(context).ConfigureAwait(false);
+            var startupMemoizationResult = await MemoizationReadOnlySession.StartupAsync(context).ConfigureAwait(false);
             if (!startupMemoizationResult.Succeeded)
             {
                 var sb = new StringBuilder();
-                var shutdownContentResult = await _contentReadOnlySession.ShutdownAsync(context).ConfigureAwait(false);
+                var shutdownContentResult = await ContentReadOnlySession.ShutdownAsync(context).ConfigureAwait(false);
                 if (!shutdownContentResult.Succeeded)
                 {
                     sb.Append($"Content session shutdown failed, error=[{shutdownContentResult}]");
@@ -107,11 +107,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public virtual async Task<BoolResult> ShutdownAsync(Context context)
         {
             ShutdownStarted = true;
-            var shutdownMemoizationResult = _memoizationReadOnlySession != null
-                ? await _memoizationReadOnlySession.ShutdownAsync(context).ConfigureAwait(false)
+            var shutdownMemoizationResult = MemoizationReadOnlySession != null
+                ? await MemoizationReadOnlySession.ShutdownAsync(context).ConfigureAwait(false)
                 : BoolResult.Success;
-            var shutdownContentResult = _contentReadOnlySession != null
-                ? await _contentReadOnlySession.ShutdownAsync(context).ConfigureAwait(false)
+            var shutdownContentResult = ContentReadOnlySession != null
+                ? await ContentReadOnlySession.ShutdownAsync(context).ConfigureAwait(false)
                 : BoolResult.Success;
 
             BoolResult result;
@@ -160,11 +160,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             if (disposing)
             {
-                _memoizationReadOnlySession?.Dispose();
-                _memoizationReadOnlySession = null;
+                MemoizationReadOnlySession?.Dispose();
+                MemoizationReadOnlySession = null;
 
-                _contentReadOnlySession?.Dispose();
-                _contentReadOnlySession = null;
+                ContentReadOnlySession?.Dispose();
+                ContentReadOnlySession = null;
             }
         }
 
@@ -178,38 +178,38 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
-            if (_memoizationReadOnlySession is IReadOnlyMemoizationSessionWithLevelSelectors withLevelSelectors)
+            if (MemoizationReadOnlySession is IReadOnlyMemoizationSessionWithLevelSelectors withLevelSelectors)
             {
                 return withLevelSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
             }
 
-            throw new NotSupportedException($"ReadOnlyMemoization session {_memoizationReadOnlySession.GetType().Name} does not support GetLevelSelectors functionality.");
+            throw new NotSupportedException($"ReadOnlyMemoization session {MemoizationReadOnlySession.GetType().Name} does not support GetLevelSelectors functionality.");
         }
 
         /// <inheritdoc />
         public Task<GetContentHashListResult> GetContentHashListAsync(
             Context context, StrongFingerprint strongFingerprint, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return _memoizationReadOnlySession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
+            return MemoizationReadOnlySession.GetContentHashListAsync(context, strongFingerprint, cts, urgencyHint);
         }
 
         /// <inheritdoc />
         public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return _contentReadOnlySession.PinAsync(context, contentHash, cts, urgencyHint);
+            return ContentReadOnlySession.PinAsync(context, contentHash, cts, urgencyHint);
         }
 
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration configuration)
         {
-            return _contentReadOnlySession.PinAsync(context, contentHashes, configuration);
+            return ContentReadOnlySession.PinAsync(context, contentHashes, configuration);
         }
 
         /// <inheritdoc />
         public Task<OpenStreamResult> OpenStreamAsync(
             Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            return _contentReadOnlySession.OpenStreamAsync(context, contentHash, cts, urgencyHint);
+            return ContentReadOnlySession.OpenStreamAsync(context, contentHash, cts, urgencyHint);
         }
 
         /// <inheritdoc />
@@ -225,7 +225,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             UrgencyHint urgencyHint
             )
         {
-            return _contentReadOnlySession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+            return ContentReadOnlySession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
         }
 
         /// <inheritdoc />
@@ -235,19 +235,19 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return _contentReadOnlySession.PinAsync(context, contentHashes, cts, urgencyHint);
+            return ContentReadOnlySession.PinAsync(context, contentHashes, cts, urgencyHint);
         }
 
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return _contentReadOnlySession.PlaceFileAsync(context, hashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+            return ContentReadOnlySession.PlaceFileAsync(context, hashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint);
         }
 
         /// <inheritdoc />
         public IEnumerable<ContentHash> EnumeratePinnedContentHashes()
         {
-            return _contentReadOnlySession is IHibernateContentSession session
+            return ContentReadOnlySession is IHibernateContentSession session
                 ? session.EnumeratePinnedContentHashes()
                 : Enumerable.Empty<ContentHash>();
         }
@@ -255,7 +255,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         public Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
         {
-            return _contentReadOnlySession is IHibernateContentSession session
+            return ContentReadOnlySession is IHibernateContentSession session
                 ? session.PinBulkAsync(context, contentHashes)
                 : Task.FromResult(0);
         }
@@ -263,9 +263,21 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         public Task<BoolResult> ShutdownEvictionAsync(Context context)
         {
-            return _contentReadOnlySession is IHibernateContentSession session
+            return ContentReadOnlySession is IHibernateContentSession session
                 ? session.ShutdownEvictionAsync(context)
                 : BoolResult.SuccessTask;
         }
+
+        /// <inheritdoc />
+        public IList<PublishingOperation> GetPendingPublishingOperations()
+            => MemoizationReadOnlySession is IHibernateCacheSession session
+                ? session.GetPendingPublishingOperations()
+                : new List<PublishingOperation>();
+
+        /// <inheritdoc />
+        public Task SchedulePublishingOperationsAsync(Context context, IEnumerable<PublishingOperation> pendingOperations)
+            => MemoizationReadOnlySession is IHibernateCacheSession session
+                ? session.SchedulePublishingOperationsAsync(context, pendingOperations)
+                : Task.FromResult(0);
     }
 }

@@ -10,14 +10,14 @@ namespace BuildXL.Cache.ContentStore.Service
     ///     Information stored for a set of sessions that can be restored.
     /// </summary>
     [DataContract]
-    public class HibernatedSessions
+    public class HibernatedSessions<THibernatedSessionInfo>
     {
         private const int LatestVersion = 1;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="HibernatedSessions"/> class.
+        ///     Initializes a new instance of the <see cref="HibernatedSessions{THibernatedSessionInfo}"/> class.
         /// </summary>
-        public HibernatedSessions(IList<HibernatedSessionInfo> sessions)
+        public HibernatedSessions(IList<THibernatedSessionInfo> sessions)
         {
             Version = LatestVersion;
             Sessions = sessions;
@@ -33,6 +33,6 @@ namespace BuildXL.Cache.ContentStore.Service
         ///     Gets or sets the set of hibernated sessions.
         /// </summary>
         [DataMember]
-        public IList<HibernatedSessionInfo> Sessions { get; set; }
+        public IList<THibernatedSessionInfo> Sessions { get; set; }
     }
 }

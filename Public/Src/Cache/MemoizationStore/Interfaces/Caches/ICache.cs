@@ -45,4 +45,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
         /// </summary>
         IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context);
     }
+
+    /// <nodoc />
+    public interface IPublishingCache : ICache
+    {
+        /// <summary>
+        ///     Create a writeable session that also publishes content hash lists to the remote.
+        /// </summary>
+        CreateSessionResult<ICacheSession> CreatePublishingSession(Context context, string name, ImplicitPin implicitPin, PublishingCacheConfiguration publishingConfig, string pat);
+    }
 }

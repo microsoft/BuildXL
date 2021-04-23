@@ -211,11 +211,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        public async Task<BoolResult> CreateSessionAsync(
+        public virtual Task<BoolResult> CreateSessionAsync(
             OperationContext context,
             string name,
             string cacheName,
             ImplicitPin implicitPin)
+        {
+            return CreateSessionAsync(context, name, cacheName, implicitPin, serializedConfig: null, pat: null);
+        }
+
+        /// <nodoc />
+        protected async Task<BoolResult> CreateSessionAsync(
+            OperationContext context,
+            string name,
+            string cacheName,
+            ImplicitPin implicitPin,
+            string? serializedConfig,
+            string? pat)
         {
             var startupResult = await StartupAsync(context, 5000);
             if (!startupResult)
@@ -224,11 +236,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             var operationContext = new OperationContext(context);
-            Result<SessionData> dataResult = await CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, isReconnect: false);
+            Result<SessionData> dataResult = await CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, serializedConfig, pat, isReconnect: false);
             if (dataResult.Succeeded)
             {
                 SessionData data = dataResult.Value!;
-                SessionState = new SessionState(() => CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, isReconnect: true), data);
+                SessionState = new SessionState(() => CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, serializedConfig, pat, isReconnect: true), data);
 
                 int sessionId = data.SessionId;
 
@@ -307,13 +319,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             string name,
             string cacheName,
             ImplicitPin implicitPin,
+            string? serializedConfig,
+            string? pat,
             bool isReconnect)
         {
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
+                    CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin, serializedConfig, pat);
                     if (string.IsNullOrEmpty(response.ErrorMessage))
                     {
                         SessionData data = new SessionData(response.SessionId, new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)));
@@ -334,17 +348,27 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Context context,
             string name,
             string cacheName,
-            ImplicitPin implicitPin)
+            ImplicitPin implicitPin,
+            string? serializedConfig,
+            string? pat)
         {
-            Func<Task<CreateSessionResponse>> func = async () => await CreateSessionAsync(
-                            new CreateSessionRequest
-                            {
-                                CacheName = cacheName,
-                                SessionName = name,
-                                ImplicitPin = (int)implicitPin,
-                                TraceId = context.TraceId,
-                                Capabilities = (int)_clientCapabilities
-                            });
+            Func<Task<CreateSessionResponse>> func = async () =>
+            {
+                var request = new CreateSessionRequest
+                {
+                    CacheName = cacheName,
+                    SessionName = name,
+                    ImplicitPin = (int)implicitPin,
+                    TraceId = context.TraceId,
+                    Capabilities = (int)_clientCapabilities,
+                    // Protobuff does not support setting null values.
+                    SerializedConfig = serializedConfig ?? string.Empty,
+                    Pat = pat ?? string.Empty
+                };
+
+                return await CreateSessionAsync(request);
+            };
+
             CreateSessionResponse response = await SendGrpcRequestAsync(context, func);
             return response;
         }

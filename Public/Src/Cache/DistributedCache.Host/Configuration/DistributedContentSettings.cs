@@ -923,6 +923,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? RoxisMetadataStorePort { get; set; } = null;
 
+        [DataMember]
+        public bool EnablePublishingCache { get; set; } = false;
+
         #endregion
 
         /// <summary>
@@ -1095,6 +1098,9 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool? DistributedContentConsumerOnly { get; set; }
+
+        [DataMember]
+        public int PublishingConcurrencyLimit { get; set; } = 128;
     }
 
     /// <summary>

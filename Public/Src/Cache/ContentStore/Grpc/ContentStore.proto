@@ -14,7 +14,7 @@ service ContentServer {
     rpc Hello(HelloRequest) returns (HelloResponse) {}
 
     rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
-
+    
     rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse) {}
 
     rpc Pin(PinRequest) returns (PinResponse) {}
@@ -91,6 +91,8 @@ message CreateSessionRequest {
     string SessionName = 3;
     int32 ImplicitPin = 4;
     int32 Capabilities = 5;
+    string SerializedConfig = 6;
+    string Pat = 7;
 }
 
 message CreateSessionResponse {

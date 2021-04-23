@@ -35,14 +35,10 @@ namespace Tests.Linux {
             //     /* noCategories */ ["LongRunningTest", "Simulation", "Performance"]
             // ),
 
-            // GrpcTest
             createDef(importFrom("BuildXL.Cache.ContentStore").Test.dll, true),
-            createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll, true),
-
-            // DistributedTest
-            // VstsTest
             createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.dll, true),
             createDef(importFrom("BuildXL.Cache.MemoizationStore").InterfacesTest.dll, true),
+            createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll, true),
 
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.dll, true),

@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.MemoizationStore.VstsInterfaces;
+using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using Newtonsoft.Json;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -14,7 +14,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
     /// Represents a data class that contains configuration data for a VSTS Build Cache Service.
     /// </summary>
     [DataContract]
-    public class BuildCacheServiceConfiguration
+    public class BuildCacheServiceConfiguration : PublishingCacheConfiguration
     {
         /// <summary>
         /// Gets or sets the number of days to keep content before it is referenced by metadata.
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public const bool DefaultEnableEagerFingerprintIncorporation = false;
 
         /// <nodoc />
-        public static readonly TimeSpan DefaultEagerFingerprintIncorporationNagleInterval = TimeSpan.FromMinutes(5);
+        public const int DefaultEagerFingerprintIncorporationNagleIntervalMinutes = 5;
 
         /// <nodoc />
         public const int DefaultEagerFingerprintIncorporationNagleBatchSize = 100;
@@ -119,7 +119,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public static TimeSpan DefaultEagerFingerprintIncorporationExpiry = TimeSpan.FromDays(1);
 
         /// <nodoc />
-        public static TimeSpan DefaultInlineFingerprintIncorporationExpiry = TimeSpan.FromHours(8);
+        public const int DefaultInlineFingerprintIncorporationExpiryHours = 8;
 
         /// <nodoc />
         public const byte DefaultDomainId = 0;
@@ -128,7 +128,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// Initializes a new instance of the <see cref="BuildCacheServiceConfiguration"/> class.
         /// </summary>
         [JsonConstructor]
-        protected BuildCacheServiceConfiguration()
+        public BuildCacheServiceConfiguration()
         {
         }
 
@@ -146,13 +146,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// Gets the endpoint to talk to the fingerprint controller of a Build Cache Service.
         /// </summary>
         [DataMember]
-        public string CacheServiceFingerprintEndpoint { get; private set; }
+        public string CacheServiceFingerprintEndpoint { get; set; }
 
         /// <summary>
         /// Gets the endpoint to talk to the content management controller of a Build Cache Service.
         /// </summary>
         [DataMember]
-        public string CacheServiceContentEndpoint { get; private set; }
+        public string CacheServiceContentEndpoint { get; set; }
 
         /// <summary>
         /// Gets or sets the number of days to keep content before it is referenced by metadata.
@@ -280,7 +280,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// 
         /// Currently we have 3 ways for fingerprint incorporation:
         /// 1. Inline incorporation: If eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
-        ///                          the entry will expire in <see cref="InlineFingerprintIncorporationExpiry"/> time.
+        ///                          the entry will expire in <see cref="InlineFingerprintIncorporationExpiryHours"/> time.
         /// 2. Eager bulk incorporation: if eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
         ///                          the entry's expiry is not available or it won't expire in <see cref="EnableEagerFingerprintIncorporation"/> time.
         /// 3. Session shutdown incorporation: if eager fingerprint incorporation is disabled and the normal fingerprint incorporation is enabled (<see cref="FingerprintIncorporationEnabled"/> is true).
@@ -292,11 +292,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// Gets or sets time window during which incorporation is done inline.
         /// </summary>
         [DataMember]
-        public TimeSpan InlineFingerprintIncorporationExpiry { get; set; } = DefaultInlineFingerprintIncorporationExpiry;
+        public long InlineFingerprintIncorporationExpiryHours { get; set; } = DefaultInlineFingerprintIncorporationExpiryHours;
 
         /// <nodoc />
         [DataMember]
-        public TimeSpan EagerFingerprintIncorporationNagleInterval { get; set; } = DefaultEagerFingerprintIncorporationNagleInterval;
+        public int EagerFingerprintIncorporationNagleIntervalMinutes { get; set; } = DefaultEagerFingerprintIncorporationNagleIntervalMinutes;
 
         /// <nodoc />
         [DataMember]
@@ -321,6 +321,5 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         [DataMember]
         public bool ForceUpdateOnAddContentHashList { get; set; } = false;
-
     }
 }

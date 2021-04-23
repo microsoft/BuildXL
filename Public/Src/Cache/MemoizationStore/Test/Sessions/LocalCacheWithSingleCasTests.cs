@@ -37,6 +37,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(Logger, rootPath, memoConfig, LocalCacheConfiguration.CreateServerDisabled(), clock: Clock);
         }
 
+        public ICache PublicCreateCache(DisposableDirectory testDirectory)
+        {
+            return CreateCache(testDirectory);
+        }
+
         [Fact]
         protected override async Task ContentStoreStartupFails()
         {

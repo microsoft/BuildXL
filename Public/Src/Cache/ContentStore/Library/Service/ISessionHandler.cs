@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -15,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// A handler for sessions.
     /// </summary>
-    public interface ISessionHandler<out TSession> where TSession : IContentSession?
+    public interface ISessionHandler<out TSession, TSessionData> where TSession : IContentSession?
     {
         /// <summary>
         /// Gets the session by <paramref name="sessionId"/>.
@@ -33,10 +32,8 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         Task<Result<(int sessionId, AbsolutePath? tempDirectory)>> CreateSessionAsync(
             OperationContext context,
-            string sessionName,
-            string cacheName,
-            ImplicitPin implicitPin,
-            Capabilities capabilities);
+            TSessionData sessionData,
+            string cacheName);
 
         /// <summary>
         /// Gets a current stats snapshot.
@@ -53,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Service
     public static class SessionHandlerExtensions
     {
         /// <nodoc />
-        public static bool TryGetSession<TSession>(this ISessionHandler<TSession> sessionHandler, int sessionId, [MaybeNull][NotNullWhen(true)]out TSession session) where TSession : IContentSession?
+        public static bool TryGetSession<TSession, TSessionData>(this ISessionHandler<TSession, TSessionData> sessionHandler, int sessionId, [MaybeNull][NotNullWhen(true)]out TSession session) where TSession : IContentSession?
         {
             session = sessionHandler.GetSession(sessionId);
             return session != null;

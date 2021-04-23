@@ -64,7 +64,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <nodoc />
         protected readonly ILogger Logger;
 
-        private readonly ImplicitPin _implicitPin;
+        /// <nodoc />
+        protected readonly ImplicitPin ImplicitPin;
 
         /// <inheritdoc />
         protected override bool TraceOperationStarted => Configuration.TraceOperationStarted;
@@ -86,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Contract.Requires(logger != null);
             Contract.Requires(fileSystem != null);
 
-            _implicitPin = implicitPin;
+            ImplicitPin = implicitPin;
             SessionTracer = sessionTracer;
             Logger = logger;
             FileSystem = fileSystem;
@@ -98,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <nodoc />
-        protected IRpcClient GetRpcClient()
+        protected virtual IRpcClient GetRpcClient()
         {
             var rpcConfiguration = Configuration.RpcConfiguration;
             
@@ -112,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             try
             {
-                result = await RetryPolicy.ExecuteAsync(() => RpcClient.CreateSessionAsync(operationContext, Name, Configuration.CacheName, _implicitPin), CancellationToken.None);
+                result = await RetryPolicy.ExecuteAsync(() => RpcClient.CreateSessionAsync(operationContext, Name, Configuration.CacheName, ImplicitPin), CancellationToken.None);
             }
             catch (Exception ex)
             {

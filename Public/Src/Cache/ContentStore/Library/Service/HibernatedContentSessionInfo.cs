@@ -12,12 +12,20 @@ namespace BuildXL.Cache.ContentStore.Service
     ///     Information stored about a session that can be later restored.
     /// </summary>
     [DataContract]
-    public class HibernatedSessionInfo
+    public class HibernatedContentSessionInfo
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="HibernatedSessionInfo"/> class.
+        ///     Initializes a new instance of the <see cref="HibernatedContentSessionInfo"/> class.
         /// </summary>
-        public HibernatedSessionInfo(int id, string sessionName, ImplicitPin implicitPin, string cacheName, IList<string> pins, long expirationUtcTicks, Capabilities capabilities)
+        public HibernatedContentSessionInfo
+            (
+            int id,
+            string sessionName,
+            ImplicitPin implicitPin,
+            string cacheName,
+            IList<string> pins,
+            long expirationUtcTicks,
+            Capabilities capabilities)
         {
             Id = id;
             Session = sessionName;

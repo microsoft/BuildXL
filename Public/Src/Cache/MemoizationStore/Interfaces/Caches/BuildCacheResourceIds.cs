@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
+namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
 {
     /// <summary>
     ///     CODESYNC: This code must match exactly what is found in the VSTS Repo.

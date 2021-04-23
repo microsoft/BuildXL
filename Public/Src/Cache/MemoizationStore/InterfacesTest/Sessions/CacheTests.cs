@@ -150,6 +150,11 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         protected virtual bool ChunkDedupEnabled => false;
 
         /// <summary>
+        /// In some cases this test must be skipped.
+        /// </summary>
+        protected virtual bool SkipAuthoritativeCachesGiveErrorOnAddOrGetBeforeContentIsAddedEvenWhenDifferentValueExists => false;
+
+        /// <summary>
         ///     Gets a value indicating whether content for a new ContentHashList is required to exist before an AddOrGet.
         ///     Generally only authoritative caches should require this.
         /// </summary>
@@ -351,6 +356,11 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 return Task.FromResult(0);
             }
 
+            if (SkipAuthoritativeCachesGiveErrorOnAddOrGetBeforeContentIsAddedEvenWhenDifferentValueExists)
+            {
+                return Task.FromResult(0);
+            }
+
             var context = new Context(Logger);
 
             return RunTestAsync(context, async session =>
@@ -547,8 +557,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 var contentHashListWithDeterminism = await CreateRandomContentHashListWithDeterminismAsync(
                     context, RequiresContentExistenceOnAddOrGetContentHashList, session, determinism: CacheDeterminism.Tool);
                 var addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, contentHashListWithDeterminism, Token);
-                Assert.True(addResult.Succeeded);
+                    context, strongFingerprint, contentHashListWithDeterminism, Token).ShouldBeSuccess();
                 Assert.Null(addResult.ContentHashListWithDeterminism.ContentHashList);
                 Assert.Equal(CacheDeterminism.Tool, addResult.ContentHashListWithDeterminism.Determinism);
 

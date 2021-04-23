@@ -46,7 +46,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             LocalServerConfiguration contentServerConfiguration,
             ServiceClientContentStoreConfiguration clientConfiguration)
         {
-            _server = new LocalCacheServer(fileSystem, logger, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration);
+            _server = new LocalCacheServer(fileSystem, logger, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration, Capabilities.All);
             _client = new ServiceClientCache(logger, fileSystem, clientConfiguration);
             SetThreadPoolSizes();
         }

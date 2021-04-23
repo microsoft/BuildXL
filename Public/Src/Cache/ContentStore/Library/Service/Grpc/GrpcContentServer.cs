@@ -108,10 +108,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// Session handler for <see cref="IContentSession"/>
         /// </summary>
         /// <remarks>
-        /// This is a hack to allow for an <see cref="ISessionHandler{T}"/> with other sessions that inherit from
-        /// <see cref="IContentSession"/> to be used instead.
+        /// This is a hack to allow for an <see cref="ISessionHandler{TSession, TSessionData}"/> with other sessions that inherit from
+        /// <see cref="IContentSession"/> with session data which inherits from <see cref="LocalContentServerSessionData"/> to be used instead.
         /// </remarks>
-        protected virtual ISessionHandler<IContentSession> ContentSessionHandler { get; }
+        protected virtual ISessionHandler<IContentSession, LocalContentServerSessionData> ContentSessionHandler { get; }
 
         /// <inheritdoc />
         public IPushFileHandler PushFileHandler { get; }
@@ -135,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public GrpcContentServer(
             ILogger logger,
             Capabilities serviceCapabilities,
-            ISessionHandler<IContentSession> sessionHandler,
+            ISessionHandler<IContentSession, LocalContentServerSessionData> sessionHandler,
             IReadOnlyDictionary<string, IContentStore> storesByName,
             LocalServerConfiguration? localServerConfiguration = null)
         {
@@ -180,15 +180,26 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a create session request.
         /// </summary>
-        public async Task<CreateSessionResponse> CreateSessionAsync(CreateSessionRequest request, CancellationToken token)
+        public virtual Task<CreateSessionResponse> CreateSessionAsync(CreateSessionRequest request, CancellationToken token)
+            => CreateSessionAsync(request.TraceId, request.SessionName, request.CacheName, request.ImplicitPin, request.Capabilities, token);
+
+        /// <nodoc />
+        protected async Task<CreateSessionResponse> CreateSessionAsync(
+            string traceId,
+            string sessionName,
+            string cacheName,
+            int implicitPin,
+            int capabilities,
+            CancellationToken token)
         {
-            var cacheContext = new Context(request.TraceId, Logger);
+            var cacheContext = new Context(traceId, Logger);
+
+            var sessionData = new LocalContentServerSessionData(sessionName, (Capabilities)capabilities, (ImplicitPin)implicitPin, pins: new List<string>());
+
             var sessionCreationResult = await ContentSessionHandler.CreateSessionAsync(
                 new OperationContext(cacheContext, token),
-                request.SessionName,
-                request.CacheName,
-                (ImplicitPin)request.ImplicitPin,
-                (Capabilities)request.Capabilities);
+                sessionData,
+                cacheName);
 
             if (sessionCreationResult)
             {
@@ -206,6 +217,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 };
             }
         }
+
         /// <summary>
         /// Implements a shutdown request for a session.
         /// </summary>

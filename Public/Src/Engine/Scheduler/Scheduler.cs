@@ -1318,7 +1318,7 @@ namespace BuildXL.Scheduler
                     fingerprintAugmentationTarget = new WeakFingerprintAugmentationExecutionLogTarget(loggingContext, this, configuration.Cache.MonitorAugmentedPathSets);
                 }
 
-                m_buildManifestGenerator = new BuildManifestGenerator(loggingContext, context.StringTable);
+                m_buildManifestGenerator = new BuildManifestGenerator(loggingContext, Context.StringTable);
                 buildManifestStoreTarget = new BuildManifestStoreTarget(m_buildManifestGenerator);
 
                 // Only log failed pips on master to make it easier to retrieve logs for failing pips on workers
@@ -1934,6 +1934,7 @@ namespace BuildXL.Scheduler
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
             ApiServer.Counters.LogAsStatistics("ApiServer", loggingContext);
+            ApiServer.ManifestCounters.LogAsStatistics("ApiServer.BuildManifest", loggingContext);
             BuildManifestGenerator.Counters.LogAsStatistics("BuildManifestGenerator", loggingContext);
             statistics.AddRange(ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.HashInfo.HashType).GetCounters().ToDictionaryIntegral());
 

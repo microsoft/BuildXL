@@ -119,7 +119,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(h1, h2);
 
             a1 = RelativePath.Create(st, string.Empty);
-            XAssert.AreEqual(0, a1.GetHashCode());
+            XAssert.AreEqual(HashCodeHelper.Fnv1Basis32, a1.GetHashCode());
 
             XAssert.IsFalse(a1.Equals(a2));
         }

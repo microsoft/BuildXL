@@ -41,17 +41,21 @@ namespace BuildXL.Scheduler
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
 
         /// <summary>
-        /// Counters for all ApiServer relates statistics.
+        /// Counters for all ApiServer related statistics.
         /// </summary>
         public static readonly CounterCollection<ApiServerCounters> Counters = new CounterCollection<ApiServerCounters>();
+
+        /// <summary>
+        /// Counters for all Build Manifest related statistics within ApiServer.
+        /// </summary>
+        public static readonly CounterCollection<BuildManifestCounters> ManifestCounters = new CounterCollection<BuildManifestCounters>();
 
         private LoggingContext m_loggingContext;
 
         private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
-        private readonly ActionBlockSlim<List<Tracing.BuildManifestRecord>> m_recordFileForBuildManifestQueue;
 
-        private const int GetBuildManifestHashFromLocalFileRetryLimit = 3;
-        private const int BuildManifestRecordBatchSize = 20;
+        private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 6 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
+        private const int GetBuildManifestHashFromLocalFileRetryLimit = 5;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
 
         /// <nodoc />
         public ApiServer(
@@ -78,13 +82,6 @@ namespace BuildXL.Scheduler
             m_executionLog = executionLog;
             m_buildManifestGenerator = buildManifestGenerator;
             m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, ContentHash>();
-
-            m_recordFileForBuildManifestQueue = new ActionBlockSlim<List<Tracing.BuildManifestRecord>>(
-                Environment.ProcessorCount,
-                new Action<List<Tracing.BuildManifestRecord>>(records =>
-                {
-                    m_executionLog.RecordFileForBuildManifest(new Tracing.RecordFileForBuildManifestEventData(records));
-                }));
         }
 
         /// <summary>
@@ -112,7 +109,9 @@ namespace BuildXL.Scheduler
 
         private async Task StoreBuildManifestHashAsync(ContentHash hash, ContentHash manifestHash)
         {
-            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalHashToHashCacheWriteDuration)) {
+            using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalHashToHashCacheWriteDuration))
+            {
+                ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheWriteCount);
                 (var wf, var sf) = GetBuildManifestHashKey(hash);
 
                 var result = await m_engineCache.TwoPhaseFingerprintStore.TryPublishCacheEntryAsync(wf, hash, sf, new CacheEntry(manifestHash, "", ArrayView<ContentHash>.Empty));
@@ -126,8 +125,9 @@ namespace BuildXL.Scheduler
 
         private async Task<ContentHash?> TryGetBuildManifestHashAsync(ContentHash hash)
         {
-            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalHashToHashCacheReadDuration))
+            using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalHashToHashCacheReadDuration))
             {
+                ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheReadCount);
                 (var wf, var sf) = GetBuildManifestHashKey(hash);
 
                 var result = await m_engineCache.TwoPhaseFingerprintStore.TryGetCacheEntryAsync(wf, hash, sf);
@@ -153,14 +153,14 @@ namespace BuildXL.Scheduler
 
             if (retryAttempt > 0)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(20 * retryAttempt));
+                await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs));
             }
 
             if (File.Exists(fullFilePath))
             {
                 try
                 {
-                    var hash = await ContentHashingUtilities.HashFileForBuildManifestAsync(fullFilePath);
+                    var hash = await ContentHashingUtilities.HashFileAsync(fullFilePath, ContentHashingUtilities.BuildManifestHashType);
                     return hash;
                 }
                 catch (Exception ex) when (ex is BuildXLException || ex is IOException)
@@ -205,7 +205,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         public Task Stop()
         {
-            m_recordFileForBuildManifestQueue.Complete();
             m_server.RequestStop();
             return m_server.Completion;
         }
@@ -213,7 +212,6 @@ namespace BuildXL.Scheduler
         /// <inheritdoc/>
         public void Dispose()
         {
-            m_recordFileForBuildManifestQueue.Complete();
             m_server.Dispose();
         }
 
@@ -252,9 +250,9 @@ namespace BuildXL.Scheduler
             var registerBuildManifestHashesCmd = cmd as RegisterFilesForBuildManifestCommand;
             if (registerBuildManifestHashesCmd != null)
             {
-                using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestHashesDuration))
+                using (ManifestCounters.StartStopwatch(BuildManifestCounters.RegisterHashesDuration))
                 {
-                    var result = await ExecuteCommandWithStats(ExecuteRecordBuildManifestHashesAsync, registerBuildManifestHashesCmd, ApiServerCounters.BatchedRegisterBuildManifestHashesCalls);
+                    var result = await ExecuteCommandWithStats(ExecuteRecordBuildManifestHashesAsync, registerBuildManifestHashesCmd, BuildManifestCounters.BatchedRegisterHashesCalls);
                     return new Possible<IIpcResult>(result);
                 }
             }
@@ -262,7 +260,7 @@ namespace BuildXL.Scheduler
             var generateBuildManifestDataCmd = cmd as GenerateBuildManifestFileListCommand;
             if (generateBuildManifestDataCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestFileListAsync, generateBuildManifestDataCmd, ApiServerCounters.TotalGenerateBuildManifestFileListCalls);
+                var result = await ExecuteCommandWithStats(ExecuteGenerateBuildManifestFileListAsync, generateBuildManifestDataCmd, BuildManifestCounters.TotalGenerateBuildManifestFileListCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -381,45 +379,39 @@ namespace BuildXL.Scheduler
             Contract.Requires(cmd != null);
 
             var tasks = cmd.BuildManifestEntries
-                .Select(buildManifestEntry => ExecuteRecordBuildManifestHashWithXLGAsync(cmd.DropName, buildManifestEntry))
+                .Select(buildManifestEntry => ExecuteRecordBuildManifestHashWithXlgAsync(cmd.DropName, buildManifestEntry))
                 .ToArray();
 
             var result = await TaskUtilities.SafeWhenAll(tasks);
 
             if (result.Any(value => !value.IsValid))
             {
-                BuildManifestEntry[] failures = result.Where(value => value.IsValid)
-                    .Select(value => new BuildManifestEntry(value.DropName, value.AzureArtifactsHash, value.RelativePath))
+                BuildManifestEntry[] failures = result.Where(value => !value.IsValid)
+                    .Select(value => new BuildManifestEntry(value.RelativePath, value.AzureArtifactsHash, "")) // FullFilePath is unused by the caller
                     .ToArray();
 
                 return IpcResult.Success(cmd.RenderResult(failures));
             }
             else
             {
-                var xlgEvents = result.ToList();
-                while (xlgEvents.Count > 0)
-                {
-                    var xlgBatch = xlgEvents.Take(BuildManifestRecordBatchSize).ToList();
-                    m_recordFileForBuildManifestQueue.Post(xlgBatch);
-                    xlgEvents.RemoveRange(0, xlgBatch.Count);
-                }
+                m_executionLog.RecordFileForBuildManifest(new Tracing.RecordFileForBuildManifestEventData(result.ToList()));
 
-                return IpcResult.Success(cmd.RenderResult(new BuildManifestEntry[0]));
+                return IpcResult.Success(cmd.RenderResult(Array.Empty<BuildManifestEntry>()));
             }
         }
 
         /// <summary>
-        /// Returns an invalid <see cref="Tracing.BuildManifestRecord"/> when file read or hash computation fails. 
-        /// Else returns a valid <see cref="Tracing.BuildManifestRecord"/> on success.
+        /// Returns an invalid <see cref="Tracing.BuildManifestEntry"/> when file read or hash computation fails. 
+        /// Else returns a valid <see cref="Tracing.BuildManifestEntry"/> on success.
         /// </summary>
-        private async Task<Tracing.BuildManifestRecord> ExecuteRecordBuildManifestHashWithXLGAsync(string dropName, BuildManifestEntry buildManifestEntry)
+        private async Task<Tracing.BuildManifestEntry> ExecuteRecordBuildManifestHashWithXlgAsync(string dropName, BuildManifestEntry buildManifestEntry)
         {
             await Task.Yield(); // Yield to ensure hashing happens asynchronously
 
             // (1) Attempt hash read from in-memory store
             if (m_inMemoryBuildManifestStore.TryGetValue(buildManifestEntry.Hash, out var buildManifestHash))
             {
-                return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHash);
+                return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHash);
             }
 
             // (2) Attempt hash read from cache
@@ -427,24 +419,25 @@ namespace BuildXL.Scheduler
             if (hashFromCache.HasValue)
             {
                 m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
-                return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
+                return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
             }
 
             // (3) Attempt to compute hash for locally existing file (Materializes non-existing files)
-            using (Counters.StartStopwatch(ApiServerCounters.RegisterBuildManifestInternalComputeHashLocallyDuration))
+            using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalComputeHashLocallyDuration))
             {
+                ManifestCounters.IncrementCounter(BuildManifestCounters.InternalComputeHashLocallyCount);
                 var computeHashResult = await ComputeBuildManifestHashFromCacheAsync(buildManifestEntry);
                 if (computeHashResult.Succeeded)
                 {
                     m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, computeHashResult.Result);
                     await StoreBuildManifestHashAsync(buildManifestEntry.Hash, computeHashResult.Result);
-                    return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
+                    return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
                 }
 
                 Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromLocalFileFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             }
 
-            return new Tracing.BuildManifestRecord(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, new ContentHash(HashType.Unknown));
+            return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, new ContentHash(HashType.Unknown));
         }
 
         /// <summary>
@@ -557,6 +550,13 @@ namespace BuildXL.Scheduler
             Counters.IncrementCounter(totalCounter);
             return executor(cmd);
         }
+
+        private static Task<IIpcResult> ExecuteCommandWithStats<TCommand>(Func<TCommand, Task<IIpcResult>> executor, TCommand cmd, BuildManifestCounters totalCounter)
+            where TCommand : Command
+        {
+            ManifestCounters.IncrementCounter(totalCounter);
+            return executor(cmd);
+        }
     }
 
     /// <summary>
@@ -564,25 +564,6 @@ namespace BuildXL.Scheduler
     /// </summary>
     public enum ApiServerCounters
     {
-        /// <summary>
-        /// Time spent obtaining hash to hash mappings from cache for build manifest
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        RegisterBuildManifestInternalHashToHashCacheReadDuration,
-
-
-        /// <summary>
-        /// Time spent obtaining hash to hash mappings from cache for build manifest
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        RegisterBuildManifestInternalHashToHashCacheWriteDuration,
-
-        /// <summary>
-        /// Time spent computing hashes for build manifest (includes materialization times for non-existing files)
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        RegisterBuildManifestInternalComputeHashLocallyDuration,
-
         /// <summary>
         /// Number of <see cref="MaterializeFileCommand"/> calls
         /// </summary>
@@ -594,24 +575,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         MaterializeFileCallsDuration,
-
-        /// <summary>
-        /// Number of <see cref="RegisterFilesForBuildManifestCommand"/> calls
-        /// </summary>
-        [CounterType(CounterType.Numeric)]
-        BatchedRegisterBuildManifestHashesCalls,
-
-        /// <summary>
-        /// Time spent on <see cref="RegisterFilesForBuildManifestCommand"/> calls
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        RegisterBuildManifestHashesDuration,
-
-        /// <summary>
-        /// Number of <see cref="GenerateBuildManifestFileListCommand"/> calls
-        /// </summary>
-        [CounterType(CounterType.Numeric)]
-        TotalGenerateBuildManifestFileListCalls,
 
         /// <summary>
         /// Number of <see cref="ReportStatisticsCommand"/> calls
@@ -636,5 +599,65 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalLogMessageCalls
+    }
+
+    /// <summary>
+    /// Counter types for all BuildManifest statistics within ApiServer.
+    /// </summary>
+    public enum BuildManifestCounters
+    {
+        /// <summary>
+        /// Time spent obtaining hash to hash mappings from cache for build manifest
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        InternalHashToHashCacheReadDuration,
+
+        /// <summary>
+        /// Number of calls for obtaining hash to hash mappings from cache for build manifest
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        InternalHashToHashCacheReadCount,
+
+        /// <summary>
+        /// Time spent obtaining hash to hash mappings from cache for build manifest
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        InternalHashToHashCacheWriteDuration,
+
+        /// <summary>
+        /// Number of calls for obtaining hash to hash mappings from cache for build manifest
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        InternalHashToHashCacheWriteCount,
+
+        /// <summary>
+        /// Time spent computing hashes for build manifest (includes materialization times for non-existing files)
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        InternalComputeHashLocallyDuration,
+
+        /// <summary>
+        /// Number of calls for computing hashes for build manifest (includes materialization times for non-existing files)
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        InternalComputeHashLocallyCount,
+
+        /// <summary>
+        /// Number of <see cref="RegisterFilesForBuildManifestCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        BatchedRegisterHashesCalls,
+
+        /// <summary>
+        /// Time spent on <see cref="RegisterFilesForBuildManifestCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RegisterHashesDuration,
+
+        /// <summary>
+        /// Number of <see cref="GenerateBuildManifestFileListCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalGenerateBuildManifestFileListCalls,
     }
 }

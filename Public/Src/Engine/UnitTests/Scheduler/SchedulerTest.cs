@@ -2701,17 +2701,60 @@ namespace Test.BuildXL.Scheduler
             ContentHash hash0 = ContentHash.Random();
             ContentHash hash1 = ContentHash.Random();
 
-            List<BuildManifestRecord> targets = new List<BuildManifestRecord>();
-            targets.Add(new BuildManifestRecord("drop0", relativePath, hash0, hash0));     // Will be added
-            targets.Add(new BuildManifestRecord("drop0", relativePath, hash0, hash0));     // Duplicate entry will be ignored
-            targets.Add(new BuildManifestRecord("drop0", relativePath, hash1, hash1));     // Records duplicate entry
-            targets.Add(new BuildManifestRecord("drop1", relativePath, hash0, hash0));     // Will be added
-            targets.Add(new BuildManifestRecord("drop2", relativePath, hash0, hash0));     // Will be added
+            List<BuildManifestEntry> targets = new List<BuildManifestEntry>();
+            targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, hash0));     // Will be added
+            targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, hash0));     // Duplicate entry will be ignored
+            targets.Add(new BuildManifestEntry("drop0", relativePath, hash1, hash1));     // Records duplicate entry
+            targets.Add(new BuildManifestEntry("drop1", relativePath, hash0, hash0));     // Will be added
+            targets.Add(new BuildManifestEntry("drop2", relativePath, hash0, hash0));     // Will be added
 
             buildManifestGenerator.RecordFileForBuildManifest(targets);
 
             XAssert.AreEqual(3, buildManifestGenerator.BuildManifestEntries.Count);
             XAssert.AreEqual(1, buildManifestGenerator.DuplicateEntries("drop0").Count);
+        }
+
+        [Fact]
+        public void TestGenerateBuildManifest()
+        {
+            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, new StringTable());
+
+            string dropName = "drop0";
+
+            List<BuildManifestEntry> targets = new List<BuildManifestEntry>();
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));
+            targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), ContentHash.Random()));
+            targets.Add(new BuildManifestEntry(dropName, "/a/d", ContentHash.Random(), ContentHash.Random()));
+            targets.Add(new BuildManifestEntry(dropName, "/b/c", ContentHash.Random(), ContentHash.Random()));
+
+            buildManifestGenerator.RecordFileForBuildManifest(targets);
+
+            XAssert.IsTrue(buildManifestGenerator.TryGenerateBuildManifestFileList(dropName, out string error, out var buildManifestFileList), $"Failure during Build Manifest generation: {error}");
+            XAssert.IsNull(error);
+            XAssert.AreEqual(4, buildManifestFileList.Count);
+        }
+
+        [Fact]
+        public void TestGenerateBuildManifestFailure()
+        {
+            BuildManifestGenerator buildManifestGenerator = new BuildManifestGenerator(LoggingContext, new StringTable());
+
+            string dropName = "drop0";
+
+            List<BuildManifestEntry> targets = new List<BuildManifestEntry>();
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));      // Register same path with different Hash value
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));      // Register same path with different Hash value
+            targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), ContentHash.Random()));
+
+            buildManifestGenerator.RecordFileForBuildManifest(targets);
+
+            XAssert.AreEqual(2, buildManifestGenerator.DuplicateEntries(dropName).Count);
+            XAssert.IsFalse(buildManifestGenerator.TryGenerateBuildManifestFileList(dropName, out string error, out var buildManifestFileList));
+            XAssert.IsNull(buildManifestFileList);
+            XAssert.IsNotNull(error);
+            AssertWarningEventLogged(LogEventId.BuildManifestGeneratorFoundDuplicateHash, 2);
+            AssertErrorEventLogged(LogEventId.GenerateBuildManifestFileListFoundDuplicateHashes, 1);
         }
 
         #region ProtoBufEnumsTests

@@ -160,7 +160,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Takes a hash as string and registers its corresponding SHA-256 ContentHash using BuildXL Api.
         /// Should be called only when DropConfig.GenerateSignedManifest is true.
-        /// Returns an hashset of failing FullFilePaths.
+        /// Returns a hashset of failing RelativePaths.
         /// </summary>
         private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
         {
@@ -170,10 +170,10 @@ namespace Tool.DropDaemon
             if (!bxlResult.Succeeded)
             {
                 m_logger.Verbose($"ApiClient.RegisterFileForBuildManifest unsuccessful. Failure: {bxlResult.Failure.Describe()}");
-                return new HashSet<string>(buildManifestEntries.Select(bme => bme.FullFilePath));
+                return new HashSet<string>(buildManifestEntries.Select(bme => bme.RelativePath));
             }
 
-            return new HashSet<string>(bxlResult.Result.Select(bme => bme.FullFilePath));
+            return new HashSet<string>(bxlResult.Result.Select(bme => bme.RelativePath));
         }
 
         /// <summary>
@@ -362,7 +362,7 @@ namespace Tool.DropDaemon
                 {
                     RegisterFileForBuildManifestResult result = registerFilesForBuildManifestTask == null
                         ? RegisterFileForBuildManifestResult.Skipped
-                        : (await registerFilesForBuildManifestTask).Contains(file.FullFilePath)
+                        : (await registerFilesForBuildManifestTask).Contains(file.RelativeDropFilePath)
                             ? RegisterFileForBuildManifestResult.Failed
                             : RegisterFileForBuildManifestResult.Registered;
                     file.BuildManifestTaskSource.TrySetResult(result);

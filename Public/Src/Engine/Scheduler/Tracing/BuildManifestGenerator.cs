@@ -40,9 +40,9 @@ namespace BuildXL.Scheduler.Tracing
 
         /// <summary>
         /// Details of files added to drop.
-        /// Key is a tuple of DropName and RelativePath of the file within the drop
+        /// Key is a tuple of (DropName, RelativePath) for each individual file added to the drop specified
         /// </summary>
-        internal readonly ConcurrentBigMap<(StringId, RelativePath), BuildManifestEntry> BuildManifestEntries;
+        internal readonly ConcurrentBigMap<(StringId DropName, RelativePath RelativePath), BuildManifestHashes> BuildManifestEntries;
 
         /// <summary>
         /// Constructor.
@@ -56,13 +56,13 @@ namespace BuildXL.Scheduler.Tracing
             m_loggingContext = loggingContext;
             m_stringTable = stringTable;
             m_duplicateEntries = new ConcurrentBag<(string, string, string, string)>();
-            BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestEntry>();
+            BuildManifestEntries = new ConcurrentBigMap<(StringId, RelativePath), BuildManifestHashes>();
         }
 
         /// <summary>
         /// Record details of a file added to drop.
         /// </summary>
-        public void RecordFileForBuildManifest(List<BuildManifestRecord> records)
+        public void RecordFileForBuildManifest(List<BuildManifestEntry> records)
         {
             Contract.Requires(records != null, "Build Manifest Records can't be null");
 
@@ -79,25 +79,26 @@ namespace BuildXL.Scheduler.Tracing
                             record.BuildManifestHash.Serialize());
                     }
 
+                    Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
+
                     RelativePath relativePathObj = RelativePath.Create(m_stringTable, record.RelativePath);
                     StringId dropNameId = StringId.Create(m_stringTable, record.DropName);
 
-                    Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
-
-                    var existingEntry = BuildManifestEntries.GetOrAdd((dropNameId, relativePathObj), new BuildManifestEntry(
-                        dropNameId,
-                        relativePathObj,
-                        record.AzureArtifactsHash,
-                        record.BuildManifestHash));
-
-                    if (existingEntry.IsFound &&
-                        !record.AzureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
+                    using (Counters.StartStopwatch(BuildManifestCounters.AddHashesToBuildManifestEntriesDuration))
                     {
-                        m_duplicateEntries.Add((record.DropName, record.RelativePath, existingEntry.Item.Value.AzureArtifactsHash.Serialize(), record.AzureArtifactsHash.Serialize()));
-                    }
-                    else
-                    {
-                        Counters.IncrementCounter(BuildManifestCounters.UniqueRecordFileForBuildManifestCalls);
+                        var existingEntry = BuildManifestEntries.GetOrAdd(
+                            (dropNameId, relativePathObj),
+                            new BuildManifestHashes(record.AzureArtifactsHash, record.BuildManifestHash));
+
+                        if (existingEntry.IsFound &&
+                            !record.AzureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
+                        {
+                            m_duplicateEntries.Add((record.DropName, record.RelativePath, existingEntry.Item.Value.AzureArtifactsHash.Serialize(), record.AzureArtifactsHash.Serialize()));
+                        }
+                        else
+                        {
+                            Counters.IncrementCounter(BuildManifestCounters.UniqueRecordFileForBuildManifestCalls);
+                        }
                     }
                 }
             }
@@ -132,13 +133,15 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(BuildManifestCounters.GenerateBuildManifestFileListDuration))
             {
                 StringId dropStringId = StringId.Create(m_stringTable, dropName);
-                List<BuildManifestFileInfo> sortedManifestDetailsForDrop = BuildManifestEntries.Values
-                    .Where(bme => bme.DropName == dropStringId)
-                    .Select(bme => (relPathStr: bme.RelativePath.ToString(m_stringTable), bme: bme))
+
+                List<BuildManifestFileInfo> sortedManifestDetailsForDrop = BuildManifestEntries
+                    .Where(kvp => kvp.Key.DropName == dropStringId)
+                    .Select(kvp => (relPathStr: kvp.Key.RelativePath.ToString(m_stringTable), hashes: kvp.Value))
                     .OrderBy(t => t.relPathStr)
-                    .Select(t => ToBuildManifestDataComponent(t.relPathStr,
-                        t.bme.AzureArtifactsHash.ToHex(),
-                        t.bme.BuildManifestHash.ToHex()))
+                    .Select(t => ToBuildManifestDataComponent(
+                        t.relPathStr,
+                        t.hashes.AzureArtifactsHash.ToHex(),
+                        t.hashes.BuildManifestHash.ToHex()))
                     .ToList();
 
                 Logger.Log.GenerateBuildManifestFileListResult(m_loggingContext, dropName, sortedManifestDetailsForDrop.Count);
@@ -152,48 +155,17 @@ namespace BuildXL.Scheduler.Tracing
         private BuildManifestFileInfo ToBuildManifestDataComponent(string relativePath, string azureArtifactsHash, string buildManifestHash)
         {
             return new BuildManifestFileInfo(
-                relativePath.Replace('\\', '/'),
+                relativePath.Replace('\\', '/').Replace("//", "/"),
                 azureArtifactsHash,
                 buildManifestHash
             );
         }
-
-        /// <summary>
-        /// Represents individual files added to drop
-        /// </summary>
-        public struct BuildManifestEntry
-        {
-            /// <nodoc/>
-            public StringId DropName { get; }
-
-            /// <nodoc/>
-            public RelativePath RelativePath { get; }
-
-            /// <nodoc/>
-            public ContentHash AzureArtifactsHash { get; }
-
-            /// <nodoc/>
-            public ContentHash BuildManifestHash { get; }
-
-            /// <nodoc/>
-            public BuildManifestEntry(
-                StringId dropName,
-                RelativePath relativePath,
-                ContentHash azureArtifactsHash,
-                ContentHash buildManifestHash)
-            {
-                DropName = dropName;
-                RelativePath = relativePath;
-                AzureArtifactsHash = azureArtifactsHash;
-                BuildManifestHash = buildManifestHash;
-            }
-        }
     }
 
     /// <summary>
-    /// Build Manifest individual XLG registration record
+    /// Build Manifest individual XLG registration entry
     /// </summary>
-    public readonly struct BuildManifestRecord
+    public readonly struct BuildManifestEntry
     {
         /// <nodoc/>
         public string DropName { get; }
@@ -208,7 +180,7 @@ namespace BuildXL.Scheduler.Tracing
         public ContentHash BuildManifestHash { get; }
 
         /// <nodoc/>
-        public BuildManifestRecord(
+        public BuildManifestEntry(
             string dropName,
             string relativePath,
             ContentHash azureArtifactsHash,
@@ -222,6 +194,25 @@ namespace BuildXL.Scheduler.Tracing
 
         /// <nodoc/>
         public bool IsValid => !string.IsNullOrEmpty(DropName) && !string.IsNullOrEmpty(RelativePath) && AzureArtifactsHash.IsValid && BuildManifestHash.IsValid;
+    }
+
+    /// <summary>
+    /// Hashes to be stored into the Build Manifest for each individual XLG registration
+    /// </summary>
+    public readonly struct BuildManifestHashes
+    {
+        /// <nodoc/>
+        public ContentHash AzureArtifactsHash { get; }
+
+        /// <nodoc/>
+        public ContentHash BuildManifestHash { get; }
+
+        /// <nodoc/>
+        public BuildManifestHashes(ContentHash azureArtifactsHash, ContentHash buildManifestHash)
+        {
+            AzureArtifactsHash = azureArtifactsHash;
+            BuildManifestHash = buildManifestHash;
+        }
     }
 
     /// <summary>
@@ -252,5 +243,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         GenerateBuildManifestFileListDuration,
+
+        /// <summary>
+        /// Time spent adding <see cref="BuildManifestHashes"/> into <see cref="BuildManifestGenerator.BuildManifestEntries"/>
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        AddHashesToBuildManifestEntriesDuration,
     }
 }

@@ -783,10 +783,10 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// List of build manifest related XLG records.
         /// </summary>
-        public List<BuildManifestRecord> Records;
+        public List<BuildManifestEntry> Records;
 
         /// <nodoc/>
-        public RecordFileForBuildManifestEventData(List<BuildManifestRecord> records)
+        public RecordFileForBuildManifestEventData(List<BuildManifestEntry> records)
         {
             Contract.Requires(records != null);
             Records = records;
@@ -812,7 +812,7 @@ namespace BuildXL.Scheduler.Tracing
         public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
         {
             int count = reader.ReadInt32();
-            Records = new List<BuildManifestRecord>(count);
+            Records = new List<BuildManifestEntry>(count);
 
             for (int i = 0; i < count; i++) 
             {
@@ -821,7 +821,7 @@ namespace BuildXL.Scheduler.Tracing
                 ContentHash azureArtifactsHash = new ContentHash(reader);
                 ContentHash buildManifestHash = new ContentHash(reader);
 
-                Records.Add(new BuildManifestRecord(dropName, relativePath, azureArtifactsHash, buildManifestHash));
+                Records.Add(new BuildManifestEntry(dropName, relativePath, azureArtifactsHash, buildManifestHash));
             };
         }
     }

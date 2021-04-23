@@ -630,13 +630,7 @@ namespace BuildXL.Utilities
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            if (Components == null || Components.Length == 0)
-            {
-                return 0;
-            }
-
-            // good enough...
-            return Components[0].GetHashCode();
+            return HashCodeHelper.Combine(Components, component => component.GetHashCode());
         }
 
         /// <summary>

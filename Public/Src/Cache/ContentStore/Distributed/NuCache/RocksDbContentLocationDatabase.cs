@@ -584,7 +584,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
-        private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, IBuildXLKeyValueStore store, RocksDbContentLocationDatabase db)
+        private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             ContentLocationEntry? result = null;
             if (store.TryGetValue(db.GetKey(hash), out var data))
@@ -614,7 +614,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _keyValueStore.Use(static (store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
         }
 
-        private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
+        private static Unit PersistBatchHelper(RocksDbStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
         {
             store.ApplyBatch(
                 pairs.SelectWithState(
@@ -630,7 +630,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         // NOTE: This should remain static to avoid allocations in Store
-        private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, IBuildXLKeyValueStore store, RocksDbContentLocationDatabase db)
+        private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             var value = db.SerializeContentLocationEntry(entry);
             store.Put(db.GetKey(hash), value);
@@ -645,7 +645,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         // NOTE: This should remain static to avoid allocations in Delete
-        private static Unit DeleteFromDbHelper(ShortHash hash, IBuildXLKeyValueStore store, RocksDbContentLocationDatabase db)
+        private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             store.Remove(db.GetKey(hash));
             return Unit.Void;
@@ -881,7 +881,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }).ToResult();
         }
 
-        private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumEntriesStrategy(OperationContext context, IBuildXLKeyValueStore store)
+        private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumEntriesStrategy(OperationContext context, RocksDbStore store)
         {
             // The strategy here is to keep the top K elements by last access time (i.e. an LRU policy). This is
             // slightly worse than that, because our iterator will go stale as time passes: since we iterate over
@@ -955,7 +955,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             };
         }
 
-        private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumSizeStrategy(OperationContext context, IBuildXLKeyValueStore store)
+        private MetadataGarbageCollectionOutput GarbageCollectMetadataWithMaximumSizeStrategy(OperationContext context, RocksDbStore store)
         {
             ulong sizeTargetBytes = (ulong)Math.Ceiling(_configuration.MetadataGarbageCollectionMaximumSizeMb * 1e6);
 
@@ -1144,7 +1144,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _keyValueStore.Use(store => GetLongProperty(store, propertyName, columnFamilyName)).Result;
         }
 
-        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string? columnFamilyName = null)
+        private Result<long> GetLongProperty(RocksDbStore store, string propertyName, string? columnFamilyName = null)
         {
             try
             {
@@ -1202,25 +1202,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _killSwitch = new CancellationTokenSource();
             }
 
-            public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> action, TState state)
+            public Possible<TResult> Use<TState, TResult>(Func<RocksDbStore, TState, TResult> action, TState state)
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(action, state);
             }
 
-            public Possible<Unit> Use(Action<IBuildXLKeyValueStore> action)
+            public Possible<Unit> Use(Action<RocksDbStore> action)
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(action);
             }
 
-            public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, TResult> action)
+            public Possible<TResult> Use<TResult>(Func<RocksDbStore, TResult> action)
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(action);
             }
 
-            public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, CancellationToken, TResult> action, TState state)
+            public Possible<TResult> Use<TState, TResult>(Func<RocksDbStore, TState, CancellationToken, TResult> action, TState state)
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(
@@ -1228,7 +1228,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     (state, token: _killSwitch.Token, action));
             }
 
-            public Possible<Unit> Use(Action<IBuildXLKeyValueStore, CancellationToken> action)
+            public Possible<Unit> Use(Action<RocksDbStore, CancellationToken> action)
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(
@@ -1236,7 +1236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     (killSwitch: _killSwitch.Token, action));
             }
 
-            public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, CancellationToken, TResult> action)
+            public Possible<TResult> Use<TResult>(Func<RocksDbStore, CancellationToken, TResult> action)
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(

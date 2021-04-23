@@ -609,7 +609,7 @@ namespace BuildXL.Scheduler.Cache
                                     // Unexpected key in the content segment of the store. Just remove it.
                                     return true;
                                 },
-                                primaryColumnFamilyName: StoreColumnNames.Content,
+                                columnFamilyName: StoreColumnNames.Content,
                                 cancellationToken: m_garbageCollectCancellation.Token,
                                 startValue: startKey);
 
@@ -829,7 +829,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Loads the cache entries from the database
         /// </summary>
-        private void LoadCacheEntries(IBuildXLKeyValueStore store)
+        private void LoadCacheEntries(RocksDbStore store)
         {
             if (store.TryGetValue(StoreKeyNames.HistoricMetadataCacheEntriesKey, out var serializedCacheEntries))
             {
@@ -846,7 +846,7 @@ namespace BuildXL.Scheduler.Cache
             Counters.AddToCounter(PipCachingCounter.HistoricMetadataLoadedAge, Age);
         }
 
-        private int GetAge(IBuildXLKeyValueStore store)
+        private int GetAge(RocksDbStore store)
         {
             bool ageFound = store.TryGetValue(nameof(StoreKeyNames.Age), out var ageString);
             if (!ageFound || !int.TryParse(ageString, out var age))
@@ -858,7 +858,7 @@ namespace BuildXL.Scheduler.Cache
             return age;
         }
 
-        private void SetAge(IBuildXLKeyValueStore store, int age)
+        private void SetAge(RocksDbStore store, int age)
         {
             store.Put(nameof(StoreKeyNames.Age), age.ToString());
         }

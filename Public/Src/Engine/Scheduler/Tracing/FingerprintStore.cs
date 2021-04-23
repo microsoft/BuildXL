@@ -221,7 +221,7 @@ namespace BuildXL.Scheduler.Tracing
     }
 
     /// <summary>
-    /// A <see cref="IBuildXLKeyValueStore"/> used for storing pip fingerprint inputs build-over-build.
+    /// A <see cref="RocksDbStore"/> used for storing pip fingerprint inputs build-over-build.
     /// Encapsulates the logic for reading fingerprint store entries serialized by <see cref="FingerprintStoreExecutionLogTarget"/>.
     /// </summary>
     public class FingerprintStore : IDisposable
@@ -501,8 +501,7 @@ namespace BuildXL.Scheduler.Tracing
         /// Convenience array of additional key-tracked column families.
         /// 
         /// Any column that is iterated through for garbage collection should be included here.
-        /// Calls to <see cref="IKeyValueStore{TKey, TValue}.Contains(TKey, string)"/> are more efficient
-        /// for columns that are key-tracked.
+        /// Calls to Contains are more efficient for columns that are key-tracked.
         /// </summary>
         private static readonly string[] s_additionalKeyTrackedColumns = new string[]
         {

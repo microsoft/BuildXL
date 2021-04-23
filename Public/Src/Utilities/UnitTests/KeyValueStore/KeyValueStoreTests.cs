@@ -17,7 +17,7 @@ namespace Test.BuildXL.Engine.Cache
 {
     /// <summary>
     /// Tests for the <see cref="KeyValueStoreAccessor"/> class that and the underlying
-    /// <see cref="IBuildXLKeyValueStore"/> implementation.
+    /// <see cref="RocksDbStore"/> implementation.
     /// </summary>
     public class KeyValueStoreTests : TemporaryStorageTestBase
     {
@@ -1301,7 +1301,7 @@ namespace Test.BuildXL.Engine.Cache
             return Encoding.UTF8.GetString(randomBytes);
         }
 
-        private void AssertEntryExists(IBuildXLKeyValueStore store, byte[] key, byte[] value, string? column = null)
+        private void AssertEntryExists(RocksDbStore store, byte[] key, byte[] value, string? column = null)
         {
             XAssert.IsTrue(store.Contains(key, column));
             var keyFound = store.TryGetValue(key, out var result, column);
@@ -1312,7 +1312,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(value, result);
         }
 
-        private void AssertEntryExists(IBuildXLKeyValueStore store, string key, string value, string? column = null)
+        private void AssertEntryExists(RocksDbStore store, string key, string value, string? column = null)
         {
             XAssert.IsTrue(store.Contains(key, column));
             var keyFound = store.TryGetValue(key, out var result, column);
@@ -1323,7 +1323,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(value, result);
         }
 
-        private void AssertEntryAbsent(IBuildXLKeyValueStore store, byte[] key, string? column = null)
+        private void AssertEntryAbsent(RocksDbStore store, byte[] key, string? column = null)
         {
             var keyFound = store.TryGetValue(key, out var result, column);
 
@@ -1333,7 +1333,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.AreEqual(null, result);
         }
 
-        private void AssertEntryAbsent(IBuildXLKeyValueStore store, string key, string? column = null)
+        private void AssertEntryAbsent(RocksDbStore store, string key, string? column = null)
         {
             var keyFound = store.TryGetValue(key, out var result, column);
 

@@ -278,7 +278,7 @@ namespace BuildXL.Cache.Roxis.Server
             return v1.Value.Value.SequenceEqual(v2.Value.Value);
         }
 
-        private void SetRegisterInternal(ByteString key, ByteString value, DateTime? expiryTimeUtc, IBuildXLKeyValueStore store)
+        private void SetRegisterInternal(ByteString key, ByteString value, DateTime? expiryTimeUtc, RocksDbStore store)
         {
             var register = new Register(value, expiryTimeUtc);
             store.Put(key, SerializeRegister(register), columnFamilyName: nameof(Columns.Registers));
@@ -327,7 +327,7 @@ namespace BuildXL.Cache.Roxis.Server
                 .ToResult(isNullAllowed: false)
                 .ThrowIfFailure();
 
-            static IEnumerable<KeyValuePair<ByteString, ByteString>> performSearch(RoxisDatabase @this, IBuildXLKeyValueStore store, ByteString prefix)
+            static IEnumerable<KeyValuePair<ByteString, ByteString>> performSearch(RoxisDatabase @this, RocksDbStore store, ByteString prefix)
             {
                 var now = @this._clock.UtcNow;
 

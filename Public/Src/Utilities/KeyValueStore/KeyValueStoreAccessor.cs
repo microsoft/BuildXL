@@ -18,8 +18,65 @@ using RocksDbSharp;
 namespace BuildXL.Engine.Cache.KeyValueStores
 {
     /// <summary>
-    /// Manages and provides access to an <see cref="IBuildXLKeyValueStore"/>.
-    /// This class abstracts away the underlying implementation of <see cref="IBuildXLKeyValueStore"/>.
+    /// Stats about garbage collecting a <see cref="RocksDbStore"/>.
+    /// </summary>
+    public struct GarbageCollectResult
+    {
+        /// <summary>
+        /// Number of keys garbage collected.
+        /// </summary>
+        public int RemovedCount;
+
+        /// <summary>
+        /// Total number of keys iterated through during garbage collection.
+        /// </summary>
+        public int TotalCount;
+
+        /// <summary>
+        /// The last key encountered during garbage collection.
+        /// </summary>
+        public byte[] LastKey;
+
+        /// <summary>
+        /// Batch size for removing keys.
+        /// </summary>
+        public int BatchSize;
+
+        /// <summary>
+        /// The maximum time to evict one batch of keys.
+        /// </summary>
+        public TimeSpan MaxBatchEvictionTime;
+
+        /// <summary>
+        /// Whether garbage collection was cancelled.
+        /// </summary>
+        public bool Canceled;
+
+        /// <summary>
+        /// Whether the garbage collection reached the end of the column family.
+        /// </summary>
+        public bool ReachedEnd;
+    }
+
+    /// <summary>
+    /// Result of IterateDbContent
+    /// </summary>
+    public record IterateDbContentResult
+    {
+        /// <summary>
+        /// Whether the database iteration was canceled or not.
+        /// </summary>
+        public bool Canceled { get; init; }
+
+        /// <summary>
+        /// Whether the database iteration reached the end of the column family.
+        /// </summary>
+        public bool ReachedEnd { get; init; }
+    }
+
+    /// <summary>
+    /// Manages and provides access to an <see cref="RocksDbStore"/>.
+    /// This class abstracts away the underlying implementation of <see cref="RocksDbStore"/>.
     /// </summary>
     public partial class KeyValueStoreAccessor : IDisposable
     {
@@ -50,25 +107,25 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <summary>
-        /// The file type extension used to denote storage files by the underlying <see cref="IBuildXLKeyValueStore"/>.
+        /// The file type extension used to denote storage files by the underlying <see cref="RocksDbStore"/>.
         /// Currently, a <see cref="RocksDbStore"/>.
         /// </summary>
         public static string StorageFileTypeExtension = ".sst";
 
         /// <summary>
-        /// The log file name used by the underlying <see cref="IBuildXLKeyValueStore"/>.
+        /// The log file name used by the underlying <see cref="RocksDbStore"/>.
         /// Currently, a <see cref= "RocksDbStore"/>.
         /// </summary>
         public static string LogFileName = "LOG";
 
         /// <summary>
-        /// String that denotes files as outdated by the underlying <see cref="IBuildXLKeyValueStore"/>.
+        /// String that denotes files as outdated by the underlying <see cref="RocksDbStore"/>.
         /// Currently, a <see cref="RocksDbStore"/>.
         /// </summary>
         public static string OutdatedFileMarker = "old";
 
         /// <summary>
-        /// Default column family name used by the underlying <see cref="IBuildXLKeyValueStore"/>. 
+        /// Default column family name used by the underlying <see cref="RocksDbStore"/>. 
         /// This is equivalent to passing null as the column family name.
         /// Current, a <see cref="RocksDbStore"/>.
         /// </summary>
@@ -77,7 +134,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// The key-value store.
         /// </summary>
-        private readonly IBuildXLKeyValueStore? m_store;
+        private readonly RocksDbStore? m_store;
 
         /// <summary>
         /// The directory containing the key-value store.
@@ -133,7 +190,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         #region Versioning
 
         /// <summary>
-        /// The suffix of the file that contains versioning information of an <see cref="IBuildXLKeyValueStore"/> to check for compatibility.
+        /// The suffix of the file that contains versioning information of an <see cref="RocksDbStore"/> to check for compatibility.
         /// </summary>
         public const string VersionFileName = "KeyValueStoreVersion";
 
@@ -144,10 +201,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <summary>
         /// The version of the <see cref="KeyValueStoreAccessor"/> represented by a string.
-        /// This reflects the version of the underlying <see cref="IBuildXLKeyValueStore"/> implementation.
+        /// This reflects the version of the underlying <see cref="RocksDbStore"/> implementation.
         /// </summary>
         /// <remarks>
-        /// The string name of the underlying <see cref="IBuildXLKeyValueStore"/> is included to ensure that swapping
+        /// The string name of the underlying <see cref="RocksDbStore"/> is included to ensure that swapping
         /// the implementation causes a version change.
         /// </remarks>
         private static string AccessorVersionString => nameof(RocksDbStore) + RocksDbStore.Version.ToString();
@@ -672,7 +729,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// on failure, a <see cref="Failure"/>.
         /// </returns>
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
-        public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> use, TState state)
+        public Possible<TResult> Use<TState, TResult>(Func<RocksDbStore, TState, TResult> use, TState state)
         {
             using (m_rwl.AcquireReadLock())
             {
@@ -712,7 +769,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// on failure, a <see cref="Failure"/>.
         /// </returns>
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
-        public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, TResult> use)
+        public Possible<TResult> Use<TResult>(Func<RocksDbStore, TResult> use)
         {
             return Use(
                 static (store, propagatedUse) =>propagatedUse(store),
@@ -730,7 +787,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// on failure, a <see cref="Failure"/>.
         /// </returns>
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
-        public Possible<Unit> Use(Action<IBuildXLKeyValueStore> use)
+        public Possible<Unit> Use(Action<RocksDbStore> use)
         {
             return Use(
                 static (store, propagatedUse) =>

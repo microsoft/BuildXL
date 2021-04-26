@@ -296,6 +296,7 @@ export namespace DropDaemonRunner {
 
     function overrideMustRunOnOrchestrator(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
         return args.override<Transformer.IpcSendArguments>({
+            mustRunOnMaster: true,
             mustRunOnOrchestrator: true
         });
     }

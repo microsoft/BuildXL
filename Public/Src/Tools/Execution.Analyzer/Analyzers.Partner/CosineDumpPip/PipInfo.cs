@@ -295,7 +295,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         public bool IsServiceFinalization { get; set; }
 
         [DataMember]
-        public bool MustRunOnMaster { get; set; }
+        public bool MustRunOnOrchestrator { get; set; }
     }
 
     [DataContract]

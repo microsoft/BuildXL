@@ -49,8 +49,11 @@ namespace Transformer {
         lazilyMaterializedDependencies?: Input[];
 
         /**
-         * Whether this pip must execute on the master node in a distributed build.  Defaults to false.
+         * Whether this pip must execute on the orchestrator node in a distributed build.  Defaults to false.
          */
+        mustRunOnOrchestrator?: boolean;
+
+        @@obsolete("Please use mustRunOnOrchestrator")
         mustRunOnMaster?: boolean;
 
         /** Arbitrary tags */

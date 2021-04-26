@@ -38,6 +38,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_ipcSendConnectRetryDelayMillis;
         private SymbolAtom m_ipcSendLazilyMaterializedDependencies;
         private SymbolAtom m_ipcSendMustRunOnMaster;
+        private SymbolAtom m_ipcSendMustRunOnOrchestrator;
         private SymbolAtom m_ipcSendResultOutputFile;
         private PathAtom m_ipcObjectFolderName;
         private PathAtom m_ipcOutputFileName;
@@ -73,7 +74,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_ipcSendConnectRetryDelayMillis = Symbol("connectRetryDelayMillis");
             m_ipcSendLazilyMaterializedDependencies = Symbol("lazilyMaterializedDependencies");
             m_ipcSendMustRunOnMaster = Symbol("mustRunOnMaster");
-            
+            m_ipcSendMustRunOnOrchestrator = Symbol("mustRunOnOrchestrator");
+
             // IpcSendResult
             m_ipcSendResultOutputFile = Symbol("outputFile");
             m_ipcObjectFolderName = PathAtom.Create(StringTable, "ipc");
@@ -181,8 +183,10 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
             }
 
-            // must run on master
-            var mustRunOnMaster = Converter.ExtractOptionalBoolean(obj, m_ipcSendMustRunOnMaster) == true;
+            // must run on orchestrator
+            var mustRunOnOrchestrator = 
+                Converter.ExtractOptionalBoolean(obj, m_ipcSendMustRunOnOrchestrator) == true
+                || Converter.ExtractOptionalBoolean(obj, m_ipcSendMustRunOnMaster) == true;
 
             outputFile = FileArtifact.CreateOutputFile(output);
 
@@ -196,7 +200,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 directoryDependencies : directoryDependencies,
                 skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.FromWithoutCopy(skipMaterializationArtifacts),
                 isServiceFinalization: isServiceFinalization,
-                mustRunOnMaster: mustRunOnMaster,
+                mustRunOnOrchestrator: mustRunOnOrchestrator,
                 tags: tags,
                 out var ipcPip);
 

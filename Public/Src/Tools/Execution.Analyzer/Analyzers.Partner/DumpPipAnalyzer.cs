@@ -604,7 +604,7 @@ namespace BuildXL.Execution.Analyzer
                 m_html.CreateRow("LazilyMaterialized File Dependencies", pip.LazilyMaterializedDependencies.Where(a => a.IsFile).Select(a => a.FileArtifact)),
                 m_html.CreateRow("LazilyMaterialized Directory Dependencies", pip.LazilyMaterializedDependencies.Where(a => a.IsDirectory).Select(a => a.DirectoryArtifact)),
                 m_html.CreateRow("IsServiceFinalization", pip.IsServiceFinalization),
-                m_html.CreateRow("MustRunOnMaster", pip.MustRunOnMaster));
+                m_html.CreateRow("MustRunOnOrchestrator", pip.MustRunOnOrchestrator));
         }
 
         private XElement GetValuePipDetails(ValuePip pip)

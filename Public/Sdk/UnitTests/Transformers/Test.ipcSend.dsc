@@ -24,7 +24,7 @@ namespace Sdk.Tests {
             lazilyMaterializedDependencies: [],
             messageBody: [],
             outputFile: p`out/stdout-finalization.txt`,
-            mustRunOnMaster: true,
+            mustRunOnOrchestrator: true,
             targetService: undefined
         };
 
@@ -48,7 +48,7 @@ namespace Sdk.Tests {
             messageBody: [],
             outputFile: p`out/stdout1.txt`,
             targetService: servicePip.serviceId,
-            mustRunOnMaster: true
+            mustRunOnOrchestrator: true
         });
 
         Transformer.ipcSend({
@@ -60,7 +60,7 @@ namespace Sdk.Tests {
             messageBody: [],
             outputFile: p`out/stdout2.txt`,
             targetService: servicePip.serviceId,
-            mustRunOnMaster: false
+            mustRunOnOrchestrator: false
         });
     }
 }

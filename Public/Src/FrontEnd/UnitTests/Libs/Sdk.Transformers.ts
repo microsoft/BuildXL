@@ -287,7 +287,12 @@ namespace Transformer {
         /**
          * Whether this pip must execute on the master node in a distributed build.  Defaults to false.
          */
-        mustRunOnMaster?: boolean;
+         mustRunOnOrchestrator?: boolean;
+
+        /**
+         * Deprecated: use mustRunOnOrchestrator.
+         */
+         mustRunOnMaster?: boolean;
 
         /** Arbitrary tags */
         tags?: string[];

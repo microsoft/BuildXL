@@ -106,7 +106,7 @@ function startService(args: UberArguments, startCommand: string, shutdownCmdName
     );
     const shutdownCmd = getExecuteArguments(shutdownCmdName, connectArgs);
     const finalizeCmd = finalizationCmdName !== undefined
-        ? getIpcArguments(connectArgs, finalizationCmdName, connectArgs, overrideMustRunOnMaster)
+        ? getIpcArguments(connectArgs, finalizationCmdName, connectArgs, overrideMustRunOnOrchestrator)
         : undefined;
 
     const result = Transformer.createService(
@@ -148,7 +148,7 @@ function createSymbol(args: SymbolCreateArguments): SymbolCreateResult {
         symbolStartResult,
         "create",
         <UberArguments>args,
-        overrideMustRunOnMaster
+        overrideMustRunOnOrchestrator
     );
 
     // return aggregate info
@@ -355,9 +355,9 @@ function indexSymbolFilesInDirectories(directories: OpaqueDirectory[], createRes
     return Transformer.execute(executeArguments).getOutputFile(outputPath);
 }
 
-function overrideMustRunOnMaster(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
+function overrideMustRunOnOrchestrator(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
     return args.override<Transformer.IpcSendArguments>({
-        mustRunOnMaster: true
+        mustRunOnOrchestrator: true
     });
 }
 

@@ -412,7 +412,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 new PropertyAssignment("messageBody", Generate(pip.MessageBody)),
                 new PropertyAssignment("outputFile", Generate(pip.OutputFile)),
                 new PropertyAssignment("isServiceFinalization", Generate(pip.IsServiceFinalization)),
-                new PropertyAssignment("mustRunOnMaster", Generate(pip.MustRunOnMaster)),
+                new PropertyAssignment("mustRunOnOrchestrator", Generate(pip.MustRunOnOrchestrator)),
             };
 
             return new CallExpression(

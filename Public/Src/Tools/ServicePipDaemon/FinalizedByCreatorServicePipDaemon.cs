@@ -22,7 +22,7 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     /// <remarks> 
     /// Daemons of this type must ensure that 'Create' and 'Finalize' are called from the same instance, lest 'Finalize' fails
-    /// (e.g. both SymbolDaemon and DropDaemon set mustRunOnMaster = true for both operations).
+    /// (e.g. both SymbolDaemon and DropDaemon set mustRunOnOrchestrator = true for both operations).
     /// </remarks>
     public abstract class FinalizedByCreatorServicePipDaemon : ServicePipDaemon
     {

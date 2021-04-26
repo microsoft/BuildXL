@@ -455,7 +455,7 @@ namespace BuildXL.Pips
             ReadOnlyArray<DirectoryArtifact> directoryDependencies,
             ReadOnlyArray<FileOrDirectoryArtifact> skipMaterializationFor,
             bool isServiceFinalization,
-            bool mustRunOnMaster,
+            bool mustRunOnOrchestrator,
             string[] tags,
             out IpcPip ipcPip)
         {
@@ -469,7 +469,7 @@ namespace BuildXL.Pips
                 directoryDependencies: directoryDependencies,
                 skipMaterializationFor: skipMaterializationFor,
                 isServiceFinalization: isServiceFinalization,
-                mustRunOnMaster: mustRunOnMaster,
+                mustRunOnOrchestrator: mustRunOnOrchestrator,
                 tags: ToStringIds(tags),
                 provenance: CreatePipProvenance(string.Empty)
             );

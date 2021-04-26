@@ -437,7 +437,7 @@ namespace BuildXL.Execution.Analyzer
                 FileDependencies = pip.FileDependencies.Select(x => x.Path.ToString(PathTable)).ToList(),
                 LazilyMaterializedDependencies = pip.LazilyMaterializedDependencies.Select(x => x.Path.ToString(PathTable)).ToList(),
                 IsServiceFinalization = pip.IsServiceFinalization,
-                MustRunOnMaster = pip.MustRunOnMaster
+                MustRunOnOrchestrator = pip.MustRunOnOrchestrator
             };
             ipcPipDetails.ServicePipDependencies = ipcPipDetails.ServicePipDependencies.Any() ? ipcPipDetails.ServicePipDependencies : null;
             ipcPipDetails.FileDependencies = ipcPipDetails.FileDependencies.Any() ? ipcPipDetails.FileDependencies : null;

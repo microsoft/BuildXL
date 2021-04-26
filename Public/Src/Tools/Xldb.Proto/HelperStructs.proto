@@ -753,8 +753,8 @@ message IpcPip{
     // Whether this pip is used as a finalization of a service pip
     bool IsServiceFinalization = 8;
 
-    // Whether this pip must be executed on master in a distributed build
-    bool MustRunOnMaster = 9;
+    // Whether this pip must be executed on orchestrator in a distributed build
+    bool MustRunOnOrchestrator = 9;
 
     // Tags of the pip
     repeated string Tags = 10;

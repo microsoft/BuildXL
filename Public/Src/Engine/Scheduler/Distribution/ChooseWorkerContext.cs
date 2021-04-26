@@ -118,7 +118,7 @@ namespace BuildXL.Scheduler.Distribution
                 return true;
             }
 
-            return runnablePip.PipType == PipType.Ipc && ((IpcPip)runnablePip.Pip).MustRunOnMaster;
+            return runnablePip.PipType == PipType.Ipc && ((IpcPip)runnablePip.Pip).MustRunOnOrchestrator;
         }
 
         protected void TogglePauseChooseWorkerQueue(bool pause, RunnablePip blockedPip = null)

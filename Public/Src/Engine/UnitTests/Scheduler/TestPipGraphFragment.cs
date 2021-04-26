@@ -200,7 +200,7 @@ namespace Test.BuildXL.Scheduler
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
                 skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.Empty,
                 isServiceFinalization: isServiceFinalization,
-                mustRunOnMaster: false,
+                mustRunOnOrchestrator: false,
                 tags: new string[0],
                 out IpcPip ipcPip))
             {

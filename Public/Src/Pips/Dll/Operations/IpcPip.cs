@@ -24,7 +24,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<FileOrDirectoryArtifact> skipMaterializationFor,
             ReadOnlyArray<StringId> tags,
             bool isServiceFinalization,
-            bool mustRunOnMaster,
+            bool mustRunOnOrchestrator,
             PipProvenance provenance)
         {
             Contract.Requires(ipcInfo != null);
@@ -46,7 +46,7 @@ namespace BuildXL.Pips.Operations
             LazilyMaterializedDependencies = skipMaterializationFor;
             Tags = tags;
             IsServiceFinalization = isServiceFinalization;
-            MustRunOnMaster = mustRunOnMaster;
+            MustRunOnOrchestrator = mustRunOnOrchestrator;
             Provenance = provenance;
             DirectoryDependencies = directoryDependencies;
         }
@@ -105,8 +105,8 @@ namespace BuildXL.Pips.Operations
         /// <summary>Whether this pip is used as a finalization of a service pip</summary>
         public bool IsServiceFinalization { get; }
 
-        /// <summary>Whether this pip must be executed on master in a distributed build.</summary>
-        public bool MustRunOnMaster { get; }
+        /// <summary>Whether this pip must be executed on orchestrator in a distributed build.</summary>
+        public bool MustRunOnOrchestrator { get; }
 
         /// <summary>
         /// Clone and override select properties.
@@ -121,7 +121,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<FileOrDirectoryArtifact>? lazilyMaterializedDependencies = null,
             ReadOnlyArray<StringId>? tags = null,
             bool? isServiceFinalization = null,
-            bool? mustRunOnMaster = null,
+            bool? mustRunOnOrchestrator = null,
             PipProvenance provenance = null)
         {
             return new IpcPip(
@@ -134,7 +134,7 @@ namespace BuildXL.Pips.Operations
                 lazilyMaterializedDependencies ?? LazilyMaterializedDependencies,
                 tags ?? Tags,
                 isServiceFinalization ?? IsServiceFinalization,
-                mustRunOnMaster ?? MustRunOnMaster,
+                mustRunOnOrchestrator ?? MustRunOnOrchestrator,
                 provenance ?? Provenance);
         }
 
@@ -155,7 +155,7 @@ namespace BuildXL.Pips.Operations
             IEnumerable<DirectoryArtifact> directoryDependencies = null,
             IEnumerable<StringId> tags = null,
             bool isServiceFinalization = false,
-            bool mustRunOnMaster = false)
+            bool mustRunOnOrchestrator = false)
         {
             var stdoutPath = workingDir.Combine(context.PathTable, PathAtom.Create(context.StringTable, "stdout.txt"));
             var stdoutFile = outputFile.IsValid ? outputFile : FileArtifact.CreateOutputFile(stdoutPath);
@@ -173,7 +173,7 @@ namespace BuildXL.Pips.Operations
                 skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.Empty,
                 tags: ToReadOnlyArray(tags),
                 isServiceFinalization: isServiceFinalization,
-                mustRunOnMaster: mustRunOnMaster,
+                mustRunOnOrchestrator: mustRunOnOrchestrator,
                 provenance: provenance);
         }
 
@@ -197,7 +197,7 @@ namespace BuildXL.Pips.Operations
                 skipMaterializationFor: reader.ReadReadOnlyArray(reader1 => reader1.ReadFileOrDirectoryArtifact()),
                 tags: reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
                 isServiceFinalization: reader.ReadBoolean(),
-                mustRunOnMaster: reader.ReadBoolean(),
+                mustRunOnOrchestrator: reader.ReadBoolean(),
                 provenance: hasProvenance ? reader.ReadPipProvenance() : null);
         }
 
@@ -214,7 +214,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(LazilyMaterializedDependencies, (w, v) => w.Write(v));
             writer.Write(Tags, (w, v) => w.Write(v));
             writer.Write(IsServiceFinalization);
-            writer.Write(MustRunOnMaster);
+            writer.Write(MustRunOnOrchestrator);
             if (hasProvenance)
             {
                 writer.Write(Provenance);

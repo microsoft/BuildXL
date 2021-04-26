@@ -134,7 +134,7 @@ export namespace DropDaemonRunner {
         );
         const shutdownCmd = getExecuteArguments(shutdownCmdName, connectArgs);
         const finalizeCmd = finalizationCmdName !== undefined 
-            ? getDropdCommandIpcArguments(connectArgs, finalizationCmdName, connectArgs, overrideMustRunOnMaster)
+            ? getDropdCommandIpcArguments(connectArgs, finalizationCmdName, connectArgs, overrideMustRunOnOrchestrator)
             : undefined;
         
         const result = Transformer.createService(
@@ -183,7 +183,7 @@ export namespace DropDaemonRunner {
             dropStartResult,
             "create",
             <UberArguments>args,
-            overrideMustRunOnMaster
+            overrideMustRunOnOrchestrator
         );
         
         // return aggregate info
@@ -294,9 +294,9 @@ export namespace DropDaemonRunner {
     }
 
 
-    function overrideMustRunOnMaster(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
+    function overrideMustRunOnOrchestrator(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
         return args.override<Transformer.IpcSendArguments>({
-            mustRunOnMaster: true
+            mustRunOnOrchestrator: true
         });
     }
 

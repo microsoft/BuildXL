@@ -23,7 +23,7 @@ Transformer.ipcSend({
     },
     outputFile: f`./Out/stdout-finalization.txt`,
     isServiceFinalization: true,
-    mustRunOnMaster: true,
+    mustRunOnOrchestrator: true,
 });
 Transformer.createService({
     tool: {exe: f`./src/tool/tool.exe`},
@@ -50,7 +50,7 @@ Transformer.ipcSend({
     },
     outputFile: f`./Out/stdout1.txt`,
     isServiceFinalization: false,
-    mustRunOnMaster: true,
+    mustRunOnOrchestrator: true,
 });
 Transformer.ipcSend({
     connectRetryDelayMillis: 1000,
@@ -64,5 +64,5 @@ Transformer.ipcSend({
     },
     outputFile: f`./Out/stdout2.txt`,
     isServiceFinalization: false,
-    mustRunOnMaster: false,
+    mustRunOnOrchestrator: false,
 });

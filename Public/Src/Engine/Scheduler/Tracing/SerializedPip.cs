@@ -202,7 +202,7 @@ namespace BuildXL.Scheduler.Tracing
         public List<string> LazilyMaterializedFileDependencies { get; set; }
         public List<string> LazilyMaterializedDirectoryDependencies { get; set; }
         public bool IsServiceFinalization { get; set; }
-        public bool MustRunOnMaster { get; set; }
+        public bool MustRunOnOrchestrator { get; set; }
     }
     #endregion IpcSpecificDetails
 

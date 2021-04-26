@@ -337,7 +337,7 @@ namespace BuildXL.Scheduler.Tracing
                 LazilyMaterializedFileDependencies = pip.LazilyMaterializedDependencies.Where(a => a.IsFile && a.IsValid).Select(a => a.FileArtifact.Path.ToString(pathTable)).ToList(),
                 LazilyMaterializedDirectoryDependencies = pip.LazilyMaterializedDependencies.Where(a => a.IsDirectory && a.IsValid).Select(a => a.DirectoryArtifact.Path.ToString(pathTable)).ToList(),
                 IsServiceFinalization = pip.IsServiceFinalization,
-                MustRunOnMaster = pip.MustRunOnMaster,
+                MustRunOnOrchestrator = pip.MustRunOnOrchestrator,
             };
         }
         #endregion IpcSpecificDetails

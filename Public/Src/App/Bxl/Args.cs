@@ -1553,7 +1553,7 @@ namespace BuildXL
             }
 
             // If RelatedActivityId is populated, use it as a seed for random number generation
-            // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
+            // so that we can use the same abTesting args for orchestrator-workers and different build phases (enlist, meta, product).
             Random randomGen = null;
             if (string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
             {

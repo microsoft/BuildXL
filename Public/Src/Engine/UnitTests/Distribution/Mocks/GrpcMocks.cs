@@ -31,7 +31,7 @@ namespace Test.BuildXL.Distribution
                 CachedGraphDescriptor = new PipGraphCacheDescriptor(),
                 SessionId = Guid.NewGuid().ToString(),
                 FingerprintSalt = "salt",
-                MasterLocation = new ServiceLocation()
+                OrchestratorLocation = new ServiceLocation()
                 {
                     IpAddress = "192.168.1.1",
                     Port = 9090

@@ -74,10 +74,10 @@ The following is the gRPC activity during the attachment process. Note that the 
 [1:52.467] Grpc: [SELF -> MW1APS19799544:89] 3411ab4c-e508-45d9-9267-6ab7b1394e94 Call#1. Attach.
 [1:52.555] Grpc: [SELF -> MW1APS19798679:89] 7ae8b153-acaf-40be-82f5-21c7dcfdd838 Sent#1. Duration: 91ms.
 [1:52.559] Grpc: [SELF -> MW1APS19799544:89] 3411ab4c-e508-45d9-9267-6ab7b1394e94 Sent#1. Duration: 92ms.
-[2:02.486] Grpc: [MW1APS19798679 -> SELF] 18fe9e81-6af6-415c-9e7d-457c3bf1da17 Received: /BuildXL.Distribution.Grpc.Master/AttachCompleted.
-[2:02.486] Grpc: [MW1APS19799544 -> SELF] 7945a7eb-c26b-41b5-bcd0-551c3ac412c5 Received: /BuildXL.Distribution.Grpc.Master/AttachCompleted.
-[2:02.504] Grpc: [MW1APS19798679 -> SELF] 18fe9e81-6af6-415c-9e7d-457c3bf1da17 Responded: /BuildXL.Distribution.Grpc.Master/AttachCompleted. DurationMs: 17.
-[2:02.504] Grpc: [MW1APS19799544 -> SELF] 7945a7eb-c26b-41b5-bcd0-551c3ac412c5 Responded: /BuildXL.Distribution.Grpc.Master/AttachCompleted. DurationMs: 17.
+[2:02.486] Grpc: [MW1APS19798679 -> SELF] 18fe9e81-6af6-415c-9e7d-457c3bf1da17 Received: /BuildXL.Distribution.Grpc.Orchestrator/AttachCompleted.
+[2:02.486] Grpc: [MW1APS19799544 -> SELF] 7945a7eb-c26b-41b5-bcd0-551c3ac412c5 Received: /BuildXL.Distribution.Grpc.Orchestrator/AttachCompleted.
+[2:02.504] Grpc: [MW1APS19798679 -> SELF] 18fe9e81-6af6-415c-9e7d-457c3bf1da17 Responded: /BuildXL.Distribution.Grpc.Orchestrator/AttachCompleted. DurationMs: 17.
+[2:02.504] Grpc: [MW1APS19799544 -> SELF] 7945a7eb-c26b-41b5-bcd0-551c3ac412c5 Responded: /BuildXL.Distribution.Grpc.Orchestrator/AttachCompleted. DurationMs: 17.
 ```
 
 **Logs from a worker (`MW1APS19799544`)**:
@@ -109,8 +109,8 @@ Shown here are a request for pip execution and some reporting back from the work
 ```log
 [2:09.933] Grpc: [SELF -> MW1APS19799544:89] 39e1801d-551a-4ec6-8fe6-0954e1f919c6 Call#1. ExecutePips: DA3F6771D1546866, 5C0DAD11AAC0D4BB, 56EE06CEF53E526C.
 [2:09.936] Grpc: [SELF -> MW1APS19799544:89] 39e1801d-551a-4ec6-8fe6-0954e1f919c6 Sent#1. Duration: 3ms.
-[2:09.969] Grpc: [MW1APS19799544 -> SELF] 02b41b4e-b55f-4f41-8585-0c701c5ea236 Received: /BuildXL.Distribution.Grpc.Master/Notify.
-[2:09.971] Grpc: [MW1APS19799544 -> SELF] 02b41b4e-b55f-4f41-8585-0c701c5ea236 Responded: /BuildXL.Distribution.Grpc.Master/Notify. DurationMs: 1.
+[2:09.969] Grpc: [MW1APS19799544 -> SELF] 02b41b4e-b55f-4f41-8585-0c701c5ea236 Received: /BuildXL.Distribution.Grpc.Orchestrator/Notify.
+[2:09.971] Grpc: [MW1APS19799544 -> SELF] 02b41b4e-b55f-4f41-8585-0c701c5ea236 Responded: /BuildXL.Distribution.Grpc.Orchestrator/Notify. DurationMs: 1.
 ```
 
 **`BuildXL.DistributionRpc.log` logs from the worker (`MW1APS19799544`)**:
@@ -132,8 +132,8 @@ Note that the RPC to the orchestrator is the same as when reporting execution re
 
 **Orchestrator**:
 ```log
-[1:25:35.989] verbose DX7029: Grpc: [MW1APS19799544 -> SELF] f37d5550-716d-41ae-b403-4b315309c16b Received: /BuildXL.Distribution.Grpc.Master/Notify.
-[1:25:35.989] verbose DX7029: Grpc: [MW1APS19799544 -> SELF] f37d5550-716d-41ae-b403-4b315309c16b Responded: /BuildXL.Distribution.Grpc.Master/Notify. DurationMs: 0.
+[1:25:35.989] verbose DX7029: Grpc: [MW1APS19799544 -> SELF] f37d5550-716d-41ae-b403-4b315309c16b Received: /BuildXL.Distribution.Grpc.Orchestrator/Notify.
+[1:25:35.989] verbose DX7029: Grpc: [MW1APS19799544 -> SELF] f37d5550-716d-41ae-b403-4b315309c16b Responded: /BuildXL.Distribution.Grpc.Orchestrator/Notify. DurationMs: 0.
 ```
 
 **Orchestrator's `BuildXL.log`**:

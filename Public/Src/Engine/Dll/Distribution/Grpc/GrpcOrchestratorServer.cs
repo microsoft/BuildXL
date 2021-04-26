@@ -16,7 +16,7 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// <summary>
     /// Orchestrator service impl
     /// </summary>
-    public sealed class GrpcOrchestratorServer : Master.MasterBase, IServer
+    public sealed class GrpcOrchestratorServer : Orchestrator.OrchestratorBase, IServer
     {
         private readonly OrchestratorService m_orchestratorService;
         private readonly LoggingContext m_loggingContext;
@@ -40,7 +40,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             var interceptor = new ServerInterceptor(m_loggingContext, m_buildId);
             m_server = new Server(ClientConnectionManager.ServerChannelOptions)
             {
-                Services = { Master.BindService(this).Intercept(interceptor) },
+                Services = { Orchestrator.BindService(this).Intercept(interceptor) },
                 Ports = { new ServerPort(IPAddress.Any.ToString(), port, ServerCredentials.Insecure) },
             };
             m_server.Start();

@@ -2,8 +2,8 @@
 
 package BuildXL.Distribution.Grpc;
 
-// Defines the service for talking to the builder master process
-service Master {
+// Defines the service for talking to the builder orchestrator process
+service Orchestrator {
     // Signals the completion of the Attach call
     rpc AttachCompleted(AttachCompletionInfo) returns (RpcResponse) {}
 
@@ -74,7 +74,7 @@ message PipCompletionData
     int64 StartTimeTicks = 7;
 }
 
-// Events that have been logged on workers and are transited to the master. Any changes here may require changes
+// Events that have been logged on workers and are transited to the orchestrator. Any changes here may require changes
 // to TrackingEventListener.cs
 message EventMessage
 {
@@ -112,7 +112,7 @@ message WorkerNotificationArgs
     // The completed pips
     repeated PipCompletionData CompletedPips = 2;
 
-    // The events forwarded to the master
+    // The events forwarded to the orchestrator
     repeated EventMessage ForwardedEvents = 3;
 
     // Data logged to the execution log on the worker
@@ -137,8 +137,8 @@ message BuildStartData
     // The session identifier
     string SessionId = 4;
 
-    // Service locations of master
-    ServiceLocation MasterLocation = 5;
+    // Service locations of orchestrator
+    ServiceLocation OrchestratorLocation = 5;
 
     // Environment variables
     map<string, string> EnvironmentVariables = 6;

@@ -185,10 +185,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                     SymbolTable = message.CachedGraphDescriptor.SymbolTable?.Data.ToByteString() ?? ByteString.Empty,
                 },
                 FingerprintSalt = message.FingerprintSalt,
-                MasterLocation = new ServiceLocation()
+                OrchestratorLocation = new ServiceLocation()
                 {
-                    IpAddress = message.MasterLocation.IpAddress,
-                    Port = message.MasterLocation.Port
+                    IpAddress = message.OrchestratorLocation.IpAddress,
+                    Port = message.OrchestratorLocation.Port
                 },
                 SessionId = message.SessionId,
                 SymlinkFileContentHash = message.SymlinkFileContentHash.Data.ToByteString()
@@ -227,10 +227,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 },
                 EnvironmentVariables = message.EnvironmentVariables.ToDictionary(a => a.Key, a => a.Value),
                 FingerprintSalt = message.FingerprintSalt,
-                MasterLocation = new OpenBond.ServiceLocation()
+                OrchestratorLocation = new OpenBond.ServiceLocation()
                 {
-                    IpAddress = message.MasterLocation.IpAddress,
-                    Port = message.MasterLocation.Port
+                    IpAddress = message.OrchestratorLocation.IpAddress,
+                    Port = message.OrchestratorLocation.Port
                 },
                 SessionId = message.SessionId,
                 SymlinkFileContentHash = message.SymlinkFileContentHash.ToBondContentHash(),

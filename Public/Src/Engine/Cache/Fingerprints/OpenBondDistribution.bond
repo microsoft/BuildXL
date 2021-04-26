@@ -26,8 +26,8 @@ struct BuildStartData
     /// The session identifier
     5: string SessionId;
 
-    /// Service locations of master
-    10: ServiceLocation MasterLocation;
+    /// Service locations of orchestrator
+    10: ServiceLocation OrchestratorLocation;
 
 	/// Environment variables
 	11: map<string, string> EnvironmentVariables;
@@ -132,7 +132,7 @@ struct PipProcessErrorEvent
     11: string ShortPipDescription;
 }
 
-/// Events that have been logged on workers and are transited to the master. Any changes here may require changes
+/// Events that have been logged on workers and are transited to the orchestrator. Any changes here may require changes
 /// to TrackingEventListener.cs
 struct EventMessage
 {
@@ -168,7 +168,7 @@ struct WorkerNotificationArgs
     /// The completed pips
     2: vector<PipCompletionData> CompletedPips;
 
-    // The events forwarded to the master
+    // The events forwarded to the orchestrator
     3: vector<EventMessage> ForwardedEvents;
 
 	/// Data logged to the execution log on the worker

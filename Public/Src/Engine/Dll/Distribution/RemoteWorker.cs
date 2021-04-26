@@ -397,7 +397,7 @@ namespace BuildXL.Engine.Distribution
                 CachedGraphDescriptor = m_orchestratorService.CachedGraphDescriptor,
                 SymlinkFileContentHash = m_orchestratorService.SymlinkFileContentHash.ToBondContentHash(),
                 FingerprintSalt = m_orchestratorService.Environment.ContentFingerprinter.FingerprintSalt,
-                MasterLocation = new ServiceLocation
+                OrchestratorLocation = new ServiceLocation
                 {
                     IpAddress = Dns.GetHostName(),
                     Port = m_orchestratorService.Port,

@@ -256,7 +256,7 @@ namespace BuildXL.Engine.Distribution
                 new LoggingContext.SessionInfo(buildStartData.SessionId, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
                 m_appLoggingContext);
 
-            m_orchestratorClient.Initialize(buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
+            m_orchestratorClient.Initialize(buildStartData.OrchestratorLocation.IpAddress, buildStartData.OrchestratorLocation.Port, OnConnectionTimeOutAsync);
 
             WorkerId = BuildStartData.WorkerId;
             m_attachCompletionSource.TrySetResult(true);

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -260,13 +261,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                     var hashInfo = getBulkResult.ContentHashesInfo.Single();
 
-                    var checkBulkResult = CheckBulkResult(operationContext, hashInfo, log: getBulkResult.Origin == GetBulkOrigin.Global);
-                    if (!checkBulkResult.Succeeded)
+                    if (!CanCopyContentHash(operationContext, hashInfo, isGlobal: getBulkResult.Origin == GetBulkOrigin.Global, out var useInRingLocations, out var errorMessage))
                     {
-                        return new BoolResult(checkBulkResult);
+                        return new BoolResult(errorMessage);
                     }
 
-                    var copyResult = await TryCopyAndPutAsync(operationContext, hashInfo, urgencyHint, CopyReason.OpenStream, trace: false);
+                    // Using in-ring machines if configured
+                    var copyResult = await TryCopyAndPutAsync(operationContext, hashInfo, urgencyHint, CopyReason.OpenStream, trace: false, useInRingLocations);
                     if (!copyResult)
                     {
                         return new BoolResult(copyResult);
@@ -652,53 +653,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         {
                             var contentHashWithSizeAndLocations = indexed.Item;
                             PlaceFileResult result;
-                            if (contentHashWithSizeAndLocations.Locations == null)
+
+                            if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: !isLocal, out var useInRingMachineLocations, out var errorMessage))
                             {
-                                var message = $"No replicas ever registered for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}";
-
-                                if (isLocal)
-                                {
-                                    // Trace only for locations obtained from the local store.
-                                    Tracer.Warning(context, message);
-                                }
-
-                                result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, message);
-                            }
-                            else if (contentHashWithSizeAndLocations.Locations.Count == 0)
-                            {
-                                var message = $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}";
-
-                                if (isLocal)
-                                {
-                                    // Trace only for locations obtained from the local store.
-                                    Tracer.Warning(context, message);
-                                }
-
-                                result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, message);
+                                result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage);
                             }
                             else
                             {
-                                var putResult = await TryCopyAndPutAsync(
+                                var copyResult = await TryCopyAndPutAsync(
                                     context,
                                     contentHashWithSizeAndLocations,
                                     urgencyHint,
                                     reason,
                                     // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
-                                    trace: false);
-                                if (!putResult)
+                                    trace: false,
+                                    // Using in-ring locations as well if the feature is on.
+                                    useInRingMachineLocationos: useInRingMachineLocations);
+
+                                if (!copyResult)
                                 {
-                                    result = new PlaceFileResult(putResult);
+                                    result = new PlaceFileResult(copyResult);
                                 }
                                 else
                                 {
-                                    result = new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithMove, putResult.ContentSize);
+                                    result = new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithMove, copyResult.ContentSize);
                                 }
-
                             }
 
                             return result.WithIndex(indexed.Index);
+
                         },
-                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Settings.ParallelCopyFilesLimit, });
+                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Settings.ParallelCopyFilesLimit });
 
                 // TODO: Better way ? (bug 1365340)
                 copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
@@ -725,33 +710,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private BoolResult CheckBulkResult(Context context, ContentHashWithSizeAndLocations result, bool log = true)
+        private bool CanCopyContentHash(Context context, ContentHashWithSizeAndLocations result, bool isGlobal, out bool useInRingMachineLocations, [NotNullWhen(false)]out string? message)
         {
-            // Null represents no replicas were ever registered, where as empty list implies content is missing from all replicas
-            if (result.Locations == null)
+            useInRingMachineLocations = isGlobal && Settings.UseInRingMachinesForCopies;
+            if (!isLocationsAvailable(out message))
             {
-                if (log)
+                if (useInRingMachineLocations && _buildRingMachines.Length != 0)
                 {
-                    Tracer.Warning(context, $"No replicas found in content tracker for hash {result.ContentHash.ToShortString()}");
+                    string useInRingLocationsMessage = $", but {nameof(Settings.UseInRingMachinesForCopies)} is true. Trying to copy the content from in-ring machines.";
+                    Tracer.Debug(context, message + useInRingLocationsMessage);
+                    // Still trying copying the content from in-ring machines, even though the location information is lacking.
+                    return true;
                 }
 
-                return new BoolResult($"No replicas registered for hash");
-            }
-
-            if (!result.Locations.Any())
-            {
-                if (log)
+                // Tracing only for global locations because they come last.
+                if (isGlobal)
                 {
-                    Tracer.Warning(context, $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}");
+                    Tracer.Warning(context, message);
                 }
 
-                return new BoolResult($"Content for hash is missing from all replicas");
+                return false;
             }
 
-            return BoolResult.Success;
+            return true;
+
+            bool isLocationsAvailable([NotNullWhen(false)] out string? errorMessage)
+            {
+                errorMessage = null;
+                // Null represents no replicas were ever registered, where as empty list implies content is missing from all replicas
+                if (result.Locations == null)
+                {
+                    errorMessage = $"No replicas registered for hash {result.ContentHash.ToShortString()}";
+                    return false;
+                }
+
+                if (!result.Locations.Any())
+                {
+                    errorMessage = $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}";
+                    return false;
+                }
+
+                return true;
+            }
         }
 
-        private async Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashInfo, UrgencyHint urgencyHint, CopyReason reason, bool trace)
+        private async Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashInfo, UrgencyHint urgencyHint, CopyReason reason, bool trace, bool useInRingMachineLocationos = false)
         {
             Context context = operationContext;
             CancellationToken cts = operationContext.Token;
@@ -770,7 +773,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     using (var stream = new MemoryStream(smallFileResult.Blob))
                     {
                         return await Inner.PutStreamAsync(context, hashInfo.ContentHash, stream, cts, urgencyHint);
-
                     }
                 }
             }
@@ -783,13 +785,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 copyCompression = Settings.GrpcCopyCompressionAlgorithm;
             }
+            
             var copyRequest = new DistributedContentCopier.CopyRequest(
                 _copierHost,
                 hashInfo,
                 reason,
                 HandleCopyAsync: async args =>
                 {
-                    (CopyFileResult copyFileResult, AbsolutePath tempLocation, int attemptCount) = args;
+                    (CopyFileResult copyFileResult, AbsolutePath tempLocation, _) = args;
 
                     PutResult innerPutResult;
                     long actualSize = copyFileResult.Size ?? hashInfo.Size;
@@ -853,6 +856,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     return innerPutResult;
                 },
                 copyCompression);
+
+            if (useInRingMachineLocationos)
+            {
+                copyRequest = copyRequest with { InRingMachines = _buildRingMachines };
+            }
 
             var putResult = await DistributedCopier.TryCopyAndPutAsync(operationContext, copyRequest);
             if (bytes != null && putResult.Succeeded)

@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using ContentStore.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
@@ -53,35 +52,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             TimeSpan.FromSeconds(60),
             TimeSpan.FromSeconds(120),
         };
-
-        /// <summary>
-        /// For file existence check, perform a quick check initially that allows iteration
-        /// over multiple replicas first.
-        /// </summary>
-        public static readonly TimeSpan FileExistenceTimeoutFastPath = TimeSpan.FromSeconds(2);
-
-        /// <summary>
-        /// following a failure in a fast file existence check, allow the client
-        /// to wait longer for file existences.
-        /// </summary>
-        public static readonly TimeSpan FileExistenceTimeoutSlowPath = TimeSpan.FromSeconds(20);
-
-        /// <summary>
-        /// The maximum time to spend doing verifications of content location records for one hash.
-        /// </summary>
-        public static readonly TimeSpan VerifyTimeout = FileExistenceTimeoutSlowPath;
-
-        private int? _proactiveReplicationParallelism = null;
-        //    PinConfiguration pinConfiguration = null,
-
-        /// <summary>
-        /// File copy replication parallelism.
-        /// </summary>
-        public int ProactiveReplicationParallelism
-        {
-            get => _proactiveReplicationParallelism.GetValueOrDefault(Environment.ProcessorCount);
-            set => _proactiveReplicationParallelism = value;
-        }
 
         /// <summary>
         /// Files smaller than this should use the untrusted hash.
@@ -279,5 +249,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Algorithm to use when a gRPC transfer is to be compressed
         /// </summary>
         public CopyCompression GrpcCopyCompressionAlgorithm { get; set; } = CopyCompression.Gzip;
+
+        /// <summary>
+        /// If true, then the in-ring machines are used as the candidates for file copies.
+        /// </summary>
+        public bool UseInRingMachinesForCopies { get; set; }
     }
 }

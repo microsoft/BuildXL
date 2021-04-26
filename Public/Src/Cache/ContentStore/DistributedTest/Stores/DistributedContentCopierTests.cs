@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -35,6 +36,57 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
         [Fact]
+        public async Task CopyFromInRingMachines()
+        {
+            var context = new Context(Logger);
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
+
+                var hash = VsoHashInfo.Instance.EmptyHash;
+                var hashWithLocations = new ContentHashWithSizeAndLocations(
+                    hash,
+                    size: 42,
+                    new MachineLocation[0]);
+
+                mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(42);
+                var result = await distributedCopier.TryCopyAndPutAsync(
+                    new OperationContext(context),
+                    hashWithLocations,
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 42)),
+                    inRingMachines: new MachineLocation[] { new MachineLocation("") });
+
+                result.ShouldBeSuccess();
+            }
+        }
+
+        [Fact]
+        public async Task CopyFailsWithNoLocations()
+        {
+            var context = new Context(Logger);
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.Zero);
+                await using var _ = await distributedCopier.StartupWithAutoShutdownAsync(context);
+
+                var hash = VsoHashInfo.Instance.EmptyHash;
+                var hashWithLocations = new ContentHashWithSizeAndLocations(
+                    hash,
+                    size: 42,
+                    new MachineLocation[0]);
+
+                mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(42);
+                var result = await distributedCopier.TryCopyAndPutAsync(
+                    new OperationContext(context),
+                    hashWithLocations,
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 42)));
+
+                result.ShouldBeError();
+            }
+        }
+
+        [Fact]
         public async Task CopyFailsForWrongCopySize()
         {
             var context = new Context(Logger);
@@ -53,8 +105,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
-                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 42))
-                );
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 42)));
 
                 result.ShouldBeError();
                 result.ErrorMessage.Should().Contain("size");
@@ -82,8 +133,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
-                    handleCopyAsync: tpl => Task.FromResult(new PutResult(wrongHash, 42))
-                );
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(wrongHash, 42)));
 
                 result.ShouldBeError();
                 result.ErrorMessage.Should().Contain(hash.ToShortString());
@@ -307,9 +357,13 @@ namespace ContentStoreTest.Distributed.Stores
             return await copier.CopyToAsync(context, sourcePath, destinationStream, options);
         }
 
-        internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
+        internal Task<PutResult> TryCopyAndPutAsync(
+            OperationContext operationContext,
+            ContentHashWithSizeAndLocations hashWithLocations,
+            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync,
+            IReadOnlyList<MachineLocation> inRingMachines = null)
         {
-            return TryCopyAndPutAsync(operationContext, new CopyRequest(this, hashWithLocations, CopyReason.None, handleCopyAsync, CopyCompression.None));
+            return TryCopyAndPutAsync(operationContext, new CopyRequest(this, hashWithLocations, CopyReason.None, handleCopyAsync, CopyCompression.None, inRingMachines));
         }
     }
 }

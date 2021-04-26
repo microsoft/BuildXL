@@ -71,7 +71,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             return new CancellableOperationContext(this, linkedCancellationToken);
         }
 
-
         /// <nodoc />
         public async Task<T> WithTimeoutAsync<T>(Func<OperationContext, Task<T>> func, TimeSpan timeout, Func<T>? getTimeoutResult = null)
             where T : ResultBase

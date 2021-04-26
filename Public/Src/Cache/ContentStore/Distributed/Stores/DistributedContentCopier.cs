@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions; // Don't remove. Needed for lower framework version because of ToHashSet.
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -48,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly ICopyScheduler _copyScheduler;
 
-        /// <inheritdoc />
+        /// <nodoc />
         public IAbsFileSystem FileSystem { get; }
 
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
@@ -69,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IClock clock,
             ILogger logger)
         {
-            Contract.Requires(settings != null);
             Contract.Requires(settings.ParallelHashingFileSizeBoundary >= -1);
 
             _settings = settings;
@@ -110,14 +110,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHashWithSizeAndLocations HashInfo,
             CopyReason Reason,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> HandleCopyAsync,
-            CopyCompression CopyCompression);
+            CopyCompression CopyCompression,
+            // Optional list of machines in the build ring that can be also used to copy data from.
+            IReadOnlyList<MachineLocation>? InRingMachines = null)
+        {
+            /// <summary>
+            /// Gets all the locations of the content including in-ring machines.
+            /// </summary>
+            public IReadOnlyList<MachineLocation> GetAllLocationCandidates()
+            {
+                if (HashInfo.Locations == null)
+                {
+                    return InRingMachines ?? Array.Empty<MachineLocation>();
+                }
 
-        /// <inheritdoc />
+                if (InRingMachines == null || InRingMachines.Count == 0)
+                {
+                    return HashInfo.Locations;
+                }
+                
+                var hs = HashInfo.Locations.ToHashSet();
+                var uniqueInRingMachines = InRingMachines.Where(l => !hs.Contains(l)).ToList();
+
+                if (uniqueInRingMachines.Count == 0)
+                {
+                    return HashInfo.Locations;
+                }
+
+                // Not using the hash set to keep the original order and move the in-ring machine locations at the end of the resulting list.
+                return HashInfo.Locations.ToList().Concat(uniqueInRingMachines).ToList();
+            }
+
+            /// <summary>
+            /// Return true, if the location index belong to an in-ring machine.
+            /// </summary>
+            public bool IsExtraMachineLocationIndex(int locationIndex)
+            {
+                return locationIndex >= (HashInfo.Locations?.Count ?? 0);
+            }
+        }
+
+        /// <nodoc />
         public async Task<PutResult> TryCopyAndPutAsync(
             OperationContext context,
             CopyRequest request)
         {
-            Contract.Requires(request.HashInfo.Locations != null);
             var hashInfo = request.HashInfo;
             var cts = context.Token;
 
@@ -126,14 +163,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult? putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
-                var lastFailureTimes = new DateTime[hashInfo.Locations.Count];
+
+                var locations = request.GetAllLocationCandidates();
+                var lastFailureTimes = new DateTime[locations.Count];
                 int attemptCount = 0;
                 int totalRetries = 0;
                 TimeSpan waitDelay = TimeSpan.Zero;
 
-                //DateTime defaults to 01/01/0001 when we initialize the array.
-                //This forloop initializes each element to the current time relative to the passed clock instance
-                //We use the time from a clock instance in case future tests try to simulate the progression of time.
+                // DateTime defaults to 01/01/0001 when we initialize the array.
+                // This for loop initializes each element to the current time relative to the passed clock instance
+                // We use the time from a clock instance in case future tests try to simulate the progression of time.
                 for (int index = 0; index < lastFailureTimes.Length; index++)
                 {
                     lastFailureTimes[index] = _clock.UtcNow;
@@ -149,7 +188,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var maxReplicaCount = attemptCount < _settings.CopyAttemptsWithRestrictedReplicas
                         ? _settings.RestrictedCopyReplicaCount
                         : int.MaxValue;
-                    maxReplicaCount = Math.Min(maxReplicaCount, hashInfo.Locations.Count);
+                    maxReplicaCount = Math.Min(maxReplicaCount, locations.Count);
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         context,
@@ -168,10 +207,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
-                    Contract.AssertNotNull(hashInfo.Locations);
-                    if (missingContentLocations.Count == hashInfo.Locations.Count)
+                    if (missingContentLocations.Count == locations.Count)
                     {
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} are reported missing. Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount)} All replicas {locations.Count} are reported missing (registered locations {hashInfo.Locations?.Count}, extra In-ring locations {locations.Count - hashInfo.Locations?.Count}). Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
                         break;
                     }
 
@@ -194,7 +232,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Log with the original attempt count
                         // Trace time remaining under trying to copy the first location of the next attempt.
                         TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[0];
-                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
+                        Tracer.Warning(context, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay - waitedTime).TotalMilliseconds : 0)}ms...");
                     }
                     else
                     {
@@ -388,9 +426,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int maxReplicaCount,
             int totalRetries)
         {
-            Contract.Requires(request.HashInfo.Locations != null);
             var workingFolder = request.Host.WorkingFolder;
             var hashInfo = request.HashInfo;
+            var locations = request.GetAllLocationCandidates();
 
             var cts = context.Token;
 
@@ -399,9 +437,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             badContentLocations.Clear();
             string? lastErrorMessage = null;
 
+            Contract.Assert(maxReplicaCount <= locations.Count);
+            
             for (int replicaIndex = 0; replicaIndex < maxReplicaCount; replicaIndex++)
             {
-                var location = hashInfo.Locations[replicaIndex];
+                var location = locations[replicaIndex];
 
                 // Currently every time we increment attemptCount's value, we go through every location in request.HashInfo and try to copy.
                 // We add one because replicaIndex is indexed from zero.
@@ -431,7 +471,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
                 }
 
-                var sourcePath = new ContentLocation(location, hashInfo.ContentHash);
+                var sourcePath = new ContentLocation(location, hashInfo.ContentHash, fromRing: request.IsExtraMachineLocationIndex(replicaIndex));
 
                 var tempLocation = AbsolutePath.CreateRandomFileName(workingFolder);
 
@@ -497,6 +537,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath.Machine}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
+                                $"fromRing=[{sourcePath.FromRing}] " +
                                 $"reason={request.Reason} " +
                                 $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
                                 $"attempt={attemptCount} replica={replicaIndex} " +

@@ -68,5 +68,6 @@ namespace Distributed {
             "BuildXL.Cache.MemoizationStore.Vsts.Test",
         ],
         skipDocumentationGeneration: true,
+        sourceGenerators: [importFrom("StructRecordGenerator").pkg],
     });
 }

@@ -37,7 +37,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Represents a location of content on a machine
     /// </summary>
-    public struct ContentLocation
+    [StructGenerators.StructRecord]
+    public readonly partial struct ContentLocation
     {
         /// <nodoc />
         public MachineLocation Machine { get; }
@@ -45,11 +46,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <nodoc />
         public ContentHash Hash { get; }
 
+        /// <summary>
+        /// If true, then the location is not a real location obtained from the local or the global store, but just a machine from the build ring.
+        /// </summary>
+        public bool FromRing { get; }
+
         /// <nodoc />
-        public ContentLocation(MachineLocation machine, ContentHash hash)
+        public ContentLocation(MachineLocation machine, ContentHash hash, bool fromRing = false)
         {
             Machine = machine;
             Hash = hash;
+            FromRing = fromRing;
         }
 
         /// <inheritdoc />

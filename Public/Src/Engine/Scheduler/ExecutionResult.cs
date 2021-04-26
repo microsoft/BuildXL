@@ -736,7 +736,7 @@ namespace BuildXL.Scheduler
                             m_unsealedState.UnexpectedFileAccessCounters.HasValue,
                             "File access counters are available when the status is not PreparationFailed");
                         Contract.Assert(
-                            m_unsealedState.FileAccessViolationsNotAllowlisted.IsValid,
+                            m_unsealedState.FileAccessViolationsNotAllowlisted.HasValue,
                             "File access violations not set when the status is not PreparationFailed");
 
                         TimeSpan wallClockTime = (TimeSpan)processResult.PrimaryProcessTimes?.TotalWallClockTime;

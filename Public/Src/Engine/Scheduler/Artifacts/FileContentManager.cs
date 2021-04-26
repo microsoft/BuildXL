@@ -1631,7 +1631,7 @@ namespace BuildXL.Scheduler.Artifacts
                 using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerGetHydrateFilesDuration))
                 {
                     var readPathsResult = await Host.GetReadPathsAsync(operationContext, state.PipInfo.UnderlyingPip);
-                    if (readPathsResult.IsValid)
+                    if (readPathsResult.HasValue)
                     {
                         readPaths = readPathsResult.Value;
                     }

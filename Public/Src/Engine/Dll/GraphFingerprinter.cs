@@ -72,7 +72,7 @@ namespace BuildXL.Engine
                 commitId,
                 testHooks);
             Optional<CompositeGraphFingerprint> compatibleFingerprint;
-            if (!exactFingerprint.IsValid)
+            if (!exactFingerprint.HasValue)
             {
                 return null;
             }
@@ -89,7 +89,7 @@ namespace BuildXL.Engine
                     commitId,
                     testHooks);
 
-                if (!compatibleFingerprint.IsValid)
+                if (!compatibleFingerprint.HasValue)
                 {
                     return null;
                 }
@@ -336,7 +336,7 @@ namespace BuildXL.Engine
         private static Optional<CompositeGraphFingerprint> LogAndReturnFailure(LoggingContext loggingContext, BuildXLException ex)
         {
             Tracing.Logger.Log.FailedToComputeGraphFingerprint(loggingContext, ex.LogEventMessage);
-            return Optional<CompositeGraphFingerprint>.Invalid;
+            return Optional<CompositeGraphFingerprint>.Empty;
         }
     }
 }

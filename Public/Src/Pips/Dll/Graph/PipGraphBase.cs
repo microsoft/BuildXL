@@ -327,8 +327,8 @@ namespace BuildXL.Pips.Graph
         public bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItUnderSharedOpaque)
         {
             var result = TryGetParentOutputDirectory(path);
-            isItUnderSharedOpaque = result.IsValid && result.Value.isShared;
-            return result.IsValid;
+            isItUnderSharedOpaque = result.HasValue && result.Value.isShared;
+            return result.HasValue;
         }
 
         protected IEnumerable<Pip> HydratePips(IEnumerable<PipId> pipIds, PipQueryContext context)

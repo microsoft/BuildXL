@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities
@@ -13,14 +14,14 @@ namespace BuildXL.Utilities
     public readonly struct Optional<T>
     {
         /// <summary>
-        /// Gets whether the optional value contains a valid value
+        /// Whether the Optional contains a value
         /// </summary>
-        public readonly bool IsValid;
+        public readonly bool HasValue;
 
         /// <summary>
-        /// Gets the invalid Optional value with no value set.
+        /// The empty Optional value, with no value set.
         /// </summary>
-        public static Optional<T> Invalid => default(Optional<T>);
+        public static readonly Optional<T> Empty = default;
 
         private readonly T m_value;
 
@@ -31,18 +32,59 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Requires(IsValid);
+                Contract.Requires(HasValue);
                 return m_value;
             }
         }
 
         /// <summary>
-        /// Creates a new valid optional value with the given value
+        /// Creates a new Optional holding the given value
         /// </summary>
         public Optional(T value)
         {
-            IsValid = true;
+            HasValue = true;
             m_value = value;
+        }
+
+        /// <summary>
+        /// Returns the value if this Optional has a value, or the specified alternative if this is the empty Optional
+        /// </summary>
+        [Pure]
+        public T ValueOrElse(T alternativeValue)
+        {
+            return HasValue ? m_value : alternativeValue;
+        }
+
+        /// <summary>
+        /// Returns the value if this Optional has a value, or calls the producer if this is the empty Optional
+        /// </summary>
+        /// <remarks>The producer of the alternative value is only called if this Optional is empty</remarks>
+        [Pure]
+        public T ValueOrElse(Func<T> alternativeProducer)
+        {
+            return HasValue ? m_value : alternativeProducer();
+        }
+
+        /// <summary>
+        /// Returns a new Optional applying the binder if this Optional has a value; 
+        /// otherwise returns the empty Optional.
+        /// </summary>
+        [Pure]
+        public Optional<T2> Then<T2>(Func<T, Optional<T2>> binder)
+        {
+            Contract.RequiresNotNull(binder);
+            return HasValue ? binder(m_value) : Optional<T2>.Empty;
+        }
+
+        /// <summary>
+        /// Returns a new Optional applying the specified function to the value if this Optional has a value; 
+        /// otherwise returns the empty Optional.
+        /// </summary>
+        [Pure]
+        public Optional<T2> Then<T2>(Func<T, T2> then)
+        {
+            Contract.RequiresNotNull(then);
+            return HasValue ? new Optional<T2>(then(m_value)) : Optional<T2>.Empty;
         }
 
         /// <summary>

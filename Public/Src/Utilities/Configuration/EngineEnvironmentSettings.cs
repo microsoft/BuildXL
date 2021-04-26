@@ -379,7 +379,7 @@ namespace BuildXL.Utilities.Configuration
         public sealed class Setting<T>
         {
             private int m_version;
-            private bool isExplicitlySet = false;
+            private bool m_isExplicitlySet = false;
             private Optional<T> m_value;
             private Optional<string> m_stringValue;
             private readonly object m_syncLock = new object();
@@ -400,7 +400,7 @@ namespace BuildXL.Utilities.Configuration
                     Update();
 
                     var value = m_stringValue;
-                    if (value.IsValid)
+                    if (value.HasValue)
                     {
                         return value.Value;
                     }
@@ -408,7 +408,7 @@ namespace BuildXL.Utilities.Configuration
                     lock (m_syncLock)
                     {
                         value = m_stringValue;
-                        if (value.IsValid)
+                        if (value.HasValue)
                         {
                             return value.Value;
                         }
@@ -430,7 +430,7 @@ namespace BuildXL.Utilities.Configuration
                     Update();
 
                     var value = m_value;
-                    if (value.IsValid)
+                    if (value.HasValue)
                     {
                         return value.Value;
                     }
@@ -438,7 +438,7 @@ namespace BuildXL.Utilities.Configuration
                     lock (m_syncLock)
                     {
                         value = m_value;
-                        if (value.IsValid)
+                        if (value.HasValue)
                         {
                             return value.Value;
                         }
@@ -455,7 +455,7 @@ namespace BuildXL.Utilities.Configuration
                     lock (m_syncLock)
                     {
                         m_value = value;
-                        isExplicitlySet = true;
+                        m_isExplicitlySet = true;
                     }
                 }
             }
@@ -474,12 +474,12 @@ namespace BuildXL.Utilities.Configuration
 
             private void Update()
             {
-                if (!isExplicitlySet && m_version != SettingsEnvironment.Version)
+                if (!m_isExplicitlySet && m_version != SettingsEnvironment.Version)
                 {
                     lock (m_syncLock)
                     {
-                        m_value = Optional<T>.Invalid;
-                        m_stringValue = Optional<string>.Invalid;
+                        m_value = Optional<T>.Empty;
+                        m_stringValue = Optional<string>.Empty;
                     }
                 }
             }
@@ -489,7 +489,7 @@ namespace BuildXL.Utilities.Configuration
             /// </summary>
             public bool TrySet(T value)
             {
-                if (!string.IsNullOrEmpty(StringValue) || isExplicitlySet)
+                if (!string.IsNullOrEmpty(StringValue) || m_isExplicitlySet)
                 {
                     // Can't set it already has an explicitly set value
                     return false;
@@ -507,7 +507,7 @@ namespace BuildXL.Utilities.Configuration
             /// <returns>true if the environment variable changed since the last access. Otherwise, false.</returns>
             public bool Reset()
             {
-                if (!m_stringValue.IsValid)
+                if (!m_stringValue.HasValue)
                 {
                     return false;
                 }
@@ -518,7 +518,7 @@ namespace BuildXL.Utilities.Configuration
                     lock (m_syncLock)
                     {
                         m_stringValue = newStringValue;
-                        m_value = Optional<T>.Invalid;
+                        m_value = Optional<T>.Empty;
                     }
 
                     return true;

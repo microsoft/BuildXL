@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-using BuildXL.Utilities;
 #if PLATFORM_WIN
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
@@ -61,15 +60,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             string credentialProviderPath = Environment.GetEnvironmentVariable(CredentialProvidersPathEnvVariable);
             bool isCredentialProviderSpecified = !string.IsNullOrWhiteSpace(credentialProviderPath);
-
-            var artifactsCredentialHelper = new AzureArtifactsCredentialHelper(m => logger.Debug(m));
-            bool isAzureArtifactsCredentialProviderSpecifed = artifactsCredentialHelper.IsAzureArtifactsCredentialProviderSpecified();
-
-            if (isAzureArtifactsCredentialProviderSpecifed)
-            {
-                logger.Debug($"Azure Artifacts Credential provider path specified: {artifactsCredentialHelper.AzureArtifactsCredentialHelperPath}");
-            }
-            else if (isCredentialProviderSpecified)
+            if (isCredentialProviderSpecified)
             {
                 logger.Debug($"Credential providers path specified: {credentialProviderPath}");
             }
@@ -86,10 +77,10 @@ namespace BuildXL.Cache.BuildCacheAdapter
             //   (2) running on .NET Core.
             // When a credential provider is specified, specifying AAD user name will override it and we don't want to do that.
             // When running on .NET Framework, VsoCredentialHelper will automatically obtain currently logged on AAD user name.
-            string userName = !(isAzureArtifactsCredentialProviderSpecifed || isCredentialProviderSpecified) && Utilities.OperatingSystemHelper.IsDotNetCore
+            string userName = !isCredentialProviderSpecified && Utilities.OperatingSystemHelper.IsDotNetCore
                 ? GetAadUserNameUpn()
                 : null;
-            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName, (isAzureArtifactsCredentialProviderSpecifed ? artifactsCredentialHelper : null));
+            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName);
 #else
             var secPat = new SecureString();
             if (!string.IsNullOrWhiteSpace(pat))

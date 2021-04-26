@@ -726,8 +726,8 @@ namespace BuildXL.Engine.Tracing
         EventLevel = Level.Verbose,
         Keywords = (int)(Keywords.UserMessage),
         EventTask = (ushort)Tasks.Distribution,
-        Message = "Connection with the orchestrator timed out. Details: {details}.")]
-        public abstract void DistributionConnectionTimeout(LoggingContext context, string details);
+        Message = "Connection with {name} timed out. Details: {details}.")]
+        public abstract void DistributionConnectionTimeout(LoggingContext context, string name, string details);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionTryMaterializeInputsFailedRetry,

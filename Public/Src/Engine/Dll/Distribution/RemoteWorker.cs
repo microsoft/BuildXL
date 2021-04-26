@@ -341,7 +341,7 @@ namespace BuildXL.Engine.Distribution
 
         private async void OnConnectionTimeOutAsync(object sender, ConnectionTimeoutEventArgs e)
         {
-            Logger.Log.DistributionConnectionTimeout(m_appLoggingContext, e?.Details ?? "");
+            Logger.Log.DistributionConnectionTimeout(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", e?.Details ?? "");
             await LostConnectionAsync();
         }
 

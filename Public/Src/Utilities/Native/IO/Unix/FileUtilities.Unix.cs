@@ -22,6 +22,12 @@ namespace BuildXL.Native.IO.Unix
     public sealed class FileUtilitiesUnix : IFileUtilities
     {
         /// <summary>
+        /// The optimal buffer size for copy throughput and keeping system call overhead minimal:
+        /// see: https://eklitzke.org/efficient-file-copying-on-linux#:~:text=The%20file%20includes%20a%20cryptic,calls%20need%20to%20be%20made.
+        /// </summary>
+        private static readonly long s_copyBufferSizeMax = 512 * 1024;
+
+        /// <summary>
         /// A concrete native FileSystem implementation based on Unix APIs
         /// </summary>
         private readonly FileSystemUnix m_fileSystem;
@@ -479,6 +485,95 @@ namespace BuildXL.Native.IO.Unix
             if (result != 0)
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
+            }
+        }
+
+        /// <inheritdoc />
+        public void InKernelFileCopy(string source, string destination, bool followSymlink)
+        {
+            SafeFileHandle sourceHandle;
+            OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
+                source,
+                FileDesiredAccess.GenericRead,
+                FileShare.Read | FileShare.Delete,
+                FileMode.Open,
+                followSymlink ? FileFlagsAndAttributes.FileFlagOpenReparsePoint : FileFlagsAndAttributes.None,
+                out sourceHandle);
+
+            if (!openResult.Succeeded)
+            {
+                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to open source file '{source}' in {nameof(InKernelFileCopy)}"));
+            }
+
+            using (sourceHandle)
+            {
+                // Ignore return of PosixFadvise(), the file handle was opened successfully above
+                // and the advice hint is a less important optimization.
+                Interop.Unix.IO.PosixFadvise(sourceHandle, 0, 0, AdviceHint.POSIX_FADV_SEQUENTIAL);
+
+                SafeFileHandle destinationHandle;
+                openResult = m_fileSystem.TryCreateOrOpenFile(
+                    destination,
+                    FileDesiredAccess.GenericRead | FileDesiredAccess.GenericWrite,
+                    FileShare.Read | FileShare.Write | FileShare.Delete,
+                    FileMode.Create,
+                    FileFlagsAndAttributes.None,
+                    out destinationHandle);
+
+                if (!openResult.Succeeded)
+                {
+                    throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to open destination file '{destination}' in {nameof(InKernelFileCopy)}"));
+                }
+
+                using (destinationHandle)
+                {
+                    var statBuffer = new StatBuffer();
+                    if (StatFileDescriptor(sourceHandle, ref statBuffer) != 0)
+                    {
+                        throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to stat source file '{source}' for size query in {nameof(InKernelFileCopy)}"));
+                    }
+
+                    var length = statBuffer.Size;
+                    long bytesCopied = 0;
+                    int lastError = 0;
+
+                    do
+                    {
+                        bytesCopied = Interop.Unix.IO.CopyFileRange(sourceHandle, IntPtr.Zero, destinationHandle, IntPtr.Zero, s_copyBufferSizeMax);
+                        if (bytesCopied == -1)
+                        {
+                            lastError = Marshal.GetLastWin32Error();
+                            break;
+                        }
+
+                        length -= bytesCopied;
+                    } while (length > 0 && bytesCopied > 0);
+
+                    // copy_file_range() is available in kernel versions > 4.5, let's try sendfile() if copy_file_range() is not implemented
+                    if (lastError == (int)Errno.ENOSYS)
+                    {
+                        length = statBuffer.Size;
+                        bytesCopied = 0;
+                        lastError = 0;
+
+                        do
+                        {
+                            bytesCopied = Interop.Unix.IO.SendFile(sourceHandle, destinationHandle, IntPtr.Zero, s_copyBufferSizeMax);
+                            if (bytesCopied == -1)
+                            {
+                                lastError = Marshal.GetLastWin32Error();
+                                break;
+                            }
+
+                            length -= bytesCopied;
+                        } while (length > 0 && bytesCopied > 0);
+                    }
+
+                    if (lastError != 0)
+                    {
+                        throw new NativeWin32Exception(lastError, I($"{nameof(InKernelFileCopy)} failed  copying '{source}' to '{destination}' with error code: {lastError}"));
+                    }
+                }
             }
         }
 

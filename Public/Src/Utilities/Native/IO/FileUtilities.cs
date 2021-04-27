@@ -263,6 +263,28 @@ namespace BuildXL.Native.IO
             }
         }
 
+        /// <summary>
+        /// Tries to copy using <see cref="IFileUtilities.InKernelFileCopy(string, string, bool)"/>.
+        /// </summary>
+        public static Possible<Unit> TryInKernelFileCopy(string source, string destination, bool followSymlink)
+        {
+            try
+            {
+                using (Counters?.StartStopwatch(StorageCounters.InKernelFileCopyDuration))
+                {
+                    Counters?.IncrementCounter(StorageCounters.InKernelFileCopyCount);
+                    s_fileUtilities.InKernelFileCopy(source, destination, followSymlink);
+                    Counters?.IncrementCounter(StorageCounters.SuccessfulInKernelFileCopyCount);
+                    return Unit.Void;
+                }
+            }
+            catch (NativeWin32Exception ex)
+            {
+               return NativeFailure.CreateFromException(ex);
+            }
+        }
+
+
         /// <see cref="IFileUtilities.CreateReplacementFile(string, FileShare, bool, bool)"/>
         public static FileStream CreateReplacementFile(
             string path,
@@ -1019,6 +1041,12 @@ namespace BuildXL.Native.IO
             {
                 s_fileSystem.IsCopyOnWriteSupportedByEnlistmentVolume = value;
             }
+        }
+
+        /// <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/>
+        public static bool IsInKernelCopyingSupportedByHostSystem
+        {
+            get => s_fileSystem.IsInKernelCopyingSupportedByHostSystem;
         }
 
         /// <summary>

@@ -457,6 +457,15 @@ namespace BuildXL.Interop.Unix
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int sysinfo(ref sysinfo_buf buf);
 
+        [DllImport(LibC, EntryPoint = "copy_file_range", SetLastError = true, CharSet = CharSet.Ansi)]
+        internal static extern long copyfilerange(int fd_in, IntPtr off_in, int fd_out, IntPtr off_out, long len, uint flags);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
+        internal static extern long sendfile(int fd_out, int fd_in, IntPtr offset, long count);
+
+        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
+        internal static extern int posix_fadvise(int fd, long offset, long len, int advice);
+
         #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         #endregion
     }

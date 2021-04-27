@@ -142,11 +142,20 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Creates a copy on write clone of files if supported by the underlying OS.
         /// </summary>
-        /// <param name="source"></param>
-        /// <param name="destination"></param>
-        /// <param name="followSymlink"></param>
+        /// <remarks>
+        /// This method must be implemented if <see cref="IFileSystem.IsCopyOnWriteSupportedByEnlistmentVolume"/> returns true.
+        /// </remarks>
         /// <exception cref="NativeWin32Exception">Throw native exception upon failure.</exception>
         void CloneFile(string source, string destination, bool followSymlink);
+
+        /// <summary>
+        /// Copy a file using in-kernel file descriptors to avoid user mode read/write buffer overheads.
+        /// </summary>
+        /// <remarks>
+        /// This method must be implemented if <see cref="IFileSystem.IsInKernelCopyingSupportedByHostSystem"/> returns true.
+        /// </remarks>
+        /// <exception cref="NativeWin32Exception">Throw native exception upon failure.</exception>
+        void InKernelFileCopy(string source, string destination, bool followSymlink);
 
         /// <summary>
         /// Returns a new <see cref="FileStream" /> with the share mode. The target path is always deleted (if present) and re-created.

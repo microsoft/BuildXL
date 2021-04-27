@@ -191,7 +191,7 @@ bool PathTree::TryFind(const std::wstring& path, std::vector<std::pair<std::wstr
 
 std::wstring PathTree::DumpTree()
 {
-        return ToDebugString();
+    return ToDebugString();
 }
 
 std::wstring PathTree::ToDebugString(TreeNode* node, std::wstring indent)

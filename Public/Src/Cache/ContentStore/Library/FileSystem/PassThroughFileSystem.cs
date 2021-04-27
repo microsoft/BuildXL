@@ -119,19 +119,30 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 throw new FileNotFoundException(message, sourcePath.Path);
             }
 
-            if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+            if (replaceExisting)
             {
                 var possiblyDeleteExistingDestination = FileUtilities.TryDeletePathIfExists(destinationPath.Path);
                 if (!possiblyDeleteExistingDestination.Succeeded)
                 {
                     throw possiblyDeleteExistingDestination.Failure.CreateException();
                 }
+            }
 
-                CreateDirectory(destinationPath.GetParent());
+            CreateDirectory(destinationPath.GetParent());
 
+            if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
+            {
                 var possiblyCreateCopyOnWrite = FileUtilities.TryCreateCopyOnWrite(sourcePath.Path, destinationPath.Path, followSymlink: false);
-
                 if (possiblyCreateCopyOnWrite.Succeeded)
+                {
+                    return;
+                }
+            }
+
+            if (FileUtilities.IsInKernelCopyingSupportedByHostSystem)
+            {
+                var possibleInKernelFileCopy = FileUtilities.TryInKernelFileCopy(sourcePath.Path, destinationPath.Path, followSymlink: false);
+                if (possibleInKernelFileCopy.Succeeded)
                 {
                     return;
                 }
@@ -418,7 +429,37 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             });
         }
 
-        private async Task CopyFileInsideSemaphoreAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
+        private Task<bool> TryInKernelFileCopyAsync(
+            AbsolutePath sourcePath,
+            AbsolutePath destinationPath,
+            bool replaceExisting)
+        {
+            return Task.Run(() =>
+            {
+                if (!FileUtilities.FileExistsNoFollow(sourcePath.Path))
+                {
+                    return false;
+                }
+
+                if (replaceExisting)
+                {
+                    var possiblyDeleteExistingDestination = FileUtilities.TryDeletePathIfExists(destinationPath.Path);
+
+                    if (!possiblyDeleteExistingDestination.Succeeded)
+                    {
+                        return false;
+                    }
+                }
+
+                CreateDirectory(destinationPath.GetParent());
+
+                var possibleInKernelFileCopy = FileUtilities.TryInKernelFileCopy(sourcePath.Path, destinationPath.Path, followSymlink: false);
+
+                return possibleInKernelFileCopy.Succeeded;
+            });
+        }
+
+        private async Task CopyFileWithStreamsAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
             // It is very important to call OpenInternal and not to call OpenAsync method that will re-acquire the semaphore once again.
             // Violating this rule may cause a deadlock.
@@ -589,16 +630,21 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
             if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
             {
-                if (await TryCopyOnWriteFileInsideSemaphoreAsync(
-                    sourcePath,
-                    destinationPath,
-                    replaceExisting))
+                if (await TryCopyOnWriteFileInsideSemaphoreAsync(sourcePath, destinationPath, replaceExisting))
                 {
                     return;
                 }
             }
 
-            await CopyFileInsideSemaphoreAsync(sourcePath, destinationPath, replaceExisting);
+            if (FileUtilities.IsInKernelCopyingSupportedByHostSystem)
+            {
+                if (await TryInKernelFileCopyAsync(sourcePath, destinationPath, replaceExisting))
+                {
+                    return;
+                }
+            }
+
+            await CopyFileWithStreamsAsync(sourcePath, destinationPath, replaceExisting);
         }
 
         /// <inheritdoc />

@@ -4009,6 +4009,9 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
+        public bool IsInKernelCopyingSupportedByHostSystem => false;
+
+        /// <inheritdoc />
         public bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle) => false;
 
         /// <inheritdoc />

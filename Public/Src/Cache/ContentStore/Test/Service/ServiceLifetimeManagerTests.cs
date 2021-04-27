@@ -66,6 +66,7 @@ namespace ContentStoreTest.Service
         }
 
         [Fact]
+        [Trait("Category", "SkipLinux")]
         public async Task TestInterruption()
         {
             using var testDirectory = new DisposableDirectory(_fileSystem.Value);

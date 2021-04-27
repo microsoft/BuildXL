@@ -45,5 +45,17 @@ namespace BuildXL.Native.IO
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         CopyOnWriteDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Numeric)]
+        InKernelFileCopyCount,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Numeric)]
+        SuccessfulInKernelFileCopyCount,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        InKernelFileCopyDuration,
     }
 }

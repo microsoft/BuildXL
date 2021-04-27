@@ -649,6 +649,11 @@ namespace BuildXL.Native.IO
         bool IsCopyOnWriteSupportedByEnlistmentVolume { get; set; }
 
         /// <summary>
+        /// Flag indicating if the operating system supports in-kernel file copying.
+        /// </summary>
+        bool IsInKernelCopyingSupportedByHostSystem { get; }
+
+        /// <summary>
         /// Checks if a path is a directory symlink or a junction.
         /// </summary>
         bool IsDirectorySymlinkOrJunction(string path);

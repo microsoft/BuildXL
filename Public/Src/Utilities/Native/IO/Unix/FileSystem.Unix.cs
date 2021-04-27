@@ -1157,6 +1157,9 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
+        public bool IsInKernelCopyingSupportedByHostSystem => !Interop.Dispatch.IsMacOS;
+
+        /// <inheritdoc />
         public bool CheckIfVolumeSupportsCopyOnWriteByHandle(SafeFileHandle fileHandle)
         {
             try

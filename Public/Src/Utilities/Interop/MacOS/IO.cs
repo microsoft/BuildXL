@@ -59,6 +59,7 @@ namespace BuildXL.Interop.Unix
             EDOM = 33, // Math argument out of domain of func
             ERANGE = 34, // Math result not representable
             EAGAIN = 35, // Resource temporarily unavailable
+            ENOSYS = 38, // Function not implemented
             ELOOP = 62, // Too many levels of symbolic links
         }
 
@@ -360,6 +361,38 @@ namespace BuildXL.Interop.Unix
         /// </summary>
         [DllImport(Libraries.LibC, SetLastError = true, EntryPoint = "clonefile")]
         public static extern int CloneFile(string source, string destination, CloneFileFlags flags);
+
+        /// <summary>
+        /// Copies a file using 'copy_file_range' using in-kernel file descriptors.
+        /// </summary>
+        public static long CopyFileRange(SafeFileHandle fd_in, IntPtr off_in, SafeFileHandle fd_out, IntPtr off_out, long len, uint flags = 0) => IsMacOS
+            ? throw new NotImplementedException()
+            : Impl_Linux.copyfilerange(ToInt(fd_in), off_in, ToInt(fd_out), off_out, len, flags);
+
+        /// <summary>
+        /// Copies a file using 'sendfile' using in-kernel file descriptors.
+        /// <remarks>
+        /// sendfile() can be used if copy_file_range() is not supported by the host (available from kernel 2.2+ onwards).
+        /// </remarks>
+        /// </summary>
+        public static long SendFile(SafeFileHandle fd_in, SafeFileHandle fd_out, IntPtr offset, long len) => IsMacOS
+            ? throw new NotImplementedException() 
+            : Impl_Linux.sendfile(ToInt(fd_out), ToInt(fd_in), offset, len);
+
+        public enum AdviceHint : int
+        {
+            POSIX_FADV_NORMAL = 0, // No further special treatment.
+            POSIX_FADV_RANDOM = 1, // Expect random page references.
+            POSIX_FADV_SEQUENTIAL = 2, // Expect sequential page references.
+            POSIX_FADV_WILLNEED = 3, // Will need these pages.
+        }
+
+        /// <summary>
+        /// Predeclare an access pattern (advice hint) for file data.
+        /// </summary>
+        public static int PosixFadvise(SafeFileHandle handle, long offset, long length, AdviceHint hint) => IsMacOS
+            ? throw new NotImplementedException()
+            : Impl_Linux.posix_fadvise(ToInt(handle), offset, length, (int)hint);
 
         private static readonly string s_user = Environment.GetEnvironmentVariable("USER") ?? string.Empty;
 

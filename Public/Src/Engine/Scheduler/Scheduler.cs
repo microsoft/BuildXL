@@ -262,6 +262,11 @@ namespace BuildXL.Scheduler
         public int AvailableWorkersCount => Workers.Count(a => a.IsAvailable);
 
         /// <summary>
+        /// Available remote workers count
+        /// </summary>
+        public int AvailableRemoteWorkersCount => Workers.Count(a => a.IsAvailable && a.IsRemote);
+
+        /// <summary>
         /// Contains the result of the set up processes (success or failure) 
         /// for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.SetupCompletionTask"/>)
         /// </summary>
@@ -414,26 +419,29 @@ namespace BuildXL.Scheduler
 
         private void AdjustLocalWorkerSlots()
         {
-            int availableWorkersCount = AvailableWorkersCount;
-            if (availableWorkersCount == 0)
+            int availableRemoteWorkersCount = AvailableRemoteWorkersCount;
+            if (availableRemoteWorkersCount == 0)
             {
+                // If there are no available remote workers, treat the build as a single-machine build. 
+                // It means that OrchestratorCpuMultiplier and OrchestratorCacheLookupMultiplier will have no effect.
                 return;
             }
 
             int targetProcessSlots = m_scheduleConfiguration.MaxProcesses;
             int targetCacheLookupSlots = m_scheduleConfiguration.MaxCacheLookup;
 
-            // If the user does not pass masterCpuMultiplier, then the local worker slots are configured
-            // based on the number of available workers.
-            // If only local worker is available, then the multiplier would be 1.
-            // If there is one available remote worker, then the multiplier would be 0.5; meaning that
-            //  the local worker will do the half work.
-            double cpuMultiplier = m_scheduleConfiguration.OrchestratorCpuMultiplier ?? 1.0 / availableWorkersCount;
+            // In the distributed builds, the burden on the orchestrator machine increases with the number of available 
+            // remote workers. That's why, we reduce the max concurrency limits for both Cpu and CacheLookup dispatchers
+            // based on the number of available remote workers. 
+            // If there is one available remote worker, the multiplier would be 0.9
+            // 2 -> 0.8, 3 -> 0.7, 4 -> 0.6, >10 -> 0.1
+            // This gives us the best perf based on the 3-worker and 5-worker Cosine builds.
+            double defaultMultiplier = Math.Max(0.1, 1 - availableRemoteWorkersCount / 10);
 
-            double cacheLookupMultiplier = m_scheduleConfiguration.OrchestratorCacheLookupMultiplier ?? 1.0 / availableWorkersCount;
-
-            int newProcessSlots = (int)(targetProcessSlots * cpuMultiplier);
-            int newCacheLookupSlots = (int)(targetCacheLookupSlots * cacheLookupMultiplier);
+            // If the user does not pass orchestratorCpuMultiplier or CacheLookupMultiplier, then the local worker slots are configured
+            // based on the calculation above.
+            int newProcessSlots = (int)(targetProcessSlots * m_scheduleConfiguration.OrchestratorCpuMultiplier ?? defaultMultiplier);
+            int newCacheLookupSlots = (int)(targetCacheLookupSlots * m_scheduleConfiguration.OrchestratorCacheLookupMultiplier ?? defaultMultiplier);
 
             LocalWorker.AdjustTotalProcessSlots(newProcessSlots);
             LocalWorker.AdjustTotalCacheLookupSlots(newCacheLookupSlots);

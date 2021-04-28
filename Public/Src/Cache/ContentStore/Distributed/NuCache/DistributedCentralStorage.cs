@@ -302,7 +302,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // OR the number replicas exceeds the number of required replicas computed based on the machine index
                         bool shouldCopy = pendingCopyCount < _configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
 
-                        Tracer.Debug(context, $"{i} (ShouldCopy={shouldCopy}): Id={machineId}" +
+                        Tracer.Debug(context, $"{i} (ShouldCopy={shouldCopy}): Hash={hash.ToShortString()}, Id={machineId}" +
                             $", Replicas={actualReplicas}, RequiredReplicas={requiredReplicas}, Pending={pendingCopyCount}, Max={_configuration.MaxSimultaneousCopies}");
 
                         if (shouldCopy)

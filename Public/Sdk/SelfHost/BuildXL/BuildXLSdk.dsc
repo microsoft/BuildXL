@@ -78,9 +78,14 @@ export interface Arguments extends Managed.Arguments {
     strictMode?: boolean;
 
     /**
-     * A set of source generators used by this project.
+     * A set of source generators used by the project.
      */
     sourceGenerators?: NugetPackage[];
+
+    /**
+     * A set of Roslyn analyzers used by the project.
+     */
+    analyzers?: NugetPackage[];
 }
 
 @@public
@@ -593,7 +598,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     let analyzers = [
         ...getAnalyzers(args), 
-        ...(args.sourceGenerators !== undefined ? args.sourceGenerators.mapMany(s => getAnalyzerDlls(s.contents)) : [])
+        ...(args.sourceGenerators !== undefined ? args.sourceGenerators.mapMany(s => getAnalyzerDlls(s.contents)) : []),
+        ...(args.analyzers !== undefined ? args.analyzers.mapMany(s => getAnalyzerDlls(s.contents)) : [])
         ];
 
     args = Object.merge<Arguments>(

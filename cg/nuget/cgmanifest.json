@@ -2202,7 +2202,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Threading.Analyzers",
-          "Version": "15.8.168"
+          "Version": "16.9.60"
         }
       }
     },
@@ -4030,6 +4030,15 @@
         "NuGet": {
           "Name": "microsoft.dotnet.xunitconsolerunner",
           "Version": "2.5.1-beta.19270.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "protobuf-net.BuildTools",
+          "Version": "3.0.101"
         }
       }
     },

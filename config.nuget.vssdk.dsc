@@ -39,7 +39,6 @@ export const pkgs = [
     { id: "Microsoft.VisualStudio.TextManager.Interop.8.0", version: "8.0.50728" },
     { id: "Microsoft.VisualStudio.TextManager.Interop.9.0", version: "9.0.30730" },
     { id: "Microsoft.VisualStudio.TextManager.Interop", version: "7.10.6071" },
-    { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "15.8.168" },
     { id: "Microsoft.VisualStudio.Threading", version: "15.8.168" },
     { id: "Microsoft.VisualStudio.Utilities", version: "15.8.28010" },
     { id: "Microsoft.VisualStudio.Validation", version: "15.3.32" },

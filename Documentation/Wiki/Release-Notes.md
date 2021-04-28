@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210423.8 (Release [104915](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104915)) Released 4/28/2021
+-	Rename “master” to “orchestrator” in distribution code.
+-	Fixes to path combination and normalization logic in Detours.
+-	Fix to delete present directories before materializing reparse points.
+-	Build manifest performance and file materialization race fixes.
+-	Add distribution testing.
+-	Update default process retries to 3 and honour global untracked scopes for JS builds.
+-	Various bug fixes to memory management.
+
 # 0.1.0-20210416.5 (Release [104096](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104096)) Released 4/21/2021
 - Dump Pip Lite - Track observed file accesses for failed pips 
 - Build Manifest: XLG event batching

@@ -3,64 +3,21 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics.ContractsLight;
-
-// disable 'Missing XML comment for publicly visible type' warnings.
-#pragma warning disable 1591
-#pragma warning disable SA1600 // Elements must be documented
-#pragma warning disable SA1402 // One file one class.
-#pragma warning disable SA1649 // File name must match first type.
+using System.Threading;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
-    public interface IPoolHandle<out T> : IDisposable
-    {
-        /// <summary>
-        ///     Gets value.
-        /// </summary>
-        T Value { get; }
-
-        /// <summary>
-        ///     Asserts validity.
-        /// </summary>
-        void AssertValid();
-    }
-
-    public sealed class ByteArrayPool : Pool<byte[]>
-    {
-        private static readonly Action<byte[]> Reset = b =>
-        {
-#if DEBUG
-            b[0] = 0xcc;
-            b[b.Length - 1] = 0xcc;
-#endif
-        };
-
-        private static byte[] CreateNew(int bufferSize)
-        {
-            var bytes = new byte[bufferSize];
-            Reset(bytes);
-            return bytes;
-        }
-
-        public ByteArrayPool(int bufferSize)
-            : base(() => CreateNew(bufferSize), Reset)
-        {
-        }
-
-        public override PoolHandle Get()
-        {
-            var bytes = base.Get();
-#if DEBUG
-            Contract.Assert(bytes.Value[0] == 0xcc);
-            Contract.Assert(bytes.Value[bytes.Value.Length - 1] == 0xcc);
-#endif
-            return bytes;
-        }
-    }
-
+    /// <summary>
+    /// A thread-safe pool of reusable objects.
+    /// </summary>
     public class Pool<T> : IDisposable
     {
+        // The number of times a creator was invoked.
+        private long _factoryCalls;
+
+        // Number of times an instance was obtained from the pool (the counter is incremented when regardless whether the was created or not).
+        private long _useCount;
+
         private readonly Func<T> _factory;
         private readonly Action<T>? _reset;
 
@@ -81,14 +38,34 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _maxReserveInstances = maxReserveInstances;
         }
 
+        /// <summary>
+        /// Gets the number of times an object has been obtained from this pool.
+        /// </summary>
+        public long UseCount => _useCount;
+
+        /// <summary>
+        /// Gets the number of times a factory method was called.
+        /// </summary>
+        public long FactoryCalls => _factoryCalls;
+
+        /// <summary>
+        /// Gets the number of objects that are currently available in the pool.
+        /// </summary>
         public int Size => _queue.Count;
 
+        /// <summary>
+        /// Gets a disposable handle to an pooled object.
+        /// </summary>
+        /// <returns></returns>
         public virtual PoolHandle Get()
         {
             if (!_queue.TryDequeue(out var item))
             {
+                Interlocked.Increment(ref _factoryCalls);
                 item = _factory();
             }
+
+            Interlocked.Increment(ref _useCount);
 
             return new PoolHandle(this, item);
         }
@@ -102,11 +79,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
             else
             {
-                // Still reset the item incase the reset logic has side effects other than cleanup for future reuse
+                // Still reset the item in case the reset logic has side effects other than cleanup for future reuse
                 _reset?.Invoke(item);
             }
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             foreach (var item in _queue)
@@ -115,12 +93,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
         }
 
-        public struct PoolHandle : IPoolHandle<T>
+        /// <summary>
+        /// A disposable handle that gets the instance back to the pool when <see cref="Dispose"/> method is called.
+        /// </summary>
+        public struct PoolHandle : IDisposable
         {
             private readonly Pool<T> _pool;
             private readonly T _value;
             private bool _disposed;
 
+            /// <nodoc />
             public PoolHandle(Pool<T> pool, T value)
             {
                 _pool = pool;
@@ -128,6 +110,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 _disposed = false;
             }
 
+            /// <nodoc />
             public T Value
             {
                 get
@@ -137,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 }
             }
 
-            public void AssertValid()
+            private void AssertValid()
             {
                 if (_disposed)
                 {
@@ -145,6 +128,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 }
             }
 
+            /// <inheritdoc />
             public void Dispose()
             {
                 if (!_disposed)

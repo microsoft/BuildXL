@@ -35,7 +35,7 @@ namespace BuildXL.Utilities
         // Number of times a creator was invoked.
         private long m_factoryCall;
 
-        // Number of t
+        // Number of times an instance was obtained from the pool (the counter is incremented when regardless whether the was created or not).
         private long m_useCount;
 
         private int m_objectsInPool;

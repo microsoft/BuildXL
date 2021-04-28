@@ -46,9 +46,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private readonly DeterministicChunker _parent;
             private readonly Action<ChunkInfo> _callback;
-            private readonly IPoolHandle<byte[]> _pushBufferHandle;
+            private readonly ByteArrayPool.PoolHandle _pushBufferHandle;
             private byte[] _pushBuffer;
-            private readonly IPoolHandle<List<ChunkInfo>> _chunksSeenHandle;
+            private readonly Pool<List<ChunkInfo>>.PoolHandle _chunksSeenHandle;
             private List<ChunkInfo> _chunksSeen;
             private int _bytesInPushBuffer = 0;
             private ulong _lastPushBaseline = 0;

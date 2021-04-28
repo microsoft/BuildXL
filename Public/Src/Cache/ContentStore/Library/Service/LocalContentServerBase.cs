@@ -7,14 +7,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -29,10 +27,10 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using Grpc.Core;
-using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.Host.Service;
+using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -428,10 +426,20 @@ namespace BuildXL.Cache.ContentStore.Service
                     Contract.Assert(sessionHandle != null);
                     if (sessionHandle.SessionExpirationUtcTicks < DateTime.UtcNow.Ticks)
                     {
-                        Tracer.Debug(
-                            context,
-                            $"Releasing session {DescribeSession(sessionId, sessionHandle)}.");
-                        await ReleaseSessionInternalAsync(context, sessionId);
+                        if (Config.DoNotShutdownSessionsInUse && sessionHandle.CurrentUsageCount > 0)
+                        {
+                            Tracer.Debug(
+                                context,
+                                $"Bump the expiry for session {DescribeSession(sessionId, sessionHandle)} because its being used.");
+                            sessionHandle.BumpExpiration();
+                        }
+                        else
+                        {
+                            Tracer.Debug(
+                                context,
+                                $"Releasing session {DescribeSession(sessionId, sessionHandle)} because of expiry.");
+                            await ReleaseSessionInternalAsync(context, sessionId);
+                        }
                     }
                 }
             }
@@ -713,19 +721,16 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        /// <summary>
-        /// Try gets a session by session id.
-        /// </summary>
-        [return: MaybeNull]
-        public TSession GetSession(int sessionId)
+        /// <inheritdoc />
+        public ISessionReference<TSession>? GetSession(int sessionId)
         {
             if (_sessionHandles.TryGetValue(sessionId, out var sessionHandle))
             {
                 sessionHandle.BumpExpiration();
-                return sessionHandle.Session;
+                return new SessionReference<TSession>(sessionHandle.Session, sessionHandle);
             }
 
-            return default;
+            return null;
         }
 
         private Task<Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>> CreateTempDirectoryAndSessionAsync(

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -15,9 +16,42 @@ namespace BuildXL.Cache.ContentStore.Service
         public Capabilities Capabilities { get; }
     }
 
+    /// <summary>
+    /// Tracks a session's lifetime.
+    /// </summary>
+    public interface ISessionLifetimeManager
+    {
+        /// <summary>
+        /// Increments the usage count.
+        /// </summary>
+        public void IncrementUsageCount();
+
+        /// <summary>
+        /// Decrements the usage count.
+        /// </summary>
+        public void DecrementUsageCount();
+
+        /// <summary>
+        /// Gets the number of current usages for the current session.
+        /// </summary>
+        public int CurrentUsageCount { get; }
+
+        /// <summary>
+        /// Reset the timeout based on the current time.
+        /// </summary>
+        public void BumpExpiration();
+
+        /// <summary>
+        /// Gets the session's expiration time, in ticks.
+        /// </summary>
+        public long SessionExpirationUtcTicks { get; }
+
+        /// <nodoc />
+        public DateTime SessionExpirationDateTime { get; }
+    }
+
     /// <nodoc />
-    public interface ISessionHandle<out TSession, out TSessionData>
-        where TSessionData : ISessionData
+    public interface ISessionHandle<out TSession, out TSessionData> : ISessionLifetimeManager where TSessionData : ISessionData
     {
         /// <nodoc />
         public string CacheName { get; }
@@ -29,19 +63,6 @@ namespace BuildXL.Cache.ContentStore.Service
         public TSessionData SessionData { get; }
 
         /// <summary>
-        /// Gets the session's expiration time, in ticks.
-        /// </summary>
-        public long SessionExpirationUtcTicks { get; }
-
-        /// <nodoc />
-        public DateTime SessionExpirationDateTime { get; }
-
-        /// <summary>
-        /// Reset the timeout based on the current time.
-        /// </summary>
-        public void BumpExpiration();
-
-        /// <summary>
         /// Gets a string representation of a session handle with a given session id.
         /// </summary>
         public string ToString(int sessionId);
@@ -50,9 +71,9 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// Handle to a session.
     /// </summary>
-    public class SessionHandle<TSession, TSessionData> : ISessionHandle<TSession, TSessionData>
-        where TSessionData : ISessionData
+    public class SessionHandle<TSession, TSessionData> : ISessionHandle<TSession, TSessionData> where TSessionData : ISessionData
     {
+        private int _currentUsageCount;
         private readonly long _timeoutTicks;
 
         /// <nodoc />
@@ -89,20 +110,33 @@ namespace BuildXL.Cache.ContentStore.Service
             SessionData = sessionData;
         }
 
-        /// <summary>
-        /// Reset the timeout based on the current time.
-        /// </summary>
+        /// <inheritdoc />
         public void BumpExpiration()
         {
             SessionExpirationUtcTicks = DateTime.UtcNow.Ticks + _timeoutTicks;
         }
+
+        /// <inheritdoc />
+        public void IncrementUsageCount()
+        {
+            Interlocked.Increment(ref _currentUsageCount);
+        }
+
+        /// <inheritdoc />
+        public void DecrementUsageCount()
+        {
+            Interlocked.Decrement(ref _currentUsageCount);
+        }
+
+        /// <inheritdoc />
+        public int CurrentUsageCount => _currentUsageCount;
 
         /// <summary>
         /// Gets a string representation of a session handle with a given session id.
         /// </summary>
         public string ToString(int sessionId)
         {
-            return $"id=[{sessionId}] name=[{SessionData.Name}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionData.Capabilities}]";
+            return $"id=[{sessionId}] name=[{SessionData.Name}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionData.Capabilities}] usageCount=[{CurrentUsageCount}]";
         }
     }
 }

@@ -27,7 +27,8 @@ namespace BuildXL.Cache.ContentStore.Service
             TimeSpan? logIncrementalStatsInterval = null,
             TimeSpan? logMachineStatsInterval = null,
             bool traceGrpcOperations = false,
-            int? copyRequestHandlingCountLimit = null
+            int? copyRequestHandlingCountLimit = null,
+            bool doNotShutdownSessionsInUse = false
         )
         {
             DataRootPath = dataRootPath;
@@ -41,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             TraceGrpcOperations = traceGrpcOperations;
+            DoNotShutdownSessionsInUse = doNotShutdownSessionsInUse;
         }
 
         /// <nodoc />
@@ -58,6 +60,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
+            DoNotShutdownSessionsInUse = serviceConfiguration.DoNotShutdownSessionsInUse;
             IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
         }
 
@@ -75,6 +78,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
+            DoNotShutdownSessionsInUse = serviceConfiguration.DoNotShutdownSessionsInUse;
             IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
             return this;
         }
@@ -196,6 +200,16 @@ namespace BuildXL.Cache.ContentStore.Service
         /// Whether to trace the operation's start and stop messages on the grpc level.
         /// </summary>
         public bool TraceGrpcOperations { get; set; }
+
+        /// <summary>
+        /// Whether to respect the fact the sessions is being used and not shut it down.
+        /// </summary>
+        /// <remarks>
+        /// If the heartbeat for the session is equals to the sessions TTL, and a single operation runs longer then the TTL, then
+        /// the backend will close the session due to the expiry.
+        /// If this flag is set, the session won't be closed in this case.
+        /// </remarks>
+        public bool DoNotShutdownSessionsInUse { get; set; }
 
         /// <inheritdoc />
         public override string ToString()

@@ -364,7 +364,8 @@ namespace ContentStoreTest.Distributed.Stores
                 createSessionResult.ShouldBeSuccess();
 
                 (int sessionId, _) = createSessionResult.Value;
-                var session = server.GetSession(sessionId);
+                using var sessionReference = server.GetSession(sessionId);
+                var session = sessionReference.Session;
 
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();

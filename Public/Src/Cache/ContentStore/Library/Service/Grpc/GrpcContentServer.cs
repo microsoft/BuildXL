@@ -194,7 +194,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             var cacheContext = new Context(traceId, Logger);
 
-            var sessionData = new LocalContentServerSessionData(sessionName, (Capabilities)capabilities, (ImplicitPin)implicitPin, pins: new List<string>());
+            var sessionData = new LocalContentServerSessionData(sessionName, (Capabilities)capabilities, (ImplicitPin)implicitPin, pins: Array.Empty<string>());
 
             var sessionCreationResult = await ContentSessionHandler.CreateSessionAsync(
                 new OperationContext(cacheContext, token),
@@ -944,39 +944,44 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var context = new RequestContext(startTime: DateTime.UtcNow, shutdownTracker.Context);
             int sessionId = header.SessionId;
 
-            IContentSession? session = null;
-
-            if (obtainSession && !ContentSessionHandler.TryGetSession(sessionId, out session))
+            ISessionReference<IContentSession>? sessionOwner = null;
+            if (obtainSession && !ContentSessionHandler.TryGetSession(sessionId, out sessionOwner))
             {
                 string message = $"Could not find session for session ID {sessionId}";
                 Logger.Info(message);
                 return failFunc(context, message);
             }
 
-            var sw = StopwatchSlim.Start();
-
-            // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
-            await Task.Yield();
-
-            try
+            // if obtainSession is false, then sessionOwner will be null and its ok to pass 'null' to 'using' block.
+            using (sessionOwner)
             {
-                TraceGrpcOperationStarted(tracingContext, enabled: trace, operation, sessionId);
-                var result = await taskFunc(context, session);
-                TraceGrpcOperationFinished(tracingContext, enabled: trace, operation, sw.Elapsed, sessionId);
+                IContentSession? session = sessionOwner?.Session;
 
-                return result;
-            }
-            catch (TaskCanceledException e)
-            {
-                var message = GetLogMessage(e, operation, sessionId);
-                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
-                return failFunc(context, message);
-            }
-            catch (Exception e)
-            {
-                var message = GetLogMessage(e, operation, sessionId);
-                Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
-                return failFunc(context, $"{message}. Error={e}");
+                var sw = StopwatchSlim.Start();
+
+                // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
+                await Task.Yield();
+
+                try
+                {
+                    TraceGrpcOperationStarted(tracingContext, enabled: trace, operation, sessionId);
+                    var result = await taskFunc(context, session);
+                    TraceGrpcOperationFinished(tracingContext, enabled: trace, operation, sw.Elapsed, sessionId);
+
+                    return result;
+                }
+                catch (TaskCanceledException e)
+                {
+                    var message = GetLogMessage(e, operation, sessionId);
+                    Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
+                    return failFunc(context, message);
+                }
+                catch (Exception e)
+                {
+                    var message = GetLogMessage(e, operation, sessionId);
+                    Tracer.OperationFinished(tracingContext, FromException(e), sw.Elapsed, message, operation);
+                    return failFunc(context, $"{message}. Error={e}");
+                }
             }
         }
 

@@ -327,8 +327,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     var sessionData = new LocalContentServerSessionData("TestHibernatedSession", Capabilities.ContentOnly, ImplicitPin.PutAndGet, pins: null);
                     var sessionInfo = await server.CreateSessionAsync(context, sessionData, "Default").ShouldBeSuccess();
 
-                    var session = server.GetSession(sessionInfo.Value.sessionId);
-
+                    using var sessionReference = server.GetSession(sessionInfo.Value.sessionId);
+                    var session = sessionReference.Session;
                     if (context.Iteration == 0)
                     {
                         // Insert random file #1 into worker #0

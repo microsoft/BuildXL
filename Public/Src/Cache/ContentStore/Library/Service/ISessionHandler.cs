@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -12,15 +14,48 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.ContentStore.Service
 {
     /// <summary>
+    /// A ref-count reference for session's lifetime tracking purposes.
+    /// </summary>
+    public interface ISessionReference<out TSession> : IDisposable where TSession : IContentSession?
+    {
+        /// <nodoc />
+        [NotNull]
+        public TSession Session { get; }
+    }
+
+    /// <nodooc />
+    internal sealed class SessionReference<TSession> : ISessionReference<TSession> where TSession : IContentSession?
+    {
+        private readonly ISessionLifetimeManager _lifetimeManager;
+
+        /// <nodoc />
+        public SessionReference([NotNull]TSession session, ISessionLifetimeManager lifetimeManager)
+        {
+            Contract.Requires(session is not null);
+            Session = session;
+
+            _lifetimeManager = lifetimeManager;
+            _lifetimeManager.IncrementUsageCount();
+        }
+
+        /// <inheritdoc />
+        [NotNull]
+        public TSession Session { get; }
+
+        /// <inheritdoc />
+        public void Dispose() => _lifetimeManager.DecrementUsageCount();
+    }
+
+    /// <summary>
     /// A handler for sessions.
     /// </summary>
-    public interface ISessionHandler<out TSession, TSessionData> where TSession : IContentSession?
+    public interface ISessionHandler<out TSession, in TSessionData> where TSession : IContentSession?
     {
         /// <summary>
         /// Gets the session by <paramref name="sessionId"/>.
         /// Returns null if the session is not found.
         /// </summary>
-        [return: MaybeNull] TSession GetSession(int sessionId);
+        ISessionReference<TSession>? GetSession(int sessionId);
 
         /// <summary>
         /// Releases the session with the specified session id
@@ -50,10 +85,13 @@ namespace BuildXL.Cache.ContentStore.Service
     public static class SessionHandlerExtensions
     {
         /// <nodoc />
-        public static bool TryGetSession<TSession, TSessionData>(this ISessionHandler<TSession, TSessionData> sessionHandler, int sessionId, [MaybeNull][NotNullWhen(true)]out TSession session) where TSession : IContentSession?
+        public static bool TryGetSession<TSession, TSessionData>(
+            this ISessionHandler<TSession, TSessionData> sessionHandler,
+            int sessionId,
+            [NotNullWhen(true)]out ISessionReference<TSession>? sessionReference) where TSession : IContentSession?
         {
-            session = sessionHandler.GetSession(sessionId);
-            return session != null;
+            sessionReference = sessionHandler.GetSession(sessionId);
+            return sessionReference != null;
         }
     }
 }

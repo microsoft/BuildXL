@@ -188,7 +188,10 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <inheritdoc cref="LocalServerConfiguration.TraceGrpcOperations"/>
         public bool TraceGrpcOperation { get; set; }
-        
+
+        /// <inheritdoc cref="LocalServerConfiguration.DoNotShutdownSessionsInUse"/>
+        public bool DoNotShutdownSessionsInUse { get; set; }
+
         /// <inheritdoc cref="LocalServerConfiguration.IncrementalStatsCounterNames"/>
         public string[] IncrementalStatsCounterNames { get; set; }
 

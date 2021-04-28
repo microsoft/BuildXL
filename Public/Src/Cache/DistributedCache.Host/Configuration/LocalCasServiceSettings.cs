@@ -111,6 +111,17 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? MaxCopyFromHandlers { get; set; }
 
+        /// <summary>
+        /// Whether to ensure long-running actions keep their sessions open.
+        /// </summary>
+        /// <remarks>
+        /// If the heartbeat for a session is equals to the session's TTL, and a single operation runs longer then the TTL, then
+        /// the backend will close the session due to the expiry.
+        /// If this flag is set, the session won't be closed in this case.
+        /// </remarks>
+        [DataMember]
+        public bool? DoNotShutdownSessionsInUse { get; set; }
+
         /// <nodoc />
         [DataMember]
         public GrpcCoreServerOptions GrpcCoreServerOptions { get; set; }

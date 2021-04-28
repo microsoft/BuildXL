@@ -203,7 +203,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        protected override async Task HibernateSessionsAsync(Context context, IDictionary<int, ISessionHandle<ICacheSession, LocalCacheServerSessionData>> sessionHandles)
+        protected override async Task HibernateSessionsAsync(
+            Context context,
+            IDictionary<int, ISessionHandle<ICacheSession, LocalCacheServerSessionData>> sessionHandles)
         {
             var sessionInfoList = new List<HibernatedCacheSessionInfo>(sessionHandles.Count);
             foreach (var (id, handle) in sessionHandles)

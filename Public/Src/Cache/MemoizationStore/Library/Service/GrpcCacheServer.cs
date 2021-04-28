@@ -29,6 +29,8 @@ using Grpc.Core;
 
 // Can't rename ProtoBuf
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
 {
     /// <summary>
@@ -45,13 +47,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                 _inner = inner;
             }
 
-            public Task<Result<(int sessionId, AbsolutePath tempDirectory)>> CreateSessionAsync(
+            public Task<Result<(int sessionId, AbsolutePath? tempDirectory)>> CreateSessionAsync(
                 OperationContext context,
                 LocalContentServerSessionData sessionData,
                 string cacheName)
                 => _inner.CreateSessionAsync(context, new LocalCacheServerSessionData(sessionData), cacheName);
 
-            public ICacheSession GetSession(int sessionId) => _inner.GetSession(sessionId);
+            public ISessionReference<ICacheSession>? GetSession(int sessionId) => _inner.GetSession(sessionId);
             public Task<Result<CounterSet>> GetStatsAsync(OperationContext context) => _inner.GetStatsAsync(context);
             public Task ReleaseSessionAsync(OperationContext context, int sessionId) => _inner.ReleaseSessionAsync(context, sessionId);
             public Task<Result<long>> RemoveFromTrackerAsync(OperationContext context) => _inner.RemoveFromTrackerAsync(context);
@@ -72,7 +74,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             Capabilities serviceCapabilities,
             ISessionHandler<ICacheSession, LocalCacheServerSessionData> sessionHandler,
             Dictionary<string, IContentStore> storesByName,
-            LocalServerConfiguration localServerConfiguration = null)
+            LocalServerConfiguration? localServerConfiguration = null)
             : base(logger, serviceCapabilities, new SessionHandlerAdapter(sessionHandler), storesByName, localServerConfiguration)
         {
             _cacheSessionHandler = sessionHandler;
@@ -128,7 +130,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                     if (c.Session is IReadOnlyMemoizationSessionWithLevelSelectors withSelectors)
                     {
                         var result = await withSelectors.GetLevelSelectorsAsync(c.Context, fingerprint, c.Context.Token, request.Level).ThrowIfFailure();
-                        var selectors = result.Value.Selectors.Select(s => s.ToGrpc());
+                        var selectors = result.Value!.Selectors.Select(s => s.ToGrpc());
                         return new GetSelectorsResponse(result.Value.HasMore, selectors);
                     }
 
@@ -165,12 +167,15 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             var tracingContext = shutdownTracker.Context;
             
             var sessionId = request.Header.SessionId;
-            if (!_cacheSessionHandler.TryGetSession(sessionId, out var session))
+            using var sessionReference = _cacheSessionHandler.GetSession(sessionId);
+            if (sessionReference is null)
             {
                 return failure($"Could not find session for session ID {sessionId}");
             }
 
             await Task.Yield();
+
+            var session = sessionReference.Session;
 
             try
             {

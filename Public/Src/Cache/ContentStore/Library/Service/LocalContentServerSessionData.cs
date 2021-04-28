@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Service
 {
     /// <summary>
@@ -21,10 +23,10 @@ namespace BuildXL.Cache.ContentStore.Service
         public ImplicitPin ImplicitPin { get; }
 
         /// <nodoc />
-        public IList<string> Pins { get; }
+        public IList<string>? Pins { get; }
 
         /// <nodoc />
-        public LocalContentServerSessionData(string name, Capabilities capabilities, ImplicitPin implicitPin, IList<string> pins)
+        public LocalContentServerSessionData(string name, Capabilities capabilities, ImplicitPin implicitPin, IList<string>? pins)
         {
             Name = name;
             Capabilities = capabilities;

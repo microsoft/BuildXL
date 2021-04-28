@@ -406,6 +406,24 @@ namespace BuildXL.FrontEnd.JavaScript
                 processBuilder.Options |= Process.Options.WritingToStandardErrorFailsExecution;
             }
 
+            // If defined, success exit codes at the resolver level applies to every pip
+            if (m_resolverSettings.SuccessExitCodes != null)
+            {
+                processBuilder.SuccessExitCodes = m_resolverSettings.SuccessExitCodes.ToReadOnlyArray();
+            }
+
+            // If defined, retry exit codes at the resolver level applies to every pip
+            if (m_resolverSettings.RetryExitCodes != null)
+            {
+                processBuilder.RetryExitCodes = m_resolverSettings.RetryExitCodes.ToReadOnlyArray();
+            }
+
+            // If defined, process retries at the resolver level applies to every pip
+            if (m_resolverSettings.ProcessRetries.HasValue)
+            {
+                processBuilder.SetProcessRetries(m_resolverSettings.ProcessRetries.Value);
+            }
+
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(m_context.PathTable, project.ProjectFolder, m_allProjectRoots, processBuilder, m_resolverSettings);
 
             var logDirectory = GetLogDirectory(project);

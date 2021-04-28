@@ -485,6 +485,26 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * the regular way of determining a package script commands should occur.
      */
     customScripts?: (packageName: string, location: RelativePath) => File | Map<string, FileContent>
+
+    /** 
+     * A custom set of success exit codes that applies to all processes scheduled by this resolver. 
+     * Any other exit code would indicate failure. If unspecified, by default, 0 is the only successful exit code. 
+     * */
+    successExitCodes?: number[];
+
+    /** 
+     * A custom set of exit codes that causes pips to be retried by BuildXL. 
+     * Applies to all processes scheduled by this resolver. 
+     * If an exit code is also in the successExitCode, then the pip is not retried on exiting with that exit code. 
+     * */
+    retryExitCodes?: number[];
+
+    /**
+     * Maximum number of retries for processes.
+     * Applies to all processes scheduled by this resolver. 
+     * A process returning an exit code specified in 'retryExitCodes' will be retried at most the specified number of times.
+     */
+    processRetries?: number;
 }
 
 /**

@@ -28,3 +28,12 @@ Lists process names that are allowed to escape BuildXL sandbox, and therefore wo
 
 ### customScripts: (packageName: string, location: RelativePath) => File | Map<string, FileContent>
 Allows to customize the available scripts for a given package. Check the details [here](js-custom-scripts.md).
+
+### successExitCodes: number[]
+Exit codes that are considered successful. Any exit code outside the provided list is considered a failed execution, and BuildXL will treat it as a build breaker. This configuration applies to all pips scheduled by the corresponding resolver.
+
+### retryExitCodes: number[]
+Exit codes that cause BuildXL to retry the pip. By default this value is empty. If an exit code is also in 'successExitCode', then the pip is not retried on exiting with that exit code. This configuration applies to all pips scheduled by the corresponding resolver. The maximum number of retries is bound by 'processRetries'.
+
+### processRetries: number
+Maximum number of retries for processes. A process returning an exit code specified in 'retryExitCodes' will be retried at most the specified number of times. By default this value is not specified, in which case the build global max retry configuration defines this value (configured via command line arguments with /processRetries:n). If the global configuration is not specified, the default is 0, which implies that no retries will be attempted.

@@ -215,5 +215,47 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             XAssert.Contains(breakawayProcesses, breakawayTest);
         }
+
+        [Fact]
+        public void RetryCodesAreHonored()
+        {
+            var project = CreateRushProject();
+
+            var retryExitCodes = Start(new RushResolverSettings { RetryExitCodes = new[] { 42 } })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .RetryExitCodes;
+
+            XAssert.Contains(retryExitCodes, 42);
+        }
+
+        [Fact]
+        public void SuccessfulCodesAreHonored()
+        {
+            var project = CreateRushProject();
+
+            var successfullCodes = Start(new RushResolverSettings { SuccessExitCodes = new[] { 42 } })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .SuccessExitCodes;
+
+            XAssert.Contains(successfullCodes, 42);
+        }
+
+        [Fact]
+        public void ProcessRetriesAreHonored()
+        {
+            var project = CreateRushProject();
+
+            var processRetries = Start(new RushResolverSettings { ProcessRetries = 42 })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .ProcessRetries;
+
+            XAssert.AreEqual(processRetries, 42);
+        }
     }
 }

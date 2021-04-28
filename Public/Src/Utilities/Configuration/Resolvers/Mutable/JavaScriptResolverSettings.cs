@@ -42,6 +42,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CustomScheduling = resolverSettings.CustomScheduling;
             ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
             CustomScripts = resolverSettings.CustomScripts;
+            SuccessExitCodes = resolverSettings.SuccessExitCodes;
+            RetryExitCodes = resolverSettings.RetryExitCodes;
+            ProcessRetries = resolverSettings.ProcessRetries;
         }
 
         /// <inheritdoc/>
@@ -100,5 +103,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public object CustomScripts { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<int> SuccessExitCodes { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<int> RetryExitCodes { get; set; }
+
+        /// <inheritdoc/>
+        public int? ProcessRetries { get; set; }
     }
 }

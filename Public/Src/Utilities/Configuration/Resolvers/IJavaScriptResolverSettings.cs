@@ -94,6 +94,32 @@ namespace BuildXL.Utilities.Configuration
         /// The object is a closure, enforced by the DScript type checker. The Closure type is defined in the TypeScript DLL, not easily accessible from here.
         /// </remarks>
         object CustomScripts { get; }
+
+        /// <summary>
+        /// A custom set of success exit codes that applies to all pips scheduled by this resolver. 
+        /// </summary>
+        /// <remarks>
+        /// Any other exit code would indicate failure. If unspecified, by default, 0 is the only successful exit code. 
+        /// </remarks>
+        IReadOnlyList<int> SuccessExitCodes { get; }
+
+        /// <summary>
+        /// A custom set of exit codes that causes pips to be retried by BuildXL. 
+        /// </summary>
+        /// <remarks>
+        /// Applies to all pips scheduled by this resolver. 
+        /// If an exit code is also in the successExitCode, then the pip is not retried on exiting with that exit code.
+        /// </remarks>
+        IReadOnlyList<int> RetryExitCodes { get; }
+
+        /// <summary>
+        /// Maximum number of retries for processes.
+        /// </summary>
+        /// <remarks>
+        /// Applies to all processes scheduled by this resolver.
+        /// A process returning an exit code specified in 'retryExitCodes' will be retried at most the specified number of times.
+        /// </remarks>
+        int? ProcessRetries { get; }
     }
 
     /// <nodoc/>

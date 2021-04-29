@@ -424,7 +424,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 _context.Token.ThrowIfCancellationRequested();
 
                 using var timer = CreatePeriodicTimerIfNeeded();
-                return await WithOptionalTimeoutAsync(operation, _timeout, _context);
+                
+                return await WithOptionalTimeoutAsync(operation, _timeout, _context, caller: Caller);
             }
             catch (Exception ex)
             {
@@ -433,23 +434,32 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public static Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context)
+        public static async Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context, [CallerMemberName]string? caller = null) where T : ResultBase
         {
             if (timeout == null)
             {
-                return operation(context);
+                return await operation(context);
             }
 
-            return TaskUtilities.WithTimeoutAsync(async ct =>
+            try
             {
-                // If the operation does any synchronous work before returning the task, our timeout mechanism
-                // will never kick in. This yield is here to prevent that from happening.
-                await Task.Yield();
-                var nestedContext = new OperationContext(context.TracingContext, ct);
-                return await operation(nestedContext);
-            },
-            timeout.Value,
-            context.Token);
+                return await TaskUtilities.WithTimeoutAsync(async ct =>
+                                               {
+                                                   // If the operation does any synchronous work before returning the task, our timeout mechanism
+                                                   // will never kick in. This yield is here to prevent that from happening.
+                                                   await Task.Yield();
+                                                   var nestedContext = new OperationContext(context.TracingContext, ct);
+                                                   return await operation(nestedContext);
+                                               },
+                    timeout.Value,
+                    context.Token);
+            }
+            catch (TimeoutException)
+            {
+                // Handling the exception here to return an error message without stack traces.
+                var timeoutMessage = $"The operation '{caller}' has timed out after '{timeout}'.";
+                return new ErrorResult(timeoutMessage).AsResult<T>();
+            }
         }
     }
 

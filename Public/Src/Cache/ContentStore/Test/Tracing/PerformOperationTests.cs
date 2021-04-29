@@ -227,6 +227,32 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public async Task TimedOutOperationHasOperationNameAndNotStackTrace()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            int longOperationDurationMs = 10_000;
+            var timeout = TimeSpan.FromMilliseconds(longOperationDurationMs / 100);
+            var result = await context.PerformOperationWithTimeoutAsync(
+                tracer,
+                _ => operation(longOperationDurationMs),
+                timeout: timeout,
+                caller: "MyOperation");
+
+            result.ShouldBeError();
+            // The operation should fail gracefully without exception messages and stacktraces.
+            result.ToString().Should().NotContain("TimeoutException");
+            result.ToString().Should().Contain("The operation 'MyOperation' has timed out");
+            
+            async Task<BoolResult> operation(int duration)
+            {
+                await Task.Delay(duration);
+                return BoolResult.Success;
+            }
+        }
+
+        [Fact]
         public void EndMessageFactoryIsCalledForFailedCase()
         {
             var tracer = new Tracer("MyTracer");

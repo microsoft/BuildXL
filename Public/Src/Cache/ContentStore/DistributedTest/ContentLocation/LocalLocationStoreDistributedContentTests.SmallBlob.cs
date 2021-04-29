@@ -231,7 +231,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         }
                     }
 
-                    failure.ShouldBeError("TimeoutException");
+                    failure.ShouldBeError("timed out");
                     redisStore1.Counters[GlobalStoreCounters.GetBlob].Value.Should().BeGreaterOrEqualTo(1);
                 });
         }

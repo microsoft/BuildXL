@@ -43,13 +43,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
             public StopwatchSlim Stopwatch { get; }
 
+            public CancellationToken TimeoutToken { get; }
+
+            public CancellationToken CancelToken { get; }
+
             public int Dequeued = 0;
 
-            public CopyTask(CopyOperationBase request, int priority)
+            public CopyTask(CopyOperationBase request, int priority, CancellationToken timeoutToken, CancellationToken cancelToken)
             {
                 Request = request;
                 Priority = priority;
                 Stopwatch = StopwatchSlim.Start();
+                TimeoutToken = timeoutToken;
+                CancelToken = cancelToken;
             }
         }
 
@@ -128,10 +134,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             // it won't block a thread on the thread pool.
             _schedulerTask = Task.Factory.StartNew(() =>
             {
-                // We don't use TrackShutdown on the provided context because we want to ensure that the scheduler's
-                // cancellation is only dependent on the class being shutdown instead of some random cancellation token
-                // that we don't control.
-                var schedulerContext = new OperationContext(context, ShutdownStartedCancellationToken);
+                // We only take the tracing context out of the operation context because we don't want to cancel the
+                // scheduling loop when this random context gets cancelled.
+                var schedulerContext = new OperationContext(context, default);
                 Scheduler(schedulerContext);
             }, TaskCreationOptions.LongRunning);
 
@@ -163,9 +168,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
         public void Scheduler(OperationContext context)
         {
-            Tracer.Info(context, "Copy scheduler starting");
+            using var trackingContext = TrackShutdown(context);
+            var ctx = trackingContext.Context;
 
-            while (!context.Token.IsCancellationRequested)
+            Tracer.Info(ctx, "Copy scheduler starting");
+
+            while (!ctx.Token.IsCancellationRequested)
             {
                 if (Volatile.Read(ref _numPending) == 0)
                 {
@@ -189,10 +197,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     continue;
                 }
 
-                SchedulerCycle(context, cycleQuota).TraceIfFailure(context);
+                SchedulerCycle(ctx, cycleQuota).TraceIfFailure(ctx);
             }
 
-            Tracer.Info(context, "Copy scheduler shutting down");
+            Tracer.Info(ctx, "Copy scheduler shutting down");
+
             // There's two kinds of copies that we need to deal with here:
             //  1. Inflight. These have already started, and are handled by the cancellation token that's passed into them.
             //  2. Pending. These are currently enqueued, and are waiting on the task source. We need to cancel them
@@ -285,6 +294,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                         continue;
                     }
 
+                    // WARNING: Order is important between this if and the Interlocked.Exchange. If they are not in
+                    // this order, it is possible for a copy to have been dequeued and be cancelled due to timeout at
+                    // the same time.
+                    if (candidate.TimeoutToken.IsCancellationRequested || candidate.CancelToken.IsCancellationRequested)
+                    {
+                        candidate.TaskSource.SetCanceled();
+                        continue;
+                    }
+
                     Interlocked.Exchange(ref candidate.Dequeued, 1);
 
                     var request = candidate.Request;
@@ -334,14 +352,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             Task.Run(() =>
             {
                 var priority = candidate.Priority;
-
-                // Here we merge the cycle's cancellation token with the scheduler's shutdown token and the copy's
-                // cancellation token. Ensures that the copy that'll start next will be cancelled appropriately.
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(
-                    ShutdownStartedCancellationToken,
-                    context.Token,
-                    candidate.Request.Context.Token);
-                var nestedContext = new OperationContext(candidate.Request.Context, cts.Token);
+                var nestedContext = new OperationContext(candidate.Request.Context, candidate.CancelToken);
 
                 Task<T>? copyTask = null;
                 Exception? factoryException = null;
@@ -364,7 +375,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     // It may happen that the externally-provided task factory throws. In such a case, we'll fail the copy
                     // with this exception, which should be re-thrown when the user awaits for the copy to complete.
                     candidate.TaskSource.TrySetException(factoryException);
-                    cts.Dispose();
                     return;
                 }
 
@@ -381,7 +391,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     _copyCompletedEvent.Set();
 
                     candidate.TaskSource.TrySetFromTask(antecedent, result => result!);
-                    cts.Dispose();
                 }).FireAndForget(context);
             }, context.Token).FireAndForget(context);
         }
@@ -472,7 +481,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private async Task<CopySchedulerResult<T>> EnqueueAsync<T>(CopyOperationBase request)
             where T : class
         {
-            using var schedulerTimeoutCts = new CancellationTokenSource(delay: _configuration.SchedulerTimeout ?? Timeout.InfiniteTimeSpan);
+            if (ShutdownStartedCancellationToken.IsCancellationRequested)
+            {
+                return CopySchedulerResult<T>.Shutdown();
+            }
+
+            using var schedulingTimeoutCts = new CancellationTokenSource(delay: _configuration.SchedulerTimeout ?? Timeout.InfiniteTimeSpan);
+            using var cancelCopyCts = CancellationTokenSource.CreateLinkedTokenSource(request.Context.Token, ShutdownStartedCancellationToken);
 
             var priority = _assigner.Prioritize(request);
             Tracer.TrackMetric(request.Context, _createdMetricNames[priority], 1);
@@ -483,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 return CopySchedulerResult<T>.Throttle(ThrottleReason.QueueTooLong);
             }
 
-            var copy = new CopyTask(request, priority);
+            var copy = new CopyTask(request, priority, schedulingTimeoutCts.Token, cancelCopyCts.Token);
             Interlocked.Increment(ref _numPending);
             Interlocked.Increment(ref _numPendingByPriority[priority]);
 
@@ -502,17 +517,88 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             Tracer.TrackMetric(request.Context, _enqueuedMetricNames[priority], 1);
 
             _copyAddedEvent.Set();
-            var resultTask = copy.TaskSource.Task;
-            _ = await Task.WhenAny(resultTask, schedulerTimeoutCts.Token.WaitForCancellationAsync());
-            if (copy.Dequeued == 0 && schedulerTimeoutCts.Token.IsCancellationRequested)
-            {
-                Tracer.TrackMetric(request.Context, _timeoutMetricNames[priority], 1);
 
+            // At this point, we have added the copy task to its appropriate priority queue and we need to wait for it
+            // to be dispatched and completed.
+            var resultTask = copy.TaskSource.Task;
+            _ = await Task.WhenAny(resultTask, schedulingTimeoutCts.Token.WaitForCancellationAsync(), cancelCopyCts.Token.WaitForCancellationAsync());
+            if (resultTask.IsCompleted)
+            {
+                var result = await resultTask;
+                return new CopySchedulerResult<T>((T)result);
+            }
+
+            if (cancelCopyCts.Token.IsCancellationRequested)
+            {
+                if (ShutdownStartedCancellationToken.IsCancellationRequested)
+                {
+                    // cancelCopyCts fired because shutdown has started
+                    return CopySchedulerResult<T>.Shutdown();
+                }
+
+                if (request.Context.Token.IsCancellationRequested)
+                {
+                    // cancelCopyCts fired because the copy was externally cancelled
+
+                    // We throw here instead of returning a cancelled result intentionally, because callers may have
+                    // special logic for handling cancellations
+                    request.Context.Token.ThrowIfCancellationRequested();
+                }
+
+                throw Contract.AssertFailure("Never supposed to happen");
+            }
+
+            // If we are here, it means that the copy wasn't cancelled, but the scheduler timeout fired.
+            Contract.Assert(schedulingTimeoutCts.Token.IsCancellationRequested);
+
+            if (Volatile.Read(ref copy.Dequeued) == 0)
+            {
+                // The copy is still waiting in the queue
+
+                // WARNING: There is a race condition here:
+                //  - The copy gets dequeued, checks for the timeout but it hasn't happened, then the scheduling thread
+                //    gets preempted for a while.
+                //  - In the meantime, the timeout fires, and we enter this if (because the scheduler hasn't marked the
+                //    copy as dequeued yet). We get preempted right before the next line executes.
+                //  - The scheduler marks the copy as dequeued, and starts running the copy.
+                //  - At this point, we have basically accepted that the copy is cancelled due to scheduler timeout,
+                //    but the copy has actually started running.
+                // This next line will actually cancel that copy.
+                //
+                // Note that this race condition should be uncommon, because it depends on the timeout firing at a very
+                // precise time (basically equivalent to the amount of time it takes the copy scheduler to get to the
+                // copy).
+                cancelCopyCts.Cancel();
+
+                Tracer.TrackMetric(request.Context, _timeoutMetricNames[priority], 1);
                 return CopySchedulerResult<T>.TimeOut(_configuration.SchedulerTimeout);
             }
 
-            var result = await resultTask;
-            return new CopySchedulerResult<T>((result as T)!);
+            _ = await Task.WhenAny(resultTask, cancelCopyCts.Token.WaitForCancellationAsync());
+            if (resultTask.IsCompleted)
+            {
+                var result = await resultTask;
+                return new CopySchedulerResult<T>((T)result);
+            }
+
+            Contract.Assert(cancelCopyCts.Token.IsCancellationRequested);
+
+            if (ShutdownStartedCancellationToken.IsCancellationRequested)
+            {
+                // cancelCopyCts fired because shutdown has started
+                return CopySchedulerResult<T>.Shutdown();
+            }
+
+            if (request.Context.Token.IsCancellationRequested)
+            {
+                // cancelCopyCts fired because the copy was externally cancelled
+
+                // We throw here instead of returning a cancelled result intentionally, because callers may have
+                // special logic for handling cancellations
+                request.Context.Token.ThrowIfCancellationRequested();
+            }
+
+            throw Contract.AssertFailure("Never supposed to happen");
         }
 
         private static bool IsImmediateRejectionCandidate(CopyOperationBase request)

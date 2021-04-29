@@ -16,5 +16,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
         /// <nodoc />
         Throttled,
+
+        /// <nodoc />
+        Shutdown,
     }
 }

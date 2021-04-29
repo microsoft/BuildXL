@@ -270,6 +270,127 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             });
         }
 
+        [Fact]
+        public Task SchedulerTimeoutIsRespected2()
+        {
+            // This test won't ever fail, it will just hang
+            return RunTest(async (context, scheduler) =>
+            {
+                var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ =>
+                {
+                    return Task.FromResult(new CopyFileResult());
+                }));
+
+                result.Reason.Should().Be(SchedulerFailureCode.Timeout);
+            }, new PrioritizedCopySchedulerConfiguration()
+            {
+                SchedulerTimeout = TimeSpan.FromSeconds(2)
+            });
+        }
+
+        [Fact]
+        public async Task SchedulerTimeoutDoesntFireWhileCopyIsOngoing()
+        {
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration: new PrioritizedCopySchedulerConfiguration()
+            {
+                SchedulerTimeout = TimeSpan.FromSeconds(1)
+            });
+
+            await scheduler.StartupAsync(context).ShouldBeSuccess();
+
+            var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, async args =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), args.Context.Token);
+                return new CopyFileResult();
+            })).ShouldBeSuccess();
+
+            await scheduler.ShutdownAsync(context).ShouldBeSuccess();
+        }
+
+        [Fact]
+        public async Task OngoingCopyShouldGetCancelledOnShutdown()
+        {
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration: null);
+            await scheduler.StartupAsync(context).ShouldBeSuccess();
+
+            var releaseShutdown = new SemaphoreSlim(0);
+            var releaseCopy = new SemaphoreSlim(0);
+
+            var task = Task.Run(async () =>
+            {
+                var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, async args =>
+                {
+                    releaseShutdown.Release();
+                    await releaseCopy.WaitAsync();
+                    args.Context.Token.ThrowIfCancellationRequested();
+                    return new CopyFileResult();
+                }));
+
+                result.Reason.Should().Be(SchedulerFailureCode.Shutdown);
+            });
+
+            await releaseShutdown.WaitAsync();
+
+            await scheduler.ShutdownAsync(context).ShouldBeSuccess();
+
+            releaseCopy.Release();
+
+            await task;
+        }
+
+        [Fact]
+        public async Task CopyAddedAfterShutdownGetsCancelled()
+        {
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration: null);
+            await scheduler.StartupAsync(context).ShouldBeSuccess();
+            await scheduler.ShutdownAsync(context).ShouldBeSuccess();
+
+            var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, args =>
+            {
+                return Task.FromResult(new CopyFileResult());
+            }));
+
+            result.Reason.Should().Be(SchedulerFailureCode.Shutdown);
+        }
+
+        [Fact]
+        public async Task ShutdownCancelsPendingCopies()
+        {
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration: null);
+
+            var result = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, args =>
+            {
+                return Task.FromResult(new CopyFileResult());
+            }));
+
+            await scheduler.ShutdownAsync(context).ShouldBeSuccess();
+
+            // It doesn't matter if the scheduler is running or not. The fact that the shutdown has started causes the
+            // copy to fail
+            await result.ShouldBeError();
+        }
+
+        [Fact]
+        public Task EnqueuedCopiesGetCancelledOnShutdown()
+        {
+            // This test is essentially asserting that the CopyScheduler's queue gets purged after shutdown, and all
+            // pending copies are cancelled.
+
+            var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration: null);
+
+            var result = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, args =>
+            {
+                return Task.FromResult(new CopyFileResult());
+            }));
+
+            using var cancelledCts = new CancellationTokenSource();
+            cancelledCts.Cancel();
+
+            scheduler.Scheduler(context.WithCancellationToken(cancelledCts.Token));
+
+            return Assert.ThrowsAsync<TaskCanceledException>(() => result.ShouldBeError());
+        }
+
         public async Task RunTest(Func<OperationContext, PrioritizedCopyScheduler, Task> func, PrioritizedCopySchedulerConfiguration prioritizedCopySchedulerConfiguration = null)
         {
             var (context, scheduler) = CreateContextAndScheduler(prioritizedCopySchedulerConfiguration);
@@ -295,13 +416,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var operationContext = new OperationContext(context);
 
             var configuration = new CopySchedulerConfiguration()
-                                {
-                                    Type = CopySchedulerType.Prioritized,
-                                    PrioritizedCopySchedulerConfiguration =
+            {
+                Type = CopySchedulerType.Prioritized,
+                PrioritizedCopySchedulerConfiguration =
                                         prioritizedCopySchedulerConfiguration ?? new PrioritizedCopySchedulerConfiguration(),
-                                };
+            };
 
-            var scheduler = (PrioritizedCopyScheduler) configuration.Create(context);
+            var scheduler = (PrioritizedCopyScheduler)configuration.Create(context);
             return (operationContext, scheduler);
         }
     }

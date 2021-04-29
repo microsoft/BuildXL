@@ -59,5 +59,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 ThrottleReason = reason,
             };
         }
+
+        public static CopySchedulerResult<T> Shutdown()
+        {
+            return new CopySchedulerResult<T>(
+                reason: SchedulerFailureCode.Shutdown,
+                errorMessage: $"Copy scheduler's shutdown has started");
+        }
     }
 }

@@ -9,10 +9,6 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using FluentAssertions;
 using Xunit;
@@ -79,8 +75,6 @@ namespace ContentStoreTest.Stores
         {
             var dummyPath = PathGeneratorUtilities.GetAbsolutePath("C", "dummy");
             var mock = new TestAbsFileSystem(currentSize);
-
-            var mockStore = new TestContentStoreInternal(dummyPath);
 
             var quota = new DiskFreePercentQuota(Hard, Soft);
             return new DiskFreePercentRule(
@@ -264,173 +258,6 @@ namespace ContentStoreTest.Stores
             }
 
             public void WriteAllBytes(AbsolutePath path, byte[] content)
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        private class TestContentStoreInternal : IContentStoreInternal
-        {
-            private readonly string _dummyPath;
-
-            public AbsolutePath RootPath => new AbsolutePath(_dummyPath);
-
-            public IContentChangeAnnouncer Announcer { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-            public bool StartupCompleted => throw new NotImplementedException();
-
-            public bool StartupStarted => throw new NotImplementedException();
-
-            public bool ShutdownCompleted => throw new NotImplementedException();
-
-            public bool ShutdownStarted => throw new NotImplementedException();
-
-            public TestContentStoreInternal(string dummyPath)
-            {
-                _dummyPath = dummyPath;
-            }
-
-            public Task<bool> ContainsAsync(Context context, ContentHash contentHash, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public PinContext CreatePinContext()
-            {
-                throw new NotImplementedException();
-            }
-
-            public void Dispose()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<IEnumerable<ContentHash>> EnumerateContentHashesAsync()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<IReadOnlyList<ContentInfo>> EnumerateContentInfoAsync()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<GetContentSizeResult> GetContentSizeAndCheckPinnedAsync(Context context, ContentHash contentHash, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<BoolResult> ShutdownEvictionAsync(Context context)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruOrderedContentListWithTimeAsync()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<GetStatsResult> GetStatsAsync(Context context)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<OpenStreamResult> OpenStreamAsync(Context context, ContentHash contentHash, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext pinContext)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext, PinBulkOptions options)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PlaceFileResult> PlaceFileAsync(Context context, ContentHash contentHash, AbsolutePath destinationPath, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> placeFileArgs, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, FileRealizationMode realizationMode, HashType hashType, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, FileRealizationMode realizationMode, ContentHash contentHash, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutTrustedFileAsync(Context context, AbsolutePath path, FileRealizationMode realizationMode, ContentHashWithSize contentHash, PinRequest? pinContext = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutStreamAsync(Context context, Stream stream, HashType hashType, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutStreamAsync(Context context, Stream stream, ContentHash contentHash, PinRequest? pinRequest = null)
-            {
-                throw new NotImplementedException();
-            }
-
-            public PinSizeHistory.ReadHistoryResult ReadPinSizeHistory(int windowSize)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<BoolResult> ShutdownAsync(Context context)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<BoolResult> StartupAsync(Context context)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task SyncAsync(Context context, bool purge = true)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<bool> Validate(Context context)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, HashType hashType, FileRealizationMode realizationMode, Func<Stream, Stream> wrapStream, PinRequest? pinRequest)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, Func<Stream, Stream> wrapStream, PinRequest? pinRequest)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteContentOptions)
             {
                 throw new NotImplementedException();
             }

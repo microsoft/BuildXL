@@ -29,7 +29,7 @@ namespace ContentStoreTest.Stores
             var context = new Context(Logger);
             return TestStore(context, _clock, async store =>
             {
-                IContentStoreInternal cas = store;
+                FileSystemContentStoreInternal cas = store;
                 var contentHash = ContentHash.Random();
                 (await cas.ContainsAsync(context, contentHash)).Should().BeFalse();
             });

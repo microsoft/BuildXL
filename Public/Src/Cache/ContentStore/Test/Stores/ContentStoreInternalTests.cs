@@ -27,7 +27,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace ContentStoreTest.Stores
 {
     public abstract class ContentStoreInternalTests<TStore> : TestBase
-        where TStore : class, IContentStoreInternal
+        where TStore :  FileSystemContentStoreInternal
     {
         private const HashType ContentHashType = HashType.Vso0;
         protected const int ValueSize = 100;
@@ -765,7 +765,7 @@ namespace ContentStoreTest.Stores
             });
         }
 
-        private async Task TestSuccessfulPutStreamAndGet(IContentStoreInternal store, byte[] content)
+        private async Task TestSuccessfulPutStreamAndGet(FileSystemContentStoreInternal store, byte[] content)
         {
             ContentHash actualContentHash = content.CalculateHash(ContentHashType);
 
@@ -792,7 +792,7 @@ namespace ContentStoreTest.Stores
             }
         }
 
-        private async Task TestSuccessfulPutAbsolutePathAndGet(IContentStoreInternal store, byte[] content, FileRealizationMode ingressModes)
+        private async Task TestSuccessfulPutAbsolutePathAndGet(FileSystemContentStoreInternal store, byte[] content, FileRealizationMode ingressModes)
         {
             using (var tempDirectory = new DisposableDirectory(FileSystem))
             {

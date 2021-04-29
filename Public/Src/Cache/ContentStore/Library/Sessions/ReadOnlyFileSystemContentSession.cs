@@ -20,14 +20,14 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Cache.ContentStore.Sessions
 {
     /// <summary>
-    ///     An IReadOnlyContentSession implemented over an IContentStoreInternal
+    ///     An <see cref="IReadOnlyContentSession"/> implemented over a <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
     public class ReadOnlyFileSystemContentSession : ContentSessionBase, IHibernateContentSession
     {
         /// <summary>
         ///     The internal content store backing the session.
         /// </summary>
-        protected readonly IContentStoreInternal Store;
+        protected readonly FileSystemContentStoreInternal Store;
 
         private readonly PinContext _pinContext;
         private readonly ImplicitPin _implicitPin;
@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyFileSystemContentSession" /> class.
         /// </summary>
-        public ReadOnlyFileSystemContentSession(string name, IContentStoreInternal store, ImplicitPin implicitPin)
+        public ReadOnlyFileSystemContentSession(string name, FileSystemContentStoreInternal store, ImplicitPin implicitPin)
             : base(name)
         {
             Store = store;
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Counter retryCounter,
             Counter fileCounter)
         {
-            return (await Store.PinAsync(operationContext, contentHashes, _pinContext)).AsTasks();
+            return (await Store.PinAsync(operationContext, contentHashes, _pinContext, options: null)).AsTasks();
         }
 
         /// <inheritdoc />

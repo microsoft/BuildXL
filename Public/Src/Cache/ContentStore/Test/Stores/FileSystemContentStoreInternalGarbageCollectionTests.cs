@@ -38,7 +38,7 @@ namespace ContentStoreTest.Stores
                 _clock,
                 async store =>
                 {
-                    var cas = store as IContentStoreInternal;
+                    var cas = store as FileSystemContentStoreInternal;
                     var blobSize = BlobSizeToStartSoftPurging(2);
 
                     using (var stream1 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))
@@ -58,7 +58,7 @@ namespace ContentStoreTest.Stores
         {
             return TestStore(_context, _clock, async store =>
              {
-                 var cas = store as IContentStoreInternal;
+                 var cas = store as FileSystemContentStoreInternal;
                  var blobSize = BlobSizeToStartSoftPurging(2);
 
                  using (var stream1 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))

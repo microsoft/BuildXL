@@ -13,7 +13,7 @@ namespace ContentStoreTest.Sessions
 {
     public class TestFileSystemContentSession : FileSystemContentSession
     {
-        public TestFileSystemContentSession(string name, ImplicitPin implicitPin, IContentStoreInternal store)
+        public TestFileSystemContentSession(string name, ImplicitPin implicitPin, FileSystemContentStoreInternal store)
             : base(name, implicitPin, store)
         {
         }

@@ -305,19 +305,19 @@ namespace ContentStoreTest.Stores
             return new MemoryStream(ThreadSafeRandom.GetBytes((int)size));
         }
 
-        protected async Task AssertContainsHash(IContentStoreInternal store, ContentHash contentHash)
+        protected async Task AssertContainsHash(FileSystemContentStoreInternal store, ContentHash contentHash)
         {
             var contains = await store.ContainsAsync(Context, contentHash);
             contains.Should().BeTrue($"Expected hash={contentHash.ToShortString()} to be present but was not");
         }
 
-        protected async Task AssertDoesNotContain(IContentStoreInternal store, ContentHash contentHash)
+        protected async Task AssertDoesNotContain(FileSystemContentStoreInternal store, ContentHash contentHash)
         {
             var contains = await store.ContainsAsync(Context, contentHash);
             contains.Should().BeFalse($"Expected hash={contentHash.ToShortString()} to not be present but was");
         }
 
-        protected async Task<bool> ContainsAsync(IContentStoreInternal store, ContentHash contentHash)
+        protected async Task<bool> ContainsAsync(FileSystemContentStoreInternal store, ContentHash contentHash)
         {
             var r = await store.ContainsAsync(Context, contentHash);
 
@@ -326,7 +326,7 @@ namespace ContentStoreTest.Stores
             return r;
         }
 
-        protected async Task<PutResult> PutStreamAsync(IContentStoreInternal store, MemoryStream content)
+        protected async Task<PutResult> PutStreamAsync(FileSystemContentStoreInternal store, MemoryStream content)
         {
             var r = await store.PutStreamAsync(Context, content, ContentHashType);
             Clock.Increment();
@@ -335,7 +335,7 @@ namespace ContentStoreTest.Stores
 
         protected async Task<ContentHash> PutAsync
             (
-            IContentStoreInternal store,
+            FileSystemContentStoreInternal store,
             MemoryStream content,
             bool useFile = false,
             HashType hashType = ContentHashType,
@@ -375,7 +375,7 @@ namespace ContentStoreTest.Stores
             return contentHash;
         }
 
-        protected async Task Replicate(IContentStoreInternal store, ContentHash contentHash, DisposableDirectory directory, int numberOfFiles = 1500)
+        protected async Task Replicate(FileSystemContentStoreInternal store, ContentHash contentHash, DisposableDirectory directory, int numberOfFiles = 1500)
         {
             // ReSharper disable once UnusedVariable
             foreach (var x in Enumerable.Range(0, numberOfFiles))

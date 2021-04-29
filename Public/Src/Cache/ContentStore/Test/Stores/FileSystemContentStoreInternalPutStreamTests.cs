@@ -171,7 +171,7 @@ namespace ContentStoreTest.Stores
             {
                 store.Announcer.Should().NotBeNull();
 
-                var cas = store as IContentStoreInternal;
+                var cas = store as FileSystemContentStoreInternal;
                 var blobSize = BlobSizeToStartSoftPurging(2);
 
                 using (var stream1 = new MemoryStream(ThreadSafeRandom.GetBytes(blobSize)))

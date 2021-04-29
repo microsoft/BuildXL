@@ -19,14 +19,14 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Cache.ContentStore.Sessions
 {
     /// <summary>
-    ///     An IContentSession implemented over an IContentStoreInternal
+    ///     An <see cref="IContentSession"/> implemented over a <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
     public class FileSystemContentSession : ReadOnlyFileSystemContentSession, ITrustedContentSession, IDecoratedStreamContentSession
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentSession" /> class.
         /// </summary>
-        public FileSystemContentSession(string name, ImplicitPin implicitPin, IContentStoreInternal store)
+        public FileSystemContentSession(string name, ImplicitPin implicitPin, FileSystemContentStoreInternal store)
             : base(name, store, implicitPin)
         {
         }

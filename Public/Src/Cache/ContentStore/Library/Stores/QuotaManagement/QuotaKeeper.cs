@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private readonly CancellationToken _token;
 
-        private readonly IContentStoreInternal _store;
+        private readonly FileSystemContentStoreInternal _store;
         private readonly IDistributedLocationStore? _distributedStore;
 
         private readonly BlockingCollection<QuotaRequest> _reserveQueue;
@@ -102,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentStoreInternalTracer tracer,
             QuotaKeeperConfiguration configuration,
             CancellationToken token,
-            IContentStoreInternal store,
+            FileSystemContentStoreInternal store,
             IDistributedLocationStore? distributedStore)
         {
             _contentStoreTracer = tracer;
@@ -122,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             IAbsFileSystem fileSystem,
             ContentStoreInternalTracer tracer,
             CancellationToken token,
-            IContentStoreInternal store,
+            FileSystemContentStoreInternal store,
             IDistributedLocationStore? distributedStore,
             QuotaKeeperConfiguration configuration)
         {
@@ -220,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private List<IQuotaRule> CreateRules(
             IAbsFileSystem fileSystem,
             QuotaKeeperConfiguration configuration,
-            IContentStoreInternal store)
+            FileSystemContentStoreInternal store)
         {
             var rules = new List<IQuotaRule>();
 

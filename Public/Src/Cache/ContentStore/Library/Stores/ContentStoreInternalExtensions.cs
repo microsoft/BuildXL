@@ -11,7 +11,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.ContentStore.Stores
 {
     /// <summary>
-    ///     Extension methods for IContentStoreInternal.
+    ///     Extension methods for FileSystemContentStoreInternal.
     /// </summary>
     public static class ContentStoreInternalExtensions
     {
@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Put a randomly-sized piece of content into the store.
         /// </summary>
         public static async Task<PutResult> PutRandomAsync(
-            this IContentStoreInternal store, Context context, int size, HashType hashType = HashType.Vso0, PinRequest pinRequest = default(PinRequest))
+            this FileSystemContentStoreInternal store, Context context, int size, HashType hashType = HashType.Vso0, PinRequest pinRequest = default(PinRequest))
         {
             var data = ThreadSafeRandom.GetBytes(size);
             using (var stream = new MemoryStream(data))

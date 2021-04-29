@@ -377,7 +377,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var finishedCopyLocations = info.Locations!;
             var pendingCopies = startedCopyLocations.Except(finishedCopyLocations).Count();
 
-            return (new ContentHashWithSizeAndLocations(info.ContentHash, info.Size, TranslateLocations(info.Locations!)), pendingCopies);
+            var locations = TranslateLocations(info.Locations!);
+
+            return (new ContentHashWithSizeAndLocations(info.ContentHash, info.Size, locations), pendingCopies);
         }
 
         private ContentHash ComputeStartedCopyHash(ContentHash hash)
@@ -396,7 +398,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _locationStore.RegisterLocalLocationAsync(context, contentInfo).ThrowIfFailure();
         }
 
-        private IReadOnlyList<MachineLocation> TranslateLocations(IReadOnlyList<MachineLocation> locations)
+        internal IReadOnlyList<MachineLocation> TranslateLocations(IReadOnlyList<MachineLocation> locations)
         {
             // Choose a 'random' offset to ensure that locations are random
             // Locations are normally randomly sorted except machine reputation can override this
@@ -404,7 +406,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // important not to overload a machine which may end up consistent at the top of the list because of
             // having a good reputation
             var offset = Interlocked.Increment(ref _translateLocationsOffset);
-            return locations.SelectList((item, index) => TranslateLocation(locations[(offset + index) % locations.Count]));
+
+            return locations.SelectList((item, index) => TranslateLocation(locations[getOffsetIndex(index, offset, locations.Count)]));
+
+            static int getOffsetIndex(int index, int offset, int totalCount)
+            {
+                if (index == totalCount - 1)
+                {
+                    // It's important that the last entry remains at the end of the list, because most times that corresponds
+                    // to the master, which we want to avoid copying from at all costs.
+                    return index;
+                }
+
+                return (offset + index) % (totalCount - 1);
+            }
         }
 
         private MachineLocation TranslateLocation(MachineLocation other)

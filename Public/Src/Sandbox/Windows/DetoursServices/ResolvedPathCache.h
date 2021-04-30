@@ -47,7 +47,12 @@ class ResolvedPathCache {
 public:
     inline bool InsertResolvingCheckResult(const std::wstring& path, bool result)
     {
-        ResolvedPathCacheWriteLock w_lock(m_lock);
+        // Using the cache is best effort, as this is faster than waiting on locks.  It is not incorrect to not have a value in the cache, just might result in more I/O when the file is not found in the cache.
+        ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
+        if (!w_lock.owns_lock())
+        {
+          return false;
+        }
 
         const std::wstring normalizedPath = Normalize(path);
         if (!m_pathTree.TryInsert(normalizedPath))
@@ -65,7 +70,11 @@ public:
 
     inline bool InsertResolvedPathWithType(const std::wstring& path, std::wstring& resolved, DWORD type)
     {
-        ResolvedPathCacheWriteLock w_lock(m_lock);
+        ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
+        if (!w_lock.owns_lock())
+        {
+          return false;
+        }
         const std::wstring normalizedPath = Normalize(path);
         if (!m_pathTree.TryInsert(normalizedPath))
         {
@@ -86,7 +95,11 @@ public:
         std::vector<std::wstring>&& insertion_order,
         std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>&& resolved_paths)
     {
-        ResolvedPathCacheWriteLock w_lock(m_lock);
+        ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
+        if (!w_lock.owns_lock())
+        {
+          return false;
+        }
 
         const std::wstring normalizedPath = Normalize(path);
 

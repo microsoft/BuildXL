@@ -369,6 +369,12 @@ export namespace DropDaemonRunner {
                     Artifact.input(args.dropServiceConfigFile)
                 ),
                 Cmd.option("--domainId ", args.dropDomainId),
+                // --generateSignedManifest Needs to be set after --dropServiceConfigFile to overwrite the bool set by json config
+                // Used to enable ABTesting Build Manifest via BXL ENV var, safe to remove after complete feature rollout
+                ...addIf(
+                    command === "start" && Environment.getFlag("BuildXLEnableBuildManifestGeneration") === true,
+                    Cmd.flag("--generateSignedManifest", true)
+                ),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
             dependencies: [

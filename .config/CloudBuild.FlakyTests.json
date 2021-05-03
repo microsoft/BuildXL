@@ -17,7 +17,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'success', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/f174089b-fc75-4eee-81c5-ce0d3937b040",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-06-02T16:00:47.1397468Z"
         }
       },
       "Metadata": {

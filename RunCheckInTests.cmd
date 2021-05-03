@@ -14,6 +14,14 @@ set RUN_PART_A=1
 set RUN_PART_B=1
 set MINIMAL_LAB=0
 
+if defined RCIT_RUN_PART_A (
+    set RUN_PART_A=%RCIT_RUN_PART_A%
+)
+
+if defined RCIT_RUN_PART_B (
+    set RUN_PART_B=%RCIT_RUN_PART_B%
+)
+
 REM These are provided to bxl.cmd only when /lab is specified (automated builds).
 REM For lab builds, log full outputs.
 REM For lab builds, retry unit tests automatically.

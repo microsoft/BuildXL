@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +15,18 @@ namespace Test.BuildXL.Utilities
 {
     public sealed class TaskUtilitiesTests
     {
+        [Fact]
+        public Task ToAwaitableCompletesWhenCanceled()
+        {
+            var cts = new CancellationTokenSource();
+
+            using var awaitable = cts.Token.ToAwaitable();
+            Assert.False(awaitable.CompletionTask.IsCompleted);
+
+            cts.Cancel();
+            return awaitable.CompletionTask;
+        }
+
         [Fact]
         public async Task WhenAllWithCancellationShouldNotCauseUnobservedTaskExceptions()
         {

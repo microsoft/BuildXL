@@ -521,11 +521,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             // At this point, we have added the copy task to its appropriate priority queue and we need to wait for it
             // to be dispatched and completed.
             var resultTask = copy.TaskSource.Task;
-            _ = await Task.WhenAny(resultTask, schedulingTimeoutCts.Token.WaitForCancellationAsync(), cancelCopyCts.Token.WaitForCancellationAsync());
-            if (resultTask.IsCompleted)
+            using (var schedulerTimeoutAwaiter = schedulingTimeoutCts.Token.ToAwaitable())
+            using (var cancelCopyAwaiter = cancelCopyCts.Token.ToAwaitable())
             {
-                var result = await resultTask;
-                return new CopySchedulerResult<T>((T)result);
+                _ = await Task.WhenAny(resultTask, schedulerTimeoutAwaiter.CompletionTask, cancelCopyAwaiter.CompletionTask);
+                if (resultTask.IsCompleted)
+                {
+                    var result = await resultTask;
+                    return new CopySchedulerResult<T>((T)result);
+                }
             }
 
             if (cancelCopyCts.Token.IsCancellationRequested)
@@ -574,7 +578,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                 return CopySchedulerResult<T>.TimeOut(_configuration.SchedulerTimeout);
             }
 
-            _ = await Task.WhenAny(resultTask, cancelCopyCts.Token.WaitForCancellationAsync());
+            using (var cancelCopyAwaiter = cancelCopyCts.Token.ToAwaitable())
+            {
+                _ = await Task.WhenAny(resultTask, cancelCopyAwaiter.CompletionTask);
+            }
+
             if (resultTask.IsCompleted)
             {
                 var result = await resultTask;

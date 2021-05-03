@@ -100,16 +100,53 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
-        /// Waits for cancellation to be triggered.
+        /// Gets <see cref="CancellationTokenAwaitable"/> from a given <paramref name="token"/> that can be used in async methods to await the cancellation.
         /// </summary>
-        public static async Task WaitForCancellationAsync(this CancellationToken token)
+        /// <remarks>
+        /// The method returns a special disposable type instead of just returning a Task.
+        /// This is important, because the client code need to "unregister" the callback from the token when some other operations are done and the cancellation is no longer relevant.
+        /// Just returning a task on a token that is never trigerred will effectively cause a memory leak.
+        /// Here is a previous implementation of this method:
+        /// <code>public static async Task ToAwaitable(this CancellationToken token) { try {await Task.Delay(Timeout.Infinite, token);} catch(TaskCanceledException) {} }</code>
+        /// The `Delay` impelmentaiton checks if the timeout is infinite and won't start the timer, but it still will create a `DelayPromise` instance
+        /// and will register for the cancellation.
+        /// It means that if we call such a method many times with the same cancellation token, the registration list will grow indefinitely causing potential performance issues.
+        /// </remarks>
+        public static CancellationTokenAwaitable ToAwaitable(this CancellationToken token)
         {
-            try
+            if (!token.CanBeCanceled)
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                // If the token can not be canceled, return a special global instance with a task that will never be finished.
+                return CancellationTokenAwaitable.NonCancellableAwaitable;
             }
-            catch (TaskCanceledException)
+
+            var tcs = new TaskCompletionSource<object>();
+            var registration = token.Register(static tcs => ((TaskCompletionSource<object>)tcs).SetResult(null), tcs);
+            return new CancellationTokenAwaitable(tcs.Task, registration);
+        }
+
+        /// <nodoc />
+        public readonly struct CancellationTokenAwaitable : IDisposable
+        {
+            private readonly CancellationTokenRegistration? m_registration;
+
+            /// <nodoc />
+            public CancellationTokenAwaitable(Task completionTask, CancellationTokenRegistration? registration)
             {
+                m_registration = registration;
+                CompletionTask = completionTask;
+            }
+
+            /// <nodoc />
+            public static CancellationTokenAwaitable NonCancellableAwaitable { get; } = new CancellationTokenAwaitable(new TaskCompletionSource<object>().Task, registration: null);
+
+            /// <nodoc />
+            public Task CompletionTask { get; }
+
+            /// <inheritdoc />
+            void IDisposable.Dispose()
+            {
+                m_registration?.Dispose();
             }
         }
 

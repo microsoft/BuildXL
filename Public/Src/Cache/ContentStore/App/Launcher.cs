@@ -2,27 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using CLAP;
 
@@ -93,8 +81,8 @@ namespace BuildXL.Cache.ContentStore.App
                             try
                             {
                                 await launcher.StartupAsync(context).ThrowIfFailureAsync();
-                                var task = token.WaitForCancellationAsync();
-                                await task;
+                                using var tokenAwaitable = token.ToAwaitable();
+                                await tokenAwaitable.CompletionTask;
                             }
                             finally
                             {

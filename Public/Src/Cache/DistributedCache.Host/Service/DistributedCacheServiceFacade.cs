@@ -3,27 +3,22 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -134,8 +129,8 @@ namespace BuildXL.Cache.Host.Service
                     }
 
                     await ReportServiceStartedAsync(operationContext, server, host);
-
-                    await arguments.Cancellation.WaitForCancellationAsync();
+                    using var cancellationAwaiter = arguments.Cancellation.ToAwaitable();
+                    await cancellationAwaiter.CompletionTask;
                     await ReportShuttingDownServiceAsync(operationContext, host);
                 }
                 catch (Exception e)

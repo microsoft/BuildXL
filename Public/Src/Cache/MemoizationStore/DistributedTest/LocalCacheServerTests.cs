@@ -159,7 +159,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 () => contentStore,
                 () => new MemoryMemoizationStore(Logger),
                 CacheDeterminism.NewCacheGuid());
-            return new PublishingCacheToContentStore(new PublishingCache(localCache, new BlockingPublishingStore(), Guid.NewGuid()));
+            return new PublishingCacheToContentStore(new PublishingCache<OneLevelCache>(localCache, new BlockingPublishingStore(), Guid.NewGuid()));
         }
 
         internal class PublishingCacheToContentStore : StartupShutdownSlimBase, IContentStore, IPublishingCache

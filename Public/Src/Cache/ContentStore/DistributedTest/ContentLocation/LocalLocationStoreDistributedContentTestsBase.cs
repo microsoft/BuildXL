@@ -76,6 +76,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool UseRealStorage { get; set; } = false;
         protected bool UseRealEventHub { get; set; } = false;
 
+        protected bool EnablePublishingCache { get; set; } = false;
+
         protected Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
         protected Action<DistributedContentStoreSettings> _overrideDistributedContentStooreSettings = null;
 
@@ -193,6 +195,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                ProactiveCopyMaxRetries = ProactiveCopyRetries,
 
                                ContentLocationDatabaseOpenReadOnly = true,
+                               EnablePublishingCache = EnablePublishingCache,
                            };
 
             if (ProactiveCopyLocationThreshold.HasValue)

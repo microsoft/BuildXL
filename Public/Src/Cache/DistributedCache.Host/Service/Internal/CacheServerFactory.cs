@@ -142,7 +142,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 #if MICROSOFT_INTERNAL
                     if (distributedSettings.EnablePublishingCache)
                     {
-                        cacheToReturn = new PublishingCache(
+                        cacheToReturn = new PublishingCache<OneLevelCache>(
                             local: distributedCache,
                             remote: new BuildCachePublishingStore(contentSource: distributedCache, _fileSystem, distributedSettings.PublishingConcurrencyLimit),
                             Guid.NewGuid());
@@ -210,7 +210,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 #if MICROSOFT_INTERNAL
                         if (distributedSettings.EnablePublishingCache)
                         {
-                            cacheToReturn = new PublishingCache(
+                            cacheToReturn = new PublishingCache<DistributedOneLevelCache>(
                                 local: distributedCache,
                                 remote: new BuildCachePublishingStore(contentSource: distributedCache, _fileSystem, distributedSettings.PublishingConcurrencyLimit),
                                 Guid.NewGuid());

@@ -24,7 +24,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 {
-    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, IHibernateCacheSession
+    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, IReadOnlyCacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin
     {
         public string Name { get; }
         protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCacheSession));
@@ -232,6 +232,16 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
             }
 
             return Task.CompletedTask;
+        }
+
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
+        {
+            if (_local is IReadOnlyCacheSessionWithLevelSelectors withSelectors)
+            {
+                return withSelectors.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
+            }
+
+            return Task.FromResult(new Result<LevelSelectors>($"{nameof(_local)} does not implement {nameof(IReadOnlyCacheSessionWithLevelSelectors)}."));
         }
     }
 }

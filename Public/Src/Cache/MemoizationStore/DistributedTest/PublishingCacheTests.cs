@@ -21,6 +21,7 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
+using BuildXL.Cache.MemoizationStore.Sessions;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
@@ -46,15 +47,15 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         protected override ICache CreateCache(DisposableDirectory testDirectory)
         {
             var contentStore = CreateInnerCache(testDirectory);
-            return new PublishingCacheWrapper(contentStore, CreatePublishingStore(new CacheToContentStore(contentStore)), Guid.NewGuid(), () => CreateConfiguration(publishAsynchronously: false));
+            return new PublishingCacheWrapper<LocalCache>(contentStore, CreatePublishingStore(new CacheToContentStore(contentStore)), Guid.NewGuid(), () => CreateConfiguration(publishAsynchronously: false));
         }
 
         protected abstract IPublishingStore CreatePublishingStore(IContentStore contentStore);
 
-        private ICache CreateInnerCache(DisposableDirectory testDirectory)
+        private LocalCache CreateInnerCache(DisposableDirectory testDirectory)
         {
             var otherTest = new LocalCacheWithSingleCasTests();
-            return otherTest.PublicCreateCache(testDirectory);
+            return (LocalCache)otherTest.PublicCreateCache(testDirectory);
         }
 
         protected abstract PublishingCacheConfiguration CreateConfiguration(bool publishAsynchronously);
@@ -65,7 +66,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var context = new Context(Logger);
             using var testDirectory = new DisposableDirectory(FileSystem);
             var blockingStore = new BlockingPublishingStore();
-            var publishingCache = new PublishingCache(CreateInnerCache(testDirectory), blockingStore, Guid.NewGuid());
+            var publishingCache = new PublishingCache<LocalCache>(CreateInnerCache(testDirectory), blockingStore, Guid.NewGuid());
             await publishingCache.StartupAsync(context).ShouldBeSuccess();
 
             var sessionResult = publishingCache.CreatePublishingSession(
@@ -102,12 +103,13 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     /// <summary>
     /// Used to be able to test all session features as if publishing has been specified.
     /// </summary>
-    internal class PublishingCacheWrapper : PublishingCache
+    internal class PublishingCacheWrapper<T> : PublishingCache<T>
+        where T : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
     {
         private Func<PublishingCacheConfiguration> _configFactory;
 
         /// <nodoc />
-        public PublishingCacheWrapper(ICache local, IPublishingStore remote, Guid id, Func<PublishingCacheConfiguration> configFactory) : base(local, remote, id)
+        public PublishingCacheWrapper(T local, IPublishingStore remote, Guid id, Func<PublishingCacheConfiguration> configFactory) : base(local, remote, id)
         {
             _configFactory = configFactory;
         }

@@ -37,6 +37,11 @@ namespace BuildXL.Pips.Operations
         public override PipProvenance Provenance { get; }
 
         /// <summary>
+        /// Optional renderer to be used for WriteFile operation.
+        /// </summary>
+        public Options WriteFileOptions { get; }
+
+        /// <summary>
         /// Constructs a WriteFile
         /// </summary>
         public WriteFile(
@@ -44,7 +49,8 @@ namespace BuildXL.Pips.Operations
             PipData contents,
             WriteFileEncoding encoding,
             ReadOnlyArray<StringId> tags,
-            PipProvenance provenance)
+            PipProvenance provenance,
+            Options writeFileOptions = default)
         {
             Contract.Requires(destination.IsValid);
             Contract.Requires(contents.IsValid);
@@ -56,6 +62,7 @@ namespace BuildXL.Pips.Operations
             Destination = destination;
             Contents = contents;
             Encoding = encoding;
+            WriteFileOptions = writeFileOptions;
         }
 
         /// <inheritdoc />
@@ -69,7 +76,8 @@ namespace BuildXL.Pips.Operations
                 reader.ReadPipData(),
                 (WriteFileEncoding)reader.ReadByte(),
                 reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
-                reader.ReadPipProvenance());
+                reader.ReadPipProvenance(),
+                reader.ReadWriteFileOptions());
         }
 
         /// <inheritdoc />
@@ -80,8 +88,64 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)Encoding);
             writer.Write(Tags, (w, v) => w.Write(v));
             writer.Write(Provenance);
+            writer.Write(WriteFileOptions);
         }
         #endregion
+
+        /// <summary>
+        /// Flags for controlling WriteFile pip behaviour
+        /// </summary>
+        public struct Options
+        {
+            /// <summary>
+            /// Specify how path separators should be rendered.
+            /// </summary>
+            public PathRenderingOption PathRenderingOption { get; }
+
+            /// <summary>
+            /// Constructor
+            /// </summary>
+            public Options(PathRenderingOption pathRenderingOption) => PathRenderingOption = pathRenderingOption;
+
+            internal void Serialize(PipWriter writer)
+            {
+                Contract.Requires(writer != null);
+                writer.Write((byte)PathRenderingOption);
+            }
+
+            internal static Options Deserialize(PipReader reader)
+            {
+                Contract.Requires(reader != null);
+                return new Options((PathRenderingOption)reader.ReadByte());
+            }
+        }
+
+        /// <summary>
+        /// Types of transformations that can be performed on a Path when it is rendered.
+        /// </summary>
+        /// <remarks>CODESYNC: Sync with matching type in  SdkRoot/Json/jsonSdk.dsc</remarks>
+        public enum PathRenderingOption : byte
+        {
+            /// <summary>
+            /// Render path as is
+            /// </summary>
+            None = 0,
+
+            /// <summary>
+            /// Always use back slashes as path separator
+            /// </summary>
+            BackSlashes = 1,
+
+            /// <summary>
+            /// Always use back slashes as path separator and add escape characters.
+            /// </summary>
+            EscapedBackSlashes = 2,
+
+            /// <summary>
+            /// Always use forward slashes as path separator
+            /// </summary>
+            ForwardSlashes = 3
+        }
     }
 
     /// <summary>

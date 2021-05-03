@@ -58,7 +58,7 @@ namespace _PreludeAmbientHack_ValueCache {
 
 namespace _PreludeAmbientHack_Json{
     /** Writes an object as Json */
-    export declare function write<T extends Object>(destinationFile: Path, data: T, quoteChar?: "'" | "\"", tags?: string[], description?: string): File;
+    export declare function write<T extends Object>(destinationFile: Path, data: T, quoteChar?: "'" | "\"", tags?: string[], description?: string, additionalOptions? : Object): File;
 }
 
 namespace _PreludeAmbientHack_Xml {

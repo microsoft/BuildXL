@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -11,7 +12,9 @@ using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
@@ -52,6 +55,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var quoteChar = Args.AsStringOptional(args, 2) ?? "\'";
             var tags = Args.AsStringArrayOptional(args, 3);
             var description = Args.AsStringOptional(args, 4);
+            var additionalOptions = GetAdditionalOptions(context.FrontEndContext, Args.AsObjectLiteralOptional(args, 5));
 
             using (var pipDataBuilderWrapper = context.FrontEndContext.GetPipDataBuilder())
             {
@@ -62,7 +66,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 }
 
                 FileArtifact result;
-                if (!context.GetPipConstructionHelper().TryWriteFile(outputFilePath, pipData, WriteFileEncoding.Utf8, tags, description, out result))
+                if (!context.GetPipConstructionHelper().TryWriteFile(outputFilePath, pipData, WriteFileEncoding.Utf8, tags, description, out result, GetWriteFileOption(additionalOptions)))
                 {
                     // Error has been logged
                     return EvaluationResult.Error;
@@ -118,7 +122,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
         private CallSignature WriteSignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.PathType, AmbientTypes.ObjectType),
-            optional: OptionalParameters(PrimitiveType.StringType, new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType),
+            optional: OptionalParameters(PrimitiveType.StringType, new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType, AmbientTypes.ObjectType),
             returnType: AmbientTypes.FileType);
 
 
@@ -363,6 +367,47 @@ namespace BuildXL.FrontEnd.Script.Ambients
                     var typeOfKind = RuntimeTypeIdExtensions.ComputeTypeOfKind(objValue);
                     throw new JsonUnsuportedTypeForSerializationException(typeOfKind.ToRuntimeString(), new ErrorContext(pos: 1));
             }
+        }
+
+        /// <summary>
+        /// Converts <see cref="AdditionalJsonOptions"/> into matching <see cref="WriteFile.Options"/>.
+        /// </summary>
+        public static WriteFile.Options GetWriteFileOption(AdditionalJsonOptions options)
+        {
+            if (options == null)
+            {
+                return default;
+            }
+
+            return new WriteFile.Options(options.PathRenderingOption);
+
+        }
+
+        /// <summary>
+        /// Convert additional options ObjectLiteral to AdditionalJsonOptions object
+        /// </summary>
+        public static AdditionalJsonOptions GetAdditionalOptions(FrontEndContext context, ObjectLiteral additionalOptionsLiteral)
+        {
+            if (additionalOptionsLiteral != null)
+            {
+                // If a bad option is specified here, ConfigurationConverter will throw an error
+                return ConfigurationConverter.Convert<AdditionalJsonOptions>(context, additionalOptionsLiteral);
+            }
+
+            // No additional options specified
+            return null;
+        }
+
+        /// <summary>
+        /// Additional options to specify for Json SDK
+        /// </summary>
+        /// <remarks>CODESYNC: sync with matching type in SdkRoot/Json/jsonSdk.dsc</remarks>
+        public class AdditionalJsonOptions
+        {
+            /// <summary>
+            /// Options for rendering Paths
+            /// </summary>
+            public WriteFile.PathRenderingOption PathRenderingOption { get; set; }
         }
 
         private readonly struct JsonWritingContext

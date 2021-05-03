@@ -245,7 +245,8 @@ namespace BuildXL.Pips
             WriteFileEncoding encoding,
             string[] tags,
             string description,
-            out FileArtifact fileArtifact)
+            out FileArtifact fileArtifact,
+            WriteFile.Options options = default)
         {
             Contract.Requires(destination.IsValid);
             Contract.Requires(content.IsValid);
@@ -256,7 +257,8 @@ namespace BuildXL.Pips
                 content,
                 encoding,
                 ToStringIds(tags),
-                CreatePipProvenance(description));
+                CreatePipProvenance(description),
+                options);
 
             if (PipGraph != null)
             {

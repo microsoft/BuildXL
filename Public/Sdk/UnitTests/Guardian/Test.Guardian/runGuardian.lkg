@@ -1,0 +1,263 @@
+Transformer.sealPartialDirectory({root: d`./path/to/guardian`, files: []});
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "{\r\n  \"folders\": {\r\n    \"GuardianRepo\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
+            "\",\r\n    \"Config\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/c`,
+            "\",\r\n    \"RawResults\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.r`,
+            "\",\r\n    \"Results\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
+            "\",\r\n    \"ConvertedResults\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
+            "\",\r\n    \"Install\": \"",
+            p`./path/to/guardian/packages`,
+            "\"\r\n  }\r\n}",
+        ],
+    },
+    ["msguardian"]
+);
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "{\r\n  \"folders\": {\r\n    \"GuardianRepo\": \"",
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
+            "\",\r\n    \"Install\": \"",
+            p`./path/to/guardian/packages`,
+            "\"\r\n  }\r\n}",
+        ],
+    },
+    ["msguardian"]
+);
+Transformer.execute({
+    tool: {exe: f`./path/to/guardian/guardian.cmd`},
+    tags: ["msguardian"],
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: ["init", "--force"],
+    },
+    workingDirectory: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut`,
+    dependencies: [
+        f`./path/to/guardian/guardian.cmd`,
+        f`./path/to/src/.gdn`,
+        f`./path/to/guardian/config/file`,
+        d`./path/to/guardian`,
+    ],
+    implicitOutputs: [d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`],
+    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+    unsafe: {
+        untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
+        untrackedScopes: [
+            p`./path/to/ProgramFilesX86/dotnet`,
+            p`./path/to/ProgramFiles/dotnet`,
+            p`./path/to/ProgramData/Microsoft/NetFramework`,
+            p`./path/to/ProgramFilesX86/Nuget`,
+            p`./path/to/ProgramFiles/Nuget`,
+            p`./path/to/guardian/packages`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
+        ],
+    },
+});
+Transformer.sealDynamicDirectory({
+    root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
+    tags: ["msguardian"],
+    description: "Guardian Initialize",
+});
+Transformer.execute({
+    tool: {exe: f`./path/to/guardian/guardian.cmd`},
+    tags: ["msguardian"],
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "install",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--settings-file"],
+            },
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--config"],
+            },
+            p`./path/to/guardian/config/file`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--logger-filepath"],
+            },
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`,
+        ],
+    },
+    workingDirectory: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut`,
+    dependencies: [
+        f`./path/to/guardian/guardian.cmd`,
+        f`./path/to/src/.gdn`,
+        f`./path/to/guardian/config/file`,
+        f`./path/to/src/.gdn/.gdnsettings`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
+        d`./path/to/guardian`,
+        d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
+    ],
+    implicitOutputs: [f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`],
+    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`}],
+    acquireSemaphores: [
+        {
+            name: "BuildXL.Tools.Guardian.Install.Phase",
+            incrementBy: 1,
+            limit: 1,
+        },
+    ],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+    unsafe: {
+        untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
+        untrackedScopes: [
+            p`./path/to/ProgramFilesX86/dotnet`,
+            p`./path/to/ProgramFiles/dotnet`,
+            p`./path/to/ProgramData/Microsoft/NetFramework`,
+            p`./path/to/ProgramFilesX86/Nuget`,
+            p`./path/to/ProgramFiles/Nuget`,
+            p`./path/to/guardian/packages`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
+        ],
+    },
+});
+Transformer.execute({
+    tool: {exe: f`./path/to/guardian/guardian.cmd`},
+    tags: ["msguardian"],
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            "run",
+            "--no-install",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--settings-file"],
+            },
+            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--config"],
+            },
+            p`./path/to/guardian/config/file`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--export-breaking-results-to-file"],
+            },
+            p`./Out/result/file`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--baseline-file"],
+            },
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: [
+                    {
+                        escaping: "NoEscaping",
+                        separator: " ",
+                        items: [p`./baseLineFile1`, p`./baseLineFile2`],
+                    },
+                ],
+            },
+            "--no-suppressions",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--policy"],
+            },
+            "microsoft",
+        ],
+    },
+    workingDirectory: d`./working/directory`,
+    dependencies: [
+        f`./path/to/guardian/guardian.cmd`,
+        f`./path/to/src/.gdn`,
+        f`./path/to/guardian/config/file`,
+        f`./path/to/src/.gdn/.gdnsettings`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
+        f`./file1`,
+        f`./file2`,
+        f`./baseLineFile1`,
+        f`./baseLineFile2`,
+        d`./path/to/guardian`,
+        d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
+    ],
+    implicitOutputs: [
+        f`./Out/result/file`,
+        d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.r`,
+        d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
+        d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
+    ],
+    environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`}],
+    tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+    unsafe: {
+        untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
+        untrackedScopes: [
+            p`./path/to/ProgramFilesX86/dotnet`,
+            p`./path/to/ProgramFiles/dotnet`,
+            p`./path/to/ProgramData/Microsoft/NetFramework`,
+            p`./path/to/ProgramFilesX86/Nuget`,
+            p`./path/to/ProgramFiles/Nuget`,
+            p`./path/to/guardian/packages`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+            p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
+        ],
+    },
+});
+Transformer.sealDynamicDirectory({
+    root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.r`,
+    tags: ["msguardian"],
+    description: "Guardian Run",
+});
+Transformer.sealDynamicDirectory({
+    root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/r`,
+    tags: ["msguardian"],
+    description: "Guardian Run",
+});
+Transformer.sealDynamicDirectory({
+    root: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
+    tags: ["msguardian"],
+    description: "Guardian Run",
+});

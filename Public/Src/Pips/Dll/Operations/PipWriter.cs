@@ -75,5 +75,12 @@ namespace BuildXL.Pips.Operations
             value.Serialize(this);
             End();
         }
+
+        public virtual void Write(in WriteFile.Options value)
+        {
+            Start<WriteFile.Options>();
+            value.Serialize(this);
+            End();
+        }
     }
 }

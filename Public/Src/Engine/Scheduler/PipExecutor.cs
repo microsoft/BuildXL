@@ -510,7 +510,7 @@ namespace BuildXL.Scheduler
                 // TODO: It'd be nice if PipData could instead write encoded bytes to a stream, in which case we could
                 //       first compute the hash and then possibly do a second pass to actually write to a file (without allocating
                 //       several possibly large buffers and strings).
-                string contents = pip.Contents.ToString(environment.Context.PathTable);
+                string contents = pip.Contents.ToString(GetPipFragmentRendererForWriteFile(pip.WriteFileOptions, environment.Context.PathTable));
 
                 Encoding encoding;
                 switch (pip.Encoding)
@@ -5312,6 +5312,43 @@ namespace BuildXL.Scheduler
                 PipExecutorCounter.CacheMissesForProcessOutputContent,
                 PipExecutorCounter.CacheMissesForProcessConfiguredUncacheable,
             };
+        }
+
+        /// <summary>
+        /// Gets a PipFragmentRenderer for a WriteFile operation.
+        /// </summary>
+        /// <param name="options">Options to specify how the renderer should behave.</param>
+        /// <param name="pathTable">Path table</param>
+        /// <returns>PipFragmentRenderer</returns>
+        private static PipFragmentRenderer GetPipFragmentRendererForWriteFile(WriteFile.Options options, PathTable pathTable)
+        {
+            PipFragmentRenderer renderer = null;
+            Func<AbsolutePath, string> pathExpander;
+
+            switch (options.PathRenderingOption)
+            {
+                case WriteFile.PathRenderingOption.None:
+                    renderer = new PipFragmentRenderer(pathTable);
+                    break;
+                case WriteFile.PathRenderingOption.BackSlashes:
+                    pathExpander = path => path.ToString(pathTable, PathFormat.Windows);
+                    renderer = new PipFragmentRenderer(pathExpander, pathTable.StringTable, monikerRenderer: null);
+                    break;
+                case WriteFile.PathRenderingOption.EscapedBackSlashes:
+                    pathExpander = path => path.ToString(pathTable, PathFormat.Windows).Replace(@"\", @"\\");
+                    renderer = new PipFragmentRenderer(pathExpander, pathTable.StringTable, monikerRenderer: null);
+                    break;
+                case WriteFile.PathRenderingOption.ForwardSlashes:
+                    // PathFormat.Script will use forward slashes when rendering path
+                    pathExpander = path => path.ToString(pathTable, PathFormat.Script);
+                    renderer = new PipFragmentRenderer(pathExpander, pathTable.StringTable, monikerRenderer: null);
+                    break;
+                default:
+                    Contract.Assert(false, $"Invalid WriteFile.Options value specified: ${options}");
+                    break;
+            }
+
+            return renderer;
         }
     }
 }

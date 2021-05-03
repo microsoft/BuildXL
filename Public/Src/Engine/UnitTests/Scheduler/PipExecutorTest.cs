@@ -39,6 +39,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
 using Process = BuildXL.Pips.Operations.Process;
+using WriteFilePip = BuildXL.Pips.Operations.WriteFile;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
@@ -3122,6 +3123,49 @@ EXIT /b 3
                     {
                         XAssert.Fail("Failed writing to the destination file. This implies that the outputs were not left writable, despite requesting that via Process.Options.OutputsMustRemainWritable");
                     }
+                });
+        }
+
+        [Theory]
+        [InlineData(WriteFilePip.PathRenderingOption.None)]
+        [InlineData(WriteFilePip.PathRenderingOption.BackSlashes)]
+        [InlineData(WriteFilePip.PathRenderingOption.EscapedBackSlashes)]
+        [InlineData(WriteFilePip.PathRenderingOption.ForwardSlashes)]
+        public Task WriteFileWithPathRenderingOptions(WriteFilePip.PathRenderingOption option)
+        {
+            return WithExecutionEnvironment(
+                async env =>
+                {
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+                    FileArtifact destinationArtifact = FileArtifact.CreateSourceFile(destinationAbsolutePath).CreateNextWrittenVersion();
+                    PipData contents = PipDataBuilder.CreatePipData(
+                        env.Context.StringTable,
+                        "",
+                        PipDataFragmentEscaping.NoEscaping,
+                        destinationAbsolutePath);
+                    var pip = new WriteFilePip(destinationArtifact, contents, WriteFileEncoding.Utf8, ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(env.Context), new WriteFilePip.Options(option));
+                    await VerifyPipResult(PipResultStatus.Succeeded, env, pip);
+                    string actual = File.ReadAllText(destination);
+                    string expected = "";
+
+                    switch(option)
+                    {
+                        case WriteFilePip.PathRenderingOption.None:
+                            expected = destinationAbsolutePath.ToString(env.Context.PathTable);
+                            break;
+                        case WriteFilePip.PathRenderingOption.BackSlashes:
+                            expected = destinationAbsolutePath.ToString(env.Context.PathTable, PathFormat.Windows);
+                            break;
+                        case WriteFilePip.PathRenderingOption.EscapedBackSlashes:
+                            expected = destinationAbsolutePath.ToString(env.Context.PathTable, PathFormat.Windows).Replace(@"\", @"\\"); ;
+                            break;
+                        case WriteFilePip.PathRenderingOption.ForwardSlashes:
+                            expected = destinationAbsolutePath.ToString(env.Context.PathTable, PathFormat.Script);
+                            break;
+                    }
+
+                    XAssert.AreEqual(expected, actual);
                 });
         }
 

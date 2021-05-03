@@ -341,6 +341,42 @@ namespace M {
 }", spec, "\"");
         }
 
+        [Theory]
+        [InlineData("none")]
+        [InlineData("backSlashes")]
+        [InlineData("escapedBackSlashes")]
+        [InlineData("forwardSlashes")]
+        public void TestAdditionaLJsonOptions(string option)
+        {
+            var spec = @"
+const options : Object = {
+    pathRenderingOption: """ + option + @"""
+};
+";
+            var result = Build().AddSpec(spec).EvaluateExpressionWithNoErrors("options") as ObjectLiteral;
+            Assert.True(result != null, "Expected to receive an ObjectLiteral from evaluation the data");
+
+            var convertedResult = AmbientJson.GetAdditionalOptions(FrontEndContext, result);
+            Assert.True(typeof(AmbientJson.AdditionalJsonOptions).Equals(convertedResult.GetType()));
+
+            var writeFileOption = AmbientJson.GetWriteFileOption(convertedResult);
+            switch(option)
+            {
+                case "none":
+                    Assert.True(writeFileOption.PathRenderingOption == WriteFile.PathRenderingOption.None);
+                    break;
+                case "backSlashes":
+                    Assert.True(writeFileOption.PathRenderingOption == WriteFile.PathRenderingOption.BackSlashes);
+                    break;
+                case "escapedBackSlashes":
+                    Assert.True(writeFileOption.PathRenderingOption == WriteFile.PathRenderingOption.EscapedBackSlashes);
+                    break;
+                case "forwardSlashes":
+                    Assert.True(writeFileOption.PathRenderingOption == WriteFile.PathRenderingOption.ForwardSlashes);
+                    break;
+            }
+        }
+
         private void ComparePipData(string expected, string objectToSerialize, string quoteChar = "\'")
         {
             var result = Build().AddSpec("const obj = " + objectToSerialize + ";").EvaluateExpressionWithNoErrors("obj") as ObjectLiteral;

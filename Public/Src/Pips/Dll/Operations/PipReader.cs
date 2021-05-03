@@ -88,5 +88,13 @@ namespace BuildXL.Pips.Operations
         }
 
         public virtual PipId RemapPipId(PipId pipId) => pipId;
+
+        public virtual WriteFile.Options ReadWriteFileOptions()
+        {
+            Start<WriteFile.Options>();
+            var value = WriteFile.Options.Deserialize(this);
+            End();
+            return value;
+        }
     }
 }

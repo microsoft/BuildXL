@@ -17,6 +17,8 @@ namespace BuildXL.Utilities
             using var pooledWriter = m_writerPool.GetInstance();
             var writer = pooledWriter.Instance.Writer;
             serializeFunc(instance, writer);
+            // TODO: This still causes an allocation. StreamBinaryWriter can create a MemoryStream with a given buffer
+            // and then expose the buffer back via 'Memory<byte>' (or via a wrapper that will return poolWriter to the pool
             return pooledWriter.Instance.Buffer.ToArray();
         }
 

@@ -44,6 +44,35 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(HashType.Vso0)]
         [InlineData(HashType.Dedup64K)]
         [InlineData(HashType.Dedup1024K)]
+        public void RoundtripShortHashBinary(HashType hashType)
+        {
+            using (var ms = new MemoryStream())
+            {
+                using (var writer = new BinaryWriter(ms))
+                {
+                    var h1 = ContentHash.Random(hashType);
+                    var shortHash1 = new ShortHash(h1);
+                    shortHash1.Serialize(writer);
+                    Assert.Equal(ShortHash.SerializedLength, ms.Length);
+                    ms.Position = 0;
+
+                    using (var reader = new BinaryReader(ms))
+                    {
+                        var shortHash2 = new ShortHash(ReadOnlyFixedBytes.ReadFrom(reader, ShortHash.SerializedLength));
+                        Assert.Equal(hashType, shortHash2.HashType);
+                        Assert.Equal(shortHash1.ToString(), shortHash2.ToString());
+                    }
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData(HashType.MD5)]
+        [InlineData(HashType.SHA1)]
+        [InlineData(HashType.SHA256)]
+        [InlineData(HashType.Vso0)]
+        [InlineData(HashType.Dedup64K)]
+        [InlineData(HashType.Dedup1024K)]
         public void RoundtripPartialBinary(HashType hashType)
         {
             using (var ms = new MemoryStream())

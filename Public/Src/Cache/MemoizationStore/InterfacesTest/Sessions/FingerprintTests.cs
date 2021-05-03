@@ -204,7 +204,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var bytes = Enumerable.Range(0, 7).Select(i => (byte)i).ToArray();
             var fingerprint = new Fingerprint(bytes);
             var exported = fingerprint.ToFixedBytes();
-            Assert.Equal(new FixedBytes(bytes), exported);
+            Assert.Equal(new ReadOnlyFixedBytes(bytes), exported);
         }
 
         [Fact]

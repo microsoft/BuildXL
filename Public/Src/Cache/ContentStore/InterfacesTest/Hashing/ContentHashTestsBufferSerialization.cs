@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             var bytes = Enumerable.Range(0, length).Select(i => (byte)i).ToArray();
             var contentHash = new ContentHash(hashType, bytes);
             var exported = contentHash.ToFixedBytes();
-            Assert.Equal(new FixedBytes(bytes), exported);
+            Assert.Equal(new ReadOnlyFixedBytes(bytes), exported);
         }
     }
 }

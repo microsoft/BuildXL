@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         public static void Write(this BuildXLWriter writer, in ShortHash value)
         {
-            value.Value.Serialize(writer, ShortHash.SerializedLength);
+            value.Serialize(writer);
         }
 
         public static ShortHash ReadShortHash(this BuildXLReader reader)

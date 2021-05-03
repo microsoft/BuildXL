@@ -12,7 +12,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
-    ///     Readonly storage for up to 32 bytes with common behavior.
+    ///     Readonly storage for up to <see cref="MaxLength"/> bytes with common behavior.
     /// </summary>
     public readonly unsafe struct ReadOnlyFixedBytes : IEquatable<ReadOnlyFixedBytes>, IComparable<ReadOnlyFixedBytes>
     {
@@ -29,9 +29,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         // But in this case the compiler does not emit an error even though the current struct is not fully readonly.
 
         /// <summary>
-        ///     Maximum number of bytes that can be stored.
+        ///     Maximum number of bytes that can be stored in the instance.
         /// </summary>
-        public const int MaxLength = FixedBytes.MaxLength;
+        public const int MaxLength = 33;
 
         [StructLayout(LayoutKind.Sequential, Size = MaxLength)]
         private readonly struct FixedBuffer
@@ -44,21 +44,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Maximum number of hex characters in the string form.
         /// </summary>
-        public const int MaxHexLength = FixedBytes.MaxHexLength;
-
-        private static readonly char[] NybbleHex = FixedBytes.NybbleHex;
-
-        /// <nodoc />
-        private ReadOnlyFixedBytes(ref FixedBytes fixedBytes)
-        {
-            fixed (byte* d = &_bytes.FixedElementField)
-            {
-                for (int i = 0; i < MaxLength; i++)
-                {
-                    d[i] = fixedBytes[i];
-                }
-            }
-        }
+        public const int MaxHexLength = MaxLength * 2;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyFixedBytes"/> struct.
@@ -146,14 +132,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             result = new ReadOnlyFixedBytes(bytes, bytes.Length, offset: 0);
             
             return true;
-        }
-
-        /// <summary>
-        ///     Creates a new instance of the <see cref="ReadOnlyFixedBytes"/> from the <paramref name="fixedBytes"/>.
-        /// </summary>
-        public static ReadOnlyFixedBytes FromFixedBytes(ref FixedBytes fixedBytes)
-        {
-            return new ReadOnlyFixedBytes(ref fixedBytes);
         }
 
         /// <summary>
@@ -289,8 +267,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 for (var i = offset; i < length + offset; i++)
                 {
-                    buffer[j++] = NybbleHex[(p[i] & 0xF0) >> 4];
-                    buffer[j++] = NybbleHex[p[i] & 0x0F];
+                    buffer[j++] = HexUtilities.NybbleToHex[(p[i] & 0xF0) >> 4];
+                    buffer[j++] = HexUtilities.NybbleToHex[p[i] & 0x0F];
                 }
             }
 
@@ -336,22 +314,42 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <summary>
+        ///     Serialize value to a buffer.
+        /// </summary>
+        public void Serialize(Span<byte> buffer, int length = MaxLength)
+        {
+            var len = Math.Min(length, Math.Min(buffer.Length, MaxLength));
+
+            fixed (byte* s = &_bytes.FixedElementField)
+            {
+                new Span<byte>(s, len).CopyTo(buffer);
+            }
+        }
+
+        /// <summary>
         ///     Serialize whole value to a binary writer.
         /// </summary>
         public void Serialize(BinaryWriter writer, int length = MaxLength)
         {
-            // Consider pooling the buffer
-            var buffer = new byte[length];
-            
+            // The byte arrays obtained from ContentHashBytesArrayPool are 1 byte larger than needed,
+            // but this is totally fine, because Serialize method will write only the length number of bytes.
+            using var pooledBuffer = ContentHashExtensions.ContentHashBytesArrayPool.Get();
+            Serialize(writer, pooledBuffer.Value, index: 0, length);
+        }
+
+        /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(BinaryWriter writer, byte[] buffer, int index = 0, int length = MaxLength)
+        {
             fixed (byte* p = &_bytes.FixedElementField)
             {
-                for (var i = 0; i < length; i++)
-                {
-                    buffer[i] = p[i];
-                }
+                var source = new Span<byte>(p, length);
+                var target = new Span<byte>(buffer, index, length);
+                source.CopyTo(target);
             }
 
-            writer.Write(buffer);
+            writer.Write(buffer, 0, length);
         }
 
         /// <nodoc />

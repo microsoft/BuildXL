@@ -298,6 +298,48 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
 
         [Fact]
+        public void BinaryRoundtripWithBuffer()
+        {
+            using (var ms = new MemoryStream())
+            {
+                using (var writer = new BinaryWriter(ms))
+                {
+                    var buffer = new byte[100];
+                    var v1 = ReadOnlyFixedBytes.Random();
+                    v1.Serialize(writer, buffer);
+                    ms.Position = 0;
+
+                    using (var reader = new BinaryReader(ms))
+                    {
+                        var v2 = ReadOnlyFixedBytes.ReadFrom(reader);
+                        Assert.Equal(v1, v2);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void BinaryRoundtripWithSerializeFast()
+        {
+            using (var ms = new MemoryStream())
+            {
+                using (var writer = new BinaryWriter(ms))
+                {
+                    var buffer = new byte[100];
+                    var v1 = ReadOnlyFixedBytes.Random();
+                    v1.Serialize(writer, buffer);
+                    ms.Position = 0;
+
+                    using (var reader = new BinaryReader(ms))
+                    {
+                        var v2 = ReadOnlyFixedBytes.ReadFrom(reader);
+                        Assert.Equal(v1, v2);
+                    }
+                }
+            }
+        }
+
+        [Fact]
         public void FixedBytesShouldNotFailOnEmptyStream()
         {
             // The following code should not fail.

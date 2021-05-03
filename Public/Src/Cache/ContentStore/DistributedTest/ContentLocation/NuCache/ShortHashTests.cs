@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.ContractsLight;
 using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -17,6 +16,20 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         private readonly ITestOutputHelper _helper;
 
         public ShortHashTests(ITestOutputHelper helper) => _helper = helper;
+
+        [Fact]
+        public void TestToByteArray()
+        {
+            for (int i = 0; i < 1000; i++)
+            {
+                var hash = ContentHash.Random(HashType.Vso0);
+                var shortHash = new ShortHash(hash);
+
+                var byteArray = shortHash.ToByteArray();
+                using var handle = shortHash.ToPooledByteArray();
+                byteArray.Should().BeEquivalentTo(handle.Value);
+            }
+        }
 
         [Fact]
         public void TestToString()

@@ -511,13 +511,13 @@ namespace BuildXL.Scheduler.Cache
 
         private static ContentFingerprint GetFullFingerprint(WeakContentFingerprint weakFingerprint, StrongContentFingerprint strongFingerprint)
         {
-            var fullFingerprintBytes = new FixedBytes();
+            Span<byte> fullFingerprintBytes = stackalloc byte[FingerprintUtilities.FingerprintLength];
             for (int i = 0; i < FingerprintUtilities.FingerprintLength; i++)
             {
                 fullFingerprintBytes[i] = (byte)(weakFingerprint.Hash[i] ^ strongFingerprint.Hash[i]);
             }
 
-            return new ContentFingerprint(new Fingerprint(fullFingerprintBytes, FingerprintUtilities.FingerprintLength));
+            return new ContentFingerprint(new Fingerprint(new ReadOnlyFixedBytes(fullFingerprintBytes), FingerprintUtilities.FingerprintLength));
         }
 
         /// <inheritdoc />

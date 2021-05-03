@@ -203,9 +203,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Gets the value packed in a FixedBytes.
         /// </summary>
-        public FixedBytes ToFixedBytes()
+        public ReadOnlyFixedBytes ToFixedBytes()
         {
-            return new FixedBytes(_bytes);
+            return _bytes;
         }
 
         /// <inheritdoc />
@@ -224,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public override int GetHashCode()
         {
             // ReSharper disable once NonReadonlyMemberInGetHashCode
-            return ((int)_hashType) ^ _bytes.GetHashCode();
+            return ((int)_hashType, _bytes.GetHashCode()).GetHashCode();
         }
 
         /// <inheritdoc />
@@ -290,7 +290,30 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <summary>
+        ///     Serialize to a span.
+        /// </summary>
+        public void Serialize(Span<byte> buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
+        {
+            var length = serializeMethod == SerializeHashBytesMethod.Trimmed ? ByteLength : MaxHashByteLength;
+            Serialize(buffer, offset, length);
+        }
+
+        /// <summary>
+        ///     Serialize to a span.
+        /// </summary>
+        public void Serialize(Span<byte> buffer, int offset, int length)
+        {
+            unchecked
+            {
+                buffer[offset++] = (byte)_hashType;
+            }
+
+            _bytes.Serialize(buffer.Slice(offset), length);
+        }
+
+        /// <summary>
         ///     Serialize hash type and hash to buffer.
+        ///     Consider using ContentHashExtensions.ToPooledByteArray instead to avoid extra allocations.
         /// </summary>
         public byte[] ToByteArray(SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
         {
@@ -315,16 +338,32 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(BinaryWriter writer)
         {
+            using var handle = ContentHashExtensions.ContentHashBytesArrayPool.Get();
             writer.Write((byte)_hashType);
-            _bytes.Serialize(writer);
+            // For some weird reason this method always writes 33 bytes
+            // when SerializeHashBytes writes ByteLength that can be less then 33 bytes.
+            // This behavior is important and can't be broken because of binary compatibility.
+            _bytes.Serialize(writer, handle.Value);
         }
 
         /// <summary>
         ///     Serialize only the hash bytes to a binary writer.
         /// </summary>
-        public void SerializeHashBytes(BinaryWriter writer)
+        /// <remarks>
+        ///     Unlike <see cref="Serialize(BinaryWriter)"/> method that writes <see cref="SerializedLength"/> number of bytes,
+        ///     this method only writes <see cref="ByteLength"/> number of bytes that can be smaller for some hash types.
+        /// </remarks>
+        public void SerializeHashBytes(BinaryWriter writer, byte[]? buffer = null)
         {
-            _bytes.Serialize(writer, ByteLength);
+            if (buffer is null)
+            {
+                using var handle = ContentHashExtensions.ContentHashBytesArrayPool.Get();
+                _bytes.Serialize(writer, handle.Value, 0, ByteLength);
+            }
+            else
+            {
+                _bytes.Serialize(writer, buffer, 0, ByteLength);
+            }
         }
 
         /// <nodoc />

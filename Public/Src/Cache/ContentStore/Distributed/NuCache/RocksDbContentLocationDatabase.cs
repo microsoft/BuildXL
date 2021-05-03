@@ -587,7 +587,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             ContentLocationEntry? result = null;
-            if (store.TryGetValue(db.GetKey(hash), out var data))
+            using var poolHandle = db.GetKey(hash);
+            if (store.TryGetValue(poolHandle.Value, out var data))
             {
                 result = db.DeserializeContentLocationEntry(data);
             }
@@ -618,7 +619,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             store.ApplyBatch(
                 pairs.SelectWithState(
-                    static (kvp, db) => new KeyValuePair<byte[], byte[]?>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null),
+                    static (kvp, db) => new KeyValuePair<byte[], byte[]?>(db.GetMaterializedKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null),
                     state: db));
             return Unit.Void;
         }
@@ -633,7 +634,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             var value = db.SerializeContentLocationEntry(entry);
-            store.Put(db.GetKey(hash), value);
+            using var poolHandle = db.GetKey(hash);
+            store.Put(poolHandle.Value, value);
 
             return Unit.Void;
         }
@@ -647,16 +649,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in Delete
         private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
-            store.Remove(db.GetKey(hash));
+            using var poolHandle = db.GetKey(hash);
+            store.Remove(poolHandle.Value);
             return Unit.Void;
         }
 
         private ShortHash DeserializeKey(byte[] key)
         {
-            return new ShortHash(new FixedBytes(key));
+            return ShortHash.FromBytes(key);
         }
 
-        private byte[] GetKey(ShortHash hash)
+        private Pool<byte[]>.PoolHandle GetKey(in ShortHash hash)
+        {
+            return hash.ToPooledByteArray();
+        }
+
+        private byte[] GetMaterializedKey(in ShortHash hash)
         {
             return hash.ToByteArray();
         }

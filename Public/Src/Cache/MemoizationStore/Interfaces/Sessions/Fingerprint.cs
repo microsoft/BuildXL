@@ -30,18 +30,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
         /// </summary>
-        public Fingerprint(FixedBytes fixedBytes, int length)
-        {
-            _bytes = ReadOnlyFixedBytes.FromFixedBytes(ref fixedBytes);
-
-            unchecked {
-                _length = (byte)length;
-            }
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
-        /// </summary>
         public Fingerprint(ReadOnlyFixedBytes fixedBytes, int length)
         {
             _bytes = fixedBytes;
@@ -114,11 +102,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Gets the value packed in a FixedBytes.
         /// </summary>
-        public FixedBytes ToFixedBytes()
+        public ReadOnlyFixedBytes ToFixedBytes()
         {
             Contract.Requires(Length > 0);
 
-            return new FixedBytes(_bytes);
+            return _bytes;
         }
 
         /// <inheritdoc />

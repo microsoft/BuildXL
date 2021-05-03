@@ -42,17 +42,10 @@ local priorState = tonumber(redis.call("HGET", clusterStateKey, stateFieldName(m
 
 -- Declaring unknown state only performs a read of the current state, without updating it
 if (declaredState ~= UNKNOWN) then
-    -- If the state was set to inactive, we will never replace it by closed. This scenario can happen when a reimage is
-    -- triggered: it will update the state to Unavailable via the gRPC service, and then we will shutdown.
-    if (not ((priorState == UNAVAILABLE or priorState == EXPIRED) and declaredState == CLOSED)) then
-        redis.call("HSET", clusterStateKey, stateFieldName(machineId), declaredState);
+    redis.call("HSET", clusterStateKey, stateFieldName(machineId), declaredState);
+    redis.call("HSET", clusterStateKey, lastHeartbeatFieldName(machineId), currentTime);
 
-        if (declaredState == OPEN or declaredState == CLOSED) then
-            redis.call("HSET", clusterStateKey, lastHeartbeatFieldName(machineId), currentTime);
-        end
-
-        updateMachineStateBitSets(machineId, declaredState);
-    end
+    updateMachineStateBitSets(machineId, declaredState);
 end
 
 local lastRecomputeTime = tonumber(redis.call("HGET", clusterStateKey, "LastInactiveMachinesRecomputeTime")) or 0;

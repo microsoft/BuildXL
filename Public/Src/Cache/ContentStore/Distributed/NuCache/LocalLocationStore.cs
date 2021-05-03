@@ -335,17 +335,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 lastMachineState = fetchLastMachineStateResult.Value;
             }
 
-            _heartbeatMachineState = lastMachineState switch
+            SetHeartbeatMachineStateIfAllowed(lastMachineState switch
             {
                 // Here, when we set a Closed state, it means we will wait until the next heartbeat after
                 // reconciliation finishes before announcing ourselves as open.
+
+                // The machine is new to the content tracking mechanism
                 MachineState.Unknown => MachineState.Open,
+                // This is an abnormal state: we likely crashed earlier, or the shutdown had some sort of failure. The
+                // assumption here is that we got restarted briefly afterwards.
                 MachineState.Open => MachineState.Open,
+                // Machine was shutdown for maintenance (reimage, OS update, etc). It may have had all of its content
+                // removed from the drives and content tracking may be extremely inaccurate, so we wait for
+                // reconciliation to complete.
                 MachineState.DeadUnavailable => MachineState.Closed,
+                // Machine didn't heartbeat for long enough that it was considered dead. Many content entries may be
+                // missing from content tracking, so we wait for reconciliation to complete.
                 MachineState.DeadExpired => MachineState.Closed,
+                // Machine shut down correctly and normally.
                 MachineState.Closed => MachineState.Open,
+
                 _ => throw new NotImplementedException($"Unknown machine state: {lastMachineState}"),
-            };
+            });
 
             // Configuring a heartbeat timer. The timer is used differently by a master and by a worker.
             _heartbeatTimer = new Timer(
@@ -410,11 +421,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Cancel any ongoing reconciliation cycles, and has to be before we set the machine state as closed, because reconciliation completion can set the state as open.
             await CancelCurrentReconciliationAsync(context);
 
-            _heartbeatMachineState = MachineState.Closed;
+            SetHeartbeatMachineStateIfAllowed(MachineState.Closed);
 
             _heartbeatTimer?.Dispose();
 
-            await GlobalStore.SetLocalMachineStateAsync(context, MachineState.Closed).IgnoreFailure();
+            await GlobalStore.SetLocalMachineStateAsync(context, _heartbeatMachineState).IgnoreFailure();
 
             if (EventStore != null)
             {
@@ -915,7 +926,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     // Tracing the completeness of the task we're about to cancel.
                     var pendingProcessCheckpointTaskCompleted = _pendingReconciliationTask.IsCompleted;
-                    
+
                     _reconciliationTokenSource.Cancel();
 
                     // We are aware that if <see cref="_pendingReconciliationTask"/> fails this could throw an exception.
@@ -1793,10 +1804,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (result.Succeeded)
             {
-                _heartbeatMachineState = MachineState.Open;
+                SetHeartbeatMachineStateIfAllowed(MachineState.Open);
             }
 
             return result;
+        }
+
+        private void SetHeartbeatMachineStateIfAllowed(MachineState proposedState)
+        {
+            Contract.Requires(proposedState != MachineState.Unknown, "Machines can't set themselves to unknown state");
+
+            switch (_heartbeatMachineState)
+            {
+                // The in-memory state can only ever be one of these two if the machine is set up for reimaging. In
+                // these cases, we don't want to actually change state of the currently running process no matter what
+                case MachineState.DeadExpired:
+                case MachineState.DeadUnavailable:
+                    return;
+            }
+
+            _heartbeatMachineState = proposedState;
         }
 
         private async Task SendReconciliationEventsAsync(
@@ -1871,17 +1898,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // We only change state for lastProcessedAddHash or remove if the result succeeded, in case of cancellation, skips, and errors
             if (result.IsSuccessCode)
             {
-                // We do not call MarkReconciled, because we do not check whether reconciliation is up to date to skip reconciliation
-                if (result.SuccessData.ReachedEnd)
+                var data = result.SuccessData;
+
+                // After reconciliation ends, or if the machine is clearly undergoing an epoch change, we set the
+                // machine state to open. Since we don't explicitly track the machine state, it is impossible to know
+                // when we're undergoing an epoch change. This is a heuristic to guess if that's happening.
+                var epochChange = _lastProcessedAddHash == null // It's the first run of reconciliation
+                    && data.AddsSent == Configuration.ReconciliationAddLimit; // All sent events were adds
+                if (data.ReachedEnd || epochChange)
                 {
-                    _heartbeatMachineState = MachineState.Open;
+                    Tracer.Info(context, $"Setting machine state to Open. ReachedEnd=[{data.ReachedEnd}] EpochChange=[{epochChange}]");
+                    SetHeartbeatMachineStateIfAllowed(MachineState.Open);
+                }
+
+                // We do not call MarkReconciled, because we do not check whether reconciliation is up to date to skip reconciliation
+                if (data.ReachedEnd)
+                {
                     _lastProcessedAddHash = null;
                     _lastProcessedRemoveHash = null;
                 }
                 else
                 {
-                    _lastProcessedAddHash = result.SuccessData.LastProcessedAddHash;
-                    _lastProcessedRemoveHash = result.SuccessData.LastProcessedRemoveHash;
+                    _lastProcessedAddHash = data.LastProcessedAddHash;
+                    _lastProcessedRemoveHash = data.LastProcessedRemoveHash;
                 }
             }
 
@@ -1954,7 +1993,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     foreach (var diffItem in allDiffContent)
                     {
                         token.ThrowIfCancellationRequested();
-                        
+
                         var inAddRange = false;
                         var inRemoveRange = false;
                         var curHash = diffItem.item.hash;
@@ -2035,7 +2074,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         totalAddedContent, totalRemovedContent, skippedRecentAdds, skippedRecentRemoves, addedContent, removedContent, reachedEnd);
                 }
             }
-            catch (OperationCanceledException) when(reconcileToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (reconcileToken.IsCancellationRequested)
             {
                 var (addHashRange, removeHashRange) = computeHashRanges(startingPoint, lastProcessedAddHash, lastProcessedRemoveHash);
 
@@ -2151,8 +2190,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Unmark reconcile since the machine is invalidated
             MarkReconciled(machineId, reconciled: false);
 
-            _heartbeatMachineState = MachineState.DeadUnavailable;
-            return await GlobalStore.SetLocalMachineStateAsync(operationContext, MachineState.DeadUnavailable);
+            SetHeartbeatMachineStateIfAllowed(MachineState.DeadUnavailable);
+            return await GlobalStore.SetLocalMachineStateAsync(operationContext, _heartbeatMachineState);
         }
 
         /// <nodoc />

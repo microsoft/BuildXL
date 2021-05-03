@@ -202,7 +202,7 @@ namespace BuildXL.Scheduler.Tracing
                 PipId = pip.PipId.Value.ToString(CultureInfo.InvariantCulture) + " (" + pip.PipId.Value.ToString("X16", CultureInfo.InvariantCulture) + ")",
                 SemiStableHash = pip.SemiStableHash.ToString("X16"),
                 PipType = pip.PipType.ToString(),
-                Tags = pip.Tags.IsValid ? pip.Tags.Select(tag => tag.ToString(stringTable)).ToList() : null,
+                Tags = pip.Tags.IsValid ? GetJsonFriendlyList(pip.Tags.Select(tag => tag.ToString(stringTable))) : null,
             };
 
             var provenance = pip.Provenance;
@@ -253,7 +253,7 @@ namespace BuildXL.Scheduler.Tracing
                 Arguments = CreateString(pip.Arguments, pathTable),
                 ResponseFilePath = CreateString(pip.ResponseFile, pathTable),
                 ReponseFileContents = CreateString(pip.ResponseFileData, pathTable),
-                EnvironmentVariables = pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"))).ToList()
+                EnvironmentVariables = GetJsonFriendlyList(pip.EnvironmentVariables.Select(envVar => new SerializedEnvironmentVariable(envVar.Name.ToString(stringTable), (envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "[Passthrough Environment Variable]"))))
             };
         }
 
@@ -288,12 +288,12 @@ namespace BuildXL.Scheduler.Tracing
             {
                 WarningTimeout = CreateNumeric(pip.WarningTimeout),
                 ErrorTimeout = CreateNumeric(pip.Timeout),
-                SuccessCodes = pip.SuccessExitCodes.IsValid ? pip.SuccessExitCodes.ToList() : null,
+                SuccessCodes = pip.SuccessExitCodes.IsValid ? GetJsonFriendlyList(pip.SuccessExitCodes) : null,
                 Semaphores = CreateString(pip.Semaphores, stringTable),
                 PreserveOutputTrustLevel = pip.PreserveOutputsTrustLevel,
                 PreserveOutputsAllowlist = CreateString(pip.PreserveOutputAllowlist, pathTable),
                 ProcessOptions = pip.ProcessOptions.ToString(),
-                RetryExitCodes = pip.RetryExitCodes.IsValid ? pip.RetryExitCodes.ToList() : null,
+                RetryExitCodes = pip.RetryExitCodes.IsValid ? GetJsonFriendlyList(pip.RetryExitCodes) : null,
             };
         }
 
@@ -303,7 +303,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 FileDependencies = CreateString(pip.Dependencies, pathTable),
                 DirectoryDependencies = CreateString(pip.DirectoryDependencies, pathTable),
-                PipDependencies = pip.OrderDependencies.Select(dep => dep.Value.ToString()).ToList(),
+                PipDependencies = GetJsonFriendlyList(pip.OrderDependencies.Select(dep => dep.Value.ToString())),
                 FileOutputs = CreateString(pip.FileOutputs, pathTable),
                 DirectoryOutputs = CreateString(pip.DirectoryOutputs, pathTable),
                 UntrackedPaths = CreateString(pip.UntrackedPaths, pathTable),
@@ -334,8 +334,8 @@ namespace BuildXL.Scheduler.Tracing
                 ServicePipDependencies = CreateString(pip.ServicePipDependencies),
                 FileDependencies = CreateString(pip.FileDependencies, pathTable),
                 DirectoryDependencies = CreateString(pip.DirectoryDependencies, pathTable),
-                LazilyMaterializedFileDependencies = pip.LazilyMaterializedDependencies.Where(a => a.IsFile && a.IsValid).Select(a => a.FileArtifact.Path.ToString(pathTable)).ToList(),
-                LazilyMaterializedDirectoryDependencies = pip.LazilyMaterializedDependencies.Where(a => a.IsDirectory && a.IsValid).Select(a => a.DirectoryArtifact.Path.ToString(pathTable)).ToList(),
+                LazilyMaterializedFileDependencies = GetJsonFriendlyList(pip.LazilyMaterializedDependencies.Where(a => a.IsFile && a.IsValid).Select(a => a.FileArtifact.Path.ToString(pathTable))),
+                LazilyMaterializedDirectoryDependencies = GetJsonFriendlyList(pip.LazilyMaterializedDependencies.Where(a => a.IsDirectory && a.IsValid).Select(a => a.DirectoryArtifact.Path.ToString(pathTable))),
                 IsServiceFinalization = pip.IsServiceFinalization,
                 MustRunOnOrchestrator = pip.MustRunOnOrchestrator,
             };
@@ -411,7 +411,7 @@ namespace BuildXL.Scheduler.Tracing
             return new WriteFileSpecificDetails
             {
                 Contents = CreateString(pip.Contents, pathTable),
-                FileEncoding = pip.Encoding.ToString(), 
+                FileEncoding = pip.Encoding.ToString(),
             };
         }
         #endregion WriteFileSpecificDetails
@@ -501,32 +501,32 @@ namespace BuildXL.Scheduler.Tracing
 
         private static List<string> CreateString(IEnumerable<PipId> values)
         {
-            return values.Where(value => value.IsValid).Select(value => value.ToString()).ToList();
+            return GetJsonFriendlyList(values.Where(value => value.IsValid).Select(value => value.ToString()));
         }
 
         private static List<string> CreateString(IEnumerable<AbsolutePath> values, PathTable pathTable)
         {
-            return values.Where(value => value.IsValid).Select(value => value.ToString(pathTable)).ToList();
+            return GetJsonFriendlyList(values.Where(value => value.IsValid).Select(value => value.ToString(pathTable)));
         }
 
         private static List<string> CreateString(IEnumerable<ProcessSemaphoreInfo> values, StringTable stringTable)
         {
-            return values.Where(value => value.IsValid).Select(value => string.Format(CultureInfo.InvariantCulture, "{0} (value:{1} limit:{2})", value.Name.ToString(stringTable), value.Value, value.Limit)).ToList();
+            return GetJsonFriendlyList(values.Where(value => value.IsValid).Select(value => string.Format(CultureInfo.InvariantCulture, "{0} (value:{1} limit:{2})", value.Name.ToString(stringTable), value.Value, value.Limit)));
         }
 
         private static List<string> CreateString(IEnumerable<FileArtifact> values, PathTable pathTable)
         {
-            return values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable)).ToList();
+            return GetJsonFriendlyList(values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable)));
         }
 
         private static List<string> CreateString(IEnumerable<DirectoryArtifact> values, PathTable pathTable)
         {
-            return values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable)).ToList();
+            return GetJsonFriendlyList(values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable)));
         }
 
         private static List<string> CreateString(IEnumerable<FileArtifactWithAttributes> values, PathTable pathTable)
         {
-            return values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable) + " (" + Enum.Format(typeof(FileExistence), value.FileExistence, "f") + ")").ToList();
+            return GetJsonFriendlyList(values.Where(value => value.Path.IsValid).Select(value => value.Path.ToString(pathTable) + " (" + Enum.Format(typeof(FileExistence), value.FileExistence, "f") + ")"));
         }
 
         private static string CreateString(DateTime value)
@@ -552,6 +552,19 @@ namespace BuildXL.Scheduler.Tracing
         private static long? CreateNumeric(TimeSpan? value)
         {
             return value.HasValue ? Convert.ToInt64(value.Value.TotalMilliseconds) : null;
+        }
+
+        /// <summary>
+        /// Returns a list if the value is non-empty, or null if it is empty. Returning null prevents System.Text.Json from printing out emtpy lists.
+        /// </summary>
+        private static List<T> GetJsonFriendlyList<T>(IEnumerable<T> value)
+        {
+            if (value != null && value.Any())
+            {
+                return value.ToList();
+            }
+
+            return null;
         }
 
         #endregion StringHelperFunctions

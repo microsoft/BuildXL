@@ -48,6 +48,13 @@ namespace Test.BuildXL.RuntimeAnalyzer
             PipGraphBuilder.AddProcess(process);
 
             RunAndAssertDumpPip(process);
+
+            // Test a few empty list fields to ensure they did not get printed out
+            var pipWrittenToFile = Encoding.UTF8.GetString(File.ReadAllBytes(GetDumpFilePath(process)));
+            // This pip does not have any of the following fields set (they will have size 0 lists)
+            Assert.False(pipWrittenToFile.Contains("Tags"));
+            Assert.False(pipWrittenToFile.Contains("Environment Variables")); 
+            Assert.False(pipWrittenToFile.Contains("Retry Exit Codes"));
         }
 
         [Fact]

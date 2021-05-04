@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -214,6 +215,11 @@ namespace Tool.ExecutionLogSdk
 
         #region Constructor
 
+        static ExecutionLog()
+        {
+            LoadSystemBuffersAssembly();
+        }
+
         /// <summary>
         /// Private constructor. Use ExecutionLog.LoadExecutionLog to instantiate objects.
         /// </summary>
@@ -238,6 +244,34 @@ namespace Tool.ExecutionLogSdk
 
             // Set the max concurrency level to the current processor count (used by Parallel.ForEach constructs).
             m_parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+        }
+
+        private static void LoadSystemBuffersAssembly()
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+        }
+
+        private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                // It is necessary for us to apply this "binding redirect" programatically because OSGTools calls this from PowerShell
+                var name = new AssemblyName(args.Name);
+                if (name.Name == "System.Buffers")
+                {
+                    var executingAssemblyPath = Assembly.GetExecutingAssembly().Location;
+                    var buffersLocation = Path.Combine(Path.GetDirectoryName(executingAssemblyPath), "System.Buffers.dll");
+                    var assembly = Assembly.LoadFrom(buffersLocation);
+                    return assembly;
+                }
+            }
+            catch
+            {
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+            return null;
         }
 
         #endregion

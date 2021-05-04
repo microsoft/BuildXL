@@ -2331,7 +2331,7 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.CriticalPaths,
             Message = "[Pip{0:X16}] Historic perf data updated: {1}ms from {2}ms, relative deviation {3}%")]
-        public abstract void HistoricPerfDataUpdated(LoggingContext context, long semiStableHash, uint milliseconds, uint oldMilliseconds, int relativeDeviation);
+        public abstract void HistoricPerfDataUpdated(LoggingContext context, long semiStableHash, uint milliseconds, uint oldMilliseconds, long relativeDeviation);
 
         [GeneratedEvent(
             (int)LogEventId.HistoricPerfDataStats,

@@ -208,9 +208,10 @@ namespace BuildXL.Scheduler
                 if (result.IsFound)
                 {
                     uint oldMilliseconds = result.OldItem.Value.DurationInMs;
-                    uint milliseconds = value.DurationInMs;
+                    uint milliseconds = Math.Max(value.DurationInMs, 1); 
+
                     var difference = milliseconds > oldMilliseconds ? milliseconds - oldMilliseconds : oldMilliseconds - milliseconds;
-                    var relativeDeviation = (int)(difference * 100 / Math.Max(milliseconds, oldMilliseconds));
+                    long relativeDeviation = (long)(difference * (100.0 / Math.Max(milliseconds, oldMilliseconds)));
                     Interlocked.Add(ref m_sumRelativeRunningTimeDeviation, relativeDeviation);
                     Interlocked.Increment(ref m_numRunningTimeUpdated);
                     Tracing.Logger.Log.HistoricPerfDataUpdated(m_loggingContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);

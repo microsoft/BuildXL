@@ -1,4 +1,5 @@
-Transformer.sealPartialDirectory({root: d`./path/to/guardian`, files: []});
+
+Transformer.sealPartialDirectory({root: d`./path/to/guardian`, files: [f`./path/to/guardian/guardian.cmd`]});
 Transformer.writeFile(
     f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
     {
@@ -63,6 +64,7 @@ Transformer.execute({
             p`./path/to/ProgramData/Microsoft/NetFramework`,
             p`./path/to/ProgramFilesX86/Nuget`,
             p`./path/to/ProgramFiles/Nuget`,
+            p`./LocalLow/Microsoft/CryptnetUrlCache`,
             p`./path/to/guardian/packages`,
             p`\${Context.getMount('Windows').path}`,
             p`\${Context.getMount('InternetCache').path}`,
@@ -137,6 +139,7 @@ Transformer.execute({
             p`./path/to/ProgramData/Microsoft/NetFramework`,
             p`./path/to/ProgramFilesX86/Nuget`,
             p`./path/to/ProgramFiles/Nuget`,
+            p`./LocalLow/Microsoft/CryptnetUrlCache`,
             p`./path/to/guardian/packages`,
             p`\${Context.getMount('Windows').path}`,
             p`\${Context.getMount('InternetCache').path}`,
@@ -233,6 +236,7 @@ Transformer.execute({
             p`./path/to/ProgramData/Microsoft/NetFramework`,
             p`./path/to/ProgramFilesX86/Nuget`,
             p`./path/to/ProgramFiles/Nuget`,
+            p`./LocalLow/Microsoft/CryptnetUrlCache`,
             p`./path/to/guardian/packages`,
             p`\${Context.getMount('Windows').path}`,
             p`\${Context.getMount('InternetCache').path}`,

@@ -1,0 +1,4 @@
+module({
+    name: "Sdk.Guardian",
+    projects: [ p`Tool.Guardian.dsc` ]
+});

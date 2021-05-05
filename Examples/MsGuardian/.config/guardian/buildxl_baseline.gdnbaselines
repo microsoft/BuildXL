@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "baselines": {
+    "default": {
+      "name": "default",
+      "createdDate": "2021-05-04 21:51:08Z",
+      "lastUpdatedDate": "2021-05-04 22:22:32Z"
+    }
+  },
+  "results": {
+    "2b2812e231de8e904d7935fdcf7ba663028306eaa53a6d2643214975e1dff8f3": {
+      "signature": "2b2812e231de8e904d7935fdcf7ba663028306eaa53a6d2643214975e1dff8f3",
+      "target": "src",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "antimalware",
+      "ruleId": "NoThreatsFound",
+      "justification": null,
+      "createdDate": "2021-05-04 21:51:08Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "11fd9a27477a11e2f0ac87c054490cf31cd896caf050a037a04a916808938ccd": {
+      "signature": "11fd9a27477a11e2f0ac87c054490cf31cd896caf050a037a04a916808938ccd",
+      "target": "src/Program.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0030",
+      "justification": null,
+      "createdDate": "2021-05-04 21:51:08Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "3937794e0d2e84a0f2bda9ebc6bc670e660ffaa6bc11d4ac2b1c73100d2d124f": {
+      "signature": "3937794e0d2e84a0f2bda9ebc6bc670e660ffaa6bc11d4ac2b1c73100d2d124f",
+      "target": "src/Program.cs",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0030",
+      "justification": null,
+      "createdDate": "2021-05-04 22:22:32Z",
+      "expirationDate": null,
+      "type": null
+    }
+  }
+}

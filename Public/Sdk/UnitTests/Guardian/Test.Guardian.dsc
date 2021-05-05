@@ -9,11 +9,7 @@ namespace Sdk.Tests {
     @@Testing.unitTest()
     export function runGuardian() {
         addMounts();
-
-        const guardianToolDirectory = Transformer.sealPartialDirectory({
-            root: d`path/to/guardian`,
-            files: [],
-        });
+        const guardianToolDirectory = getGuardianDirectory();
 
         const guardianTest = Guardian.runGuardian({
             guardianToolRootDirectory: guardianToolDirectory,
@@ -31,10 +27,7 @@ namespace Sdk.Tests {
     @@Testing.unitTest()
     export function runGuardianWithBadInputs() {
         addMounts();
-        const guardianToolDirectory = Transformer.sealPartialDirectory({
-            root: d`path/to/guardian`,
-            files: [],
-        });
+        const guardianToolDirectory = getGuardianDirectory();
 
         Testing.expectFailure(
             () => Guardian.runGuardian(undefined),
@@ -84,10 +77,7 @@ namespace Sdk.Tests {
     @@Testing.unitTest()
     export function runGuardianWithConflictingInputs() {
         addMounts();
-        const guardianToolDirectory = Transformer.sealPartialDirectory({
-            root: d`path/to/guardian`,
-            files: [],
-        });
+        const guardianToolDirectory = getGuardianDirectory();
 
         Testing.expectFailure(
             () =>
@@ -151,6 +141,13 @@ namespace Sdk.Tests {
                 content: "The --fast argument is incompatible with the output baseline file argument, as this will require a full run of guardian break to generate all the results.",
             }
         );
+    }
+
+    function getGuardianDirectory() : StaticContentDirectory {
+        return Transformer.sealPartialDirectory({
+            root: d`path/to/guardian`,
+            files: [f`path/to/guardian/guardian.cmd`],
+        });
     }
 
     function addMounts() {
@@ -220,6 +217,15 @@ namespace Sdk.Tests {
         Testing.setMountPoint({
             name: a`UserProfile`,
             path: p`UserProfile`,
+            isReadable: true,
+            isWritable: true,
+            isSystem: true,
+            isScrubbable: false,
+            trackSourceFileChanges: true,
+        });
+        Testing.setMountPoint({
+            name: a`LocalLow`,
+            path: p`LocalLow`,
             isReadable: true,
             isWritable: true,
             isSystem: true,

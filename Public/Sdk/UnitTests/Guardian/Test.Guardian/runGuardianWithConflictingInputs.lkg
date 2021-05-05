@@ -1,1 +1,2 @@
-Transformer.sealPartialDirectory({root: d`./path/to/guardian`, files: []});
+
+Transformer.sealPartialDirectory({root: d`./path/to/guardian`, files: [f`./path/to/guardian/guardian.cmd`]});

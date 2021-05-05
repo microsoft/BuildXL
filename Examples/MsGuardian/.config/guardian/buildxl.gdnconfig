@@ -1,0 +1,64 @@
+{
+ "fileVersion": "1.4",
+ "tools": [
+  {
+   "fileVersion": "1.4",
+   "tool": {
+    "name": "CredScan",
+    "version": "2.1.17"
+   },
+   "arguments": {
+    "TargetDirectory": "$(WorkingDirectory)",
+    "OutputType": "pre",
+    "SuppressAsError": true
+   },
+   "outputExtension": "xml",
+   "successfulExitCodes": [
+    0,
+    2,
+    4,
+    6
+   ],
+   "errorExitCodes": {
+    "1": "Partial scan completed with warnings.",
+    "3": "Partial scan completed with credential matches and warnings.",
+    "5": "Partial scan completed with application warnings and credential matches",
+    "7": "Partial scan completed with application warnings, suppressed warnings, and credential matches",
+    "-1000": "Argument Exception.",
+    "-1100": "Invalid configuration.",
+    "-1500": "Configuration Exception.",
+    "-1600": "IO Exception.",
+    "-9000": "Unexpected Exception."
+   }
+  },
+  {
+    "fileVersion": "1.0.0",
+    "tool": {
+     "name": "AntiMalware",
+     "version": "latest"
+    },
+    "arguments": {
+     "Function": "analyze",
+     "Command": "scan",
+     "ScanType": 3,
+     "ScanDirectoryOrFile": "$(WorkingDirectory)",
+     "DisableRemediation": true,
+     "BootSectorScan": false,
+     "EnableServices": false,
+     "CollectLogsOnError": false,
+     "ForceSignatureUpdate": false,
+     "SignatureUpdateFailureLoggerLevel": "Warning",
+     "SignatureFreshness": 48,
+     "OutdatedSignatureLoggerLevel": "Error",
+     "LoggerLevel": "Standard"
+    },
+    "outputExtension": "sarif",
+    "successfulExitCodes": [
+     0
+    ],
+    "errorExitCodes": {
+     "2": "Malware is found and not remediated or additional user action is required to complete remediation or there is error in scanning."
+    }
+   }
+ ]
+},

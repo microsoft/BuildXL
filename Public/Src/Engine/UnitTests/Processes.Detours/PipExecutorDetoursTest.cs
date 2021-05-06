@@ -7405,6 +7405,82 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public async Task CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var directory_D1 = tempFiles.GetDirectory(pathTable, @"D1");
+                var directory_D2 = tempFiles.GetDirectory(pathTable, @"D2");
+
+                // Create file symlink D1\f.lnk -> D1\x.txt
+                var file_D1_xTxt = tempFiles.GetFileName(pathTable, @"D1\x.txt");
+                File.WriteAllText(file_D1_xTxt.Expand(pathTable).ExpandedPath, "X");
+                var symlink_D1_fLnk = tempFiles.GetFileName(pathTable, @"D1\f.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_D1_fLnk.Expand(pathTable).ExpandedPath, "x.txt", isTargetFile: true));
+
+                // Create file symlink D2\f.lnk -> D2\y.txt
+                var file_D2_yTxt = tempFiles.GetFileName(pathTable, @"D2\y.txt");
+                File.WriteAllText(file_D2_yTxt.Expand(pathTable).ExpandedPath, "Y");
+                var symlink_D2_fLnk = tempFiles.GetFileName(pathTable, @"D2\f.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_D2_fLnk.Expand(pathTable).ExpandedPath, "y.txt", isTargetFile: true));
+
+                // Create directory symlink D.lnk -> D1
+                var symlink_DLnk = tempFiles.GetFileName(pathTable, @"D.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_DLnk.Expand(pathTable).ExpandedPath, "D1", isTargetFile: false));
+
+                // Create directory symlink DD.lnk -> D.lnk
+                var symlink_DDLnk = tempFiles.GetFileName(pathTable, @"DD.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_DDLnk.Expand(pathTable).ExpandedPath, "D.lnk", isTargetFile: false));
+
+                var symlink_DDLnk_fLnk = tempFiles.GetFileName(pathTable, @"DD.lnk\f.lnk");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                        new FileArtifact[]
+                        {
+                            FileArtifact.CreateSourceFile(symlink_DDLnk_fLnk),
+                            FileArtifact.CreateSourceFile(file_D1_xTxt),
+                            FileArtifact.CreateSourceFile(file_D2_yTxt),
+                        }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty); ;
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: true);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (symlink_DDLnk_fLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (file_D1_xTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (file_D2_yTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (symlink_DLnk, RequestedAccess.Write, FileAccessStatus.Denied)
+                });
+            }
+        }
+
         /// <summary>
         /// Verfies that a trailing slash at the end of a directory specified in a MoveFile call
         /// does not cause the call to return name invalid.

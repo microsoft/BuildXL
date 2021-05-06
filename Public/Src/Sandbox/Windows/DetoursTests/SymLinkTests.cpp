@@ -641,3 +641,51 @@ int CallOpenFileThroughMultipleDirectorySymlinks()
 
     return (int)GetLastError();
 }
+
+int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
+{
+    HANDLE hFile = CreateFileW(
+        L"DD.lnk\\f.lnk",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    // Invalidate directory symlink
+    if (!RemoveDirectoryW(L"D.lnk"))
+    {
+        return (int)GetLastError();
+    }
+
+    // Recreate the symbolic link chain
+    if (!TestCreateSymbolicLinkW(L"D.lnk", L"D2", SYMBOLIC_LINK_FLAG_DIRECTORY))
+    {
+        return (int)GetLastError();
+    }
+
+    hFile = CreateFileW(
+        L"DD.lnk\\f.lnk",
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+    return 0;
+}

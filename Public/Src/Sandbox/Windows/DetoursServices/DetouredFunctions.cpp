@@ -155,6 +155,83 @@ static DWORD DetourGetFinalPathByHandle(_In_ HANDLE hFile, _Inout_ wstring& full
     return ERROR_SUCCESS;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////// Resolved path cache /////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+static void PathCache_Invalidate(const std::wstring& path)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return;
+    }
+
+    ResolvedPathCache::Instance().Invalidate(path);
+}
+
+static const std::pair<std::wstring, DWORD>* PathCache_GetResolvedPathAndType(const std::wstring& path)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return nullptr;
+    }
+
+    return ResolvedPathCache::Instance().GetResolvedPathAndType(path);
+}
+
+static bool PathCache_InsertResolvedPathWithType(const std::wstring& path, std::wstring& resolved, DWORD reparsePointType)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return true;
+    }
+
+    return ResolvedPathCache::Instance().InsertResolvedPathWithType(path, resolved, reparsePointType);
+}
+
+static const bool* PathCache_GetResolvingCheckResult(const std::wstring& path)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return nullptr;
+    }
+
+    return ResolvedPathCache::Instance().GetResolvingCheckResult(path);
+}
+
+static bool PathCache_InsertResolvingCheckResult(const std::wstring& path, bool result)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return true;
+    }
+
+    return ResolvedPathCache::Instance().InsertResolvingCheckResult(path, result);
+}
+
+static bool PathCache_InsertResolvedPaths(
+    const std::wstring& path,
+    bool preserveLastReparsePointInPath,
+    std::vector<std::wstring>& insertionOrder,
+    std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>& resolvedPaths)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return true;
+    }
+
+    return ResolvedPathCache::Instance().InsertResolvedPaths(path, preserveLastReparsePointInPath, std::move(insertionOrder), std::move(resolvedPaths));
+}
+
+static const ResolvedPathCacheEntries* PathCache_GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
+{
+    if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
+    {
+        return nullptr;
+    }
+
+    return ResolvedPathCache::Instance().GetResolvedPaths(path, preserveLastReparsePointInPath);
+}
+
 /// <summary>
 /// Gets target name from <code>REPARSE_DATA_BUFFER</code>.
 /// </summary>
@@ -203,7 +280,7 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
     vector<char> buffer;
     bool status = false;
 
-    auto io_result = ResolvedPathCache::Instance().GetResolvedPathAndType(path);
+    auto io_result = PathCache_GetResolvedPathAndType(path);
     if (io_result != nullptr)
     {
 
@@ -280,7 +357,7 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
     }
 
     GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, target);
-    ResolvedPathCache::Instance().InsertResolvedPathWithType(path, target, reparsePointType);
+    PathCache_InsertResolvedPathWithType(path, target, reparsePointType);
 
 Success:
 
@@ -290,7 +367,7 @@ Success:
 Error:
 
     // Also add dummy cache entry for paths that are not reparse points, so we can avoid calling DeviceIoControl repeatedly
-    ResolvedPathCache::Instance().InsertResolvedPathWithType(path, target, 0x0);
+    PathCache_InsertResolvedPathWithType(path, target, 0x0);
 
 Epilogue:
 
@@ -338,11 +415,11 @@ static bool ShouldResolveReparsePointsInPath(
     {
         // TODO: Deciding not to traverse symlink chain based on reparse point deletion is probably not correct
         //       because the desired access can be set to read/write, which can be used to access the target.
-        ResolvedPathCache::Instance().Invalidate(path.GetPathStringWithoutTypePrefix());
+        PathCache_Invalidate(path.GetPathStringWithoutTypePrefix());
         return false;
     }
 
-    auto result = ResolvedPathCache::Instance().GetResolvingCheckResult(path.GetPathStringWithoutTypePrefix());
+    auto result = PathCache_GetResolvingCheckResult(path.GetPathStringWithoutTypePrefix());
     if (result != nullptr)
     {
 #if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
@@ -367,7 +444,7 @@ static bool ShouldResolveReparsePointsInPath(
 
         if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target))
         {
-            ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
+            PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
             return true;
         }
 
@@ -379,11 +456,11 @@ static bool ShouldResolveReparsePointsInPath(
 
     if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target))
     {
-        ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
+        PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true);
         return true;
     }
 
-    ResolvedPathCache::Instance().InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), false);
+    PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), false);
     return false;
 }
 
@@ -399,7 +476,7 @@ static void InvalidateReparsePointCacheIfNeeded(bool pathContainsReparsePoints, 
         && WantsWriteAccess(desiredAccess)
         && FlagsAndAttributesContainReparsePointFlag(flagsAndAttributes))
     {
-        ResolvedPathCache::Instance().Invalidate(path);
+        PathCache_Invalidate(path);
     }
 }
 
@@ -1189,11 +1266,11 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         break;
     }
 
-    ResolvedPathCache::Instance().InsertResolvedPaths(
+    PathCache_InsertResolvedPaths(
         path.GetPathStringWithoutTypePrefix(), 
         preserveLastReparsePointInPath, 
-        std::move(order), 
-        std::move(resolvedPaths));
+        order, 
+        resolvedPaths);
     return success;
 }
 
@@ -1225,26 +1302,26 @@ static bool EnforceChainOfReparsePointAccesses(
     }
 
     bool cached = true;
-    const ResolvedPathCacheEntries* cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(
+    const ResolvedPathCacheEntries* cachedEntries = PathCache_GetResolvedPaths(
         path.GetPathStringWithoutTypePrefix(),
         preserveLastReparsePoint);
+
+    const vector<wstring>* cachedOrder = nullptr;
+    const map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>* resolvedLookUpTable = nullptr;
+    vector<wstring> order;
+    map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan> paths;
 
     if (cachedEntries == nullptr)
     {
         if (IgnoreFullReparsePointResolving())
         {
-            auto order = vector<wstring>();
-            auto paths = map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>();
+            order = vector<wstring>();
+            paths = map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>();
 
             DetourGetFinalPaths(path, reparsePointHandle, order, paths);
-            ResolvedPathCache::Instance().InsertResolvedPaths(
-                path.GetPathStringWithoutTypePrefix(), 
-                preserveLastReparsePoint,
-                std::move(order), 
-                std::move(paths));
-            cachedEntries = ResolvedPathCache::Instance().GetResolvedPaths(
-                path.GetPathStringWithoutTypePrefix(),
-                preserveLastReparsePoint);
+
+            cachedOrder = &order;
+            resolvedLookUpTable = &paths;
             cached = false;
         }
         else
@@ -1263,6 +1340,11 @@ static bool EnforceChainOfReparsePointAccesses(
                 preserveLastReparsePoint);
         }
     }
+    else
+    {
+        cachedOrder = &(cachedEntries->first);
+        resolvedLookUpTable = &(cachedEntries->second);
+    }
 
 #if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
     InterlockedIncrement(&g_resolvedPathsCacheHitCout);
@@ -1271,11 +1353,10 @@ static bool EnforceChainOfReparsePointAccesses(
     bool success = true;
     auto contextOperationName = cached ? L"ReparsePointTargetCached" : L"ReparsePointTarget";
 
-    for (auto it = cachedEntries->first.begin(); it != cachedEntries->first.end(); ++it)
+    for (auto it = cachedOrder->begin(); it != cachedOrder->end(); ++it)
     {
-        auto key = *it;
-        auto lookupTable = cachedEntries->second;
-        auto type = lookupTable[key];
+        const std::wstring& key = *it;
+        const ResolvedPathType& type = resolvedLookUpTable->at(key);
 
         // When fully resolving paths, it is sometimes necessary to either pass back the fully resolved path to the caller, or not report it to BuildXL
         // at all (see <code>ResolveAllReparsePointsAndEnforceAccess</code>). The 'ResolvedPathType' enum is used to flag the resulting parts of resolving a
@@ -1502,7 +1583,7 @@ static bool ValidateMoveDirectory(
             return false;
         }
 
-        ResolvedPathCache::Instance().Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+        PathCache_Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
         filesAndDirectoriesToReport.push_back(ReportData(sourceAccessCheck, sourceOpContext, sourcePolicyResult));
 
@@ -3345,7 +3426,7 @@ BOOL WINAPI Detoured_CopyFileExW(
     if (copySymlink)
     {
         // Invalidate cache entries because we are about to replace the destination with a symbolic link
-        ResolvedPathCache::Instance().Invalidate(destPolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+        PathCache_Invalidate(destPolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
     }
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
@@ -3597,7 +3678,7 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         return FALSE;
     }
 
-    ResolvedPathCache::Instance().Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(sourceOpContext, sourcePolicyResult, !moveDirectory))
     {
@@ -3764,7 +3845,7 @@ BOOL WINAPI Detoured_ReplaceFileW(
     __reserved LPVOID  lpReserved)
 {
     auto path = CanonicalizedPath::Canonicalize(lpReplacedFileName);
-    ResolvedPathCache::Instance().Invalidate(path.GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(path.GetPathStringWithoutTypePrefix());
 
     // TODO:implement detours logic
     return Real_ReplaceFileW(
@@ -3902,7 +3983,7 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
         return FALSE;
     }
 
-    ResolvedPathCache::Instance().Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true))
     {
@@ -4124,7 +4205,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
         return FALSE;
     }
 
-    ResolvedPathCache::Instance().Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     // When creating symbolic links, only resolve and report the intermediates on the symbolic link path, the target is never accessed
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContextSrc, policyResultSrc, true, (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0))
@@ -4161,7 +4242,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     }
 
     ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
-    ResolvedPathCache::Instance().Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     SetLastError(error);
     return result;
@@ -5281,7 +5362,7 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
         return FALSE;
     }
 
-    ResolvedPathCache::Instance().Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
 
     BOOL result = Real_RemoveDirectoryW(lpPathName);
     DWORD error = ERROR_SUCCESS;

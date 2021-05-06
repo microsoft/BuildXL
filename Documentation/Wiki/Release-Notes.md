@@ -1,6 +1,10 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210430.2 (Release [105633](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=105633)) Released 5/6/2021
+-	[JavaScript] Allow configuring process exit/retry codes and max number of retries in JavaScript resolvers.
+- Update the calculation of orchestrator's slots in the distributed builds.
+
 # 0.1.0-20210423.8 (Release [104915](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=104915)) Released 4/28/2021
 -	Rename “master” to “orchestrator” in distribution code.
 -	Fixes to path combination and normalization logic in Detours.
@@ -18,10 +22,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 # 0.1.0-20210409.1.1 (Release [103647](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=103647)) Released 4/15/2021
 - Implement a file descriptor table in the Linux sandbox
-- (AnyBuild) Ensure deterministic output of DLLs for native builders
+- [AnyBuild] Ensure deterministic output of DLLs for native builders
 - Improved logging in substitute shim, drop daemon and memory management
-- (Drop) Support for long path names
-- (AnyBuild + BuildXL) Various improvements
+- [Drop] Support for long path names
+- [AnyBuild + BuildXL] Various improvements
 - Improvements in distributed builds
 - Improvements in DumpPipLite and PipExecutionPerformance analyzers
 - Added option to log all outputs of cached pips

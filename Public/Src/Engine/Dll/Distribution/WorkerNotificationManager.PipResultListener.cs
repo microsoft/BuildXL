@@ -21,46 +21,25 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private sealed class PipResultListener
         {
-            #region Writer Pool
-
-            private readonly ObjectPool<BuildXLWriter> m_writerPool = new ObjectPool<BuildXLWriter>(CreateWriter, (Action<BuildXLWriter>)CleanupWriter);
-
-            private static void CleanupWriter(BuildXLWriter writer)
-            {
-                writer.BaseStream.SetLength(0);
-            }
-
-            [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Disposal is not needed for memory stream")]
-            private static BuildXLWriter CreateWriter()
-            {
-                return new BuildXLWriter(
-                    debug: false,
-                    stream: new MemoryStream(),
-                    leaveOpen: false,
-                    logStats: false);
-            }
-
-            #endregion Writer Pool
-
             private readonly WorkerNotificationManager m_notificationManager;
-            private readonly ExecutionResultSerializer m_resultSerializer;
-            private readonly PipTable m_pipTable;
-            private readonly IPipExecutionEnvironment m_environment;
+            private readonly IPipResultSerializer m_resultSerializer;
 
             /// <summary>
             /// Ready to send pip results are queued here and are consumed by <see cref="WorkerNotificationManager.SendNotifications(CancellationToken)" />
             /// </summary>
             internal readonly BlockingCollection<ExtendedPipCompletionData> ReadyToSendResultList = new BlockingCollection<ExtendedPipCompletionData>();
 
-            private DistributionServices DistributionServices => m_notificationManager.DistributionServices;
+            private DistributionService DistributionService => m_notificationManager.DistributionService;
 
             public void ReportResult(ExtendedPipCompletionData pipCompletion)
             {
                 try
                 {
-                    using (DistributionServices.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
+                    using (DistributionService.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
                     {
-                        SerializeExecutionResult(pipCompletion);
+                        m_resultSerializer.SerializeExecutionResult(pipCompletion);
+                        DistributionService.Counters.AddToCounter(pipCompletion.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, pipCompletion.SerializedData.ResultBlob.Count);
+                        m_notificationManager.ExecutionService.Transition(pipCompletion.PipId, WorkerPipState.Reporting);
                     }
                     ReadyToSendResultList.Add(pipCompletion);
                 }
@@ -72,34 +51,15 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            public PipResultListener(WorkerNotificationManager notificationManager, EngineSchedule schedule, IPipExecutionEnvironment environment)
+            public PipResultListener(WorkerNotificationManager notificationManager, IPipResultSerializer serializer)
             {
                 m_notificationManager = notificationManager;
-                m_resultSerializer = new ExecutionResultSerializer(maxSerializableAbsolutePathIndex: schedule.MaxSerializedAbsolutePath, executionContext: schedule.Scheduler.Context);
-                m_pipTable = schedule.PipTable;
-                m_environment = environment;
+                m_resultSerializer = serializer;
             }
 
             internal void Cancel()
             {
                 ReadyToSendResultList.CompleteAdding();
-            }
-
-            private void SerializeExecutionResult(ExtendedPipCompletionData completionData)
-            {
-                using (var pooledWriter = m_writerPool.GetInstance())
-                {
-                    var writer = pooledWriter.Instance;
-                    PipId pipId = completionData.PipId;
-
-                    m_resultSerializer.Serialize(writer, completionData.ExecutionResult, completionData.PreservePathSetCasing);
-
-                    // TODO: ToArray is expensive here. Think about alternatives.
-                    var dataByte = ((MemoryStream)writer.BaseStream).ToArray();
-                    completionData.SerializedData.ResultBlob = new ArraySegment<byte>(dataByte);
-                    m_notificationManager.WorkerService.ReportingPipToOrchestrator(completionData);
-                    m_environment.Counters.AddToCounter(m_pipTable.GetPipType(pipId) == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataByte.Length);
-                }
             }
         }
     }

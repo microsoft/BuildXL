@@ -12,18 +12,12 @@ using BuildXL.Scheduler;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Threading;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Scheduler.Distribution;
 
 namespace Test.BuildXL.Distribution
 {
-    public class WorkerServiceTestsBase : XunitBuildXLTest
+    public class WorkerServiceTestsBase : DistributionTestsBase
     {
-        protected ConfigurationImpl Configuration;
-
-        protected void ResetConfiguration()
-        {
-            Configuration = new ConfigurationImpl();
-        }
-
         internal WorkerServiceTestRun CreateTestRun(IConfiguration config = null)
         {
             return new WorkerServiceTestRun(LoggingContext, config ?? Configuration);
@@ -31,9 +25,6 @@ namespace Test.BuildXL.Distribution
     
         public WorkerServiceTestsBase(ITestOutputHelper output) : base(output)
         {
-            RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
-            RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
-            ResetConfiguration();
         }
 
         internal class WorkerServiceTestRun
@@ -83,8 +74,7 @@ namespace Test.BuildXL.Distribution
             public async Task StartServiceAsync()
             {
                 // Engine initializes the service (see Engine.DoRun)
-                IDistributionService asDistService = WorkerService;
-                asDistService.Initialize();
+                WorkerService.Initialize();
 
                 // Orchestrator attaches to worker
                 bool attached = await WorkerService.AttachCompletion;
@@ -92,7 +82,7 @@ namespace Test.BuildXL.Distribution
 
                 // EngineSchedule starts the service (EngineSchedule.ExecuteScheduledPips)
                 // passing null as the EngineSchedule is safe for tests
-                WorkerService.Start(null);
+                WorkerService.Start(null, new ExecutionResultSerializer(0, null));
                 Assert.True(PipExecutionService.Started);
 
                 // Awaited by the engine as last step in the Execution phase

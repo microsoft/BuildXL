@@ -125,7 +125,7 @@ namespace BuildXL.Engine.Distribution
             m_serviceLocation = serviceLocation;
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext, 
-                orchestratorService.DistributionServices.BuildId, 
+                orchestratorService.BuildId, 
                 serviceLocation.IpAddress, 
                 serviceLocation.Port, 
                 OnConnectionTimeOutAsync);
@@ -1128,12 +1128,10 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 var pip = pipCompletionTask.Pip;
-                var operationContext = pipCompletionTask.OperationContext;
                 pipCompletionTask.SetDuration(pipCompletionData.ExecuteStepTicks, pipCompletionData.QueueTicks);
 
-                var description = pipCompletionTask.RunnablePip.Description;
                 int dataSize = pipCompletionData.ResultBlob.Count;
-                m_orchestratorService.Environment.Counters.AddToCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataSize);
+                m_orchestratorService.Counters.AddToCounter(pip.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, dataSize);
 
                 ExecutionResult result = m_orchestratorService.ResultSerializer.DeserializeFromBlob(
                     pipCompletionData.ResultBlob,

@@ -3,6 +3,7 @@
 
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Tasks;
 
@@ -27,9 +28,14 @@ namespace BuildXL.Engine.Distribution
         internal PipId PipId => new PipId(SerializedData.PipIdValue);
 
         /// <summary>
-        /// For tracing purposes only. Not transferred as a part of Bond call.
+        /// For tracing purposes only. Not transferred as a part of gRPC call.
         /// </summary>
         internal long SemiStableHash { get; set; }
+
+        /// <summary>
+        /// For telemetry purposes only. Not transferred as a part of gRPC call.
+        /// </summary>
+        internal PipType PipType { get; set; }
 
         /// <summary>
         /// Signal for start of step execution

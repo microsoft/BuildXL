@@ -5,6 +5,7 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
@@ -93,7 +94,9 @@ namespace BuildXL.Engine.Distribution.Grpc
         public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)
         {
             m_workerService.ExitCallReceivedFromOrchestrator();
-            m_workerService.Exit(failure: message.Failure);
+            
+            var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
+            m_workerService.Exit(failure);
 
             return Task.FromResult(new RpcResponse());
         }

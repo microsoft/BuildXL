@@ -27,7 +27,7 @@ namespace BuildXL.Engine.Distribution
     /// <summary>
     /// A pip executor which can distributed work to remote workers
     /// </summary>
-    public sealed class OrchestratorService : IDistributionService
+    public sealed class OrchestratorService : DistributionService
     {
         internal IPipExecutionEnvironment Environment
         {
@@ -56,13 +56,11 @@ namespace BuildXL.Engine.Distribution
         private readonly ushort m_buildServicePort;
         private readonly IServer m_orchestratorServer;
 
-        internal readonly DistributionServices DistributionServices;
-
         /// <summary>
         /// Class constructor
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "RemoteWorker disposes the workerClient")]
-        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, string buildId)
+        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, string buildId) : base(buildId)
         {
             Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
             Contract.Ensures(m_remoteWorkers != null);
@@ -72,7 +70,6 @@ namespace BuildXL.Engine.Distribution
             m_remoteWorkers = new RemoteWorker[config.BuildWorkers.Count];
 
             m_loggingContext = loggingContext;
-            DistributionServices = new DistributionServices(buildId);
 
             for (int i = 0; i < m_remoteWorkers.Length; i++)
             {
@@ -189,7 +186,7 @@ namespace BuildXL.Engine.Distribution
                                 forwardedEvent.PipProcessErrorEvent.ExitCode,
                                 forwardedEvent.PipProcessErrorEvent.OptionalMessage,
                                 forwardedEvent.PipProcessErrorEvent.ShortPipDescription);
-                            
+
                             logForwardedError(
                                 m_loggingContext,
                                 new WorkerForwardedEvent()
@@ -229,7 +226,7 @@ namespace BuildXL.Engine.Distribution
                                 WorkerName = worker.Name,
                                 EventId = forwardedEvent.EventId,
                                 EventName = forwardedEvent.EventName,
-                                EventKeywords = forwardedEvent.EventKeywords,                               
+                                EventKeywords = forwardedEvent.EventKeywords,
                             });
                         break;
                     default:
@@ -251,12 +248,12 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc/>
-        public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
+        public override void Dispose() => DisposeAsync().GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         public async Task DisposeAsync()
         {
-            DistributionServices.LogStatistics(m_loggingContext);
+            LogStatistics(m_loggingContext);
 
             if (m_remoteWorkers != null)
             {
@@ -271,14 +268,15 @@ namespace BuildXL.Engine.Distribution
                             }
                         })
                     .ToArray();
-                
+
                 await TaskUtilities.SafeWhenAll(tasks);
             }
 
             await m_orchestratorServer.DisposeAsync();
         }
 
-        bool IDistributionService.Initialize()
+        /// <inheritdoc />
+        public override bool Initialize()
         {
             // Start listening to the port if we have remote workers
             if (m_remoteWorkers.Length > 0)
@@ -296,5 +294,8 @@ namespace BuildXL.Engine.Distribution
 
             return true;
         }
+
+        /// We don't have exit logic for orchestrator for now -- throw to avoid unexpected usage
+        public override Task ExitAsync(Optional<string> failure, bool isUnexpected) => throw new NotImplementedException();
     }
 }

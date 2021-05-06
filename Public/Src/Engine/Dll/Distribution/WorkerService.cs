@@ -24,7 +24,7 @@ namespace BuildXL.Engine.Distribution
     /// <summary>
     /// Defines service run on worker nodes in a distributed build.
     /// </summary>
-    public sealed partial class WorkerService : IDistributionService
+    public sealed partial class WorkerService : DistributionService
     {
         /// <summary>
         /// Gets the build start data from the coordinator passed after the attach operation
@@ -57,7 +57,7 @@ namespace BuildXL.Engine.Distribution
         public uint WorkerId { get; private set; }
 
         private volatile bool m_hasFailures;
-        private volatile string m_orchestratorFailureMessage;
+        private volatile string m_failureMessage;
 
         /// <summary>
         /// Whether orchestrator is done with the worker by sending a message to worker.
@@ -67,7 +67,6 @@ namespace BuildXL.Engine.Distribution
         private LoggingContext m_appLoggingContext;
         private readonly IWorkerNotificationManager m_notificationManager;
         private readonly IWorkerPipExecutionService m_pipExecutionService;
-        private readonly DistributionServices m_services;
         private readonly IConfiguration m_config;
         private readonly ushort m_port;
         
@@ -90,8 +89,8 @@ namespace BuildXL.Engine.Distribution
                 orchestratorClient: null)
         {
             m_pipExecutionService = new WorkerPipExecutionService(this);
-            m_notificationManager = new WorkerNotificationManager(this, m_services);
-            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, m_services.BuildId);
+            m_notificationManager = new WorkerNotificationManager(this, m_pipExecutionService, appLoggingContext);
+            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, BuildId);
             m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
         }
 
@@ -114,12 +113,11 @@ namespace BuildXL.Engine.Distribution
             IWorkerPipExecutionService executionService, 
             IServer workerServer,
             IOrchestratorClient orchestratorClient,
-            IWorkerNotificationManager notificationManager)
+            IWorkerNotificationManager notificationManager) : base(buildId)
         {
             m_appLoggingContext = appLoggingContext;
             m_port = config.Distribution.BuildServicePort;
             m_config = config;
-            m_services = new DistributionServices(buildId);
             m_attachCompletionSource = TaskSourceSlim.Create<bool>();
             m_exitCompletionSource = TaskSourceSlim.Create<bool>();
 
@@ -129,11 +127,11 @@ namespace BuildXL.Engine.Distribution
             m_orchestratorClient = orchestratorClient;
         }
 
-        internal void Start(EngineSchedule schedule)
+        internal void Start(EngineSchedule schedule, ExecutionResultSerializer resultSerializer)
         {
             Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "Start called before finishing attach on worker");
             m_pipExecutionService.Start(schedule, BuildStartData);
-            m_notificationManager.Start(m_orchestratorClient, schedule);
+            m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer));
         }
 
         /// <summary>
@@ -149,9 +147,9 @@ namespace BuildXL.Engine.Distribution
             success &= await ExitCompletion; 
             
             success &= !m_hasFailures;
-            if (m_orchestratorFailureMessage != null)
+            if (m_failureMessage != null)
             {
-                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, m_orchestratorFailureMessage);
+                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, m_failureMessage);
             }
 
             m_pipExecutionService.WhenDone();
@@ -169,8 +167,8 @@ namespace BuildXL.Engine.Distribution
             var timeout = GrpcSettings.WorkerAttachTimeout;
             if (!AttachCompletion.Wait(timeout))
             {
-                Exit(failure: "Timed out waiting for attach request from orchestrator", isUnexpected: true);
                 Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
+                Exit(failure: "Timed out waiting for attach request from orchestrator", isUnexpected: true);
                 return false;
             }
 
@@ -191,26 +189,18 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
-        public async void ExitAsync(string failure, bool isUnexpected = false)
-        {
-            await Task.Yield();
-            Exit(failure, isUnexpected);
-        }
-
-        /// <nodoc/>
-        public void Exit(string failure, bool isUnexpected = false)
+        public void Exit(Optional<string> failure = default, bool isUnexpected = false)
         {
             m_notificationManager.Exit();
             m_orchestratorClient.CloseAsync().GetAwaiter().GetResult();
 
             m_attachCompletionSource.TrySetResult(false);
-            bool reportSuccess = string.IsNullOrEmpty(failure);
-
+            var reportSuccess = !failure.HasValue;
+            
             if (!reportSuccess)
             {
                 m_hasFailures = true;
-                m_orchestratorFailureMessage = failure;
+                m_failureMessage = failure.Value;
             }
 
             if (isUnexpected && m_isOrchestratorExited)
@@ -294,7 +284,7 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
             Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxRetry));
-            ExitAsync("Connection timed out", isUnexpected: true);
+            ExitAsync("Connection timed out", isUnexpected: true).Forget();
         }
 
         /// <nodoc />
@@ -363,23 +353,23 @@ namespace BuildXL.Engine.Distribution
             m_notificationManager.ReportResult(pipCompletion);
         }
 
-        internal void ReportingPipToOrchestrator(ExtendedPipCompletionData data) => m_pipExecutionService.Transition(data.PipId, WorkerPipState.Reporting);
-
-        internal void PipReportedToOrchestrator(ExtendedPipCompletionData result)
-        {
-            m_pipExecutionService.Transition(result.PipId, WorkerPipState.Reported);
-            Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
-        }
-
         /// <inheritdoc/>
-        public void Dispose()
+        public override void Dispose()
         {
-            m_services.LogStatistics(m_appLoggingContext);
+            LogStatistics(m_appLoggingContext);
             m_pipExecutionService.Dispose();
             m_workerServer.Dispose();
         }
 
-        bool IDistributionService.Initialize()
+        /// <nodoc/>
+        public override async Task ExitAsync(Optional<string> failure, bool isUnexpected)
+        {
+            await Task.Yield();
+            Exit(failure, isUnexpected);
+        }
+
+        /// <inheritdoc />
+        public override bool Initialize()
         {
             // Start listening to the port
             try

@@ -36,6 +36,11 @@ namespace BuildXL.Engine.Distribution
     internal interface IWorkerPipExecutionService : IDisposable
     {
         /// <summary>
+        /// Id of the worker in the distributed build.
+        /// </summary>
+        uint WorkerId { get; }
+
+        /// <summary>
         /// Starts the execution service with the BuildStartData received from the orchestrator.
         /// </summary>
         void Start(EngineSchedule schedule, BuildStartData buildStartData);
@@ -81,9 +86,7 @@ namespace BuildXL.Engine.Distribution
         {
             // State shared with the front end of the service
             private readonly WorkerService m_workerService;
-            private uint WorkerId => m_workerService.WorkerId;
             private LoggingContext LoggingContext => m_workerService.m_appLoggingContext;
-            private DistributionServices Services => m_workerService.m_services;
             private ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> PendingBuildRequests => m_workerService.m_pendingBuildRequests;
             private ConcurrentDictionary<(PipId, PipExecutionStep), ExtendedPipCompletionData> PendingPipCompletions => m_workerService.m_pendingPipCompletions;
 
@@ -122,6 +125,9 @@ namespace BuildXL.Engine.Distribution
                 m_environment.ContentFingerprinter.FingerprintSalt = buildStartData.FingerprintSalt;
                 m_environment.State.PipEnvironment.OrchestratorEnvironmentVariables = buildStartData.EnvironmentVariables;
             }
+
+            /// <inheritdoc/>
+            public uint WorkerId => m_workerService.WorkerId;
 
             /// <inheritdoc/>
             void IWorkerPipExecutionService.WhenDone() => m_pipQueue.SetAsFinalized();
@@ -173,6 +179,8 @@ namespace BuildXL.Engine.Distribution
                 var step = (PipExecutionStep)pipBuildRequest.Step;
 
                 pipCompletionData.SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId);
+                pipCompletionData.PipType = m_pipTable.GetPipType(pipId);
+
                 // To preserve the path set casing is an option only available for process pips
                 pipCompletionData.PreservePathSetCasing = pip.PipType == PipType.Process && ((Process)pip).PreservePathSetCasing;
 
@@ -324,7 +332,7 @@ namespace BuildXL.Engine.Distribution
             /// <inheritdoc/>
             public void Dispose()
             {
-                Services.LogStatistics(LoggingContext);
+                m_workerService.LogStatistics(LoggingContext);
                 m_workerPipStateManager?.Dispose();
             }
 

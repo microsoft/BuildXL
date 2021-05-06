@@ -34,6 +34,16 @@ namespace BuildXL.Engine.Distribution
         ServerChecksumMismatchCount,
 
         /// <summary>
+        /// The size of the ExecutionResult sent over the network for process pips
+        /// </summary>
+        ProcessExecutionResultSize,
+
+        /// <summary>
+        /// The size of the ExecutionResult sent over the network for ipc pips
+        /// </summary>
+        IpcExecutionResultSize,
+
+        /// <summary>
         /// The total size of messages that are received
         /// </summary>
         ReceivedMessageSizeBytes,

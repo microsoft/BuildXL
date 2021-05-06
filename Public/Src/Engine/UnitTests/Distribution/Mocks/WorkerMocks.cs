@@ -55,7 +55,7 @@ namespace Test.BuildXL.Distribution
             ReportResultCalls++;
         }
 
-        void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule)
+        void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer)
         {
             StartCalls++;
         }
@@ -79,6 +79,8 @@ namespace Test.BuildXL.Distribution
         }
 
         // Interface methods
+        uint IWorkerPipExecutionService.WorkerId => 1;
+
         Task<Possible<AttachCompletionInfo>> IWorkerPipExecutionService.ConstructAttachCompletionInfo()
         {
             var aci = new AttachCompletionInfo
@@ -145,4 +147,8 @@ namespace Test.BuildXL.Distribution
         }
     }
 
+    internal class PipResultSerializerMock : IPipResultSerializer
+    {
+        public void SerializeExecutionResult(ExtendedPipCompletionData completionData) { }
+    }
 }

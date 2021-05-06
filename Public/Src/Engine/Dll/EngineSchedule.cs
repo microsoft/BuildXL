@@ -23,6 +23,7 @@ using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
+using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Performance;
@@ -1427,7 +1428,13 @@ namespace BuildXL.Engine
             LogDiskFreeSpace(loggingContext, executionStart: true);
 
             m_schedulerStartTime = TimestampUtilities.Timestamp;
-            workerService?.Start(this);
+
+            if (workerService != null)
+            {
+                var serializer = new ExecutionResultSerializer(MaxSerializedAbsolutePath, Scheduler.Context);
+                workerService.Start(this, serializer);
+            }
+
             Scheduler.Start(loggingContext);
 
             bool success = true;

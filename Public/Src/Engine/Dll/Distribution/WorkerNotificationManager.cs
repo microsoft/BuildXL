@@ -12,7 +12,10 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Scheduler;
+using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -22,7 +25,7 @@ namespace BuildXL.Engine.Distribution
         /// Starts the notification manager, which will start to listen
         /// and forwarding events to the orchestrator
         /// </summary>
-        void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule);
+        void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer);
 
         /// <summary>
         /// Report an (error / warning) event
@@ -50,11 +53,10 @@ namespace BuildXL.Engine.Distribution
     /// </summary>
     internal partial class WorkerNotificationManager : IWorkerNotificationManager
     {
-        internal readonly WorkerService WorkerService;
-        internal readonly DistributionServices DistributionServices;
-        private Scheduler.Scheduler m_scheduler;
+        internal readonly IWorkerPipExecutionService ExecutionService;
+        private readonly LoggingContext m_loggingContext;
+        internal readonly DistributionService DistributionService;
         private CancellationTokenSource m_sendCancellationSource;
-        private IPipExecutionEnvironment m_environment;
         private volatile bool m_started;
 
         /// Individual sources for notifications
@@ -77,31 +79,23 @@ namespace BuildXL.Engine.Distribution
         private readonly List<ExtendedPipCompletionData> m_executionResults = new List<ExtendedPipCompletionData>();
         private readonly List<EventMessage> m_eventList = new List<EventMessage>();
         private readonly WorkerNotificationArgs m_notification = new WorkerNotificationArgs();
-
-        internal uint WorkerId => WorkerService.WorkerId;
         
         /// <nodoc/>
-        public WorkerNotificationManager(WorkerService workerService, DistributionServices services)
+        public WorkerNotificationManager(DistributionService distributionService, IWorkerPipExecutionService executionService, LoggingContext loggingContext)
         {
-            WorkerService = workerService;
-            DistributionServices = services;
+            DistributionService = distributionService;
+            ExecutionService = executionService;
+            m_loggingContext = loggingContext;
         }
 
-        public void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule)
+        public void Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer)
         {
             Contract.AssertNotNull(orchestratorClient);
 
-            m_scheduler = schedule.Scheduler;
-            m_environment = m_scheduler;
             m_orchestratorClient = orchestratorClient;
-
-            
-            m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(this, m_environment.Context, m_scheduler.PipGraph.GraphId, m_scheduler.PipGraph.MaxAbsolutePathIndex);
-            m_scheduler.AddExecutionLogTarget(m_executionLogTarget);
-
+            m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(this, schedule);
             m_forwardingEventListener = new ForwardingEventListener(this);
-
-            m_pipResultListener = new PipResultListener(this, schedule, m_environment);
+            m_pipResultListener = new PipResultListener(this, serializer);
             m_sendCancellationSource = new CancellationTokenSource();
             m_sendThread = new Thread(() => SendNotifications(m_sendCancellationSource.Token));
             m_sendThread.Start();
@@ -121,14 +115,7 @@ namespace BuildXL.Engine.Distribution
             m_forwardingEventListener.Cancel();
 
             // The execution log target can be null if the worker failed to attach to the orchestrator
-            if (m_executionLogTarget != null)
-            {
-                m_executionLogTarget.Deactivate();
-
-                // Remove the notify orchestrator target to ensure no further events are sent to it.
-                // Otherwise, the events that are sent to a disposed target would cause crashes.
-                m_scheduler.RemoveExecutionLogTarget(m_executionLogTarget);
-            }
+            m_executionLogTarget?.Deactivate();
 
             if (m_sendThread.IsAlive)
             {
@@ -255,7 +242,7 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 // 3. Pending execution log events
-                using (DistributionServices.Counters.StartStopwatch(DistributionCounter.WorkerFlushExecutionLogDuration))
+                using (DistributionService.Counters.StartStopwatch(DistributionCounter.WorkerFlushExecutionLogDuration))
                 {
                     // Flush execution log to m_pendingExecutionLog
                     m_executionLogTarget.FlushAsync().Wait();
@@ -268,7 +255,7 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 // Send notification
-                m_notification.WorkerId = WorkerId;
+                m_notification.WorkerId = ExecutionService.WorkerId;
                 m_notification.CompletedPips = m_executionResults.Select(p => p.SerializedData).ToList();
                 m_notification.ForwardedEvents = m_eventList;
                 
@@ -283,7 +270,7 @@ namespace BuildXL.Engine.Distribution
                     m_notification.ExecutionLogData = new ArraySegment<byte>();
                 }
 
-                using (DistributionServices.Counters.StartStopwatch(DistributionCounter.SendNotificationDuration))
+                using (DistributionService.Counters.StartStopwatch(DistributionCounter.SendNotificationDuration))
                 {
                     var callResult = m_orchestratorClient.NotifyAsync(m_notification, 
                         m_executionResults.Select(a => a.SemiStableHash).ToList(),
@@ -293,7 +280,8 @@ namespace BuildXL.Engine.Distribution
                     {
                         foreach (var result in m_executionResults)
                         {
-                            WorkerService.PipReportedToOrchestrator(result);
+                            ExecutionService.Transition(result.PipId, WorkerPipState.Reported);
+                            Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_loggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
                         }
                         
                         m_numBatchesSent++;
@@ -303,7 +291,7 @@ namespace BuildXL.Engine.Distribution
                         // Fire-forget exit call with failure.
                         // If we fail to send notification to orchestrator and we were not cancelled, the worker should fail.
                         m_executionLogTarget.Deactivate();
-                        WorkerService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true);
+                        DistributionService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true).Forget();
                         break;
                     }
                 }
@@ -313,7 +301,7 @@ namespace BuildXL.Engine.Distribution
 
             m_finishedSendingPipResults = true;
             m_outgoingEvents.CompleteAdding(); 
-            DistributionServices.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToOrchestrator, m_numBatchesSent);
+            DistributionService.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToOrchestrator, m_numBatchesSent);
         }
     }
 }

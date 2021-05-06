@@ -81,7 +81,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Common representation of current distribution service
         /// </summary>
-        private readonly IDistributionService m_distributionService;
+        private readonly DistributionService m_distributionService;
 
         /// <summary>
         /// This holds the state that the engine needs to hand down to the components it hosts.

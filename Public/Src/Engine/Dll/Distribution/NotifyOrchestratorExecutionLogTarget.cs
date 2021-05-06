@@ -3,12 +3,9 @@
 
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine.Distribution
@@ -21,10 +18,13 @@ namespace BuildXL.Engine.Distribution
         private volatile bool m_isDisposed = false;
         private readonly NotifyStream m_notifyStream;
         private readonly BinaryLogger m_logger;
+        private readonly Scheduler.Scheduler m_scheduler;
 
-        internal NotifyOrchestratorExecutionLogTarget(WorkerNotificationManager notificationManager, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
-            : this(new NotifyStream(notificationManager), context, logId, lastStaticAbsolutePathIndex)
+        internal NotifyOrchestratorExecutionLogTarget(WorkerNotificationManager notificationManager, EngineSchedule engineSchedule)
+            : this(new NotifyStream(notificationManager), engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
         {
+            m_scheduler = engineSchedule?.Scheduler;
+            m_scheduler?.AddExecutionLogTarget(this);
         }
 
         private NotifyOrchestratorExecutionLogTarget(NotifyStream notifyStream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex) 
@@ -57,6 +57,10 @@ namespace BuildXL.Engine.Distribution
         internal void Deactivate()
         {
             m_notifyStream.Deactivate();
+
+            // Remove target to ensure no further events are sent
+            // Otherwise, the events that are sent to a disposed target would cause crashes.
+            m_scheduler?.RemoveExecutionLogTarget(this);
         }
 
         /// <inheritdoc />

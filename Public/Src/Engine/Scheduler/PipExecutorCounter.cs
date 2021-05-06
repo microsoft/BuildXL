@@ -755,16 +755,6 @@ namespace BuildXL.Scheduler
         IpcPipsExecutedRemotely,
 
         /// <summary>
-        /// The size of the ExecutionResult sent over Bond for process pips
-        /// </summary>
-        ProcessExecutionResultSize,
-
-        /// <summary>
-        /// The size of the ExecutionResult sent over Bond for ipc pips
-        /// </summary>
-        IpcExecutionResultSize,
-
-        /// <summary>
         /// Counts the number of process pips failed on remote workers
         /// </summary>
         ProcessPipsFailedRemotely,

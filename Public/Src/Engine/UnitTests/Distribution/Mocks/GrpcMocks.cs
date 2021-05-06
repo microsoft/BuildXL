@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Engine.Distribution;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities;
 using System.Collections.Generic;
 using System.Threading;
 using PipGraphCacheDescriptor = BuildXL.Distribution.Grpc.PipGraphCacheDescriptor;
@@ -117,7 +118,8 @@ namespace Test.BuildXL.Distribution
         public void Exit(BuildEndData message)
         {
             WorkerService.ExitCallReceivedFromOrchestrator();
-            WorkerService.Exit(failure: message.Failure);
+            var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
+            WorkerService.Exit(failure);
         }
     }
 

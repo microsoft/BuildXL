@@ -87,11 +87,16 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Request>> GetAllRequestsAsync(CancellationToken cancellationToken, SizeOptions sizeOptions = null, ExpirationDateOptions expirationDateOptions = null, IDomainId domainIdOption = null)
+        public Task<IEnumerable<Request>> GetAllRequestsAsync(CancellationToken cancellationToken,
+            SizeOptions sizeOptions = null,
+            ExpirationDateOptions expirationDateOptions = null,
+            IDomainId domainIdOption = null,
+            RetrievalOptions retrievalOptions = RetrievalOptions.ExcludeSoftDeleted,
+            RequestStatus? requestStatus = null)
         {
             return RetryAsync(
                 nameof(ISymbolServiceClient.GetAllRequestsAsync),
-                (client, ct) => client.GetAllRequestsAsync(ct, sizeOptions, expirationDateOptions, domainIdOption),
+                (client, ct) => client.GetAllRequestsAsync(ct, sizeOptions, expirationDateOptions, domainIdOption, retrievalOptions, requestStatus),
                 cancellationToken);
         }
 
@@ -155,11 +160,19 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Request>> GetRequestPaginatedAsync(string continueFromRequestId, int pageSize, CancellationToken cancellationToken, SizeOptions sizeOptions = null, ExpirationDateOptions expirationDateOptions = null, IDomainId domainIdOption = null)
+        public Task<IEnumerable<Request>> GetRequestPaginatedAsync(
+            String continueFromRequestId,
+            int pageSize,
+            CancellationToken cancellationToken,
+            SizeOptions sizeOptions = null,
+            ExpirationDateOptions expirationDateOptions = null,
+            IDomainId domainIdOption = null,
+            RetrievalOptions retrievalOptions = RetrievalOptions.ExcludeSoftDeleted,
+            RequestStatus? requestStatus = null)
         {
             return RetryAsync(
                  nameof(ISymbolServiceClient.GetRequestPaginatedAsync),
-                 (client, ct) => client.GetRequestPaginatedAsync(continueFromRequestId, pageSize, ct, sizeOptions, expirationDateOptions, domainIdOption),
+                 (client, ct) => client.GetRequestPaginatedAsync(continueFromRequestId, pageSize, ct, sizeOptions, expirationDateOptions, domainIdOption, retrievalOptions, requestStatus),
                  cancellationToken);
         }
 

@@ -11,11 +11,11 @@ using System.Text.Json;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
 using BuildXL.Processes;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -143,7 +143,7 @@ namespace BuildXL.Scheduler.Tracing
                     serializedPip.CopyFileSpecificDetails = CreateCopyFileSpecificDetails((CopyFile)pip, pathTable);
                     break;
                 case PipType.Process:
-                    serializedPip.ProcessSpecificDetails = CreateProcessSpecificDetails((Process)pip, pathTable, stringTable);
+                    serializedPip.ProcessSpecificDetails = CreateProcessSpecificDetails((Process)pip, pathTable, stringTable, pipGraph);
                     break;
                 case PipType.Ipc:
                     serializedPip.IpcSpecificDetails = CreateIpcSpecificDetails((IpcPip)pip, pathTable, stringTable);
@@ -231,7 +231,7 @@ namespace BuildXL.Scheduler.Tracing
         #endregion CopyFileSpecificDetails
 
         #region ProcessSpecificDetails
-        private static ProcessSpecificDetails CreateProcessSpecificDetails(Process pip, PathTable pathTable, StringTable stringTable)
+        private static ProcessSpecificDetails CreateProcessSpecificDetails(Process pip, PathTable pathTable, StringTable stringTable, PipGraph pipGraph)
         {
             return new ProcessSpecificDetails
             {
@@ -239,7 +239,7 @@ namespace BuildXL.Scheduler.Tracing
                 ProcessIoHandling = CreateProcessIoHandling(pip, pathTable, stringTable),
                 ProcessDirectories = CreateProcessDirectories(pip, pathTable),
                 ProcessAdvancedOptions = CreateProcessAdvancedOptions(pip, pathTable, stringTable),
-                ProcessInputOutput = CreateProcessInputOutput(pip, pathTable),
+                ProcessInputOutput = CreateProcessInputOutput(pip, pathTable, pipGraph),
                 ServiceDetails = CreateServiceDetails(pip),
             };
         }
@@ -297,12 +297,12 @@ namespace BuildXL.Scheduler.Tracing
             };
         }
 
-        private static ProcessInputOutput CreateProcessInputOutput(Process pip, PathTable pathTable)
+        private static ProcessInputOutput CreateProcessInputOutput(Process pip, PathTable pathTable, PipGraph pipGraph)
         {
             return new ProcessInputOutput
             {
                 FileDependencies = CreateString(pip.Dependencies, pathTable),
-                DirectoryDependencies = CreateString(pip.DirectoryDependencies, pathTable),
+                DirectoryDependencies = GetDirectoryDependencies(pip.DirectoryDependencies, pathTable, pipGraph),
                 PipDependencies = GetJsonFriendlyList(pip.OrderDependencies.Select(dep => dep.Value.ToString())),
                 FileOutputs = CreateString(pip.FileOutputs, pathTable),
                 DirectoryOutputs = CreateString(pip.DirectoryOutputs, pathTable),
@@ -565,6 +565,18 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             return null;
+        }
+
+        private static List<string> GetDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> dependencies, PathTable pathTable, PipGraph graph)
+        {
+            return GetJsonFriendlyList(
+                dependencies
+                .Where(value => value.Path.IsValid)
+                .Select(value => {
+                    var pipHash = graph.GetFormattedSemiStableHash(graph.GetSealedDirectoryNode(value).ToPipId());
+                    return $"{value.Path.ToString(pathTable)} (SealDirectorySemiStableHash: {pipHash}, PartialSealId: {value.PartialSealId}, IsSharedOpaque: {(value.IsSharedOpaque ? 1 : 0)})";
+                })
+            );
         }
 
         #endregion StringHelperFunctions

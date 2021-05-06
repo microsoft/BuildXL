@@ -58,10 +58,11 @@ namespace Tool.DropDaemon
             internal long TotalUploadTimeMs = 0;
             internal long TotalComputeFileBlobDescriptorForAssociateMs = 0;
             internal long TotalComputeFileBlobDescriptorForUploadMs = 0;
-            internal long TotalBuildManifestRegistrationDurationMs = 0;
             internal long FinalizeTimeMs = 0;
             internal long TotalAssociateSizeBytes = 0;
             internal long TotalUploadSizeBytes = 0;
+            internal long TotalBuildManifestRegistrationDurationMs = 0;
+            internal long TotalBuildManifestRegistrationFailures = 0;
 
             internal IDictionary<string, long> ToDictionary()
             {
@@ -78,11 +79,12 @@ namespace Tool.DropDaemon
                 AddStat(dict, Statistics.TotalUploadTimeMs, ref TotalUploadTimeMs);
                 AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForAssociateMs, ref TotalComputeFileBlobDescriptorForAssociateMs);
                 AddStat(dict, Statistics.TotalComputeFileBlobDescriptorForUploadMs, ref TotalComputeFileBlobDescriptorForUploadMs);
-                AddStat(dict, Statistics.TotalBuildManifestRegistrationDurationMs, ref TotalBuildManifestRegistrationDurationMs);
                 AddStat(dict, Statistics.FinalizeTimeMs, ref FinalizeTimeMs);
                 // we track the total size of files in bytes, but log it in megabytes
                 AddStat(dict, Statistics.TotalAssociateSizeMb, ref TotalAssociateSizeBytes, size => size >> 20);
                 AddStat(dict, Statistics.TotalUploadSizeMb, ref TotalUploadSizeBytes, size => size >> 20);
+                AddStat(dict, Statistics.TotalBuildManifestRegistrationDurationMs, ref TotalBuildManifestRegistrationDurationMs);
+                AddStat(dict, Statistics.TotalBuildManifestRegistrationFailures, ref TotalBuildManifestRegistrationFailures);
                 return dict;
             }
 
@@ -169,11 +171,17 @@ namespace Tool.DropDaemon
             var bxlResult = await m_dropDaemon.ApiClient.RegisterFilesForBuildManifest(m_dropDaemon.DropName, buildManifestEntries);
             if (!bxlResult.Succeeded)
             {
-                m_logger.Verbose($"ApiClient.RegisterFileForBuildManifest unsuccessful. Failure: {bxlResult.Failure.Describe()}");
+                m_logger.Verbose($"ApiClient.RegisterFileForBuildManifest unsuccessful. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
                 return new HashSet<string>(buildManifestEntries.Select(bme => bme.RelativePath));
             }
 
-            return new HashSet<string>(bxlResult.Result.Select(bme => bme.RelativePath));
+            if (bxlResult.Result.Length > 0)
+            {
+                m_logger.Verbose($"ApiClient.RegisterFileForBuildManifest found {bxlResult.Result.Length} file hashing failures.");
+                return new HashSet<string>(bxlResult.Result.Select(bme => bme.RelativePath));
+            }
+
+            return new HashSet<string>();
         }
 
         /// <summary>
@@ -366,9 +374,15 @@ namespace Tool.DropDaemon
                             ? RegisterFileForBuildManifestResult.Failed
                             : RegisterFileForBuildManifestResult.Registered;
                     file.BuildManifestTaskSource.TrySetResult(result);
-                }
-                Interlocked.Add(ref Stats.TotalBuildManifestRegistrationDurationMs, ElapsedMillis(startTime));
 
+                    if (result == RegisterFileForBuildManifestResult.Failed)
+                    {
+                        Interlocked.Increment(ref Stats.TotalBuildManifestRegistrationFailures);
+                        m_logger.Info($"Build Manifest File registration failed for file at RelativePath '{file.RelativeDropFilePath}' with VSO '{file.BlobIdentifier.AlgorithmResultString}'.");
+                    }
+                }
+
+                Interlocked.Add(ref Stats.TotalBuildManifestRegistrationDurationMs, ElapsedMillis(startTime));
                 m_logger.Info("Done processing AddFile batch.");
             }
             catch (Exception e)

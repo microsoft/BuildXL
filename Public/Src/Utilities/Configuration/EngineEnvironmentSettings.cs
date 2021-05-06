@@ -231,6 +231,12 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> LargeStringBufferThresholdBytes = CreateSetting("BuildXLLargeStringBufferThresholdBytes", value => ParseInt32(value));
 
         /// <summary>
+        /// Specifies whether a salt is used for internal VSO:SHA cache mapping for Build Manifest.
+        /// Null or empty salt will be treated as no salt, and will follow default behavior.
+        /// </summary>
+        public static readonly Setting<string> BuildManifestHashCacheSalt = CreateSetting("BuildXLBuildManifestHashCacheSalt", value => value);
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

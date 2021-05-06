@@ -39,6 +39,7 @@ namespace BuildXL.Scheduler
         private readonly PipExecutionContext m_context;
         private readonly Tracing.IExecutionLogTarget m_executionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
+        private readonly string m_buildManifestHashCacheSalt;
 
         /// <summary>
         /// Counters for all ApiServer related statistics.
@@ -56,6 +57,11 @@ namespace BuildXL.Scheduler
 
         private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 6 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
         private const int GetBuildManifestHashFromLocalFileRetryLimit = 5;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
+
+        /// <summary>
+        /// EngineEnviromentSettings.BuildManifestHashCacheSalt is used to create a salted weak fingerprint for [VSO:SHA] cache entries using the file's VSO hash as input.
+        /// </summary>
+        private WeakContentFingerprint GenerateSaltedWeakFingerprint(ContentHash hash) => new WeakContentFingerprint(FingerprintUtilities.Hash($"Hash: '{hash.ToHex()}' Salt: '{m_buildManifestHashCacheSalt}'")); // Changes to this string will invalidate all existing cache entries
 
         /// <nodoc />
         public ApiServer(
@@ -82,6 +88,9 @@ namespace BuildXL.Scheduler
             m_executionLog = executionLog;
             m_buildManifestGenerator = buildManifestGenerator;
             m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, ContentHash>();
+            m_buildManifestHashCacheSalt = string.IsNullOrEmpty(Utilities.Configuration.EngineEnvironmentSettings.BuildManifestHashCacheSalt)
+                ? string.Empty
+                : Utilities.Configuration.EngineEnvironmentSettings.BuildManifestHashCacheSalt;
         }
 
         /// <summary>
@@ -98,11 +107,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Generates <see cref="WeakContentFingerprint"/> and <see cref="StrongContentFingerprint"/> for given Vso Hash
         /// </summary>
-        public static (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
+        public (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
         {
-            var hashBytes = hash.ToByteArray();
-            Array.Resize(ref hashBytes, FingerprintUtilities.FingerprintLength);
-            var wf = new WeakContentFingerprint(FingerprintUtilities.CreateFrom(hashBytes));
+            var wf = GenerateSaltedWeakFingerprint(hash);
             var sf = StrongContentFingerprint.BuildManifestFingerprintMarker;
             return (wf, sf);
         }
@@ -437,6 +444,7 @@ namespace BuildXL.Scheduler
                 Tracing.Logger.Log.ErrorApiServerGetBuildManifestHashFromLocalFileFailed(m_loggingContext, buildManifestEntry.Hash.Serialize(), computeHashResult.Failure.DescribeIncludingInnerFailures());
             }
 
+            ManifestCounters.IncrementCounter(BuildManifestCounters.TotalHashFileFailures);
             return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, new ContentHash(HashType.Unknown));
         }
 
@@ -659,5 +667,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalGenerateBuildManifestFileListCalls,
+
+        /// <summary>
+        /// Number of failed file hash computations during <see cref="GenerateBuildManifestFileListCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalHashFileFailures,
     }
 }

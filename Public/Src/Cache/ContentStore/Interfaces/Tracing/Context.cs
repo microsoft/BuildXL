@@ -298,39 +298,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             {
                 // Note, that 'message' here is a plain message from the client
                 // without correlation id.
-                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, _idAsString, severity);
+                var operationResult = new OperationResult(message, operationName, componentName, result.GetStatus(), duration, kind, result.Exception, _idAsString, severity);
                 structuredLogger.LogOperationFinished(operationResult);
                 messageWasTraced = true;
             }
             else if (Logger is IOperationLogger operationLogger)
             {
-                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, _idAsString, severity);
+                var operationResult = new OperationResult(message, operationName, componentName, result.GetStatus(), duration, kind, result.Exception, _idAsString, severity);
                 operationLogger.OperationFinished(operationResult);
             }
 
             if (!messageWasTraced)
             {
                 TraceMessage(severity, message, componentName, operationName);
-            }
-
-            static OperationStatus statusFromResult(ResultBase resultBase)
-            {
-                if (resultBase.IsCriticalFailure)
-                {
-                    return OperationStatus.CriticalFailure;
-                }
-                else if (resultBase.IsCancelled)
-                {
-                    return OperationStatus.Cancelled;
-                }
-                else if (!resultBase.Succeeded)
-                {
-                    return OperationStatus.Failure;
-                }
-                else
-                {
-                    return OperationStatus.Success;
-                }
             }
         }
 

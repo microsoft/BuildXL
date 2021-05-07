@@ -61,6 +61,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new ShortHashWithSize(value.Hash, value.Size);
         }
 
+        /// <nodoc />
+        public static implicit operator ShortHashWithSize((ShortHash hash, long size) value)
+        {
+            return new ShortHashWithSize(value.hash, value.size);
+        }
+
+        /// <nodoc />
+        public static implicit operator ShortHashWithSize((ContentHash hash, long size) value)
+        {
+            return new ShortHashWithSize(value.hash, value.size);
+        }
+
         /// <inheritdoc />
         public override string ToString()
         {

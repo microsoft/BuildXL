@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <nodoc />
     public class PutBlobResult : BoolResult
     {
-        private readonly ContentHash _hash;
+        private readonly ShortHash _hash;
 
         private readonly long _blobSize;
         private readonly long? _newRedisCapacity; 
@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        private PutBlobResult(ContentHash hash, long blobSize, bool alreadyInRedis = false, long? newRedisCapacity = null, string? redisKey = null, SkipReason skipReason = SkipReason.NotSkipped, string? extraMsg = null)
+        private PutBlobResult(ShortHash hash, long blobSize, bool alreadyInRedis = false, long? newRedisCapacity = null, string? redisKey = null, SkipReason skipReason = SkipReason.NotSkipped, string? extraMsg = null)
             : base(succeeded: true)
         {
             _hash = hash;
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public PutBlobResult(ContentHash hash, long blobSize, string errorMessage)
+        public PutBlobResult(ShortHash hash, long blobSize, string errorMessage)
             : base(errorMessage)
         {
             _hash = hash;
@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public PutBlobResult(ResultBase other, string message, ContentHash hash, long blobSize)
+        public PutBlobResult(ResultBase other, string message, ShortHash hash, long blobSize)
             : base(other, message)
         {
             _hash = hash;
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public PutBlobResult(ResultBase other, ContentHash hash, long blobSize)
+        public PutBlobResult(ResultBase other, ShortHash hash, long blobSize)
             : base(other)
         {
             _hash = hash;
@@ -75,28 +75,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public static PutBlobResult OutOfCapacity(ContentHash hash, long blobSize, string redisKey, string? extraMsg = null)
+        public static PutBlobResult OutOfCapacity(ShortHash hash, long blobSize, string redisKey, string? extraMsg = null)
         {
             return new PutBlobResult(hash, blobSize, redisKey: redisKey, skipReason: SkipReason.OutOfCapacity, extraMsg: extraMsg);
         }
 
         /// <nodoc />
-        public static PutBlobResult Throttled(ContentHash hash, long blobSize, string redisKey, string extraMsg)
+        public static PutBlobResult Throttled(ShortHash hash, long blobSize, string redisKey, string extraMsg)
         {
             Contract.RequiresNotNullOrEmpty(extraMsg);
             return new PutBlobResult(hash, blobSize, redisKey: redisKey, skipReason: SkipReason.Throttled, extraMsg: extraMsg);
         }
 
         /// <nodoc />
-        public static PutBlobResult RedisHasAlready(ContentHash hash, long blobSize, string redisKey) => new PutBlobResult(hash, blobSize, redisKey: redisKey, alreadyInRedis: true);
+        public static PutBlobResult RedisHasAlready(ShortHash hash, long blobSize, string redisKey) => new PutBlobResult(hash, blobSize, redisKey: redisKey, alreadyInRedis: true);
 
         /// <nodoc />
-        public static PutBlobResult NewRedisEntry(ContentHash hash, long blobSize, long newCapacity, string redisKey) => new PutBlobResult(hash, blobSize, newRedisCapacity: newCapacity, alreadyInRedis: false, redisKey: redisKey);
+        public static PutBlobResult NewRedisEntry(ShortHash hash, long blobSize, long newCapacity, string redisKey) => new PutBlobResult(hash, blobSize, newRedisCapacity: newCapacity, alreadyInRedis: false, redisKey: redisKey);
 
         /// <inheritdoc />
         public override string ToString()
         {
-            string baseResult = $"Hash=[{_hash.ToShortString()}], BlobSize=[{_blobSize}], RedisKey=[{_redisKey}]";
+            string baseResult = $"Hash=[{_hash}], BlobSize=[{_blobSize}], RedisKey=[{_redisKey}]";
             if (Succeeded)
             {
                 return $"{baseResult}. AlreadyInRedis=[{_alreadyInRedis}], SkipReason=[{_skipReason}] NewCapacity=[{_newRedisCapacity}]. {_extraMsg}";

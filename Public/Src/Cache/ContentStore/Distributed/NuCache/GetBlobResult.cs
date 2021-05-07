@@ -12,13 +12,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public class GetBlobResult : BoolResult
     {
         /// <nodoc />
-        public ContentHash Hash { get; }
+        public ShortHash Hash { get; }
 
         /// <nodoc />
         public byte[]? Blob { get; }
 
         /// <nodoc />
-        public GetBlobResult(ContentHash hash, byte[]? blob)
+        public GetBlobResult(ShortHash hash, byte[]? blob)
             : base(succeeded: true)
         {
             Hash = hash;
@@ -39,14 +39,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public GetBlobResult(ResultBase other, string message, ContentHash hash)
+        public GetBlobResult(ResultBase other, string message, ShortHash hash)
             : base(other, message)
         {
             Hash = hash;
         }
 
         /// <nodoc />
-        public GetBlobResult(ResultBase other, ContentHash hash)
+        public GetBlobResult(ResultBase other, ShortHash hash)
             : base(other)
         {
             Hash = hash;
@@ -57,10 +57,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (Succeeded)
             {
-                return $"Hash=[{Hash.ToShortString()}] Size=[{Blob?.Length ?? -1}]";
+                return $"Hash=[{Hash}] Size=[{Blob?.Length ?? -1}]";
             }
 
-            return $"Hash=[{Hash.ToShortString()}]. Error=[{ErrorMessage}]";
+            return $"Hash=[{Hash}]. Error=[{ErrorMessage}]";
         }
     }
 }

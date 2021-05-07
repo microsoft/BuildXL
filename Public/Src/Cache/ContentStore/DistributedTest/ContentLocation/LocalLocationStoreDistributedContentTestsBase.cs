@@ -17,14 +17,17 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit.Abstractions;
@@ -206,15 +209,15 @@ namespace ContentStoreTest.Distributed.Sessions
             _overrideDistributed?.Invoke(settings);
 
             var localCasSettings = new LocalCasSettings()
-                                   {
-                                       UseScenarioIsolation = false,
-                                       CasClientSettings = new LocalCasClientSettings()
-                                                           {
-                                                               UseCasService = true,
-                                                               DefaultCacheName = "Default",
-                                                           },
-                                       PreferredCacheDrive = Path.GetPathRoot(rootPath.Path),
-                                       CacheSettings = new Dictionary<string, NamedCacheSettings>()
+            {
+                UseScenarioIsolation = false,
+                CasClientSettings = new LocalCasClientSettings()
+                {
+                    UseCasService = true,
+                    DefaultCacheName = "Default",
+                },
+                PreferredCacheDrive = Path.GetPathRoot(rootPath.Path),
+                CacheSettings = new Dictionary<string, NamedCacheSettings>()
                                                        {
                                                            {
                                                                "Default",
@@ -225,22 +228,22 @@ namespace ContentStoreTest.Distributed.Sessions
                                                                }
                                                            }
                                                        },
-                                       ServiceSettings = new LocalCasServiceSettings()
-                                                         {
-                                                             GrpcPort = grpcPort,
-                                                             GrpcPortFileName = Guid.NewGuid().ToString(),
-                                                             ScenarioName = _overrideScenarioName ?? Guid.NewGuid().ToString(),
-                                                             MaxProactivePushRequestHandlers = ProactivePushCountLimit,
-                                                         }
-                                   };
+                ServiceSettings = new LocalCasServiceSettings()
+                {
+                    GrpcPort = grpcPort,
+                    GrpcPortFileName = Guid.NewGuid().ToString(),
+                    ScenarioName = _overrideScenarioName ?? Guid.NewGuid().ToString(),
+                    MaxProactivePushRequestHandlers = ProactivePushCountLimit,
+                }
+            };
 
             if (_registerAdditionalLocationPerMachine)
             {
                 localCasSettings.CacheSettings["RedirectedCas"] = new NamedCacheSettings()
-                                                                  {
-                                                                      CacheRootPath = (_redirectedSourcePath / index.ToString()).Path,
-                                                                      CacheSizeQuotaString = "1MB"
-                                                                  };
+                {
+                    CacheRootPath = (_redirectedSourcePath / index.ToString()).Path,
+                    CacheSizeQuotaString = "1MB"
+                };
             }
 
             var configuration = new DistributedCacheServiceConfiguration(localCasSettings, settings);
@@ -277,6 +280,15 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 var topLevelStore = factory.CreateTopLevelStore().topLevelStore;
                 return (topLevelStore, null);
+            }
+        }
+
+        protected async Task OpenStreamAndDisposeAsync(IContentSession session, Context context, ContentHash hash)
+        {
+            var openResult = await session.OpenStreamAsync(context, hash, Token).ShouldBeSuccess();
+            using (openResult.Stream)
+            {
+                // Just dispose stream.
             }
         }
 

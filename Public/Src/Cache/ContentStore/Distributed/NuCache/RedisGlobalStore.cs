@@ -32,17 +32,19 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    internal sealed class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, IContentMetadataStore, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
         private const int MaxCheckpointSlotCount = 5;
         private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();
+
+        public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly IClock _clock;
 
         /// <inheritdoc />
         public ClusterState ClusterState { get; private set; }
 
-        public RaidedRedisDatabase RaidedRedis { get; }
+        internal RaidedRedisDatabase RaidedRedis { get; }
 
         private readonly ReplicatedRedisHashKey _checkpointsKey;
         private readonly ReplicatedRedisHashKey _masterLeaseKey;
@@ -77,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         TimeSpan ReplicatedRedisHashKey.IReplicatedKeyHost.MirrorInterval => Configuration.ClusterStateMirrorInterval;
 
         /// <nodoc />
-        public RedisGlobalStore(
+        internal RedisGlobalStore(
             IClock clock,
             RedisContentLocationStoreConfiguration configuration,
             RedisDatabaseAdapter primaryRedisDb,
@@ -162,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         #region Operations
 
         /// <inheritdoc />
-        public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
+        public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -231,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes)
+        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
             if (Configuration.DistributedContentConsumerOnly)
             {
@@ -243,7 +245,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<BoolResult> RegisterLocationAsync(
             OperationContext context,
-            IReadOnlyList<ContentHashWithSize> contentHashes,
+            IReadOnlyList<ShortHashWithSize> contentHashes,
             MachineId machineId,
             [CallerMemberName] string caller = null)
         {
@@ -334,7 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 traceErrorsOnly: true);
         }
 
-        private async Task<Unit> SetLocationBitAndExpireAsync(OperationContext context, IBatch batch, RedisKey key, ContentHashWithSize hash, MachineId machineId)
+        private async Task<Unit> SetLocationBitAndExpireAsync(OperationContext context, IBatch batch, RedisKey key, ShortHashWithSize hash, MachineId machineId)
         {
             var tasks = new List<Task>();
 
@@ -356,13 +358,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return Unit.Void;
         }
 
-        internal static string GetRedisKey(ContentHash hash)
+        internal static string GetRedisKey(ShortHash hash)
         {
             // Use the string representation short hash used in other parts of the system (db and event stream) as the redis key
             // ShortHash.ToString had a bug when only 10 bytes of the hash were printed.
             // Even though the bug is fixed, this method should return the same (old, i.e. shorter) representation
             // to avoid braking the world after the new version is deployed.
-            return new ShortHash(hash).ToString(ShortHash.HashLength - 1);
+            return hash.ToString(ShortHash.HashLength - 1);
         }
 
         #endregion Operations
@@ -418,8 +420,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         var localMachineName = Configuration.PrimaryMachineLocation.ToString();
-
-                        var masterAcquisitonResult = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(context, Configuration.RetryWindow, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
+                        var masterAcquisitionResult = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(context, Configuration.RetryWindow, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
                                 masterRoleRegistryKey: key,
                                 machineName: localMachineName,
                                 currentTime: _clock.UtcNow,
@@ -436,12 +437,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return Role.Worker;
                         }
 
-                        if (masterAcquisitonResult != null)
+                        if (masterAcquisitionResult != null)
                         {
-                            var priorMachineName = masterAcquisitonResult.Value.PriorMasterMachineName;
-                            if (priorMachineName != localMachineName || masterAcquisitonResult.Value.PriorMachineStatus != SlotStatus.Acquired)
+                            var priorMachineName = masterAcquisitionResult.Value.PriorMasterMachineName;
+                            if (priorMachineName != localMachineName || masterAcquisitionResult.Value.PriorMachineStatus != SlotStatus.Acquired)
                             {
-                                Tracer.Debug(context, $"'{localMachineName}' acquired master role from '{priorMachineName}', Status: '{masterAcquisitonResult?.PriorMachineStatus}', LastHeartbeat: '{masterAcquisitonResult?.PriorMasterLastHeartbeat}'");
+                                Tracer.Debug(context, $"'{localMachineName}' acquired master role from '{priorMachineName}', Status: '{masterAcquisitionResult?.PriorMachineStatus}', LastHeartbeat: '{masterAcquisitionResult?.PriorMasterLastHeartbeat}'");
                             }
 
                             return Role.Master;
@@ -589,6 +590,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     _role = roleResult.Value;
 
+                    var masterName = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(
+                        context,
+                        Configuration.RetryWindow,
+                        RedisOperation.GetCheckpoint,
+                        (batch, key) => batch.AddOperation("GetRole", b => b.HashGetAsync(key, "M#1.MachineName")),
+                        timeout: Configuration.ClusterRedisOperationTimeout)
+                    .ThrowIfFailureAsync();
+
+                    var masterLocation = masterName.IsNull ? default(MachineLocation) : new MachineLocation((string)masterName);
+
                     var maxCheckpoint = checkpoints.MaxByOrDefault(c => c.CheckpointCreationTime);
                     if (maxCheckpoint == null)
                     {
@@ -596,12 +607,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         // Add slack for start cursor to account for clock skew between event hub and redis
                         var epochStartCursor = startCursor - Configuration.EventStore.NewEpochEventStartCursorDelay;
-                        return CheckpointState.CreateUnavailable(_role.Value, epochStartCursor);
+                        return CheckpointState.CreateUnavailable(_role.Value, epochStartCursor, masterLocation);
                     }
 
                     Tracer.Debug(context, $"Getting checkpoint state: Found checkpoint '{maxCheckpoint}'");
 
-                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName)));
+                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName), masterLocation));
                 },
                 Counters[GlobalStoreCounters.GetCheckpointState]);
         }
@@ -668,7 +679,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
@@ -681,7 +692,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
@@ -693,7 +704,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: Configuration.BlobTimeout);
         }
 
-        internal RedisBlobAdapter GetBlobAdapter(ContentHash hash)
+        internal RedisBlobAdapter GetBlobAdapter(ShortHash hash)
         {
             if (!RaidedRedis.HasSecondary)
             {

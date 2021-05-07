@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
@@ -28,7 +29,30 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
             return $"{prefix}{result.Diagnostics}";
         }
-        
+
+        /// <summary>
+        /// Gets tracing status from result instance
+        /// </summary>
+        public static OperationStatus GetStatus(this ResultBase resultBase)
+        {
+            if (resultBase.IsCriticalFailure)
+            {
+                return OperationStatus.CriticalFailure;
+            }
+            else if (resultBase.IsCancelled)
+            {
+                return OperationStatus.Cancelled;
+            }
+            else if (!resultBase.Succeeded)
+            {
+                return OperationStatus.Failure;
+            }
+            else
+            {
+                return OperationStatus.Success;
+            }
+        }
+
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>

@@ -32,8 +32,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private readonly Context _context;
         private readonly GrpcFileCopierConfiguration _configuration;
 
-        private const string GrpcUriSchemePrefix = "grpc://";
-
         private readonly GrpcCopyClientCache _clientCache;
 
         private readonly IReadOnlyDictionary<AbsolutePath, AbsolutePath> _junctionsByDirectory;
@@ -42,22 +40,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// The resolved DNS host name or local machine name
         /// </summary>
         private readonly string _localMachineName;
-
-        /// <summary>
-        /// Extract the host name from an AbsolutePath's segments.
-        /// </summary>
-        public static string GetHostName(bool isLocal, IReadOnlyList<string> segments)
-        {
-            if (OperatingSystemHelper.IsWindowsOS)
-            {
-                return isLocal ? "localhost" : segments.First();
-            }
-            else
-            {
-                // Linux always uses the first segment as the host name.
-                return segments.First();
-            }
-        }
 
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
@@ -128,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 // ResourcePoolV2 may throw TimeoutException if the connection fails.
                 // Wrapping this error and converting it to an "error code".
 
-                return await _clientCache.UseWithInvalidationAsync(context, host, _configuration.GrpcPort, async (nestedContext, clientWrapper) =>
+                return await _clientCache.UseWithInvalidationAsync(context, host, port, async (nestedContext, clientWrapper) =>
                 {
                     var result = await clientWrapper.Value.CopyToAsync(nestedContext, sourceLocation.Hash, destinationStream, options);
                     InvalidateResourceIfNeeded(nestedContext, options, result, clientWrapper);
@@ -209,24 +191,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private (string host, int port) ExtractHostInfo(MachineLocation machineLocation)
         {
-            var path = machineLocation.Path;
-            if (path.StartsWith(GrpcUriSchemePrefix))
-            {
-                // This is a uri format machine location
-                var uri = new Uri(path);
-                return (uri.Host, uri.Port);
-            }
-
-            var sourcePath = new AbsolutePath(path);
-
-            // TODO: Keep the segments in the AbsolutePath object?
-            // TODO: Indexable structure?
-            var segments = sourcePath.GetSegments();
-            Contract.Assert(segments.Count >= 4);
-
-            string host = GetHostName(sourcePath.IsLocal, segments);
-
-            return (host, _configuration.GrpcPort);
+            var info = machineLocation.ExtractHostInfo();
+            return (info.host, info.port ?? _configuration.GrpcPort);
         }
 
         /// <inheritdoc />
@@ -234,7 +200,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         {
             if (_configuration.UseUniversalLocations)
             {
-                return new MachineLocation($"{GrpcUriSchemePrefix}{_localMachineName}:{_configuration.GrpcPort}/");
+                return new MachineLocation($"{MachineLocation.GrpcUriSchemePrefix}{_localMachineName}:{_configuration.GrpcPort}/");
             }
 
             if (!cacheRoot.IsLocal)

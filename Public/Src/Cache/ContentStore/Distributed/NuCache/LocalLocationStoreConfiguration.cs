@@ -83,6 +83,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public ContentLocationDatabaseConfiguration? Database { get; set; }
 
         /// <summary>
+        /// Configuration object for the content metadata store
+        /// </summary>
+        public ContentMetadataStoreConfiguration? MetadataStore { get; set; }
+
+        /// <summary>
         /// A helper method that provides extra information to the compiler regarding whether some properties are null or not.
         /// </summary>
         [MemberNotNullWhen(true, nameof(Database))]

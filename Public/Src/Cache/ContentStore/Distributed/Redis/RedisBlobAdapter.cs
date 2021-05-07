@@ -51,13 +51,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
 
-        internal static string GetBlobKey(ContentHash hash) => $"Blob-{hash}";
+        internal static string GetBlobKey(ShortHash hash) => $"Blob-{hash}";
 
         /// <nodoc />
         public RedisBlobAdapter(RedisDatabaseAdapter redis, IClock clock, RedisContentLocationStoreConfiguration configuration)
         {
             _redis = redis;
-            _blobExpiryTime = TimeSpan.FromMinutes(configuration.BlobExpiryTimeMinutes);
+            _blobExpiryTime = configuration.BlobExpiryTime;
             _capacityExpiryTime = _blobExpiryTime.Add(TimeSpan.FromMinutes(5));
             _maxCapacityPerTimeBox = configuration.MaxBlobCapacity / 2;
             _clock = clock;
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         ///     Puts a blob into Redis. Will fail only if capacity cannot be reserved or if Redis fails in some way.
         /// </summary>
-        public async Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public async Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
             const string ErrorMessage = "Redis value could not be updated to upload blob.";
             try
@@ -163,7 +163,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         ///     Tries to get a blob from Redis.
         /// </summary>
-        public async Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
+        public async Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
             try
             {

@@ -47,8 +47,9 @@ namespace BuildXL.Cache.ContentStore.Service
             ILogger logger,
             string scenario,
             Func<AbsolutePath, IContentStore> contentStoreFactory,
-            LocalServerConfiguration localContentServerConfiguration)
-        : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration)
+            LocalServerConfiguration localContentServerConfiguration,
+            IGrpcServiceEndpoint[]? additionalEndpoints = null)
+        : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration, additionalEndpoints)
         {
             _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration);
         }

@@ -74,6 +74,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public IGlobalLocationStore GlobalStore { get; }
 
         /// <nodoc />
+        public IContentMetadataStore ContentMetadataStore { get; }
+
+        /// <nodoc />
         public LocalLocationStoreConfiguration Configuration { get; }
 
         /// <nodoc />
@@ -100,13 +103,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private Timer _heartbeatTimer;
 
         // Local volatile caches for preventing resending the same events over and over again.
-        private readonly VolatileSet<ContentHash> _recentlyAddedHashes;
-        private readonly VolatileSet<ContentHash> _recentlyTouchedHashes;
+        private readonly VolatileSet<ShortHash> _recentlyAddedHashes;
+        private readonly VolatileSet<ShortHash> _recentlyTouchedHashes;
 
         // Normally content registered with the machine already will be skipped or re-registered lazily. If content was recently removed (evicted),
         // we need to eagerly update the content because other machines may have already received updated db with content unregistered for the this machine.
         // This tracks recent removals so the corresponding content can be registered eagerly with global store.
-        private readonly VolatileSet<ContentHash> _recentlyRemovedHashes;
+        private readonly VolatileSet<ShortHash> _recentlyRemovedHashes;
 
         private DateTime _lastCheckpointTime;
         private Task<BoolResult> _pendingProcessCheckpointTask;
@@ -160,6 +163,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public LocalLocationStore(
             IClock clock,
             IGlobalLocationStore globalStore,
+            IContentMetadataStore contentMetadataStore,
             LocalLocationStoreConfiguration configuration,
             DistributedContentCopier copier)
         {
@@ -170,10 +174,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clock = clock;
             Configuration = configuration;
             GlobalStore = globalStore;
+            ContentMetadataStore = contentMetadataStore;
 
-            _recentlyAddedHashes = new VolatileSet<ContentHash>(clock);
-            _recentlyTouchedHashes = new VolatileSet<ContentHash>(clock);
-            _recentlyRemovedHashes = new VolatileSet<ContentHash>(clock);
+            _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
+            _recentlyTouchedHashes = new VolatileSet<ShortHash>(clock);
+            _recentlyRemovedHashes = new VolatileSet<ShortHash>(clock);
             _reconcileAddRecents = new VolatileSet<ShortHash>(clock);
             _reconcileRemoveRecents = new VolatileSet<ShortHash>(clock);
 
@@ -260,7 +265,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a value indicating whether the store supports storing and retrieving blobs.
         /// </summary>
-        public bool AreBlobsSupported => GlobalStore.AreBlobsSupported;
+        public bool AreBlobsSupported => ContentMetadataStore.AreBlobsSupported;
 
         private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration, string subfolder)
         {
@@ -318,6 +323,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             CheckpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, Configuration.Checkpoint, Counters);
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
+
+            await ContentMetadataStore.StartupAsync(context).ThrowIfFailure();
 
             EventStore = CreateEventStore(Configuration, subfolder: "main");
 
@@ -505,15 +512,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         shouldRestore = false;
                     }
 
-                    if (CurrentRole == Role.Master)
-                    {
-                        ClusterState.SetMasterMachine(Configuration.PrimaryMachineLocation);
-                    }
-                    else
-                    {
-                        ClusterState.SetMasterMachine(checkpointState.Producer);
-                    }
-
                     BoolResult result;
 
                     if (shouldRestore || forceRestore)
@@ -687,6 +685,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // The error is already logged. We need to specify cast because of the implicit bool cast.
                             return new Result<bool>((ResultBase)checkpointState);
                         }
+
+                        ClusterState.SetMasterMachine(checkpointState.Value.Master);
 
                         var processStateResult = await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
                         if (!processStateResult)
@@ -996,7 +996,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var entries = await GlobalStore.GetBulkAsync(context, contentHashes);
+                    var entries = await ContentMetadataStore.GetBulkAsync(context, contentHashes.SelectList(c => new ShortHash(c)));
                     if (!entries)
                     {
                         return new GetBulkLocationsResult(entries);
@@ -1111,7 +1111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets content locations for a given <paramref name="hash"/> from a local database.
         /// </summary>
-        private bool TryGetContentLocations(OperationContext context, ContentHash hash, [NotNullWhen(true)] out ContentLocationEntry? entry)
+        private bool TryGetContentLocations(OperationContext context, ShortHash hash, [NotNullWhen(true)] out ContentLocationEntry entry)
         {
             using (Counters[ContentLocationStoreCounters.DatabaseGet].Start())
             {
@@ -1161,7 +1161,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private RegisterAction GetRegisterAction(OperationContext context, MachineId machineId, ContentHash hash, DateTime now)
+        private RegisterAction GetRegisterAction(OperationContext context, MachineId machineId, ShortHash hash, DateTime now)
         {
             if (_recentlyRemovedHashes.Contains(hash))
             {
@@ -1266,8 +1266,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var eventContentHashes = new List<ContentHashWithSize>(contentHashes.Count);
-                    var eagerContentHashes = new List<ContentHashWithSize>(contentHashes.Count);
+                    var eventContentHashes = new List<ShortHashWithSize>(contentHashes.Count);
+                    var eagerContentHashes = new List<ShortHashWithSize>(contentHashes.Count);
                     var actions = new List<RegisterAction>(contentHashes.Count);
                     var now = _clock.UtcNow;
 
@@ -1305,7 +1305,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        await GlobalStore.RegisterLocationAsync(context, machineId, eagerContentHashes).ThrowIfFailure();
+                        await ContentMetadataStore.RegisterLocationAsync(context, machineId, eagerContentHashes, touch).ThrowIfFailure();
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
@@ -2197,13 +2197,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
-            return await GlobalStore.PutBlobAsync(context, hash, blob);
+            return await ContentMetadataStore.PutBlobAsync(context, hash, blob);
         }
 
         /// <nodoc />
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
-            return GlobalStore.GetBlobAsync(context, hash);
+            return ContentMetadataStore.GetBlobAsync(context, hash);
         }
 
         private void OnContentLocationDatabaseInvalidation(OperationContext context, Failure<Exception> failure)
@@ -2257,7 +2257,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
             {
-                return _store.GlobalStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo);
+                return _store.ContentMetadataStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
             }
         }
 

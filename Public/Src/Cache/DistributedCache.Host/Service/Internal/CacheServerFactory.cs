@@ -239,7 +239,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
                     localServerConfiguration,
-                    capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing);
+                    capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing,
+                    factory.GetAdditionalEndpoints());
             }
             else
             {
@@ -250,7 +251,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _logger,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
                     path => topLevelAndPrimaryStore.topLevelStore,
-                    localServerConfiguration);
+                    localServerConfiguration,
+                    factory.GetAdditionalEndpoints());
             }
         }
 

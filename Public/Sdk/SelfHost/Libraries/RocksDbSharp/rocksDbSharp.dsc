@@ -14,9 +14,6 @@ export declare const qualifier: {
 const nativePackage = importFrom("RocksDbNative").pkg;
 const managedPackage = importFrom("RocksDbSharpSigned").pkg;
 
-@@public
-export const pkgs = getRocksDbPackages(true);
-
 // This is meant to be used only when declaring NuGet packages' dependencies. In that particular case, you should be
 // calling this function with includeNetStandard: false
 @@public
@@ -40,3 +37,6 @@ export function getRocksDbPackages(includeNetStandard: boolean): Managed.Managed
         ...BuildXLSdk.getSystemMemoryPackages(includeNetStandard),
     ];
 }
+
+@@public
+export const pkgs = getRocksDbPackages(true);

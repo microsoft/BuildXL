@@ -61,7 +61,7 @@ csharp_style_var_when_type_is_apparent                              = true : sug
 csharp_style_var_elsewhere                                          = true : suggestion
 
 # Prefer expression-bodied members for methods when they will be a single line (e.g. `public int GetAge() => this.Age;`)
-csharp_style_expression_bodied_methods                              = when_on_single_line : suggestion
+csharp_style_expression_bodied_methods                              = false : silent
 # Prefer expression-bodied members for constructors when they will be a single line (e.g. `public int GetAge() => this.Age;`)
 csharp_style_expression_bodied_constructors                         = when_on_single_line : suggestion
 # Prefer expression-bodied members for operators when they will be a single line (e.g. `public int GetAge() => this.Age;`)

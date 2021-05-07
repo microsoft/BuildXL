@@ -743,7 +743,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         List<ContentHashWithSize> machineContent = Enumerable.Range(0, registerContentCount)
                             .Select(_ => content[ThreadSafeRandom.Generator.Next(content.Count)]).ToList();
 
-                        await redisStore0.RegisterLocationAsync(context, id, machineContent).ShouldBeSuccess();
+                        await redisStore0.RegisterLocationAsync(context, id, machineContent.SelectList(c => (ShortHashWithSize)c), true).ShouldBeSuccess();
 
                         foreach (var item in machineContent)
                         {
@@ -751,7 +751,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             locationIds.Add(id);
                         }
 
-                        var getBulkResult = await redisStore0.GetBulkAsync(context, machineContent.SelectList(c => c.Hash)).ShouldBeSuccess();
+                        var getBulkResult = await redisStore0.GetBulkAsync(context, machineContent.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
                         IReadOnlyList<ContentLocationEntry> entries = getBulkResult.Value;
 
                         entries.Count.Should().Be(machineContent.Count);
@@ -768,7 +768,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var globalGetBulkResult = await store1.GetBulkAsync(context, page.SelectList(c => c.Hash), Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
 
-                        var redisGetBulkResult = await redisStore0.GetBulkAsync(context, page.SelectList(c => c.Hash)).ShouldBeSuccess();
+                        var redisGetBulkResult = await redisStore0.GetBulkAsync(context, page.SelectList(c => (ShortHash)c.Hash)).ShouldBeSuccess();
 
                         var infos = globalGetBulkResult.ContentHashesInfo;
                         var entries = redisGetBulkResult.Value;
@@ -1157,15 +1157,6 @@ namespace ContentStoreTest.Distributed.Sessions
         private bool IsHashInStore(ContentHash hash, TestContext context, int index = 0, bool primary = true)
         {
             return context.GetFileSystemStore(index, primary: primary).Contains(hash);
-        }
-
-        private async Task OpenStreamAndDisposeAsync(IContentSession session, Context context, ContentHash hash)
-        {
-            var openResult = await session.OpenStreamAsync(context, hash, Token).ShouldBeSuccess();
-            using (openResult.Stream)
-            {
-                // Just dispose stream.
-            }
         }
 
         [Theory]
@@ -3004,7 +2995,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var lls = context.GetLocalLocationStore(0);
 
-                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(Role.Worker, new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow, producerMachineLocation))
+                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(Role.Worker, new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow, producerMachineLocation, producerMachineLocation))
                         .ShouldBeSuccess();
 
                     // Uncomment this line to create a checkpoint to keep alive the content in storage

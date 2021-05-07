@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -50,8 +51,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
             string scenario,
             Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
-            Capabilities capabilities)
-        : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
+            Capabilities capabilities,
+            IGrpcServiceEndpoint[] additionalEndpoints = null)
+        : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration, additionalEndpoints)
         {
             // This must agree with the base class' StoresByName to avoid "missing content store" errors from Grpc, and
             // to make sure everything is initialized properly when we expect it to.

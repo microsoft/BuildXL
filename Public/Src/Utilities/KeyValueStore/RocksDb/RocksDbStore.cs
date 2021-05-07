@@ -966,5 +966,21 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 limit_key: limit,
                 limit_key_len: new UIntPtr((ulong)(limit?.GetLongLength(0) ?? 0)));
         }
+
+        /// <nodoc />
+        public void CreateColumnFamily(string columnFamily)
+        {
+            var handle = m_store.CreateColumnFamily(m_defaults.ColumnFamilyOptions, columnFamily);
+            m_columns[columnFamily] = new ColumnFamilyInfo() { Handle = handle };
+        }
+
+        /// <nodoc />
+        public void DropColumnFamily(string columnFamily)
+        {
+            var family = GetColumnFamilyInfo(columnFamily);
+            m_columns.Remove(columnFamily);
+            m_store.DropColumnFamily(columnFamily);
+            ((IDisposable)family.Handle).Dispose();
+        }
     } // RocksDbStore
 }

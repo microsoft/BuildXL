@@ -41,34 +41,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state);
 
-        /// <summary>
-        /// Gets the list of <see cref="ContentLocationEntry"/> for every hash specified by <paramref name="contentHashes"/> from a central store.
-        /// </summary>
-        /// <remarks>
-        /// The resulting collection (in success case) will have the same size as <paramref name="contentHashes"/>.
-        /// </remarks>
-        Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes);
-
-        /// <summary>
-        /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
-        /// </summary>
-        Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes);
-
-        /// <summary>
-        /// Puts a blob into the content location store.
-        /// </summary>
-        Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob);
-
-        /// <summary>
-        /// Gets a blob from the content location store.
-        /// </summary>
-        Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash);
-
-        /// <summary>
-        /// Gets a value indicating whether the store supports storing and retrieving blobs.
-        /// </summary>
-        bool AreBlobsSupported { get; }
-
         /// <nodoc />
         CounterSet GetCounters(OperationContext context);
 

@@ -302,7 +302,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Collects entries with last access time longer then time to live.
         /// </summary>
-        public Task<BoolResult> GarbageCollectAsync(OperationContext context)
+        public virtual Task<BoolResult> GarbageCollectAsync(OperationContext context)
         {
             bool gcMetadata = false;
             bool gcContent = false;
@@ -547,7 +547,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private int GetFirstByteDifference(in ShortHash hash1, in ShortHash hash2)
         {
-            for (int i = 0; i < ShortHash.SerializedLength; i++)
+            for (int i = 0; i < ShortHash.HashLength; i++)
             {
                 if (hash1[i] != hash2[i])
                 {
@@ -555,7 +555,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            return ShortHash.SerializedLength;
+            return ShortHash.HashLength;
         }
 
         private ContentLocationEntry FilterInactiveMachines(ContentLocationEntry entry)

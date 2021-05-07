@@ -15,4 +15,15 @@ export const pkgs = [
     // protobuf
     { id: "Google.Protobuf", version: protoVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Google.Protobuf.Tools", version: protoVersion },
+
+    // protobuf-net
+    { id: "protobuf-net.Core", version: "3.0.101", dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "protobuf-net", version: "3.0.101", dependentPackageIdsToSkip: [ "System.Memory" ] },
+    { id: "protobuf-net.Grpc", version: "1.0.152", dependentPackageIdsToSkip: [ "System.Memory", "System.Threading.Channels" ] },
+    { id: "protobuf-net.Grpc.Native", version: "1.0.152", dependentPackageIdsToSkip: [ "System.Memory", "System.Threading.Channels" ] },
+
+    { id: "System.ServiceModel.Http", version: "4.7.0" },
+    { id: "System.ServiceModel.Primitives", version: "4.7.0" },
+    { id: "System.Private.ServiceModel", version: "4.7.0" },
+
 ];

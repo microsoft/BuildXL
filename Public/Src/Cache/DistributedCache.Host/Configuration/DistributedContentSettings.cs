@@ -1104,6 +1104,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int PublishingConcurrencyLimit { get; set; } = 128;
+
+        [DataMember]
+        public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;
     }
 
     /// <summary>

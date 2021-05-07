@@ -62,7 +62,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
         }
 
         /// <inheritdoc />
-        protected override IGlobalLocationStore CreateRedisGlobalStore()
+        protected override RedisGlobalStore CreateRedisGlobalStore()
         {
             var primaryConnection = MockRedisDatabaseFactory.CreateConnection(_primaryRedisDatabase);
             var primaryDatabaseAdapter = new RedisDatabaseAdapter(

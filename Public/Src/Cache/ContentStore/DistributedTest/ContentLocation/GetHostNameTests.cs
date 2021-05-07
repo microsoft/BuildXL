@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
         private string GetHostFromAbsolutePath(AbsolutePath path)
         {
-            return GrpcFileCopier.GetHostName(path.IsLocal, path.GetSegments());
+            return MachineLocation.GetHostName(path.IsLocal, path.GetSegments());
         }
     }
 }

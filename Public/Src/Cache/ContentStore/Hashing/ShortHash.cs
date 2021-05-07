@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public byte this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Value[index];
+            get => Value[index + 1];
         }
 
         /// <nodoc />

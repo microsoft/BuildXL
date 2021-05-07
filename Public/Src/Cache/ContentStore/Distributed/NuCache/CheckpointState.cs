@@ -31,7 +31,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public MachineLocation Producer { get; }
 
         /// <nodoc />
-        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime, MachineLocation producer)
+        public MachineLocation Master { get; }
+
+        /// <nodoc />
+        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime, MachineLocation producer, MachineLocation master)
         {
             Contract.Requires(!string.IsNullOrEmpty(checkpointId));
 
@@ -40,20 +43,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             CheckpointId = checkpointId;
             CheckpointTime = checkpointTime;
             Producer = producer;
+            Master = master;
         }
 
         /// <nodoc />
-        private CheckpointState(Role role, DateTime epochStartCursorTime)
+        private CheckpointState(Role role, DateTime epochStartCursorTime, MachineLocation master)
             : this()
         {
             Role = role;
             StartSequencePoint = new EventSequencePoint(epochStartCursorTime);
+            Master = master;
         }
 
         /// <nodoc />
-        public static CheckpointState CreateUnavailable(Role role, DateTime epochStartCursorTime)
+        public static CheckpointState CreateUnavailable(Role role, DateTime epochStartCursorTime, MachineLocation master)
         {
-            return new CheckpointState(role, epochStartCursorTime);
+            return new CheckpointState(role, epochStartCursorTime, master);
         }
 
         /// <inheritdoc />

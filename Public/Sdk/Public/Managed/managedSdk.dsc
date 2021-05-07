@@ -126,6 +126,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
     const references = [
         ...(args.references || []),
+        ...(args.runtimeReferences || []),
         ...framework.standardReferences,
     ];
 
@@ -400,6 +401,9 @@ export interface Arguments {
 
     /** References. */
     references?: Shared.Reference[];
+
+    /** References not used at compile-time but deployed alongside assembly and include in runtime dependencies */
+    runtimeReferences?: Shared.Reference[];
 
     /** Defined constants. */
     defineConstants?: string[];

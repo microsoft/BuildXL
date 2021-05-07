@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -14,6 +15,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
@@ -95,14 +97,53 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Contract.Assert(RedisDatabaseFactoryForRedisGlobalStore != null);
 
             var globalStore = CreateRedisGlobalStore();
-            var localLocationStore = new LocalLocationStore(Clock, globalStore, Configuration, Copier);
+            var contentMetadataStore = CreateContentMetadataStore(globalStore);
+            var localLocationStore = new LocalLocationStore(Clock, globalStore, contentMetadataStore, Configuration, Copier);
             return localLocationStore;
+        }
+
+        protected virtual IContentMetadataStore CreateContentMetadataStore(RedisGlobalStore redisStore)
+        {
+            if ((Configuration.ContentMetadataStoreModeFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
+            {
+                var distributedStore = CreateDistributedContentMetadataStore(redisStore);
+
+                if ((Configuration.ContentMetadataStoreModeFlags & ContentMetadataStoreModeFlags.Redis) == 0)
+                {
+                    return distributedStore;
+                }
+
+                return new TransitioningContentMetadataStore(Configuration, redisStore, distributedStore);
+            }
+            else
+            {
+                return redisStore;
+            }
+        }
+
+        protected virtual IContentMetadataStore CreateDistributedContentMetadataStore(RedisGlobalStore redisStore)
+        {
+            if (Configuration.MetadataStore is MemoryContentMetadataStoreConfiguration memoryConfig)
+            {
+                return memoryConfig.Store;
+            }
+            else if (Configuration.MetadataStore is ClientContentMetadataStoreConfiguration clientConfig)
+            {
+                return new ClientContentMetadataStore(
+                    redisStore,
+                    new GrpcMasterClientFactory<IContentMetadataService>(redisStore, clientConfig),
+                    clientConfig);
+            }
+            else
+            {
+                return redisStore;
+            }
         }
 
         /// <summary>
         /// Creates an instance of <see cref="IGlobalLocationStore"/>.
         /// </summary>
-        protected virtual IGlobalLocationStore CreateRedisGlobalStore()
+        protected virtual RedisGlobalStore CreateRedisGlobalStore()
         {
             var redisDatabaseForGlobalStore = CreateDatabase(RedisDatabaseFactoryForRedisGlobalStore, "primaryRedisDatabase");
             var secondaryRedisDatabaseForGlobalStore = CreateDatabase(
@@ -127,7 +168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 secondaryRedisBlobDatabase = secondaryRedisDatabaseForGlobalStore;
             }
 
-            IGlobalLocationStore globalStore = new RedisGlobalStore(Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, redisBlobDatabase, secondaryRedisBlobDatabase);
+            var globalStore = new RedisGlobalStore(Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, redisBlobDatabase, secondaryRedisBlobDatabase);
             return globalStore;
         }
 

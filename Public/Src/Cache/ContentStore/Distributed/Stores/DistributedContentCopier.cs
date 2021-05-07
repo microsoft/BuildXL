@@ -42,7 +42,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly int _maxRetryCount;
         private readonly IRemoteFileCopier _remoteFileCopier;
-        private readonly IContentCommunicationManager _copyRequester;
+        public IContentCommunicationManager CommunicationManager { get; }
+
         private readonly IClock _clock;
 
         private readonly DistributedContentStoreSettings _settings;
@@ -74,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             _settings = settings;
             _remoteFileCopier = fileCopier;
-            _copyRequester = copyRequester;
+            CommunicationManager = copyRequester;
             FileSystem = fileSystem;
             _clock = clock;
 
@@ -287,7 +288,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
                 context,
-                innerContext => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
+                innerContext => CommunicationManager.RequestCopyFileAsync(innerContext, hash, targetLocation),
                 hash,
                 targetLocation,
                 isInsideRing,
@@ -379,7 +380,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
                 context,
-                innerContext => _copyRequester.PushFileAsync(innerContext, hashWithSize, stream, targetLocation, options),
+                innerContext => CommunicationManager.PushFileAsync(innerContext, hashWithSize, stream, targetLocation, options),
                 hashWithSize,
                 targetLocation,
                 isInsideRing,
@@ -917,7 +918,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public async Task<DeleteResult> DeleteAsync(OperationContext context, ContentHash contentHash, long contentSize, IReadOnlyList<MachineLocation> machines, Dictionary<string, DeleteResult> deleteMapping)
         {
-            var tasks = machines.Select(m => _copyRequester.DeleteFileAsync(context, contentHash, m)).ToList();
+            var tasks = machines.Select(m => CommunicationManager.DeleteFileAsync(context, contentHash, m)).ToList();
             var deleteResults = await Task.WhenAll(tasks);
             var size = contentSize;
 

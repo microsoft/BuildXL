@@ -1059,7 +1059,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Caching.Redis",
-          "Version": "3.0.46"
+          "Version": "3.0.57"
         }
       }
     },
@@ -4037,8 +4037,44 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "protobuf-net",
+          "Version": "3.0.101"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "protobuf-net.BuildTools",
           "Version": "3.0.101"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "protobuf-net.Core",
+          "Version": "3.0.101"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "protobuf-net.Grpc",
+          "Version": "1.0.152"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "protobuf-net.Grpc.Native",
+          "Version": "1.0.152"
         }
       }
     },

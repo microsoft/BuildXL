@@ -380,11 +380,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        internal Result<ClusterStateInternal> SetMasterMachine(MachineLocation producer)
+        internal Result<ClusterStateInternal> SetMasterMachine(MachineLocation master)
         {
-            var masterMachineId = TryResolveMachineId(producer);
+            var masterMachineId = TryResolveMachineId(master);
             return With(
-                masterMachineLocation: producer,
+                masterMachineLocation: master,
                 // WARNING: this doesn't update the masterMachineId to null if the lookup doesn't succeeds, just leaves it as-is.
                 masterMachineId: masterMachineId.Succeeded ? masterMachineId.MachineId : (MachineId?)null);
         }

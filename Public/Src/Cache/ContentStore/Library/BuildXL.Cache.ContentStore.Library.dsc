@@ -54,7 +54,7 @@ namespace Library {
             importFrom("Sdk.Protocols.Grpc").runtimeContent,
         ],
         allowUnsafeBlocks: true,
-        
+        skipDocumentationGeneration: true,
         nullable: true,
         // Should explicitly avoiding adding a file with non-nullable attributes,
         // because this project has internals visibility into Interfaces.dll that already contains

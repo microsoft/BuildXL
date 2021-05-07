@@ -876,7 +876,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     IRemoteFileCopier[] testFileCopiers;
                     if (UseGrpcServer && storeCount > 1)
                     {
-                        Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");
                         var grpcCopyClientCacheConfiguration = new GrpcCopyClientCacheConfiguration()
                         {
                             ResourcePoolVersion = GrpcCopyClientCacheConfiguration.PoolVersion.V2,
@@ -887,13 +886,14 @@ namespace ContentStoreTest.Distributed.Sessions
                             }
                         };
 
-                        testFileCopiers = Enumerable.Range(0, 2).Select(i =>
+                        testFileCopiers = Enumerable.Range(0, storeCount).Select(i =>
                         {
                             var grpcFileCopierConfiguration = new GrpcFileCopierConfiguration()
                             {
-                                GrpcPort = ports[i == 1 ? 0 : 1],
+                                GrpcPort = ports[i],
                                 GrpcCopyClientCacheConfiguration = grpcCopyClientCacheConfiguration,
                                 GrpcCopyClientInvalidationPolicy = GrpcFileCopierConfiguration.ClientInvalidationPolicy.OnEveryError,
+                                UseUniversalLocations = true,
                             };
 
                             return new GrpcFileCopier(context, grpcFileCopierConfiguration);

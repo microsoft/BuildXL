@@ -57,8 +57,20 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").Collections.dll,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
             Grpc.dll,
-            
-            ...BuildXLSdk.systemMemoryDeployment,
+
+            importFrom("protobuf-net").pkg,
+            importFrom("protobuf-net.Core").pkg,
+            importFrom("protobuf-net.Grpc").pkg,
+            importFrom("protobuf-net.Grpc.Native").pkg,
+            ...getGrpcPackages(true),
+            ...BuildXLSdk.getSystemMemoryPackages(true),
+            importFrom("System.ServiceModel.Http").pkg,
+            importFrom("System.ServiceModel.Primitives").pkg,
+            ...addIf(qualifier.targetFramework === "net472",
+                importFrom("System.Private.ServiceModel").pkg),
+        ],
+        runtimeReferences: [
+            importFrom("System.Private.ServiceModel").pkg
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Distributed.Test",

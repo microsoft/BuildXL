@@ -60,12 +60,9 @@ export const pkgs = isMicrosoftInternal ? [
     // IcM and dependencies
     { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },
     { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
-    { id: "System.ServiceModel.Http", version: "4.7.0" },
-    { id: "System.ServiceModel.Primitives", version: "4.7.0" },
-    { id: "System.Private.ServiceModel", version: "4.7.0" },
 
     // Internal version of Redis
-    { id: "Microsoft.Caching.Redis", version: "3.0.46", 
+    { id: "Microsoft.Caching.Redis", version: "3.0.57", 
         dependentPackageIdsToSkip: [ "System.Runtime.CompilerServices.Unsafe", "System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial" ] },
 ] : [
 

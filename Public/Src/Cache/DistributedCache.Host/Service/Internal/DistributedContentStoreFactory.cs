@@ -34,6 +34,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using BuildXL.Cache.Logging;
 using ContentStore.Grpc;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -152,7 +153,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 Keyspace = _keySpace + RedisKeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
-                BlobExpiryTimeMinutes = _distributedSettings.BlobExpiryTimeMinutes,
+                BlobExpiryTime = TimeSpan.FromMinutes(_distributedSettings.BlobExpiryTimeMinutes),
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
                 UseFullEvictionSort = _distributedSettings.UseFullEvictionSort,
@@ -171,6 +172,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists,
             };
+
+            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode;
+            if ((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
+            {
+                redisContentLocationStoreConfiguration.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort);
+            }
 
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisContentLocationStoreConfiguration.BlobOperationLimitCount = v);
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisContentLocationStoreConfiguration.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
@@ -238,6 +245,33 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             ConfigurationPrinter.TraceConfiguration(redisContentLocationStoreConfiguration, _logger);
             return redisContentLocationStoreConfiguration;
+        }
+
+        public IGrpcServiceEndpoint[] GetAdditionalEndpoints()
+        {
+            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode;
+            if ((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) == 0)
+            {
+                return null;
+            }
+
+            var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
+            var dbConfig = new RocksDbContentLocationDatabaseConfiguration(primaryCacheRoot / "cms")
+            {
+                // Setting to false, until we have persistence for the db
+                CleanOnInitialize = false
+            };
+
+            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
+
+            var service = new ContentMetadataService(new RocksDbContentMetadataStore(
+                _arguments.Overrides.Clock,
+                dbConfig));
+
+            return new IGrpcServiceEndpoint[]
+            {
+                service
+            };
         }
 
         public async Task<IMemoizationStore> CreateMemoizationStoreAsync()
@@ -568,6 +602,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             configuration.ReconciliationAddLimit = _distributedSettings.ReconciliationAddLimit;
             configuration.ReconciliationRemoveLimit = _distributedSettings.ReconciliationRemoveLimit;
+            configuration.ContentMetadataStoreMode = _distributedSettings.ContentMetadataStoreMode;
 
             ApplyIfNotNull(_distributedSettings.DistributedContentConsumerOnly, value =>
             {

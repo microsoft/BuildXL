@@ -65,6 +65,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private readonly IDisposable? _portDisposer; // Null if port should not be exposed.
         private Server? _grpcServer;
+        private IGrpcServiceEndpoint[] _additionalEndpoints;
 
         private readonly ServiceReadinessChecker _serviceReadinessChecker;
 
@@ -110,7 +111,8 @@ namespace BuildXL.Cache.ContentStore.Service
             IAbsFileSystem fileSystem,
             string scenario,
             Func<AbsolutePath, TStore> contentStoreFactory,
-            LocalServerConfiguration localContentServerConfiguration)
+            LocalServerConfiguration localContentServerConfiguration,
+            IGrpcServiceEndpoint[]? additionalEndpoints)
         {
             Contract.Requires(logger != null);
             Contract.Requires(fileSystem != null);
@@ -126,6 +128,7 @@ namespace BuildXL.Cache.ContentStore.Service
             Logger = logger;
             Config = localContentServerConfiguration;
 
+            _additionalEndpoints = additionalEndpoints ?? Array.Empty<IGrpcServiceEndpoint>();
             _serviceReadinessChecker = new ServiceReadinessChecker(logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, ISessionHandle<TSession, TSessionData>>();
 
@@ -286,6 +289,11 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     await StartupStoresAsync(context).ThrowIfFailure();
 
+                    foreach (var endpoint in _additionalEndpoints)
+                    {
+                        await endpoint.StartupAsync(context).ThrowIfFailure();
+                    }
+
                     await LoadHibernatedSessionsAsync(context);
 
                     InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue, Config.GrpcCoreServerOptions);
@@ -324,6 +332,11 @@ namespace BuildXL.Cache.ContentStore.Service
                 Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
                 RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue,
             };
+
+            foreach (var endpoint in _additionalEndpoints)
+            {
+                endpoint.BindServices(_grpcServer.Services);
+            }
 
             foreach (var definition in definitions)
             {
@@ -571,6 +584,13 @@ namespace BuildXL.Cache.ContentStore.Service
                 await _grpcServer.KillAsync();
             }
 
+            var success = BoolResult.Success;
+
+            foreach (var endpoint in _additionalEndpoints)
+            {
+                success &= await endpoint.ShutdownAsync(context);
+            }
+
             _logIncrementalStatsTimer?.Dispose();
             _logMachineStatsTimer?.Dispose();
 
@@ -590,7 +610,7 @@ namespace BuildXL.Cache.ContentStore.Service
             CleanSessionTempDirectories(context);
 
             // Now the stores, without active users, can be shut down.
-            return await ShutdownStoresAsync(context);
+            return success & await ShutdownStoresAsync(context);
         }
 
         private async Task HandleShutdownDanglingSessionsAsync(Context context)

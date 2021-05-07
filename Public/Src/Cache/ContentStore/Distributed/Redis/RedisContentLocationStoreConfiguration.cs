@@ -5,6 +5,7 @@ using System;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Expiry time for all blobs stored in Redis.
         /// </summary>
-        public int BlobExpiryTimeMinutes { get; set; } = 0;
+        public TimeSpan BlobExpiryTime { get; set; } = TimeSpan.Zero;
 
         /// <summary>
         /// Max size for storing blobs in the ContentLocationStore
@@ -76,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Returns true if Redis can be used for storing small files.
         /// </summary>
-        public bool AreBlobsSupported => BlobExpiryTimeMinutes > 0 && MaxBlobCapacity > 0 && MaxBlobSize > 0;
+        public bool AreBlobsSupported => BlobExpiryTime > TimeSpan.Zero && MaxBlobCapacity > 0 && MaxBlobSize > 0;
 
         /// <summary>
         /// The span of time that will delimit the operation count limit for blob operations.
@@ -147,5 +148,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Timeout for getting .
         /// </summary>
         public TimeSpan ClusterRedisOperationTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Controls which implementation is used for content metadata store
+        /// </summary>
+        public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;
+
+        /// <summary>
+        /// Controls which implementation is used for content metadata store
+        /// </summary>
+        internal ContentMetadataStoreModeFlags ContentMetadataStoreModeFlags => (ContentMetadataStoreModeFlags)ContentMetadataStoreMode;
     }
 }

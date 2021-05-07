@@ -13,12 +13,14 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 {
     internal class BuildCachePublishingSession : IPublishingSession
     {
+        private readonly string _name;
         private readonly BuildCacheServiceConfiguration _config;
         private readonly BuildCachePublishingStore _store;
         private readonly string _pat;
 
-        public BuildCachePublishingSession(BuildCacheServiceConfiguration config, string pat, BuildCachePublishingStore store)
+        public BuildCachePublishingSession(BuildCacheServiceConfiguration config, string name, string pat, BuildCachePublishingStore store)
         {
+            _name = name;
             _config = config;
             _store = store;
             _pat = pat;
@@ -29,6 +31,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             StrongFingerprint fingerprint,
             ContentHashListWithDeterminism contentHashList,
             CancellationToken token)
-            => _store.PublishContentHashListAsync(context, fingerprint, contentHashList, _config, _pat, token);
+            => _store.PublishContentHashListAsync(context, fingerprint, contentHashList, _name, _config, _pat, token);
     }
 }

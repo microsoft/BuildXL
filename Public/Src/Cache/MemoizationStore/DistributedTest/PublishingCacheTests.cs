@@ -138,7 +138,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(BlockingPublishingStore));
 
-        public Result<IPublishingSession> CreateSession(Context context, PublishingCacheConfiguration config, string pat)
+        public Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat)
             => new Result<IPublishingSession>(new BlockingPublishingSession(this));
 
         internal class BlockingPublishingSession : IPublishingSession

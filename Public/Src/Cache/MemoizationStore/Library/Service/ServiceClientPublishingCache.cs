@@ -49,6 +49,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 Tracer,
                 () =>
                 {
+                    Tracer.Info(context, $"Creating cache service client session with name=[{name}] and publishing enabled. {nameof(ICacheSession.AddOrGetContentHashListAsync)} calls to the session will trigger publishing in the service.");
                     var session = new ServiceClientPublishingCacheSession(name, implicitPin, Logger, FileSystem, SessionTracer, Configuration, _publishingConfig, _pat); ;
                     return new CreateSessionResult<ICacheSession>(session);
                 });

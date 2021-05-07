@@ -39,7 +39,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
     /// </summary>
     public class BuildCachePublishingStore : StartupShutdownSlimBase, IPublishingStore
     {
-        private ResourcePoolV2<(BuildCacheServiceConfiguration config, string pat), ICachePublisher>? _publishers;
+        private ResourcePoolV2<(BuildCacheServiceConfiguration config, string pat, string sessionName), ICachePublisher>? _publishers;
         private readonly IAbsFileSystem _fileSystem;
 
         private readonly SemaphoreSlim _publishingGate;
@@ -65,8 +65,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _publishers = new ResourcePoolV2<(BuildCacheServiceConfiguration config, string pat), ICachePublisher>(
-                context, new ResourcePoolConfiguration(), configAndPat => CreatePublisher(configAndPat.config, configAndPat.pat, context));
+            _publishers = new ResourcePoolV2<(BuildCacheServiceConfiguration config, string pat, string sessionName), ICachePublisher>(
+                context, new ResourcePoolConfiguration(), configAndPat => CreatePublisher(configAndPat.sessionName, configAndPat.config, configAndPat.pat, context));
 
             return BoolResult.SuccessTask;
         }
@@ -79,7 +79,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <nodoc />
-        protected virtual ICachePublisher CreatePublisher(BuildCacheServiceConfiguration config, string pat, Context context)
+        protected virtual ICachePublisher CreatePublisher(string sessionName, BuildCacheServiceConfiguration config, string pat, Context context)
         {
             var credHelper = new VsoCredentialHelper();
             var credFactory = new VssCredentialsFactory(new VssBasicCredential(new NetworkCredential(string.Empty, pat)));
@@ -93,7 +93,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             cache.StartupAsync(context).GetAwaiter().GetResult().ThrowIfFailure();
 
-            var sessionResult = cache.CreateSession(context, name: null, ImplicitPin.None).ThrowIfFailure();
+            var sessionResult = cache.CreateSession(context, sessionName, ImplicitPin.None).ThrowIfFailure();
             var session = sessionResult.Session;
 
             Contract.Check(session is BuildCacheSession)?.Assert($"Session should be an instance of {nameof(BuildCacheSession)}. Actual type: {session.GetType()}");
@@ -103,20 +103,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <inheritdoc />
-        public Result<IPublishingSession> CreateSession(Context context, PublishingCacheConfiguration config, string pat)
+        public Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat)
         {
             if (config is not BuildCacheServiceConfiguration buildCacheConfig)
             {
                 return new Result<IPublishingSession>($"Configuration is not a {nameof(BuildCacheServiceConfiguration)}. Actual type: {config.GetType().FullName}");
             }
 
-            return new Result<IPublishingSession>(new BuildCachePublishingSession(buildCacheConfig, pat, this));
+            return new Result<IPublishingSession>(new BuildCachePublishingSession(buildCacheConfig, name, pat, this));
         }
 
         internal Task<BoolResult> PublishContentHashListAsync(
             Context context,
             StrongFingerprint fingerprint,
             ContentHashListWithDeterminism contentHashList,
+            string sessionName,
             BuildCacheServiceConfiguration config,
             string pat,
             CancellationToken token)
@@ -138,7 +139,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         Tracer,
                         () =>
                         {
-                            return _publishers!.UseAsync(context, (config, pat), async publisherWrapper =>
+                            return _publishers!.UseAsync(context, (config, pat, sessionName), async publisherWrapper =>
                             {
                                 var publisher = await publisherWrapper.LazyValue;
                                 var remotePinResults = await Task.WhenAll(await publisher.PinAsync(operationContext, contentHashList.ContentHashList.Hashes, token));

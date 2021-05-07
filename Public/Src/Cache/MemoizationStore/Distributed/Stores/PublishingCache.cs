@@ -84,7 +84,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 return ((ICache)_local).CreateSession(context, name, implicitPin);
             }
 
-            var remoteSessionResult = _remote.CreateSession(context, config, pat);
+            var remoteSessionResult = _remote.CreateSession(context, $"{name}-publisher", config, pat);
             if (!remoteSessionResult.Succeeded)
             {
                 return new CreateSessionResult<ICacheSession>(remoteSessionResult);

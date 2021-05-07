@@ -12,6 +12,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
     public interface IPublishingStore : IStartupShutdownSlim
     {
         /// <nodoc />
-        Result<IPublishingSession> CreateSession(Context context, PublishingCacheConfiguration config, string pat);
+        Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat);
     }
 }

@@ -22,6 +22,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts.Internal;
+using FluentAssertions;
 using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
@@ -47,9 +48,14 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         protected override ICachePublisher CreatePublisher(
+            string sessionName,
             BuildCacheServiceConfiguration config,
             string pat,
-            Context context) => new DummyPublisher(config.ForceUpdateOnAddContentHashList);
+            Context context)
+        {
+            sessionName.Should().NotBeNull();
+            return new DummyPublisher(config.ForceUpdateOnAddContentHashList);
+        }
 
         private class DummyPublisher : StartupShutdownSlimBase, ICachePublisher
         {

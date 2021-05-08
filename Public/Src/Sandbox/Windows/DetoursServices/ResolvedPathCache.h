@@ -75,6 +75,7 @@ public:
         {
           return false;
         }
+
         const std::wstring normalizedPath = Normalize(path);
         if (!m_pathTree.TryInsert(normalizedPath))
         {
@@ -124,21 +125,26 @@ public:
         return Find(m_paths, std::make_pair(Normalize(path), preserveLastReparsePointInPath));
     }
 
-    void Invalidate(const std::wstring& path)
+    void Invalidate(const std::wstring& path, bool isDirectory)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock);
 
         const std::wstring normalizedPath = Normalize(path);
 
+        // Invalidating the back references to this normalized path is important only because by deleting or creating this link other links type (intermediate/fully resolved) may be out of date.
         InvalidateThisPath(normalizedPath);
 
-        // Invalidate all its descendants
-        std::vector<std::wstring> descendants;
-        m_pathTree.RetrieveAndRemoveAllDescendants(normalizedPath, descendants);
-
-        for (auto iter = descendants.begin(); iter != descendants.end(); ++iter)
+        if (isDirectory)
         {
-            InvalidateThisPath(*iter);
+
+            // Invalidate all its descendants
+            // This is for absent path probes, if something probes a\b\c and suddently a\b changes, a\b\c might point somewhere different.  The same is not true for file symlinks
+            std::vector<std::wstring> descendants;
+            m_pathTree.RetrieveAndRemoveAllDescendants(normalizedPath, descendants);
+            for (auto iter = descendants.begin(); iter != descendants.end(); ++iter)
+            {
+                InvalidateThisPath(*iter);
+            }
         }
     }
     

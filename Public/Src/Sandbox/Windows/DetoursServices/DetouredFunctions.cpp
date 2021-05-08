@@ -158,14 +158,14 @@ static DWORD DetourGetFinalPathByHandle(_In_ HANDLE hFile, _Inout_ wstring& full
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////// Resolved path cache /////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void PathCache_Invalidate(const std::wstring& path)
+static void PathCache_Invalidate(const std::wstring& path, bool isDirectory)
 {
     if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
     {
         return;
     }
 
-    ResolvedPathCache::Instance().Invalidate(path);
+    ResolvedPathCache::Instance().Invalidate(path, isDirectory);
 }
 
 static const std::pair<std::wstring, DWORD>* PathCache_GetResolvedPathAndType(const std::wstring& path)
@@ -415,7 +415,8 @@ static bool ShouldResolveReparsePointsInPath(
     {
         // TODO: Deciding not to traverse symlink chain based on reparse point deletion is probably not correct
         //       because the desired access can be set to read/write, which can be used to access the target.
-        PathCache_Invalidate(path.GetPathStringWithoutTypePrefix());
+        // We pass 'true' for isDirectory because we don't know whether this pass is a directory or not, and !isDirectory is used to optimize the perf of this function only.
+        PathCache_Invalidate(path.GetPathStringWithoutTypePrefix(), true);
         return false;
     }
 
@@ -476,7 +477,7 @@ static void InvalidateReparsePointCacheIfNeeded(bool pathContainsReparsePoints, 
         && WantsWriteAccess(desiredAccess)
         && FlagsAndAttributesContainReparsePointFlag(flagsAndAttributes))
     {
-        PathCache_Invalidate(path);
+        PathCache_Invalidate(path, isDirectory);
     }
 }
 
@@ -1583,7 +1584,7 @@ static bool ValidateMoveDirectory(
             return false;
         }
 
-        PathCache_Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+        PathCache_Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), fileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 
         filesAndDirectoriesToReport.push_back(ReportData(sourceAccessCheck, sourceOpContext, sourcePolicyResult));
 
@@ -3426,7 +3427,7 @@ BOOL WINAPI Detoured_CopyFileExW(
     if (copySymlink)
     {
         // Invalidate cache entries because we are about to replace the destination with a symbolic link
-        PathCache_Invalidate(destPolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+        PathCache_Invalidate(destPolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false);
     }
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(
@@ -3678,7 +3679,7 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         return FALSE;
     }
 
-    PathCache_Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(sourcePolicyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), moveDirectory);
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(sourceOpContext, sourcePolicyResult, !moveDirectory))
     {
@@ -3845,7 +3846,7 @@ BOOL WINAPI Detoured_ReplaceFileW(
     __reserved LPVOID  lpReserved)
 {
     auto path = CanonicalizedPath::Canonicalize(lpReplacedFileName);
-    PathCache_Invalidate(path.GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(path.GetPathStringWithoutTypePrefix(), false);
 
     // TODO:implement detours logic
     return Real_ReplaceFileW(
@@ -3983,7 +3984,7 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
         return FALSE;
     }
 
-    PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false);
 
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContext, policyResult, true))
     {
@@ -4205,7 +4206,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
         return FALSE;
     }
 
-    PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false);
 
     // When creating symbolic links, only resolve and report the intermediates on the symbolic link path, the target is never accessed
     if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(opContextSrc, policyResultSrc, true, (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0))
@@ -4242,7 +4243,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     }
 
     ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
-    PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false);
 
     SetLastError(error);
     return result;
@@ -5362,7 +5363,7 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
         return FALSE;
     }
 
-    PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix());
+    PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), true);
 
     BOOL result = Real_RemoveDirectoryW(lpPathName);
     DWORD error = ERROR_SUCCESS;

@@ -35,9 +35,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
             public IcmThresholds<double> EventProcessingDelayIcmThresholdsInHours = new IcmThresholds<double>()
             {
-                Sev4 = 0.5,
-                Sev3 = 1,
-                Sev2 = 3,
+                Sev2 = 2,
             };
         }
 

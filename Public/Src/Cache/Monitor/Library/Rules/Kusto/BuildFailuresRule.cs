@@ -32,10 +32,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 Fatal = 0.5,
             };
 
-            public IcmThresholds<double> FailureRateIcmThresholds = new IcmThresholds<double>()
-            {
-                Sev4 = 0.5,
-            };
+            public IcmThresholds<double> FailureRateIcmThresholds = new IcmThresholds<double>();
 
             /// <summary>
             /// Avoid the case where we fail 1 out of 1 builds

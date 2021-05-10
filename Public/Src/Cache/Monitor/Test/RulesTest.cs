@@ -61,8 +61,6 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
             await rule.Run(ruleContext);
             _notifier.Results.Count.Should().Be(3);
             _notifier.Results[0].Severity.Should().Be(Severity.Fatal);
-
-            mockIcm.Incidents.Count.Should().Be(1);
         }
 
         [Fact]

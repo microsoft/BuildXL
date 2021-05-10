@@ -38,7 +38,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "system.timeoutexception : the operation has timed out."
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/a61e449a-0829-c821-aa33-957395e3b2a8",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-06-05T22:00:47.8581911Z"
         }
       },
       "Metadata": {

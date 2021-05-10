@@ -45,7 +45,6 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
         finalizationCmdName, 
         connectArgs, 
         ipcArgs => ipcArgs.merge<Transformer.IpcSendArguments>({
-            mustRunOnMaster: true,
             mustRunOnOrchestrator: true
         }));
 
@@ -100,7 +99,6 @@ function registerManifest(startResult: ServiceStartResult, args : ConnectionArgu
                 ...directories.map(d => d.directory),
             ],
             // The daemon is about materialization on the orchestrator machine, so naturually, all the IPC pips run there.
-            mustRunOnMaster: true,
             mustRunOnOrchestrator: true
         })
     );
@@ -139,7 +137,6 @@ function materializeDirectories(startResult: ServiceStartResult, args : Connecti
                 ...directories.map(d => d.directory),
             ],
             // The daemon is about materialization on the orchestrator machine, so naturually, all the IPC pips run there.
-            mustRunOnMaster: true,
             mustRunOnOrchestrator: true
         })
     );

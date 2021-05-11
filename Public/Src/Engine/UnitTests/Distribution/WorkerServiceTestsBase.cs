@@ -56,7 +56,7 @@ namespace Test.BuildXL.Distribution
                 WorkerServer = new WorkerServerMock();
                 OrchestratorClient = new OrchestratorClientMock();
                 NotificationManager = new WorkerNotificationManagerMock();
-                WorkerService = WorkerService.CreateForTesting(loggingContext, Configuration, BuildId, PipExecutionService, WorkerServer, NotificationManager, OrchestratorClient);
+                WorkerService = WorkerService.CreateForTesting(loggingContext, Configuration, new(BuildId, "Test"), PipExecutionService, WorkerServer, NotificationManager, OrchestratorClient);
                 WorkerServer.WorkerService = WorkerService;
                 PipExecutionService.WorkerService = WorkerService;
             }

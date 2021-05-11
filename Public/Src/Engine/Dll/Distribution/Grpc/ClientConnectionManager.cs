@@ -36,12 +36,12 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         internal readonly Channel Channel;
         private readonly LoggingContext m_loggingContext;
-        private readonly string m_buildId;
+        private readonly DistributedBuildId m_buildId;
         private readonly Task m_monitorConnectionTask;
         public event EventHandler<ConnectionTimeoutEventArgs> OnConnectionTimeOutAsync;
         private volatile bool m_isShutdownInitiated;
         private volatile bool m_isExitCalledForServer;
-
+        
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
             // example: [SELF -> MW1AAP45DD9145A::89] e709c667-ef88-464c-8557-232b02463976 Call#1. Description 
@@ -55,7 +55,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failureMessage}. ChannelState: {Channel.State}");
         }
 
-        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, string buildId)
+        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedBuildId buildId)
         {
             m_buildId = buildId;
             m_loggingContext = loggingContext;
@@ -231,7 +231,8 @@ namespace BuildXL.Engine.Distribution.Grpc
             Guid traceId = Guid.NewGuid();
             var headers = new Metadata();
             headers.Add(GrpcSettings.TraceIdKey, traceId.ToByteArray());
-            headers.Add(GrpcSettings.BuildIdKey, m_buildId);
+            headers.Add(GrpcSettings.RelatedActivityIdKey, m_buildId.RelatedActivityId);
+            headers.Add(GrpcSettings.EnvironmentKey, m_buildId.Environment);
             headers.Add(GrpcSettings.SenderKey, DistributionHelpers.MachineName);
 
             RpcCallResultState state = RpcCallResultState.Succeeded;

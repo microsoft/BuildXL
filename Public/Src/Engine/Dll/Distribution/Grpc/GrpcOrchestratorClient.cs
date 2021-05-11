@@ -16,13 +16,13 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// <nodoc/>
     internal sealed class GrpcOrchestratorClient : IOrchestratorClient
     {
-        private readonly string m_buildId;
+        private readonly DistributedBuildId m_buildId;
         private Orchestrator.OrchestratorClient m_client;
         private ClientConnectionManager m_connectionManager;
         private readonly LoggingContext m_loggingContext;
         private volatile bool m_initialized;
 
-        public GrpcOrchestratorClient(LoggingContext loggingContext, string buildId)
+        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedBuildId buildId)
         {
             m_buildId = buildId;
             m_loggingContext = loggingContext;

@@ -79,7 +79,7 @@ namespace BuildXL.Engine.Distribution
         /// <param name="appLoggingContext">Application-level logging context</param>
         /// <param name="config">Build config</param>
         /// <param name="buildId">the build id</param>
-        public WorkerService(LoggingContext appLoggingContext, IConfiguration config, string buildId) :  
+        public WorkerService(LoggingContext appLoggingContext, IConfiguration config, DistributedBuildId buildId) :  
             this(appLoggingContext,
                 config,
                 buildId,
@@ -97,7 +97,7 @@ namespace BuildXL.Engine.Distribution
         internal static WorkerService CreateForTesting(
             LoggingContext appLoggingContext,
             IConfiguration config,
-            string buildId,
+            DistributedBuildId buildId,
             // The following are used for testing:
             IWorkerPipExecutionService executionService,
             IServer server,
@@ -108,8 +108,8 @@ namespace BuildXL.Engine.Distribution
         }
 
         private WorkerService(LoggingContext appLoggingContext, 
-            IConfiguration config, 
-            string buildId, 
+            IConfiguration config,
+            DistributedBuildId buildId, 
             IWorkerPipExecutionService executionService, 
             IServer workerServer,
             IOrchestratorClient orchestratorClient,

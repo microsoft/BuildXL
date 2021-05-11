@@ -60,7 +60,7 @@ namespace BuildXL.Engine.Distribution
         /// Class constructor
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "RemoteWorker disposes the workerClient")]
-        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, string buildId) : base(buildId)
+        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, DistributedBuildId buildId) : base(buildId)
         {
             Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
             Contract.Ensures(m_remoteWorkers != null);

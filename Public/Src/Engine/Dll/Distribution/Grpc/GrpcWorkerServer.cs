@@ -19,14 +19,14 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         private readonly WorkerService m_workerService;
         private readonly LoggingContext m_loggingContext;
-        private readonly string m_buildId;
+        private readonly DistributedBuildId m_buildId;
 
         private Server m_server;
 
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, string buildId)
+        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, DistributedBuildId buildId)
         {
             m_workerService = workerService;
             m_loggingContext = loggingContext;
@@ -74,7 +74,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var bondMessage = message.ToOpenBond();
 
-            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out string _, out string _);
+            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var _, out var _);
             
             m_workerService.AttachCore(bondMessage, sender);
 

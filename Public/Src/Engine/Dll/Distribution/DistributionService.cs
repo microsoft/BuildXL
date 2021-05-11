@@ -25,10 +25,10 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Build id to represent a distributed build session.
         /// </summary>
-        public readonly string BuildId;
+        public DistributedBuildId BuildId { get; }
 
         /// <nodoc/>
-        public DistributionService(string buildId)
+        public DistributionService(DistributedBuildId buildId)
         {
             BuildId = buildId;
         }

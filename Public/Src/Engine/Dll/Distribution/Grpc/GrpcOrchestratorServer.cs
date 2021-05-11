@@ -20,14 +20,14 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         private readonly OrchestratorService m_orchestratorService;
         private readonly LoggingContext m_loggingContext;
-        private readonly string m_buildId;
+        private readonly DistributedBuildId m_buildId;
 
         private Server m_server;
 
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, string buildId)
+        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, DistributedBuildId buildId)
         {
             m_loggingContext = loggingContext;
             m_orchestratorService = orchestratorService;

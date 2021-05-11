@@ -298,9 +298,10 @@ namespace BuildXL.Engine
             m_trackingEventListener = trackingEventListener;
             m_rememberAllChangedTrackedInputs = rememberAllChangedTrackedInputs;
 
-            // Activity id is unique per the CB session. However, this is not enough as we invoke more than one BuildXL per machine per CB session due to the Office workflow.
-            // That's why, we also concat the environment to the id.
-            var distributedBuildId = I($"{Configuration.Logging.RelatedActivityId}-{Configuration.Logging.Environment}");
+            var distributedBuildId = new DistributedBuildId(
+                Configuration.Logging.RelatedActivityId ?? "00000000-0000-0000-0000-000000000000",  // Can be null in non-distributed builds or if left unspecified
+                Configuration.Logging.Environment.ToString());
+
             if (IsDistributedOrchestrator)
             {
                 m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedBuildId);

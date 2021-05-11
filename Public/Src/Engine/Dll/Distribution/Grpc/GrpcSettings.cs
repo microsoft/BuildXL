@@ -10,7 +10,8 @@ namespace BuildXL.Engine.Distribution.Grpc
     internal static class GrpcSettings
     {
         public const string TraceIdKey = "traceid-bin";
-        public const string BuildIdKey = "buildid";
+        public const string RelatedActivityIdKey = "relatedactivityid";
+        public const string EnvironmentKey = "environment";
         public const string SenderKey = "sender";
 
         public const int MaxRetry = 3;
@@ -31,10 +32,12 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </remarks>
         public static TimeSpan WorkerAttachTimeout { get; set; } = EngineEnvironmentSettings.WorkerAttachTimeout;
 
-        public static void ParseHeader(Metadata header, out string sender, out string senderBuildId, out string traceId)
+        public static void ParseHeader(Metadata header, out string sender, out DistributedBuildId senderBuildId, out string traceId)
         {
             sender = string.Empty;
-            senderBuildId = string.Empty;
+            string relatedActivityId = string.Empty;
+            string environment = string.Empty;
+
             traceId = string.Empty;
 
             foreach (var kvp in header)
@@ -43,15 +46,21 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     traceId = new Guid(kvp.ValueBytes).ToString();
                 }
-                else if (kvp.Key == GrpcSettings.BuildIdKey)
+                else if (kvp.Key == GrpcSettings.RelatedActivityIdKey)
                 {
-                    senderBuildId = kvp.Value;
+                    relatedActivityId = kvp.Value;
+                }
+                else if (kvp.Key == GrpcSettings.EnvironmentKey)
+                {
+                    environment = kvp.Value;
                 }
                 else if (kvp.Key == GrpcSettings.SenderKey)
                 {
                     sender = kvp.Value;
                 }
             }
+
+            senderBuildId = new DistributedBuildId(relatedActivityId, environment);
         }
     }
 }

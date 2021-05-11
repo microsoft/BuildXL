@@ -58,7 +58,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Kusto
                 | where InvalidFiles > 0
                 | project Stamp, Machine, Ratio = (toreal(InvalidFiles) / TotalProcessedFiles) * 100
                 | where Ratio > 1
-                | project - away Ratio;
+                | project-away Ratio;
                 RocksDbErrors
                 | union SelfCheckErrors
                 | distinct Stamp, Machine

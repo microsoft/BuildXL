@@ -62,7 +62,8 @@ namespace BuildXL.Cache.ContentStore.Service
             int? proactivePushCountLimit = null,
             TimeSpan? logIncrementalStatsInterval = null,
             TimeSpan? logMachineStatsInterval = null,
-            string[]? logIncrementalStatsCounterNames = null
+            string[]? logIncrementalStatsCounterNames = null,
+            TimeSpan? asyncSessionShutdownTimeout = null
             )
         {
             Contract.Requires(namedCacheRoots != null);
@@ -79,6 +80,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LogIncrementalStatsInterval = logIncrementalStatsInterval;
             _namedCacheRoots = new Dictionary<string, AbsolutePath>();
             IncrementalStatsCounterNames = logIncrementalStatsCounterNames?? new string[0];
+            AsyncSessionShutdownTimeout = asyncSessionShutdownTimeout;
             Initialize();
         }
 
@@ -194,6 +196,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <inheritdoc cref="LocalServerConfiguration.IncrementalStatsCounterNames"/>
         public string[] IncrementalStatsCounterNames { get; set; }
+
+        /// <inheritdoc cref="LocalServerConfiguration.AsyncSessionShutdownTimeout"/>
+        public TimeSpan? AsyncSessionShutdownTimeout { get; set; }
 
         /// <summary>
         /// Gets the verb on ContentStoreApp.exe to use.

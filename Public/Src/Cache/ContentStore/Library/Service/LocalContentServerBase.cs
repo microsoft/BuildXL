@@ -31,6 +31,8 @@ using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Cache.Host.Service;
 using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -853,12 +855,41 @@ namespace BuildXL.Cache.ContentStore.Service
                 return;
             }
 
+            if (sessionHandle.Session is IAsyncShutdown blockingSession)
+            {
+                // We need to make sure that we don't block the client from shutting down.
+                Tracer.Debug(context, $"{method} closing session {DescribeSession(sessionId, sessionHandle)} by requesting an async shutdown.");
+                requestAsyncShutdown().FireAndForget(context);
+                return;
+            }
+
             Tracer.Debug(context, $"{method} closing session {DescribeSession(sessionId, sessionHandle)}");
-
-            TryUnsetBuildId(sessionHandle.SessionData.Name);
-
             await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
-            sessionHandle.Session.Dispose();
+            disposeSessionHandle();
+
+            async Task<BoolResult> requestAsyncShutdown()
+            {
+                try
+                {
+                    // Do not remove async/await and try to return the task: it will execute the 'finally' block!
+                    return await blockingSession.RequestShutdownAsync(context).WithTimeoutAsync(Config.AsyncSessionShutdownTimeout);
+                }
+                catch (Exception e)
+                {
+                    Tracer.Error(context, e, message: "Threw an exception during async shutdown. Attempting regular shutdown.");
+                    return await sessionHandle.Session.ShutdownAsync(context);
+                }
+                finally
+                {
+                    disposeSessionHandle();
+                }
+            }
+
+            void disposeSessionHandle()
+            {
+                TryUnsetBuildId(sessionHandle.SessionData.Name);
+                sessionHandle.Session.Dispose();
+            }
         }
 
         private string DescribeSession(int id, ISessionHandle<TSession, TSessionData> handle) => handle.ToString(id);

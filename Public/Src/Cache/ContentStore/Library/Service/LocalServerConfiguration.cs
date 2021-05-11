@@ -28,7 +28,8 @@ namespace BuildXL.Cache.ContentStore.Service
             TimeSpan? logMachineStatsInterval = null,
             bool traceGrpcOperations = false,
             int? copyRequestHandlingCountLimit = null,
-            bool doNotShutdownSessionsInUse = false
+            bool doNotShutdownSessionsInUse = false,
+            TimeSpan? asyncSessionShutdownTimeout = null
         )
         {
             DataRootPath = dataRootPath;
@@ -43,6 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             TraceGrpcOperations = traceGrpcOperations;
             DoNotShutdownSessionsInUse = doNotShutdownSessionsInUse;
+            AsyncSessionShutdownTimeout = asyncSessionShutdownTimeout ?? DefaultWaitForShutdownTimeout;
         }
 
         /// <nodoc />
@@ -62,6 +64,7 @@ namespace BuildXL.Cache.ContentStore.Service
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
             DoNotShutdownSessionsInUse = serviceConfiguration.DoNotShutdownSessionsInUse;
             IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
+            AsyncSessionShutdownTimeout = serviceConfiguration.AsyncSessionShutdownTimeout ?? DefaultWaitForShutdownTimeout;
         }
 
         /// <nodoc />
@@ -80,6 +83,7 @@ namespace BuildXL.Cache.ContentStore.Service
             TraceGrpcOperations = serviceConfiguration.TraceGrpcOperation;
             DoNotShutdownSessionsInUse = serviceConfiguration.DoNotShutdownSessionsInUse;
             IncrementalStatsCounterNames = serviceConfiguration.IncrementalStatsCounterNames ?? new string[0];
+            AsyncSessionShutdownTimeout = serviceConfiguration.AsyncSessionShutdownTimeout ?? DefaultWaitForShutdownTimeout;
             return this;
         }
 
@@ -210,6 +214,14 @@ namespace BuildXL.Cache.ContentStore.Service
         /// If this flag is set, the session won't be closed in this case.
         /// </remarks>
         public bool DoNotShutdownSessionsInUse { get; set; }
+
+        private static TimeSpan DefaultWaitForShutdownTimeout = TimeSpan.FromHours(1);
+
+        /// <summary>
+        /// For sessions that should not shut down until their async operations are completed, we should set a limit to how much we're willing to wait
+        /// until we force shutdown.
+        /// </summary>
+        public TimeSpan AsyncSessionShutdownTimeout { get; set; }
 
         /// <inheritdoc />
         public override string ToString()

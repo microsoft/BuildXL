@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -24,7 +25,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 {
-    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, IReadOnlyCacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin
+    internal class PublishingCacheSession : StartupShutdownBase, ICacheSession, IReadOnlyCacheSessionWithLevelSelectors, IHibernateCacheSession, IConfigurablePin, IAsyncShutdown
     {
         public string Name { get; }
         protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCacheSession));
@@ -33,6 +34,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         private readonly IPublishingSession _remote;
 
         private readonly bool _publishAsynchronously;
+        private bool _hasBeenMarkedForShutdown;
+        private readonly TaskCompletionSource<bool> _readyForShutdown = new TaskCompletionSource<bool>();
 
         private readonly ConcurrentDictionary<PublishingOperation, long> _pendingPublishingOperations = new ConcurrentDictionary<PublishingOperation, long>();
         private long _orderNumber = long.MinValue;
@@ -43,6 +46,22 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
             _local = local;
             _remote = remote;
             _publishAsynchronously = publishAsynchronously;
+        }
+
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            // Make sure to start up local first
+            await _local.StartupAsync(context).ThrowIfFailure();
+            await _remote.StartupAsync(context).ThrowIfFailure();
+            return BoolResult.Success;
+        }
+
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            // Make sure to shutdown remote first.
+            var remoteResult = await _remote.ShutdownAsync(context);
+            var localResult = await _local.ShutdownAsync(context);
+            return remoteResult & localResult;
         }
 
         public async Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
@@ -76,7 +95,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 
             if (_publishAsynchronously)
             {
-                publishTask.FireAndForget(context);
+                publishTask.FireAndForget(context, operation: nameof(PublishContentHashListAsync));
             }
             else
             {
@@ -97,6 +116,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
             ContentHashListWithDeterminism contentHashList,
             CancellationToken token)
         {
+            Contract.Assert(!_hasBeenMarkedForShutdown, "Should not queue publish operations after the session has been marked for shutdown");
+
             var publishingOperation = new PublishingOperation
             {
                 StrongFingerprint = strongFingerprint,
@@ -126,6 +147,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
                 token);
 
             _pendingPublishingOperations.TryRemove(publishingOperation, out _);
+
+            // Make sure that we unblock shutdown once all publishing operations have been completed.
+            if (_hasBeenMarkedForShutdown && _pendingPublishingOperations.Count == 0)
+            {
+                _readyForShutdown.TrySetResult(true);
+            }
 
             return result;
         }
@@ -234,6 +261,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc />
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
             if (_local is IReadOnlyCacheSessionWithLevelSelectors withSelectors)
@@ -242,6 +270,15 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
             }
 
             return Task.FromResult(new Result<LevelSelectors>($"{nameof(_local)} does not implement {nameof(IReadOnlyCacheSessionWithLevelSelectors)}."));
+        }
+
+        /// <inheritdoc />
+        public async Task<BoolResult> RequestShutdownAsync(Context context)
+        {
+            _hasBeenMarkedForShutdown = true;
+            await _readyForShutdown.Task;
+
+            return await ShutdownAsync(context);
         }
     }
 }

@@ -5,14 +5,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 #nullable enable
 
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {
-    internal class BuildCachePublishingSession : IPublishingSession
+    internal class BuildCachePublishingSession : StartupShutdownSlimBase, IPublishingSession
     {
+        protected override Tracer Tracer { get; } = new Tracer(nameof(BuildCachePublishingSession));
+
         private readonly string _name;
         private readonly BuildCacheServiceConfiguration _config;
         private readonly BuildCachePublishingStore _store;

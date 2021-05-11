@@ -1107,6 +1107,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;
+
+        [DataMember]
+        public TimeSpan? AsyncSessionShutdownTimeout { get; set; }
     }
 
     /// <summary>

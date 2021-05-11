@@ -10,7 +10,6 @@ namespace Vsts {
         sources: globR(d`.`,"*.cs"),
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                importFrom("Microsoft.AspNet.WebApi.Client").pkg,
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll,
             ]),
@@ -25,6 +24,7 @@ namespace Vsts {
             importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.bclAsyncPackages,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
+            importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             importFrom("BuildXL.Utilities").dll,

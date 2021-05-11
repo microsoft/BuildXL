@@ -58,11 +58,19 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             };
             var scenario = "Default";
 
+            TaskCompletionSource<BoolResult> tcs = null;
+            ICache createBlockingCache(AbsolutePath path)
+            {
+                var (cache, completionSource) = CreateBlockingPublishingCache(path);
+                tcs = completionSource;
+                return cache;
+            }
+
             var server = new LocalCacheServer(
                 FileSystem,
                 TestGlobal.Logger,
                 scenario,
-                cacheFactory: CreateBlockingPublishingCache,
+                cacheFactory: createBlockingCache,
                 serverConfiguration,
                 Capabilities.All);
 
@@ -108,7 +116,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 FileSystem,
                 TestGlobal.Logger,
                 scenario: scenario,
-                cacheFactory: CreateBlockingPublishingCache,
+                cacheFactory: createBlockingCache,
                 serverConfiguration,
                 Capabilities.All);
 
@@ -140,8 +148,21 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             var actualPending = hibernateSession.GetPendingPublishingOperations();
             actualPending.Should().BeEquivalentTo(operations);
 
-            await server.ShutdownAsync(context).ShouldBeSuccess();
+            // Shutting down the session should not cancel ongoing publishing operations.
             await clientSession.ShutdownAsync(context).ShouldBeSuccess();
+
+            // Session should still be open in the server and operation still pending
+            serverSession.ShutdownStarted.Should().BeFalse();
+            actualPending = hibernateSession.GetPendingPublishingOperations();
+            actualPending.Should().BeEquivalentTo(operations);
+
+            tcs.SetResult(BoolResult.Success);
+
+            // Wait for shutdown to take place
+            await Task.Delay(100);
+            serverSession.ShutdownStarted.Should().BeTrue();
+
+            await server.ShutdownAsync(context).ShouldBeSuccess();
         }
 
         private ServiceClientPublishingCache CreateClientCache(PublishingCacheConfiguration publishingConfig, string pat, string cacheName, int grpcPort, string scenario)
@@ -150,7 +171,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             return new ServiceClientPublishingCache(Logger, FileSystem, config, publishingConfig, pat);
         }
 
-        private ICache CreateBlockingPublishingCache(AbsolutePath path)
+        private (ICache, TaskCompletionSource<BoolResult>) CreateBlockingPublishingCache(AbsolutePath path)
         {
             var configuration = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
             var configurationModel = new ConfigurationModel(configuration);
@@ -159,7 +180,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 () => contentStore,
                 () => new MemoryMemoizationStore(Logger),
                 CacheDeterminism.NewCacheGuid());
-            return new PublishingCacheToContentStore(new PublishingCache<OneLevelCache>(localCache, new BlockingPublishingStore(), Guid.NewGuid()));
+            var blockingStore = new BlockingPublishingStore();
+            return (new PublishingCacheToContentStore(new PublishingCache<OneLevelCache>(localCache, blockingStore, Guid.NewGuid())), blockingStore.TaskCompletionSource);
         }
 
         internal class PublishingCacheToContentStore : StartupShutdownSlimBase, IContentStore, IPublishingCache

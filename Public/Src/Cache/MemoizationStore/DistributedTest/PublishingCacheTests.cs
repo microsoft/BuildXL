@@ -141,7 +141,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat)
             => new Result<IPublishingSession>(new BlockingPublishingSession(this));
 
-        internal class BlockingPublishingSession : IPublishingSession
+        internal class BlockingPublishingSession : StartupShutdownSlimBase, IPublishingSession
         {
             private readonly BlockingPublishingStore _store;
 
@@ -149,6 +149,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 _store = store;
             }
+
+            protected override Tracer Tracer { get; } = new Tracer(nameof(BlockingPublishingSession));
 
             public async Task<BoolResult> PublishContentHashListAsync(Context context, StrongFingerprint fingerprint, ContentHashListWithDeterminism contentHashList, CancellationToken token)
             {

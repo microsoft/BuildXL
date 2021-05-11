@@ -363,7 +363,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 proactivePushCountLimit: localCasSettings.ServiceSettings.MaxProactivePushRequestHandlers,
                 logIncrementalStatsInterval: distributedSettings?.LogIncrementalStatsInterval,
                 logMachineStatsInterval: distributedSettings?.LogMachineStatsInterval,
-                logIncrementalStatsCounterNames: distributedSettings?.IncrementalStatisticsCounterNames);
+                logIncrementalStatsCounterNames: distributedSettings?.IncrementalStatisticsCounterNames,
+                asyncSessionShutdownTimeout: distributedSettings?.AsyncSessionShutdownTimeout);
 
             ApplyIfNotNull(distributedSettings?.TraceServiceGrpcOperations, v => result.TraceGrpcOperation = v);
             return result;

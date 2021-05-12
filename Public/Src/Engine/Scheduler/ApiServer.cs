@@ -22,7 +22,6 @@ using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
@@ -33,6 +32,9 @@ namespace BuildXL.Scheduler
     /// </summary>
     public sealed class ApiServer : IIpcOperationExecutor, IDisposable
     {
+        private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 6 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
+        private const int GetBuildManifestHashFromLocalFileRetryLimit = 5;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
+
         private readonly FileContentManager m_fileContentManager;
         private readonly EngineCache m_engineCache;
         private readonly IServer m_server;
@@ -40,6 +42,9 @@ namespace BuildXL.Scheduler
         private readonly Tracing.IExecutionLogTarget m_executionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
         private readonly string m_buildManifestHashCacheSalt;
+        private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
+        private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
+        private LoggingContext m_loggingContext;
 
         /// <summary>
         /// Counters for all ApiServer related statistics.
@@ -50,13 +55,6 @@ namespace BuildXL.Scheduler
         /// Counters for all Build Manifest related statistics within ApiServer.
         /// </summary>
         public static readonly CounterCollection<BuildManifestCounters> ManifestCounters = new CounterCollection<BuildManifestCounters>();
-
-        private LoggingContext m_loggingContext;
-
-        private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
-
-        private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 6 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
-        private const int GetBuildManifestHashFromLocalFileRetryLimit = 5;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
 
         /// <summary>
         /// EngineEnviromentSettings.BuildManifestHashCacheSalt is used to create a salted weak fingerprint for [VSO:SHA] cache entries using the file's VSO hash as input.
@@ -91,6 +89,7 @@ namespace BuildXL.Scheduler
             m_buildManifestHashCacheSalt = string.IsNullOrEmpty(Utilities.Configuration.EngineEnvironmentSettings.BuildManifestHashCacheSalt)
                 ? string.Empty
                 : Utilities.Configuration.EngineEnvironmentSettings.BuildManifestHashCacheSalt;
+            m_receivedStatistics = new ConcurrentBigMap<string, long>();
         }
 
         /// <summary>
@@ -105,9 +104,35 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Stops the server and waits until it is stopped.
+        /// <seealso cref="IStoppable.RequestStop"/>, <seealso cref="IStoppable.Completion"/>.
+        /// </summary>
+        public Task Stop()
+        {
+            m_server.RequestStop();
+            return m_server.Completion;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            m_server.Dispose();
+        }
+
+        /// <summary>
+        /// Logs ApiServer's counters as well as the stats reported by server's clients
+        /// </summary>
+        public void LogStats()
+        {
+            Counters.LogAsStatistics("ApiServer", m_loggingContext);
+            ManifestCounters.LogAsStatistics("ApiServer.BuildManifest", m_loggingContext);
+            Logger.Log.BulkStatistic(m_loggingContext, m_receivedStatistics.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        }
+
+        /// <summary>
         /// Generates <see cref="WeakContentFingerprint"/> and <see cref="StrongContentFingerprint"/> for given Vso Hash
         /// </summary>
-        public (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
+        private (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
         {
             var wf = GenerateSaltedWeakFingerprint(hash);
             var sf = StrongContentFingerprint.BuildManifestFingerprintMarker;
@@ -206,22 +231,6 @@ namespace BuildXL.Scheduler
             return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath);
         }
 
-        /// <summary>
-        /// Stops the server and waits until it is stopped.
-        /// <seealso cref="IStoppable.RequestStop"/>, <seealso cref="IStoppable.Completion"/>.
-        /// </summary>
-        public Task Stop()
-        {
-            m_server.RequestStop();
-            return m_server.Completion;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            m_server.Dispose();
-        }
-
         async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
         {
             Contract.Requires(op != null);
@@ -251,7 +260,7 @@ namespace BuildXL.Scheduler
                     var result = await ExecuteCommandWithStats(ExecuteMaterializeFileAsync, materializeFileCmd, ApiServerCounters.MaterializeFileCalls);
                     return new Possible<IIpcResult>(result);
                 }
-                
+
             }
 
             var registerBuildManifestHashesCmd = cmd as RegisterFilesForBuildManifestCommand;
@@ -318,7 +327,7 @@ namespace BuildXL.Scheduler
                 return new IpcResult(
                     IpcResultStatus.ExecutionError,
                     "file path ids differ; file = " + cmd.File.Path.ToString(m_context.PathTable) + ", file path = " + cmd.FullFilePath);
-            }            
+            }
             // If only path was provided, check that it's a valid path.
             else if (!cmd.File.IsValid && !filePath.IsValid)
             {
@@ -456,7 +465,16 @@ namespace BuildXL.Scheduler
             Contract.Requires(cmd != null);
 
             Tracing.Logger.Log.ApiServerReportStatisticsExecuted(m_loggingContext, cmd.Stats.Count);
-            Logger.Log.BulkStatistic(m_loggingContext, cmd.Stats);
+            foreach (var statistic in cmd.Stats)
+            {
+                // we aggregate the stats based on their name
+                m_receivedStatistics.AddOrUpdate(
+                    statistic.Key,
+                    statistic.Value,
+                    static (key, value) => value,
+                    static (key, newValue, oldValue) => newValue + oldValue);
+            }
+
             return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 

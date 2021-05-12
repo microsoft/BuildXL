@@ -1937,6 +1937,8 @@ namespace BuildXL.Scheduler
                 Logger.Log.CacheOnlyStatistics(loggingContext, m_numProcessPipsSkipped);
             }
 
+            m_apiServer?.LogStats();
+
             State?.Cache.Counters.LogAsStatistics("PipCaching", loggingContext);
             State?.FileSystemView?.Counters.LogAsStatistics("FileSystemView", loggingContext);
             m_localDiskContentStore?.LogStats();
@@ -1947,8 +1949,6 @@ namespace BuildXL.Scheduler
             m_pipExecutionStepCounters.LogAsStatistics("PipExecutionStep", loggingContext);
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
-            ApiServer.Counters.LogAsStatistics("ApiServer", loggingContext);
-            ApiServer.ManifestCounters.LogAsStatistics("ApiServer.BuildManifest", loggingContext);
             BuildManifestGenerator.Counters.LogAsStatistics("BuildManifestGenerator", loggingContext);
             statistics.AddRange(ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.HashInfo.HashType).GetCounters().ToDictionaryIntegral());
 

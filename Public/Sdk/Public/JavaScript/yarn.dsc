@@ -66,9 +66,13 @@ namespace Yarn {
             {name: "NO_UPDATE_NOTIFIER", value: "1"}, // Prevent npm from checking for the latest version online and write to the user folder with the check information
             {name: "NPM_CONFIG_USERCONFIG", value: npmrc }, 
             {name: "NPM_CONFIG_GLOBALCONFIG", value: globalNpmrc },
-            {name: "USERPROFILE", value: localUserProfile},
         ];
 
+        // We always override USERPROFILE so we can correctly declare the output
+        const overriddenEnv : Transformer.EnvironmentVariable[] = [
+            {name: "USERPROFILE", value: localUserProfile},
+        ];
+    
         // Runtime dependencies on the node installation is not really required because of undeclared reads being on, but
         // it is better to specify those since we know them
         const additionalDependencies = [
@@ -76,12 +80,17 @@ namespace Yarn {
             ...(arguments.nodeTool.runtimeDirectoryDependencies || []),
             ...(arguments.additionalDependencies || [])
             ];
+            
+        // Merge the default environment with the user provided one, if any
+        // With this, the user-provided values will be set last and effectively override the defaults
+        // With the same logic we will set the variables in overridenEnv last 
+        const environment = defaultEnv.concat(arguments.environment || [], overriddenEnv);
 
         // Set the Yarn cache
         let setCacheArgs : Transformer.ExecuteArguments = {
             tool: arguments.yarnTool,
             workingDirectory: arguments.repoRoot,
-            environmentVariables: arguments.environment || defaultEnv,
+            environmentVariables: environment,
             arguments: [
                 Cmd.rawArgument("config set cache-folder"),
                 Cmd.args([Artifact.none(cacheFolder)])
@@ -104,7 +113,7 @@ namespace Yarn {
         let yarnInstallArgs : Transformer.ExecuteArguments = {
             tool: arguments.yarnTool,
             workingDirectory: arguments.repoRoot,
-            environmentVariables: arguments.environment || defaultEnv,
+            environmentVariables: environment,
             arguments:[
                 Cmd.rawArgument("install"),
                 Cmd.flag("--frozen-lockfile", arguments.frozenLockfile || false)

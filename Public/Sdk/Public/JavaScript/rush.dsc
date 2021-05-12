@@ -77,9 +77,14 @@ namespace Rush {
                 // On Windows, Rush depends on cmd.exe being on the PATH
                 ...addIf(Context.getCurrentHost().os === "win", p`${Context.getMount("Windows").path}/system32/`)]},
             {name: "RUSH_ABSOLUTE_SYMLINKS", value: arguments.absoluteSymlinks? "TRUE" : "FALSE"},
-            {name: "USERPROFILE", value: localUserProfile},
             {name: "RUSH_PNPM_STORE_PATH", value: cacheFolder},
             {name: "NO_UPDATE_NOTIFIER", value: "1"}, // Prevent npm from checking for the latest version online and write to the user folder with the check information
+        ];
+
+        // We always override USERPROFILE so we can correctly declare the output
+        const overriddenEnv : Transformer.EnvironmentVariable[] =
+        [
+            {name: "USERPROFILE", value: localUserProfile},
         ];
 
         // Runtime dependencies on the node installation is not really required because of undeclared reads being on, but
@@ -91,11 +96,16 @@ namespace Rush {
             copiedNpmrcFiles
             ];
 
+        // Merge the default environment with the user provided one, if any
+        // With this, the user-provided values will be set last and effectively override the defaults
+        // With the same logic we will set the variables in overridenEnv last 
+        const environment = defaultEnv.concat(arguments.environment || [], overriddenEnv);
+
         // Run rush install
         let rushInstallArgs : Transformer.ExecuteArguments = {
             tool: arguments.rushTool,
             workingDirectory: arguments.repoRoot,
-            environmentVariables: arguments.environment || defaultEnv,
+            environmentVariables: environment,
             arguments:[
                 Cmd.rawArgument("install"),
                 Cmd.option("--max-install-attempts", arguments.processRetries),

@@ -2206,7 +2206,7 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Effective Process Slots"), _ => worker.EffectiveTotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used PostProcess Slots"), _ => worker.AcquiredPostProcessSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Used Light Slots"), _ => worker.AcquiredLightSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Estimated Free Ram Mb"), _ => worker.EstimatedFreeRamMb, includeInSnapshot: false);
@@ -2600,7 +2600,7 @@ namespace BuildXL.Scheduler
                         totalProcessSlots,
                         workerToReleaseCandidate.AcquiredCacheLookupSlots,
                         workerToReleaseCandidate.AcquiredProcessSlots,
-                        workerToReleaseCandidate.AcquiredIpcSlots);
+                        workerToReleaseCandidate.AcquiredLightSlots);
 
                 var task = workerToReleaseCandidate.EarlyReleaseAsync();
                 Analysis.IgnoreResult(task);

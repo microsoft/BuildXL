@@ -55,7 +55,7 @@ namespace BuildXL.Scheduler.Distribution
 
         private int m_acquiredCacheLookupSlots;
         private int m_acquiredProcessSlots;
-        private int m_acquiredIpcSlots;
+        private int m_acquiredLightSlots;
         private int m_acquiredMaterializeInputSlots;
         private int m_acquiredPostProcessSlots;
 
@@ -426,7 +426,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Gets the currently acquired slots for all operations that can be done on a worker.
         /// </summary>
-        public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredIpcSlots + Volatile.Read(ref m_acquiredPostProcessSlots);
+        public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredLightSlots + Volatile.Read(ref m_acquiredPostProcessSlots);
 
         /// <summary>
         /// Gets the currently acquired slots for process pips.
@@ -454,9 +454,9 @@ namespace BuildXL.Scheduler.Distribution
         public int AcquiredCacheLookupSlots => Volatile.Read(ref m_acquiredCacheLookupSlots);
 
         /// <summary>
-        /// Gets the currently acquired IPC slots.
+        /// Gets the currently acquired light (IPC and process light) slots.
         /// </summary>
-        public int AcquiredIpcSlots => Volatile.Read(ref m_acquiredIpcSlots);
+        public int AcquiredLightSlots => Volatile.Read(ref m_acquiredLightSlots);
 
         /// <summary>
         /// Whether the content tracking is enabled.
@@ -574,7 +574,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 if (runnablePip.PipType == PipType.Ipc)
                 {
-                    Interlocked.Increment(ref m_acquiredIpcSlots);
+                    Interlocked.Increment(ref m_acquiredLightSlots);
                     runnablePip.AcquiredResourceWorker = this;
                     limitingResource = null;
                     return true;
@@ -590,12 +590,17 @@ namespace BuildXL.Scheduler.Distribution
                 }
 
                 var processRunnablePip = runnablePip as ProcessRunnablePip;
+
                 // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
                 // processes running (the number of acquired slots is 0)
-                if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
+                // Light processes do not acquire process slots as they are not CPU-bound.
+                if (!processRunnablePip.Process.IsLight)
                 {
-                    limitingResource = MemoryResourceAvailable ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
-                    return false;
+                    if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
+                    {
+                        limitingResource = MemoryResourceAvailable ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
+                        return false;
+                    }
                 }
 
                 if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots)
@@ -608,8 +613,16 @@ namespace BuildXL.Scheduler.Distribution
                 var expectedMemoryCounters = GetExpectedMemoryCounters(processRunnablePip);
                 if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip, expectedMemoryCounters), out limitingResourceName))
                 {
-                    Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
-                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
+                    if (processRunnablePip.Process.IsLight)
+                    {
+                        Interlocked.Increment(ref m_acquiredLightSlots);
+                    }
+                    else
+                    {
+                        Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
+                        OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
+                    }
+
                     Interlocked.Add(ref m_acquiredPostProcessSlots, 1);
                     runnablePip.AcquiredResourceWorker = this;
                     processRunnablePip.ExpectedMemoryCounters = expectedMemoryCounters;
@@ -792,7 +805,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 if (stepCompleted == PipExecutionStep.ExecuteNonProcessPip || isCancelledOrFailed)
                 {
-                    Interlocked.Decrement(ref m_acquiredIpcSlots);
+                    Interlocked.Decrement(ref m_acquiredLightSlots);
                     runnablePip.SetWorker(null);
                     runnablePip.AcquiredResourceWorker = null;
                 }
@@ -807,12 +820,18 @@ namespace BuildXL.Scheduler.Distribution
             {
                 Contract.Assert(processRunnablePip.Resources.HasValue);
 
-                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
+                if (processRunnablePip.Process.IsLight)
+                {
+                    Interlocked.Decrement(ref m_acquiredLightSlots);
+                }
+                else
+                {
+                    Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
+                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
+                }
 
                 var resources = processRunnablePip.Resources.Value;
                 m_workerSemaphores.ReleaseResources(resources);
-
-                OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
             }
 
             void releasePostProcessSlots()

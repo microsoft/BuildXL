@@ -452,11 +452,7 @@ namespace BuildXL.Scheduler.Distribution
                 for (int i = 0; i < m_context.Workers.Count; i++)
                 {
                     var worker = m_context.Workers[i];
-                    WorkerSetupCosts[i] = new WorkerSetupCost()
-                    {
-                        Worker = worker,
-                        AcquiredSlots = pip.PipType == PipType.Ipc ? worker.AcquiredIpcSlots : worker.AcquiredProcessSlots
-                    };
+                    WorkerSetupCosts[i] = new WorkerSetupCost(){ Worker = worker };
                 }
             }
         }
@@ -472,14 +468,6 @@ namespace BuildXL.Scheduler.Distribution
             public long SetupBytes { get; set; }
 
             /// <summary>
-            /// Number of acquired slots
-            /// </summary>
-            /// <remarks>
-            /// For IPC pips, this means acquired IPC slots, and for process pips, it means acquired process slots.
-            /// </remarks>
-            public int AcquiredSlots { get; set; }
-
-            /// <summary>
             /// The associated worker
             /// </summary>
             public Worker Worker { get; set; }
@@ -487,8 +475,7 @@ namespace BuildXL.Scheduler.Distribution
             /// <inheritdoc />
             public int CompareTo(WorkerSetupCost other)
             {
-                var result = SetupBytes.CompareTo(other.SetupBytes);
-                return result == 0 ? AcquiredSlots.CompareTo(other.AcquiredSlots) : result;
+                return SetupBytes.CompareTo(other.SetupBytes);
             }
         }
     }

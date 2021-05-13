@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210507.6 (Release [106582](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=106582)) Released 5/12/2021
+- [Dump pip Lite] Fixed minor issues in the output file
+- [MS Guardian] Add DScript SDK and documentation
+- Fixed an overflow in HistoricPerfDataTable
+- Various fixes and improvements
+
 # 0.1.0-20210430.2 (Release [105633](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=105633)) Released 5/6/2021
 -	[JavaScript] Allow configuring process exit/retry codes and max number of retries in JavaScript resolvers.
 - Update the calculation of orchestrator's slots in the distributed builds.

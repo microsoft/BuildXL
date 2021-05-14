@@ -294,6 +294,11 @@ AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_even
 
 AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int flags)
 {
+    if (pathname[0] == '/')
+    {
+        return report_access(syscallName, eventType, pathname, flags);
+    }
+
     char fullpath[PATH_MAX] = {0};
     ssize_t len = 0;
 

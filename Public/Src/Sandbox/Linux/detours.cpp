@@ -213,11 +213,17 @@ INTERPOSE(int, faccessat, int dirfd, const char *pathname, int mode, int flags)(
     return bxl->check_and_fwd_faccessat(check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
 })
 
+// report "Create" if path does not exist and O_CREAT or O_TRUNC is specified
+// report "Write" if path exists and O_CREAT or O_TRUNC is specified (because this truncates the file regardless of its content)
+// otherwise, report "Read"
 static AccessCheckResult ReportFileOpen(BxlObserver *bxl, string &pathStr, int oflag)
 {
     mode_t pathMode = bxl->get_mode(pathStr.c_str());
+    bool pathExists = pathMode != 0;
+    bool isCreate = !pathExists && (oflag & (O_CREAT|O_TRUNC));
+    bool isWrite = pathExists && (oflag & (O_CREAT|O_TRUNC) && (oflag & O_WRONLY));
     IOEvent event(
-        pathMode == 0 && (oflag & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN,
+        isCreate ? ES_EVENT_TYPE_NOTIFY_CREATE : isWrite ? ES_EVENT_TYPE_NOTIFY_WRITE : ES_EVENT_TYPE_NOTIFY_OPEN,
         ES_ACTION_TYPE_NOTIFY,
         pathStr, bxl->GetProgramPath(), pathMode, false);
     return bxl->report_access(__func__, event);

@@ -8,6 +8,7 @@ using Xunit.Abstractions;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Scheduler;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.Distribution
 {
@@ -33,7 +34,7 @@ namespace Test.BuildXL.Distribution
         [Fact]
         public async Task AttachmentTimeout()
         {
-            GrpcSettings.WorkerAttachTimeout = TimeSpan.FromSeconds(1);
+            EngineEnvironmentSettings.WorkerAttachTimeout.Value = TimeSpan.FromSeconds(1);
             
             var testRun = CreateTestRun();
             testRun.WaitForOrchestratorAttach(expectSuccess: false);

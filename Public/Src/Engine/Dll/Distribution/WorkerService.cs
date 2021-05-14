@@ -22,9 +22,33 @@ using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 namespace BuildXL.Engine.Distribution
 {
     /// <summary>
+    /// Service methods called by the RPC layer as part of the RPC started in the orchestrator
+    /// </summary>
+    /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
+    internal interface IWorkerService
+    {
+        /// <summary>
+        /// Performs attachment 
+        /// </summary>
+        void Attach(BuildStartData buildStartData, string sender);
+
+        /// <summary>
+        /// Requests execution of a pip build request
+        /// </summary>
+        /// <param name="request"></param>
+        void ExecutePips(PipBuildRequest request);
+
+        /// <summary>
+        /// Notifies the WorkerService that the orchestrator has issued an exit request
+        /// </summary>
+        /// <param name="failure">If present, the build will be considered a failure</param>
+        void ExitRequested(Optional<string> failure);
+    }
+
+    /// <summary>
     /// Defines service run on worker nodes in a distributed build.
     /// </summary>
-    public sealed partial class WorkerService : DistributionService
+    public sealed partial class WorkerService : DistributionService, IWorkerService
     {
         /// <summary>
         /// Gets the build start data from the coordinator passed after the attach operation
@@ -182,10 +206,11 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        public void ExitCallReceivedFromOrchestrator()
+        void IWorkerService.ExitRequested(Optional<string> failure)
         {
             m_isOrchestratorExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext);
+            Exit(failure);
         }
 
         /// <nodoc/>
@@ -234,7 +259,8 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        internal void AttachCore(BuildStartData buildStartData, string orchestratorName)
+        /// <inheritdoc />
+        void IWorkerService.Attach(BuildStartData buildStartData, string orchestratorName)
         {
             Logger.Log.DistributionAttachReceived(m_appLoggingContext, buildStartData.SessionId, orchestratorName);
             BuildStartData = buildStartData;
@@ -287,8 +313,8 @@ namespace BuildXL.Engine.Distribution
             ExitAsync("Connection timed out", isUnexpected: true).Forget();
         }
 
-        /// <nodoc />
-        public void ExecutePipsCore(PipBuildRequest request)
+        /// <inheritdoc />
+        void IWorkerService.ExecutePips(PipBuildRequest request)
         {
             var reportInputsResult = m_pipExecutionService.TryReportInputs(request.Hashes);
 

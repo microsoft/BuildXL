@@ -289,15 +289,15 @@ namespace BuildXL.Utilities.Configuration
             return "[BuildXLFingerprintSalt:" + saltEnvironmentValue + "]";
         }
 
-        private static TimeSpan? ParseTimeSpan(string timespanString, Func<int, TimeSpan> timespanFactory)
+        private static TimeSpan? ParseTimeSpan(string timespanString, Func<double, TimeSpan> timespanFactory)
         {
             if (string.IsNullOrEmpty(timespanString))
             {
                 return null;
             }
 
-            int timespanUnits;
-            if (int.TryParse(timespanString, out timespanUnits) && timespanUnits != 0)
+            double timespanUnits;
+            if (double.TryParse(timespanString, out timespanUnits) && timespanUnits != 0)
             {
                 return timespanFactory(timespanUnits);
             }

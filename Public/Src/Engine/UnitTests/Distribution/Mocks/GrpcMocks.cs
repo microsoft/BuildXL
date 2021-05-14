@@ -14,12 +14,14 @@ using WorkerNotificationArgs = BuildXL.Engine.Distribution.OpenBond.WorkerNotifi
 using PipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
 using SinglePipBuildRequest = BuildXL.Distribution.Grpc.SinglePipBuildRequest;
 using GrpcPipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
+using GrpcAttachCompletionInfo = BuildXL.Distribution.Grpc.AttachCompletionInfo;
 using FileArtifactKeyedHash = BuildXL.Distribution.Grpc.FileArtifactKeyedHash;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Scheduler;
 using System.Linq;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
+using BuildXL.Engine.Cache.Fingerprints;
 
 namespace Test.BuildXL.Distribution
 {
@@ -39,6 +41,21 @@ namespace Test.BuildXL.Distribution
                 },
                 SymlinkFileContentHash = DistributionHelpers.ToByteString(new ArraySegment<byte>())
             };
+
+        public static AttachCompletionInfo AttachCompletionInfo =>
+            new AttachCompletionInfo()
+            {
+                WorkerId = 1,
+                MaxProcesses = 100,
+                MaxMaterialize = 100,
+                AvailableRamMb = 100000,
+                AvailableCommitMb = 100000,
+                WorkerCacheValidationContentHash = new BondContentHash
+                {
+                    Data = new ArraySegment<byte>()
+                }
+            };
+
 
         public static BuildEndData GetBuildEndData(bool failed)
         {
@@ -75,9 +92,9 @@ namespace Test.BuildXL.Distribution
         }
     }
 
-    public sealed class WorkerServerMock : IServer
+    internal sealed class WorkerServerMock : IServer
     {
-        public WorkerService WorkerService;
+        public IWorkerService WorkerService;
 
         public int ShutdownCallCount;
         public bool ShutdownWasCalled => ShutdownCallCount > 0;
@@ -106,20 +123,19 @@ namespace Test.BuildXL.Distribution
         public void Attach(BuildStartData message)
         {
             var bondMessage = message.ToOpenBond();
-            WorkerService.AttachCore(bondMessage, "OrchestratorName");
+            WorkerService.Attach(bondMessage, "OrchestratorName");
         }
 
         public void ExecutePips(GrpcPipBuildRequest message)
         {
             var bondMessage = message.ToOpenBond();
-            WorkerService.ExecutePipsCore(bondMessage);
+            WorkerService.ExecutePips(bondMessage);
         }
 
         public void Exit(BuildEndData message)
         {
-            WorkerService.ExitCallReceivedFromOrchestrator();
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
-            WorkerService.Exit(failure);
+            WorkerService.ExitRequested(failure);
         }
     }
 

@@ -25,9 +25,19 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Engine.Distribution
 {
     /// <summary>
+    /// Service methods called by the RPC layer as part of the RPC started in a remote worker machine
+    /// </summary>
+    /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
+    internal interface IOrchestratorService
+    {
+        void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
+        Task ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification);
+    }
+
+    /// <summary>
     /// A pip executor which can distributed work to remote workers
     /// </summary>
-    public sealed class OrchestratorService : DistributionService
+    public sealed class OrchestratorService : DistributionService, IOrchestratorService
     {
         internal IPipExecutionEnvironment Environment
         {
@@ -125,7 +135,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Completes the attachment of a worker.
         /// </summary>
-        public void AttachCompleted(AttachCompletionInfo attachCompletionInfo)
+        void IOrchestratorService.AttachCompleted(AttachCompletionInfo attachCompletionInfo)
         {
             var worker = GetWorkerById(attachCompletionInfo.WorkerId);
             worker.AttachCompletedAsync(attachCompletionInfo);
@@ -135,7 +145,7 @@ namespace BuildXL.Engine.Distribution
         /// Handler for the 'work completion' notification from worker.
         /// </summary>
         [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid", Justification = "This is eventhandler so fire&forget is understandable")]
-        public async Task ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
+        async Task IOrchestratorService.ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
         {
             var worker = GetWorkerById(notification.WorkerId);
 

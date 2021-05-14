@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -17,16 +18,23 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// </summary>
     public class GrpcWorkerServer : Worker.WorkerBase, IServer
     {
-        private readonly WorkerService m_workerService;
+        private readonly IWorkerService m_workerService;
         private readonly LoggingContext m_loggingContext;
         private readonly DistributedBuildId m_buildId;
 
         private Server m_server;
 
+        // Expose the port to unit tests
+        internal int? Port => m_server?.Ports.FirstOrDefault()?.BoundPort;
+
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, DistributedBuildId buildId)
+        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, DistributedBuildId buildId) : this((IWorkerService)workerService, loggingContext, buildId)
+        {
+        }
+
+        internal GrpcWorkerServer(IWorkerService workerService, LoggingContext loggingContext, DistributedBuildId buildId)
         {
             m_workerService = workerService;
             m_loggingContext = loggingContext;
@@ -76,7 +84,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var _, out var _);
             
-            m_workerService.AttachCore(bondMessage, sender);
+            m_workerService.Attach(bondMessage, sender);
 
             return Task.FromResult(new RpcResponse());
         }
@@ -86,18 +94,15 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var bondMessage = message.ToOpenBond();
 
-            m_workerService.ExecutePipsCore(bondMessage);
+            m_workerService.ExecutePips(bondMessage);
             return Task.FromResult(new RpcResponse());
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)
         {
-            m_workerService.ExitCallReceivedFromOrchestrator();
-            
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
-            m_workerService.Exit(failure);
-
+            m_workerService.ExitRequested(failure);
             return Task.FromResult(new RpcResponse());
         }
 

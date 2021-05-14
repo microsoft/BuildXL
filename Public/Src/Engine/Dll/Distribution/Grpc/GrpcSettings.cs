@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <remarks>
         /// Default: 75 minutes
         /// </remarks>
-        public static TimeSpan WorkerAttachTimeout { get; set; } = EngineEnvironmentSettings.WorkerAttachTimeout;
+        public static TimeSpan WorkerAttachTimeout => EngineEnvironmentSettings.WorkerAttachTimeout;
 
         public static void ParseHeader(Metadata header, out string sender, out DistributedBuildId senderBuildId, out string traceId)
         {

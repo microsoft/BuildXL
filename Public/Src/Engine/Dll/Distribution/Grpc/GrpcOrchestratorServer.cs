@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -18,16 +19,23 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// </summary>
     public sealed class GrpcOrchestratorServer : Orchestrator.OrchestratorBase, IServer
     {
-        private readonly OrchestratorService m_orchestratorService;
+        private readonly IOrchestratorService m_orchestratorService;
         private readonly LoggingContext m_loggingContext;
         private readonly DistributedBuildId m_buildId;
 
         private Server m_server;
+       
+        // Expose the port to unit tests
+        internal int? Port => m_server?.Ports.FirstOrDefault()?.BoundPort;
 
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, DistributedBuildId buildId)
+        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, DistributedBuildId buildId) : this(loggingContext, (IOrchestratorService)orchestratorService, buildId)
+        {
+        }
+
+        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedBuildId buildId)
         {
             m_loggingContext = loggingContext;
             m_orchestratorService = orchestratorService;

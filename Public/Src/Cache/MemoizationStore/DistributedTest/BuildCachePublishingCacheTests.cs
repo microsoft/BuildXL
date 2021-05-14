@@ -47,14 +47,44 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
         }
 
-        protected override ICachePublisher CreatePublisher(
-            string sessionName,
-            BuildCacheServiceConfiguration config,
-            string pat,
-            Context context)
+        public override Result<IPublishingSession> CreateSession(Context context, string name, PublishingCacheConfiguration config, string pat)
         {
-            sessionName.Should().NotBeNull();
-            return new DummyPublisher(config.ForceUpdateOnAddContentHashList);
+            if (config is not BuildCacheServiceConfiguration buildCacheConfig)
+            {
+                return new Result<IPublishingSession>($"Configuration is not a {nameof(BuildCacheServiceConfiguration)}. Actual type: {config.GetType().FullName}");
+            }
+
+            var contentSessionResult = ContentSource.CreateSession(context, $"{name}-contentSource", ImplicitPin.None);
+            if (!contentSessionResult.Succeeded)
+            {
+                return new Result<IPublishingSession>(contentSessionResult);
+            }
+
+            return new Result<IPublishingSession>(new BuildCacheTestPublishingSession(buildCacheConfig, name, pat, contentSessionResult.Session, FileSystem, PublishingGate));
+        }
+
+        private class BuildCacheTestPublishingSession : BuildCachePublishingSession
+        {
+            public BuildCacheTestPublishingSession(
+                BuildCacheServiceConfiguration config,
+                string name,
+                string pat,
+                IContentSession contentSource,
+                IAbsFileSystem fileSystem,
+                SemaphoreSlim publishingGate)
+                : base(config, name, pat, contentSource, fileSystem, publishingGate)
+            {
+            }
+
+            protected override ICachePublisher CreatePublisher(
+                string sessionName,
+                BuildCacheServiceConfiguration config,
+                string pat,
+                Context context)
+            {
+                sessionName.Should().NotBeNull();
+                return new DummyPublisher(config.ForceUpdateOnAddContentHashList);
+            }
         }
 
         private class DummyPublisher : StartupShutdownSlimBase, ICachePublisher

@@ -26,35 +26,6 @@ namespace Test.BuildXL.Ipc
             : base(output) { }
 
         [Fact]
-        public Task TestUnawaited()
-        {
-            return WithServer(
-                nameof(TestUnawaited),
-                EchoingExecutor,
-                maxConcurrentClients: 10,
-                testAction: async (server, tcpProvider) =>
-                {
-                    var actionBlock = new ActionBlock<int>(
-                        i => i % 5 == 0 ? GarbageCollect() : AssertPingServerFromNewClient(tcpProvider),
-                        dataflowBlockOptions: new ExecutionDataflowBlockOptions
-                        {
-                            MaxDegreeOfParallelism = 10
-                        });
-                    var postResults = Enumerable.Range(0, 20).Select(i => actionBlock.Post(i));
-                    XAssert.IsTrue(postResults.All(b => b));
-                    actionBlock.Complete();
-                    await actionBlock.Completion;
-                });
-        }
-
-        private Task GarbageCollect()
-        {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            return Unit.VoidTask;
-        }
-
-        [Fact]
         public Task TestSimplePing()
         {
             return WithServerAndClient(
@@ -91,37 +62,41 @@ namespace Test.BuildXL.Ipc
         }
 
         [Fact]
-        public Task TestSingleConcurrentClient()
+        public async Task TestSingleConcurrentClientAsync()
         {
-            return WithServerAndClient(
-                nameof(TestSingleConcurrentClient),
-                EchoingExecutor,
-                maxConcurrentClients: 1,
-                testAction: async (server, tcpProvider, client1) =>
-                {
-                    using (var tcpClient2 = await tcpProvider.ConnectToServerAsync())
-                    using (var client2 = tcpClient2.GetStream())
+            const string FailedToPostError = "Expected to be able to post a message to the target block";
+            try
+            {
+                await WithServerAndClient(
+                    nameof(TestSingleConcurrentClientAsync),
+                    EchoingExecutor,
+                    maxConcurrentClients: 1,
+                    testAction: async (server, tcpProvider, client1) =>
                     {
-                        var client2PingRequest = await SendPing(client2);
-#pragma warning disable AsyncFixer04 // Fire-and-forget async call inside a using block. 
-                        var client2PingResponseTask = Response.DeserializeAsync(client2);
-#pragma warning restore AsyncFixer04
+                        // make sure the client1 is connected
+                        await AssertPingServer(client1);
 
-                        var client1PingRequest = await SendPing(client1);
-                        var client1PingResponseTask = Response.DeserializeAsync(client1);
+                        //Assert.True(response.Result.Succeeded, "The first call must have been successful");
+                        // Assert.False(server.Completion.IsFaulted, "The server should be in a healthy state");
 
-                        // assert client1 returned first because it connected first, even though it issued its request after client2
-                        var completedTask = await Task.WhenAny(client1PingResponseTask, client2PingResponseTask);
-                        VerifyPingResponse(client1PingRequest, await completedTask);
+                        // There is a single slot on the server, and it's being used by client1 (the client
+                        // has not been disconnected). 
+                        using var tcpClient2 = await tcpProvider.ConnectToServerAsync();
+                        using var client2 = tcpClient2.GetStream();
 
-                        // assert client2 is still waiting
-                        Assert.False(client2PingResponseTask.IsCompleted);
+                        // ConnectToServerAsync returns once the connection is established, however, at that point,
+                        // the client2 has not been processed by the server. Need to give it a few seconds.
+                        await Task.Delay(5_000);
 
-                        // close client1 and wait for response to client2
-                        client1.Dispose();
-                        VerifyPingResponse(client2PingRequest, await client2PingResponseTask);
-                    }
-                });
+                        // Attaching client2 should put the server in a faulted state.
+                        Assert.True(server.Completion.IsFaulted);
+                    });
+            }
+            catch (Exception e)
+            {
+                Assert.False(e is AggregateException);
+                Assert.True(e.ToStringDemystified().Contains(FailedToPostError), $"Error message is missing");
+            }
         }
 
         [Fact]
@@ -283,6 +258,8 @@ namespace Test.BuildXL.Ipc
             using (var stream = tcpClient.GetStream())
             {
                 await AssertPingServer(stream);
+                stream.Close();
+                tcpClient.Close();
             }
         }
 

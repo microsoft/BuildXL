@@ -45,7 +45,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         internal ConcurrentQueue<Exception> Diagnostics => m_diagnostics;
 
         /// <nodoc/>
-        public GenericServer([CanBeNull]string name, IServerConfig config, ListenerSourceBlock<TClient>.CancellableListener listener, bool clientFailuresAreFatal = false)
+        public GenericServer([CanBeNull]string name, IServerConfig config, ListenerSourceBlock<TClient>.CancellableListener listener, bool clientFailuresAreFatal = false, bool isBounded = false)
         {
             Contract.Requires(config != null);
 
@@ -67,6 +67,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
                 new ExecutionDataflowBlockOptions()
                 {
                     MaxDegreeOfParallelism = config.MaxConcurrentClients,
+                    BoundedCapacity = isBounded ? config.MaxConcurrentClients : DataflowBlockOptions.Unbounded
                 });
 
             // link the event loop to feed the clientHandler ActionBlock

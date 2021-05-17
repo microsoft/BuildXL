@@ -97,6 +97,7 @@ namespace BuildXL.Ipc.Common.Connectivity
         /// <summary>Disconnects given socket without flagging it for reuse.</summary>
         public static void DisconnectClient(Socket client)
         {
+            client.Shutdown(SocketShutdown.Both);
             client.Disconnect(reuseSocket: false);
         }
 

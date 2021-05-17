@@ -91,7 +91,17 @@ namespace BuildXL.Ipc.Common.Multiplexing
             m_clientListener = new GenericServer<TClient>(
                 name: Name + ".ClientHandler",
                 config: m_clientHandlingConfig,
-                listener: (token) => connectivityProvider.AcceptClientAsync(token));
+                listener: (token) => connectivityProvider.AcceptClientAsync(token),
+                // When there is a new client, it's passed to an underlying ActionBlock that would be processing it.
+                // The "processing" would be happening as long as the client is alive (regardless whether the client
+                // is sending any requests); and the clients are expected to be long-lived (e.g., a service pip using
+                // an API Server). While there are fewer clients than MaxConcurrentClients, there is no problem.
+                // However, once we have MaxConcurrentClients+1 clients, that extra client will be accepted by the
+                // ActionBlock, but it won't actually be processed because there are no available slots. The client
+                // will be sitting in the queue, and we'll essentially have a deadlock on our hands. To prevent this,
+                // we are configuring ActionBlock to have bounded capacity. With such configuration, any attempt to
+                // add a new client to a block that is already handling MaxConcurrentClients will result in an exception.
+                isBounded: true);
         }
 
         /// <summary>
@@ -173,7 +183,9 @@ namespace BuildXL.Ipc.Common.Multiplexing
                 m_requestListener = new GenericServer<Request>(
                     name: Name,
                     config: m_parent.m_requestHandlingConfig,
-                    listener: AcceptRequestAsync);
+                    listener: AcceptRequestAsync,
+                    // if there are more requests from a client than the concurrency setting, just place them all into a queue
+                    isBounded: false);
 
                 m_sendResponseBlock = new ActionBlock<Response>(
                     SendResponseAsync,

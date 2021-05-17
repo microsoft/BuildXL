@@ -144,11 +144,11 @@ namespace BuildXL.Ipc.Common
 
             Analysis.IgnoreResult(
                 Task.Run(
-                    () =>
+                    async () =>
                     {
                         try
                         {
-                            EventLoop();
+                            await EventLoopAsync();
                         }
                         catch (Exception e)
                         {
@@ -159,12 +159,12 @@ namespace BuildXL.Ipc.Common
             );
         }
 
-        private void EventLoop()
+        private async Task EventLoopAsync()
         {
             while (!StopRequested)
             {
                 Verbose("Listening...");
-                var item = CancellableListen();
+                var item = await CancellableListenAsync();
                 if (TargetBlock != null && !StopRequested)
                 {
                     var posted = TargetBlock.Post(item);
@@ -178,21 +178,21 @@ namespace BuildXL.Ipc.Common
             m_logger.Verbose("(" + m_name + ") " + msg, args);
         }
 
-        private TOutput CancellableListen()
+        private async Task<TOutput> CancellableListenAsync()
         {
             var listenTask = m_listener(CancellationToken.None);
 
             // The m_listener function is completely out of our control.  However, we want to be able
             // to cancel it at will.  Hence, we wait here for either the listen task or the stop
             // task to finish.  The WaitAny method returns the index of the task that completed.
-            int completedTaskIndex = Task.WaitAny(listenTask, m_stopTask.Task);
-            if (completedTaskIndex == 0 && !StopRequested)
+            Task completedTask = await Task.WhenAny(listenTask, m_stopTask.Task);
+            if (completedTask == listenTask && !StopRequested)
             {
                 // listener task completed -> return its result (if it faulted, the exception will be caught in the 'Start' method)
                 Verbose("Listener task {0}", listenTask.IsFaulted
                     ? "failed: " + listenTask.Exception.InnerException.Message
                     : "succeeded and returned an object of type " + listenTask.Result?.GetType()?.FullName);
-                return listenTask.GetAwaiter().GetResult();
+                return await listenTask;
             }
             else
             {

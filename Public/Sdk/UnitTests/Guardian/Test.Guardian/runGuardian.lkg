@@ -55,6 +55,7 @@ Transformer.execute({
     ],
     implicitOutputs: [d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`],
     environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`}],
+    successExitCodes: [0],
     tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t`,
     unsafe: {
         untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
@@ -130,6 +131,7 @@ Transformer.execute({
             limit: 1,
         },
     ],
+    successExitCodes: [0],
     tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_1`,
     unsafe: {
         untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],
@@ -227,6 +229,7 @@ Transformer.execute({
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/rc`,
     ],
     environmentVariables: [{name: "TEMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`}, {name: "TMP", value: p`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`}],
+    successExitCodes: [0],
     tempDirectory: d`./tmp_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/t_2`,
     unsafe: {
         untrackedPaths: [p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn/internal.gdnhistory`, p`./path/to/src/.gdn/internal.gdnhistory`],

@@ -50,5 +50,10 @@ Next, see the sample Guardian project for examples of configuration files (under
     * Some tools, such as CredScan, do not provide fine grained control over which files will be scanned. Instead they will recursively read all source files from the working directory.
 3. Call `Guardian.runGuardian(args)` to run Guardian with the configuration files created above.
 
+## Disabling Guardian, or treating Guardian errors as warnings
+- To disable guardian use the following flag: `/p:[Tool.Guardian]disable=1`
+  - This will change each call to Guardian into a no-op.
+- To treat Guardian errors as warnings, use the following flag: `/p:[Tool.Guardian]warnOnly=1`
+
 ## Best Practices
 * Try to minimize concurrent calls into Guardian wherever possible. Guardian does not officially support concurrent executions of the Guardian tool to avoid any bad interactions between tools.

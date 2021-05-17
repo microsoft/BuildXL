@@ -7,6 +7,8 @@ import * as Json from "Sdk.Json";
 @@public
 export const guardianTag = "msguardian";
 
+const guardianDisableFlag = "[Tool.Guardian]disable";
+const guardianWarnOnlyFlag = "[Tool.Guardian]warnOnly";
 const guardianInstallMutex = "BuildXL.Tools.Guardian.Install.Phase";
 const guardianExecutableName : PathAtom = PathAtom.create("guardian.cmd");
 const defaultGuardianToolWorkingDirectory = d`${Context.getMount("SourceRoot").path}`;
@@ -76,31 +78,38 @@ function findGuardianExecutable(guardianRoot : StaticDirectory) : File {
 export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult {
     validateArguments(args);
 
-    const outputDirectory = Context.getNewOutputDirectory("guardianOut");
-    const guardianPaths = createGuardianPaths(outputDirectory, args.guardianPackageDirectory);
-    const guardianTool = getGuardianTool(args.guardianToolRootDirectory, guardianPaths);
-    let guardianDependencies : Transformer.InputArtifact[] = [args.guardianToolRootDirectory, f`${guardianPaths.globalGuardianRepo}`, args.guardianConfigFile];
+    let guardianResult = undefined;
 
-    // 0. Create a Guardian settings
-    const genericSettingsFile = generateGenericGuardianSettingsFile(guardianPaths);
-    const installSettingsFile = generateGuardianInstallSettingsFile(guardianPaths);
-
-    // 1. Initialize Guardian for this Guardian run
-    //      - Settings files from previous step not necessary here, can be run concurrently with the WriteFile operation.
-    const initializeResult = initializeGuardian(guardianTool, guardianPaths, guardianDependencies);
-
-    // Steps below this depend on the results of step 0 and step 1
-    guardianDependencies = guardianDependencies.concat([
-        f`${guardianPaths.globalSettings}`,
-        initializeResult.getOutputDirectory(d`${guardianPaths.localGuardianRepo}`)
-    ]);
-
-    // 2. Run Guardian Install phase
-    const installResult = runGuardianInstall(args, guardianTool, installSettingsFile, guardianDependencies, guardianPaths);
+    if (Environment.getFlag(guardianDisableFlag)) {
+        guardianResult = runGuardianNoOp(args);
+    }
+    else {
+        const outputDirectory = Context.getNewOutputDirectory("guardianOut");
+        const guardianPaths = createGuardianPaths(outputDirectory, args.guardianPackageDirectory);
+        const guardianTool = getGuardianTool(args.guardianToolRootDirectory, guardianPaths);
+        let guardianDependencies : Transformer.InputArtifact[] = [args.guardianToolRootDirectory, f`${guardianPaths.globalGuardianRepo}`, args.guardianConfigFile];
     
-    // 3. Guardian run to run static analysis tools specified in config file, break build if any breaking changes are found, and export results.
-    guardianDependencies = guardianDependencies.concat([installResult.getOutputFile(guardianPaths.installLog.path), genericSettingsFile]);
-    const guardianResult = runGuardianInternal(args, guardianTool, genericSettingsFile, guardianDependencies, guardianPaths);
+        // 0. Create a Guardian settings
+        const genericSettingsFile = generateGenericGuardianSettingsFile(guardianPaths);
+        const installSettingsFile = generateGuardianInstallSettingsFile(guardianPaths);
+    
+        // 1. Initialize Guardian for this Guardian run
+        //      - Settings files from previous step not necessary here, can be run concurrently with the WriteFile operation.
+        const initializeResult = initializeGuardian(guardianTool, guardianPaths, guardianDependencies);
+    
+        // Steps below this depend on the results of step 0 and step 1
+        guardianDependencies = guardianDependencies.concat([
+            f`${guardianPaths.globalSettings}`,
+            initializeResult.getOutputDirectory(d`${guardianPaths.localGuardianRepo}`)
+        ]);
+    
+        // 2. Run Guardian Install phase
+        const installResult = runGuardianInstall(args, guardianTool, installSettingsFile, guardianDependencies, guardianPaths);
+        
+        // 3. Guardian run to run static analysis tools specified in config file, break build if any breaking changes are found, and export results.
+        guardianDependencies = guardianDependencies.concat([installResult.getOutputFile(guardianPaths.installLog.path), genericSettingsFile]);
+        guardianResult = runGuardianInternal(args, guardianTool, genericSettingsFile, guardianDependencies, guardianPaths);
+    }
     
     return guardianResult;
 }
@@ -127,6 +136,26 @@ function validateArguments(args: GuardianArguments) : void {
     if (args.noSuppressions && (args.suppressionFiles || args.suppressionSets)) {
         Contract.fail("noSuppressions and suppressionFiles/suppressionSets cannot be specified together.");
     }
+}
+
+/**
+ * Creates a no-op for when the disable flag is set to 1 to skip running Guardian.
+ */
+function runGuardianNoOp(args : GuardianArguments) : Transformer.ExecuteResult {
+    const cmdTool: Transformer.ToolDefinition = {
+        exe: f`${Environment.getPathValue("COMSPEC")}`,
+        dependsOnWindowsDirectories: true,
+        prepareTempDirectory: true
+    };
+
+    return Transformer.execute({
+        tool: cmdTool,
+        arguments: [Cmd.argument("/D /C exit 0")],
+        dependencies: [],
+        outputs: [{ existence: "optional", artifact: f`${args.guardianResultFile.path}` }],
+        workingDirectory: d`${args.guardianResultFile.parent}`,
+        description: "Guardian No-op"
+    });
 }
 
 /**
@@ -206,6 +235,8 @@ function initializeGuardian(guardianTool : Transformer.ToolDefinition, guardianP
         workingDirectory: d`${guardianPaths.localGuardianRepo.parent}`,
         dependencies: guardianDependencies,
         outputs: [ d`${guardianPaths.localGuardianRepo}` ],
+        successExitCodes: getSuccessExitCodes(),
+        warningRegex: getWarningRegex(),
         description: "Guardian Initialize"
     });
 }
@@ -233,6 +264,8 @@ function runGuardianInstall(args : GuardianArguments, guardianTool : Transformer
         dependencies: guardianDependencies,
         outputs: [ guardianPaths.installLog ],
         acquireMutexes: [ guardianInstallMutex ],
+        successExitCodes: getSuccessExitCodes(),
+        warningRegex: getWarningRegex(),
         description: "Guardian Install"
     });
 }
@@ -298,12 +331,27 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         workingDirectory: args.guardianToolWorkingDirectory ? args.guardianToolWorkingDirectory : defaultGuardianToolWorkingDirectory,
         dependencies: guardianDependencies,
         outputs: outputs,
+        successExitCodes: getSuccessExitCodes(),
+        warningRegex: getWarningRegex(),
         description: "Guardian Run"
     });
 
     return result;
 }
 
+/**
+ * When the warnOnly flag is set, then exit code 1 will be considered a success exit code.
+ */
+function getSuccessExitCodes() : number[] {
+    return Environment.getFlag(guardianWarnOnlyFlag) ? [0, 1] : [0];
+}
+
+/**
+ * When the warnOnly flag is set, log Guardian errors as warnings using regex.
+ */
+function getWarningRegex() : string {
+    return Environment.getFlag(guardianWarnOnlyFlag) ? "\\[Error\\].*" : undefined;
+}
 
 /**
  * Set of guardian arguments. See notes on each argument for any special considerations that need to be

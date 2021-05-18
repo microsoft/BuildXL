@@ -33,6 +33,7 @@
 #include "FilesCheckedForAccess.h"
 
 #define BUILDXL_DETOURS_CREATE_PROCESS_RETRY_COUNT 5
+#define BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT 5
 #define BUILDXL_DETOURS_MS_TO_SLEEP 10
 #define BUILDXL_PRELOADED_DLLS_MAX_PATH 65536
 
@@ -586,8 +587,23 @@ InternalCreateDetouredProcess(
         }
 
         bool fullInheritHandles = bInheritHandles == TRUE && !(dwCreationFlags & EXTENDED_STARTUPINFO_PRESENT);
-        error = pInjector->InjectProcess(lpProcessInformation->hProcess, fullInheritHandles);
-        fProcDetoured = error == ERROR_SUCCESS;
+        nRetryCount = 0;
+
+        while (!fProcDetoured && (nRetryCount < BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT))
+        {
+            error = pInjector->InjectProcess(lpProcessInformation->hProcess, fullInheritHandles);
+            fProcDetoured = error == ERROR_SUCCESS;
+
+            // Retry for payload memcpy failure in process injector
+            if (error == ERROR_PARTIAL_COPY)
+            {
+                Sleep(BUILDXL_DETOURS_MS_TO_SLEEP + (nRetryCount * BUILDXL_DETOURS_MS_TO_SLEEP));
+                nRetryCount++;
+                continue;
+            }
+
+            break;
+        }
     }
 
     if ((fProcDetoured || !needsInjection) && fProcCreated) {

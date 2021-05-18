@@ -51,7 +51,10 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
             ),
         ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
     ],
-    runtimeContent: symstoreX64Libs    
+    runtimeContent: symstoreX64Libs,
+    internalsVisibleTo: [
+        "Test.Tool.SymbolDaemon",
+    ]
 });
 
 function getSymstoreX64Libs() : File[] {

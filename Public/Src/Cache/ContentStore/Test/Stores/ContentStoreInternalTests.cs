@@ -287,7 +287,7 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public Task PlaceReadOnly()
+        public virtual Task PlaceReadOnly()
         {
             var context = new Context(Logger);
             return TestStoreWithRandomContent(context, async (store, contentHash, bytes) =>
@@ -440,7 +440,7 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public Task PlaceCopyOverwriteReadOnly()
+        public virtual Task PlaceCopyOverwriteReadOnly()
         {
             var context = new Context(Logger);
             return TestStoreWithRandomContent(context, async (store, contentHash, bytes) =>
@@ -512,7 +512,7 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task OverwriteTests()
+        public virtual async Task OverwriteTests()
         {
             foreach (Tuple<FileRealizationMode, FileAccessMode> firstMode in GetModes())
             {

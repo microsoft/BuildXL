@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -36,6 +37,7 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Collections.TargetBlockExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
+using OperatingSystemHelper = BuildXL.Utilities.OperatingSystemHelper;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -1142,10 +1144,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 long contentSize;
 
                 var hasher = HashInfoLookup.GetContentHasher(hashType);
-                long length = stream.CanSeek ? stream.Length : -1;
-                using (var hashingStream = hasher.CreateReadHashingStream(length, stream))
+                long? length = stream.TryGetStreamLength();
+                using (var hashingStream = hasher.CreateReadHashingStream(length ?? -1, stream))
                 {
-                    pathToTempContent = await WriteToTemporaryFileAsync(context, hashingStream);
+                    pathToTempContent = await WriteToTemporaryFileAsync(context, hashingStream, length);
                     contentSize = FileSystem.GetFileSize(pathToTempContent);
                     contentHash = hashingStream.GetContentHash();
 
@@ -1273,7 +1275,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Writes the content stream to local disk in a temp directory under the store's root.
         ///     Marks the file as Read Only and sets ACL to deny file writes.
         /// </summary>
-        private async Task<AbsolutePath> WriteToTemporaryFileAsync(Context context, Stream inputStream)
+        internal async Task<AbsolutePath> WriteToTemporaryFileAsync(Context context, Stream inputStream, long? inputStreamLength)
         {
             AbsolutePath pathToTempContent = GetTemporaryFileName();
             FileSystem.CreateDirectory(pathToTempContent.GetParent());
@@ -1285,11 +1287,24 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             using (Stream tempFileStream = await FileSystem.OpenSafeAsync(pathToTempContent, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
             {
-                await inputStream.CopyToWithFullBufferAsync(tempFileStream, FileSystemConstants.FileIOBufferSize);
-                ApplyPermissions(context, pathToTempContent, FileAccessMode.ReadOnly);
+                TrySetStreamLength(tempFileStream, inputStreamLength);
+
+                using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
+                await inputStream.CopyToWithFullBufferAsync(tempFileStream, handle.Value);
+
+                ApplyPermissions(context, pathToTempContent, FileAccessMode.ReadOnly, setAllowAttributeWrites: false);
             }
 
             return pathToTempContent;
+        }
+
+        private void TrySetStreamLength(Stream stream, long? length)
+        {
+            if (length != null)
+            {
+                // if the length of the final file is known, setting it for performance reasons.
+                stream.SetLength(length.Value);
+            }
         }
 
         private async Task<ContentHashWithSize> HashContentAsync(Context context, StreamWithLength stream, HashType hashType, AbsolutePath path)
@@ -1301,12 +1316,12 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             catch (Exception e)
             {
-                _tracer.Error(context, e, "Error while hashing content.");
+                _tracer.Error(context, e, message: "Error while hashing content.");
                 throw;
             }
         }
 
-        internal void ApplyPermissions(Context context, AbsolutePath path, FileAccessMode accessMode)
+        internal void ApplyPermissions(Context context, AbsolutePath path, FileAccessMode accessMode, bool setAllowAttributeWrites = true)
         {
             using var trace = _tracer.ApplyPerms();
             if (accessMode == FileAccessMode.ReadOnly)
@@ -1339,7 +1354,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             // even if clearing potential Deny-WriteAttributes fails.  This is especially true
             // because in most cases where we're unable to clear those ACLs, we were probably
             // unable to set them in the first place.
-            if (!_applyDenyWriteAttributesOnContent)
+            //
+            // Don't need to allow attributes if 'setAllowAttributeWrites' is false (for instance, for temp files).
+            if (!_applyDenyWriteAttributesOnContent && setAllowAttributeWrites)
             {
                 try
                 {
@@ -2117,8 +2134,10 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                             using (Stream targetFileStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, fileMode, FileShare.Delete))
                             {
-                                await hashingStream.CopyToWithFullBufferAsync(
-                                    targetFileStream, FileSystemConstants.FileIOBufferSize);
+                                TrySetStreamLength(targetFileStream, contentStream.Value.Length);
+
+                                using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
+                                await hashingStream.CopyToWithFullBufferAsync(targetFileStream, handle.Value);
 
                                 ApplyPermissions(context, destinationPath, accessMode);
                             }

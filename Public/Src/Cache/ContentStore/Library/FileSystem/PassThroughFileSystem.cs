@@ -359,6 +359,12 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <inheritdoc />
         public Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
         {
+            return Task.FromResult(TryOpen(path, fileAccess, fileMode, share, options, bufferSize));
+        }
+
+        /// <inheritdoc />
+        public StreamWithLength? TryOpen(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        {
             path.ThrowIfPathTooLong();
 
             if (FileSystemConstants.UnsupportedFileModes.Contains(fileMode))
@@ -366,7 +372,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 throw new NotImplementedException($"The mode '{fileMode}' is not supported by the {nameof(PassThroughFileSystem)}.");
             }
 
-            return Task.FromResult(TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize));
+            return TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize);
         }
 
         /// <inheritdoc />

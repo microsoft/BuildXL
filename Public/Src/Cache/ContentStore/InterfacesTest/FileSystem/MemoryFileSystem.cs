@@ -631,11 +631,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 CreateDirectory(destinationPath.Parent);
 
                 var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
-                using (var writeStream = await this.OpenAsync(
-                    destinationPath, FileAccess.Write, mode, FileShare.Delete))
+                using (var writeStream = await this.OpenAsync(destinationPath, FileAccess.Write, mode, FileShare.Delete))
                 {
-                    await readStream.CopyToWithFullBufferAsync(
-                        writeStream, FileSystemConstants.FileIOBufferSize);
+                    await readStream.CopyToWithFullBufferAsync(writeStream, FileSystemConstants.FileIOBufferSize);
                 }
             }
         }

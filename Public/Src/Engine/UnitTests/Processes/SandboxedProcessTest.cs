@@ -1416,6 +1416,73 @@ namespace Test.BuildXL.Processes
             XAssert.IsTrue(observedAccesses.Contains(grandChildInput.Path), "Input file of grandchild process should have been observed");
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task VerifyOpenedFileOrDirectoryAttributesWithFiles()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true))
+            {
+                var pathTable = new PathTable();
+                var tempRootDir = AbsolutePath.Create(pathTable, tempFiles.RootDirectory);
+                var fileToBeCreated = tempFiles.GetUniqueFileName();
+                var fileToBeDeleted = tempFiles.GetUniqueFileName();
+                var arguments = $"/d /c echo test > {fileToBeCreated} & del {fileToBeDeleted}";
+
+                File.WriteAllText(fileToBeDeleted, "delete");
+
+                await ExecuteAndAssertOpenedFileOrDirectoryAttributeTest(isDirectory: false, tempRootDir, arguments, pathTable, tempFiles);
+            }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task VerifyOpenedFileOrDirectoryAttributesWithDirectories()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true))
+            {
+                var pathTable = new PathTable();
+                var tempRootDir = AbsolutePath.Create(pathTable, tempFiles.RootDirectory);
+                var directoryToBeCreated = tempFiles.GetUniqueDirectoryWithoutCreate();
+                var directoryToBeDeleted = tempFiles.GetUniqueDirectory();
+                var arguments = $"/d /c mkdir {directoryToBeCreated} & rmdir {directoryToBeDeleted}";
+
+                await ExecuteAndAssertOpenedFileOrDirectoryAttributeTest(isDirectory: true, tempRootDir, arguments, pathTable, tempFiles);
+            }
+        }
+
+        private async Task ExecuteAndAssertOpenedFileOrDirectoryAttributeTest(bool isDirectory, AbsolutePath tempRootDir, string cmdLineArguments, PathTable pathTable, TempFileStorage tempFiles)
+        {
+            var info =
+                new SandboxedProcessInfo(pathTable, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
+                {
+                    PipSemiStableHash = 0,
+                    PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                    Arguments = cmdLineArguments,
+                };
+
+            info.FileAccessManifest.AddScope(
+                AbsolutePath.Invalid,
+                FileAccessPolicy.MaskNothing,
+                FileAccessPolicy.AllowAll); // Ignore everything outside of the temp directory
+            info.FileAccessManifest.AddScope(
+                tempRootDir,
+                mask: FileAccessPolicy.MaskNothing,
+                values: FileAccessPolicy.AllowAll | FileAccessPolicy.ReportAccess); // explicitly report all accesses inside temp directory
+
+            var result = await RunProcess(info);
+            var fileAccesses = result.ExplicitlyReportedFileAccesses.ToList();
+
+            foreach (var access in fileAccesses)
+            {
+                if (isDirectory)
+                {
+                    Assert.True(access.IsOpenedHandleDirectory());
+                }
+                else
+                {
+                    Assert.False(access.IsOpenedHandleDirectory());
+                }
+            }
+        }
+
         private static ReportedFileAccess GetFileAccessForReadFileOperation(
             AbsolutePath path,
             ReportedProcess process,

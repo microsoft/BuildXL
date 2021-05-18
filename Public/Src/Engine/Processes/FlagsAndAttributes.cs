@@ -7,6 +7,17 @@ using System.Diagnostics.CodeAnalysis;
 namespace BuildXL.Processes
 {
     /// <summary>
+    /// Represents FlagsAndAttributes constants
+    /// </summary>
+    public class FlagsAndAttributesConstants
+    {
+        /// <summary>
+        /// Corresponds to INVALID_FILE_ATTRIBUTES constant.
+        /// </summary>
+        public static uint InvalidFileAttributes = uint.MaxValue;
+    }
+
+    /// <summary>
     /// The file or device attributes and flags
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1726:UsePreferredTerms", MessageId = "Flags")]

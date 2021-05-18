@@ -839,7 +839,7 @@ namespace BuildXL.Processes
         private bool ReportProvider(
             ref AccessReport report, out uint processId, out uint id, out uint correlationId, out ReportedFileOperation operation, out RequestedAccess requestedAccess, out FileAccessStatus status,
             out bool explicitlyReported, out uint error, out Usn usn, out DesiredAccess desiredAccess, out ShareMode shareMode, out CreationDisposition creationDisposition,
-            out FlagsAndAttributes flagsAndAttributes, out AbsolutePath manifestPath, out string path, out string enumeratePattern, out string processArgs, out string errorMessage)
+            out FlagsAndAttributes flagsAndAttributes, out FlagsAndAttributes openedFileOrDirectoryAttributes, out AbsolutePath manifestPath, out string path, out string enumeratePattern, out string processArgs, out string errorMessage)
         {
             var errorMessages = new List<string>();
             checked
@@ -867,16 +867,17 @@ namespace BuildXL.Processes
 
                 bool isWrite = (report.RequestedAccess & (byte)RequestedAccess.Write) != 0;
 
-                explicitlyReported  = report.ExplicitLogging > 0;
-                error               = report.Error;
-                usn                 = ReportedFileAccess.NoUsn;
-                desiredAccess       = isWrite ? DesiredAccess.GENERIC_WRITE : DesiredAccess.GENERIC_READ;
-                shareMode           = ShareMode.FILE_SHARE_READ;
-                creationDisposition = CreationDisposition.OPEN_ALWAYS;
-                flagsAndAttributes  = 0;
-                path                = report.DecodePath();
-                enumeratePattern    = string.Empty;
-                processArgs         = string.Empty;
+                explicitlyReported              = report.ExplicitLogging > 0;
+                error                           = report.Error;
+                usn                             = ReportedFileAccess.NoUsn;
+                desiredAccess                   = isWrite ? DesiredAccess.GENERIC_WRITE : DesiredAccess.GENERIC_READ;
+                shareMode                       = ShareMode.FILE_SHARE_READ;
+                creationDisposition             = CreationDisposition.OPEN_ALWAYS;
+                flagsAndAttributes              = 0;
+                openedFileOrDirectoryAttributes = 0;
+                path                            = report.DecodePath();
+                enumeratePattern                = string.Empty;
+                processArgs                     = string.Empty;
 
                 AbsolutePath.TryCreate(PathTable, path, out manifestPath);
 

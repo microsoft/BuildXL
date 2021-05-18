@@ -121,10 +121,11 @@ void ReportFileAccess(
     // policyResult.IsIndeterminate() ? 0 : policyResult.GetPathId() � 8 chars
     // filename separately added
     // filterStr separately added
+    // fileOrDirectoryAttribute � 8 chars
     // g_currentProcessCommandLine � separately added
     // 15 chars for | chars
     // 5 chars for �, �  � : � �\r� �\n� �\0� chars
-    // Total : 112 characters.
+    // Total : 120 characters.
 
     unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);
     assert(report.get());
@@ -146,7 +147,7 @@ void ReportFileAccess(
         std::replace(commandLine.begin(), commandLine.end(), L'\r', L' ');
         std::replace(commandLine.begin(), commandLine.end(), L'\n', L' ');
 
-        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
+        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
             ReportType::ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
@@ -161,6 +162,7 @@ void ReportFileAccess(
             fileOperationContext.ShareMode,
             fileOperationContext.CreationDisposition,
             fileOperationContext.FlagsAndAttributes,
+            fileOperationContext.OpenedFileOrDirectoryAttributes,
             policyResult.IsIndeterminate() ? 0 : policyResult.GetPathId(),
             fileName,
             filterStr,
@@ -168,7 +170,7 @@ void ReportFileAccess(
     }
     else
     {
-        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
+        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
             ReportType::ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
@@ -183,6 +185,7 @@ void ReportFileAccess(
             fileOperationContext.ShareMode,
             fileOperationContext.CreationDisposition,
             fileOperationContext.FlagsAndAttributes,
+            fileOperationContext.OpenedFileOrDirectoryAttributes,
             policyResult.IsIndeterminate() ? 0 : policyResult.GetPathId(),
             fileName,
             filterStr);

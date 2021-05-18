@@ -110,6 +110,7 @@ namespace BuildXL.Processes
             out ShareMode shareMode,
             out CreationDisposition creationDisposition,
             out FlagsAndAttributes flagsAndAttributes,
+            out FlagsAndAttributes openedFileOrDirectoryAttributes,
             out AbsolutePath absolutePath,
             out string path,
             out string enumeratePattern,
@@ -129,6 +130,7 @@ namespace BuildXL.Processes
             shareMode = ShareMode.FILE_SHARE_NONE;
             creationDisposition = 0;
             flagsAndAttributes = 0;
+            openedFileOrDirectoryAttributes = 0;
             absolutePath = AbsolutePath.Invalid;
             path = null;
             enumeratePattern = null;
@@ -155,7 +157,7 @@ namespace BuildXL.Processes
                 if (operation == ReportedFileOperation.Process)
                 {
                     // Make sure the formatting happens only if the condition is false.
-                    if (items.Length < 12)
+                    if (items.Length < 13)
                     {
                         errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= 12 items, Received {items.Length} items");
                         return false;
@@ -166,7 +168,7 @@ namespace BuildXL.Processes
                     // An ill behaved tool can try to do GetFileAttribute on a file with '|' char. This will result in a failure of the API, but we get a report for the access.
                     // Allow that by handling such case.
                     // In Office build there is a call to GetFileAttribute with a small xml document as a file name.
-                    if (items.Length < 12)
+                    if (items.Length < 13)
                     {
                         errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= 12 items, Received {items.Length} items");
                         return false;
@@ -186,6 +188,7 @@ namespace BuildXL.Processes
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var shareModeValue) &&
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var creationDispositionValue) &&
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var flagsAndAttributesValue) &&
+                    uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var openedFileOrDirectoryAttributesValue) &&
                     uint.TryParse(items[index++], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var absolutePathValue))
                 {
                     if (statusValue > (uint)FileAccessStatus.CannotDeterminePolicy)
@@ -207,6 +210,7 @@ namespace BuildXL.Processes
                     shareMode = (ShareMode)shareModeValue;
                     creationDisposition = (CreationDisposition)creationDispositionValue;
                     flagsAndAttributes = (FlagsAndAttributes)flagsAndAttributesValue;
+                    openedFileOrDirectoryAttributes = (FlagsAndAttributes)openedFileOrDirectoryAttributesValue;
                     absolutePath = new AbsolutePath(unchecked((int)absolutePathValue));
                     path = items[index++];
                     // Detours is only guaranteed to sent at least 12 items, so here (since we are at index 12), we must check if this item is included
@@ -260,6 +264,7 @@ namespace BuildXL.Processes
             ShareMode shareMode,
             CreationDisposition creationDisposition,
             FlagsAndAttributes flagsAndAttributes,
+            FlagsAndAttributes openedFileOrDirectoryAttributes,
             string absolutePath,
             [CanBeNull] string enumeratePattern,
             [CanBeNull] string processArgs)
@@ -281,6 +286,7 @@ namespace BuildXL.Processes
             result.Append($"{(uint)shareMode:x}|");
             result.Append($"{(uint)creationDisposition:x}|");
             result.Append($"{(uint)flagsAndAttributes:x}|");
+            result.Append($"{(uint)openedFileOrDirectoryAttributes:x}|");
             // The manifest path is always written as invalid
             result.Append($"{AbsolutePath.Invalid.Value.Value:x}|");
             result.Append(absolutePath);

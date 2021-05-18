@@ -121,6 +121,14 @@ namespace Test.BuildXL.TestUtilities
             return AbsolutePath.Create(pathTable, GetUniqueDirectory(prefix));
         }
 
+        /// <summary>
+        /// Gets a unique directory name without creating it.
+        /// </summary>
+        public string GetUniqueDirectoryWithoutCreate()
+        {
+            return GetDirectory(Guid.NewGuid().ToString(), skipCreate: true);
+        }
+
         private static int s_unique;
 
         /// <summary>
@@ -204,16 +212,16 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Gets a directory as a full path given a directory name.
         /// </summary>
-        public string GetDirectory(string directoryName)
+        public string GetDirectory(string directoryName, bool skipCreate = false)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(directoryName));
-            return GetDirectory(RootDirectory, directoryName);
+            return GetDirectory(RootDirectory, directoryName, skipCreate);
         }
 
         /// <summary>
         /// Gets a directory as a full path given a directory name.
         /// </summary>
-        public string GetDirectory(string directoryPath, string directoryName)
+        public string GetDirectory(string directoryPath, string directoryName, bool skipCreate = false)
         {
             Contract.Requires(ExistsDirectory(directoryPath));
             Contract.Requires(!string.IsNullOrWhiteSpace(directoryName));
@@ -230,7 +238,7 @@ namespace Test.BuildXL.TestUtilities
             {
                 FileUtilities.DeleteDirectoryContents(directory);
             }
-            else
+            else if (!skipCreate)
             {
                 Directory.CreateDirectory(directory);
             }

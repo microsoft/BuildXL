@@ -36,6 +36,7 @@ public:
     DWORD ShareMode;
     DWORD CreationDisposition;
     DWORD FlagsAndAttributes;
+    DWORD OpenedFileOrDirectoryAttributes;
     unsigned long Id;
     unsigned long CorrelationId;
  
@@ -52,6 +53,11 @@ public:
         ShareMode(dwShareMode),
         CreationDisposition(dwCreationDisposition),
         FlagsAndAttributes(dwFlagsAndAttributes),
+#if _WIN32
+        OpenedFileOrDirectoryAttributes(INVALID_FILE_ATTRIBUTES),
+#else
+        OpenedFileOrDirectoryAttributes(-1),
+#endif
         Id(GetNextId()),
         CorrelationId(NoId)
     {}

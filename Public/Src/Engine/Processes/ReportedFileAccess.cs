@@ -69,6 +69,11 @@ namespace BuildXL.Processes
         public readonly FlagsAndAttributes FlagsAndAttributes;
 
         /// <summary>
+        /// Computed attributes for this file or directory access.
+        /// </summary>
+        public readonly FlagsAndAttributes OpenedFileOrDirectoryAttributes;
+
+        /// <summary>
         /// Full path that was accessed. If this path is equivalent to <see cref="ManifestPath"/>, it is null.
         /// If it is not equivalent to <see cref="ManifestPath"/>, then this path is outside of the path table altogether
         /// (manifest absolute path is invalid) or refers to a descendant (i.e., the manifest path id was used in a scope rule).
@@ -159,6 +164,48 @@ namespace BuildXL.Processes
             ShareMode = shareMode;
             CreationDisposition = creationDisposition;
             FlagsAndAttributes = flagsAndAttributes;
+            OpenedFileOrDirectoryAttributes = (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes;
+            ManifestPath = manifestPath;
+            Path = path;
+            EnumeratePattern = enumeratePattern;
+            Method = fileAccessStatusMethod;
+        }
+
+        /// <summary>
+        /// Creates an instance from an absolute path
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1726:UsePreferredTerms", MessageId = "flags")]
+        public ReportedFileAccess(
+            ReportedFileOperation operation,
+            ReportedProcess process,
+            RequestedAccess requestedAccess,
+            FileAccessStatus status,
+            bool explicitlyReported,
+            uint error,
+            Usn usn,
+            DesiredAccess desiredAccess,
+            ShareMode shareMode,
+            CreationDisposition creationDisposition,
+            FlagsAndAttributes flagsAndAttributes,
+            FlagsAndAttributes openedFileOrDirectoryAttribute,
+            AbsolutePath manifestPath,
+            string path,
+            string enumeratePattern,
+            FileAccessStatusMethod fileAccessStatusMethod = FileAccessStatusMethod.PolicyBased)
+        {
+            Contract.Requires(process != null);
+            Operation = operation;
+            Process = process;
+            RequestedAccess = requestedAccess;
+            Status = status;
+            ExplicitlyReported = explicitlyReported;
+            Error = error;
+            Usn = usn;
+            DesiredAccess = desiredAccess;
+            ShareMode = shareMode;
+            CreationDisposition = creationDisposition;
+            FlagsAndAttributes = flagsAndAttributes;
+            OpenedFileOrDirectoryAttributes = openedFileOrDirectoryAttribute;
             ManifestPath = manifestPath;
             Path = path;
             EnumeratePattern = enumeratePattern;
@@ -471,6 +518,13 @@ namespace BuildXL.Processes
         public bool IsDirectoryCreationOrRemoval() => IsDirectoryCreation() || IsDirectoryRemoval();
 
         /// <summary>
+        /// Indicate whether the file handle that was opened for this operation was a directory using it's file attributes.
+        /// </summary>
+        public bool IsOpenedHandleDirectory() =>
+            OpenedFileOrDirectoryAttributes != (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes && 
+            OpenedFileOrDirectoryAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
+
+        /// <summary>
         /// Checks if this is a special device type of path for which we should not report a warning.
         /// Make it a verbose message, so it appears in the log (for diagnosability if there are problems with such access).
         /// </summary>
@@ -683,6 +737,70 @@ namespace BuildXL.Processes
                 shareMode,
                 creationDisposition,
                 flagsAndAttributes,
+                AbsolutePath.Invalid,
+                path,
+                enumeratePattern);
+        }
+
+        /// <summary>
+        /// Creates an instance from a full path, trying to look up a matching absolute path from the path table
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1726:UsePreferredTerms", MessageId = "flags")]
+        public static ReportedFileAccess Create(
+            ReportedFileOperation operation,
+            ReportedProcess process,
+            RequestedAccess requestedAccess,
+            FileAccessStatus status,
+            bool explicitlyReported,
+            uint error,
+            Usn usn,
+            DesiredAccess desiredAccess,
+            ShareMode shareMode,
+            CreationDisposition creationDisposition,
+            FlagsAndAttributes flagsAndAttributes,
+            FlagsAndAttributes openedFileOrDirectoryAttribute,
+            PathTable pathTable,
+            string path,
+            string enumeratePattern = null)
+        {
+            Contract.Requires(process != null);
+            Contract.Requires(pathTable != null);
+            Contract.Requires(path != null);
+
+            AbsolutePath absolutePath;
+            if (AbsolutePath.TryGet(pathTable, (StringSegment)path, out absolutePath))
+            {
+                return new ReportedFileAccess(
+                    operation,
+                    process,
+                    requestedAccess,
+                    status,
+                    explicitlyReported,
+                    error,
+                    usn,
+                    desiredAccess,
+                    shareMode,
+                    creationDisposition,
+                    flagsAndAttributes,
+                    openedFileOrDirectoryAttribute,
+                    absolutePath,
+                    null,
+                    enumeratePattern);
+            }
+
+            return new ReportedFileAccess(
+                operation,
+                process,
+                requestedAccess,
+                status,
+                explicitlyReported,
+                error,
+                usn,
+                desiredAccess,
+                shareMode,
+                creationDisposition,
+                flagsAndAttributes,
+                openedFileOrDirectoryAttribute,
                 AbsolutePath.Invalid,
                 path,
                 enumeratePattern);

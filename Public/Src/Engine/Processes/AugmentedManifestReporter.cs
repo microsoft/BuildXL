@@ -77,6 +77,7 @@ namespace BuildXL.Processes
             ShareMode shareMode,
             CreationDisposition creationDisposition,
             FlagsAndAttributes flagsAndAttributes,
+            FlagsAndAttributes openedFileOrDirectoryAttributes,
             string path,
             [CanBeNull]string enumeratePattern = null,
             [CanBeNull]string processArgs = null)
@@ -98,6 +99,7 @@ namespace BuildXL.Processes
                 shareMode,
                 creationDisposition,
                 flagsAndAttributes,
+                openedFileOrDirectoryAttributes,
                 path,
                 enumeratePattern,
                 processArgs);
@@ -128,6 +130,7 @@ namespace BuildXL.Processes
                     DesiredAccess.GENERIC_WRITE,
                     ShareMode.FILE_SHARE_NONE,
                     CreationDisposition.CREATE_ALWAYS,
+                    FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                     FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                     path,
                     enumeratePattern: null,
@@ -161,6 +164,7 @@ namespace BuildXL.Processes
                     ShareMode.FILE_SHARE_NONE,
                     CreationDisposition.OPEN_ALWAYS,
                     FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                    FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                     path,
                     enumeratePattern: null,
                     processArgs: null);
@@ -178,7 +182,8 @@ namespace BuildXL.Processes
             DesiredAccess desiredAccess, 
             ShareMode shareMode, 
             CreationDisposition creationDisposition, 
-            FlagsAndAttributes flagsAndAttributes, 
+            FlagsAndAttributes flagsAndAttributes,
+            FlagsAndAttributes openedFileOrDirectoryAttributes,
             string path, 
             string enumeratePattern, 
             string processArgs)
@@ -212,6 +217,7 @@ namespace BuildXL.Processes
                 shareMode,
                 creationDisposition,
                 flagsAndAttributes,
+                openedFileOrDirectoryAttributes,
                 fullPath,
                 enumeratePattern,
                 processArgs);

@@ -133,6 +133,11 @@ namespace BuildXL.Processes
             /// File flags and attributes.
             /// </summary>
             public FlagsAndAttributes FlagsAndAttributes { get; set; }
+
+            /// <summary>
+            /// Computed attributes for this file access.
+            /// </summary>
+            public FlagsAndAttributes OpenedFileOrDirectoryAttributes { get; set; }
             
             /// <summary>
             /// Path being accessed.

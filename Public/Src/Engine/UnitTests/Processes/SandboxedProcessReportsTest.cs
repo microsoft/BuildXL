@@ -20,9 +20,9 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void TestParseFileAccessReportLineFencePost()
         {
-            var line = "Process:1|1|0|0|1|1|1|1|1|1|1|1|1|1";
-            XAssert.AreEqual(14, line.Split('|').Length);
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var line = "Process:1|1|0|0|1|1|1|1|1|1|1|1|1|1|1";
+            XAssert.AreEqual(15, line.Split('|').Length);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsTrue(ok, error);
         }
 
@@ -40,6 +40,7 @@ namespace Test.BuildXL.Processes
                     ShareMode.FILE_SHARE_NONE,
                     CreationDisposition.OPEN_ALWAYS,
                     FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                    FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY,
                     "C:\\foo\\bar",
                     enumeratePattern: "*",
                     processArgs: "some args");
@@ -69,6 +70,7 @@ namespace Test.BuildXL.Processes
                 out var shareMode,
                 out var creationDisposition,
                 out var flags,
+                out var openedFileOrDirectoryAttributes,
                 out var absolutePath,
                 out var path,
                 out var enumeratePattern,
@@ -90,6 +92,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(ShareMode.FILE_SHARE_NONE, shareMode);
             XAssert.AreEqual(CreationDisposition.OPEN_ALWAYS, creationDisposition);
             XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, flags);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY, openedFileOrDirectoryAttributes);
             XAssert.AreEqual(AbsolutePath.Invalid, absolutePath);
             XAssert.AreEqual("C:\\foo\\bar", path);
             XAssert.AreEqual("*", enumeratePattern);

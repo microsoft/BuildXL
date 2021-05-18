@@ -336,6 +336,8 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(rfa1.ManifestPath, file1);
             XAssert.AreEqual(rfa1.Path, null);
             XAssert.AreEqual(A("t", "file1.txt"), rfa1.GetPath(pathTable));
+            XAssert.AreEqual(rfa1.OpenedFileOrDirectoryAttributes, (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes);
+            XAssert.IsFalse(rfa1.IsOpenedHandleDirectory());
 
             ReportedFileAccess rfa2 = ReportedFileAccess.Create(
                 ReportedFileOperation.CreateFile,
@@ -349,12 +351,15 @@ namespace Test.BuildXL.Processes
                 ShareMode.FILE_SHARE_NONE,
                 CreationDisposition.OPEN_ALWAYS,
                 FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY,
                 pathTable,
                 A("t", "file1.txt"));
             XAssert.AreEqual(rfa2.Status, FileAccessStatus.CannotDeterminePolicy);
             XAssert.AreEqual(rfa2.ManifestPath, file1);
             XAssert.AreEqual(rfa2.Path, null);
             XAssert.AreEqual(A("t", "file1.txt"), rfa2.GetPath(pathTable));
+            XAssert.AreEqual(rfa2.OpenedFileOrDirectoryAttributes, FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
+            XAssert.IsTrue(rfa2.IsOpenedHandleDirectory());
 
             ReportedFileAccess rfa3 = ReportedFileAccess.Create(
                 ReportedFileOperation.CreateFile,
@@ -368,12 +373,15 @@ namespace Test.BuildXL.Processes
                 ShareMode.FILE_SHARE_NONE,
                 CreationDisposition.OPEN_ALWAYS,
                 FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 pathTable,
                 A("t", "file2.txt"));
             XAssert.AreEqual(rfa3.Status, FileAccessStatus.Denied);
             XAssert.AreEqual(rfa3.ManifestPath, AbsolutePath.Invalid);
             XAssert.AreEqual(rfa3.Path, A("t", "file2.txt"));
             XAssert.AreEqual(A("t", "file2.txt"), rfa3.GetPath(pathTable));
-    }
+            XAssert.AreEqual(rfa3.OpenedFileOrDirectoryAttributes, FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL);
+            XAssert.IsFalse(rfa3.IsOpenedHandleDirectory());
+        }
     }
 }

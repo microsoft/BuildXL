@@ -17,10 +17,17 @@ const guardianUntrackedDirectories = addIfLazy(Context.getCurrentHost().os === "
     d`${Context.getMount("ProgramFilesX86").path}/dotnet`,
     d`${Context.getMount("ProgramFiles").path}/dotnet`,
     d`${Context.getMount("ProgramData").path}/Microsoft/NetFramework`,
+    d`${Context.getMount("ProgramData").path}/Microsoft/VisualStudio/Setup`,
     // Config files accessed by nuget during Guardian install phase
     d`${Context.getMount("ProgramFilesX86").path}/Nuget`,
     d`${Context.getMount("ProgramFiles").path}/Nuget`,
     d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`,
+    // Nuget artifacts credential provider
+    d`${Context.getMount("UserProfile").path}/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
+    d`${Context.getMount("UserProfile").path}/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
+    // Nuget will cache packages under ~/.nuget/packages, however they will always get copied over to the package install directory
+    // Since we track the package install directory, we will untrack the ~/.nuget/packages directory.
+    d`${Context.getMount("UserProfile").path}/.nuget/packages`,
 ]);
 
 /**
@@ -92,6 +99,10 @@ export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult
         // 0. Create a Guardian settings
         const genericSettingsFile = generateGenericGuardianSettingsFile(guardianPaths);
         const installSettingsFile = generateGuardianInstallSettingsFile(guardianPaths);
+
+        // TODO: remove workaround for policy packages
+        const policyMicrosoft = generateGuardianWorkaroundPackageFile(guardianPaths.microsoftDefaultPolicyPackageConfig, "Microsoft.Security.CodeAnalysis.Policy.Microsoft.Internal");
+        const policyNames = generateGuardianWorkaroundPackageFile(guardianPaths.policyNamesPackageConfig, "Microsoft.Security.CodeAnalysis.Policy.Names.Internal");
     
         // 1. Initialize Guardian for this Guardian run
         //      - Settings files from previous step not necessary here, can be run concurrently with the WriteFile operation.
@@ -100,7 +111,9 @@ export function runGuardian(args: GuardianArguments) : Transformer.ExecuteResult
         // Steps below this depend on the results of step 0 and step 1
         guardianDependencies = guardianDependencies.concat([
             f`${guardianPaths.globalSettings}`,
-            initializeResult.getOutputDirectory(d`${guardianPaths.localGuardianRepo}`)
+            initializeResult.getOutputDirectory(d`${guardianPaths.localGuardianRepo}`),
+            policyMicrosoft,
+            policyNames
         ]);
     
         // 2. Run Guardian Install phase
@@ -177,6 +190,8 @@ function createGuardianPaths(outputDirectory : Directory, packageDirectory : Dir
         localHistory: p`${outputDirectory}/.gdn/internal.gdnhistory`,
         globalHistory: p`${Context.getMount("SourceRoot").path}/.gdn/internal.gdnhistory`,
         installLog: f`${outputDirectory}/install`,
+        policyNamesPackageConfig: p`${outputDirectory}/buildxl_policy_names.gdnpackage`,
+        microsoftDefaultPolicyPackageConfig: p`${outputDirectory}/buildxl_policy_microsoft.gdnpackage`
     };
 }
 
@@ -214,6 +229,26 @@ function generateGuardianInstallSettingsFile(guardianPaths : GuardianPaths) : Fi
 }
 
 /**
+ * Generates a package config to workaround policy files not being installed with Guardian install.
+ * 
+ * TODO: Delete this function when Guardian bug 49258 is resolved
+ */
+function generateGuardianWorkaroundPackageFile(policyFilePath: Path, packageName : string) : File {
+    const packageConfig = {
+        type: "nuget",
+        name: packageName,
+        sources: [
+            {
+                name: "Guardian.Policy@Local",
+                value: "https://securitytools.pkgs.visualstudio.com/_packaging/Guardian.Policy%40Local/nuget/v3/index.json"
+            }
+        ]
+    };
+
+    return generateGuardianSettingsFile(policyFilePath, packageConfig, "Generate Guardian install policy file");
+}
+
+/**
  * Call Json SDK to write settings file.
  */
 function generateGuardianSettingsFile(outputPath : Path, settings : Object, description : string) : File {
@@ -221,7 +256,7 @@ function generateGuardianSettingsFile(outputPath : Path, settings : Object, desc
         pathRenderingOption: Context.getCurrentHost().os !== "win" ? "escapedBackSlashes" : "forwardSlashes"
     };
 
-    return Json.write(outputPath, settings, "\"", [guardianTag], "Generate Guardian install settings file", options);
+    return Json.write(outputPath, settings, "\"", [guardianTag], description, options);
 }
 
 /**
@@ -251,7 +286,9 @@ function runGuardianInstall(args : GuardianArguments, guardianTool : Transformer
         Cmd.argument("install"),
         Cmd.option("--settings-file ", settingsFile.path),
         Cmd.option("--config ", args.guardianConfigFile.path),
-        Cmd.option("--logger-filepath ", guardianPaths.installLog.path)
+        Cmd.option("--logger-filepath ", guardianPaths.installLog.path),
+        /** TODO: Remove this option */
+        Cmd.option("--package-config ", Cmd.join(" ", [guardianPaths.policyNamesPackageConfig, guardianPaths.microsoftDefaultPolicyPackageConfig]))
     ];
 
     guardianDependencies = guardianDependencies.push(settingsFile);
@@ -440,4 +477,9 @@ interface GuardianPaths {
     globalHistory: Path,
     /** intermediate Guardian install log file. */
     installLog: File,
+    /** TODO: Remove these two variables below when Guardian bug 49258 is resolved */
+    /** Path to be used for Microsoft.Security.CodeAnalysis.Policy.Names.Internal */
+    policyNamesPackageConfig: Path,
+    /** Path to be used for Microsoft.Security.CodeAnalysis.Policy.Microsoft.Internal */
+    microsoftDefaultPolicyPackageConfig: Path,
 }

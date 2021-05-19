@@ -38,6 +38,28 @@ Transformer.writeFile(
     },
     ["msguardian"]
 );
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "{\r\n  \"type\": \"nuget\",\r\n  \"name\": \"Microsoft.Security.CodeAnalysis.Policy.Microsoft.Internal\",\r\n  \"sources\": [\r\n    {\r\n      \"name\": \"Guardian.Policy@Local\",\r\n      \"value\": \"https://securitytools.pkgs.visualstudio.com/_packaging/Guardian.Policy%40Local/nuget/v3/index.json\"\r\n    }\r\n  ]\r\n}",
+        ],
+    },
+    ["msguardian"]
+);
+Transformer.writeFile(
+    f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "{\r\n  \"type\": \"nuget\",\r\n  \"name\": \"Microsoft.Security.CodeAnalysis.Policy.Names.Internal\",\r\n  \"sources\": [\r\n    {\r\n      \"name\": \"Guardian.Policy@Local\",\r\n      \"value\": \"https://securitytools.pkgs.visualstudio.com/_packaging/Guardian.Policy%40Local/nuget/v3/index.json\"\r\n    }\r\n  ]\r\n}",
+        ],
+    },
+    ["msguardian"]
+);
 Transformer.execute({
     tool: {exe: f`./path/to/guardian/guardian.cmd`},
     tags: ["msguardian"],
@@ -63,9 +85,13 @@ Transformer.execute({
             p`./path/to/ProgramFilesX86/dotnet`,
             p`./path/to/ProgramFiles/dotnet`,
             p`./path/to/ProgramData/Microsoft/NetFramework`,
+            p`./path/to/ProgramData/Microsoft/VisualStudio/Setup`,
             p`./path/to/ProgramFilesX86/Nuget`,
             p`./path/to/ProgramFiles/Nuget`,
             p`./LocalLow/Microsoft/CryptnetUrlCache`,
+            p`./UserProfile/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
+            p`./UserProfile/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
+            p`./UserProfile/.nuget/packages`,
             p`./path/to/guardian/packages`,
             p`\${Context.getMount('Windows').path}`,
             p`\${Context.getMount('InternetCache').path}`,
@@ -110,6 +136,25 @@ Transformer.execute({
                 items: ["--logger-filepath"],
             },
             p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`,
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--package-config"],
+            },
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: [
+                    {
+                        escaping: "NoEscaping",
+                        separator: " ",
+                        items: [
+                            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
+                            p`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
+                        ],
+                    },
+                ],
+            },
         ],
     },
     workingDirectory: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut`,
@@ -118,6 +163,8 @@ Transformer.execute({
         f`./path/to/src/.gdn`,
         f`./path/to/guardian/config/file`,
         f`./path/to/src/.gdn/.gdnsettings`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
         f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_install.gdnsettings`,
         d`./path/to/guardian`,
         d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/.gdn`,
@@ -139,9 +186,13 @@ Transformer.execute({
             p`./path/to/ProgramFilesX86/dotnet`,
             p`./path/to/ProgramFiles/dotnet`,
             p`./path/to/ProgramData/Microsoft/NetFramework`,
+            p`./path/to/ProgramData/Microsoft/VisualStudio/Setup`,
             p`./path/to/ProgramFilesX86/Nuget`,
             p`./path/to/ProgramFiles/Nuget`,
             p`./LocalLow/Microsoft/CryptnetUrlCache`,
+            p`./UserProfile/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
+            p`./UserProfile/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
+            p`./UserProfile/.nuget/packages`,
             p`./path/to/guardian/packages`,
             p`\${Context.getMount('Windows').path}`,
             p`\${Context.getMount('InternetCache').path}`,
@@ -213,6 +264,8 @@ Transformer.execute({
         f`./path/to/src/.gdn`,
         f`./path/to/guardian/config/file`,
         f`./path/to/src/.gdn/.gdnsettings`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_microsoft.gdnpackage`,
+        f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl_policy_names.gdnpackage`,
         f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/install`,
         f`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/guardianOut/buildxl.gdnsettings`,
         f`./file1`,
@@ -237,9 +290,13 @@ Transformer.execute({
             p`./path/to/ProgramFilesX86/dotnet`,
             p`./path/to/ProgramFiles/dotnet`,
             p`./path/to/ProgramData/Microsoft/NetFramework`,
+            p`./path/to/ProgramData/Microsoft/VisualStudio/Setup`,
             p`./path/to/ProgramFilesX86/Nuget`,
             p`./path/to/ProgramFiles/Nuget`,
             p`./LocalLow/Microsoft/CryptnetUrlCache`,
+            p`./UserProfile/.nuget/plugins/netfx/CredentialProvider.Microsoft`,
+            p`./UserProfile/.nuget/plugins/netcore/CredentialProvider.Microsoft`,
+            p`./UserProfile/.nuget/packages`,
             p`./path/to/guardian/packages`,
             p`\${Context.getMount('Windows').path}`,
             p`\${Context.getMount('InternetCache').path}`,

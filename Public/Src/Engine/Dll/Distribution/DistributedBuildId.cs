@@ -31,6 +31,9 @@ namespace BuildXL.Engine.Distribution
             Environment = environment;            
         }
 
+        /// <nodoc />
+        public override string ToString() => $"{RelatedActivityId}-{Environment}";
+
         #region Equals and hashcode
         /// <inheritdoc />
         public bool Equals(DistributedBuildId other) => RelatedActivityId == other.RelatedActivityId && Environment == other.Environment;

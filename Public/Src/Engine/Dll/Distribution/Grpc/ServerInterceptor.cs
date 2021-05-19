@@ -33,7 +33,7 @@ namespace BuildXL.Engine.Distribution
 
             if (m_buildId != senderBuildId)
             {
-                string failureMessage = $"The receiver and sender build ids do not match. Receiver build id: {m_buildId}. Sender build id: {senderBuildId}.";
+                string failureMessage = $"The receiver and sender build ids do not match. Receiver build id: {m_buildId}. Sender build id: {senderBuildId}";
                 Logger.Log.GrpcTrace(m_loggingContext, failureMessage);
                 throw new RpcException(
                     new Status(

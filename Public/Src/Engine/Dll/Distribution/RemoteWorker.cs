@@ -754,9 +754,9 @@ namespace BuildXL.Engine.Distribution
                 // We cannot send the pip build request as the connection has been lost with the worker. 
 
                 // When connection has been lost, the worker gets stopped and scheduler stops choosing that worker. 
-                // However, if the connection is lost after the worker is choosen 
+                // However, if the connection is lost after the worker is chosen 
                 // and before we add those build requests to blocking collection(m_buildRequests), 
-                // we will try to add the build request to the blocking colletion which is marked as completed 
+                // we will try to add the build request to the blocking collection which is marked as completed 
                 // It will throw InvalidOperationException. 
                 FailRemotePip(pipCompletionTask, $"Connection was lost. Was the worker ever available: {EverAvailable}");
                 return;

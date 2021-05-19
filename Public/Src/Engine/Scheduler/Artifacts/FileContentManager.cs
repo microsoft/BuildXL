@@ -1807,7 +1807,7 @@ namespace BuildXL.Scheduler.Artifacts
                             continue;
                         }
 
-                        AddFileMaterialization(state, file, directoryAllowReadOnlyOverride);
+                        AddFileMaterialization(state, file, directoryAllowReadOnlyOverride, sealDirMember: true);
                     }
                 }
                 else
@@ -1886,21 +1886,20 @@ namespace BuildXL.Scheduler.Artifacts
         /// <param name="allowReadOnlyOverride">specifies whether the file is allowed to be read-only. If not specified, the host is queried.</param>
         /// <param name="dependentFileIndex">the index of a file (in the list of materialized files) which requires the materialization of this file as
         /// a prerequisite (if any). This is used when restoring content into cache for a host materialized file (i.e. write file output).</param>
+        /// <param name="sealDirMember">Whether a file is a member of a sealed directory</param>
         private void AddFileMaterialization(
             PipArtifactsState state,
             FileArtifact file,
             bool? allowReadOnlyOverride,
-            int? dependentFileIndex = null)
+            int? dependentFileIndex = null,
+            bool sealDirMember = false)
         {
-            bool shouldMaterializeSourceFile = (IsDistributedWorker && SourceFileMaterializationEnabled);
-
-            if (file.IsSourceFile && !shouldMaterializeSourceFile)
+            var behavior = getBehavior();
+            if (behavior == AddFileMaterializationBehavior.Skip)
             {
-                // Only distributed workers need to verify/materialize source files
                 return;
             }
-
-            if (IsVirtualizationEnabled())
+            else if (behavior == AddFileMaterializationBehavior.Materialize && IsVirtualizationEnabled())
             {
                 m_fileVirtualizationStates.TryAdd(file, VirtualizationState.PendingVirtual);
             }
@@ -1946,6 +1945,30 @@ namespace BuildXL.Scheduler.Artifacts
                     allowReadOnly: allowReadOnlyOverride ?? AllowFileReadOnly(file),
                     materializationInfo: materializationInfo,
                     materializationCompletion: materializationCompletion);
+            }
+
+            AddFileMaterializationBehavior getBehavior()
+            {
+                if (file.IsSourceFile)
+                {
+                    // Only distributed workers need to verify/materialize source files
+                    if (IsDistributedWorker && SourceFileMaterializationEnabled)
+                    {
+                        return AddFileMaterializationBehavior.Materialize;
+                    }
+                    else if (IsDistributedWorker && !sealDirMember)
+                    {
+                        return AddFileMaterializationBehavior.Verify;
+                    }
+                    else
+                    {
+                        return AddFileMaterializationBehavior.Skip;
+                    }
+                }
+                else
+                {
+                    return AddFileMaterializationBehavior.Materialize;
+                }
             }
         }
 
@@ -3427,7 +3450,7 @@ namespace BuildXL.Scheduler.Artifacts
                     // Attempted to query the hash of a directory
                     // Case 1: For declared source files when TreatDirectoryAsAbsentFileOnHashingInputContent=true, we treat them as absent file hash
                     // Case 2: For declared source files when TreatDirectoryAsAbsentFileOnHashingInputContent=false, we return null and error
-                    // Case 3: For other files (namely paths under sealed source direcotories or outputs), we return null. Outputs will error. Paths under
+                    // Case 3: For other files (namely paths under sealed source directories or outputs), we return null. Outputs will error. Paths under
                     // sealed source directories will be handled by ObservedInputProcessor which will treat them as Enumeration/DirectoryProbe.
                     if (fileArtifact.IsSourceFile && declaredArtifact.IsFile)
                     {
@@ -4453,6 +4476,24 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 throw new BuildXLException(Message);
             }
+        }
+
+        private enum AddFileMaterializationBehavior
+        {
+            /// <summary>
+            /// Do not materialize a file
+            /// </summary>
+            Skip,
+
+            /// <summary>
+            /// Check that the file's hash matches the hash known by the FileContentManager.
+            /// </summary>
+            Verify,
+
+            /// <summary>
+            /// Materialize a file
+            /// </summary>
+            Materialize,
         }
     }
 }

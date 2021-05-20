@@ -118,7 +118,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 {
                     await EmitIcmAsync(
                         severity: _configuration.Environment.IsProduction() ? 2 : 3,
-                        title: $"Redis instances {primary.Name} and {secondary.Name} are in a failed state",
+                        title: $"Redis instances {_primaryRedisInstance.Name} and {_secondaryRedisInstance.Name} are in a failed state",
                         description: "Both instances fell into a failed state, permanently blocking autoscaling for their corresponding stamp. Please monitor it and open a Sev 2 IcM against the Windows Azure Cache team (https://aka.ms/redisicm) for support. After creating the incident, mark the current incident as mitigated. After they mitigate the incident you create, mark the current incident as resolved.",
                         machines: null,
                         correlationIds: null,

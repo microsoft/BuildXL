@@ -55,7 +55,10 @@ namespace BuildXL.Cache.Monitor.Library.IcM
             try
             {
                 var result = client.AddOrUpdateIncident2(_connectorId, incidentToSend, RoutingOptions.None);
-                if (result.Status != IncidentAddUpdateStatus.AddedNew)
+                if (result.Status != IncidentAddUpdateStatus.AddedNew &&
+                    // Discarded means that we're updating hit count or it was suppressed because it's too soon
+                    // since we updated hit count last and the incident is still active.
+                    result.Status != IncidentAddUpdateStatus.Discarded)
                 {
                     throw new Exception($"Result status does not indicate success: {result.Status}.");
                 }
@@ -77,7 +80,6 @@ namespace BuildXL.Cache.Monitor.Library.IcM
                 $"{incident.Description}" +
                 (incident.Machines is null ? string.Empty : $"\n\nMachines: {string.Join(", ", incident.Machines!)}\n") +
                 (incident.CorrelationIds is null ? string.Empty : $"\n\nCorrelation IDs: {string.Join(", ", incident.CorrelationIds!)}");
-
 
             return new AlertSourceIncident
             {
@@ -117,6 +119,7 @@ namespace BuildXL.Cache.Monitor.Library.IcM
                     }
                 },
                 Title = incident.Title,
+                CorrelationId = incident.Title, // For the purposes of the monitor, if an incident has the same title, it's a repeat.
             };
         }
     }

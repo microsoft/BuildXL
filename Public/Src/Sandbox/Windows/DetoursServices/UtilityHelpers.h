@@ -13,7 +13,15 @@ struct CaseInsensitiveStringComparer : public std::binary_function<std::wstring,
     bool operator()(const std::wstring& lhs, const std::wstring& rhs) const {
         if (lhs.length() == rhs.length()) {
             return std::equal(rhs.begin(), rhs.end(), lhs.begin(),
-                [](const wchar_t a, const wchar_t b) { return towlower(a) == towlower(b); });
+                [](const wchar_t a, const wchar_t b)
+                {
+                    if (a == b)
+                    {
+                        return true;
+                    }
+
+                    return towlower(a) == towlower(b);
+                });
         }
         else {
             return false;
@@ -31,8 +39,16 @@ struct CaseInsensitiveStringLessThan : public std::binary_function<std::wstring,
             // Paths in the same process tend to share a significant prefix in common. Starting backwards
             // has a better chance to hit a difference first
             auto result = std::lexicographical_compare(rhs.rbegin(), rhs.rend(), lhs.rbegin(), lhs.rend(),
-                [](const wchar_t a, const wchar_t b) { return towlower(a) < towlower(b); });
-            return result;
+                [](const wchar_t a, const wchar_t b)
+                {
+                    if (a == b)
+                    {
+                        return false;
+                    }
+
+                    return towlower(a) < towlower(b);
+                });
+           return result;
         }
         else
         {

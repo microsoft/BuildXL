@@ -39,9 +39,20 @@ using std::wstring;
 /// <summary>
 /// Checks if a file is a reparse point by calling <code>GetFileAttributesW</code>.
 /// </summary>
-static bool IsReparsePoint(_In_ LPCWSTR lpFileName)
+static bool IsReparsePoint(_In_ LPCWSTR lpFileName, _In_ HANDLE hFile)
 {
     DWORD lastError = GetLastError();
+    if (hFile != nullptr)
+    {
+        BY_HANDLE_FILE_INFORMATION fileInfo;
+        BOOL result = GetFileInformationByHandle(hFile, &fileInfo);
+        if (result)
+        {
+            SetLastError(lastError);
+            return (fileInfo.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+        }
+    }
+
     DWORD attributes;
     bool result = lpFileName != nullptr
         && ((attributes = GetFileAttributesW(lpFileName)) != INVALID_FILE_ATTRIBUTES)
@@ -55,12 +66,12 @@ static bool IsReparsePoint(_In_ LPCWSTR lpFileName)
 /// <summary>
 /// Gets reparse point type of a file name by querying <code>dwReserved0</code> field of <code>WIN32_FIND_DATA</code>.
 /// </summary>
-static DWORD GetReparsePointType(_In_ LPCWSTR lpFileName)
+static DWORD GetReparsePointType(_In_ LPCWSTR lpFileName, _In_ HANDLE hFile)
 {
     DWORD ret = 0;
     DWORD lastError = GetLastError();
 
-    if (IsReparsePoint(lpFileName))
+    if (IsReparsePoint(lpFileName, hFile))
     {
         WIN32_FIND_DATA findData;
 
@@ -97,9 +108,10 @@ static bool FlagsAndAttributesContainReparsePointFlag(_In_ DWORD dwFlagsAndAttri
 /// </summary>
 static bool AccessReparsePointTarget(
     _In_     LPCWSTR               lpFileName,
-    _In_     DWORD                 dwFlagsAndAttributes)
+    _In_     DWORD                 dwFlagsAndAttributes,
+    _In_     HANDLE                hFile)
 {
-    return IsReparsePoint(lpFileName) && !FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes);
+    return !FlagsAndAttributesContainReparsePointFlag(dwFlagsAndAttributes) && IsReparsePoint(lpFileName, hFile);
 }
 
 /// <summary>
@@ -280,6 +292,13 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 /// </summary>
 static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
 {
+    // This is an I/O operation to get the file attributes, but it ends up being faster than checking the cache first.
+    // As tested by a pip that creates 100k symlinks and a full build containing a variety of pips.
+    if (!IsReparsePoint(path.c_str(), hInput))
+    {
+        return false;
+    }
+
     HANDLE hFile = INVALID_HANDLE_VALUE;
     DWORD lastError = GetLastError();
     DWORD reparsePointType = 0;
@@ -407,7 +426,7 @@ static bool ShouldResolveReparsePointsInPath(
 
     if (IgnoreFullReparsePointResolving())
     {
-        return AccessReparsePointTarget(path.GetPathString(), dwFlagsAndAttributes);
+        return AccessReparsePointTarget(path.GetPathString(), dwFlagsAndAttributes, INVALID_HANDLE_VALUE);
     }
 
     // BuildXL can delete file by opening a handle using 'FILE_FLAG_DELETE_ON_CLOSE' attribute or 'DELETE' access (Posix delete).
@@ -710,7 +729,7 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
             break;
         }
 
-        if (GetReparsePointType(result.c_str()) == IO_REPARSE_TAG_SYMLINK)
+        if (GetReparsePointType(result.c_str(), INVALID_HANDLE_VALUE) == IO_REPARSE_TAG_SYMLINK)
         {
             // Prefix path is a directory symlink.
             // For example, C:\P1\P2 is a directory symlink.
@@ -1520,7 +1539,7 @@ static bool EnforceChainOfReparsePointAccessesForNonCreateFile(
     {
         CanonicalizedPath canonicalPath = CanonicalizedPath::Canonicalize(fileOperationContext.NoncanonicalPath);
 
-        if (IsReparsePoint(canonicalPath.GetPathString()))
+        if (IsReparsePoint(canonicalPath.GetPathString(), INVALID_HANDLE_VALUE))
         {
             bool accessResult = EnforceChainOfReparsePointAccesses(
                 canonicalPath,
@@ -3571,7 +3590,7 @@ BOOL WINAPI Detoured_CopyFileExW(
         return FALSE;
     }
 
-    if ((!copySymlink || !IsReparsePoint(lpExistingFileName)) && IsReparsePoint(lpNewFileName))
+    if ((!copySymlink || !IsReparsePoint(lpExistingFileName, INVALID_HANDLE_VALUE)) && IsReparsePoint(lpNewFileName, INVALID_HANDLE_VALUE))
     {
         // If not copying symlink or the source of copy is not a symlink
         // but the destination of the copy is a symlink, then enforce chain of reparse point.

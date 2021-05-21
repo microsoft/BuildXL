@@ -4,6 +4,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <shared_mutex>
 #include <vector>
 
@@ -19,7 +20,15 @@ enum class ResolvedPathType
     FullyResolved // Identifies the fully resolved path that does not contain any reparse point parts anymore
 };
 
-typedef std::pair<std::vector<std::wstring>, std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> ResolvedPathCacheEntries;
+template<typename K> struct Possible
+{
+    bool Found;
+    K Value;
+};
+
+// Shared pointers are used because keeping the actual objects in the map either results in copying, or getting pointers to the map memory which can become invalid when the map is changed.
+// Raw pointers are not used because the creation of the object is in a different location than the removal/destruction of the object, and it is hard to know when the last reference will be gone.
+typedef std::pair<std::shared_ptr<std::vector<std::wstring>>, std::shared_ptr<std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>> ResolvedPathCacheEntries;
 
 static CaseInsensitiveStringLessThan caseInsensitiveLessThan = CaseInsensitiveStringLessThan();
 
@@ -63,7 +72,7 @@ public:
         return m_resolverCache.emplace(normalizedPath, result).second;
     }
 
-    inline const bool* GetResolvingCheckResult(const std::wstring& path)
+    inline const Possible<bool> GetResolvingCheckResult(const std::wstring& path)
     {
         return Find(m_resolverCache, Normalize(path));
     }
@@ -85,7 +94,7 @@ public:
         return m_targetCache.emplace(normalizedPath, std::make_pair(resolved, type)).second;
     }
 
-    inline const std::pair<std::wstring, DWORD>* GetResolvedPathAndType(const std::wstring& path)
+    inline const Possible<std::pair<std::wstring, DWORD>> GetResolvedPathAndType(const std::wstring& path)
     {
         return Find(m_targetCache, Normalize(path));
     }
@@ -93,8 +102,8 @@ public:
     inline bool InsertResolvedPaths(
         const std::wstring& path,
         bool preserveLastReparsePointInPath,
-        std::vector<std::wstring>&& insertion_order,
-        std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>&& resolved_paths)
+        std::shared_ptr<std::vector<std::wstring>>& insertion_order,
+        std::shared_ptr<std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>& resolved_paths)
     {
         ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
         if (!w_lock.owns_lock())
@@ -109,7 +118,7 @@ public:
             return false;
         }
 
-        for (auto iter = resolved_paths.begin(); iter != resolved_paths.end(); ++iter)
+        for (auto iter = resolved_paths->begin(); iter != resolved_paths->end(); ++iter)
         {
             if (!m_pathTree.TryInsert(Normalize(iter->first)))
             {
@@ -120,7 +129,7 @@ public:
         return m_paths.emplace(std::make_pair(normalizedPath, preserveLastReparsePointInPath), std::make_pair(insertion_order, resolved_paths)).second;
     }
 
-    inline const ResolvedPathCacheEntries* GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
+    inline const Possible<ResolvedPathCacheEntries> GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
     {
         return Find(m_paths, std::make_pair(Normalize(path), preserveLastReparsePointInPath));
     }
@@ -162,7 +171,7 @@ public:
         {
             ++it_next;
             auto mappings = it->second.second;
-            if (mappings.find(path) != mappings.end())
+            if (mappings->find(path) != mappings->end())
             {
                 m_paths.erase(it);
             }
@@ -181,18 +190,21 @@ public:
     }
 
 private:
+    // Find should not return a pointer, as that memory can become invalid if a different thread adds/removes from the map.
+    // Instead, the value store in the map should be a pointer so that the memory isn't copied.
     template<typename K, typename V, typename C>
-    const V* Find(const std::map<K, V, C>& map, const K& path)
+    const Possible<V> Find(std::map<K, V, C>& map, const K& path)
     {
         ResolvedPathCacheReadLock r_lock(m_lock);
-
         auto iter = map.find(path);
-        if (iter != map.end())
+        Possible<V> p;
+        p.Found = iter != map.end();
+        if (p.Found)
         {
-            return &iter->second;
+            p.Value = iter->second;
         }
 
-        return nullptr;
+        return p;
     }
 
     // CanonicalPath does not canonicalize trailing slashes for directories

@@ -168,11 +168,13 @@ static void PathCache_Invalidate(const std::wstring& path, bool isDirectory)
     ResolvedPathCache::Instance().Invalidate(path, isDirectory);
 }
 
-static const std::pair<std::wstring, DWORD>* PathCache_GetResolvedPathAndType(const std::wstring& path)
+static const Possible<std::pair<std::wstring, DWORD>> PathCache_GetResolvedPathAndType(const std::wstring& path)
 {
     if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
     {
-        return nullptr;
+        Possible<std::pair<std::wstring, DWORD>> p;
+        p.Found = false;
+        return p;
     }
 
     return ResolvedPathCache::Instance().GetResolvedPathAndType(path);
@@ -188,11 +190,13 @@ static bool PathCache_InsertResolvedPathWithType(const std::wstring& path, std::
     return ResolvedPathCache::Instance().InsertResolvedPathWithType(path, resolved, reparsePointType);
 }
 
-static const bool* PathCache_GetResolvingCheckResult(const std::wstring& path)
+static const Possible<bool> PathCache_GetResolvingCheckResult(const std::wstring& path)
 {
     if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
     {
-        return nullptr;
+        Possible<bool> p;
+        p.Found = false;
+        return p;
     }
 
     return ResolvedPathCache::Instance().GetResolvingCheckResult(path);
@@ -211,22 +215,24 @@ static bool PathCache_InsertResolvingCheckResult(const std::wstring& path, bool 
 static bool PathCache_InsertResolvedPaths(
     const std::wstring& path,
     bool preserveLastReparsePointInPath,
-    std::vector<std::wstring>& insertionOrder,
-    std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>& resolvedPaths)
+    std::shared_ptr<std::vector<std::wstring>>& insertionOrder,
+    std::shared_ptr<std::map<std::wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>& resolvedPaths)
 {
     if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
     {
         return true;
     }
 
-    return ResolvedPathCache::Instance().InsertResolvedPaths(path, preserveLastReparsePointInPath, std::move(insertionOrder), std::move(resolvedPaths));
+    return ResolvedPathCache::Instance().InsertResolvedPaths(path, preserveLastReparsePointInPath, insertionOrder, resolvedPaths);
 }
 
-static const ResolvedPathCacheEntries* PathCache_GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
+static const Possible<ResolvedPathCacheEntries> PathCache_GetResolvedPaths(const std::wstring& path, bool preserveLastReparsePointInPath)
 {
     if (IgnoreReparsePoints() || IgnoreFullReparsePointResolving())
     {
-        return nullptr;
+        Possible<ResolvedPathCacheEntries> p;
+        p.Found = false;
+        return p;
     }
 
     return ResolvedPathCache::Instance().GetResolvedPaths(path, preserveLastReparsePointInPath);
@@ -281,15 +287,15 @@ static bool TryGetReparsePointTarget(_In_ const wstring& path, _In_ HANDLE hInpu
     bool status = false;
 
     auto io_result = PathCache_GetResolvedPathAndType(path);
-    if (io_result != nullptr)
+    if (io_result.Found)
     {
 
 #if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
         InterlockedIncrement(&g_reparsePointTargetCacheHitCount);
 #endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
 
-        target = io_result->first;
-        reparsePointType = io_result->second;
+        target = io_result.Value.first;
+        reparsePointType = io_result.Value.second;
         if (reparsePointType == 0x0)
         {
             goto Epilogue;
@@ -421,12 +427,12 @@ static bool ShouldResolveReparsePointsInPath(
     }
 
     auto result = PathCache_GetResolvingCheckResult(path.GetPathStringWithoutTypePrefix());
-    if (result != nullptr)
+    if (result.Found)
     {
 #if MEASURE_REPARSEPOINT_RESOLVING_IMPACT
         InterlockedIncrement(&g_shouldResolveReparsePointCacheHitCount);
 #endif // MEASURE_REPARSEPOINT_RESOLVING_IMPACT
-        return *result;
+        return result.Value;
     }
 
     std::vector<std::wstring> atoms;
@@ -785,10 +791,10 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 /// <summary>
 /// Gets chains of the paths leading to and including the final path given the file name.
 /// </summary>
-static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& order, _Inout_ map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>& finalPaths)
+static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ std::shared_ptr<vector<wstring>>& order, _Inout_ std::shared_ptr<map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>& finalPaths)
 {
-    order.push_back(path.GetPathString());
-    finalPaths.emplace(path.GetPathString(), ResolvedPathType::Intermediate);
+    order->push_back(path.GetPathString());
+    finalPaths->emplace(path.GetPathString(), ResolvedPathType::Intermediate);
 
     wstring nextPath;
 
@@ -1199,8 +1205,8 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     auto normalized = std::make_unique<wchar_t[]>(_MAX_EXTENDED_PATH_LENGTH);
     const wchar_t* input = (wchar_t*)path.GetPathStringWithoutTypePrefix();
 
-    vector<wstring> order;
-    map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan> resolvedPaths;
+    std::shared_ptr<vector<wstring>> order = std::make_shared<vector<wstring>>();
+    std::shared_ptr< map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> resolvedPaths = std::make_shared<map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>();
 
     while (true)
     {
@@ -1240,8 +1246,8 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
             bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
             if (!foundReparsePoint && result && !isFilteredPath)
             {
-                order.push_back(resolved);
-                resolvedPaths.emplace(resolved, ResolvedPathType::Intermediate);
+                order->push_back(resolved);
+                resolvedPaths->emplace(resolved, ResolvedPathType::Intermediate);
 
                 success &= EnforceReparsePointAccess(
                     resolved,
@@ -1304,8 +1310,8 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         {
             // The last part is a reparse point, resolve it and repeat the resolving, re-running the outer while loop
             // is ok as each resolving step is cached from previous resolution steps
-            order.push_back(resolved);
-            resolvedPaths.emplace(resolved, ResolvedPathType::Intermediate);
+            order->push_back(resolved);
+            resolvedPaths->emplace(resolved, ResolvedPathType::Intermediate);
 
             success &= EnforceReparsePointAccess(
                 resolved,
@@ -1352,8 +1358,8 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
                     resolvedPath->assign(input);
                 }
 
-                order.push_back(input);
-                resolvedPaths.emplace(input, ResolvedPathType::FullyResolved);
+                order->push_back(input);
+                resolvedPaths->emplace(input, ResolvedPathType::FullyResolved);
 
                 if (enforceAccessForResolvedPath)
                 {
@@ -1414,27 +1420,25 @@ static bool EnforceChainOfReparsePointAccesses(
         return true;
     }
 
+
     bool cached = true;
-    const ResolvedPathCacheEntries* cachedEntries = PathCache_GetResolvedPaths(
+    const Possible<ResolvedPathCacheEntries> cachedEntries = PathCache_GetResolvedPaths(
         path.GetPathStringWithoutTypePrefix(),
         preserveLastReparsePoint);
 
-    const vector<wstring>* cachedOrder = nullptr;
-    const map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>* resolvedLookUpTable = nullptr;
-    vector<wstring> order;
-    map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan> paths;
+    std::shared_ptr<vector<wstring>> cachedOrder = nullptr;
+    std::shared_ptr<map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> resolvedLookUpTable = nullptr;
+    std::shared_ptr <vector<wstring>> order;
+    std::shared_ptr <map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> paths;
 
-    if (cachedEntries == nullptr)
+    if (!cachedEntries.Found)
     {
         if (IgnoreFullReparsePointResolving())
         {
-            order = vector<wstring>();
-            paths = map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>();
+            cachedOrder = std::make_shared<vector<wstring>>();
+            resolvedLookUpTable = std::make_shared <map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>();
 
-            DetourGetFinalPaths(path, reparsePointHandle, order, paths);
-
-            cachedOrder = &order;
-            resolvedLookUpTable = &paths;
+            DetourGetFinalPaths(path, reparsePointHandle, cachedOrder, resolvedLookUpTable);
             cached = false;
         }
         else
@@ -1455,8 +1459,8 @@ static bool EnforceChainOfReparsePointAccesses(
     }
     else
     {
-        cachedOrder = &(cachedEntries->first);
-        resolvedLookUpTable = &(cachedEntries->second);
+        cachedOrder = cachedEntries.Value.first;
+        resolvedLookUpTable = cachedEntries.Value.second;
     }
 
 #if MEASURE_REPARSEPOINT_RESOLVING_IMPACT

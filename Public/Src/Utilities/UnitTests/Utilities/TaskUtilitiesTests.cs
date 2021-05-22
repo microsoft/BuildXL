@@ -102,17 +102,15 @@ namespace Test.BuildXL.Utilities
             catch (OperationCanceledException) { }
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(true)]
-        public async Task SafeWhenAllPropagatesBothExceptions(bool wrapSingleException)
+        [Fact]
+        public async Task SafeWhenAllPropagatesBothExceptions()
         {
             var task1 = Task.Run(() => throw new ApplicationException("1"));
             var task2 = Task.Run(() => throw new ApplicationException("2"));
 
             try
             {
-                await TaskUtilities.SafeWhenAll(new[] {task1, task2}, wrapSingleException);
+                await TaskUtilities.SafeWhenAll(new[] { task1, task2 });
                 Assert.True(false, "The method should fail");
             }
             catch (AggregateException e)
@@ -124,13 +122,12 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public async Task SafeWhenAllPropagatesSingleExceptionIfWrapSingleExceptionIsFalse()
+        public Task SafeWhenAllWrapsSingleExceptionInAggregateException()
         {
             var task1 = Task.Run(() => throw new ApplicationException("1"));
 
             var task2 = Task.CompletedTask;
-            await XAssert.ThrowsAnyAsync<AggregateException>(async() => await TaskUtilities.SafeWhenAll(new[] { task1, task2 }, wrapSingleException: true));
-            await XAssert.ThrowsAnyAsync<ApplicationException>(async () => await TaskUtilities.SafeWhenAll(new[] { task1, task2 }, wrapSingleException: false));
+            return XAssert.ThrowsAnyAsync<AggregateException>(async () => await TaskUtilities.SafeWhenAll(new[] { task1, task2 }));
         }
 
         [Fact]

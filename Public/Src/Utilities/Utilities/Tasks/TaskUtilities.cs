@@ -37,37 +37,75 @@ namespace BuildXL.Utilities.Tasks
 
         /// <summary>
         /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
-        /// propagated back through a single AggregateException. This is necessary because the default awaiter
-        /// (as used by 'await') only takes the *first* exception inside of a task's aggregate exception.
-        /// All BuildXL code should use this method instead of the standard WhenAll.
+        /// propagated back through a single <see cref="AggregateException"/>. This is necessary because
+        /// the default awaiter (as used by 'await') only takes the *first* exception inside of a task's
+        /// aggregate exception. All BuildXL code should use this method instead of the standard WhenAll.
         /// </summary>
-        public static async Task SafeWhenAll(IEnumerable<Task> tasks, bool wrapSingleException = true)
+        /// <exception cref="System.AggregateException">Thrown when any of the tasks failed.</exception>
+        public static async Task SafeWhenAll(IEnumerable<Task> tasks)
         {
             Contract.Requires(tasks != null);
 
             var whenAllTask = Task.WhenAll(tasks);
-            
-            // 'WhenAll' is not very 'async/await' friendly, but in some cases the original behavior is good:
-            // If there is only one error it doesn't make any sense to wrap it in two AggregateExceptions.
-            // So we can just 're-throw' an original exception without any changes.
-            // But if more than one task failed, than we can wrap the error into a separate AggregateException.
+
             try
             {
                 await whenAllTask;
             }
             catch
             {
-                var exception = whenAllTask.Exception;
-                if (exception!.InnerExceptions.Count == 1 && !wrapSingleException)
+                if (whenAllTask.Exception != null)
                 {
-                    // Just propagate a single error but only when a flag to wrap a single exception is not set.
-                    throw;
+                    // Rethrowing the error preserving the stack trace.
+                    ExceptionDispatchInfo.Capture(whenAllTask.Exception).Throw();
                 }
 
-                // More than one error occurred, re-throw 'AggregateException' and wrap it into another AggregateException instance.
-                ExceptionDispatchInfo.Capture(exception).Throw();
-                throw; // This line is unreachable.
+                // whenAllTask is in the canceled state, we caught TaskCancelledException
+                throw;
             }
+        }
+
+        /// <summary>
+        /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
+        /// propagated back through a single <see cref="AggregateException"/>. This is necessary because
+        /// the default awaiter (as used by 'await') only takes the *first* exception inside of a task's
+        /// aggregate exception. All BuildXL code should use this method instead of the standard WhenAll.
+        /// </summary>
+        /// <exception cref="System.AggregateException">Thrown when any of the tasks failed.</exception>
+        public static async Task<TResult[]> SafeWhenAll<TResult>(IEnumerable<Task<TResult>> tasks)
+        {
+            Contract.RequiresNotNull(tasks);
+
+            var whenAllTask = Task.WhenAll(tasks);
+            try
+            {
+                return await whenAllTask;
+            }
+            catch
+            {
+                if (whenAllTask.Exception != null)
+                {
+                    // Rethrowing the error preserving the stack trace.
+                    ExceptionDispatchInfo.Capture(whenAllTask.Exception).Throw();
+                }
+
+                // whenAllTask is in the canceled state, we caught TaskCancelledException
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
+        /// propagated back through a single <see cref="AggregateException"/>. This is necessary because
+        /// the default awaiter (as used by 'await') only takes the *first* exception inside of a task's
+        /// aggregate exception. All BuildXL code should use this method instead of the standard WhenAll.
+        /// </summary>
+        /// <exception cref="System.AggregateException">Thrown when any of the tasks failed.</exception>
+        public static Task<TResult[]> SafeWhenAll<TResult>(params Task<TResult>[] tasks)
+        {
+            Contract.Requires(tasks != null);
+
+            return SafeWhenAll((IEnumerable<Task<TResult>>)tasks);
         }
 
         /// <summary>
@@ -78,9 +116,9 @@ namespace BuildXL.Utilities.Tasks
         {
             // If one of the tasks passed here fails, we want to make sure that the task created by 'Task.WhenAll(tasks)' is observed
             // in order to avoid unobserved task errors.
-            
+
             var whenAllTask = Task.WhenAll(tasks);
-            
+
             var completedTask = await Task.WhenAny(
                 Task.Delay(Timeout.InfiniteTimeSpan, token),
                 whenAllTask);
@@ -147,30 +185,6 @@ namespace BuildXL.Utilities.Tasks
             void IDisposable.Dispose()
             {
                 m_registration?.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// This is a variant of Task.WhenAll which ensures that all exceptions thrown by the tasks are
-        /// propagated back through a single AggregateException. This is necessary because the default awaiter
-        /// (as used by 'await') only takes the *first* exception inside of a task's aggregate exception.
-        /// All BuildXL code should use this method instead of the standard WhenAll.
-        /// </summary>
-        public static async Task<TResult[]> SafeWhenAll<TResult>(IEnumerable<Task<TResult>> tasks)
-        {
-            Contract.RequiresNotNull(tasks);
-
-            var whenAllTask = Task.WhenAll(tasks);
-            try
-            {
-                return await whenAllTask;
-            }
-            catch
-            {
-                if (whenAllTask.Exception != null)
-                    throw whenAllTask.Exception;
-                else
-                    throw;
             }
         }
 
@@ -522,7 +536,7 @@ namespace BuildXL.Utilities.Tasks
         /// </param>
         /// <param name="period">Period at which to call <paramref name="action"/>.</param>
         /// <param name="reportImmediately">Whether <paramref name="action"/> should be called immediately.</param>
-        /// <returns>The results of inidvidual tasks.</returns>
+        /// <returns>The results of individual tasks.</returns>
         public static async Task<TResult[]> AwaitWithProgressReporting<TItem, TResult>(
             IReadOnlyCollection<TItem> collection,
             Func<TItem, Task<TResult>> taskSelector,

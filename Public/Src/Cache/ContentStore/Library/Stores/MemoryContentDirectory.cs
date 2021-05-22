@@ -26,6 +26,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -284,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     entriesRemaining -= chunkCount;
                 }
 
-                await TaskSafetyHelpers.WhenAll(tasks);
+                await TaskUtilities.SafeWhenAll(tasks);
                 Contract.Assert(startIndex == entries.Length);
             }
         }
@@ -474,7 +475,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         entriesRemaining -= chunkCount;
                     }
 
-                    await TaskSafetyHelpers.WhenAll(tasks);
+                    await TaskUtilities.SafeWhenAll(tasks);
 
                     Tracer.Debug(context, $"{Name}({path}): Loaded content directory with {entries.Count} entries by {sw.ElapsedMilliseconds}ms: TotalContentSize={totalSize}, TotalUniqueSize={totalUniqueSize}, TotalReplicaCount={totalReplicaCount}, OldestContentTime={DateTime.FromFileTimeUtc(oldestContentAccessTimeUtc)}.");
 

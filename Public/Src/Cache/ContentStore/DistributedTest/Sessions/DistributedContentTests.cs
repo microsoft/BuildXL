@@ -34,6 +34,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
@@ -135,7 +136,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)
             {
-                var startupResults = await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) =>
+                var startupResults = await TaskUtilities.SafeWhenAll(Servers.Select(async (server, index) =>
                 {
                     if (index == storeToStartupLast)
                     {
@@ -153,7 +154,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 }
 
                 Sessions = Stores.Select((store, id) => store.CreateSession(Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
-                await TaskSafetyHelpers.WhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
+                await TaskUtilities.SafeWhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
             }
 
             protected static string GetSessionName(int id, string buildId) =>
@@ -163,7 +164,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public virtual async Task ShutdownAsync()
             {
-                await TaskSafetyHelpers.WhenAll(
+                await TaskUtilities.SafeWhenAll(
                     Sessions.Select(async (session, index) =>
                     {
                         if (!session.ShutdownCompleted)
@@ -187,7 +188,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             protected virtual async Task ShutdownStoresAsync()
             {
-                await TaskSafetyHelpers.WhenAll(
+                await TaskUtilities.SafeWhenAll(
                     Servers.Select(
                         async (server, index) =>
                         {

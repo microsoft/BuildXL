@@ -8,19 +8,20 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Synchronization;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Performance;
 using ContentStoreTest.Test;
 using FluentAssertions;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Xunit;
 using Record = BuildXL.Cache.MemoizationStore.Sessions.Record;
-using BuildXL.Cache.ContentStore.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
 {
@@ -311,7 +312,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                 r.Succeeded.Should().BeTrue();
             }));
 
-            return TaskSafetyHelpers.WhenAll(tasks);
+            return TaskUtilities.SafeWhenAll(tasks);
         }
 
         private static Task AddOrGet(
@@ -325,7 +326,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                 r.ContentHashListWithDeterminism.ContentHashList.Should().BeNull();
             }));
 
-            return TaskSafetyHelpers.WhenAll(tasks);
+            return TaskUtilities.SafeWhenAll(tasks);
         }
 
         private async Task<List<StrongFingerprint>> EnumerateStrongFingerprintsAsync(Context context, IMemoizationStore store, int count)

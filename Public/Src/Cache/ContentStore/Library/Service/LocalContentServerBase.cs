@@ -469,7 +469,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var tasks = new List<Task<BoolResult>>(StoresByName.Count);
             tasks.AddRange(StoresByName.Select(kvp => kvp.Value.StartupAsync(context)));
-            await TaskSafetyHelpers.WhenAll(tasks);
+            await TaskUtilities.SafeWhenAll(tasks);
 
             var result = BoolResult.Success;
             foreach (var task in tasks)
@@ -636,7 +636,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var tasks = new List<Task<BoolResult>>(StoresByName.Count);
             tasks.AddRange(StoresByName.Select(kvp => kvp.Value.ShutdownIfStartedAsync(context)));
-            await TaskSafetyHelpers.WhenAll(tasks);
+            await TaskUtilities.SafeWhenAll(tasks);
 
             var result = BoolResult.Success;
             foreach (var task in tasks)

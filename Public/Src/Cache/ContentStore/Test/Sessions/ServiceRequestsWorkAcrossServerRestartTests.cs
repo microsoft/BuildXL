@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Stores;
 using FluentAssertions;
@@ -177,7 +178,7 @@ namespace ContentStoreTest.Sessions
 
                 try
                 {
-                    await TaskSafetyHelpers.WhenAll(tasks);
+                    await TaskUtilities.SafeWhenAll(tasks);
                 }
                 catch (AggregateException ex)
                 {
@@ -208,7 +209,7 @@ namespace ContentStoreTest.Sessions
 
                 try
                 {
-                    await TaskSafetyHelpers.WhenAll(tasks);
+                    await TaskUtilities.SafeWhenAll(tasks);
                 }
                 catch (AggregateException ex)
                 {

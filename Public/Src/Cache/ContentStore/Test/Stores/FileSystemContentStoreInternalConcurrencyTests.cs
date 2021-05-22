@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using Xunit;
 
@@ -90,8 +91,8 @@ namespace ContentStoreTest.Stores
                                 realizationModes,
                                 null)));
 
-                        await TaskSafetyHelpers.WhenAll(puts);
-                        await TaskSafetyHelpers.WhenAll(gets);
+                        await TaskUtilities.SafeWhenAll(puts);
+                        await TaskUtilities.SafeWhenAll(gets);
                     }
                 }
             });

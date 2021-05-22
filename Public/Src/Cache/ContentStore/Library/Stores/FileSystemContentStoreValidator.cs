@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
 #nullable enable
@@ -63,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             int mismatchedParentDirectoryCount = 0;
             int mismatchedContentHashCount = 0;
             _tracer.Always(context, "Validating local CAS content hashes...");
-            await TaskSafetyHelpers.WhenAll(_enumerateBlobPathsFromDisk().Select(
+            await TaskUtilities.SafeWhenAll(_enumerateBlobPathsFromDisk().Select(
                 async blobPath =>
                 {
                     var contentFile = blobPath.FullPath;

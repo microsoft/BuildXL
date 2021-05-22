@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -101,7 +102,7 @@ namespace ContentStoreTest.Stores
                     var streams = Enumerable.Repeat<Stream>(null, NumParallelTasks).ToList();
                     var tasks = Enumerable.Range(0, NumParallelTasks).Select(i => Task.Run(async () => streams[i] =
                         (await store.OpenStreamAsync(context, contentHash, new PinRequest(pinContext))).Stream));
-                    await TaskSafetyHelpers.WhenAll(tasks);
+                    await TaskUtilities.SafeWhenAll(tasks);
                     store.PinMapForTest[contentHash].Count.Should().Be(NumParallelTasks + 1);
 
                     // Disposing the streams do not unpin the content.
@@ -138,7 +139,7 @@ namespace ContentStoreTest.Stores
                     var contexts = Enumerable.Range(0, NumParallelTasks).Select(i => store.CreatePinContext()).ToList();
                     var tasks = Enumerable.Range(0, NumParallelTasks).Select(i => Task.Run(async () => streams[i] =
                         (await store.OpenStreamAsync(context, contentHash, new PinRequest(contexts[i]))).Stream));
-                    await TaskSafetyHelpers.WhenAll(tasks);
+                    await TaskUtilities.SafeWhenAll(tasks);
                     store.PinMapForTest[contentHash].Count.Should().Be(NumParallelTasks + 1);
 
                     // Disposing the streams to not unpin the content.

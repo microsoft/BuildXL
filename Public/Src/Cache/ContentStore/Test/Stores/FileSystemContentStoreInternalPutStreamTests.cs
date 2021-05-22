@@ -13,10 +13,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace ContentStoreTest.Stores
 {
@@ -123,7 +124,7 @@ namespace ContentStoreTest.Stores
                      return hashFromPut;
                  }).ToArray();
 
-                 ContentHash[] puthashes = await TaskSafetyHelpers.WhenAll(putTasks);
+                 ContentHash[] puthashes = await TaskUtilities.SafeWhenAll(putTasks);
 
                  await store.SyncAsync(Context);
 

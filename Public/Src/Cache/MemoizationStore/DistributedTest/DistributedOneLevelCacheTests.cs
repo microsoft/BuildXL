@@ -15,6 +15,7 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Distributed.Sessions;
 using FluentAssertions;
@@ -293,18 +294,18 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 
             public override async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast, string buildId = null)
             {
-                var startupResults = await TaskSafetyHelpers.WhenAll(Caches.Select(async store => await store.StartupAsync(Context)));
+                var startupResults = await TaskUtilities.SafeWhenAll(Caches.Select(async store => await store.StartupAsync(Context)));
                 Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
 
                 CacheSessions = Caches.Select((store, id) => store.CreateSession(Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
-                await TaskSafetyHelpers.WhenAll(CacheSessions.Select(async session => await session.StartupAsync(Context)));
+                await TaskUtilities.SafeWhenAll(CacheSessions.Select(async session => await session.StartupAsync(Context)));
 
                 Sessions = CacheSessions.ToList<IContentSession>();
             }
 
             protected override async Task ShutdownStoresAsync()
             {
-                await TaskSafetyHelpers.WhenAll(Caches.Select(async store => await store.ShutdownAsync(Context)));
+                await TaskUtilities.SafeWhenAll(Caches.Select(async store => await store.ShutdownAsync(Context)));
 
                 foreach (var store in Caches)
                 {

@@ -231,6 +231,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> LargeStringBufferThresholdBytes = CreateSetting("BuildXLLargeStringBufferThresholdBytes", value => ParseInt32(value));
 
         /// <summary>
+        /// Overrides the default overflow buffer count for string tables.
+        /// </summary>
+        public static readonly Setting<int?> StringTableOverflowBufferCount = CreateSetting("BuildXLStringTableOverflowBufferCount", value => ParseInt32(value));
+
+        /// <summary>
         /// Specifies whether a salt is used for internal VSO:SHA cache mapping for Build Manifest.
         /// Null or empty salt will be treated as no salt, and will follow default behavior.
         /// </summary>

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -469,10 +470,12 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(asciiStringId, roundTrippedAsciiStringId);
         }
 
-        [Fact]
-        public Task Serialization()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task Serialization(bool includeOverflowBuffers)
         {
-            var st = new StringTableTestHarness();
+            var st = new StringTableTestHarness(includeOverflowBuffers ? 3 : 0);
             var string1 = "asdf";
             var string2 = "jkl";
             var stringId1 = st.AddString(string1);
@@ -481,13 +484,51 @@ namespace Test.BuildXL.Utilities
             return st.RunCommonTestsAsync();
         }
 
+        [Fact]
+        public async Task SpillIntoOverflowBuffer()
+        {
+            // All but the first row of the table will be overflow buffers
+            var st = new StringTableTestHarness(StringTable.MaxNumByteBuffers - 1);
+
+            var guidSize = Guid.NewGuid().ToString("X").Length;
+
+            // Make sure that we fill the first bucket and spill into the overflows
+            int repetitions = (int)(1.25 * (StringTable.BytesPerBuffer / guidSize));
+            for (var i = 0; i < repetitions; i++)
+            {
+                st.AddString(Guid.NewGuid().ToString("X"));
+            }
+
+            var lastId = st.AddString(Guid.NewGuid().ToString("X"));
+            var bufferNum = (lastId.Value >> StringTable.BytesPerBufferBits) & StringTable.NumByteBuffersMask;
+            Assert.Equal(1, bufferNum); // Spilled into the first overflow buffer
+
+            await st.RunCommonTestsAsync();
+            
+            // Add more strings -- if the rows were regular buffers we would fill the second row
+            // and go into the third, but with the overflow buffers we have increased capacity 
+            for (var i = 0; i < repetitions; i++)
+            {
+                st.AddString(Guid.NewGuid().ToString("X"));
+            }
+
+            lastId = st.AddString(Guid.NewGuid().ToString("X"));
+            bufferNum = (lastId.Value >> StringTable.BytesPerBufferBits) & StringTable.NumByteBuffersMask;
+            Assert.Equal(1, bufferNum); // We are still filling the first overflow buffer
+        }
+
         private class StringTableTestHarness
         {
-            public StringTable StringTable { get; } = new StringTable();
+            public StringTable StringTable { get; }
 
             public Dictionary<StringId, string> AddedStrings = new Dictionary<StringId, string>();
 
             public long MaxSize = 0;
+
+            public StringTableTestHarness(int? overflowBufferCount = null) 
+            {
+                StringTable = new StringTable(overflowBufferCount: overflowBufferCount);
+            }
 
             public StringId AddString(string value)
             {

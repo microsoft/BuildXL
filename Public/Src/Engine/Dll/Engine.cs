@@ -851,9 +851,10 @@ namespace BuildXL.Engine
             }
 
             // Customer builds may involve a lot of large strings that can fill up the string table.
+            // Adding a non-zero overflow buffer count increases the capacity of the string table.
             // Large string buffer is a secondary table used when the strings are large. By adjusting the threshold for
             // the string size, some of the large strings that used to go to the string table can go to the large string buffer.
-            StringTable.OverrideLargeStringBufferThreshold(EngineEnvironmentSettings.LargeStringBufferThresholdBytes);
+            StringTable.OverrideStringTableDefaults(EngineEnvironmentSettings.LargeStringBufferThresholdBytes, EngineEnvironmentSettings.StringTableOverflowBufferCount);
 
             if (mutableConfig.Export.SnapshotFile.IsValid && mutableConfig.Export.SnapshotMode != SnapshotMode.None)
             {
@@ -3287,6 +3288,7 @@ namespace BuildXL.Engine
                 {"StringTableBytes", stringTable.SizeInBytes },
                 {"StringTableLargeStringBytes", stringTable.LargeStringSize },
                 {"StringTableLargeStringCount", stringTable.LargeStringCount },
+                {"StringTableOverflowBufferStringCount", stringTable.OverflowedStringCount },
                 {"TokenTextTableBytes", tokenTextTable.SizeInBytes },
             };
 

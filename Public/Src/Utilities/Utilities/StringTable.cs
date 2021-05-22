@@ -49,9 +49,9 @@ namespace BuildXL.Utilities
     /// - foo (0-th byte buffer number, 1-st buffer offset), 
     /// - bar (2045-th byte buffer number, 42-th buffer offset)
     /// 
-    /// To handle a large string (length > 2^l, where 2^l = LargeStringBufferThreshold), the string table has another table called
-    /// LargeStringBuffer, which is also a 2-dimensional byte array, but each buffer in that array has variable size depending on 
-    /// the size of the stored string.
+    /// The string table has another storage mechanism in the form of an <see cref="OverflowBuffer"/>, which 
+    /// is also a 2-dimensional byte array, but each buffer in that array has variable size depending on 
+    /// the size of the stored string:
     /// 
     ///         +---+     +---+---+---+ .... +---+---+                        -
     ///         |   | ->  |   |   |   |      |   |   |                        |
@@ -65,9 +65,17 @@ namespace BuildXL.Utilities
     ///         +---+     +---+---+---+ .... +---+---+---+---+                |
     ///         |   | ->  |   |   |   |      |   |   |   |   |                |
     ///         +---+     +---+---+---+ .... +---+---+---+---+                -
+    ///
+    /// Let zoo*** be a string stored in an overflow buffer. Then the string id of zoo*** has the following composition: 
+    /// [overflow buffer number (11 bits)|buffer offset (21 bits)]. Note that when the string is stored in an overflow buffer, 
+    /// the 'buffer offset' (lower bits of the StringId) becomes the index of the byte buffer inside the OverflowBuffer (which holds the string).
     /// 
-    /// Let zoo*** be a very large string. Then the string id of zoo*** has the following composition: (2047-th byte buffer number, 1-st buffer offset).
-    /// Note that the byte buffer number of zoo*** exceeds NumByteBuffers, and now its buffer offset becomes the byte buffer number of LargeStringBuffer.
+    /// These buffers will always be used last, when the rest of the table is already filled in the way described above.
+    /// Users can configure the number of overflow buffers to use. 
+    /// 
+    /// The StringTable also uses a designated OverflowBuffer (the LargeStringBuffer, index = 2047) to store large strings (length > 2^l, where 2^l = LargeStringBufferThreshold)
+    /// The LargeStringBuffer is also used to store non-large strings when both the main table and the overflow buffers run out of space.
+    /// 
     /// </remarks>
     public class StringTable
     {
@@ -77,17 +85,42 @@ namespace BuildXL.Utilities
         public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "StringTable", version: 0);
 
         /// <summary>
-        /// Threshold (1K bytes) at which strings will be stored in <see cref="LargeStringBuffer"/>.
+        /// Threshold (1K bytes) at which strings will be stored in the large string table <see cref="m_largeStringBuffer"/>.
         /// </summary>
         private static int s_largeStringBufferThreshold = 1 << 10;
 
+        /// <summary>
+        /// Default overflow buffer number.
+        /// </summary>
+        /// <remarks>
+        /// Using 3 as the default value after measuring usage in the largest builds we run
+        /// </remarks>
+        private static int s_defaultOverflowBufferCount = 3;
+
         // a StringId has the upper 11 bits as a buffer selector and the lower 21 bits as byte selector within the buffer
-        private const int BytesPerBufferBits = 21;
-        internal const int BytesPerBuffer = 1 << BytesPerBufferBits; // internal for use by the unit test
+        // internals for use by the unit tests
+        internal const int BytesPerBufferBits = 21;
+        internal const int BytesPerBuffer = 1 << BytesPerBufferBits;
         private const int BytesPerBufferMask = BytesPerBuffer - 1;
         private const int NumByteBuffersBits = 32 - BytesPerBufferBits;
-        private const int NumByteBuffers = (1 << NumByteBuffersBits) - 1;
-        private const int NumByteBuffersMask = (1 << NumByteBuffersBits) - 1;
+        internal const int MaxNumByteBuffers = (1 << NumByteBuffersBits) - 1;
+        internal const int NumByteBuffersMask = (1 << NumByteBuffersBits) - 1;
+
+        // To simplify the logic we require at least one regular buffer
+        internal const int MaxOverflowBufferCount = MaxNumByteBuffers - 1;
+
+        // Overflow buffers where the strings are stored as individual buffers
+        // rather than side by side. These are filled last, when the regular table is full. 
+        // The lower 21 bits of the StringId index into positions of these buffers
+        // so an overflow buffer can store up to 2^21 individual strings.
+        private readonly OverflowBuffer[] m_overflowBuffers;
+
+        // Buffer number of the first overflow buffer, i.e. NumByteBuffers - #overflowBuffers
+        private readonly int m_overflowBuffersStartingNumber;
+
+        // Index of the overflow buffer that is being populated
+        private readonly int m_overflowBufferCount;
+        private int m_currentOverflowIndex;
 
         // marker to indicate the length field is 4 bytes instead of 1 byte
         private const byte LongStringMarker = 255;
@@ -95,13 +128,14 @@ namespace BuildXL.Utilities
         // marker to indicate the character data is stored as UTF-16 instead of 8-bit ASCII.
         private const byte Utf16Marker = 0;
 
-        private const int NullArrayMarker = int.MaxValue - 1;
+        private const int NullMarker = int.MaxValue - 1;
+        private const int NonNullMarker = int.MaxValue - 2;
 
         // character payload for the table, new buffers are added as needed
-        private byte[][] m_byteBuffers = new byte[NumByteBuffers][];
+        private byte[][] m_byteBuffers;
 
-        private readonly LargeStringBuffer m_largeStringBuffer;
-        private const int LargeStringBufferNum = NumByteBuffers;
+        private readonly OverflowBuffer m_largeStringBuffer;
+        private const int LargeStringBufferNum = MaxNumByteBuffers;
 
         // the number of items in the table
         private int m_count;
@@ -170,18 +204,21 @@ namespace BuildXL.Utilities
 
         internal const byte UnallocatedDebugId = byte.MaxValue;
 #endif
-      
+
         /// <summary>
         /// Overrides large string buffer threshold.
         /// </summary>
-        public static void OverrideLargeStringBufferThreshold(int? newThreshold)
+        public static void OverrideStringTableDefaults(int? largeBufferThreshold, int? overflowBufferCount)
         {
-            if (!newThreshold.HasValue || newThreshold.Value <= 0)
+            if (largeBufferThreshold.HasValue && largeBufferThreshold.Value > 0)
             {
-                return;
+                s_largeStringBufferThreshold = largeBufferThreshold.Value;
             }
 
-            s_largeStringBufferThreshold = newThreshold.Value;
+            if (overflowBufferCount.HasValue && overflowBufferCount.Value > 0)
+            {
+                s_defaultOverflowBufferCount = overflowBufferCount.Value;
+            }
         }
 
         /// <summary>
@@ -209,9 +246,10 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
-        internal StringTable(int initialCapacity = 0)
+        internal StringTable(int initialCapacity = 0, int? overflowBufferCount = null)
         {
             Contract.Requires(initialCapacity >= 0);
+            Contract.Requires(!overflowBufferCount.HasValue || (overflowBufferCount.Value >= 0 && overflowBufferCount.Value <= MaxOverflowBufferCount));
 #if DebugStringTable
             DebugRegisterStringTable(this);
 #endif
@@ -222,8 +260,18 @@ namespace BuildXL.Utilities
             m_stringSet = new ConcurrentBigSet<StringId>(capacity: initialCapacity);
 
             // set up the initial buffer and consume the first byte so that StringId.Invalid's slot is consumed
+            m_overflowBufferCount = overflowBufferCount ?? s_defaultOverflowBufferCount;
+            m_currentOverflowIndex = 0;
+
+            if (m_overflowBufferCount > 0)
+            {
+                m_overflowBuffers = new OverflowBuffer[m_overflowBufferCount];
+            }
+
+            m_overflowBuffersStartingNumber = MaxNumByteBuffers - m_overflowBufferCount;
+            m_byteBuffers = new byte[MaxNumByteBuffers - m_overflowBufferCount][];
             m_byteBuffers[0] = new byte[BytesPerBuffer];
-            m_largeStringBuffer = new LargeStringBuffer();
+            m_largeStringBuffer = new OverflowBuffer();
             m_nextId = 1;
             Empty = AddString(string.Empty);
         }
@@ -245,6 +293,12 @@ namespace BuildXL.Utilities
 
             m_largeStringBuffer = state.LargeStringBuffer;
             m_byteBuffers = state.ByteBuffers;
+
+            m_overflowBuffers = state.OverflowBuffers;
+            m_overflowBufferCount = m_overflowBuffers?.Length ?? 0;
+            m_overflowBuffersStartingNumber = MaxNumByteBuffers - m_overflowBufferCount;
+            m_currentOverflowIndex = state.CurrentOverflowIndex;
+
             m_count = state.Count;
             m_nextId = state.NextId;
             m_stringSet = state.StringSet;
@@ -529,56 +583,87 @@ namespace BuildXL.Utilities
             // count how many strings are in the buffer
             Interlocked.Increment(ref m_count);
 
-            if (space > s_largeStringBufferThreshold && m_largeStringBuffer.TryReserveSlot(out var largeStringIndex))
+            if (space > s_largeStringBufferThreshold)
             {
-                var buffer = new byte[space];
-                WriteBytes(seg, isAscii, buffer, 0);
-                m_largeStringBuffer[largeStringIndex] = buffer;
-                return ComputeStringId(LargeStringBufferNum, offset: largeStringIndex);
+                if (TrySaveToLargeStringBuffer(seg, space, isAscii, out var result))
+                {
+                    return result;
+                }
             }
+
+            // space that the string occupies if storing this string in an overflow buffer
+            var overflowBufferSpace = space;
 
             // if the length >= 255 then we store it as a marker byte followed by a 4-byte length value
             space += longString ? 5 : 1;
-
+            
             int byteIndex;
             int bufferNum;
 
             // loop until we find a suitable location to copy the string to
             while (true)
             {
+
                 // get the next possible location for the string
                 int current = Volatile.Read(ref m_nextId);
                 bufferNum = (current >> BytesPerBufferBits) & NumByteBuffersMask;
-                byteIndex = current & BytesPerBufferMask;
 
-                // is the available space big enough?
-                if (space < BytesPerBuffer - byteIndex)
+                if (bufferNum < m_overflowBuffersStartingNumber)
                 {
-                    // there's room in the buffer so try to claim it
-                    int next = (bufferNum << BytesPerBufferBits) | (byteIndex + space);
-                    if (Interlocked.CompareExchange(ref m_nextId, next, current) == current)
+                    byteIndex = current & BytesPerBufferMask;
+
+                    // is the available space big enough?
+                    if (space < BytesPerBuffer - byteIndex)
                     {
-                        // got some room, now go fill it in
-                        break;
+                        // there's room in the buffer so try to claim it
+                        int next = (bufferNum << BytesPerBufferBits) | (byteIndex + space);
+                        if (Interlocked.CompareExchange(ref m_nextId, next, current) == current)
+                        {
+                            // got some room, now go fill it in
+                            break;
+                        }
+
+                        // go try again...
+                        continue;
                     }
 
-                    // go try again...
-                    continue;
+                    // the string doesn't fit in the current buffer and we need a new buffer
+                    bufferNum++;
                 }
 
-                // the string doesn't fit in the current buffer, we need a new buffer
-                int newBufferSize = BytesPerBuffer;
-                if (space > BytesPerBuffer)
+                if (bufferNum >= m_overflowBuffersStartingNumber)
                 {
-                    newBufferSize = space;
-                }
+                    // We are storing this string in an overflow buffer
 
-                bufferNum++;
+                    int currentOverflowIndex;
+                    while ((currentOverflowIndex = m_currentOverflowIndex) < m_overflowBufferCount)
+                    {
+                        var overflowBuffer = m_overflowBuffers[currentOverflowIndex];
+                        if (overflowBuffer == null)
+                        {
+                            Interlocked.CompareExchange(ref m_overflowBuffers[currentOverflowIndex], new OverflowBuffer(), null);
+                            overflowBuffer = m_overflowBuffers[currentOverflowIndex];
+                        }
 
-                // Make sure we don't overflow the buffer we're indexing into
-                if (bufferNum >= NumByteBuffers)
-                {
-                    Contract.Assert(false, $"Exceeded the number of ByteBuffers allowed in this StringTable: {bufferNum} >= {NumByteBuffers}");
+                        if (TrySaveToOverflowBuffer(overflowBuffer, seg, overflowBufferSpace, isAscii, out var overflowIndex))
+                        {
+                            return ComputeStringId(m_overflowBuffersStartingNumber + currentOverflowIndex, offset: overflowIndex);
+                        }
+                        else
+                        {
+                            // No more slots, move to the next
+                            Interlocked.CompareExchange(ref m_currentOverflowIndex, currentOverflowIndex + 1, currentOverflowIndex);
+                        }
+                    }
+
+                    // We ran out of overflow buffers. As a last resort, try to store the string in the large string buffer
+                    if (TrySaveToLargeStringBuffer(seg, overflowBufferSpace, isAscii, out var result))
+                    {
+                        return result;
+                    }
+
+                    // If we reach this line there's no more space in the table
+                    throw Contract.AssertFailure($"This string table ran out of space. Consider increasing the number of overflow buffers (Overflow buffer count: {m_overflowBufferCount}");
                 }
 
                 lock (m_byteBuffers)
@@ -590,6 +675,7 @@ namespace BuildXL.Utilities
                     }
 
                     // allocate a new buffer
+                    int newBufferSize = (space >= BytesPerBuffer) ? space : BytesPerBuffer;
                     m_byteBuffers[bufferNum] = new byte[newBufferSize];
 
                     if (space >= BytesPerBuffer)
@@ -625,6 +711,31 @@ namespace BuildXL.Utilities
 
             WriteBytes(seg, isAscii, currentBuffer, byteIndex);
             return stringId;
+        }
+
+        private bool TrySaveToLargeStringBuffer<T>(T seg, int space, bool isAscii, out StringId result) where T : struct, ICharSpan<T>
+        {
+            if (!TrySaveToOverflowBuffer(m_largeStringBuffer, seg, space, isAscii, out var index))
+            {
+                result = StringId.Invalid;
+                return false;
+            }
+
+            result = ComputeStringId(LargeStringBufferNum, offset: index);
+            return true;
+        }
+
+        private static bool TrySaveToOverflowBuffer<T>(OverflowBuffer overflowBuffer, T seg, int space, bool isAscii, out int index) where T : struct, ICharSpan<T>
+        {
+            if (!overflowBuffer.TryReserveSlot(out index))
+            {
+                return false;
+            }
+
+            var buffer = new byte[space];
+            WriteBytes(seg, isAscii, buffer, 0);
+            overflowBuffer[index] = buffer;
+            return true;
         }
 
         private StringId ComputeStringId(int bufferNum, int offset)
@@ -756,9 +867,19 @@ namespace BuildXL.Utilities
         {
             index = id.Value & BytesPerBufferMask;
             var bufferNum = (id.Value >> BytesPerBufferBits) & NumByteBuffersMask;
-            if (bufferNum == LargeStringBufferNum)
+            if (bufferNum >= m_overflowBuffersStartingNumber)
             {
-                buffer = m_largeStringBuffer[index];
+                OverflowBuffer selectedBuffer;
+                if (bufferNum == LargeStringBufferNum)
+                {
+                    selectedBuffer = m_largeStringBuffer;
+                }
+                else
+                {
+                    selectedBuffer = m_overflowBuffers[bufferNum - m_overflowBuffersStartingNumber];
+                }
+
+                buffer = selectedBuffer[index];
                 index = 0;
                 length = buffer.Length;
                 if (buffer[0] == Utf16Marker)
@@ -1007,6 +1128,17 @@ namespace BuildXL.Utilities
                         }
                     }
 
+                    if (m_overflowBuffers != null)
+                    {
+                        foreach (var t in m_overflowBuffers)
+                        {
+                            if (t != null)
+                            {
+                                size += t.Size;
+                            }
+                        }
+                    }
+
                     size += m_largeStringBuffer.Size;
                     return size;
                 }
@@ -1024,6 +1156,30 @@ namespace BuildXL.Utilities
         /// Gets the number of large strings
         /// </summary>
         public int LargeStringCount => m_largeStringBuffer.Count;
+
+        /// <summary>
+        /// Gets the number of strings in overflow buffers
+        /// </summary>
+        public int OverflowedStringCount
+        {
+            get
+            {
+                int count = 0;
+
+                if (m_overflowBuffers != null)
+                {
+                    foreach (var buffer in m_overflowBuffers)
+                    {
+                        if (buffer != null)
+                        {
+                            count += buffer.Count;
+                        }
+                    }
+                }
+
+                return count;
+            }
+        }
 
         /// <summary>
         /// Gets how many strings are in this table.
@@ -1070,10 +1226,12 @@ namespace BuildXL.Utilities
         #region Helpers
 
         /// <summary>
-        /// Defines a buffer for large string over <see cref="s_largeStringBufferThreshold"/> in size. Strings are stored as independent byte buffers
-        /// rather than sharing byte buffers
+        /// Defines a buffer in which strings are stored as independent byte buffers
+        /// rather than sharing a byte buffers. 
+        /// Used for large string over <see cref="s_largeStringBufferThreshold"/> in size and for extra space in large builds
+        /// where the number of overflow buffers is determined by 
         /// </summary>
-        protected class LargeStringBuffer
+        protected class OverflowBuffer
         {
             private byte[][] m_byteArrays;
             private int m_indexCursor;
@@ -1089,13 +1247,13 @@ namespace BuildXL.Utilities
             /// </summary>
             internal int Count => Math.Min(m_indexCursor + 1, m_byteArrays.Length);
 
-            internal LargeStringBuffer()
+            internal OverflowBuffer()
             {
                 m_indexCursor = -1;
                 m_byteArrays = new byte[BytesPerBuffer][];
             }
 
-            private LargeStringBuffer(BuildXLReader reader)
+            private OverflowBuffer(BuildXLReader reader)
             {
                 m_indexCursor = reader.ReadInt32();
                 m_size = reader.ReadInt64();
@@ -1107,9 +1265,9 @@ namespace BuildXL.Utilities
                 minimumLength: BytesPerBuffer);
             }
 
-            internal static LargeStringBuffer Deserialize(BuildXLReader reader)
+            internal static OverflowBuffer Deserialize(BuildXLReader reader)
             {
-                return new LargeStringBuffer(reader);
+                return new OverflowBuffer(reader);
             }
 
             internal void Serialize(BuildXLWriter writer)
@@ -1178,9 +1336,19 @@ namespace BuildXL.Utilities
             public byte[][] ByteBuffers;
 
             /// <summary>
+            /// Backing data for overflow buffers
+            /// </summary>
+            public OverflowBuffer[] OverflowBuffers;
+
+            /// <summary>
+            /// Pointer to the current overflow buffer being filled
+            /// </summary>
+            public int CurrentOverflowIndex;
+
+            /// <summary>
             /// The backing data for large strings
             /// </summary>
-            public LargeStringBuffer LargeStringBuffer;
+            public OverflowBuffer LargeStringBuffer;
 
             /// <summary>
             /// Count of items the table contains
@@ -1207,16 +1375,17 @@ namespace BuildXL.Utilities
 
             SerializedState result = new SerializedState();
             result.NextId = reader.ReadInt32();
-            result.ByteBuffers = new byte[NumByteBuffers][];
 
             int indexOfPartiallyFilledBuffer, lengthInPartiallyFilledBuffer;
             GetBufferIndex(result.NextId, out indexOfPartiallyFilledBuffer, out lengthInPartiallyFilledBuffer);
 
-            for (int i = 0; i < NumByteBuffers; i++)
+            var numByteBuffers = reader.ReadInt32();
+            result.ByteBuffers = new byte[MaxNumByteBuffers][];
+            for (int i = 0; i < numByteBuffers; i++)
             {
                 int arrayLength = reader.ReadInt32();
 
-                if (arrayLength == NullArrayMarker)
+                if (arrayLength == NullMarker)
                 {
                     continue;
                 }
@@ -1226,7 +1395,26 @@ namespace BuildXL.Utilities
                 result.ByteBuffers[i] = buffer;
             }
 
-            result.LargeStringBuffer = LargeStringBuffer.Deserialize(reader);
+            if (reader.ReadInt32() == NonNullMarker)
+            {
+                var numOverflowBuffers = reader.ReadInt32();
+                if (numOverflowBuffers > 0)
+                {
+                    result.OverflowBuffers = new OverflowBuffer[numOverflowBuffers];
+
+                    for (int i = 0; i < numOverflowBuffers; i++)
+                    {
+                        if (reader.ReadInt32() == NonNullMarker)
+                        {
+                            result.OverflowBuffers[i] = OverflowBuffer.Deserialize(reader);
+                        }
+                    }
+                }
+
+                result.CurrentOverflowIndex = reader.ReadInt32();
+            }
+            
+            result.LargeStringBuffer = OverflowBuffer.Deserialize(reader);
 
             result.StringSet = ConcurrentBigSet<StringId>.Deserialize(reader, () => reader.ReadStringId());
             result.Count = reader.ReadInt32();
@@ -1256,6 +1444,8 @@ namespace BuildXL.Utilities
                         NextId = m_nextId,
                         StringSet = m_stringSet,
                         ByteBuffers = m_byteBuffers,
+                        OverflowBuffers = m_overflowBuffers,
+                        CurrentOverflowIndex = m_currentOverflowIndex,
                         LargeStringBuffer = m_largeStringBuffer
                     });
             }
@@ -1272,8 +1462,9 @@ namespace BuildXL.Utilities
             writer.Write(state.NextId);
 
             GetBufferIndex(state.NextId, out int indexOfPartiallyFilledBuffer, out int lengthInPartiallyFilledBuffer);
-            
-            for (int i = 0; i < NumByteBuffers; i++)
+
+            writer.Write(state.ByteBuffers.Length);
+            for (int i = 0; i < state.ByteBuffers.Length; i++)
             {
                 if (state.ByteBuffers[i] != null)
                 {
@@ -1282,10 +1473,35 @@ namespace BuildXL.Utilities
                 }
                 else
                 {
-                    writer.Write(NullArrayMarker);
+                    writer.Write(NullMarker);
                 }
             }
 
+            
+            if (state.OverflowBuffers == null)
+            {
+                writer.Write(NullMarker);
+            }
+            else
+            {
+                writer.Write(NonNullMarker);
+                writer.Write(state.OverflowBuffers.Length);
+                for (int i = 0; i < state.OverflowBuffers.Length; i++)
+                {
+                    if (state.OverflowBuffers[i] != null)
+                    {
+                        writer.Write(NonNullMarker);
+                        state.OverflowBuffers[i].Serialize(writer);
+                    }
+                    else
+                    {
+                        writer.Write(NullMarker);
+                    }
+                }
+
+                writer.Write(state.CurrentOverflowIndex);
+            }
+            
             state.LargeStringBuffer.Serialize(writer);
 
             state.StringSet.Serialize(writer, id => writer.Write(id));

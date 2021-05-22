@@ -4,6 +4,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <memory>
 #include <shared_mutex>
 #include <vector>
@@ -14,7 +15,7 @@ typedef std::shared_mutex ResolvedPathCacheLock;
 typedef std::unique_lock<ResolvedPathCacheLock> ResolvedPathCacheWriteLock;
 typedef std::shared_lock<ResolvedPathCacheLock> ResolvedPathCacheReadLock;
 
-enum class ResolvedPathType 
+enum class ResolvedPathType
 {
     Intermediate, // Identifies a path that was found as an intermediate result when resolving all reparse point occurences of a specific base path
     FullyResolved // Identifies the fully resolved path that does not contain any reparse point parts anymore
@@ -37,7 +38,7 @@ static CaseInsensitiveStringLessThan caseInsensitiveLessThan = CaseInsensitiveSt
 struct CaseInsensitiveTargetCacheLessThan : public std::binary_function<std::pair<std::wstring, bool>, std::pair<std::wstring, bool>, bool> {
     bool operator()(const std::pair<std::wstring, bool>& lhs, const std::pair<std::wstring, bool>& rhs) const {
         if (lhs.second != rhs.second)
-        { 
+        {
             return lhs.second;
         }
         else
@@ -60,7 +61,7 @@ public:
         ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
         if (!w_lock.owns_lock())
         {
-          return false;
+            return false;
         }
 
         const std::wstring normalizedPath = Normalize(path);
@@ -68,7 +69,7 @@ public:
         {
             return false;
         }
-        
+
         return m_resolverCache.emplace(normalizedPath, result).second;
     }
 
@@ -82,7 +83,7 @@ public:
         ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
         if (!w_lock.owns_lock())
         {
-          return false;
+            return false;
         }
 
         const std::wstring normalizedPath = Normalize(path);
@@ -108,10 +109,10 @@ public:
         ResolvedPathCacheWriteLock w_lock(m_lock, std::try_to_lock);
         if (!w_lock.owns_lock())
         {
-          return false;
+            return false;
         }
 
-        const std::wstring normalizedPath = Normalize(path);
+        std::wstring normalizedPath = Normalize(path);
 
         if (!m_pathTree.TryInsert(normalizedPath))
         {
@@ -123,6 +124,20 @@ public:
             if (!m_pathTree.TryInsert(Normalize(iter->first)))
             {
                 return false;
+            }
+        }
+
+        for (auto iter = insertion_order->begin(); iter != insertion_order->end(); ++iter)
+        {
+            auto reverseLookup = m_paths_reverse.find(*iter);
+            if (reverseLookup != m_paths_reverse.end())
+            {
+                reverseLookup->second.insert(normalizedPath);
+            }
+            else
+            {
+                std::set<std::wstring, CaseInsensitiveStringLessThan> set = { normalizedPath };
+                m_paths_reverse.emplace(std::make_pair(*iter, set));
             }
         }
 
@@ -156,24 +171,86 @@ public:
             }
         }
     }
-    
-    void InvalidateThisPath(const std::wstring & path)
+
+    /*
+     * Suppose we have symlink chain A-> B ->C
+     * In m_paths, we have:
+     * A -> [B]      (1)
+     * B -> [C]      (2)
+     * In m_paths_reverse we have:
+     * C -> [B]      (3)
+     * B -> [A]      (4)
+     * 
+     * To invalidate B, we:
+     * Iterate  through (2), and remove B from (3) from m_paths_reverse
+     * Remove (2) from m_paths
+     * Iterate through (4), and remove (1) from m_paths
+     * Remove (4) from m_paths_reverse
+     *
+     * Having the back pointers avoids O(n^2) search to remove the right value from m_paths
+     */
+    void InvalidateThisPath(const std::wstring& path)
     {
         m_resolverCache.erase(path);
         m_targetCache.erase(path);
 
-        // Let's make sure we invalidate the cache for both preserveLastReparsePoint options
+        // Erase B from (3)
+        // This must go before 'Erase B from (2)' because it needs to be able to find [C]
+        ErasePathFromReversePaths(path, false);
+        ErasePathFromReversePaths(path, true);
+
+        // Erase B from (2)
         m_paths.erase(std::make_pair(path, true));
         m_paths.erase(std::make_pair(path, false));
 
-        // This invalidation is rather expensive as it traverses the whole cache to remove entries.
-        for (auto it = m_paths.begin(), it_next = it; it != m_paths.end(); it = it_next)
+        // Erase B from (1)
+        // This must go before 'Erase B from (4)' because it needs to be able to find [A]
+        EraseReversePathFromPaths(path);
+
+        // Erase B from (4)
+        m_paths_reverse.erase(path);
+    }
+
+    /// <summary>
+    /// Given a path, remove the pointers to that path in m_paths_reverse
+    /// </summary>
+    void ErasePathFromReversePaths(const std::wstring& path, bool preserveLastReparsePointInPath)
+    {
+        // Find (B) in (2)
+        auto lookup = m_paths.find(std::make_pair(path, preserveLastReparsePointInPath));
+        if (lookup != m_paths.end())
         {
-            ++it_next;
-            auto mappings = it->second.second;
-            if (mappings->find(path) != mappings->end())
+            // Iterate through [C] in (2)
+            for (auto it = lookup->second.first->begin(), it_next = it; it != lookup->second.first->end(); it = it_next)
             {
-                m_paths.erase(it);
+                ++it_next;
+                // Find C in (3)
+                auto reverseLookup = m_paths_reverse.find(*it);
+                if (reverseLookup != m_paths_reverse.end())
+                {
+                    // Remove B from (3)
+                    reverseLookup->second.erase(path);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Given a path, remove pointers to that path in m_paths
+    /// </summary>
+    void EraseReversePathFromPaths(const std::wstring& path)
+    {
+        // Find (B) in (4)
+        auto reverseLookup = m_paths_reverse.find(path);
+        if (reverseLookup != m_paths_reverse.end())
+        {
+            // Iterate through [A] in (4)
+            for (auto it = reverseLookup->second.begin(), it_next = it; it != reverseLookup->second.end(); it = it_next)
+            {
+                ++it_next;
+                // Remove (A) from (1)
+                m_paths.erase(std::make_pair(*it, true));
+                m_paths.erase(std::make_pair(*it, false));
             }
         }
     }
@@ -231,6 +308,10 @@ private:
     // A mapping used to cache all intermediate paths and the final fully resolved path (value) of an unresolved base 
     // path where its last segment has to be resolved or not(key)
     std::map<std::pair<std::wstring, bool>, ResolvedPathCacheEntries, CaseInsensitiveTargetCacheLessThan> m_paths;
+
+    // Reverse pointers of m_paths.  If m_paths has A -> B, then m_paths_reverse has B -> A
+    // Used to make removing values faster.
+    std::map<std::wstring, std::set<std::wstring, CaseInsensitiveStringLessThan>, CaseInsensitiveStringLessThan> m_paths_reverse;
 
     // All the paths the cache is aware of.
     //

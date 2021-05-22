@@ -14,3 +14,4 @@
 // The below includes basically make all the separated test suites into a single translation unit.
 #include "PathTreeTests.h"
 #include "StringOperationsTests.h"
+#include "ResolvedPathCacheTests.h"

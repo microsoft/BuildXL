@@ -83,7 +83,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [DScript vs Typescript](Wiki/DScript/DScript-vs-Typescript.md)
 * [Enumerations](Wiki/DScript/Enums-vs-typed-strings.md)
 * [Functions](Wiki/DScript/Functions.md)
-* [Globbling](Wiki/DScript/Globbing.md)
+* [Globbing](Wiki/DScript/Globbing.md)
 * [Import and Export](Wiki/DScript/Import-export.md)
 * [List files](Wiki/DScript/List-files.md)
 * [Merge and Override](Wiki/DScript/Merge-and-Override.md)

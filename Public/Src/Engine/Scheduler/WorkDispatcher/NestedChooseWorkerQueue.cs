@@ -50,7 +50,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         public override int NumQueued => m_chooseWorkerQueues.Sum(a => a.NumQueued);
 
         /// <nodoc/>
-        internal override int FastChooseNextCount => m_chooseWorkerQueues.Sum(a => a.FastChooseNextCount);
+        internal override long FastChooseNextCount => m_chooseWorkerQueues.Sum(a => a.FastChooseNextCount);
 
         /// <nodoc/>
         public override TimeSpan RunTime => TimeSpan.FromTicks(m_chooseWorkerQueues.Sum(a => a.RunTime.Ticks));

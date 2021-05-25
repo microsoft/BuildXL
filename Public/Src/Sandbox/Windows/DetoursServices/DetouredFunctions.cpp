@@ -42,7 +42,7 @@ using std::wstring;
 static bool IsReparsePoint(_In_ LPCWSTR lpFileName, _In_ HANDLE hFile)
 {
     DWORD lastError = GetLastError();
-    if (hFile != nullptr)
+    if (hFile != INVALID_HANDLE_VALUE)
     {
         BY_HANDLE_FILE_INFORMATION fileInfo;
         BOOL result = GetFileInformationByHandle(hFile, &fileInfo);

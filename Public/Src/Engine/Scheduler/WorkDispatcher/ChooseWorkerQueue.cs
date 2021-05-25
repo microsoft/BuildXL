@@ -24,12 +24,12 @@ namespace BuildXL.Scheduler.WorkDispatcher
     {
         private readonly DedicatedThreadsTaskScheduler m_taskScheduler;
         private readonly TaskFactory m_taskFactory;
-        private int m_fastChooseNextCount;
+        private long m_fastChooseNextCount;
 
         /// <summary>
         /// The number of times choose worker queue could immediately start next task without blocking
         /// </summary>
-        internal virtual int FastChooseNextCount => m_fastChooseNextCount;
+        internal virtual long FastChooseNextCount => m_fastChooseNextCount;
 
         private long m_runTimeTicks;
 

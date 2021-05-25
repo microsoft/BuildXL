@@ -448,6 +448,20 @@ namespace BuildXL.Processes
                             break;
                         }
 
+                    case ReportedFileOperation.NtQueryDirectoryFile:
+                    case ReportedFileOperation.ZwQueryDirectoryFile:
+                        {
+                            sb.Append(Operation.ToString());
+                            sb.Append("(...)");
+                            if (RequestedAccess == RequestedAccess.Enumerate)
+                            {
+                                sb.Append(", ");
+                                sb.Append("Enumerate Pattern:" + EnumeratePattern);
+                            }
+
+                            break;
+                        }
+
                     default:
                         {
                             sb.Append(Enum.GetName(typeof(ReportedFileOperation), Operation)).Append("(...)");

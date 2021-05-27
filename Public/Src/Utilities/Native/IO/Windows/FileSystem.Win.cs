@@ -3417,6 +3417,115 @@ namespace BuildXL.Native.IO.Windows
             return EnumerateDirectoryEntries(directoryPath, recursive: false, handleEntry: (currentDirectory, fileName, fileAttributes, isActionableReparspoint) => handleEntry(fileName, fileAttributes, isActionableReparspoint), isEnumerationForDirectoryDeletion);
         }
 
+
+        /// <summary>
+        /// Enumerate file system entries for test.
+        /// </summary>
+        /// <remarks>
+        /// For caching pips, BuildXL relies on Detours file monitoring. In particular, when performing directory enumeration, Detours can tell BuildXL
+        /// the filter used by the enumeration functions, e.g., ".cc" or ".cs". Such information can result in a more precise caching.
+        /// For example, if the pip only enumerates "*.cc" in a directory, then any membership change that doesn't involve .cc files in that directory will result in a cache hit.
+        /// 
+        /// For directory enumeration, BuildXL detours FindFirstFile/ FindNextFile , as well as, NtQueryDirectoryFile. .NetCore 3.1 uses FindFirstFile when enumerating file system entries,
+        /// while .NET5 uses the latter. The problem is when calling NtQueryDirectoryFile, .NET5 doesn't pass filter information (see here), i.e., it simply sets FileName: null.
+        /// Thus, Detours doesn't report the used filter to BuildXL, resulting in a coarse caching.
+        /// 
+        /// Some of our scheduler integration tests, i.e., those that call Operation.Enumerate, relies on Directory.EnumerateFileSystemEntries.For tests that exercise filter/pattern,
+        /// they can fail when we upgrade to.NET5.
+        /// </remarks>
+        public static IEnumerable<string> EnumerateWinFileSystemEntriesForTest(string path, string pattern, SearchOption searchOption)
+        {
+            var dirs = new Stack<string>();
+            dirs.Push(path);
+
+            while (dirs.Count > 0)
+            {
+                path = dirs.Pop();
+                pattern = !string.IsNullOrEmpty(pattern) ? pattern : "*";
+                string searchPath = Path.Combine(path, pattern);
+
+                char lastChar = searchPath[searchPath.Length - 1];
+                if (lastChar == Path.DirectorySeparatorChar
+                    || lastChar == Path.AltDirectorySeparatorChar
+                    || lastChar == Path.VolumeSeparatorChar)
+                {
+                    // If path ends in a trailing slash (\), append a * or we'll get a "Cannot find the file specified" exception.
+                    searchPath += '*';
+                }
+
+                using SafeFindFileHandle findHandle = FindFirstFileW(searchPath, out WIN32_FIND_DATA findFileData);
+
+                if (findHandle.IsInvalid)
+                {
+                    throw new NativeWin32Exception(Marshal.GetLastWin32Error());
+                }
+
+                while (true)
+                {
+                    string entryName = findFileData.CFileName;
+                    bool isDirectory = (findFileData.DwFileAttributes & FileAttributes.Directory) != 0;
+                    if (!isDirectory || (entryName != "." && entryName != ".."))
+                    {
+                        string fullEntry = Path.Combine(path, entryName);
+                        yield return fullEntry;
+                    }
+
+                    if (!FindNextFileW(findHandle, out findFileData))
+                    {
+                        int errorCode = Marshal.GetLastWin32Error();
+                        if (errorCode == NativeIOConstants.ErrorNoMoreFiles)
+                        {
+                            if (searchOption == SearchOption.AllDirectories)
+                            {
+                                AddSearchableDirs(path, dirs);
+                            }
+
+                            break;
+                        }
+                        else
+                        {
+                            throw new NativeWin32Exception(errorCode);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void AddSearchableDirs(string path, Stack<string> dirs)
+        {
+            string searchPath = Path.Combine(path, "*");
+            using SafeFindFileHandle findHandle = FindFirstFileW(searchPath, out WIN32_FIND_DATA findFileData);
+
+            if (findHandle.IsInvalid)
+            {
+                throw new NativeWin32Exception(Marshal.GetLastWin32Error());
+            }
+
+            while (true)
+            {
+                string entryName = findFileData.CFileName;
+                bool isDirectory = (findFileData.DwFileAttributes & FileAttributes.Directory) != 0;
+                bool isReparsePoint = (findFileData.DwFileAttributes & FileAttributes.ReparsePoint) != 0;
+                if (isDirectory && entryName != "." && entryName != ".." && !isReparsePoint)
+                {
+                    dirs.Push(Path.Combine(path, entryName));
+                }
+
+                if (!FindNextFileW(findHandle, out findFileData))
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    if (errorCode == NativeIOConstants.ErrorNoMoreFiles)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        throw new NativeWin32Exception(errorCode);
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Throws an exception for the unexpected failure of a native API.
         /// </summary>

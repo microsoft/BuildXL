@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Native.IO;
+using BuildXL.Native.IO.Windows;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 
@@ -1243,15 +1244,26 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             try
             {
-                string enumeratePattern = AdditionalArgs;
-                if (enumeratePattern == null)
-                {
-                    Directory.EnumerateFileSystemEntries(PathAsString);
-                }
-                else
-                {
-                    Directory.EnumerateFileSystemEntries(PathAsString, enumeratePattern);
-                }
+                string enumeratePattern = AdditionalArgs ?? "*";
+
+                // For Windows, we call EnumerateWinFileSystemEntriesForTest whose underlying implementation
+                // calls FindFirstFile/FindNextFile. This is a workaround for testing enumeration with pattern.
+                // In .netcore 3.1, the implementation of Directory.EnumerateFileSystemEntries uses FindFirstFile/FindNextFile
+                // with the specified pattern included in the search path when calling FindFirstFile. In .NET5, the implementation
+                // of Directory.EnumerateFileSystemEntries calls NtQueryDirectoryFile with "null" (equal to "*") pattern,
+                // and path matching itself is done in the managed level. Thus, for .NET5, Detours will not detect/report the search pattern.
+                // Unfortunately, for more precise caching, our observed input processor relies on the pattern reported by Detours.
+                //
+                // The Linux Detours does not detect/report the search pattern simply because the search pattern is not passed to opendir.
+                // So it always treats directory enumerations as if they had the * pattern.
+                IEnumerable<string> e = OperatingSystemHelper.IsUnixOS
+                    ? Directory.EnumerateFileSystemEntries(PathAsString, enumeratePattern)
+                    : FileSystemWin.EnumerateWinFileSystemEntriesForTest(PathAsString, enumeratePattern, SearchOption.TopDirectoryOnly);
+                Analysis.IgnoreResult(e.ToArray());
+            }
+            catch (NativeWin32Exception e) when (e.NativeErrorCode == NativeIOConstants.ErrorFileNotFound || e.NativeErrorCode == NativeIOConstants.ErrorPathNotFound)
+            {
+                // Ignore enumerating absent directories
             }
             catch (DirectoryNotFoundException)
             {

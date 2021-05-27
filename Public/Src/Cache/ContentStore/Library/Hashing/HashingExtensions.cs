@@ -54,5 +54,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             return contentHash == HashInfoLookup.Find(contentHash.HashType).EmptyHash;
         }
+
+        public static bool IsZero(this ContentHash contentHash)
+        {
+            return contentHash == HashInfoLookup.Find(contentHash.HashType).Zero;
+        }
     }
 }

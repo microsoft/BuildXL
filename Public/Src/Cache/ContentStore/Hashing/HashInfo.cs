@@ -20,6 +20,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             HashType = hashType;
             ByteLength = length;
+            Zero = new ContentHash(HashType);
         }
 
         /// <summary>
@@ -49,6 +50,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return _emptyHash;
             }
         }
+
+        /// <summary>
+        ///     The content hash with all zeros.
+        /// </summary>
+        public ContentHash Zero { get; }
 
         /// <summary>
         ///     Gets hash algorithm.

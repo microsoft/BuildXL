@@ -129,10 +129,17 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         Tracer,
                         async () =>
                         {
-                            var remotePinResults = await Task.WhenAll(await _publisher.PinAsync(operationContext, contentHashList.ContentHashList.Hashes, token));
+                            // Make sure to push the blob in the selector if it exists.
+                            var hashesToPush = new List<ContentHash>(contentHashList.ContentHashList.Hashes);
+                            if (!fingerprint.Selector.ContentHash.IsZero())
+                            {
+                                hashesToPush.Add(fingerprint.Selector.ContentHash);
+                            }
+
+                            var remotePinResults = await Task.WhenAll(await _publisher.PinAsync(operationContext, hashesToPush, token));
                             var missingFromRemote = remotePinResults
                                 .Where(r => !r.Item.Succeeded)
-                                .Select(r => contentHashList.ContentHashList.Hashes[r.Index])
+                                .Select(r => hashesToPush[r.Index])
                                 .ToArray();
 
                             if (missingFromRemote.Length > 0)

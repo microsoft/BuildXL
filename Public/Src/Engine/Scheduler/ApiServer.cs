@@ -403,7 +403,7 @@ namespace BuildXL.Scheduler
             if (result.Any(value => !value.IsValid))
             {
                 BuildManifestEntry[] failures = result.Where(value => !value.IsValid)
-                    .Select(value => new BuildManifestEntry(value.RelativePath, value.AzureArtifactsHash, "")) // FullFilePath is unused by the caller
+                    .Select(value => new BuildManifestEntry(value.RelativePath, value.AzureArtifactsHash, "Invalid")) // FullFilePath is unused by the caller
                     .ToArray();
 
                 return IpcResult.Success(cmd.RenderResult(failures));

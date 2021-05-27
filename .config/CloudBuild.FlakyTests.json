@@ -5,6 +5,27 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
 {
   "IdentifierForLogging": "For repo BuildXL.Internal in CloudBuild",
   "FlakyTestsPerModule": {
+    "Public\\Src\\Engine\\UnitTests\\Distribution_retail_X64": {
+      "FlakyTestMap": {
+        "Test.BuildXL.Distribution.WorkerServiceTests.RepeatedRequestIsRunOnce": {
+          "Name": "Test.BuildXL.Distribution.WorkerServiceTests.RepeatedRequestIsRunOnce",
+          "DetectionTimeUtc": "2021-05-21T06:00:13.6513923Z",
+          "QuarantineExpiryTimeUtc": "2021-11-17T06:00:13.6513924Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1845726",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "assert.equal() failure expected: #NUM# actual: #NUM#"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/b690393d-fb91-8308-bb4c-162bccda7a7b",
+          "ScheduledDeletionTimeUtc": null
+        }
+      },
+      "Metadata": {
+        "ErrorSignatureToModuleBugReportUri": {},
+        "CompletedModuleBugReportUris": []
+      },
+      "TestSourceDir": "Public\\Src\\Engine\\UnitTests\\Distribution"
+    },
     "Public\\Src\\Engine\\UnitTests\\Processes_retail_X64": {
       "FlakyTestMap": {
         "Test.BuildXL.Processes.SandboxedProcessTest.CheckDetoursNotifications": {
@@ -18,6 +39,102 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/f174089b-fc75-4eee-81c5-ce0d3937b040",
           "ScheduledDeletionTimeUtc": "2021-06-02T16:00:47.1397468Z"
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.EnvironmentVariables": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.EnvironmentVariables",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1590073Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1590073Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846138",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "process claims it or a child process was killed; exit code: #NUM#, stdout: 'success', stderr: ''. expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.LargeStandardOutputToFile": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.LargeStandardOutputToFile",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1590049Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1590049Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846139",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "assert.false() failure expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: False)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: False)",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1590023Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1590024Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846140",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "assert.null() failure expected: (null) actual: reportedprocess[] [reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }, reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }]"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: True)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: True)",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1590002Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1590003Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846141",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "assert.null() failure expected: (null) actual: reportedprocess[] [reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }, reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }]"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: False)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: False)",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1589982Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1589982Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846142",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "process claims it or a child process was killed; exit code: #NUM#, stdout: 'test', stderr: ''. expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: True)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: True)",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1589962Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1589962Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846143",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "process claims it or a child process was killed; exit code: #NUM#, stdout: 'test', stderr: ''. expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: False)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: False)",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.1589937Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1589937Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846144",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "process claims it or a child process was killed; exit code: #NUM#, stdout: 'hi', stderr: ''. expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: True)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: True)",
+          "DetectionTimeUtc": "2021-05-22T08:00:18.158988Z",
+          "QuarantineExpiryTimeUtc": "2021-11-18T08:00:18.1589881Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1846145",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "process claims it or a child process was killed; exit code: #NUM#, stdout: 'hi', stderr: ''. expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/f896d66b-97e5-2f4c-3c91-03b5bc3771ea",
+          "ScheduledDeletionTimeUtc": null
         }
       },
       "Metadata": {

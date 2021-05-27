@@ -244,6 +244,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.DumpProcess:
                     m_analyzer = InitializeDumpProcessAnalyzer();
                     break;
+                case AnalysisMode.DumpStringTable:
+                    m_analyzer = InitializeDumpStringTableAnalyzer();
+                    break;
                 case AnalysisMode.EventStats:
                     m_analyzer = InitializeEventStatsAnalyzer();
                     break;
@@ -589,6 +592,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteDumpPipLiteAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteDumpStringTableAnalyzerHelp(writer);
 
             writer.WriteLine("");
             WriteProcessRunScriptAnalyzerHelp(writer);

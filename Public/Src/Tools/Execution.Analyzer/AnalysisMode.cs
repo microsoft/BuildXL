@@ -27,6 +27,7 @@ namespace BuildXL.Execution.Analyzer
         DumpPip,
         DumpPipLite,
         DumpMounts,
+        DumpStringTable,
         EventStats,
         ExportDgml,
         ExportGraph,

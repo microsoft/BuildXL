@@ -1518,6 +1518,24 @@ namespace BuildXL.Utilities
                 lengthInPartiallyFilledBuffer = (int)((uint)nextId & BytesPerBufferMask);
             }
         }
+
+        /// <summary>
+        /// Returns all strings in this table
+        /// </summary>
+        /// <remarks>
+        /// Not thread safe. The caller should ensure there are no concurrent accesses to the structure while serializing.
+        /// </remarks>
+        public IEnumerable<string> Strings
+        {
+            get
+            {
+                Contract.Requires(m_stringSet != null, "Can't enumerate the strings if the table is frozen");
+                for (int i = 0; i < m_stringSet.Count; ++i)
+                {
+                    yield return GetString(m_stringSet[i]);
+                }
+            }
+        }
 #endregion
 
 #if DebugStringTable

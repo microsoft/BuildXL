@@ -712,33 +712,6 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipInputVerificationUntrackedInput(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath);
 
         [GeneratedEvent(
-            (ushort)LogEventId.PipInputVerificationMismatchRecovery,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from orchestrator. Attempting to materialize file from cache.",
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void PipInputVerificationMismatchRecovery(LoggingContext context, long pipSemiStableHash, string pipDescription, string actualHash, string expectedHash, string filePath);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.PipInputVerificationMismatchRecoveryExpectedExistence,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip input '{filePath}' not found locally, but exists on the orchestrator. Attempting to materialize file from cache.",
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void PipInputVerificationMismatchRecoveryExpectedExistence(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.PipInputVerificationMismatchRecoveryExpectedNonExistence,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Pip input '{filePath}' found locally, but does NOT exist on the orchestrator. File will be deleted.",
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void PipInputVerificationMismatchRecoveryExpectedNonExistence(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath);
-
-        [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipRequest,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipSemiStableHash}] Requesting {step} on {workerName}",

@@ -217,9 +217,11 @@ namespace BuildXL.Scheduler.Tracing
         StorageCacheCleanDirectoryOutputError = 3615,
         StorageReparsePointInOutputDirectoryWarning = 3616,
 
-        PipInputVerificationMismatchRecovery = 3617,
-        PipInputVerificationMismatchRecoveryExpectedExistence = 3618,
-        PipInputVerificationMismatchRecoveryExpectedNonExistence = 3619,
+        // Deprecated (source file materialization)
+        // was PipInputVerificationMismatchRecovery = 3617,
+        // was PipInputVerificationMismatchRecoveryExpectedExistence = 3618,
+        // was PipInputVerificationMismatchRecoveryExpectedNonExistence = 3619,
+
         UnexpectedlySmallObservedInputCount = 3620,
         HistoricPerfDataCacheTrace = 3621,
         CancellingProcessPipExecutionDueToResourceExhaustion = 3622,

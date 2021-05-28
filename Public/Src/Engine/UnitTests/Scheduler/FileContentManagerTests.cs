@@ -105,60 +105,6 @@ namespace Test.BuildXL.Scheduler
             harness.VerifyContent(copyChainFinalOutput, copyFileOutputContents);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task SourceFilesMaterialization(bool testFileDeletionFailure)
-        {
-            var harness = CreateDefaultHarness();
-            
-            // Source file materialization only happens on distributed workers
-            harness.Configuration.Distribution.BuildRole = DistributedBuildRoles.Worker;
-            harness.Configuration.Distribution.EnableSourceFileMaterialization = true;
-
-            harness.Seal();
-
-            var sourceFileContents = "Source file";
-
-            FileArtifact sourceFile = CreateSourceFile(fileName: "source.txt");
-
-            harness.WriteText(sourceFile, "Source file content which should be replaced");
-
-            await harness.StoreAndReportStringContent(sourceFileContents, sourceFile);
-
-            var dummyConsumer = CreateCmdProcess(
-                dependencies: new FileArtifact[0],
-                outputs: new[] { CreateOutputFile() });
-
-            // Hash the dependencies of a dummy process so the default input files for test processes are hashed
-            // i.e. the process executable. TryMaterialize requires that all the file hashes have been reported
-            var dummyHashResult = await harness.FileContentManager.TryHashDependenciesAsync(dummyConsumer, harness.UntrackedOpContext);
-            Assert.True(dummyHashResult.Succeeded);
-
-            var consumer = CreateCmdProcess(
-                dependencies: new[] { sourceFile },
-                outputs: new[] { CreateOutputFile() });
-
-            if (!testFileDeletionFailure)
-            {
-                // Call the file content manager to ensure that the source file is materialized
-                var fileMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesAsync(consumer, harness.UntrackedOpContext);
-                Assert.True(fileMaterializationResult);
-
-                harness.VerifyContent(sourceFile, sourceFileContents);
-            }
-            else if (!OperatingSystemHelper.IsUnixOS)
-            {
-                // Disabled on Mac because on unix file systems opening a file doesn't prevent it from being deleted by a different process
-                using (var fs = new FileStream(sourceFile.Path.ToString(harness.PipContext.PathTable), FileMode.Create, FileAccess.ReadWrite, FileShare.None))
-                {
-                    // Call the file content manager to ensure that the source file materialization fails when local file cannot be deleted
-                    var fileMaterializationResult = await harness.FileContentManager.TryMaterializeDependenciesInternalAsync(consumer, harness.UntrackedOpContext);
-                    Assert.Equal(ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure, fileMaterializationResult);
-                }
-            }
-        }
-
         [Fact]
         public async Task HostFileMaterialization()
         {

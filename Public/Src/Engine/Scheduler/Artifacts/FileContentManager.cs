@@ -233,10 +233,6 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         private readonly IFileContentManagerHost m_host;
 
-        // TODO: Enable or remove this functionality (i.e. materializing source file in addition to pip outputs
-        // on distributed build workers)
-        private bool SourceFileMaterializationEnabled => Configuration.Distribution.EnableSourceFileMaterialization;
-
         private bool IsDistributedWorker => Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker;
 
         /// <summary>
@@ -924,7 +920,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 dynamicFileMap?.Add(file, directory);
                             }
 
-                            if (file.IsOutputFile || SourceFileMaterializationEnabled)
+                            if (file.IsOutputFile)
                             {
                                 if (!shouldInclude(file))
                                 {
@@ -1952,11 +1948,7 @@ namespace BuildXL.Scheduler.Artifacts
                 if (file.IsSourceFile)
                 {
                     // Only distributed workers need to verify/materialize source files
-                    if (IsDistributedWorker && SourceFileMaterializationEnabled)
-                    {
-                        return AddFileMaterializationBehavior.Materialize;
-                    }
-                    else if (IsDistributedWorker && !sealDirMember)
+                    if (IsDistributedWorker && !sealDirMember)
                     {
                         return AddFileMaterializationBehavior.Verify;
                     }
@@ -3121,66 +3113,19 @@ namespace BuildXL.Scheduler.Artifacts
                 FileMaterializationInfo? maybeFileInfo = await state.HashTasks[i];
                 bool sourceFileHashMatches = maybeFileInfo?.Hash.Equals(expectedHash) == true;
 
-                if (SourceFileMaterializationEnabled)
+                // Not materializing source files, so verify that the file matches instead
+                if (!maybeFileInfo.HasValue)
                 {
-                    // Only attempt to materialize the file if the hash does not match
-                    if (!sourceFileHashMatches)
-                    {
-                        if (expectedHash.IsSpecialValue() && expectedHash != WellKnownContentHashes.AbsentFile)
-                        {
-                            // We are trying to materialize the source file to a special value (like untracked) so
-                            // just set it to succeed since these values cannot actually be materialized
-                            // AbsentFile however can be materialized by deleting the file
-                            state.SetMaterializationSuccess(fileIndex: i, origin: ContentMaterializationOrigin.UpToDate, operationContext: operationContext);
-                        }
-
-                        if (maybeFileInfo.Value.Hash == WellKnownContentHashes.AbsentFile)
-                        {
-                            Logger.Log.PipInputVerificationMismatchRecoveryExpectedExistence(
-                                operationContext,
-                                pipInfo.SemiStableHash,
-                                pipInfo.Description,
-                                filePath: file.Path.ToString(pathTable));
-                        }
-                        else if (expectedHash == WellKnownContentHashes.AbsentFile)
-                        {
-                            Logger.Log.PipInputVerificationMismatchRecoveryExpectedNonExistence(
-                                operationContext,
-                                pipInfo.SemiStableHash,
-                                pipInfo.Description,
-                                filePath: file.Path.ToString(pathTable));
-                        }
-                        else
-                        {
-                            Logger.Log.PipInputVerificationMismatchRecovery(
-                                operationContext,
-                                pipInfo.SemiStableHash,
-                                pipInfo.Description,
-                                actualHash: maybeFileInfo.Value.Hash.ToHex(),
-                                expectedHash: expectedHash.ToHex(),
-                                filePath: file.Path.ToString(pathTable));
-                        }
-
-                        // Just continue rather than reporting result so that the file will be materialized
-                        continue;
-                    }
+                    Logger.Log.PipInputVerificationUntrackedInput(
+                        operationContext,
+                        pipInfo.SemiStableHash,
+                        pipInfo.Description,
+                        file.Path.ToString(pathTable));
                 }
-                else
+                else if (maybeFileInfo.Value.Hash != expectedHash)
                 {
-                    // Not materializing source files, so verify that the file matches instead
-                    if (!maybeFileInfo.HasValue)
-                    {
-                        Logger.Log.PipInputVerificationUntrackedInput(
-                            operationContext,
-                            pipInfo.SemiStableHash,
-                            pipInfo.Description,
-                            file.Path.ToString(pathTable));
-                    }
-                    else if (maybeFileInfo.Value.Hash != expectedHash)
-                    {
-                        var actualFileInfo = maybeFileInfo.Value;
-                        ReportWorkerContentMismatch(operationContext, pathTable, file, expectedHash, actualFileInfo.Hash);
-                    }
+                    var actualFileInfo = maybeFileInfo.Value;
+                    ReportWorkerContentMismatch(operationContext, pathTable, file, expectedHash, actualFileInfo.Hash);
                 }
 
                 if (sourceFileHashMatches)

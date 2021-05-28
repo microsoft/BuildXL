@@ -30,7 +30,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             BuildRole = template.BuildRole;
             BuildServicePort = template.BuildServicePort;
             ValidateDistribution = template.ValidateDistribution;
-            EnableSourceFileMaterialization = template.EnableSourceFileMaterialization;
             ReplicateOutputsToWorkers = template.ReplicateOutputsToWorkers;
             BuildWorkers = new List<IDistributionServiceLocation>(template.BuildWorkers.Select(location => new DistributionServiceLocation(location)));
             DistributeCacheLookups = template.DistributeCacheLookups;
@@ -50,9 +49,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inhertidoc />
         public bool? ReplicateOutputsToWorkers { get; set; }
-
-        /// <inhertidoc />
-        public bool EnableSourceFileMaterialization { get; set; }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

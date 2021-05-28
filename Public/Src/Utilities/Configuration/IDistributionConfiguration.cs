@@ -35,11 +35,6 @@ namespace BuildXL.Utilities.Configuration
         bool ValidateDistribution { get; }
 
         /// <summary>
-        /// Materialize source files on worker nodes
-        /// </summary>
-        bool EnableSourceFileMaterialization { get; }
-
-        /// <summary>
         /// Materialize output files on all workers
         /// </summary>
         bool? ReplicateOutputsToWorkers { get; }

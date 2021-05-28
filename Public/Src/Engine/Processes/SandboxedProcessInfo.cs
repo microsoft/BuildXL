@@ -27,13 +27,22 @@ namespace BuildXL.Processes
         private const int BufSize = 4096;
 
         /// <summary>
-        /// Windows-imposed limit on command-line length
+        /// OS-imposed limit on command-line length
         /// </summary>
         /// <remarks>
-        /// http://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
-        /// The maximum length of this string is 32,768 characters, including the Unicode terminating null character.
+        /// Windows:
+        ///   http://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
+        ///   The maximum length of this string is 32,768 characters, including the Unicode terminating null character.
+        /// 
+        /// MacOS:
+        ///   256K (can be obtained by executing `getconf ARG_MAX`)
+        /// 
+        /// Linux:
+        ///   typically 2M (can be obtained by executing `xargs --show-limits`)
         /// </remarks>
-        public const int MaxCommandLineLength = short.MaxValue;
+        public static readonly int MaxCommandLineLength = 
+            OperatingSystemHelper.IsLinuxOS ? 2 * 1024 * 1024 :
+            OperatingSystemHelper.IsMacOS   ?      256 * 1024 : short.MaxValue;
 
         /// <summary>
         /// Make sure we always wait for a moment after the main process exits by default.

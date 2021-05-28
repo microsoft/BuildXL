@@ -162,7 +162,7 @@ HashAlgorithms=SHA256
         /// <returns>True if dropConfig contains all required fields</returns>
         public static bool VerifyBuildManifestRequirements(DropConfig dropConfig, out string error)
         {
-            if (dropConfig.GenerateSignedManifest == true)
+            if (dropConfig.GenerateBuildManifest)
             {
                 List<string> missingFields = new List<string>();
 
@@ -191,6 +191,23 @@ HashAlgorithms=SHA256
                     missingFields.Add("BsiFileLocation");
                 }
 
+                if (missingFields.Count != 0)
+                {
+                    error = $"GenerateBuildManifest = true, but the following required fields are missing: {string.Join(", ", missingFields)}";
+                    return false;
+                }
+
+                if (!File.Exists(dropConfig.BsiFileLocation))
+                {
+                    error = $"GenerateBuildManifest = true, but the BSI File does not exist at : '{dropConfig.BsiFileLocation}";
+                    return false;
+                }
+            }
+
+            if (dropConfig.SignBuildManifest)
+            {
+                List<string> missingFields = new List<string>();
+
                 if (string.IsNullOrEmpty(dropConfig.MakeCatToolPath))
                 {
                     missingFields.Add("MakeCatToolPath");
@@ -203,7 +220,7 @@ HashAlgorithms=SHA256
 
                 if (missingFields.Count != 0)
                 {
-                    error = $"GenerateSignedManifest = true, but the following required fields are missing: {string.Join(", ", missingFields)}";
+                    error = $"SignBuildManifest = true, but the following required fields are missing: {string.Join(", ", missingFields)}";
                     return false;
                 }
 
@@ -221,7 +238,7 @@ HashAlgorithms=SHA256
 
                 if (missingFiles.Count != 0)
                 {
-                    error = $"GenerateSignedManifest = true, but the the following file(s) are missing on disk: {string.Join(", ", missingFiles)}";
+                    error = $"SignBuildManifest = true, but the following file(s) are missing on disk: {string.Join(", ", missingFiles)}";
                     return false;
                 }
             }

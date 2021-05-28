@@ -78,9 +78,14 @@ namespace Tool.DropDaemon
         public byte? DomainId { get; }
 
         /// <summary>
-        ///     Signed Build Manifest generation flag.
+        ///     Build Manifest generation flag.
         /// </summary>
-        public bool GenerateSignedManifest { get; }
+        public bool GenerateBuildManifest { get; }
+
+        /// <summary>
+        ///     Build Manifest Signing flag.
+        /// </summary>
+        public bool SignBuildManifest { get; }
 
         /// <summary>
         ///     Repo path of the code being build
@@ -148,7 +153,14 @@ namespace Tool.DropDaemon
         public static bool DefaultEnableChunkDedup { get; } = false;
 
         /// <nodoc/>
+        // TODO: Remove after CB side changes have been merged: https://dev.azure.com/mseng/Domino/_git/CloudBuild/pullrequest/615034
         public static bool DefaultGenerateSignedManifest { get; } = false;
+
+        /// <nodoc/>
+        public static bool DefaultGenerateBuildManifest { get; } = false;
+
+        /// <nodoc/>
+        public static bool DefaultSignBuildManifest { get; } = false;
         #endregion
 
         // ==================================================================================================
@@ -169,7 +181,8 @@ namespace Tool.DropDaemon
             string artifactLogName = null,
             int? batchSize = null,
             byte? dropDomainId = null,
-            bool? generateSignedManifest = null,
+            bool? generateBuildManifest = null,
+            bool? signBuildManifest = null,
             string repo = null,
             string branch = null,
             string commitId = null,
@@ -190,7 +203,8 @@ namespace Tool.DropDaemon
             ArtifactLogName = artifactLogName;
             BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
             DomainId = dropDomainId;
-            GenerateSignedManifest = generateSignedManifest ?? DefaultGenerateSignedManifest;
+            GenerateBuildManifest = generateBuildManifest ?? DefaultGenerateBuildManifest;
+            SignBuildManifest = signBuildManifest ?? DefaultSignBuildManifest;
             Repo = repo ?? string.Empty;
             Branch = branch ?? string.Empty;
             CommitId = commitId ?? string.Empty;

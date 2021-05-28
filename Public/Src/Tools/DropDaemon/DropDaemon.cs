@@ -157,10 +157,27 @@ namespace Tool.DropDaemon
 
         internal static readonly BoolOption GenerateSignedManifest = RegisterDropConfigOption(new BoolOption("generateSignedManifest")
         {
-            ShortName = "sbm",
+            // TODO: Remove after CB side changes merged.
+            ShortName = "gsbm",
             HelpText = "Generate signed Build Manifest",
             IsRequired = false,
             DefaultValue = DropConfig.DefaultGenerateSignedManifest,
+        });
+
+        internal static readonly BoolOption GenerateBuildManifest = RegisterDropConfigOption(new BoolOption("generateBuildManifest")
+        {
+            ShortName = "gbm",
+            HelpText = "Generate a Build Manifest",
+            IsRequired = false,
+            DefaultValue = DropConfig.DefaultGenerateBuildManifest,
+        });
+
+        internal static readonly BoolOption SignBuildManifest = RegisterDropConfigOption(new BoolOption("signBuildManifest")
+        {
+            ShortName = "sbm",
+            HelpText = "Sign the Build Manifest",
+            IsRequired = false,
+            DefaultValue = DropConfig.DefaultSignBuildManifest,
         });
 
         internal static readonly StrOption Repo = RegisterDropConfigOption(new StrOption("repo")
@@ -282,6 +299,11 @@ namespace Tool.DropDaemon
                    return -1;
                }
 
+               if (dropConfig.SignBuildManifest && !dropConfig.GenerateBuildManifest)
+               {
+                   conf.Logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
+               }
+
                if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, out string errMessage))
                {
                    conf.Logger.Error(errMessage);
@@ -346,7 +368,7 @@ namespace Tool.DropDaemon
                 var daemon = dropDaemon as DropDaemon;
                 daemon.Logger.Info("[FINALIZE] Started at" + daemon.DropConfig.Service + "/" + daemon.DropName);
 
-                if (daemon.DropConfig.GenerateSignedManifest)
+                if (daemon.DropConfig.GenerateBuildManifest)
                 {
                     var bsiResult = await UploadBsiFileAsync(daemon);
                     if (!bsiResult.Succeeded)
@@ -506,11 +528,11 @@ namespace Tool.DropDaemon
 
         /// <summary>
         /// Uploads the bsi.json for the given drop.
-        /// Should be called only when DropConfig.GenerateSignedManifest is true.
+        /// Should be called only when DropConfig.GenerateBuildManifest is true.
         /// </summary>
         public async static Task<IIpcResult> UploadBsiFileAsync(DropDaemon daemon)
         {
-            Contract.Requires(daemon.DropConfig.GenerateSignedManifest, "GenerateBuildManifestData API called even though Signed Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(daemon.DropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
             if (!System.IO.File.Exists(daemon.DropConfig.BsiFileLocation))
             {
@@ -524,11 +546,11 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Generates and uploads the Manifest.json on the master using all file hashes computed and stored 
         /// by workers using <see cref="VsoClient.RegisterFilesForBuildManifestAsync"/> for the given drop.
-        /// Should be called only when DropConfig.GenerateSignedManifest is true.
+        /// Should be called only when DropConfig.GenerateBuildManifest is true.
         /// </summary>
         public async static Task<IIpcResult> GenerateAndUploadBuildManifestFileWithSignedCatalogAsync(DropDaemon daemon)
         {
-            Contract.Requires(daemon.DropConfig.GenerateSignedManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(daemon.DropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
             var bxlResult = await daemon.ApiClient.GenerateBuildManifestFileList(daemon.DropName);
 
@@ -571,15 +593,28 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occured during Build Manifest upload: {buildManifestUploadResult.Payload}");
             }
 
-            return await GenerateAndSignBuildManifestCatalogFileAsync(daemon, localFilePath);
+            if (!daemon.DropConfig.SignBuildManifest)
+            {
+                return IpcResult.Success("Unsigned Build Manifest generated and uploaded successfully");
+            }
+
+            var startTime = DateTime.UtcNow;
+            var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(daemon, localFilePath);
+            long signTimeMs = (long)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
+            daemon.Logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
+
+            return signManifestResult;
         }
 
         /// <summary>
         /// Generates and uploads a catalog file for <see cref="BuildManifestHelper.BuildManifestFilename"/> and <see cref="BuildManifestHelper.BsiFilename"/>
-        /// Should be called only when DropConfig.GenerateSignedManifest is true.
+        /// Should be called only when DropConfig.GenerateBuildManifest is true and DropConfig.SignBuildManifest is true.
         /// </summary>
         public async static Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropDaemon daemon, string buildManifestLocalPath)
         {
+            Contract.Requires(daemon.DropConfig.GenerateBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(daemon.DropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");
+
             var generateCatalogResult = await BuildManifestHelper.GenerateSignedCatalogAsync(
                 daemon.DropConfig.MakeCatToolPath,
                 daemon.DropConfig.EsrpManifestSignToolPath,
@@ -867,7 +902,8 @@ namespace Tool.DropDaemon
                 artifactLogName: conf.Get(ArtifactLogName),
                 batchSize: conf.Get(BatchSize),
                 dropDomainId: domainId,
-                generateSignedManifest: conf.Get(GenerateSignedManifest),
+                generateBuildManifest: conf.Get(GenerateBuildManifest) || conf.Get(GenerateSignedManifest),
+                signBuildManifest: conf.Get(SignBuildManifest) || conf.Get(GenerateSignedManifest),
                 repo: conf.Get(Repo),
                 branch: conf.Get(Branch),
                 commitId: conf.Get(CommitId),

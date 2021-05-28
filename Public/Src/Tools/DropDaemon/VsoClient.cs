@@ -161,13 +161,13 @@ namespace Tool.DropDaemon
 
         /// <summary>
         /// Takes a hash as string and registers its corresponding SHA-256 ContentHash using BuildXL Api.
-        /// Should be called only when DropConfig.GenerateSignedManifest is true.
+        /// Should be called only when DropConfig.GenerateBuildManifest is true.
         /// Returns a hashset of failing RelativePaths.
         /// </summary>
         private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
         {
             await Task.Yield();
-            Contract.Requires(m_dropDaemon.DropConfig.GenerateSignedManifest == true, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(m_dropDaemon.DropConfig.GenerateBuildManifest, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
             var bxlResult = await m_dropDaemon.ApiClient.RegisterFilesForBuildManifest(m_dropDaemon.DropName, buildManifestEntries);
             if (!bxlResult.Succeeded)
             {
@@ -332,7 +332,7 @@ namespace Tool.DropDaemon
 
                 Task<HashSet<string>> registerFilesForBuildManifestTask = null;
                 // Register files for Build Manifest
-                if (m_dropDaemon.DropConfig.GenerateSignedManifest)
+                if (m_dropDaemon.DropConfig.GenerateBuildManifest)
                 {
                     BuildManifestEntry[] buildManifestEntries = dedupedBatch
                         .Where(dropItem => dropItem.BlobIdentifier != null)

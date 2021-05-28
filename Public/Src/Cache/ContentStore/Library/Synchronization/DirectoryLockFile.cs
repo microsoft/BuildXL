@@ -62,8 +62,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                     // Anything other than FileShare.None is effectively ignored in Unix
                     FileShare fileShare = BuildXL.Utilities.OperatingSystemHelper.IsUnixOS ? FileShare.None : FileShare.Read;
 
-                    _lockFile = await _fileSystem.OpenSafeAsync(
-                        _lockFilePath, FileAccess.Write, FileMode.OpenOrCreate, fileShare);
+                    _lockFile = _fileSystem.Open(_lockFilePath, FileAccess.Write, FileMode.OpenOrCreate, fileShare);
 
                     using (var writer = new StreamWriter(_lockFile, UTF8WithoutBom, bufferSize: 4096, leaveOpen: true))
                     {

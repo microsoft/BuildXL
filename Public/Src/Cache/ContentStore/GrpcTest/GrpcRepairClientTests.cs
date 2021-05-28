@@ -63,7 +63,7 @@ namespace ContentStoreTest.Grpc
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 var storeConfig = CreateStoreConfiguration();
-                await storeConfig.Write(FileSystem, directory.Path).ConfigureAwait(false);
+                storeConfig.Write(FileSystem, directory.Path);
                 
                 var serviceConfig = CreateServiceConfiguration(directory.Path, PortExtensions.GetNextAvailablePort(), Guid.NewGuid().ToString());
 

@@ -237,7 +237,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             {
                 Tracer.Debug(context, $"Failed to protect hibernated sessions because it is not supported by the current OS. " +
                     $"Attempting to hibernate while unprotected. Excepiton: {e}");
-                await hibernatedSessions.WriteAsync(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
+                hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
             }
 
             var contentHandles = new Dictionary<int, ISessionHandle<IContentSession, LocalContentServerSessionData>>(sessionHandles.Count);

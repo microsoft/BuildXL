@@ -472,7 +472,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
                 }
 
-                var sourcePath = new ContentLocation(location, hashInfo.ContentHash, fromRing: request.IsExtraMachineLocationIndex(replicaIndex));
+                var sourcePath = new ContentLocation(location, hashInfo.ContentHash, hashInfo.NullableSize, fromRing: request.IsExtraMachineLocationIndex(replicaIndex));
 
                 var tempLocation = AbsolutePath.CreateRandomFileName(workingFolder);
 
@@ -724,19 +724,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     // If we know that the file is large, then hash concurrently from the start
                     bool hashEntireFileConcurrently = _settings.ParallelHashingFileSizeBoundary >= 0 && hashInfo.Size > _settings.ParallelHashingFileSizeBoundary;
 
-                    int bufferSize = GetBufferSize(hashInfo);
-
                     // Since this is the only place where we hash the file during trusted copies, we attempt to get access to the bytes here,
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
-                    using (Stream fileStream = await FileSystem.OpenSafeAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
+                    using (Stream fileStream = FileSystem.OpenForWrite(tempDestinationPath, hashInfo.NullableSize, FileMode.Create, FileShare.Read | FileShare.Delete))
                     {
-                        if (hashInfo.Size >= 0)
-                        {
-                            // Setting file size makes the file system happy and is considered a best practice.
-                            fileStream.SetLength(hashInfo.Size);
-                        }
-
                         using (Stream possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
                         // Use hashInfo.Size since if it is -1 we will not have resized the stream and it will disable an optimization in dedup hashers which depends on file size.
                         using (HashingStream hashingStream = HashInfoLookup.GetContentHasher(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
@@ -835,33 +827,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 FileSystem.CreateDirectory(directoryPath);
             }
 
-            using var stream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.SequentialScan, DefaultBufferSize);
+            
+            using var stream = FileSystem.OpenForWrite(destinationPath, sourcePath.Size, FileMode.Create, FileShare.None, FileOptions.SequentialScan, DefaultBufferSize);
             var result = await copier.CopyToAsync(context, sourcePath, stream, options);
 
             TrackTimeSpentWritingToDisk(result, stream);
 
             return result;
-        }
-
-        private static int GetBufferSize(ContentHashWithSizeAndLocations hashInfo)
-        {
-            // For "small" files we use "small buffer size"
-            // For files in [small, large) range we use file.Size
-            // For "large" files we use "large buffer size".
-
-            var size = hashInfo.Size;
-            if (size <= DefaultSmallBufferSize)
-            {
-                return DefaultSmallBufferSize;
-            }
-            else if (size >= DefaultLargeBufferSize)
-            {
-                return DefaultLargeBufferSize;
-            }
-            else
-            {
-                return (int)size;
-            }
         }
 
         private string AttemptTracePrefix(int attemptCount)

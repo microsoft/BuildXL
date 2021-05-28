@@ -257,7 +257,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream>? wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
-            using var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+            using var stream = FileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
             if (stream == null)
             {
                 return null;
@@ -270,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Assert(wrappedStream.Length == length);
 
             // Hash the file in  place
-            return await HashContentAsync(context, wrappedStream.AssertHasLength(), hashType, path);
+            return await HashContentAsync(context, wrappedStream.AssertHasLength(), hashType);
         }
 
         private void DeleteTempFolder()
@@ -327,7 +327,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<(ContentStoreConfiguration configuration, bool configFileExists)> CreateConfigurationAsync()
+        private (ContentStoreConfiguration configuration, bool configFileExists) CreateConfiguration()
         {
             if (_configurationModel.Selection == ConfigurationSelection.RequireAndUseInProcessConfiguration)
             {
@@ -341,7 +341,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (_configurationModel.Selection == ConfigurationSelection.UseFileAllowingInProcessFallback)
             {
-                var readConfigResult = await FileSystem.ReadContentStoreConfigurationAsync(RootPath);
+                var readConfigResult = FileSystem.ReadContentStoreConfiguration(RootPath);
 
                 if (readConfigResult.Succeeded)
                 {
@@ -364,11 +364,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             bool configFileExists;
-            (Configuration, configFileExists) = await CreateConfigurationAsync();
+            (Configuration, configFileExists) = CreateConfiguration();
 
             if (!configFileExists && _configurationModel.MissingFileOption == MissingConfigurationFileOption.WriteOnlyIfNotExists)
             {
-                await Configuration.Write(FileSystem, RootPath);
+                Configuration.Write(FileSystem, RootPath);
             }
 
             _tracer.Debug(context, $"{nameof(ContentStoreConfiguration)}: {Configuration}");
@@ -389,9 +389,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var size = await ContentDirectory.GetSizeAsync();
 
-            _pinSizeHistory =
-                await
-                    PinSizeHistory.LoadOrCreateNewAsync(
+            _pinSizeHistory = PinSizeHistory.LoadOrCreateNew(
                         FileSystem,
                         Clock,
                         RootPath,
@@ -1285,10 +1283,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             // ACL. Note that we can still be fooled in the event of external tampering via renames/move, but this
             // approach makes it very unlikely that our own code would ever write to or truncate the file before we move it.
 
-            using (Stream tempFileStream = await FileSystem.OpenSafeAsync(pathToTempContent, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
+            using (Stream tempFileStream = FileSystem.OpenForWrite(pathToTempContent, inputStreamLength, FileMode.CreateNew, FileShare.Delete))
             {
-                TrySetStreamLength(tempFileStream, inputStreamLength);
-
                 using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
                 await inputStream.CopyToWithFullBufferAsync(tempFileStream, handle.Value);
 
@@ -1307,7 +1303,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<ContentHashWithSize> HashContentAsync(Context context, StreamWithLength stream, HashType hashType, AbsolutePath path)
+        private async Task<ContentHashWithSize> HashContentAsync(Context context, StreamWithLength stream, HashType hashType)
         {
             try
             {
@@ -1955,7 +1951,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // operations in the in-memory representation of the cache.
                 if (UseEmptyContentShortcut(contentHashWithPath.Hash))
                 {
-                    await FileSystem.CreateEmptyFileAsync(contentHashWithPath.Path);
+                    FileSystem.CreateEmptyFile(contentHashWithPath.Path);
                     return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
                 }
 
@@ -2132,10 +2128,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                             FileSystem.CreateDirectory(destinationPath.GetParent());
                             var fileMode = replacementMode == FileReplacementMode.ReplaceExisting ? FileMode.Create : FileMode.CreateNew;
 
-                            using (Stream targetFileStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, fileMode, FileShare.Delete))
+                            using (Stream targetFileStream = FileSystem.OpenForWrite(destinationPath, contentStream.Value.Length, fileMode, FileShare.Delete))
                             {
-                                TrySetStreamLength(targetFileStream, contentStream.Value.Length);
-
                                 using var handle = GlobalObjectPools.FileIOBuffersArrayPool.Get();
                                 await hashingStream.CopyToWithFullBufferAsync(targetFileStream, handle.Value);
 
@@ -2850,7 +2844,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return null;
             }
 
-            var contentStream = await FileSystem.OpenAsync(contentPath, FileAccess.Read, FileMode.Open, share);
+            var contentStream = FileSystem.TryOpen(contentPath, FileAccess.Read, FileMode.Open, share);
 
             if (contentStream == null)
             {

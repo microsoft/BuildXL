@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             BoolResult? attemptResult = null;
             foreach (var (container, shardId) in _containers)
             {
-                using (var fileStream = await _fileSystem.OpenSafeAsync(targetCheckpointFile, FileAccess.Write, FileMode.Create, FileShare.Delete))
+                using (var fileStream = _fileSystem.OpenForWrite(targetCheckpointFile, expectingLength: null, FileMode.Create, FileShare.Delete))
                 {
                     try
                     {

@@ -605,10 +605,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             return Task.FromResult(OpenStreamInternal(path, fileAccess, fileMode, share)?.AssertHasLength());
         }
 
+        public StreamWithLength? TryOpen(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        {
+            return OpenStreamInternal(path, fileAccess, fileMode, share)?.AssertHasLength();
+        }
+
         /// <inheritdoc />
         public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
         {
-            return this.OpenAsync(path, FileAccess.Read, FileMode.Open, share);
+            return Task.FromResult(this.TryOpen(path, FileAccess.Read, FileMode.Open, share));
         }
 
         /// <inheritdoc />
@@ -620,7 +625,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         /// <inheritdoc />
         public async Task CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
-            using (Stream readStream = await this.OpenAsync(
+            using (Stream readStream = this.TryOpen(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
             {
                 if (readStream == null)
@@ -631,7 +636,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 CreateDirectory(destinationPath.Parent);
 
                 var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
-                using (var writeStream = await this.OpenAsync(destinationPath, FileAccess.Write, mode, FileShare.Delete))
+                using (var writeStream = this.TryOpen(destinationPath, FileAccess.Write, mode, FileShare.Delete))
                 {
                     await readStream.CopyToWithFullBufferAsync(writeStream, FileSystemConstants.FileIOBufferSize);
                 }

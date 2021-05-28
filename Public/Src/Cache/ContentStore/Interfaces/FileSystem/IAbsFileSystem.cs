@@ -15,6 +15,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     public interface IAbsFileSystem : IFileSystem<AbsolutePath>, IDisposable
     {
         /// <summary>
+        ///     [Obsolete] Open the named file asynchronously for reading.
+        /// </summary>
+        /// <param name="path">Path to the existing file that is to be read.</param>
+        /// <param name="fileAccess">Read, write, or both</param>
+        /// <param name="fileMode">File creation options</param>
+        /// <param name="share">Control of other object access to the same file.</param>
+        /// <param name="options">Minimum required options.</param>
+        /// <param name="bufferSize">Size of the stream's buffer.</param>
+        /// <returns>Null if the file or directory does not exist, otherwise the stream.</returns>
+        /// <remarks>
+        /// Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.
+        /// This method throws the same set of exceptions that <see cref="FileStream"/> constructor does.
+        ///
+        /// The method is obsolete, because there is no asynchrony in it. Please use <see cref="TryOpen"/>
+        /// </remarks>
+        Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
+
+        /// <summary>
         ///     Open the named file asynchronously for reading.
         /// </summary>
         /// <param name="path">Path to the existing file that is to be read.</param>
@@ -28,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.
         /// This method throws the same set of exceptions that <see cref="FileStream"/> constructor does.
         /// </remarks>
-        Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
+        StreamWithLength? TryOpen(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
 
         /// <summary>
         ///     Copy a file from one path to another.

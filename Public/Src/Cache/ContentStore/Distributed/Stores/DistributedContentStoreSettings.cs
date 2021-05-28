@@ -21,19 +21,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public const int DefaultParallelCopyFilesLimit = 8;
 
         /// <summary>
-        /// Default buffer size for file transfer of small files via FsServer in CopyToAsync.
-        /// 4KB was selected because it is the default buffer size for a FileStream.
-        /// </summary>
-        public const int DefaultSmallBufferSize = 4096;
-
-        /// <summary>
-        /// Default buffer size for file transfer of large files via FsServer in CopyToAsync.
-        /// 64KB was selected because it is significantly larger than 4KB (the original default buffer size), is a power of 2,
-        /// and below the boundary for being placed in the large object heap (80KB).
-        /// </summary>
-        public const int DefaultLargeBufferSize = 64 * 1024;
-
-        /// <summary>
         /// Delays for retries for file copies
         /// </summary>
         private static readonly List<TimeSpan> CacheCopierDefaultRetryIntervals = new List<TimeSpan>()

@@ -38,9 +38,9 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                 throw new ArgumentException($"Log file {log} does not exist.", nameof(log));
             }
 
-            using (var logStream = _fileSystem.OpenReadOnlySafeAsync(logPath, FileShare.Read | FileShare.Delete).Result)
+            using (var logStream = _fileSystem.OpenReadOnly(logPath, FileShare.Read | FileShare.Delete))
             using (StreamReader reader = new StreamReader(logStream))
-            using (var outputStream = _fileSystem.OpenSafeAsync(outputPath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete).Result)
+            using (var outputStream = _fileSystem.Open(outputPath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete))
             using (StreamWriter writer = new StreamWriter(outputStream))
             {
                 foreach (StrongFingerprint strongFingerprint in EnumerateUniqueStrongFingerprints(reader))

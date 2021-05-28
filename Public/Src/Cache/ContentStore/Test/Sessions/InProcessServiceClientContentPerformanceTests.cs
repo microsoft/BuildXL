@@ -48,7 +48,7 @@ namespace ContentStoreTest.Performance.Sessions
 
         protected override IContentStore CreateStore(AbsolutePath rootPath, string cacheName, ContentStoreConfiguration configuration)
         {
-            configuration.Write(FileSystem, rootPath).Wait();
+            configuration.Write(FileSystem, rootPath);
             var grpcPortFileName = Guid.NewGuid().ToString();
 
             var serviceConfig = new ServiceConfiguration(

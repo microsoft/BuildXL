@@ -107,7 +107,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     GetStatsResult stats = await m_cache.GetStatsAsync(new Context(m_logger));
                     if (stats.Succeeded)
                     {
-                        using (Stream fileStream = await m_fileSystem.OpenAsync(m_statsFile,  FileAccess.ReadWrite, FileMode.CreateNew, FileShare.None))
+                        using (Stream fileStream =  m_fileSystem.Open(m_statsFile,  FileAccess.ReadWrite, FileMode.CreateNew, FileShare.None))
                         {
                             using (StreamWriter sw = new StreamWriter(fileStream))
                             {

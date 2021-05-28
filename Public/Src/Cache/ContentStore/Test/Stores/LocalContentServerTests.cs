@@ -53,7 +53,7 @@ namespace ContentStoreTest.Stores
                 var pins = new List<string> {contentHash.Serialize()};
                 var hibernatedSessionInfo = new HibernatedContentSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, DateTime.UtcNow.Ticks, Capabilities.None);
                 var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> {hibernatedSessionInfo});
-                await hibernatedSessions.WriteAsync(FileSystem, rootPath, fileName);
+                hibernatedSessions.Write(FileSystem, rootPath, fileName);
 
                 var namedCacheRoots = new Dictionary<string, AbsolutePath> {{ CacheName, rootPath}};
 
@@ -110,7 +110,7 @@ namespace ContentStoreTest.Stores
                 var pins = new List<string> { contentHash.Serialize() };
                 var hibernatedSessionInfo = new HibernatedContentSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, 0, Capabilities.None);
                 var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> { hibernatedSessionInfo });
-                await hibernatedSessions.WriteAsync(FileSystem, rootPath, fileName);
+                hibernatedSessions.Write(FileSystem, rootPath, fileName);
 
                 var namedCacheRoots = new Dictionary<string, AbsolutePath> { { CacheName, rootPath } };
 
@@ -174,7 +174,7 @@ namespace ContentStoreTest.Stores
                 var pins = new List<string> { contentHash.Serialize() };
                 var hibernatedSessionInfo = new HibernatedContentSessionInfo(SessionId, SessionName, ImplicitPin.None, CacheName, pins, 0, Capabilities.None);
                 var hibernatedSessions = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> { hibernatedSessionInfo });
-                await hibernatedSessions.WriteAsync(FileSystem, rootPath, fileName);
+                hibernatedSessions.Write(FileSystem, rootPath, fileName);
 
                 var namedCacheRoots = new Dictionary<string, AbsolutePath> { { CacheName, rootPath } };
 

@@ -51,7 +51,7 @@ namespace ContentStoreTest.Stores
 
                     // Sync to allow calibration to occur.
                     await store.SyncAsync(context);
-                    var currentQuota = await LoadElasticQuotaAsync(store.RootPathForTest);
+                    var currentQuota = LoadElasticQuota(store.RootPathForTest);
                     Assert.NotNull(currentQuota);
 
                     // Calibration should adjust the quota.
@@ -96,7 +96,7 @@ namespace ContentStoreTest.Stores
 
                     // Sync to allow calibration to occur.
                     await store.SyncAsync(context);
-                    var currentQuota = await LoadElasticQuotaAsync(store.RootPathForTest);
+                    var currentQuota = LoadElasticQuota(store.RootPathForTest);
                     Assert.NotNull(currentQuota);
 
                     // Calibration should adjust the quota.

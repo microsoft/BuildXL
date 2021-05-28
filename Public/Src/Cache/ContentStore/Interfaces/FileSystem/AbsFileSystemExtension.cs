@@ -23,13 +23,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         /// Creates an empty file at a given path.
         /// </summary>
-        public static async Task CreateEmptyFileAsync(this IAbsFileSystem fileSystem, AbsolutePath path)
+        public static void CreateEmptyFile(this IAbsFileSystem fileSystem, AbsolutePath path)
         {
             Contract.RequiresNotNull(path);
             Contract.RequiresNotNull(path.Parent);
 
             fileSystem.CreateDirectory(path.Parent);
-            using (await fileSystem.OpenAsync(path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, bufferSize: 1).ConfigureAwait(false))
+            using (fileSystem.TryOpen(path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, bufferSize: 1))
             {
             }
         }
@@ -69,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <exception cref="Exception">Throws if the IO operation fails.</exception>
         public static async Task<string?> TryReadFileAsync(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
         {
-            using Stream? readLockFile = await fileSystem.OpenAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).ConfigureAwait(false);
+            using Stream? readLockFile = fileSystem.TryOpen(absolutePath, FileAccess.Read, FileMode.Open, fileShare);
             if (readLockFile != null)
             {
                 using var reader = new StreamReader(readLockFile);
@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <exception cref="Exception">Throws if the IO operation fails.</exception>
         public static string ReadAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
         {
-            using Stream readLockFile = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).GetAwaiter().GetResult();
+            using Stream readLockFile = fileSystem.Open(absolutePath, FileAccess.Read, FileMode.Open, fileShare);
             using var reader = new StreamReader(readLockFile);
             return reader.ReadToEnd();
         }
@@ -96,21 +96,30 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <exception cref="Exception">Throws if the IO operation fails.</exception>
         public static void WriteAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, string contents, FileShare fileShare = FileShare.ReadWrite)
         {
-            using Stream file = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Write, FileMode.Create, fileShare).GetAwaiter().GetResult();
+            using Stream file = fileSystem.Open(absolutePath, FileAccess.Write, FileMode.Create, fileShare);
             using var writer = new StreamWriter(file);
             writer.Write(contents);
+        }
+
+        /// <summary>
+        /// Calls <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)" /> with the default buffer stream size.
+        /// </summary>
+        public static StreamWithLength? TryOpen(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
+        {
+            return fileSystem.TryOpen(path, fileAccess, fileMode, share, FileOptions.None, DefaultFileStreamBufferSize);
         }
 
         /// <summary>
         /// Open the named file asynchronously for reading.
         /// </summary>
         /// <exception cref="FileNotFoundException">Throws if the file is not found.</exception>
+        /// <exception cref="DirectoryNotFoundException">Throws if the directory is not found.</exception>
         /// <remarks>
         /// Unlike <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<StreamWithLength> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = FileSystemDefaults.DefaultFileStreamBufferSize)
+        public static StreamWithLength Open(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = FileSystemDefaults.DefaultFileStreamBufferSize)
         {
-            var stream = await fileSystem.OpenAsync(path, fileAccess, fileMode, share, options, bufferSize);
+            var stream = fileSystem.TryOpen(path, fileAccess, fileMode, share, options, bufferSize);
             if (stream == null)
             {
                 // Stream is null when the file or a directory is not found.
@@ -124,17 +133,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 
             return stream.Value;
         }
+        
+        /// <summary>
+        /// Creates a stream to an existing file.
+        /// Note that the permissions are such that it is readable, but not
+        /// writable by the caller.
+        /// </summary>
+        public static StreamWithLength? TryOpenReadOnly(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
+        {
+            return fileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, share);
+        }
 
         /// <summary>
         /// Open the named file asynchronously for reading.
         /// </summary>
         /// <exception cref="FileNotFoundException">Throws if the file is not found.</exception>
         /// <remarks>
-        /// Unlike <see cref="IReadableFileSystem{T}.OpenReadOnlyAsync(T, FileShare)"/> this function throws an exception if the file is missing.
+        /// Unlike <see cref="TryOpenReadOnly"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<StreamWithLength> OpenReadOnlySafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
+        public static StreamWithLength OpenReadOnly(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
         {
-            var stream = await fileSystem.OpenReadOnlyAsync(path, share);
+            var stream = fileSystem.TryOpenReadOnly(path, share);
             if (stream == null)
             {
                 throw new FileNotFoundException($"The file '{path}' does not exist.");
@@ -144,11 +163,64 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <summary>
-        /// Calls <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)" /> with the default buffer stream size.
+        /// Open the named file asynchronously for reading and sets the expected file length for performance reasons if available.
         /// </summary>
-        public static Task<StreamWithLength?> OpenAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
+        /// <remarks>
+        /// Setting the file length up-front leads to 20-30% performance improvements.
+        /// </remarks>
+        public static StreamWithLength? TryOpenForWrite(
+            this IAbsFileSystem fileSystem,
+            AbsolutePath path,
+            long? expectingLength,
+            FileMode fileMode,
+            FileShare share,
+            FileOptions options = FileOptions.None,
+            int bufferSize = FileSystemDefaults.DefaultFileStreamBufferSize)
         {
-            return fileSystem.OpenAsync(path, fileAccess, fileMode, share, FileOptions.None, DefaultFileStreamBufferSize);
+            var stream = fileSystem.TryOpen(path, FileAccess.Write, fileMode, share, options, bufferSize);
+            if (stream == null)
+            {
+                return null;
+            }
+
+            if (expectingLength != null)
+            {
+                stream.Value.Stream.SetLength(expectingLength.Value);
+            }
+
+            return stream.Value;
+        }
+
+        /// <summary>
+        /// Open the named file asynchronously for reading and sets the expected file length for performance reasons if available.
+        /// </summary>
+        /// <exception cref="FileNotFoundException">Throws if the file is not found.</exception>
+        /// <exception cref="DirectoryNotFoundException">Throws if the directory is not found.</exception>
+        /// <remarks>
+        /// Setting the file length up-front leads to 20-30% performance improvements.
+        /// </remarks>
+        public static StreamWithLength OpenForWrite(
+            this IAbsFileSystem fileSystem,
+            AbsolutePath path,
+            long? expectingLength,
+            FileMode fileMode,
+            FileShare share,
+            FileOptions options = FileOptions.None,
+            int bufferSize = FileSystemDefaults.DefaultFileStreamBufferSize)
+        {
+            var stream = fileSystem.TryOpenForWrite(path, expectingLength, fileMode, share, options, bufferSize);
+            if (stream == null)
+            {
+                // Stream is null when the file or a directory is not found.
+                if (fileSystem.DirectoryExists(path.Parent!))
+                {
+                    throw new FileNotFoundException($"The file '{path}' does not exist.");
+                }
+
+                throw new DirectoryNotFoundException($"The directory '{path.Parent}' does not exist.");
+            }
+
+            return stream.Value;
         }
     }
 }

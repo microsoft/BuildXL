@@ -229,7 +229,7 @@ namespace BuildXL.Cache.MultiTool.App
         {
             var hashInfo = HashInfoLookup.Find(expectedContentHash.HashType);
             using var hasher = hashInfo.CreateContentHasher();
-            using var stream = await fileSystem.OpenReadOnlySafeAsync(outputFilePath, FileShare.Read);
+            using var stream = fileSystem.OpenReadOnly(outputFilePath, FileShare.Read);
 
             var contentHash = await hasher.GetContentHashAsync(stream);
             return contentHash.Equals(expectedContentHash);

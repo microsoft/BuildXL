@@ -29,7 +29,7 @@ namespace ContentStoreTest.Sessions
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
         {
             var rootPath = testDirectory.Path;
-            configuration.Write(FileSystem, rootPath).Wait();
+            configuration.Write(FileSystem, rootPath);
             
             var grpcPortFileName = Guid.NewGuid().ToString();
 

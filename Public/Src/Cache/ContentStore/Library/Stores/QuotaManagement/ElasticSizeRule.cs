@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             _rootPath = rootPath;
             _initialQuota = initialElasticSize ?? SmallQuota;
 
-            var loadQuotaResult = LoadOrCreateNewAsync(_fileSystem, _initialQuota, _rootPath).GetAwaiter().GetResult();
+            var loadQuotaResult = LoadOrCreateNew(_fileSystem, _initialQuota, _rootPath);
             _quota = loadQuotaResult.Quota;
             _historyTimestampInTick = loadQuotaResult.HistoryTimestampInTick;
 
@@ -103,16 +103,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Assert(IsInsideHardLimit(0, checkIfQuotaEnabled: false).Succeeded);
         }
 
-        private static async Task<BoolResult> SaveQuotaAsync(IAbsFileSystem fileSystem, AbsolutePath rootPath, MaxSizeQuota quota, long historyTimestampInTick)
+        private static BoolResult SaveQuota(IAbsFileSystem fileSystem, AbsolutePath rootPath, MaxSizeQuota quota, long historyTimestampInTick)
         {
             var filePath = rootPath / BinaryFileName;
             try
             {
                 fileSystem.DeleteFile(filePath);
 
-                using (
-                    var stream =
-                        await fileSystem.OpenSafeAsync(filePath, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
+                using (var stream = fileSystem.Open(filePath, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
                 {
                     using (var writer = new BinaryWriter(stream))
                     {
@@ -133,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<LoadQuotaResult> LoadOrCreateNewAsync(IAbsFileSystem fileSystem, MaxSizeQuota initialElasticQuota, AbsolutePath rootPath)
+        private LoadQuotaResult LoadOrCreateNew(IAbsFileSystem fileSystem, MaxSizeQuota initialElasticQuota, AbsolutePath rootPath)
         {
             var filePath = rootPath / BinaryFileName;
 
@@ -141,10 +139,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (!fileSystem.FileExists(filePath))
                 {
-                    return await CreateNewAsync(fileSystem, initialElasticQuota, rootPath);
+                    return CreateNew(fileSystem, initialElasticQuota, rootPath);
                 }
 
-                using (var stream = await fileSystem.OpenReadOnlySafeAsync(filePath, FileShare.Delete))
+                using (var stream = fileSystem.OpenReadOnly(filePath, FileShare.Delete))
                 {
                     using (var reader = new BinaryReader(stream))
                     {
@@ -154,11 +152,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             catch (IOException)
             {
-                return await CreateNewAsync(fileSystem, initialElasticQuota, rootPath);
+                return CreateNew(fileSystem, initialElasticQuota, rootPath);
             }
         }
 
-        private async Task<LoadQuotaResult> CreateNewAsync(IAbsFileSystem fileSystem, MaxSizeQuota initialElasticQuota, AbsolutePath rootPath)
+        private LoadQuotaResult CreateNew(IAbsFileSystem fileSystem, MaxSizeQuota initialElasticQuota, AbsolutePath rootPath)
         {
             var currentSize = _getCurrentSizeFunc();
 
@@ -172,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Set the timestamp tick to -1 so that it can consume pre-existing history window upon calibration during construction.
             var loadQuotaResult = new LoadQuotaResult(initialElasticQuota, -1);
-            await SaveQuotaAsync(fileSystem, rootPath, loadQuotaResult.Quota, loadQuotaResult.HistoryTimestampInTick).ThrowIfFailure();
+            SaveQuota(fileSystem, rootPath, loadQuotaResult.Quota, loadQuotaResult.HistoryTimestampInTick).ThrowIfFailure();
 
             return loadQuotaResult;
         }
@@ -202,7 +200,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         public override Task<CalibrateResult> CalibrateAsync()
         {
             // Calibration should be done in atomic way.
-            return _locker.WithWriteLockAsync(async () =>
+            return Task.FromResult(
+                _locker.WithWriteLock(() =>
             {
                 /*
                  *                o (Case A)
@@ -279,10 +278,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return new CalibrateResult(reason);
                 }
 
-                var saveResult = await SaveQuotaAsync();
+                var saveResult = SaveQuota();
 
                 return !saveResult.Succeeded ? new CalibrateResult(saveResult.ErrorMessage!) : new CalibrateResult(_quota.Hard);
-            });
+            }));
         }
 
         /// <inheritdoc />
@@ -321,9 +320,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                 : BoolResult.Success;
         }
 
-        private Task<BoolResult> SaveQuotaAsync()
+        private BoolResult SaveQuota()
         {
-            return SaveQuotaAsync(_fileSystem, _rootPath, (MaxSizeQuota)_quota, _historyTimestampInTick);
+            return SaveQuota(_fileSystem, _rootPath, (MaxSizeQuota)_quota, _historyTimestampInTick);
         }
 
         private BoolResult IsInsideHardLimit(long reserveSize, bool checkIfQuotaEnabled)

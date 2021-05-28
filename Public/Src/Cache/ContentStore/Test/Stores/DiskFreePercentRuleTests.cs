@@ -237,6 +237,11 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
+            public StreamWithLength? TryOpen(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+            {
+                throw new NotImplementedException();
+            }
+
             public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
             {
                 throw new NotImplementedException();

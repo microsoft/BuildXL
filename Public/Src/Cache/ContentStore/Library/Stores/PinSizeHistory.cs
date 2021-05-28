@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Loads pin history from disk if exists, otherwise create a new instance.
         /// </summary>
-        public static async Task<PinSizeHistory> LoadOrCreateNewAsync(
+        public static PinSizeHistory LoadOrCreateNew(
             IAbsFileSystem fileSystem,
             IClock clock,
             AbsolutePath directoryPath,
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         directoryPath);
                 }
 
-                using (var stream = await fileSystem.OpenReadOnlySafeAsync(filePath, FileShare.Delete))
+                using (var stream = fileSystem.OpenReadOnly(filePath, FileShare.Delete))
                 {
                     using (var reader = new BinaryReader(stream))
                     {
@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Saves this instance to disk.
         /// </summary>
-        public async Task SaveAsync(IAbsFileSystem fileSystem)
+        public Task SaveAsync(IAbsFileSystem fileSystem)
         {
             Contract.Requires(fileSystem != null);
 
@@ -123,9 +123,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 fileSystem.DeleteFile(filePath);
 
-                using (
-                    var stream =
-                        await fileSystem.OpenSafeAsync(filePath, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
+                using (var stream = fileSystem.Open(filePath, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
                 {
                     using (var writer = new BinaryWriter(stream))
                     {
@@ -142,6 +140,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // When failed, clean up so that it is not used in the next load.
                 fileSystem.DeleteFile(filePath);
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>

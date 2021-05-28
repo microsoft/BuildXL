@@ -138,10 +138,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             return action(operationContext, manager);
         }
 
-        private async Task CreateEmptyFileAsync(AbsolutePath path)
+        private Task CreateEmptyFileAsync(AbsolutePath path)
         {
-            await _fileSystem.CreateEmptyFileAsync(path);
+            _fileSystem.CreateEmptyFile(path);
             Assert.True(_fileSystem.FileExists(path));
+            return Task.CompletedTask;
         }
 
         public async Task<AbsolutePath> GenerateRocksDbInstanceFolderAsync(int numSstFiles, int numLogFiles)

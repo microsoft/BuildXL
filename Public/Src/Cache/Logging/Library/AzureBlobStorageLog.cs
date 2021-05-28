@@ -262,7 +262,7 @@ namespace BuildXL.Cache.Logging
                     long compressedSizeBytes = 0;
                     long uncompressedSizeBytes = 0;
 
-                    using (Stream fileStream = await _fileSystem.OpenSafeAsync(
+                    using (Stream fileStream = _fileSystem.Open(
                         logFilePath,
                         FileAccess.Write,
                         FileMode.CreateNew,

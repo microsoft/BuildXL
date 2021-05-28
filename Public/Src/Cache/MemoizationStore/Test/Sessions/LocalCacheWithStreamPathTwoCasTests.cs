@@ -49,8 +49,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var configuration1 = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
             var configuration2 = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
 
-            configuration1.Write(FileSystem, rootPathForStream).Wait();
-            configuration2.Write(FileSystem, rootPathForPath).Wait();
+            configuration1.Write(FileSystem, rootPathForStream);
+            configuration2.Write(FileSystem, rootPathForPath);
 
             var memoConfig = new RocksDbMemoizationStoreConfiguration()
             {

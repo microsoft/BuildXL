@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -82,17 +83,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 FileReplacementMode.None,
                 FileRealizationMode.HardLink);
 
-            return await OpenStreamAsync(operationContext, tempPath, placeFileResult);
-            ;
+            return OpenStream(operationContext, tempPath, placeFileResult);
         }
 
-        private async Task<OpenStreamResult> OpenStreamAsync(OperationContext context, AbsolutePath tempPath, PlaceFileResult placeFileResult)
+        private OpenStreamResult OpenStream(OperationContext context, AbsolutePath tempPath, PlaceFileResult placeFileResult)
         {
             if (placeFileResult)
             {
                 try
                 {
-                    StreamWithLength? stream = await FileSystem.OpenReadOnlyAsync(tempPath, FileShare.Delete | FileShare.Read);
+                    StreamWithLength? stream = FileSystem.TryOpenReadOnly(tempPath, FileShare.Delete | FileShare.Read);
                     if (stream == null)
                     {
                         throw new ClientCanRetryException(context, $"Failed to open temp file {tempPath}. The service may have restarted");
@@ -487,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                 }
 
-                using (var fileStream = await FileSystem.OpenAsync(tempFile, FileAccess.Write, FileMode.Create, FileShare.Delete))
+                using (var fileStream = FileSystem.TryOpenForWrite(tempFile, stream.TryGetStreamLength(), FileMode.Create, FileShare.Delete))
                 {
                     if (fileStream == null)
                     {

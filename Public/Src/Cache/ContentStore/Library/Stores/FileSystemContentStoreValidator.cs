@@ -88,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     var hasher = HashInfoLookup.GetContentHasher(hashFromPath.HashType);
                     ContentHash hashFromContents;
-                    using (var contentStream = await _fileSystem.OpenSafeAsync(
+                    using (var contentStream = _fileSystem.Open(
                         contentFile, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, HashingExtensions.HashStreamBufferSize))
                     {
                         hashFromContents = await hasher.GetContentHashAsync(contentStream);

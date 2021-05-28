@@ -41,7 +41,7 @@ namespace ContentStoreTest.Service
                 var expirationTicks = DateTime.UtcNow.Ticks;
                 var sessionInfo = new HibernatedContentSessionInfo(1, SessionName, ImplicitPin.None, CacheName, pins, expirationTicks, capabilities);
                 var sessions1 = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> {sessionInfo});
-                await sessions1.WriteAsync(FileSystem, directory.Path, fileName);
+                sessions1.Write(FileSystem, directory.Path, fileName);
                 FileSystem.HibernatedSessionsExists(directory.Path, fileName).Should().BeTrue();
 
                 var fileSize = FileSystem.GetFileSize(directory.Path / fileName);
@@ -72,7 +72,7 @@ namespace ContentStoreTest.Service
                 }
 
                 var sessions1 = new HibernatedSessions<HibernatedContentSessionInfo>(sessionInfoList);
-                await sessions1.WriteAsync(FileSystem, directory.Path, fileName);
+                sessions1.Write(FileSystem, directory.Path, fileName);
                 FileSystem.HibernatedSessionsExists(directory.Path, fileName).Should().BeTrue();
 
                 var sessions2 = await FileSystem.ReadHibernatedSessionsAsync<HibernatedContentSessionInfo>(directory.Path, fileName);

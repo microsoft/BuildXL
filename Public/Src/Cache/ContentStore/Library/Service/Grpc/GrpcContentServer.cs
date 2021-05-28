@@ -586,7 +586,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
                         // that needs to be tested on a case by case basis. Since we don't know what the underlying store
                         // plans to do with the file, it is more robust to just use the DisposableFile construct.
-                        using (var tempFile = await _fileSystem.OpenSafeAsync(disposableFile.Path, FileAccess.Write, FileMode.CreateNew, FileShare.None))
+                        using (var tempFile = _fileSystem.OpenForWrite(disposableFile.Path, expectingLength: null, FileMode.CreateNew, FileShare.None))
                         {
                             // From the docs: On the server side, MoveNext() does not throw exceptions.
                             // In case of a failure, the request stream will appear to be finished (MoveNext will return false)

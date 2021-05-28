@@ -22,22 +22,22 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task NoHistoryInitially()
+        public void NoHistoryInitially()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
-                var pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                var pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
                 var history = pinSizeHistory.ReadHistory(1);
                 AssertEmptyHistory(history.Window);
             }
         }
 
         [Fact]
-        public async Task ReadHistoryWithDifferentSizesOfWindow()
+        public void ReadHistoryWithDifferentSizesOfWindow()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
-                var pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                var pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
                 AddIntoPinSizeHistory(pinSizeHistory, 7, 2, 7, 13, 11);
 
                 var history3 = pinSizeHistory.ReadHistory(3);
@@ -52,11 +52,11 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task ReadSmallerHistoryWithDifferentSizesOfWindow()
+        public void ReadSmallerHistoryWithDifferentSizesOfWindow()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
-                var pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path, 5);
+                var pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path, 5);
                 AddIntoPinSizeHistory(pinSizeHistory, 1, 1, 1, 7, 2, 7, 13, 11);
 
                 var history3 = pinSizeHistory.ReadHistory(3);
@@ -75,11 +75,11 @@ namespace ContentStoreTest.Stores
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
-                var pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                var pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
                 AddIntoPinSizeHistory(pinSizeHistory, 7, 2, 7, 13, 11);
 
                 await pinSizeHistory.SaveAsync(FileSystem);
-                pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
 
                 var history3 = pinSizeHistory.ReadHistory(3);
                 AssertEqualHistory(new long[] {11, 13, 7}, history3.Window);
@@ -97,11 +97,11 @@ namespace ContentStoreTest.Stores
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
-                var pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                var pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
                 AddIntoPinSizeHistory(pinSizeHistory, 1, 1, 1, 7, 2, 7, 13, 11);
 
                 await pinSizeHistory.SaveAsync(FileSystem);
-                pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path, 5);
+                pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path, 5);
 
                 var history3 = pinSizeHistory.ReadHistory(3);
                 AssertEqualHistory(new long[] {11, 13, 7}, history3.Window);
@@ -113,7 +113,7 @@ namespace ContentStoreTest.Stores
                 AssertEqualHistory(new long[] {11, 13, 7, 2, 7}, history7.Window);
 
                 await pinSizeHistory.SaveAsync(FileSystem);
-                pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path, 8);
+                pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path, 8);
 
                 history3 = pinSizeHistory.ReadHistory(3);
                 AssertEqualHistory(new long[] {11, 13, 7}, history3.Window);
@@ -131,7 +131,7 @@ namespace ContentStoreTest.Stores
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
-                var pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                var pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
                 var emptyHistory = pinSizeHistory.ReadHistory(1);
                 AssertEmptyHistory(emptyHistory.Window);
 
@@ -143,7 +143,7 @@ namespace ContentStoreTest.Stores
 
                 await pinSizeHistory.SaveAsync(FileSystem);
 
-                pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, testDirectory.Path);
+                pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, testDirectory.Path);
 
                 var history1AfterSave = pinSizeHistory.ReadHistory(1);
                 AssertEqualHistory(new long[] {7}, history1AfterSave.Window);

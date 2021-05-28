@@ -377,7 +377,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             var maxSizeQuota = new MaxSizeQuota(cacheSizeQuotaString);
             var casConfig = new ContentStoreConfiguration(maxSizeQuota);
 
-            casConfig.Write(fileSystem, rootPath).GetAwaiter().GetResult();
+            casConfig.Write(fileSystem, rootPath);
         }
     }
 }

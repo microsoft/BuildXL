@@ -28,10 +28,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Deserialize a ContentStoreConfiguration from JSON in the standard filename in a CAS root directory.
         /// </summary>
-        public static async Task<Result<ContentStoreConfiguration>> ReadContentStoreConfigurationAsync(
-            this IAbsFileSystem fileSystem, AbsolutePath rootPath)
+        public static Result<ContentStoreConfiguration> ReadContentStoreConfiguration(this IAbsFileSystem fileSystem, AbsolutePath rootPath)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 
             AbsolutePath jsonPath = rootPath / FileName;
@@ -47,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return new Result<ContentStoreConfiguration>($"ContentStoreConfiguration not present at path=[{jsonPath}]");
             }
 
-            using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
+            using (Stream stream = fileSystem.OpenReadOnly(jsonPath, FileShare.None))
             {
                 configuration = stream.DeserializeFromJSON<ContentStoreConfiguration>();
             }
@@ -63,9 +61,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Serialize a ContentStoreConfiguration to JSON in the standard filename in a CAS root directory.
         /// </summary>
-        public static async Task Write(this ContentStoreConfiguration configuration, IAbsFileSystem fileSystem, AbsolutePath rootPath)
+        public static void Write(this ContentStoreConfiguration configuration, IAbsFileSystem fileSystem, AbsolutePath rootPath)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
             Contract.Requires(configuration != null);
             Contract.Requires(configuration.IsValid);
@@ -77,8 +74,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 throw new CacheException($"Directory path=[{rootPath}] does not exist");
             }
 
-            using (var stream =
-                await fileSystem.OpenSafeAsync(jsonPath, FileAccess.Write, FileMode.Create, FileShare.None))
+            using (var stream = fileSystem.Open(jsonPath, FileAccess.Write, FileMode.Create, FileShare.None))
             {
                 configuration.SerializeToJSON(stream);
             }

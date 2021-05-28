@@ -44,9 +44,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         byte[] ReadAllBytes(T path);
 
         /// <summary>
-        /// Creates a stream to an existing file.
+        /// [Obsolete] Creates a stream to an existing file.
         /// Note that the permissions are such that it is readable, but not
         /// writable by the caller.
+        /// Please use <see cref="AbsFileSystemExtension.TryOpenReadOnly"/> instead.
         /// </summary>
         /// <param name="path">The path to open a stream to.</param>
         /// <param name="share">the file sharing permissions for the given path</param>

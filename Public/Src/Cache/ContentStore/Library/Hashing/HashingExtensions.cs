@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <exception cref="FileNotFoundException">Throws if the file <paramref name="path"/> is not on disk.</exception>
         public static async Task<ContentHash> CalculateHashAsync(this IAbsFileSystem fileSystem, AbsolutePath path, HashType hashType)
         {
-            using (var stream = await fileSystem.OpenSafeAsync(
+            using (var stream = fileSystem.Open(
                 path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, HashStreamBufferSize))
             {
                 return await stream.CalculateHashAsync(hashType);

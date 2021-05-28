@@ -353,7 +353,7 @@ namespace ContentStoreTest.Distributed.Stores
             CancellationToken cancellationToken)
         {
             // TODO: why the destination str
-            using var destinationStream = await FileSystem.OpenSafeAsync(destinationPath, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, 1024);
+            using var destinationStream = FileSystem.OpenForWrite(destinationPath, sourcePath.Size, FileMode.Create, FileShare.None, FileOptions.None, 1024);
             return await copier.CopyToAsync(context, sourcePath, destinationStream, options);
         }
 

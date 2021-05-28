@@ -26,14 +26,14 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task FileRoundtripSucceeds()
+        public void FileRoundtripSucceeds()
         {
             var configuration1 = new ContentStoreConfiguration(
                 new MaxSizeQuota("10GB", "7GB"), new DiskFreePercentQuota("10", "13"));
 
-            await configuration1.Write(_fileSystem, _rootPath);
+            configuration1.Write(_fileSystem, _rootPath);
 
-            var result = await _fileSystem.ReadContentStoreConfigurationAsync(_rootPath);
+            var result = _fileSystem.ReadContentStoreConfiguration(_rootPath);
             var configuration2 = result.Value;
 
             configuration2.MaxSizeQuota.Hard.Should().Be(10L * 1024 * 1024 * 1024);
@@ -43,26 +43,26 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public Task WriteNoExistDirectoryThrows()
+        public void WriteNoExistDirectoryThrows()
         {
             var configuration = new ContentStoreConfiguration();
             var rootPath = _rootPath / "noexist";
-            Func<Task> funcAsync = async () => await configuration.Write(_fileSystem, rootPath);
-            return Assert.ThrowsAsync<CacheException>(funcAsync);
+            Action func = () => configuration.Write(_fileSystem, rootPath);
+            Assert.Throws<CacheException>(func);
         }
 
         [Fact]
-        public async Task ReadNoExistDirectoryGivesError()
+        public void ReadNoExistDirectoryGivesError()
         {
             var rootPath = _rootPath / "noexist";
-            var result = await _fileSystem.ReadContentStoreConfigurationAsync(rootPath);
+            var result = _fileSystem.ReadContentStoreConfiguration(rootPath);
             result.Succeeded.Should().BeFalse();
         }
 
         [Fact]
-        public async Task ReadNoExistFileGivesError()
+        public void ReadNoExistFileGivesError()
         {
-            var result = await _fileSystem.ReadContentStoreConfigurationAsync(_rootPath);
+            var result = _fileSystem.ReadContentStoreConfiguration(_rootPath);
             result.Succeeded.Should().BeFalse();
         }
 

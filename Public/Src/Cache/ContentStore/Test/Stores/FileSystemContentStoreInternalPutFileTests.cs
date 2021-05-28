@@ -138,7 +138,7 @@ namespace ContentStoreTest.Stores
                     r.ContentHash.Should().Be(contentHash);
                     var pathInStore = store.GetPrimaryPathFor(r.ContentHash);
 
-                    await AbsFileSystemTests.VerifyThrowsOnOpenForWriteOfDenyWriteFileAsync(FileSystem, pathInStore);
+                    AbsFileSystemTests.VerifyThrowsOnOpenForWriteOfDenyWriteFile(FileSystem, pathInStore);
                 }
             });
         }
@@ -338,7 +338,7 @@ namespace ContentStoreTest.Stores
 
                     var result = await store.PutFileAsync(context, sourcePath2, FileRealizationMode.HardLink, contentHash, null);
                     result.ContentHash.Should().Be(contentHash);
-                    using (StreamWithLength? stream = await FileSystem.OpenAsync(
+                    using (StreamWithLength? stream = FileSystem.TryOpen(
                         sourcePath2, FileAccess.Read, FileMode.Open, FileShare.Read))
                     {
                         (await stream.Value.CalculateHashAsync(ContentHashType)).Should().Be(contentHash);
@@ -466,7 +466,7 @@ namespace ContentStoreTest.Stores
                     Assert.Equal(originalFileId, FileSystem.GetFileId(pathToContent));
 
                     // Ensure we can open it
-                    using (await FileSystem.OpenAsync(
+                    using (FileSystem.TryOpen(
                         pathToContent, FileAccess.Write, FileMode.Open, FileShare.None))
                     {
                     }
@@ -478,7 +478,7 @@ namespace ContentStoreTest.Stores
 
                     Assert.NotEqual(originalFileId, FileSystem.GetFileId(pathToContent));
 
-                    Func<Task> writeFunc = async () => await FileSystem.OpenAsync(
+                    Action writeFunc = () => FileSystem.TryOpen(
                         pathToContent, FileAccess.Write, FileMode.Open, FileShare.None);
                     writeFunc.Should().Throw<UnauthorizedAccessException>();
                 }

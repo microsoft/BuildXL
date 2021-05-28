@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var destination = testDirectory.Path / "foo.txt";
-                using (var file1 = await FileSystem.OpenAsync(destination, FileAccess.Write, FileMode.OpenOrCreate, FileShare.Read))
+                using (var file1 = FileSystem.TryOpen(destination, FileAccess.Write, FileMode.OpenOrCreate, FileShare.Read))
                 {
                     const string content = "My content";
                     using (var file1Writer = new StreamWriter(file1, Encoding.UTF8, 128_000, leaveOpen: true))
@@ -172,7 +172,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // We do not block deletion on MacOS
-        public async Task MoveFileDestinationIsOpenedOverwrite()
+        public void MoveFileDestinationIsOpenedOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -181,11 +181,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
                 FileSystem.CreateDirectory(source.Parent);
                 FileSystem.CreateDirectory(destination.Parent);
-                FileSystem.WriteAllBytes(source, new byte[] {1, 2, 3});
-                var destinationBytes = new byte[] {4, 5, 6};
+                FileSystem.WriteAllBytes(source, new byte[] { 1, 2, 3 });
+                var destinationBytes = new byte[] { 4, 5, 6 };
                 FileSystem.WriteAllBytes(destination, destinationBytes);
 
-                using (await FileSystem.OpenAsync(destination, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(destination, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.MoveFile(source, destination, true);
                     Assert.Throws<UnauthorizedAccessException>(a);
@@ -281,40 +281,40 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task OpenWithNonexistentParentReturnsNull()
+        public void OpenWithNonexistentParentReturnsNull()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"parent1\src";
-                Assert.Null(await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead));
+                Assert.Null(FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead));
             }
         }
 
         [Fact]
-        public async Task OpenWithNonexistentReturnsNull()
+        public void OpenWithNonexistentReturnsNull()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"parent1\src";
                 FileSystem.CreateDirectory(source.Parent);
-                Assert.Null(await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead));
+                Assert.Null(FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead));
             }
         }
 
         [Fact]
-        public async Task OpenWithUnsupportedModeThrows()
+        public void OpenWithUnsupportedModeThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"parent1\src";
                 FileSystem.CreateDirectory(source.Parent);
-                Func<Task> a = async () =>
+                Action a = () =>
                 {
-                    using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Append, ShareRead))
+                    using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Append, ShareRead))
                     {
                     }
                 };
-                await Assert.ThrowsAsync<NotImplementedException>(a);
+                Assert.Throws<NotImplementedException>(a);
             }
         }
 
@@ -344,7 +344,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                     // i can open another stream to a file with this lock since we're only opening read only.
                     using (
                         Stream anotherHandle =
-                            await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, FileShare.Read))
+                            FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, FileShare.Read))
                     {
                         Assert.NotNull(anotherHandle);
                     }
@@ -556,122 +556,122 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task ReaderBlocksWriter()
+        public void ReaderBlocksWriter()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                FileSystem.WriteAllBytes(source, new byte[] {1});
-                using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                FileSystem.WriteAllBytes(source, new byte[] { 1 });
+                using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                 {
-                    Func<Task> a = async () =>
+                    Action a = () =>
                     {
-                        using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Open, ShareNone))
+                        using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Open, ShareNone))
                         {
                         }
                     };
 
-                    await Assert.ThrowsAnyAsync<Exception>(a);
+                    Assert.ThrowsAny<Exception>(a);
                 }
             }
         }
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // FileShare.Delete is not observed in Unix
-        public async Task WriterBlocksWriter()
+        public void WriterBlocksWriter()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
 
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
                 {
-                    Func<Task> a = async () =>
+                    Action a = () =>
                     {
-                        using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Open, ShareDelete))
+                        using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Open, ShareDelete))
                         {
                         }
                     };
 
-                    await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    Assert.Throws<UnauthorizedAccessException>(a);
                 }
             }
         }
 
         [Fact]
-        public async Task WriterBlocksWriterShareNone()
+        public void WriterBlocksWriterShareNone()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
 
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.CreateNew, ShareNone))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.CreateNew, ShareNone))
                 {
-                    Func<Task> a = async () =>
+                    Action a = () =>
                     {
-                        using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Open, ShareNone))
+                        using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Open, ShareNone))
                         {
                         }
                     };
 
-                    await Assert.ThrowsAnyAsync<Exception>(a);
+                    Assert.ThrowsAny<Exception>(a);
                 }
             }
         }
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // Only FileShare.None is acknowledged on *nix
-        public async Task WriterBlocksReader()
+        public void WriterBlocksReader()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
                 FileSystem.WriteAllBytes(source, new byte[] {1});
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Open, ShareReadDelete))
                 {
-                    Func<Task> a = async () =>
+                    Action a = () =>
                     {
-                        using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                        using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                         {
                         }
                     };
 
-                    await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    Assert.Throws<UnauthorizedAccessException>(a);
                 }
             }
         }
 
         [Fact]
-        public async Task WriterBlocksReaderShareNone()
+        public void WriterBlocksReaderShareNone()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
                 FileSystem.WriteAllBytes(source, new byte[] { 1 });
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Open, ShareNone))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Open, ShareNone))
                 {
-                    Func<Task> a = async () =>
+                    Action a = () =>
                     {
-                        using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                        using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                         {
                         }
                     };
 
-                    await Assert.ThrowsAnyAsync<Exception>(a);
+                    Assert.ThrowsAny<Exception>(a);
                 }
             }
         }
 
         [Fact]
-        public async Task ReaderDoesNotBlockReader()
+        public void ReaderDoesNotBlockReader()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                FileSystem.WriteAllBytes(source, new byte[] {1});
-                using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                FileSystem.WriteAllBytes(source, new byte[] { 1 });
+                using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                 {
-                    using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                    using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                     {
                     }
                 }
@@ -679,13 +679,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task ReaderDoesNotBlockDelete()
+        public void ReaderDoesNotBlockDelete()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                FileSystem.WriteAllBytes(source, new byte[] {1});
-                using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                FileSystem.WriteAllBytes(source, new byte[] { 1 });
+                using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareReadDelete))
                 {
                     FileSystem.DeleteFile(source);
                 }
@@ -694,13 +694,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact(Skip = "QTestSkip")]
         [Trait("Category", "QTestSkip")] // Flaky
-        public async Task ReaderBlocksDelete()
+        public void ReaderBlocksDelete()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
                 FileSystem.WriteAllBytes(source, new byte[] { 1 });
-                using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.DeleteFile(source);
                     Assert.Throws<UnauthorizedAccessException>(a);
@@ -709,12 +709,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task WriterDoesNotBlockDelete()
+        public void WriterDoesNotBlockDelete()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
                 {
                     FileSystem.DeleteFile(source);
                 }
@@ -723,12 +723,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task WriterBlocksDelete()
+        public void WriterBlocksDelete()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.CreateNew, ShareNone))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.CreateNew, ShareNone))
                 {
                     Action a = () => FileSystem.DeleteFile(source);
                     Assert.Throws<UnauthorizedAccessException>(a);
@@ -737,34 +737,34 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task OpenReadOnlyFileForWriteThrows()
+        public void OpenReadOnlyFileForWriteThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                FileSystem.WriteAllBytes(source, new byte[] {1});
+                FileSystem.WriteAllBytes(source, new byte[] { 1 });
                 FileSystem.SetFileAttributes(source, FileAttributes.ReadOnly);
-                Func<Task> a = async () =>
+                Action a = () =>
                 {
-                    using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Open, ShareRead))
+                    using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Open, ShareRead))
                     {
                     }
                 };
 
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                Assert.Throws<UnauthorizedAccessException>(a);
             }
         }
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // FileShare.Delete is essentially ignored on *nix
-        public async Task OpenReadOnlyFileForWriteOverwrite()
+        public void OpenReadOnlyFileForWriteOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                FileSystem.WriteAllBytes(source, new byte[] {1});
+                FileSystem.WriteAllBytes(source, new byte[] { 1 });
                 FileSystem.SetFileAttributes(source, FileAttributes.ReadOnly);
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.Create, ShareDelete))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.Create, ShareDelete))
                 {
                 }
             }
@@ -778,7 +778,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             {
                 var source = testDirectory.Path / @"src";
                 FileSystem.WriteAllBytes(source, new byte[count]);
-                using (Stream stream = await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareDelete))
+                using (Stream stream = FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareDelete))
                 {
                     FileSystem.DeleteFile(source);
                     var buffer = new byte[count];
@@ -790,13 +790,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact]
         [Trait("Category", "SkipDotNetCore")] // DotNetCore does not block nested opens, even with FileShare.None
-        public async Task OpenDenyWriteFileForWriteThrows()
+        public void OpenDenyWriteFileForWriteThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 AbsolutePath sourcePath = testDirectory.Path / @"src";
 
-                using (Stream file = await FileSystem.OpenAsync(
+                using (Stream file = FileSystem.TryOpen(
                     sourcePath, FileAccess.Write, FileMode.CreateNew, ShareNone))
                 {
                     file.WriteByte(1);
@@ -805,31 +805,31 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
                 Assert.False(FileSystem.GetFileAttributes(sourcePath).HasFlag(FileAttributes.ReadOnly));
 
-                await VerifyThrowsOnOpenForWriteOfDenyWriteFileAsync(FileSystem, sourcePath);
+                VerifyThrowsOnOpenForWriteOfDenyWriteFile(FileSystem, sourcePath);
             }
         }
 
-        public static Task VerifyThrowsOnOpenForWriteOfDenyWriteFileAsync(IAbsFileSystem fileSystem, AbsolutePath path)
+        public static void VerifyThrowsOnOpenForWriteOfDenyWriteFile(IAbsFileSystem fileSystem, AbsolutePath path)
         {
-            Func<Task> a = async () =>
+            Action a = () =>
             {
-                using (await fileSystem.OpenAsync(path, FileAccess.Write, FileMode.Open, ShareDelete))
+                using (fileSystem.TryOpen(path, FileAccess.Write, FileMode.Open, ShareDelete))
                 {
                 }
             };
 
-            return Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+            Assert.Throws<UnauthorizedAccessException>(a);
         }
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // Unix cannot block attribute changes
-        public async Task SetFileAttributesDenyAttributesWritesFileThrows()
+        public void SetFileAttributesDenyAttributesWritesFileThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 AbsolutePath sourcePath = testDirectory.Path / @"src";
 
-                using (Stream file = await FileSystem.OpenAsync(
+                using (Stream file = FileSystem.TryOpen(
                     sourcePath, FileAccess.Write, FileMode.CreateNew, ShareNone))
                 {
                     file.WriteByte(1);
@@ -914,13 +914,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // TODO: Update to check for immutable (?)
-        public async Task CanReadDenyWriteFile()
+        public void CanReadDenyWriteFile()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 AbsolutePath sourcePath = testDirectory.Path / @"src";
 
-                using (Stream file = await FileSystem.OpenAsync(
+                using (Stream file = FileSystem.TryOpen(
                     sourcePath, FileAccess.Write, FileMode.CreateNew, ShareNone))
                 {
                     file.WriteByte(1);
@@ -929,7 +929,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
                 Assert.False(FileSystem.GetFileAttributes(sourcePath).HasFlag(FileAttributes.ReadOnly));
 
-                using (Stream file = await FileSystem.OpenAsync(
+                using (Stream file = FileSystem.TryOpen(
                     sourcePath, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Assert.Equal(1, file.ReadByte());
@@ -938,13 +938,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task CanRemoveDenyWrite()
+        public void CanRemoveDenyWrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 AbsolutePath sourcePath = testDirectory.Path / @"src";
 
-                using (Stream file = await FileSystem.OpenAsync(
+                using (Stream file = FileSystem.TryOpen(
                     sourcePath, FileAccess.Write, FileMode.CreateNew, ShareNone))
                 {
                     file.WriteByte(1);
@@ -955,7 +955,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
                 FileSystem.AllowFileWrites(sourcePath);
 
-                using (Stream file = await FileSystem.OpenAsync(
+                using (Stream file = FileSystem.TryOpen(
                     sourcePath, FileAccess.Write, FileMode.Create, ShareDelete))
                 {
                     file.WriteByte(0);
@@ -964,21 +964,21 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task OpenDirectoryThrows()
+        public void OpenDirectoryThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"dir";
                 FileSystem.CreateDirectory(source);
-                Func<Task> a = async () =>
+                Action a = () =>
                 {
-                    using (await FileSystem.OpenAsync(
+                    using (FileSystem.TryOpen(
                         source, FileAccess.Read, FileMode.Open, ShareNone))
                     {
                     }
                 };
 
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                Assert.Throws<UnauthorizedAccessException>(a);
             }
         }
 
@@ -1029,7 +1029,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             {
                 var source = testDirectory.Path / @"file1";
                 FileSystem.WriteAllBytes(source, new byte[] {1});
-                using (Stream stream = await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                using (Stream stream = FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Assert.False(stream.CanWrite);
 
@@ -1052,13 +1052,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task StreamCanBeDisposedTwice()
+        public void StreamCanBeDisposedTwice()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"file1";
 
-                using (var stream = await FileSystem.OpenAsync(
+                using (var stream = FileSystem.TryOpen(
                     source, FileAccess.Write, FileMode.CreateNew, ShareDelete))
                 {
                     stream?.Dispose();
@@ -1379,14 +1379,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task CreatingFileWhenDenyWritesFileAlreadyExistsOverwrite()
+        public void CreatingFileWhenDenyWritesFileAlreadyExistsOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var destinationPath = testDirectory.Path / @"destination.txt";
                 FileSystem.WriteAllBytes(destinationPath, ThreadSafeRandom.GetBytes(10));
                 FileSystem.DenyFileWrites(destinationPath);
-                using (await FileSystem.OpenAsync(
+                using (FileSystem.TryOpen(
                     destinationPath, FileAccess.ReadWrite, FileMode.Create, ShareDelete))
                 {
                 }
@@ -1411,14 +1411,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task CreateOverwriteDenyWriteFile()
+        public void CreateOverwriteDenyWriteFile()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var destinationPath = testDirectory.Path / @"destination.txt";
                 FileSystem.WriteAllBytes(destinationPath, ThreadSafeRandom.GetBytes(10));
                 FileSystem.DenyFileWrites(destinationPath);
-                using (await FileSystem.OpenAsync(
+                using (FileSystem.TryOpen(
                     destinationPath, FileAccess.Write, FileMode.Create, ShareDelete))
                 {
                 }
@@ -1427,7 +1427,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // FileShare.Read and FileShare.Delete are effectively ignored on *nix
-        public async Task CreatingHardLinkWhenFileAlreadyOpenOverwrite()
+        public void CreatingHardLinkWhenFileAlreadyOpenOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1436,7 +1436,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 FileSystem.WriteAllBytes(destinationPath, ThreadSafeRandom.GetBytes(10));
 
-                using (await FileSystem.OpenAsync(destinationPath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(destinationPath, FileAccess.Read, FileMode.Open, ShareReadDelete))
                 {
                     var result = FileSystem.CreateHardLink(sourcePath, destinationPath, true);
                     Assert.Equal(CreateHardLinkResult.FailedAccessDenied, result);
@@ -1445,7 +1445,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task CreateOverwriteOneLinkWhileOtherLinkIsOpen()
+        public void CreateOverwriteOneLinkWhileOtherLinkIsOpen()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1453,9 +1453,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 var destinationPath = testDirectory.Path / @"destination.txt";
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath, true));
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
                 {
-                    using (await FileSystem.OpenAsync(
+                    using (FileSystem.TryOpen(
                         destinationPath, FileAccess.Write, FileMode.Create, ShareDelete))
                     {
                     }
@@ -1464,7 +1464,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact(Skip = "MoveFile fails with UnauthorizedAccessException starting December 2017")]
-        public async Task MoveOverwriteOneLinkWhileOtherLinkIsOpen()
+        public void MoveOverwriteOneLinkWhileOtherLinkIsOpen()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1474,7 +1474,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 FileSystem.WriteAllBytes(newContentPath, ThreadSafeRandom.GetBytes(10));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath, true));
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
                 {
                     FileSystem.MoveFile(newContentPath, destinationPath, true);
                 }
@@ -1495,8 +1495,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             }
         }
 
-        [Fact(Skip="Second CreateHardLink fails with AccessDenied starting December 2017")]
-        public async Task CreateLinkOverwriteOneLinkWhileOtherLinkIsOpen()
+        [Fact(Skip = "Second CreateHardLink fails with AccessDenied starting December 2017")]
+        public void CreateLinkOverwriteOneLinkWhileOtherLinkIsOpen()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1506,7 +1506,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 FileSystem.WriteAllBytes(newContentPath, ThreadSafeRandom.GetBytes(10));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath, true));
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
                 {
                     Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(newContentPath, destinationPath, true));
                 }
@@ -1514,7 +1514,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        public async Task DeleteOneLinkWhileOtherLinkIsOpenDeleteSharingSucceeds()
+        public void DeleteOneLinkWhileOtherLinkIsOpenDeleteSharingSucceeds()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1522,7 +1522,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 var destinationPath = testDirectory.Path / @"destination.txt";
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath, true));
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
                 {
                     FileSystem.DeleteFile(destinationPath);
                 }
@@ -1531,7 +1531,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task DeleteOneLinkWhileOtherLinkIsOpenReadOnlySharingFails()
+        public void DeleteOneLinkWhileOtherLinkIsOpenReadOnlySharingFails()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1539,7 +1539,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 var destinationPath = testDirectory.Path / @"destination.txt";
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath, true));
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.DeleteFile(destinationPath);
                     Assert.Throws<UnauthorizedAccessException>(a);
@@ -1549,7 +1549,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task DeleteOneLinkWhileOneOtherLinkIsOpenReadOnlySharingFails()
+        public void DeleteOneLinkWhileOneOtherLinkIsOpenReadOnlySharingFails()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -1560,8 +1560,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath1, true));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath2, true));
 
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
-                using (await FileSystem.OpenAsync(destinationPath2, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(destinationPath2, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.DeleteFile(destinationPath1);
                     Assert.Throws<UnauthorizedAccessException>(a);

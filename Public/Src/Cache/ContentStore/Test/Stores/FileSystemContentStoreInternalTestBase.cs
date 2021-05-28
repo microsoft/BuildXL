@@ -133,7 +133,7 @@ namespace ContentStoreTest.Stores
             return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, settings: ContentStoreSettings);
         }
 
-        protected async Task<ElasticSizeRule.LoadQuotaResult> LoadElasticQuotaAsync(AbsolutePath rootPath)
+        protected ElasticSizeRule.LoadQuotaResult LoadElasticQuota(AbsolutePath rootPath)
         {
             var filePath = rootPath / ElasticSizeRule.BinaryFileName;
 
@@ -142,7 +142,7 @@ namespace ContentStoreTest.Stores
                 return null;
             }
 
-            using (var stream = await FileSystem.OpenReadOnlyAsync(filePath, FileShare.Delete))
+            using (var stream = FileSystem.TryOpenReadOnly(filePath, FileShare.Delete))
             {
                 using (var reader = new BinaryReader(stream))
                 {

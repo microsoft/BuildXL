@@ -248,7 +248,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                 await _storage.TryGetFileAsync(context, blobName, blobFilePath).ThrowIfFailure();
 
-                using var stream = await _fileSystem.OpenSafeAsync(
+                using var stream = _fileSystem.Open(
                     blobFilePath,
                     FileAccess.Read,
                     FileMode.Open,
@@ -463,7 +463,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     try
                     {
                         long size = 0;
-                        using (Stream stream = await _fileSystem.OpenSafeAsync(blobFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
+                        using (Stream stream = _fileSystem.Open(blobFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                         using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
                         {
                             EventDataSerializer.SerializeEvents(writer, eventDatas);

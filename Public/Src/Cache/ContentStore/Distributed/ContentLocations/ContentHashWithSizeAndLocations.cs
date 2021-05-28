@@ -35,6 +35,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public long Size { get; }
 
         /// <summary>
+        /// The size of the content hash's file.
+        /// </summary>
+        public long? NullableSize => Size == -1 ? null : Size;
+
+        /// <summary>
         /// Optional underlying entry
         /// </summary>
         public ContentLocationEntry? Entry { get; }

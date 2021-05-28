@@ -30,16 +30,15 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Deserialize hibernated sessions information from the standard filename in the given directory.
         /// </summary>
-        public static async Task<HibernatedSessions<TInfo>> ReadHibernatedSessionsAsync<TInfo>(this IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
+        public static Task<HibernatedSessions<TInfo>> ReadHibernatedSessionsAsync<TInfo>(this IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 
             var jsonPath = rootPath / fileName;
 
-            using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
+            using (Stream stream = fileSystem.OpenReadOnly(jsonPath, FileShare.None))
             {
-                return stream.DeserializeFromJSON<HibernatedSessions<TInfo>>();
+                return Task.FromResult(stream.DeserializeFromJSON<HibernatedSessions<TInfo>>());
             }
         }
 
@@ -48,12 +47,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public static async Task<HibernatedSessions<TInfo>> ReadProtectedHibernatedSessionsAsync<TInfo>(this IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 
             var jsonPath = rootPath / fileName;
 
-            using var fileStreamWithLength = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None);
+            using var fileStreamWithLength = fileSystem.OpenReadOnly(jsonPath, FileShare.None);
             var bytes = new byte[fileStreamWithLength.Length];
             await fileStreamWithLength.Stream.ReadAsync(bytes, 0, (int)fileStreamWithLength.Length);
 
@@ -66,9 +64,8 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     Serialize hibernated session information to the standard filename in the given directory.
         /// </summary>
-        public static async Task WriteAsync<TInfo>(this HibernatedSessions<TInfo> sessions, IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
+        public static void Write<TInfo>(this HibernatedSessions<TInfo> sessions, IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 
             // Due to abnormal process termination, the file that we'll be writing can be corrupted.
@@ -79,8 +76,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 var jsonTempPath = tempFolder.CreateRandomFileName();
                 var jsonPath = rootPath / fileName;
 
-                using (var stream =
-                    await fileSystem.OpenSafeAsync(jsonTempPath, FileAccess.Write, FileMode.Create, FileShare.None))
+                using (var stream = fileSystem.Open(jsonTempPath, FileAccess.Write, FileMode.Create, FileShare.None))
                 {
                     sessions.SerializeToJSON(stream);
                 }
@@ -94,7 +90,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public static async Task WriteProtectedAsync<TInfo>(this HibernatedSessions<TInfo> sessions, IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 
             // Due to abnormal process termination, the file that we'll be writing can be corrupted.
@@ -113,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     var protectedBytes = ProtectedData.Protect(bytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
 
-                    using var fileStream = await fileSystem.OpenSafeAsync(jsonTempPath, FileAccess.Write, FileMode.Create, FileShare.None);
+                    using var fileStream = fileSystem.Open(jsonTempPath, FileAccess.Write, FileMode.Create, FileShare.None);
                     await fileStream.Stream.WriteAsync(protectedBytes, 0, protectedBytes.Length);
                 }
 
@@ -126,7 +121,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public static Task DeleteHibernatedSessions(this IAbsFileSystem fileSystem, AbsolutePath rootPath, string fileName)
         {
-            Contract.Requires(fileSystem != null);
             Contract.Requires(rootPath != null);
 
             return Task.Run(() =>

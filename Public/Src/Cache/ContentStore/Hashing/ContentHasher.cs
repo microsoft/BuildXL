@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </remarks>
         private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T(), maxReserveInstances: HashInfoLookup.ContentHasherIdlePoolSize);
 
-        private static readonly ByteArrayPool _bufferPool = new ByteArrayPool(FileSystemConstants.FileIOBufferSize);
+        private static readonly ByteArrayPool _bufferPool = GlobalObjectPools.FileIOBuffersArrayPool;
 
         private long _calls;
         private long _ticks;

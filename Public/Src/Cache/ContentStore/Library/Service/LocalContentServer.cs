@@ -193,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 try
                 {
                     var sw = Stopwatch.StartNew();
-                    await hibernatedSessions.WriteAsync(fileSystem, config.DataRootPath, HibernatedSessionsFileName);
+                    hibernatedSessions.Write(fileSystem, config.DataRootPath, HibernatedSessionsFileName);
                     sw.Stop();
                     tracer.Debug(
                         context, $"Wrote hibernated sessions to root=[{config.DataRootPath}] in {sw.Elapsed.TotalMilliseconds}ms");

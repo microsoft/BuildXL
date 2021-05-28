@@ -79,7 +79,7 @@ namespace ContentStoreTest.Stores
                 var context = new Context(Logger);
 
                 var configurationExisting = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(5);
-                await configurationExisting.Write(FileSystem, rootPath);
+                configurationExisting.Write(FileSystem, rootPath);
 
                 var configurationNew = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(7);
                 var configurationModel = new ConfigurationModel(configurationNew, selection);

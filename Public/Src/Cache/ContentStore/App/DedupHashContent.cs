@@ -77,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.App
                     contentHasher.Initialize();
                     TaskSafetyHelpers.SyncResultOnThreadPool(async () =>
                     {
-                        using (Stream fs = await _fileSystem.OpenReadOnlySafeAsync(p, FileShare.Read | FileShare.Delete))
+                        using (Stream fs = _fileSystem.OpenReadOnly(p, FileShare.Read | FileShare.Delete))
                         {
                             fs.Position = startOffset;
                             int bytesRead;

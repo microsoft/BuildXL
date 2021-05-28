@@ -349,7 +349,7 @@ namespace ContentStoreTest.Stores
                 using (var directory = new DisposableDirectory(FileSystem))
                 {
                     var path = directory.CreateRandomFileName();
-                    using (var stream = await FileSystem.OpenAsync(
+                    using (var stream = FileSystem.TryOpen(
                         path, FileAccess.Write, FileMode.CreateNew, FileShare.Delete))
                     {
                         content.WriteTo(stream);

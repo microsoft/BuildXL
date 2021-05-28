@@ -32,15 +32,15 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact]
-        public async Task OpenFileFromAbsentDirectoryShouldThrowDirectoryNotFoundException()
+        public void OpenFileFromAbsentDirectoryShouldThrowDirectoryNotFoundException()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var path = testDirectory.Path / "fooBar" / "baz" / "source.txt";
-                await Assert.ThrowsAsync<DirectoryNotFoundException>(
-                    async () =>
+                Assert.Throws<DirectoryNotFoundException>(
+                    () =>
                     {
-                        using var fileWithLength = await FileSystem.OpenSafeAsync(path, FileAccess.Write, FileMode.Create, FileShare.None);
+                        using var fileWithLength = FileSystem.Open(path, FileAccess.Write, FileMode.Create, FileShare.None);
                     });
             }
         }
@@ -106,7 +106,7 @@ namespace ContentStoreTest.FileSystem
                 {
                     // This operation may fail with UnauthorizedAccessException because
                     // the test tries to delete the file in the process.
-                    using var f = await fileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+                    using var f = fileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
                 }
                 catch(UnauthorizedAccessException)
                 { }
@@ -131,8 +131,8 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact(Skip = "Test does not work on all versions of Windows where BuildXL tests run")]
-        [Trait("Category", "WindowsOSOnly")] 
-        public async Task TestDeleteWithOpenFileStream()
+        [Trait("Category", "WindowsOSOnly")]
+        public void TestDeleteWithOpenFileStream()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir"))
             {
@@ -141,7 +141,7 @@ namespace ContentStoreTest.FileSystem
                 FileSystem.WriteAllText(path, "Hello");
                 FileSystem.WriteAllText(otherPath, "Other");
 
-                using (Stream stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+                using (Stream stream = FileSystem.TryOpen(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
                 {
                     FileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
 
@@ -281,17 +281,17 @@ namespace ContentStoreTest.FileSystem
                 var destinationBytes = new byte[] { 4, 5, 6 };
                 FileSystem.WriteAllBytes(destination, destinationBytes);
 
-                using (await FileSystem.OpenAsync(destination, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(destination, FileAccess.Read, FileMode.Open, ShareRead))
                 {
-                    Func<Task> a = async () =>
+                    Action a = () =>
                                    {
-                                       using (await FileSystem.OpenAsync(
+                                       using (FileSystem.TryOpen(
                                            destination, FileAccess.Write, FileMode.Create, FileShare.Delete))
                                        {
                                        }
                                    };
 
-                    var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    var exception = Assert.Throws<UnauthorizedAccessException>(a);
                     exception.Message.Should().ContainAny("Handle was used by", "Did not find any actively running processes using the handle");
                 }
             }
@@ -406,7 +406,7 @@ namespace ContentStoreTest.FileSystem
 
         [Fact]
         [Trait("Category", "WindowsOSOnly")] // ShareRead does not block Delete or Move in coreclr
-        public async Task MoveFileDestinationIsOpenedOverwriteThrowsWithAppropriateError()
+        public void MoveFileDestinationIsOpenedOverwriteThrowsWithAppropriateError()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -419,7 +419,7 @@ namespace ContentStoreTest.FileSystem
                 var destinationBytes = new byte[] { 4, 5, 6 };
                 FileSystem.WriteAllBytes(destination, destinationBytes);
 
-                using (await FileSystem.OpenAsync(destination, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(destination, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.MoveFile(source, destination, true);
 
@@ -434,13 +434,13 @@ namespace ContentStoreTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task ReaderBlocksDeleteWithAppropriateError()
+        public void ReaderBlocksDeleteWithAppropriateError()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
                 FileSystem.WriteAllBytes(source, new byte[] { 1 });
-                using (await FileSystem.OpenAsync(source, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(source, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.DeleteFile(source);
 
@@ -458,12 +458,12 @@ namespace ContentStoreTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task WriterBlocksDeleteWithAppropriateError()
+        public void WriterBlocksDeleteWithAppropriateError()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var source = testDirectory.Path / @"src";
-                using (await FileSystem.OpenAsync(source, FileAccess.Write, FileMode.CreateNew, FileShare.None))
+                using (FileSystem.TryOpen(source, FileAccess.Write, FileMode.CreateNew, FileShare.None))
                 {
                     Action a = () => FileSystem.DeleteFile(source);
 
@@ -481,7 +481,7 @@ namespace ContentStoreTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task DeleteOneLinkWhileOtherLinkIsOpenReadOnlySharingFailsWithAppropriateError()
+        public void DeleteOneLinkWhileOtherLinkIsOpenReadOnlySharingFailsWithAppropriateError()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -489,7 +489,7 @@ namespace ContentStoreTest.FileSystem
                 var destinationPath = testDirectory.Path / @"destination.txt";
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath, true));
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.DeleteFile(destinationPath);
 
@@ -507,7 +507,7 @@ namespace ContentStoreTest.FileSystem
 
         [Fact(Skip = "TODO: Failing locally during conversion")]
         [Trait("Category", "QTestSkip")] // Skipped
-        public async Task DeleteOneLinkWhileOneOtherLinkIsOpenReadOnlySharingFailsWithAppropriateError()
+        public void DeleteOneLinkWhileOneOtherLinkIsOpenReadOnlySharingFailsWithAppropriateError()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -518,8 +518,8 @@ namespace ContentStoreTest.FileSystem
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath1, true));
                 Assert.Equal(CreateHardLinkResult.Success, FileSystem.CreateHardLink(sourcePath, destinationPath2, true));
 
-                using (await FileSystem.OpenAsync(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
-                using (await FileSystem.OpenAsync(destinationPath2, FileAccess.Read, FileMode.Open, ShareRead))
+                using (FileSystem.TryOpen(sourcePath, FileAccess.Read, FileMode.Open, ShareReadDelete))
+                using (FileSystem.TryOpen(destinationPath2, FileAccess.Read, FileMode.Open, ShareRead))
                 {
                     Action a = () => FileSystem.DeleteFile(destinationPath1);
 
@@ -541,7 +541,7 @@ namespace ContentStoreTest.FileSystem
             using var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir");
             var filePath = testDirectory.Path / "Foo.txt";
 
-            using (Stream file = await FileSystem.OpenSafeAsync(
+            using (Stream file = FileSystem.Open(
                 filePath,
                 FileAccess.Write,
                 FileMode.CreateNew,
@@ -562,7 +562,7 @@ namespace ContentStoreTest.FileSystem
             var filePath = testDirectory.Path / "Foo.txt";
             var replacementFilePath = testDirectory.Path / "Bar.txt";
 
-            using (Stream file = await FileSystem.OpenSafeAsync(
+            using (Stream file = FileSystem.Open(
                 filePath,
                 FileAccess.Write,
                 FileMode.CreateNew,
@@ -621,7 +621,7 @@ namespace ContentStoreTest.FileSystem
                     var destinationPath = testDirectory.Path / $"destination{index}.txt";
 
                     var sw = StopwatchSlim.Start();
-                    using (StreamWithLength? fs = await FileSystem.OpenAsync(
+                    using (StreamWithLength? fs = FileSystem.TryOpen(
                         destinationPath,
                         FileAccess.Write,
                         FileMode.Create,

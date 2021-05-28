@@ -351,7 +351,7 @@ namespace ContentStoreTest.Sessions
            LocalServerConfiguration localContentServerConfiguration,
            TimeSpan? heartbeatOverride)
        {
-           configuration.Write(FileSystem, rootPath).Wait();
+           configuration.Write(FileSystem, rootPath);
 
            var grpcPortFileName = Guid.NewGuid().ToString();
            var serviceConfiguration = new ServiceConfiguration(
@@ -399,7 +399,7 @@ namespace ContentStoreTest.Sessions
            LocalServerConfiguration localContentServerConfiguration,
            TimeSpan? heartbeatOverride)
        {
-           configuration.Write(FileSystem, rootPath).Wait();
+           configuration.Write(FileSystem, rootPath);
 
            var grpcPortFileName = Guid.NewGuid().ToString();
            var serviceConfiguration = new ServiceConfiguration(

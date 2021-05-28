@@ -113,7 +113,7 @@ namespace ContentStoreTest.Stores
             using (var root = new DisposableDirectory(FileSystem))
             {
                 long size = initialSize;
-                PinSizeHistory pinSizeHistory = await PinSizeHistory.LoadOrCreateNewAsync(FileSystem, _clock, root.Path);
+                PinSizeHistory pinSizeHistory = PinSizeHistory.LoadOrCreateNew(FileSystem, _clock, root.Path);
                 Func<long> currentSizeFunc = () => Volatile.Read(ref size);
                 Func<int, PinSizeHistory.ReadHistoryResult> readHistoryFunc = ws => pinSizeHistory.ReadHistory(ws);
 

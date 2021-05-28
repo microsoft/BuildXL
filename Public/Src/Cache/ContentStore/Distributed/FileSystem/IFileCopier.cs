@@ -51,11 +51,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public bool FromRing { get; }
 
+        /// <summary>
+        /// Optional length size of the content.
+        /// </summary>
+        public long? Size { get; }
+
         /// <nodoc />
-        public ContentLocation(MachineLocation machine, ContentHash hash, bool fromRing = false)
+        public ContentLocation(MachineLocation machine, ContentHash hash, long? size, bool fromRing = false)
         {
             Machine = machine;
             Hash = hash;
+            Size = size;
             FromRing = fromRing;
         }
 

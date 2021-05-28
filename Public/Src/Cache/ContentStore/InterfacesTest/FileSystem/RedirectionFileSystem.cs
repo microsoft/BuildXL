@@ -203,6 +203,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             return Inner.OpenAsync(Redirect(path), fileAccess, fileMode, share, options, bufferSize);
         }
 
+        /// <inheritdoc />
+        public StreamWithLength? TryOpen(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        {
+            return Inner.TryOpen(Redirect(path), fileAccess, fileMode, share, options, bufferSize);
+        }
+
         /// <nodoc />
         public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
         {

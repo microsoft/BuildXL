@@ -88,7 +88,7 @@ namespace ContentStoreTest.Sessions
             {
                 var rootPath = testDirectory.Path;
                 var config = CreateStoreConfiguration();
-                await config.Write(FileSystem, rootPath);
+                config.Write(FileSystem, rootPath);
 
                 using (var store = CreateStore(testDirectory, config))
                 {
@@ -173,10 +173,10 @@ namespace ContentStoreTest.Sessions
                 var config = CreateStoreConfiguration();
 
                 var rootPath1 = testDirectory1.Path;
-                await config.Write(FileSystem, rootPath1);
+                config.Write(FileSystem, rootPath1);
 
                 var rootPath2 = testDirectory2.Path;
-                await config.Write(FileSystem, rootPath2);
+                config.Write(FileSystem, rootPath2);
 
                 var grpcPort = PortExtensions.GetNextAvailablePort();
                 var grpcPortFileName = Guid.NewGuid().ToString();
@@ -368,7 +368,7 @@ namespace ContentStoreTest.Sessions
             {
                 var rootPath = testDirectory.Path;
                 var config = CreateStoreConfiguration();
-                await config.Write(FileSystem, rootPath);
+                config.Write(FileSystem, rootPath);
 
                 using (var store = CreateStore(testDirectory, config))
                 {

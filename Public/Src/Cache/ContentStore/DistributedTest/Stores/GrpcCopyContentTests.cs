@@ -276,7 +276,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Copy the file out via GRPC
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                 using (var destinationStream = await FileSystem.OpenSafeAsync(
+                 using (var destinationStream = FileSystem.Open(
                      destinationPath,
                      FileAccess.ReadWrite,
                      FileMode.CreateNew,

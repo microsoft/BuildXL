@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.App
                     using (r.Stream)
                     {
                         var path = _fileSystem.GetTempPath() / $"{contentHash.ToHex()}.dat";
-                        using (Stream fileStream = await _fileSystem.OpenSafeAsync(path, FileAccess.Write, FileMode.Create, FileShare.None))
+                        using (Stream fileStream = _fileSystem.Open(path, FileAccess.Write, FileMode.Create, FileShare.None))
                         {
                             await r.Stream.CopyToAsync(fileStream);
                             _tracer.Always(context, $"Content streamed to file path=[{path}]");

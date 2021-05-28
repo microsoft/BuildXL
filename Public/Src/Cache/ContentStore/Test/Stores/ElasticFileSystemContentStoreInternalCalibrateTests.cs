@@ -119,7 +119,7 @@ namespace ContentStoreTest.Stores
         {
             // Sync to allow calibration to occur.
             await store.SyncAsync(context);
-            var currentQuota = await LoadElasticQuotaAsync(store.RootPathForTest);
+            var currentQuota = LoadElasticQuota(store.RootPathForTest);
             Assert.NotNull(currentQuota);
             verify(currentQuota.Quota);
         }

@@ -43,7 +43,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                 var sessionInfo = new HibernatedCacheSessionInfo(sessionId, serializedConfig, pat, operations);
                 var sessions1 = new HibernatedSessions<HibernatedCacheSessionInfo>(new List<HibernatedCacheSessionInfo> { sessionInfo });
-                await sessions1.WriteAsync(FileSystem, directory.Path, fileName);
+                sessions1.Write(FileSystem, directory.Path, fileName);
                 FileSystem.HibernatedSessionsExists(directory.Path, fileName).Should().BeTrue();
 
                 var fileSize = FileSystem.GetFileSize(directory.Path / fileName);

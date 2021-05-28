@@ -73,7 +73,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                 config.MaxFingerprintsPerIncorporateRequest = maxFingerprintsPerRequest.Value;
             }
 
-            using (var logStream = _fileSystem.OpenReadOnlySafeAsync(logPath, FileShare.Read | FileShare.Delete).Result)
+            using (var logStream = _fileSystem.OpenReadOnly(logPath, FileShare.Read | FileShare.Delete))
             using (StreamReader reader = new StreamReader(logStream))
             {
                 Context context = new Context(_logger);

@@ -81,11 +81,11 @@ namespace ContentStoreTest.Sessions
             FileSystem.WriteAllText(originalPath, fileContents);
             FileSystem.CreateHardLink(originalPath, hardlinkedPath, replaceExisting: true);
 
-            using var hardlinkedStream = await FileSystem.OpenAsync(hardlinkedPath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+            using var hardlinkedStream = FileSystem.TryOpen(hardlinkedPath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
             hardlinkedStream.Should().NotBeNull();
 
             // Open the original file with FileMode.Create. This should truncate the file.
-            using var originalStream = await FileSystem.OpenAsync(originalPath, FileAccess.Write, FileMode.Create, FileShare.Read);
+            using var originalStream = FileSystem.TryOpen(originalPath, FileAccess.Write, FileMode.Create, FileShare.Read);
 
             // Read the contents of the hardlinked file.
             using var reader = new StreamReader(hardlinkedStream);

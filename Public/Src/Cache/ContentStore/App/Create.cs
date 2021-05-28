@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.App
             _fileSystem.CreateDirectory(rootPath);
 
             var configuration = new ContentStoreConfiguration(maxSize, null);
-            configuration.Write(_fileSystem, new AbsolutePath(root)).Wait();
+            configuration.Write(_fileSystem, new AbsolutePath(root));
 
             RunFileSystemContentStore(rootPath, async (context, session) =>
             {

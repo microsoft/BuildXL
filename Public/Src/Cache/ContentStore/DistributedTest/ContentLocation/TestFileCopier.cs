@@ -80,7 +80,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                     return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
                 }
 
-                using Stream s = await GetStreamAsync(sourcePath);
+                using Stream s = GetStream(sourcePath);
 
                 await s.CopyToAsync(destinationStream);
 
@@ -92,7 +92,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
         }
 
-        private async Task<Stream> GetStreamAsync(AbsolutePath sourcePath)
+        private Stream GetStream(AbsolutePath sourcePath)
         {
             Stream s;
             if (FilesToCorrupt.ContainsKey(sourcePath))
@@ -102,7 +102,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
             else
             {
-                s = await _fileSystem.OpenReadOnlySafeAsync(sourcePath, FileShare.Read);
+                s =  _fileSystem.OpenReadOnly(sourcePath, FileShare.Read);
             }
 
             return s;

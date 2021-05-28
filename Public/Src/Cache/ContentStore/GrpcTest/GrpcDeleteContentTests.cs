@@ -113,7 +113,7 @@ namespace ContentStoreTest.Grpc
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 var storeConfig = new ContentStoreConfiguration(new MaxSizeQuota($"{1 * 1024 * 1024}"));
-                await storeConfig.Write(FileSystem, directory.Path).ConfigureAwait(false);
+                storeConfig.Write(FileSystem, directory.Path);
 
                 var serviceConfig =
                     new ServiceConfiguration(

@@ -31,6 +31,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Utilities.Tasks.TaskUtilities;
 using Logger = BuildXL.Engine.Tracing.Logger;
 
 namespace BuildXL.Engine.Distribution
@@ -253,8 +254,13 @@ namespace BuildXL.Engine.Distribution
             await Task.Yield();
 
             // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
+            SemaphoreReleaser logBlobAcquiredMtx;
             using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogWaitDuration].Start())
-            using (await m_logBlobMutex.AcquireAsync())
+            {
+                logBlobAcquiredMtx = await m_logBlobMutex.AcquireAsync();
+            }
+
+            using (logBlobAcquiredMtx)
             using (m_orchestratorService.Environment.Counters[PipExecutorCounter.RemoteWorker_ProcessExecutionLogDuration].Start())
             {
                 // We need to dequeue and process the blobs in order. 

@@ -552,7 +552,7 @@ namespace BuildXL.Engine
         private static void InjectDirectoryTranslationValuesIntoEnvironment(PathTable pathTable, CommandLineConfiguration commandLineConfiguration)
         {
             var environmentVariable = DirectoryTranslator.GetEnvironmentVaribleRepresentationForTranslations(
-                commandLineConfiguration.Engine.DirectoriesToTranslate.Select(d => new DirectoryTranslator.Translation(d.FromPath.ToString(pathTable), d.ToPath.ToString(pathTable)) ).ToList());
+                commandLineConfiguration.Engine.DirectoriesToTranslate.Select(d => new DirectoryTranslator.Translation(d.FromPath.ToString(pathTable), d.ToPath.ToString(pathTable))).ToList());
 
             Environment.SetEnvironmentVariable(environmentVariable.variable, environmentVariable.value);
             commandLineConfiguration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Add(environmentVariable.variable);
@@ -896,7 +896,7 @@ namespace BuildXL.Engine
                     {
                         mutableConfig.Distribution.LowWorkersWarningThreshold = Math.Min(remoteWorkerCount + 1, mutableConfig.Distribution.LowWorkersWarningThreshold.Value);
                     }
-                    
+
                     // Force graph caching because the orchestrator needs to communicate it to the worker.
                     mutableConfig.Cache.CacheGraph = true;
                 }
@@ -1120,7 +1120,7 @@ namespace BuildXL.Engine
             // CloudBuild overrides
             if (mutableConfig.InCloudBuild())
             {
-                if(mutableConfig.Schedule.MinimumDiskSpaceForPipsGb == null)
+                if (mutableConfig.Schedule.MinimumDiskSpaceForPipsGb == null)
                 {
                     mutableConfig.Schedule.MinimumDiskSpaceForPipsGb = 5;
                 }
@@ -1718,7 +1718,6 @@ namespace BuildXL.Engine
         private BuildXLEngineResult DoRun(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
         {
             Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
-            
             if (m_distributionService != null && !m_distributionService.Initialize())
             {
                 return BuildXLEngineResult.Failed(engineState);
@@ -2225,7 +2224,7 @@ namespace BuildXL.Engine
         {
             FileContentTableType type;
             FileContentTable fct;
-            
+
             var sw = Stopwatch.StartNew();
             if (Configuration.Engine.UseFileContentTable == false)
             {
@@ -2741,7 +2740,7 @@ namespace BuildXL.Engine
             Failure,
             ConstructedNewGraph,
             ReusedExistingGraph,
-						ExitOnNewGraph
+            ExitOnNewGraph
         }
 
         /// <summary>

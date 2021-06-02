@@ -90,7 +90,8 @@ namespace Test.BuildXL.Processes.Detours
             bool ignorePreloadedDlls = true,
             bool enforceAccessPoliciesOnDirectoryCreation = false,
             bool probeDirectorySymlinkAsDirectory = false,
-            bool ignoreFullReparsePointResolving = true)
+            bool ignoreFullReparsePointResolving = true,
+            List<string> directoriesToEnableFullReparsePointParsing = null)
         {
             errorString = null;
 
@@ -136,7 +137,8 @@ namespace Test.BuildXL.Processes.Detours
                     ProbeDirectorySymlinkAsDirectory = probeDirectorySymlinkAsDirectory,
                 },
                 EnforceAccessPoliciesOnDirectoryCreation = enforceAccessPoliciesOnDirectoryCreation,
-                FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors
+                FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors,
+                DirectoriesToEnableFullReparsePointParsing = directoriesToEnableFullReparsePointParsing
             };
 
             var loggingContext = CreateLoggingContextForTest();
@@ -988,7 +990,7 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.IsTrue(foundDelete);
             }
         }
-        
+
         [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
@@ -2828,7 +2830,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.IsTrue(File.Exists(newSymlink.ToString(pathTable)));
 
-                var toVerify = new []
+                var toVerify = new[]
                 {
                     (oldSymlink, RequestedAccess.Read | RequestedAccess.Write, FileAccessStatus.Allowed),
                     (newSymlink, RequestedAccess.Write, FileAccessStatus.Allowed)
@@ -3912,7 +3914,7 @@ namespace Test.BuildXL.Processes.Detours
                             subdirRewrittenOutput2AfterWrite.WithAttributes(),
                             outputInSharedOpaqueAfterRewrite.WithAttributes()
                         }),
-                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new[] {inputSubdirectory, sourceSealSubdirectory, sharedOpaqueSubdirectory}),
+                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new[] { inputSubdirectory, sourceSealSubdirectory, sharedOpaqueSubdirectory }),
                     directoryOutputs: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new[] { new DirectoryArtifact(sharedOpaqueSubdirectory.Path, sharedOpaqueSubdirectory.PartialSealId + 1, isSharedOpaque: true) }),
                     orderDependencies: ReadOnlyArray<PipId>.Empty,
                     untrackedPaths: ReadOnlyArray<AbsolutePath>.From(untrackedPaths),
@@ -5688,7 +5690,7 @@ namespace Test.BuildXL.Processes.Detours
                     argumentStr: "CallDetouredFileCreateThatAccessesChainOfSymlinks",
                     inputFiles:
 
-                    // Intermediate symlink is not specified as an input.
+                        // Intermediate symlink is not specified as an input.
                         ReadOnlyArray<FileArtifact>.FromWithoutCopy(
                             FileArtifact.CreateSourceFile(sourceOfSymlink),
                             FileArtifact.CreateSourceFile(targetFile)),
@@ -5921,9 +5923,9 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [TheoryIfSupported(requiresSymlinkPermission: true)]
-        [InlineData(true,  @"..\..\..\targets\x64\hello.txt")]
+        [InlineData(true, @"..\..\..\targets\x64\hello.txt")]
         [InlineData(false, @"..\..\..\targets\x64\hello.txt")]
-        [InlineData(true,  @"..\..\targets\x64\hello.txt")]
+        [InlineData(true, @"..\..\targets\x64\hello.txt")]
         [InlineData(false, @"..\..\targets\x64\hello.txt")]
         public async Task CallAccessNestedSiblingSymLinkOnFilesThroughDirectorySymlinkOrJunction(bool useJunction, string symlinkRelativeTarget)
         {
@@ -7244,14 +7246,19 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        public async Task CallOpenFileThroughMultipleDirectorySymlinksAsync()
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [InlineData(false, false)]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        [InlineData(true, true)]
+        public async Task CallOpenFileThroughMultipleDirectorySymlinksAsync(bool ignoreFullReparsePointResolving, bool useSelectDirectoriesForFullyResolving)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
+                var directory_AA = tempFiles.GetDirectory(pathTable, "AA");
                 var directory_A = tempFiles.GetDirectory(pathTable, "A");
                 var directory_A_B2 = tempFiles.GetDirectory(pathTable, @"A\B2");
                 var directory_A_B2_C = tempFiles.GetDirectory(pathTable, @"A\B2\C");
@@ -7306,23 +7313,35 @@ namespace Test.BuildXL.Processes.Detours
                     pip: process,
                     errorString: out errorString,
                     unexpectedFileAccessesAreErrors: false,
-                    ignoreFullReparsePointResolving: false);
+                    ignoreFullReparsePointResolving: ignoreFullReparsePointResolving,
+                    directoriesToEnableFullReparsePointParsing: useSelectDirectoriesForFullyResolving ? new List<string>() { directory_A.ToString(pathTable), directory_AA.ToString(pathTable) } : new List<string>() { directory_AA.ToString(pathTable) });
 
-                VerifyNormalSuccess(context, result);
+                if (!ignoreFullReparsePointResolving || useSelectDirectoriesForFullyResolving)
+                {
+                    VerifyNormalSuccess(context, result);
 
-                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                    VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                    {
+                        (symlink_A_BLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (symlink_A_B1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (symlink_A_B2_C_DLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (symlink_A_B2_C_D1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (file_A_B2_C_D2_eTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    },
+                    new[]
+                    {
+                        tempFiles.GetFileName(pathTable, @"A\B1\C\D1.lnk"),
+                        tempFiles.GetFileName(pathTable, @"A\B1\C\D1.lnk\e.txt")
+                    });
+                }
+                else
                 {
-                    (symlink_A_BLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
-                    (symlink_A_B1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
-                    (symlink_A_B2_C_DLnk, RequestedAccess.Read, FileAccessStatus.Allowed),
-                    (symlink_A_B2_C_D1Lnk, RequestedAccess.Read, FileAccessStatus.Allowed),
-                    (file_A_B2_C_D2_eTxt, RequestedAccess.Read, FileAccessStatus.Allowed),
-                },
-                new[]
-                {
-                    tempFiles.GetFileName(pathTable, @"A\B1\C\D1.lnk"),
-                    tempFiles.GetFileName(pathTable, @"A\B1\C\D1.lnk\e.txt")
-                });
+                    VerifyNormalSuccess(context, result);
+                    VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                    {
+                        (tempFiles.GetFileName(pathTable, @"A\B.lnk\C\D.lnk\e.txt"), RequestedAccess.Read, FileAccessStatus.Denied),
+                    });
+                }
             }
         }
 

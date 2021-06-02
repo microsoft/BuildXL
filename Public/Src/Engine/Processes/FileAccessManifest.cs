@@ -1955,6 +1955,7 @@ namespace BuildXL.Processes
                     Tuple.Create((short)FileAccessPolicy.AllowRealInputTimestamps, "RealInputTimestamps"),
                     Tuple.Create((short)FileAccessPolicy.OverrideAllowWriteForExistingFiles, "OverrideAllowWriteForExistingFiles"),
                     Tuple.Create((short)FileAccessPolicy.TreatDirectorySymlinkAsDirectory, "DirectorySymlinkAsDirectory"),
+                    Tuple.Create((short)FileAccessPolicy.EnableFullReparsePointParsing, "EnableFullReparsePointParsing"),
                     Tuple.Create((short)FileAccessPolicy.ReportAccess, "ReportAccess"),
                     // Note that composite values must appear before their parts.
                     Tuple.Create((short)FileAccessPolicy.ReportAccessIfExistent, "ReportAccessIfExistent"),

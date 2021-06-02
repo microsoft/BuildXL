@@ -1047,6 +1047,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "translateDirectory",
                             opt => ParseTranslateDirectoriesOption(pathTable, opt, engineConfiguration.DirectoriesToTranslate)),
+                        OptionHandlerFactory.CreateOption(
+                            "enforceFullReparsePointsUnderPath",
+                            opt => sandboxConfiguration.DirectoriesToEnableFullReparsePointParsing.Add(opt.Value)),
                         OptionHandlerFactory.CreateBoolOption(
                             "treatAbsentDirectoryAsExistentUnderOpaque",
                             sign => schedulingConfiguration.TreatAbsentDirectoryAsExistentUnderOpaque = sign),

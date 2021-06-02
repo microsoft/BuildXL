@@ -699,6 +699,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/enforceFullReparsePointsUnderPath:<path>",
+                Strings.HelpText_DisplayHelp_EnforceFullReparsePointsUnderPath,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/analyzeDependencyViolations[+|-]",
                 Strings.HelpText_DisplayHelp_AnalyzeDependencyViolations,
                 HelpLevel.Verbose);

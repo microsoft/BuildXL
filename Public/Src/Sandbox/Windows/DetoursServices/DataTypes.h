@@ -141,6 +141,9 @@ enum FileAccessPolicy
     // When checking if a handle or path is a directory, treat directory symlink as directory.
     FileAccessPolicy_TreatDirectorySymlinkAsDirectory = 0x800,
 
+    // If set, full reparse point tracking should be done for this path/file
+    FileAccessPolicy_EnableFullReparsePointParsing = 0x1000,
+
     // If set, then we will report all attempts to access files under this scope (whether existent or not).
     // BuildXL uses this information to discover dynamic dependencies, such as #include-ed files.
     FileAccessPolicy_ReportAccess = FileAccessPolicy_ReportAccessIfNonExistent | FileAccessPolicy_ReportAccessIfExistent,

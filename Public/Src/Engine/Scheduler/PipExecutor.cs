@@ -4244,6 +4244,11 @@ namespace BuildXL.Scheduler
             if (configuration.Sandbox.UnsafeSandboxConfiguration.IgnoreFullReparsePointResolving)
             {
                 var pathstring = outputPath.ToString(pathTable);
+                if (configuration.Sandbox.DirectoriesToEnableFullReparsePointParsing.Any(x => pathstring.StartsWith(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+
                 var possibleReparsePointType = FileUtilities.TryGetReparsePointType(pathstring);
                 if (possibleReparsePointType.Succeeded && possibleReparsePointType.Result == ReparsePointType.DirectorySymlink)
                 {

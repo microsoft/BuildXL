@@ -2174,6 +2174,18 @@ namespace BuildXL.Processes
                 }
             }
 
+            if (m_sandboxConfig.DirectoriesToEnableFullReparsePointParsing != null)
+            {
+                foreach (var directoryToEnableFullReparsePointParsing in m_sandboxConfig.DirectoriesToEnableFullReparsePointParsing)
+                {
+                    var directory = AbsolutePath.Create(m_pathTable, directoryToEnableFullReparsePointParsing);
+                    m_fileAccessManifest.AddScope(
+                        directory,
+                        mask: FileAccessPolicy.MaskNothing,
+                        values: FileAccessPolicy.EnableFullReparsePointParsing);
+                }
+            }
+
             if (!OperatingSystemHelper.IsUnixOS)
             {
                 var binaryPaths = new BinaryPaths();

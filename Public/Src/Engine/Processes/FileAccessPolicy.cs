@@ -100,6 +100,11 @@ namespace BuildXL.Processes
         TreatDirectorySymlinkAsDirectory = 0x800,
 
         /// <summary>
+        /// If set, enable full reparse point parsing for paths under here.
+        /// </summary>
+        EnableFullReparsePointParsing = 0x1000,
+
+        /// <summary>
         /// If set, then we will report attempts to access files under this scope, whether they exist or not (combination of <see cref="ReportAccessIfExistent"/>
         /// and <see cref="ReportAccessIfNonexistent"/>).
         /// </summary>

@@ -1084,4 +1084,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_DumpFailedPipsWithDynamicData" xml:space="preserve">
     <value>Enable this option to dump observed file accesses and processes with the dump pip lite analyzer (requires /logObservedFileAccesses+ and/or /logProcesses+ to be set as well).</value>
   </data>
+  <data name="HelpText_DisplayHelp_EnforceFullReparsePointsUnderPath" xml:space="preserve">
+    <value>Enforce that directory symlinks are correctly tracked when they are present under the specified path.  This list is only considered when IgnoreFullReparsePointResolving is set to true and EnableFullReparsePointResolving is set to false.</value>
+  </data>
 </root>

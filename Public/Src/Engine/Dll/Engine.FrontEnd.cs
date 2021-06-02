@@ -150,7 +150,7 @@ namespace BuildXL.Engine
                     maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency());
             }
 
-            return (IPipGraphBuilder) patchableGraph ?? builder;
+            return (IPipGraphBuilder)patchableGraph ?? builder;
         }
 
         /// <summary>
@@ -440,12 +440,12 @@ namespace BuildXL.Engine
             {
                 var reuseResult = fullReload
                     ? ReloadEngineSchedule(
-                        serializer, 
-                        cacheInitializationTask, 
-                        journalState, 
-                        tb.LoggingContext, 
-                        engineState, 
-                        inputChanges, 
+                        serializer,
+                        cacheInitializationTask,
+                        journalState,
+                        tb.LoggingContext,
+                        engineState,
+                        inputChanges,
                         graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString())
                     : ReloadPipGraphOnly(serializer, tb.LoggingContext, engineState, inputChanges);
 

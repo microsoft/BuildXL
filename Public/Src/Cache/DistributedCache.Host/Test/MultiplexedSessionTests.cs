@@ -34,7 +34,7 @@ namespace BuildXL.Cache.Host.Test
         {
             var clock = new MemoryClock();
 
-            var configuration = new ContentStoreConfiguration();
+            var configuration = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(10);
             var configurationModel = new ConfigurationModel(inProcessConfiguration: configuration, ConfigurationSelection.RequireAndUseInProcessConfiguration);
 
             var root1 = TestRootDirectoryPath / "Store1";

@@ -26,12 +26,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 foreach (int blobSize in blobSizes)
                 {
                     var content = ThreadSafeRandom.GetBytes(blobSize);
-                    {
-                        hashAlgorithm.Initialize();
-                        byte[] hashAlgoBytes = hashAlgorithm.ComputeHash(content);
-                        BlobIdentifier blobId = VsoHash.CalculateBlobIdentifier(content);
-                        Assert.True(hashAlgoBytes.SequenceEqual(blobId.Bytes));
-                    }
+                    hashAlgorithm.Initialize();
+
+                    byte[] hashAlgoBytes = hashAlgorithm.ComputeHash(content);
+                    BlobIdentifier blobId = VsoHash.CalculateBlobIdentifier(content);
+                    Assert.True(hashAlgoBytes.SequenceEqual(blobId.Bytes));
                 }
             }
         }

@@ -25,8 +25,11 @@ namespace BuildXL.Utilities
         private ulong m_high;
         private ulong m_low;
 
-        /// <inheritdoc/>
-        public override int HashSize => (int)HashLengthInBits;
+        /// <nodoc />
+        public MurmurHashEngine()
+        {
+            HashSizeValue = (int)HashLengthInBits;
+        }
 
         /// <inheritdoc/>
         public override void Initialize()

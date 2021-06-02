@@ -24,9 +24,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private DedupNode? _lastNode;
         private const HashType NodeOrChunkTargetHashType = HashType.Dedup64K;
 
-        /// <inheritdoc />
-        public override int HashSize => 8 * DedupNode64KHashInfo.Length;
-
         /// <summary>
         /// GetHashType - retrieves the hash type configuration to use.
         /// </summary>
@@ -43,6 +40,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             if (!ChunkerConfiguration.IsValidChunkSize(chunker.Configuration)) {throw new NotImplementedException($"Unsupported chunk size specified: {chunker.Configuration.AvgChunkSize} in bytes.");}
             _chunker = chunker;
+            
+            HashSizeValue = 8 * DedupNode64KHashInfo.Length;
             Initialize();
         }
 

@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 return
                     new BoolResult(
-                        $"Exceeds {limit}% when adding {reserveCount} bytes. Configuration: [Rule={DiskFreePercentRuleName} {_quota}]");
+                        $"Exceeds {limit}% when adding {reserveCount} bytes. Configuration: [Rule={DiskFreePercentRuleName} {_quota}], FreeSpace={freeSpacePercent}%");
             }
 
             return BoolResult.Success;

@@ -450,7 +450,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
     }
 
-    abstract public class DedupContentHasherTestsCanChunkLargeFilesBase : DedupContentHasherTestsBase
+    public abstract class DedupContentHasherTestsCanChunkLargeFilesBase : DedupContentHasherTestsBase
     {   
         protected DedupNode CanChunkLargeFilesHelper(HashType hashType, int blockSize, int blockCount, string expected)
         {

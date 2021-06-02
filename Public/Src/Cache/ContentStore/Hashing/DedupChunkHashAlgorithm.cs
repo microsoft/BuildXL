@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -16,11 +17,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private readonly SHA512 _hasher = new SHA512CryptoServiceProvider();
 
-        /// <inheritdoc />
-        public override byte[] Hash => TruncateTo256Bits(base.Hash!);
+        /// <nodoc />
+        public DedupChunkHashAlgorithm()
+        {
+            HashSizeValue = 8 * DedupSingleChunkHashInfo.Length;
+        }
 
         /// <inheritdoc />
-        public override int HashSize => 8 * DedupSingleChunkHashInfo.Length;
+        public override byte[] Hash => TruncateTo256Bits(base.Hash!);
 
         /// <inheritdoc />
         public override void Initialize()

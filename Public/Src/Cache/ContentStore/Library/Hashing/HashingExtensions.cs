@@ -4,6 +4,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -29,13 +30,38 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Calculate content hash of content in a file.
         /// </summary>
         /// <exception cref="FileNotFoundException">Throws if the file <paramref name="path"/> is not on disk.</exception>
+#if NET_COREAPP
+        public static Task<ContentHash> CalculateHashAsync(this IAbsFileSystem fileSystem, AbsolutePath path, HashType hashType)
+        {
+            return Task.FromResult(fileSystem.OpenForHashing(path).ToFileStream().HashFile(hashType));
+        }
+#else
         public static async Task<ContentHash> CalculateHashAsync(this IAbsFileSystem fileSystem, AbsolutePath path, HashType hashType)
         {
-            using (var stream = fileSystem.Open(
-                path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, HashStreamBufferSize))
-            {
-                return await stream.CalculateHashAsync(hashType);
-            }
+            using var stream = fileSystem.Open(
+                path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, HashStreamBufferSize);
+            return await stream.CalculateHashAsync(hashType);
+        }
+#endif
+
+        /// <summary>
+        /// Opens a file for hashing purposes.
+        /// </summary>
+        public static StreamWithLength OpenForHashing(this IAbsFileSystem fileSystem, AbsolutePath path)
+        {
+            // Using a helper from the hashing layer that will pass the right options required for file hashing.
+            return ContentHashingHelper.OpenForHashing(path.Path,
+                tuple => fileSystem.Open(
+                    path,
+                    tuple.fileAccess,
+                    tuple.mode,
+                    tuple.fileShare,
+                    tuple.options,
+#if NET_COREAPP
+                    tuple.bufferSize).ToFileStream());
+#else
+                    FileSystemDefaults.DefaultFileStreamBufferSize).ToFileStream());
+#endif
         }
 
         /// <summary>
@@ -43,6 +69,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static Task<ContentHash> CalculateHashAsync(this StreamWithLength stream, HashType hashType)
         {
+#if NET_COREAPP
+            if (stream.Stream is FileStream fileStream)
+            {
+                return Task.FromResult(fileStream.HashFile(hashType));
+            }
+#endif // NET_COREAPP
+
             var hasher = HashInfoLookup.GetContentHasher(hashType);
             return hasher.GetContentHashAsync(stream);
         }
@@ -55,6 +88,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return contentHash == HashInfoLookup.Find(contentHash.HashType).EmptyHash;
         }
 
+        /// <summary>
+        /// Casts <see cref="StreamWithLength"/> to <see cref="FileStream"/>.
+        /// </summary>
+        public static FileStream ToFileStream(this StreamWithLength streamWithLength) => (FileStream)streamWithLength.Stream;
+        
+        /// <nodoc />
         public static bool IsZero(this ContentHash contentHash)
         {
             return contentHash == HashInfoLookup.Find(contentHash.HashType).Zero;

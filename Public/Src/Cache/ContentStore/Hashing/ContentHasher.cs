@@ -75,6 +75,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new HasherToken(poolHandle);
         }
 
+        private HasherToken CreateToken(long expectedLength)
+        {
+            var poolHandle = _algorithmsPool.Get();
+            var result = new HasherToken(poolHandle);
+            if (result.Hasher is IHashAlgorithmInputLength sizeHint)
+            {
+                sizeHint.SetInputLength(expectedLength);
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// GetContentHashInternalAsync - for internal use only.
         /// </summary>
@@ -86,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             try
             {
-                using var hasherHandle = CreateToken();
+                using var hasherHandle = CreateToken(expectedLength: content.Length - content.Stream.Position);
                 var hasher = hasherHandle.Hasher;
 
                 Pool<byte[]>.PoolHandle bufferHandle;
@@ -102,11 +114,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 using (bufferHandle)
                 {
                     var buffer = bufferHandle.Value;
-
-                    if (hasher is IHashAlgorithmInputLength sizeHint)
-                    {
-                        sizeHint.SetInputLength(content.Length - content.Stream.Position);
-                    }
 
                     int bytesJustRead;
 
@@ -143,7 +150,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         case HashType.Murmur:
                             return (new ContentHash(Info.HashType, hashBytes), null);
                         default:
-                            throw new NotImplementedException($"Unsupported hashtype: {Info.HashType} encountered when hashing content.");
+                            throw new NotImplementedException($"Unsupported hash type: {Info.HashType} encountered when hashing content.");
                     }
                 }
             }
@@ -162,6 +169,33 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return contentHash;
         }
 
+#if NET_COREAPP
+        /// <inheritdoc />
+        public ContentHash GetContentHash(ReadOnlySpan<byte> content)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                using (var hasherToken = CreateToken(expectedLength: content.Length))
+                {
+                    var hasher = hasherToken.Hasher;
+
+                    Span<byte> hashOutput = stackalloc byte[Info.ByteLength];
+                    hasher.TryComputeHash(content, hashOutput, out _);
+
+                    return new ContentHash(Info.HashType, hashOutput.ToArray());
+                }
+            }
+            finally
+            {
+                stopwatch.Stop();
+                Interlocked.Add(ref _ticks, stopwatch.Elapsed.Ticks);
+                Interlocked.Increment(ref _calls);
+            }
+        }
+#endif //NET_COREAPP
+
         /// <inheritdoc />
         public ContentHash GetContentHash(byte[] content)
         {
@@ -169,14 +203,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             try
             {
-                using (var hasherToken = CreateToken())
+                using (var hasherToken = CreateToken(expectedLength: content.Length))
                 {
                     var hasher = hasherToken.Hasher;
-                    if (hasher is IHashAlgorithmInputLength sizeHint)
-                    {
-                        sizeHint.SetInputLength(content.Length);
-                    }
-
                     var hashBytes = hasher.ComputeHash(content);
                     return new ContentHash(Info.HashType, hashBytes);
                 }
@@ -196,14 +225,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             try
             {
-                using (var hasherToken = CreateToken())
+                using (var hasherToken = CreateToken(expectedLength: count))
                 {
                     var hasher = hasherToken.Hasher;
-                    if (hasher is IHashAlgorithmInputLength sizeHint)
-                    {
-                        sizeHint.SetInputLength(count);
-                    }
-
                     var hashBytes = hasher.ComputeHash(content, offset, count);
                     return new ContentHash(Info.HashType, hashBytes);
                 }
@@ -288,8 +312,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 long parallelHashingFileSizeBoundary,
                 long streamLength)
             {
-                Contract.Requires(stream != null);
-                Contract.Requires(hasher != null);
                 Contract.Requires(useParallelHashing || parallelHashingFileSizeBoundary == -1);
 
                 _baseStream = stream;
@@ -623,7 +645,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 private static readonly Pool<Buffer> BufferPool = new Pool<Buffer>(() => new Buffer());
 
-                public byte[] Data { get; private set; } = new byte[0];
+                public byte[] Data { get; private set; } = EmptyByteArray;
 
                 public int Count { get; private set; } = 0;
 

@@ -69,11 +69,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static void HashBlockBytes(byte[] block, int lengthToHash, byte[] resultBuffer, int startIndex = 0)
         {
+            HashBlockBytes(block.AsSpan(startIndex, lengthToHash), resultBuffer);
+        }
+
+        /// <summary>
+        /// Expose method which does not allocate a BlobBlockHash
+        /// </summary>
+        public static void HashBlockBytes(ReadOnlySpan<byte> block, byte[] resultBuffer)
+        {
+            var lengthToHash = block.Length;
             using (var sha256Handle = PoolSHA256CryptoServiceProvider.Get())
             {
                 int pageCounter = 0;
-                int currentIndex = startIndex;
-                int endIndex = startIndex + lengthToHash;
+                int currentIndex = 0;
+                int endIndex = lengthToHash;
 
                 int expectedPages = (int)Math.Ceiling(lengthToHash * 1.0 / PageSize);
                 int bytesPerPage = sha256Handle.Value.HashSize / 8;
@@ -90,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     while (endIndex > currentIndex)
                     {
                         int bytesToCopy = Math.Min(endIndex - currentIndex, PageSize);
-                        var page = block.AsSpan().Slice(currentIndex, bytesToCopy);
+                        var page = block.Slice(currentIndex, bytesToCopy);
                         var pageBuffer = bufferSpan.Slice(pageCounter * bytesPerPage);
                         var succeeded = sha256Handle.Value.TryComputeHash(page, pageBuffer, out var bytesWritten);
                         if (!succeeded)
@@ -134,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return succeeded;
             }
         }
-#else
+#else // !NET_COREAPP
         public static BlobBlockHash HashBlock(byte[] block, int lengthToHash, int startIndex = 0)
         {
             using (var pageIdsHandle = PoolLocalPageIdsBuffer.Get())
@@ -170,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             MultipleBlockBlobCallbackAsync multipleBlockCallback,
             long? bytesToReadFromStream = null)
         {
-            bytesToReadFromStream = bytesToReadFromStream ?? (stream.Length - stream.Position);
+            bytesToReadFromStream ??= (stream.Length - stream.Position);
             BlobIdentifierWithBlocks? blobIdWithBlocks = null;
             await WalkMultiBlockBlobAsync(
                 stream,

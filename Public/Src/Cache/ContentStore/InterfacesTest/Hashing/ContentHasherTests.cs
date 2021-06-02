@@ -129,6 +129,49 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         }
 
         [Fact]
+        public void HasherShouldBeStateless()
+        {
+            TestHasher(hasher =>
+            {
+                var content1 = ThreadSafeRandom.GetBytes(100);
+                var content2 = ThreadSafeRandom.GetBytes(100);
+                var contentHasher = hasher as IContentHasher;
+                var h1 = contentHasher.GetContentHash(content1);
+                var h2 = contentHasher.GetContentHash(content2);
+                Assert.NotEqual(h1, h2);
+            });
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(VsoHash.BlockSize - 1)]
+        [InlineData(VsoHash.BlockSize)]
+        [InlineData(VsoHash.BlockSize + 1)]
+        [InlineData(2 * VsoHash.BlockSize - 1)]
+        [InlineData(2 * VsoHash.BlockSize)]
+        [InlineData(2 * VsoHash.BlockSize + 1)]
+        public void HashBytesOfVariousSizes(int size)
+        {
+            var content = ThreadSafeRandom.GetBytes(size);
+            TestHasher(hasher =>
+                       {
+                           var contentHasher = (IContentHasher)hasher;
+                           var h1 = contentHasher.GetContentHash(content);
+                           var h2 = contentHasher.GetContentHash(content, 0, content.Length);
+                           Assert.Equal(h1, h2);
+
+                           using var memoryStream = new MemoryStream(content);
+                           var h3 = contentHasher.GetContentHashAsync(memoryStream).GetAwaiter().GetResult();
+                           Assert.Equal(h1, h3);
+#if NET_COREAPP
+                           var h4 = contentHasher.GetContentHash(content.AsSpan());
+                           Assert.Equal(h1, h4);
+#endif // NET_COREAPP
+                       });
+        }
+
+        [Fact]
         public void HasherTokensReturnDifferentHashAlgorithms()
         {
             TestHasher(hasher =>

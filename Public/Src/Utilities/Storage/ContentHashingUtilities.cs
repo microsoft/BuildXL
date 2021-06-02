@@ -20,6 +20,17 @@ namespace BuildXL.Storage
     /// </summary>
     public static class ContentHashingUtilities
     {
+#if NET_COREAPP
+        /// <summary>
+        /// Default threshold for asynchronous file hashing with memory mapped files.
+        /// </summary>
+        /// <remarks>
+        /// Consider using different thresholds for sdd and hdd drives.
+        /// </remarks>
+        public const int DefaultAsyncMemoryMappedFileHashingThreshold = 10 * 1024 * 1024;
+        private static bool s_useMemoryMappedFileHashing;
+        private static int s_asyncMemoryMappedFileHashingThreshold = DefaultAsyncMemoryMappedFileHashingThreshold;
+#endif // NET_COREAPP
         private static bool s_isInitialized;
         private static HashInfo s_hashingAlgorithm;
         private static IContentHasher s_contentHasher;
@@ -128,6 +139,28 @@ namespace BuildXL.Storage
                 SetDefaultHashType(HashType.Vso0);
             }
         }
+
+#if NET_COREAPP
+        /// <summary>
+        /// Enable the file hashing based on memory-mapped files instead of hashing the file by reading the pieces of them into memory.
+        /// </summary>
+        /// <remarks>
+        /// The memory-mapped-based hashing is only available for .net core because the required API was not ported to full framework.
+        /// </remarks>
+        public static void EnableMemoryMappedBasedFileHashing(int asyncFileHashingThreshold = DefaultAsyncMemoryMappedFileHashingThreshold)
+        {
+            s_useMemoryMappedFileHashing = true;
+            s_asyncMemoryMappedFileHashingThreshold = asyncFileHashingThreshold;
+        }
+
+        /// <summary>
+        /// Sets the old (legacy) file hashing.
+        /// </summary>
+        public static void DisableMemoryMappedBasedFileHashing()
+        {
+            s_useMemoryMappedFileHashing = false;
+        }
+#endif // NET_COREAPP
 
         /// <summary>
         /// Clients may switch between hashing algorithms. Must be set at the beginning of the build.
@@ -254,7 +287,7 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
-        /// Create a randon ContentHash value.
+        /// Create a random ContentHash value.
         /// </summary>
         public static ContentHash CreateRandom()
         {
@@ -277,6 +310,7 @@ namespace BuildXL.Storage
         /// </remarks>
         public static ContentHash HashContentStream(StreamWithLength content)
         {
+            // Not passing a hash type to the next method will force using s_hasher.
             return HashContentStreamAsync(content).GetAwaiter().GetResult();
         }
 
@@ -289,10 +323,28 @@ namespace BuildXL.Storage
         public static async Task<ContentHash> HashContentStreamAsync(StreamWithLength content, HashType hashType = HashType.Unknown)
         {
             var result = await ExceptionUtilities.HandleRecoverableIOException(
-                () => GetContentHasher(hashType).GetContentHashAsync(content),
+                () => HashContentStreamCoreAsync(content, hashType),
                 ex => { throw new BuildXLException(I($"Cannot read from stream '{content.ToString()}'"), ex); });
             Contract.Assert(result.HashType != HashType.Unknown);
             return result;
+        }
+
+        private static Task<ContentHash> HashContentStreamCoreAsync(StreamWithLength content, HashType hashType)
+        {
+#if NET_COREAPP
+            if (s_useMemoryMappedFileHashing && content.Stream is FileStream fileStream)
+            {
+                // Hashing synchronously for small files.
+                if (fileStream.Length >= s_asyncMemoryMappedFileHashingThreshold)
+                {
+                    return Task.Run(() => fileStream.HashFile(hashType));
+                }
+
+                return Task.FromResult(fileStream.HashFile(hashType));
+            }
+#endif // NET_COREAPP
+
+            return GetContentHasher(hashType).GetContentHashAsync(content);
         }
 
         /// <summary>
@@ -302,11 +354,35 @@ namespace BuildXL.Storage
         {
             Contract.Requires(Path.IsPathRooted(absoluteFilePath), "File path must be absolute");
 
+#if NET_COREAPP
+            if (s_useMemoryMappedFileHashing)
+            {
+                return ContentHashingHelper.HashFile(absoluteFilePath, hashType);
+            }
+#endif // NET_COREAPP
+
             // TODO: Specify a small buffer size here (see HashFileAsync(SafeFileHandle))
             using (var fileStream = FileUtilities.CreateAsyncFileStream(absoluteFilePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
                 return await HashContentStreamAsync(fileStream, hashType).ConfigureAwait(false);
             }
+        }
+        
+        /// <summary>
+        /// Returns a <see cref="ContentHash" /> of the file at the given absolute path.
+        /// </summary>
+        public static ContentHash HashFile(string absoluteFilePath, HashType hashType = HashType.Unknown)
+        {
+            Contract.Requires(Path.IsPathRooted(absoluteFilePath), "File path must be absolute");
+
+#if NET_COREAPP
+            if (s_useMemoryMappedFileHashing)
+            {
+                return ContentHashingHelper.HashFile(absoluteFilePath, hashType);
+            }
+#endif // NET_COREAPP
+
+            return HashFileAsync(absoluteFilePath, hashType).GetAwaiter().GetResult();
         }
 
         /// <summary>

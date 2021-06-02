@@ -26,14 +26,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public Dedup1024KHashAlgorithm(IChunker chunker)
             : base(chunker)
         {
+            HashSizeValue = 8 * DedupSingleChunkHashInfo.Length;
             int expectedAvgChunkSize = TargetHashType.GetAvgChunkSize();
             Contract.Check(chunker.Configuration.AvgChunkSize == expectedAvgChunkSize)?.Assert($"Invalid average chunk size (in bytes) specified: {chunker.Configuration.AvgChunkSize} expected: {expectedAvgChunkSize}");
         }
 
         /// <nodoc />
         public override HashType DedupHashType => TargetHashType;
-
-        /// <nodoc />
-        public override int HashSize => 8 * Dedup1024KHashInfo.Length;
     }
 }

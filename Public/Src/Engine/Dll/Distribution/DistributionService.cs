@@ -23,14 +23,14 @@ namespace BuildXL.Engine.Distribution
         public readonly CounterCollection<DistributionCounter> Counters = new CounterCollection<DistributionCounter>();
 
         /// <summary>
-        /// Build id to represent a distributed build session.
+        /// Invocation id to represent a distributed build session.
         /// </summary>
-        public DistributedBuildId BuildId { get; }
+        public DistributedInvocationId InvocationId { get; }
 
         /// <nodoc/>
-        public DistributionService(DistributedBuildId buildId)
+        public DistributionService(DistributedInvocationId invocationId)
         {
-            BuildId = buildId;
+            InvocationId = invocationId;
         }
 
         /// <summary>

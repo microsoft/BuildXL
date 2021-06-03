@@ -298,13 +298,13 @@ namespace BuildXL.Engine
             m_trackingEventListener = trackingEventListener;
             m_rememberAllChangedTrackedInputs = rememberAllChangedTrackedInputs;
 
-            var distributedBuildId = new DistributedBuildId(
+            var distributedInvocationId = new DistributedInvocationId(
                 Configuration.Logging.RelatedActivityId ?? "00000000-0000-0000-0000-000000000000",  // Can be null in non-distributed builds or if left unspecified
                 Configuration.Logging.Environment.ToString());
 
             if (IsDistributedOrchestrator)
             {
-                m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedBuildId);
+                m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedInvocationId);
                 m_distributionService = m_orchestratorService;
             }
             else if (IsDistributedWorker)
@@ -312,7 +312,7 @@ namespace BuildXL.Engine
                 m_workerService = new WorkerService(
                     loggingContext,
                     Configuration,
-                    distributedBuildId);
+                    distributedInvocationId);
                 m_distributionService = m_workerService;
             }
 

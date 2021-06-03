@@ -62,6 +62,7 @@ namespace BuildXL.Engine.Distribution
         private string m_exitFailure;
 
         private volatile bool m_isConnectionLost;
+        private int m_connectionClosedFlag = 0;     // Used to prevent double shutdowns upon connection failures
 
         /// <inheritdoc />
         public override Task<bool> SetupCompletionTask => m_setupCompletion.Task;
@@ -126,10 +127,10 @@ namespace BuildXL.Engine.Distribution
             m_serviceLocation = serviceLocation;
             m_workerClient = new Grpc.GrpcWorkerClient(
                 m_appLoggingContext, 
-                orchestratorService.BuildId, 
+                orchestratorService.InvocationId, 
                 serviceLocation.IpAddress, 
                 serviceLocation.Port, 
-                OnConnectionTimeOutAsync);
+                OnConnectionFailureAsync);
 
             // Depending on how long send requests take. It might make sense to use the same thread between all workers. 
             m_sendThread = new Thread(SendBuildRequests);
@@ -345,9 +346,15 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private async void OnConnectionTimeOutAsync(object sender, ConnectionTimeoutEventArgs e)
+        private async void OnConnectionFailureAsync(object sender, ConnectionFailureEventArgs e)
         {
-            Logger.Log.DistributionConnectionTimeout(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", e?.Details ?? "");
+            if (Interlocked.Increment(ref m_connectionClosedFlag) != 1)
+            {
+                // Only go through the failure logic once
+                return;
+            }
+
+            e?.Log(m_appLoggingContext, machineName: $"Worker#{WorkerId} - {Name}");
             await LostConnectionAsync();
         }
 
@@ -718,7 +725,9 @@ namespace BuildXL.Engine.Distribution
                 // We execute a pip which has 'buildxl.internal:triggerWorkerConnectionTimeout' in the integration tests for distributed build. 
                 // It is expected to lose the connection with the worker, so that we force the pips 
                 // assigned to that worker to retry on different workers.
-                OnConnectionTimeOutAsync(null, null);
+                OnConnectionFailureAsync(null, 
+                    new ConnectionFailureEventArgs(ConnectionFailureEventArgs.FailureType.Timeout, 
+                    "Triggered connection timeout for integration tests"));
             }
 
             if (m_attachCompletion.Task.Status == TaskStatus.RanToCompletion)

@@ -163,7 +163,7 @@ namespace Test.BuildXL.Distribution
             return Task.FromResult(SuccessResult);
         }
 
-        void IOrchestratorClient.Initialize(string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
+        void IOrchestratorClient.Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionTimeOutAsync)
         {
 
         }

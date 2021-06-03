@@ -17,6 +17,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
+using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
 
 namespace Test.BuildXL.Distribution
 {
@@ -35,12 +36,12 @@ namespace Test.BuildXL.Distribution
         internal abstract class DistributedActorHarness
         {
             protected LoggingContext LoggingContext;
-            protected DistributedBuildId BuildId;
+            protected DistributedInvocationId InvocationId;
 
-            public DistributedActorHarness(LoggingContext loggingContext, DistributedBuildId buildId)
+            public DistributedActorHarness(LoggingContext loggingContext, DistributedInvocationId invocationId)
             {
                 LoggingContext = loggingContext;
-                BuildId = buildId;
+                InvocationId = invocationId;
             }
 
             /// <summary>
@@ -49,14 +50,33 @@ namespace Test.BuildXL.Distribution
             public abstract Task StopAllServicesAsync();
         }
 
+        internal interface ITestDistributedClient
+        {
+            /// <summary>
+            /// A task that completes after  the client shuts down (i.e., after Exit is called or if a connection failure event is raised)
+            /// A value of false indicates that we shut down with failure
+            /// </summary>
+            Task<bool> ClientShutdownTask { get; }
+
+            Optional<FailureType> ClientConnectionFailure { get;  }
+
+            void StartClient(int port);
+        }
+
         /// <summary>
         /// A worker machine, which starts a server to listen to the orchestrator
         /// and a client to send messages to it
         /// </summary>
-        internal class WorkerHarness : DistributedActorHarness, IWorkerService
+        internal class WorkerHarness : DistributedActorHarness, ITestDistributedClient, IWorkerService
         {
             public GrpcOrchestratorClient Client { get; private set; }
-            public bool ClientConnectionFailure { get; private set; }
+
+            /// <inheritdoc />
+            public Task<bool> ClientShutdownTask => m_clientShutdownTcs.Task;
+            private readonly TaskCompletionSource<bool> m_clientShutdownTcs = new TaskCompletionSource<bool>();
+
+            public Optional<FailureType> ClientConnectionFailure { get; private set; }
+
             public bool ReceivedAttachCall { get; private set; }
             public bool ReceivedExitCall { get; private set; }
 
@@ -68,7 +88,7 @@ namespace Test.BuildXL.Distribution
             /// <returns>The port the server is bound</returns>
             public int StartServer()
             {
-                Server = new GrpcWorkerServer(this, LoggingContext, BuildId);
+                Server = new GrpcWorkerServer(this, LoggingContext, InvocationId);
                 Server.Start(PickUnused);
                 var port = Server.Port;
                 Assert.True(port.HasValue);
@@ -77,11 +97,11 @@ namespace Test.BuildXL.Distribution
 
             public void StartClient(int port)
             {
-                Client = new GrpcOrchestratorClient(LoggingContext, BuildId);
+                Client = new GrpcOrchestratorClient(LoggingContext, InvocationId);
                 Client.Initialize("localhost", port, OnConnectionFailureAsync);
             }
 
-            public WorkerHarness(LoggingContext loggingContext, DistributedBuildId buildId) : base(loggingContext, buildId)
+            public WorkerHarness(LoggingContext loggingContext, DistributedInvocationId invocationId) : base(loggingContext, invocationId)
             {
             }
 
@@ -91,12 +111,19 @@ namespace Test.BuildXL.Distribution
                 {
                     await Server.ShutdownAsync();
                 }
+
+                if (Client != null)
+                {
+                    await Client.CloseAsync();
+                    m_clientShutdownTcs.TrySetResult(true);
+                }
             }
 
-            private async void OnConnectionFailureAsync(object sender, ConnectionTimeoutEventArgs args)
+            private async void OnConnectionFailureAsync(object sender, ConnectionFailureEventArgs args)
             {
-                ClientConnectionFailure = true;
+                ClientConnectionFailure = args.Type;
                 await Client.CloseAsync();
+                m_clientShutdownTcs.TrySetResult(false);
             }
 
             #region IWorkerService methods
@@ -135,7 +162,7 @@ namespace Test.BuildXL.Distribution
             /// <returns>The port the server is bound</returns>
             public int StartServer()
             {
-                Server = new GrpcOrchestratorServer(LoggingContext, this, BuildId);
+                Server = new GrpcOrchestratorServer(LoggingContext, this, InvocationId);
                 Server.Start(PickUnused);
                 var port = Server.Port;
                 Assert.True(port.HasValue);
@@ -150,14 +177,14 @@ namespace Test.BuildXL.Distribution
                 }
             }
 
-            public OrchestratorHarness(LoggingContext context, DistributedBuildId buildId, int workerCount = 1) : base(context, buildId)
+            public OrchestratorHarness(LoggingContext context, DistributedInvocationId invocationId, int workerCount = 1) : base(context, invocationId)
             {
                 RemoteWorkers = new RemoteWorkerHarness[workerCount];
             }
 
-            public RemoteWorkerHarness AddWorker(int port)
+            public RemoteWorkerHarness AddWorker()
             {
-                var harness = new RemoteWorkerHarness(LoggingContext, BuildId, port);
+                var harness = new RemoteWorkerHarness(LoggingContext, InvocationId);
                 AddWorker(harness);
                 return harness;
             }
@@ -192,29 +219,22 @@ namespace Test.BuildXL.Distribution
         /// Represents one of a number of client instances (see <see cref="RemoteWorker"/>) in the orchestrator machine
         /// Each of these has a client to forward orchestrator messages to a remote worker machine.
         /// </summary>
-        internal class RemoteWorkerHarness : DistributedActorHarness
+        internal class RemoteWorkerHarness : DistributedActorHarness, ITestDistributedClient
         {
             public GrpcWorkerClient WorkerClient { get; private set; }
 
-            /// <summary>
-            /// A task that completes after shutdown (i.e., after Exit is called or if a connection failure event is raised)
-            /// A value of false indicates that we shut down with failure
-            /// </summary>
-            public Task<bool> ShutdownTask => m_shutdownTcs.Task;
-
-            public bool HadConnectionFailure { get; private set; }
-
+            /// <inheritdoc />
+            public Task<bool> ClientShutdownTask => m_shutdownTcs.Task;
             private readonly TaskCompletionSource<bool> m_shutdownTcs = new TaskCompletionSource<bool>();
-            private readonly int m_port;
+            public Optional<FailureType> ClientConnectionFailure { get; private set; }
 
-            public RemoteWorkerHarness(LoggingContext loggingContext, DistributedBuildId buildId, int port) : base(loggingContext, buildId)
+            public RemoteWorkerHarness(LoggingContext loggingContext, DistributedInvocationId invocationId) : base(loggingContext, invocationId)
             {
-                m_port = port;
             }
 
-            public void Start()
+            public void StartClient(int port)
             {
-                WorkerClient = new GrpcWorkerClient(LoggingContext, BuildId, "localhost", m_port, OnConnectionFailureAsync);
+                WorkerClient = new GrpcWorkerClient(LoggingContext, InvocationId, "localhost", port, OnConnectionFailureAsync);
             }
 
             public Task<RpcCallResult<Unit>> AttachAsync()
@@ -235,10 +255,10 @@ namespace Test.BuildXL.Distribution
                 return result;
             }
 
-            private async void OnConnectionFailureAsync(object sender, ConnectionTimeoutEventArgs args)
+            private async void OnConnectionFailureAsync(object sender, ConnectionFailureEventArgs args)
             {
                 await WorkerClient.CloseAsync();
-                HadConnectionFailure = true;
+                ClientConnectionFailure = args.Type;
                 m_shutdownTcs.TrySetResult(false);
             }
 
@@ -252,11 +272,30 @@ namespace Test.BuildXL.Distribution
             }
         }
 
+        /// <summary>
+        /// Waits for a client to have a connection failure and asserts this is the case.
+        /// This method will fail the test if the connection failure doesn't happen after 10 seconds
+        /// </summary>
+        internal static async Task ExpectConnectionFailureAsync(ITestDistributedClient client, FailureType? expectedFailureType = null)
+        {
+            var shutdownTask = client.ClientShutdownTask;
+
+            // Pass a dummy delay task so the test doesn't hang. 10 seconds should be enough.
+            var completedTaskOrTimeout = await Task.WhenAny(client.ClientShutdownTask, Task.Delay(TimeSpan.FromSeconds(10))); 
+            Assert.True(shutdownTask == completedTaskOrTimeout);                              // The shutdown task should be completed
+
+            Assert.True(client.ClientConnectionFailure.HasValue);
+
+            if (expectedFailureType.HasValue)
+            {
+                Assert.Equal(expectedFailureType.Value, client.ClientConnectionFailure.Value);
+            }
+        }
 
         /// <summary>
         /// Utility method to stop all running services at the end of a test
         /// </summary>
-        internal static Task StopServices(params DistributedActorHarness[] harnesses)
+        internal static Task StopServicesAsync(params DistributedActorHarness[] harnesses)
         {
             return TaskUtilities.SafeWhenAll(harnesses.Select(static h => h.StopAllServicesAsync()));
         }

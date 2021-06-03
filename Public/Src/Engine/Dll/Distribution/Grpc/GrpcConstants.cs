@@ -8,6 +8,24 @@ using Grpc.Core;
 namespace BuildXL.Engine.Distribution.Grpc
 {
     /// <summary>
+    /// Strings to use as metadata keys and values
+    /// </summary>
+    internal static class GrpcMetadata
+    {
+        // Keys
+        public const string IsUnrecoverableError = "isunrecoverableerror";
+        public const string InvocationIdMismatch = "invocationidmismatch";
+        public const string TraceIdKey = "traceid-bin";
+        public const string RelatedActivityIdKey = "relatedactivityid";
+        public const string EnvironmentKey = "environment";
+        public const string SenderKey = "sender";
+
+        // Values
+        public const string True = "1";
+        public const string False = "0";
+    }
+
+    /// <summary>
     /// Channel options to support keepalive feature:
     /// https://fuchsia.googlesource.com/third_party/grpc/%2B/refs/tags/v1.24.3/doc/keepalive.md
     /// </summary>

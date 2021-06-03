@@ -730,6 +730,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionConnectionTimeout(LoggingContext context, string name, string details);
 
         [GeneratedEvent(
+        (ushort)LogEventId.DistributionConnectionFailure,
+        EventGenerators = EventGenerators.LocalOnly,
+        EventLevel = Level.Verbose,
+        Keywords = (int)(Keywords.UserMessage),
+        EventTask = (ushort)Tasks.Distribution,
+        Message = "The connection with {name} failed and must be terminated. Details: {details}.")]
+        public abstract void DistributionConnectionUnrecoverableFailure(LoggingContext context, string name, string details);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionTryMaterializeInputsFailedRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Failed to materialize inputs for pip. Number of remaining retries: {remainingRetryCount}.",

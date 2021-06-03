@@ -21,7 +21,7 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         private readonly IOrchestratorService m_orchestratorService;
         private readonly LoggingContext m_loggingContext;
-        private readonly DistributedBuildId m_buildId;
+        private readonly DistributedInvocationId m_invocationId;
 
         private Server m_server;
        
@@ -31,21 +31,21 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, DistributedBuildId buildId) : this(loggingContext, (IOrchestratorService)orchestratorService, buildId)
+        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, DistributedInvocationId invocationId) : this(loggingContext, (IOrchestratorService)orchestratorService, invocationId)
         {
         }
 
-        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedBuildId buildId)
+        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedInvocationId invocationId)
         {
             m_loggingContext = loggingContext;
             m_orchestratorService = orchestratorService;
-            m_buildId = buildId;
+            m_invocationId = invocationId;
         }
 
         /// <nodoc/>
         public void Start(int port)
         {
-            var interceptor = new ServerInterceptor(m_loggingContext, m_buildId);
+            var interceptor = new ServerInterceptor(m_loggingContext, m_invocationId);
             m_server = new Server(ClientConnectionManager.ServerChannelOptions)
             {
                 Services = { Orchestrator.BindService(this).Intercept(interceptor) },

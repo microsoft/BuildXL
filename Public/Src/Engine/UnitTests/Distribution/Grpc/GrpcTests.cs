@@ -9,13 +9,14 @@ using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
 
 namespace Test.BuildXL.Distribution
 {
     public class GrpcTests : GrpcTestsBase
     {
         private const string DefaultActivityId = "81f86bbd-3555-4fff-ad4d-24ce033882a2";
-        private static readonly DistributedBuildId s_defaultDistributedBuildId = new(DefaultActivityId, "Test");
+        private static readonly DistributedInvocationId s_defaultDistributedInvocationId = new(DefaultActivityId, "Test");
 
         public GrpcTests(ITestOutputHelper output) : base(output)
         {
@@ -24,13 +25,13 @@ namespace Test.BuildXL.Distribution
         [Fact]
         public async Task GrpcConnectionTest()
         {
-            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedBuildId);
+            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
 
-            var workerHarness = new WorkerHarness(LoggingContext, s_defaultDistributedBuildId);
+            var workerHarness = new WorkerHarness(LoggingContext, s_defaultDistributedInvocationId);
             var workerServicePort = workerHarness.StartServer();
 
-            var remoteWorker = orchestratorHarness.AddWorker(workerServicePort);
-            remoteWorker.Start();
+            var remoteWorker = orchestratorHarness.AddWorker();
+            remoteWorker.StartClient(workerServicePort);
 
             var attachResult = await remoteWorker.AttachAsync();
             Assert.True(attachResult.Succeeded);
@@ -40,9 +41,9 @@ namespace Test.BuildXL.Distribution
             Assert.True(exitResult.Succeeded);
             Assert.True(workerHarness.ReceivedExitCall);
 
-            await StopServices(orchestratorHarness, workerHarness);
-            Assert.False(workerHarness.ClientConnectionFailure);
-            Assert.False(remoteWorker.HadConnectionFailure);
+            await StopServicesAsync(orchestratorHarness, workerHarness);
+            Assert.False(workerHarness.ClientConnectionFailure.HasValue);
+            Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
         }
 
         [Fact]
@@ -52,44 +53,84 @@ namespace Test.BuildXL.Distribution
 
             // Use a random port which we won't open
             var workerServicePort = 9091;
-            var remoteWorker = new RemoteWorkerHarness(LoggingContext, s_defaultDistributedBuildId, workerServicePort);
-            remoteWorker.Start();
+            var remoteWorker = new RemoteWorkerHarness(LoggingContext, s_defaultDistributedInvocationId);
+            remoteWorker.StartClient(workerServicePort);
 
             // Try to attach to an absent worker. The connection timeout will kick in and the call will fail
-            var result = await remoteWorker.AttachAsync();
-            Assert.False(result.Succeeded);
-
-            // Task should complete on timeout
-            var shutdownTask = remoteWorker.ShutdownTask;
-            var completedTaskOrTimeout = await Task.WhenAny(shutdownTask, Task.Delay(10000)); // Pass a dummy delay task so the test doesn't hang. 10 seconds should be enough.
-            Assert.True(shutdownTask == completedTaskOrTimeout);                              // The shutdown task should be completed
+            var attachResult = await remoteWorker.AttachAsync();
+            Assert.False(attachResult.Succeeded);
 
             // Timeout event should have been triggered
-            Assert.True(remoteWorker.HadConnectionFailure);
-            await StopServices(remoteWorker);
+            await ExpectConnectionFailureAsync(remoteWorker, FailureType.Timeout);
+
+            // If the connection is closed we shouldn't communicate anymore
+            attachResult = await remoteWorker.AttachAsync();
+            Assert.False(attachResult.Succeeded);
+            Assert.Equal(RpcCallResultState.Cancelled, attachResult.State);
+            Assert.Equal(1, (int)attachResult.Attempts);
+            AssertLogContains(true, "Failed to connect");
+            AssertLogContains(true, "Channel has reached Shutdown state");
+
+            await StopServicesAsync(remoteWorker);
         }
 
         [Fact]
-        public async Task BuildIdMismatch()
+        public async Task InvocationIdUnrecoverableMismatch()
         {
-            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedBuildId);
+            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
 
-            var mismatchedId = new DistributedBuildId(Guid.NewGuid().ToString(), "Test");
+            var mismatchedId = new DistributedInvocationId(Guid.NewGuid().ToString(), "Test");
 
             var workerHarness = new WorkerHarness(LoggingContext, mismatchedId);
             var workerServicePort = workerHarness.StartServer();
 
-            var remoteWorker = orchestratorHarness.AddWorker(workerServicePort);
-            remoteWorker.Start();
+            var remoteWorkerHarness = orchestratorHarness.AddWorker();
+            remoteWorkerHarness.StartClient(workerServicePort);
 
-            var attachResult = await remoteWorker.AttachAsync();
+            var attachResult = await remoteWorkerHarness.AttachAsync();
             Assert.False(attachResult.Succeeded);
+            Assert.Equal(1, (int)attachResult.Attempts);    // The call is not retried
 
-            await StopServices(orchestratorHarness, workerHarness);
+            // The id mismatch should cause an unrecoverable failure which triggers connection shutdown
+            await ExpectConnectionFailureAsync(remoteWorkerHarness, FailureType.UnrecoverableFailure);
 
-            AssertLogContains(true, "The receiver and sender build ids do not match");
-            Assert.False(workerHarness.ClientConnectionFailure);
-            Assert.False(remoteWorker.HadConnectionFailure);
+            // Logged id mismatch
+            AssertLogContains(true, "The receiver and sender distributed invocation ids do not match");
+
+            await StopServicesAsync(orchestratorHarness, workerHarness);
+
+
+            Assert.False(workerHarness.ClientConnectionFailure.HasValue);
+        }
+
+        [Fact]
+        public async Task InvocationIdTolerableMismatch()
+        {
+            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
+
+            // Use an invocation id that only differs in the environment 
+            var mismatchedId = new DistributedInvocationId(s_defaultDistributedInvocationId.RelatedActivityId, s_defaultDistributedInvocationId.Environment + "Junk");
+
+            var workerHarness = new WorkerHarness(LoggingContext, mismatchedId);
+            var workerServicePort = workerHarness.StartServer();
+
+            var remoteWorkerHarness = orchestratorHarness.AddWorker();
+            remoteWorkerHarness.StartClient(workerServicePort);
+
+            var attachResult = await remoteWorkerHarness.AttachAsync();
+
+            Assert.False(attachResult.Succeeded);
+            Assert.Equal(1, (int)attachResult.Attempts);    // the call shouldn't be retried
+
+            attachResult = await remoteWorkerHarness.AttachAsync();
+
+            // Logged id mismatch
+            AssertLogContains(true, "The receiver and sender distributed invocation ids do not match");
+
+            // The id mismatch should cause a recoverable failure, so we shouldn't have connection errors
+            await StopServicesAsync(orchestratorHarness, workerHarness);
+            Assert.False(workerHarness.ClientConnectionFailure.HasValue);
+            Assert.False(remoteWorkerHarness.ClientConnectionFailure.HasValue);
         }
     }
 

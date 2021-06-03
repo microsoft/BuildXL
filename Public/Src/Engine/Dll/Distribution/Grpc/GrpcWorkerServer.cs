@@ -20,7 +20,7 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         private readonly IWorkerService m_workerService;
         private readonly LoggingContext m_loggingContext;
-        private readonly DistributedBuildId m_buildId;
+        private readonly DistributedInvocationId m_invocationId;
 
         private Server m_server;
 
@@ -30,21 +30,21 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, DistributedBuildId buildId) : this((IWorkerService)workerService, loggingContext, buildId)
+        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, DistributedInvocationId invocationId) : this((IWorkerService)workerService, loggingContext, invocationId)
         {
         }
 
-        internal GrpcWorkerServer(IWorkerService workerService, LoggingContext loggingContext, DistributedBuildId buildId)
+        internal GrpcWorkerServer(IWorkerService workerService, LoggingContext loggingContext, DistributedInvocationId invocationId)
         {
             m_workerService = workerService;
             m_loggingContext = loggingContext;
-            m_buildId = buildId;
+            m_invocationId = invocationId;
         }
 
         /// <nodoc/>
         public void Start(int port)
         {
-            var interceptor = new ServerInterceptor(m_loggingContext, m_buildId);
+            var interceptor = new ServerInterceptor(m_loggingContext, m_invocationId);
             m_server = new Server(ClientConnectionManager.ServerChannelOptions)
             {
                 Services = { Worker.BindService(this).Intercept(interceptor) },

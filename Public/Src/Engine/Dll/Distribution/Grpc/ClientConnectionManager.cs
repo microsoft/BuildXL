@@ -13,17 +13,48 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
+using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
     /// <nodoc/>
     internal sealed class ClientConnectionManager
     {
-        public class ConnectionTimeoutEventArgs : EventArgs
+        public class ConnectionFailureEventArgs : EventArgs
         {
+            /// <summary>
+            /// Possible scenarios of connection failure
+            /// </summary>
+            public enum FailureType { Timeout, UnrecoverableFailure }
+
+            /// <nodoc />
+            public FailureType Type { get; init; }
+            
+            /// <nodoc />
             public string Details { get; init; }
 
-            public ConnectionTimeoutEventArgs(string details) => Details = details;
+            /// <nodoc />
+            public ConnectionFailureEventArgs(FailureType failureType, string details)
+            {
+                Type = failureType;
+                Details = details;
+            }
+
+            /// <summary>
+            /// Log an appropriate message according to the type of connection failure
+            /// </summary>
+            public void Log(LoggingContext loggingContext, string machineName)
+            {
+                var details = Details ?? "";
+                if (Type == FailureType.Timeout)
+                {
+                    Logger.Log.DistributionConnectionTimeout(loggingContext, machineName, details);
+                }
+                else
+                {
+                    Logger.Log.DistributionConnectionUnrecoverableFailure(loggingContext, machineName, details);
+                }
+            }
         }
 
         /// <summary>
@@ -36,9 +67,9 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         internal readonly Channel Channel;
         private readonly LoggingContext m_loggingContext;
-        private readonly DistributedBuildId m_buildId;
+        private readonly DistributedInvocationId m_invocationId;
         private readonly Task m_monitorConnectionTask;
-        public event EventHandler<ConnectionTimeoutEventArgs> OnConnectionTimeOutAsync;
+        public event EventHandler<ConnectionFailureEventArgs> OnConnectionFailureAsync;
         private volatile bool m_isShutdownInitiated;
         private volatile bool m_isExitCalledForServer;
         
@@ -55,9 +86,9 @@ namespace BuildXL.Engine.Distribution.Grpc
             return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failureMessage}. ChannelState: {Channel.State}");
         }
 
-        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedBuildId buildId)
+        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId)
         {
-            m_buildId = buildId;
+            m_invocationId = invocationId;
             m_loggingContext = loggingContext;
             Channel = new Channel(
                     ipAddress,
@@ -134,7 +165,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                     if (transientFailureTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
                     {
-                        OnConnectionTimeOutAsync?.Invoke(this, new ConnectionTimeoutEventArgs($"Timed out trying to recover from the TRANSIENT_FAILURE channel state. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.Timeout, $"Timed out trying to recover from the TRANSIENT_FAILURE channel state. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
                         break;
                     }
                 }
@@ -152,7 +183,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     bool isReconnected = await TryReconnectAsync();
                     if (!isReconnected)
                     {
-                        OnConnectionTimeOutAsync?.Invoke(this, new ConnectionTimeoutEventArgs("Reconnection attempts failed"));
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.Timeout, "Reconnection attempts failed"));
                         break;
                     }
                 }
@@ -230,10 +261,10 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             Guid traceId = Guid.NewGuid();
             var headers = new Metadata();
-            headers.Add(GrpcSettings.TraceIdKey, traceId.ToByteArray());
-            headers.Add(GrpcSettings.RelatedActivityIdKey, m_buildId.RelatedActivityId);
-            headers.Add(GrpcSettings.EnvironmentKey, m_buildId.Environment);
-            headers.Add(GrpcSettings.SenderKey, DistributionHelpers.MachineName);
+            headers.Add(GrpcMetadata.TraceIdKey, traceId.ToByteArray());
+            headers.Add(GrpcMetadata.RelatedActivityIdKey, m_invocationId.RelatedActivityId);
+            headers.Add(GrpcMetadata.EnvironmentKey, m_invocationId.Environment);
+            headers.Add(GrpcMetadata.SenderKey, DistributionHelpers.MachineName);
 
             RpcCallResultState state = RpcCallResultState.Succeeded;
             Failure failure = null;
@@ -260,6 +291,26 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
                 catch (RpcException e)
                 {
+                    if (e.Trailers.Get(GrpcMetadata.IsUnrecoverableError)?.Value == GrpcMetadata.True)
+                    {
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.UnrecoverableFailure, e.Status.Detail));
+                        state = RpcCallResultState.Failed;
+                        
+                        // Unrecoverable failure - do not retry
+                        break;
+                    }
+
+                    if (e.Status.StatusCode == StatusCode.InvalidArgument) 
+                    {
+                        if (e.Trailers.Get(GrpcMetadata.InvocationIdMismatch)?.Value == GrpcMetadata.True)
+                        {
+                            // The invocation ids don't match but it's not an unrecoverable error
+                            // Do not retry this call because it is doomed to fail
+                            state = RpcCallResultState.Failed;
+                            break;
+                        }
+                    }
+
                     state = e.Status.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));

@@ -16,22 +16,24 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// <nodoc/>
     internal sealed class GrpcOrchestratorClient : IOrchestratorClient
     {
-        private readonly DistributedBuildId m_buildId;
+        private readonly DistributedInvocationId m_invocationId;
         private Orchestrator.OrchestratorClient m_client;
         private ClientConnectionManager m_connectionManager;
         private readonly LoggingContext m_loggingContext;
         private volatile bool m_initialized;
 
-        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedBuildId buildId)
+        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId)
         {
-            m_buildId = buildId;
+            m_invocationId = invocationId;
             m_loggingContext = loggingContext;
         }
 
-        public void Initialize(string ipAddress, int port, EventHandler<ConnectionTimeoutEventArgs> onConnectionTimeOutAsync)
+        public void Initialize(string ipAddress, 
+            int port, 
+            EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync)
         {
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, m_buildId);
-            m_connectionManager.OnConnectionTimeOutAsync += onConnectionTimeOutAsync;
+            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, m_invocationId);
+            m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);
             m_initialized = true;
         }

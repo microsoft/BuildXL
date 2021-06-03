@@ -18,7 +18,7 @@ namespace Test.BuildXL.Distribution
 
         public Optional<string> Failure = default;
 
-        public DistributionServiceMock(DistributedBuildId buildId) : base(buildId)
+        public DistributionServiceMock(DistributedInvocationId invocationId) : base(invocationId)
         {
         }
 

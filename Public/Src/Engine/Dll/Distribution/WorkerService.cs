@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution.Grpc;
@@ -82,6 +83,7 @@ namespace BuildXL.Engine.Distribution
 
         private volatile bool m_hasFailures;
         private volatile string m_failureMessage;
+        private int m_connectionClosedFlag = 0;
 
         /// <summary>
         /// Whether orchestrator is done with the worker by sending a message to worker.
@@ -102,11 +104,11 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         /// <param name="appLoggingContext">Application-level logging context</param>
         /// <param name="config">Build config</param>
-        /// <param name="buildId">the build id</param>
-        public WorkerService(LoggingContext appLoggingContext, IConfiguration config, DistributedBuildId buildId) :  
+        /// <param name="invocationId">the distributed invocation id</param>
+        public WorkerService(LoggingContext appLoggingContext, IConfiguration config, DistributedInvocationId invocationId) :  
             this(appLoggingContext,
                 config,
-                buildId,
+                invocationId,
                 executionService: null,
                 workerServer: null,
                 notificationManager: null,
@@ -114,30 +116,30 @@ namespace BuildXL.Engine.Distribution
         {
             m_pipExecutionService = new WorkerPipExecutionService(this);
             m_notificationManager = new WorkerNotificationManager(this, m_pipExecutionService, appLoggingContext);
-            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, BuildId);
-            m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
+            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId);
+            m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, invocationId);
         }
 
         internal static WorkerService CreateForTesting(
             LoggingContext appLoggingContext,
             IConfiguration config,
-            DistributedBuildId buildId,
+            DistributedInvocationId invocationId,
             // The following are used for testing:
             IWorkerPipExecutionService executionService,
             IServer server,
             IWorkerNotificationManager notificationManager,
             IOrchestratorClient orchestratorClient)
         {
-            return new WorkerService(appLoggingContext, config, buildId, executionService, server, orchestratorClient, notificationManager);
+            return new WorkerService(appLoggingContext, config, invocationId, executionService, server, orchestratorClient, notificationManager);
         }
 
         private WorkerService(LoggingContext appLoggingContext, 
             IConfiguration config,
-            DistributedBuildId buildId, 
+            DistributedInvocationId invocationId, 
             IWorkerPipExecutionService executionService, 
             IServer workerServer,
             IOrchestratorClient orchestratorClient,
-            IWorkerNotificationManager notificationManager) : base(buildId)
+            IWorkerNotificationManager notificationManager) : base(invocationId)
         {
             m_appLoggingContext = appLoggingContext;
             m_port = config.Distribution.BuildServicePort;
@@ -272,7 +274,7 @@ namespace BuildXL.Engine.Distribution
                 new LoggingContext.SessionInfo(buildStartData.SessionId, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
                 m_appLoggingContext);
 
-            m_orchestratorClient.Initialize(buildStartData.OrchestratorLocation.IpAddress, buildStartData.OrchestratorLocation.Port, OnConnectionTimeOutAsync);
+            m_orchestratorClient.Initialize(buildStartData.OrchestratorLocation.IpAddress, buildStartData.OrchestratorLocation.Port, OnConnectionFailureAsync);
 
             WorkerId = BuildStartData.WorkerId;
             m_attachCompletionSource.TrySetResult(true);
@@ -300,9 +302,15 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        private async void OnConnectionTimeOutAsync(object sender, ConnectionTimeoutEventArgs e)
+        private async void OnConnectionFailureAsync(object sender, ConnectionFailureEventArgs e)
         {
-            Logger.Log.DistributionConnectionTimeout(m_appLoggingContext, "orchestrator", e?.Details ?? "");
+            if (Interlocked.Increment(ref m_connectionClosedFlag) != 1)
+            {
+                // Only go through the failure logic once
+                return;
+            }
+
+            e?.Log(m_appLoggingContext, machineName: "orchestrator");
 
             // Stop sending messages
             m_notificationManager.Cancel();
@@ -310,7 +318,7 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
             Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxRetry));
-            ExitAsync("Connection timed out", isUnexpected: true).Forget();
+            ExitAsync("Connection failure", isUnexpected: true).Forget();
         }
 
         /// <inheritdoc />

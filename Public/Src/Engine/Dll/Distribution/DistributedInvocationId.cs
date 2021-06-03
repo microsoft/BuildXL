@@ -13,9 +13,9 @@ namespace BuildXL.Engine.Distribution
     /// </summary>
     /// <remarks>
     /// Activity id is unique per CB session. However, this is not enough as we may invoke more than one BuildXL 
-    /// per machine per CB session. That's why, we also consider the environment in the build id.
+    /// per machine per CB session. That's why, we also consider the environment in the invocation id.
     /// </remarks>
-    public struct DistributedBuildId : IEquatable<DistributedBuildId>
+    public struct DistributedInvocationId : IEquatable<DistributedInvocationId>
     {
 
         /// <nodoc />
@@ -25,7 +25,7 @@ namespace BuildXL.Engine.Distribution
         public string Environment { get; }
 
         /// <nodoc />
-        public DistributedBuildId(string sessionId, string environment)
+        public DistributedInvocationId(string sessionId, string environment)
         {
             RelatedActivityId = sessionId;
             Environment = environment;            
@@ -36,19 +36,19 @@ namespace BuildXL.Engine.Distribution
 
         #region Equals and hashcode
         /// <inheritdoc />
-        public bool Equals(DistributedBuildId other) => RelatedActivityId == other.RelatedActivityId && Environment == other.Environment;
+        public bool Equals(DistributedInvocationId other) => RelatedActivityId == other.RelatedActivityId && Environment == other.Environment;
 
         /// <inheritdoc />
-        public override bool Equals(object o) => o is DistributedBuildId other && Equals(other);
+        public override bool Equals(object o) => o is DistributedInvocationId other && Equals(other);
 
         /// <inheritdoc />
         public override int GetHashCode() => HashCodeHelper.Combine(RelatedActivityId?.GetHashCode() ?? 0, Environment?.GetHashCode() ?? 0);
 
         /// <inheritdoc />
-        public static bool operator ==(DistributedBuildId lhs, DistributedBuildId rhs) => lhs.Equals(rhs);
+        public static bool operator ==(DistributedInvocationId lhs, DistributedInvocationId rhs) => lhs.Equals(rhs);
 
         /// <inheritdoc />
-        public static bool operator !=(DistributedBuildId lhs, DistributedBuildId rhs) => !(lhs == rhs);
+        public static bool operator !=(DistributedInvocationId lhs, DistributedInvocationId rhs) => !(lhs == rhs);
         #endregion
     }
 }

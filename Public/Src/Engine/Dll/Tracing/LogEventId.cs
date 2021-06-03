@@ -351,6 +351,7 @@ namespace BuildXL.Engine.Tracing
         // 7046 in use by SharedLogEventId
 
         DistributionConnectionTimeout = 7047,
+        DistributionConnectionFailure = 7048,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,

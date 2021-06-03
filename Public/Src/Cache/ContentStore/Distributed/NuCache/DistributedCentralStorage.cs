@@ -127,6 +127,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return await base.ShutdownCoreAsync(context);
         }
 
+        protected async override Task<BoolResult> PruneInternalCacheCoreAsync(OperationContext context, string storageId)
+        {
+            var (hash, fallbackStorageId) = ParseCompositeStorageId(storageId);
+            if (hash is null)
+            {
+                return new BoolResult(errorMessage: $"Could not parse content hash from storage id `{storageId}`");
+            }
+
+            return await _privateCas.DeleteAsync(context, hash.Value, new Interfaces.Stores.DeleteContentOptions()
+            {
+                DeleteLocalOnly = true,
+            });
+        }
+
         /// <inheritdoc />
         protected override async Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader, bool isImmutable)
         {

@@ -35,5 +35,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         CollectStaleBlobs,
+
+        [CounterType(CounterType.Stopwatch)]
+        PruneInternalCache,
     }
 }

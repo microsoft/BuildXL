@@ -1,0 +1,66 @@
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using FluentAssertions;
+using Xunit;
+
+namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
+{
+    public class CheckpointManagerTests
+    {
+        [Fact]
+        public void RocksDbCorruptionRegexMatchesSlot1()
+        {
+            var error = @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot1/1089482.sst offset 69135151 size 19421748
+   at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
+   at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
+   at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor..ctor(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createdNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 715
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor.OpenInternal(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 581";
+            var expectedName = "1089482.sst";
+
+            CorruptionRegexCheck(error, expectedName);
+        }
+
+        [Fact]
+        public void RocksDbCorruptionRegexMatchesSlot2()
+        {
+            var error = @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2/1482.sst offset 69135151 size 19421748
+   at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
+   at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
+   at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor..ctor(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createdNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 715
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor.OpenInternal(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 581";
+            var expectedName = "1482.sst";
+
+            CorruptionRegexCheck(error, expectedName);
+        }
+
+        [Fact]
+        public void RocksDbCorruptionRegexMatchesBackwardSlash()
+        {
+            var error = @"RocksDbSharp.RocksDbException: Corruption: block checksum mismatch: expected 1142279158, got 647716707  in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2\1482.sst offset 69135151 size 19421748
+   at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
+   at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
+   at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor..ctor(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createdNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 715
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor.OpenInternal(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 581";
+            var expectedName = "1482.sst";
+
+            CorruptionRegexCheck(error, expectedName);
+        }
+
+        private static void CorruptionRegexCheck(string error, string expectedName)
+        {
+            var match = CheckpointManager.RocksDbCorruptionRegex.Match(error);
+            var name = match.Groups["name"];
+            match.Success.Should().BeTrue();
+            name.Success.Should().BeTrue();
+            name.Value.Should().Be(expectedName);
+        }
+    }
+}

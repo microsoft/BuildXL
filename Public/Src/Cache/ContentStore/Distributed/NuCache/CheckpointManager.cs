@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -236,6 +237,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return newManifest;
         }
 
+        internal readonly static Regex RocksDbCorruptionRegex = new Regex(@".*block checksum mismatch.*Slot(?:1|2)(?:\/|\\)(?<name>.*\.sst)\soffset.*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         /// <summary>
         /// Restores the checkpoint for a given checkpoint id.
         /// </summary>
@@ -269,15 +272,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             checkpointFile,
                             isImmutable: true).ThrowIfFailure();
 
+                        var checkpointManifest = LoadCheckpointManifest(checkpointFile);
+
                         await RestoreCheckpointIncrementalAsync(
                             nestedContext,
-                            checkpointFile,
+                            checkpointManifest,
                             extractedCheckpointDirectory).ThrowIfFailure();
 
                         // Restoring the checkpoint
-                        _database.RestoreCheckpoint(nestedContext, extractedCheckpointDirectory).ThrowIfFailure();
+                        var restoreResult = _database.RestoreCheckpoint(nestedContext, extractedCheckpointDirectory);
+                        if (restoreResult.Succeeded)
+                        {
+                            return BoolResult.Success;
+                        }
 
-                        return BoolResult.Success;
+                        if (!restoreResult.Diagnostics.Contains("block checksum mismatch"))
+                        {
+                            return restoreResult;
+                        }
+
+                        // There is corruption. We now need to find out what sst file it is and remove it. We'll then
+                        // return failure to restore, which will trigger a re-download in the next heartbeat.
+                        var match = RocksDbCorruptionRegex.Match(restoreResult.Diagnostics);
+                        var group = match.Groups["name"];
+                        if (!match.Success || !group.Success)
+                        {
+                            return new BoolResult(restoreResult, "RocksDb corruption found, but couldn't extract sst file name from error message");
+                        }
+
+                        var sstName = group.Value;
+                        if (!checkpointManifest.TryGetValue(sstName, out var sstStorageId))
+                        {
+                            return new BoolResult(restoreResult, $"RocksDb corruption found for file `{sstName}`, but could not obtain storage id from checkpoint manifest");
+                        }
+
+                        var pruneResult = await _storage.PruneInternalCacheAsync(context, sstStorageId);
+                        return pruneResult & restoreResult;
                     }
                 },
                 extraStartMessage: $"CheckpointId=[{checkpointId}]",
@@ -285,14 +315,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.RestoreCheckpointTimeout);
         }
 
-        private Task<BoolResult> RestoreCheckpointIncrementalAsync(OperationContext context, AbsolutePath checkpointFile, AbsolutePath checkpointTargetDirectory)
+        private Task<BoolResult> RestoreCheckpointIncrementalAsync(
+            OperationContext context,
+            IReadOnlyDictionary<string, string> manifest,
+            AbsolutePath checkpointTargetDirectory)
         {
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
                 {
-                    var manifest = LoadCheckpointManifest(checkpointFile);
-
                     await ParallelAlgorithms.WhenDoneAsync(
                         _configuration.IncrementalCheckpointDegreeOfParallelism,
                         context.Token,

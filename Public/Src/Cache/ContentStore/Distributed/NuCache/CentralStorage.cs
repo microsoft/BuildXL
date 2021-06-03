@@ -86,6 +86,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Prune a specific storage ID from any internal cache that may be done at the machine
+        /// </summary>
+        public Task<BoolResult> PruneInternalCacheAsync(OperationContext context, string storageId)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                () => PruneInternalCacheCoreAsync(context, storageId),
+                counter: Counters[CentralStorageCounters.PruneInternalCache],
+                extraEndMessage: _ => $"StorageId=[{storageId}]",
+                traceOperationStarted: false);
+        }
+
+        /// <summary>
+        /// <see cref="PruneInternalCacheAsync(ContentStore.Tracing.Internal.OperationContext, string)"/>
+        /// </summary>
+        protected virtual Task<BoolResult> PruneInternalCacheCoreAsync(OperationContext context, string storageId)
+        {
+            return BoolResult.SuccessTask;
+        }
+
+        /// <summary>
         /// <see cref="TryGetSasUrlAsync"/>
         /// </summary>
         protected virtual Task<Result<string>> TryGetSasUrlCore(OperationContext context, string storageId, DateTime expiry) => throw Contract.AssertFailure("SAS urls are not supported");

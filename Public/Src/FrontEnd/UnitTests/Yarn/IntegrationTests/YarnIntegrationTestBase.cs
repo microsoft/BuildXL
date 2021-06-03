@@ -72,7 +72,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
         protected SpecEvaluationBuilder Build(
             Dictionary<string, string> environment = null,
             string yarnLocation = "",
-            string moduleName = "Test")
+            string moduleName = "Test",
+            string root = "d`.`")
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -81,14 +82,16 @@ namespace Test.BuildXL.FrontEnd.Yarn
             return Build(
                 environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)),
                 yarnLocation,
-                moduleName);
+                moduleName,
+                root);
         }
 
         /// <inheritdoc/>
         protected SpecEvaluationBuilder Build(
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string yarnLocation = "",
-            string moduleName = "Test")
+            string moduleName = "Test",
+            string root = "d`.`")
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -105,7 +108,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
                 DefaultYarnPrelude(
                     environment: environment,
                     yarnLocation: yarnLocation,
-                    moduleName: moduleName));
+                    moduleName: moduleName,
+                    root: root));
         }
 
         protected BuildXLEngineResult RunYarnProjects(
@@ -114,11 +118,19 @@ namespace Test.BuildXL.FrontEnd.Yarn
             IDetoursEventListener detoursListener = null)
         {
             // This bootstraps the 'repo'
-            if (!YarnInit(config))
+            if (!YarnInit(config.Layout.SourceDirectory))
             {
                 throw new InvalidOperationException("Yarn init failed.");
             }
 
+            return RunEngine(config, testCache, detoursListener);
+        }
+
+        /// <summary>
+        /// Runs the engine for a given config, assuming the Yarn repo is already initialized
+        /// </summary>
+        protected BuildXLEngineResult RunEngine(ICommandLineConfiguration config, TestCache testCache = null, IDetoursEventListener detoursListener = null)
+        {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
             {
                 var appDeployment = CreateAppDeployment(tempFiles);
@@ -142,13 +154,14 @@ namespace Test.BuildXL.FrontEnd.Yarn
         private string DefaultYarnPrelude(
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string yarnLocation,
-            string moduleName) => $@"
+            string moduleName,
+            string root) => $@"
 config({{
     resolvers: [
         {{
             kind: 'Yarn',
             moduleName: '{moduleName}',
-            root: d`.`,
+            root: {root},
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
             {(yarnLocation != null ? $"yarnLocation: f`{yarnLocation}`," : string.Empty)}
@@ -163,11 +176,14 @@ config({{
                 $"{memberName}: Map.empty<string, (PassthroughEnvironmentVariable | string)>(){ string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', {(property.Value?.GetValue() is UnitValue ? "Unit.unit()" : $"'{property.Value?.GetValue()}'")})")) },");
         }
 
-        private bool YarnInit(ICommandLineConfiguration config)
+        /// <summary>
+        /// Initializes a Yarn repo at the target directory
+        /// </summary>
+        protected bool YarnInit(AbsolutePath targetDirectory, string packagesPattern = "src/*")
         {
             // Create a package.json, root of all the workspaces. This package needs to be private
             // since workspaces need to be declared in a private one
-            var result = YarnRun(config, "init --private --yes");
+            var result = YarnRun(targetDirectory.ToString(PathTable), "init --private --yes");
 
             if (!result)
             {
@@ -175,20 +191,20 @@ config({{
             }
 
             // Update the root package.json to enable workspaces
-            var pathToPackageJson = config.Layout.SourceDirectory.Combine(PathTable, "package.json").ToString(PathTable);
+            var pathToPackageJson = targetDirectory.Combine(PathTable, "package.json").ToString(PathTable);
             string mainJson = File.ReadAllText(pathToPackageJson);
             int closingBracket = mainJson.LastIndexOf('}');
-            mainJson = mainJson.Insert(closingBracket, @",
-  ""workspaces"": {
+            mainJson = mainJson.Insert(closingBracket, $@",
+  ""workspaces"": {{
     ""packages"": [
-      ""src/*""
-    ]}");
+      ""{packagesPattern}""
+    ]}}");
             File.WriteAllText(pathToPackageJson, mainJson);
 
-            return YarnRun(config, "install");
+            return YarnRun(targetDirectory.ToString(PathTable), "install");
         }
 
-        private bool YarnRun(ICommandLineConfiguration config, string yarnArgs)
+        private bool YarnRun(string workingDirectory, string yarnArgs)
         {
             string arguments = $"{PathToYarn}.js {yarnArgs}";
             string filename = PathToNode;
@@ -201,7 +217,7 @@ config({{
             {
                 FileName = filename,
                 Arguments = arguments,
-                WorkingDirectory = config.Layout.SourceDirectory.ToString(PathTable),
+                WorkingDirectory = workingDirectory,
                 RedirectStandardError = false,
                 RedirectStandardOutput = false,
                 UseShellExecute = false,

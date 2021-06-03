@@ -206,7 +206,7 @@ namespace BuildXL.FrontEnd.JavaScript
                buildStorageDirectory: outputDirectory,
                fileAccessManifest: FrontEndUtilities.GenerateToolFileAccessManifest(m_context, outputFile.GetParent(m_context.PathTable)),
                arguments: toolArguments,
-               workingDirectory: m_configuration.Layout.SourceDirectory.ToString(m_context.PathTable),
+               workingDirectory: m_resolverSettings.Root.ToString(m_context.PathTable),
                description: $"{Name} graph builder",
                buildParameters);
         }

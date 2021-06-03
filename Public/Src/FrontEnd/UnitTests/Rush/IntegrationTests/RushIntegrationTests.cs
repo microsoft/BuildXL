@@ -192,15 +192,22 @@ namespace Test.BuildXL.FrontEnd.Rush
                     .AddJavaScriptProject("@ms/project-A", "src/B")
                     .PersistSpecsAndGetConfiguration();
 
-            var engineResult = RunRushProjects(config, new[] {
-                ("src/A", "@ms/project-A"),
-                ("src/B", "@ms/project-A"),
-            });
+            bool exceptionOccured = false;
 
-            Assert.False(engineResult.IsSuccess);
+            try
+            {
+                var engineResult = RunRushProjects(config, new[] {
+                    ("src/A", "@ms/project-A"),
+                    ("src/B", "@ms/project-A"),
+                });
+            }
+            catch (InvalidOperationException e)
+            {
+                exceptionOccured = true;
+                Assert.Equal("Rush update failed.", e.Message);
+            }
 
-            AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);
-            AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+            Assert.True(exceptionOccured, "Rush update should have failed due to Duplicate Project Names but didn't");
         }
 
         [Fact]

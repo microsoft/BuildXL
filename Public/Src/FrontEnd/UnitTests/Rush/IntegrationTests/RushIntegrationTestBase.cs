@@ -282,7 +282,7 @@ config({{
                 // Also update the pnpm version to make it work correctly with node
                 var updatedRushJson = rushJson
                     .Replace(
-                    "\"nodeSupportedVersionRange\": \">=10.13.0 <11.0.0\"",
+                    "\"nodeSupportedVersionRange\": \">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0\"",
                     "\"nodeSupportedVersionRange\": \">=10.13.0 <15.2.2\"")
                     .Replace(
                     "\"pnpmVersion\": \"2.15.1\"",
@@ -323,7 +323,7 @@ config({{
             startInfo.Environment["USERPROFILE"] = RushUserProfile;
             startInfo.Environment["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             startInfo.Environment["RUSH_TEMP_FOLDER"] = RushTempFolder;
-            startInfo.Environment["RUSH_ABSOLUTE_SYMLINKS"] = "true";
+            startInfo.Environment["RUSH_ABSOLUTE_SYMLINKS"] = "1";
 
             var runRush = Process.Start(startInfo);
             runRush.WaitForExit();

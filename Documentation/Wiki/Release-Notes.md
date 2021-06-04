@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210528.7 (Release [108880](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108880)) Released 6/2/2021
+- DumpStringTable Analyzer
+- Deprecate IDistributionConfiguration.EnableSourceFileMaterialization
+- Fix SandboxedProcessInfo.MaxCommandLineLength to reflect true OS-imposed limits
+- Split Build Manifest Generation and Signing flags
+- Bugfix: reparse point checking in Detours
+- Bugfix: RemoteWorker xlg blob processing 
+- Bugfix: avoid arithmetic overflow in ChooseQueueFastNextCount
+
 # 0.1.0-20210521.7.1 (Release [108460](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108460)) Released 5/26/2021
 -	Perf improvement on detours reparse point resolution logic
 -	Expanded capacity of StringTable to deal with overflows

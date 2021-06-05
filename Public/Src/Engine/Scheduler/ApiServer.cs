@@ -32,8 +32,8 @@ namespace BuildXL.Scheduler
     /// </summary>
     public sealed class ApiServer : IIpcOperationExecutor, IDisposable
     {
-        private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 6 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
-        private const int GetBuildManifestHashFromLocalFileRetryLimit = 5;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
+        private const int GetBuildManifestHashFromLocalFileRetryMultiplierMs = 200; // Worst-case delay = 12.4 sec. Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs
+        private const int GetBuildManifestHashFromLocalFileRetryLimit = 6;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
 
         private readonly FileContentManager m_fileContentManager;
         private readonly EngineCache m_engineCache;

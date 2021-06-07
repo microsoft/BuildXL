@@ -882,7 +882,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
-            Message = "{pipsReported} reported, {pipsReporting} reporting, {pipsRecording} recording, {pipsPrepped} prepped, {pipsPrepping} prepping, {pipsQueued} queued")]
+            Message = "{pipsDone} done, {pipsReporting} reporting, {pipsRecording} recording, {pipsPrepped} prepped, {pipsPrepping} prepping, {pipsQueued} queued")]
         internal abstract void DistributionWorkerStatus(
             LoggingContext loggingContext,
             int pipsQueued,
@@ -890,7 +890,7 @@ namespace BuildXL.Engine.Tracing
             int pipsPrepped,
             int pipsRecording,
             int pipsReporting,
-            int pipsReported);
+            int pipsDone);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionOrchestratorStatus,

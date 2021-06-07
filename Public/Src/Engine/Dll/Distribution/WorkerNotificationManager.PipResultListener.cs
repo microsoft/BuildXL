@@ -39,9 +39,10 @@ namespace BuildXL.Engine.Distribution
                     {
                         m_resultSerializer.SerializeExecutionResult(pipCompletion);
                         DistributionService.Counters.AddToCounter(pipCompletion.PipType == PipType.Process ? DistributionCounter.ProcessExecutionResultSize : DistributionCounter.IpcExecutionResultSize, pipCompletion.SerializedData.ResultBlob.Count);
-                        m_notificationManager.ExecutionService.Transition(pipCompletion.PipId, WorkerPipState.Reporting);
                     }
+
                     ReadyToSendResultList.Add(pipCompletion);
+                    m_notificationManager.ExecutionService.Transition(pipCompletion.PipId, WorkerPipState.Reporting);
                 }
                 catch (InvalidOperationException)
                 {

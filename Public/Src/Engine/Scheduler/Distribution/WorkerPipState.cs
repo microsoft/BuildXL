@@ -21,11 +21,6 @@ namespace BuildXL.Scheduler.Distribution
         ChosenForExecution,
 
         /// <summary>
-        /// Sending result to worker
-        /// </summary>
-        Sending,
-
-        /// <summary>
         /// Pip queued on worker
         /// </summary>
         Queued,
@@ -61,19 +56,14 @@ namespace BuildXL.Scheduler.Distribution
         Reporting,
 
         /// <summary>
-        /// Reported result
+        /// Pip is finished and the result was reported to the orchestrator.
         /// </summary>
-        Reported,
-
-        /// <summary>
-        /// The pip succeeded
-        /// </summary>
+        /// <remarks>
+        /// When FireForgetMaterializeOutputs is enabled, we transition to this 
+        /// state without sending a message to the orchestrator
+        /// (i.e. without going through <see cref="WorkerPipState.Reporting"/>)
+        /// </remarks>
         Done,
-
-        /// <summary>
-        /// The pip failed
-        /// </summary>
-        Failed,
     }
 
     /// <summary>
@@ -90,7 +80,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 case WorkerPipState.Recording:
                 case WorkerPipState.Reporting:
-                case WorkerPipState.Reported:
+                case WorkerPipState.Done:
                     return false;
                 default:
                     return true;

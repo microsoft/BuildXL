@@ -381,6 +381,7 @@ namespace BuildXL.Engine.Distribution
             {
                 // We do not report 'MaterializeOutput' step results back to orchestrator.
                 Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());
+                m_pipExecutionService.Transition(pipId, WorkerPipState.Done);
                 return;
             }
 

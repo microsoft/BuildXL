@@ -541,7 +541,7 @@ namespace BuildXL.Engine.Distribution
                                 pipsPrepped: pipStateSnapshot[WorkerPipState.Prepped],
                                 pipsRecording: pipStateSnapshot[WorkerPipState.Recording],
                                 pipsReporting: pipStateSnapshot[WorkerPipState.Reporting],
-                                pipsReported: pipStateSnapshot[WorkerPipState.Reported]);
+                                pipsDone: pipStateSnapshot[WorkerPipState.Done]);
                             m_pipStateSnapshot = pipStateSnapshot;
                         }
                     }

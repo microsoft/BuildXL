@@ -130,27 +130,6 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
         "CompletedModuleBugReportUris": []
       },
       "TestSourceDir": "Public\\Src\\Engine\\UnitTests\\Processes"
-    },
-    "Public\\Src\\Tools\\UnitTests\\MsBuildGraphBuilder_retail_X64": {
-      "FlakyTestMap": {
-        "Test.ProjectGraphBuilder.MsBuildGraphProgressTests.ProgressIsReported": {
-          "Name": "Test.ProjectGraphBuilder.MsBuildGraphProgressTests.ProgressIsReported",
-          "DetectionTimeUtc": "2021-05-04T05:00:43.9030299Z",
-          "QuarantineExpiryTimeUtc": "2021-10-31T05:00:43.9030301Z",
-          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1840555",
-          "ModuleBugReportUris": [],
-          "ErrorSignatures": [
-            "system.timeoutexception : the operation has timed out."
-          ],
-          "SessionUri": "https://cloudbuild.microsoft.com/build/a61e449a-0829-c821-aa33-957395e3b2a8",
-          "ScheduledDeletionTimeUtc": "2021-06-05T22:00:47.8581911Z"
-        }
-      },
-      "Metadata": {
-        "ErrorSignatureToModuleBugReportUri": {},
-        "CompletedModuleBugReportUris": []
-      },
-      "TestSourceDir": "Public\\Src\\Tools\\UnitTests\\MsBuildGraphBuilder"
     }
   }
 }

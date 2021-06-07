@@ -46,31 +46,28 @@ namespace Test.BuildXL.Distribution
             Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
         }
 
+
         [Fact]
-        public async Task GrpcConnectionTimeout()
+        public async Task ConnectionDoesntTimeoutBeforeAttachment()
         {
-            EngineEnvironmentSettings.DistributionConnectTimeout.Value = TimeSpan.FromSeconds(0.5);
+            // The ClientConnectionManager uses DistributionConnectTimeout to time out if 
+            // noticing reconnection issues. This check is done only after we have successfully established a connection
+            // to the other machine: before this happens, we shouldn't hit this time out from the ClientConnectionManager. 
+            // Choose 0 as timeout value to ensure that the test fails if we are using it.
+            EngineEnvironmentSettings.DistributionConnectTimeout.Value = TimeSpan.Zero;
 
             // Use a random port which we won't open
             var workerServicePort = 9091;
             var remoteWorker = new RemoteWorkerHarness(LoggingContext, s_defaultDistributedInvocationId);
+
             remoteWorker.StartClient(workerServicePort);
+            var shutdownTask = remoteWorker.ClientShutdownTask;
 
-            // Try to attach to an absent worker. The connection timeout will kick in and the call will fail
-            var attachResult = await remoteWorker.AttachAsync();
-            Assert.False(attachResult.Succeeded);
+            var completedTaskOrTimeout = await Task.WhenAny(shutdownTask, Task.Delay(3000)); // Use a dummy delay task so we don't wait forever.
+            Assert.False(shutdownTask == completedTaskOrTimeout); // We shouldn't have hit the timeout 
 
-            // Timeout event should have been triggered
-            await ExpectConnectionFailureAsync(remoteWorker, FailureType.Timeout);
-
-            // If the connection is closed we shouldn't communicate anymore
-            attachResult = await remoteWorker.AttachAsync();
-            Assert.False(attachResult.Succeeded);
-            Assert.Equal(RpcCallResultState.Cancelled, attachResult.State);
-            Assert.Equal(1, (int)attachResult.Attempts);
-            AssertLogContains(true, "Failed to connect");
-            AssertLogContains(true, "Channel has reached Shutdown state");
-
+            // Timeout event shouldn't have been triggered
+            Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
             await StopServicesAsync(remoteWorker);
         }
 

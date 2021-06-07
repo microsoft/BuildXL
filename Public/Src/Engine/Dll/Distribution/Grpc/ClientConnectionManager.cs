@@ -134,46 +134,54 @@ namespace BuildXL.Engine.Distribution.Grpc
             await Task.Yield();
 
             ChannelState state = ChannelState.Idle;
-            var transientFailureTimer = new Stopwatch();
+            ChannelState lastState = state;
+
+            // After a successful connection was established we want to detect connection issues
+            bool monitorConnectingState = false;
+            var connectingStateTimer = new Stopwatch();
+            
             while (state != ChannelState.Shutdown)
             {
                 try
                 {
+                    lastState = state;
                     await Channel.TryWaitForStateChangedAsync(state);
+                    state = Channel.State;  // Pick up the new state as soon as possible as it may change
                 }
                 catch (ObjectDisposedException)
                 {
                     // The channel has been already shutdown and handle was disposed
                     // (https://github.com/grpc/grpc/blob/master/src/csharp/Grpc.Core/Channel.cs#L160)
                     // We shouldn't fail or leave this unobserved, instead we just stop monitoring
-                    Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {state} -> Disposed. Assuming shutdown was requested");
+                    Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {lastState} -> Disposed. Assuming shutdown was requested");
                     break;
                 }
 
-                Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {state} -> {Channel.State}");
+                Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {lastState} -> {state}");
 
-                state = Channel.State;
-
-                // Check if we're stuck in transient failure
+                // Check if we're stuck in reconnection attemps after losing connection
                 // In this situation, the state will alternate between "Connecting" and "TransientFailure"
-                if (state == ChannelState.TransientFailure)
+                if (state == ChannelState.Connecting || state == ChannelState.TransientFailure)
                 {
-                    if (!transientFailureTimer.IsRunning)
+                    if (monitorConnectingState && !connectingStateTimer.IsRunning)
                     {
-                        transientFailureTimer.Start();
-                    }
-
-                    if (transientFailureTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
-                    {
-                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.Timeout, $"Timed out trying to recover from the TRANSIENT_FAILURE channel state. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
-                        break;
+                        connectingStateTimer.Start();
                     }
                 }
-                else if (state != ChannelState.Connecting)
+                else
                 {
-                    // We assume we are out of the "transient failure" situation
-                    // if the state is no longer TransientFailure or Connecting
-                    transientFailureTimer.Reset();
+                    // We start monitoring for disconnections only after observing some 'connected' (i.e., Ready, Idle)
+                    // state to avoid abandoning workers that may become available some time after the build
+                    // starts in the orchestrator -- we will still timeout in this case but this will
+                    // be governed by WorkerAttachTimeout rather than DistributionConnectTimeout.
+                    monitorConnectingState = true;
+                    connectingStateTimer.Reset();
+                }
+
+                if (monitorConnectingState && connectingStateTimer.IsRunning && connectingStateTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
+                {
+                    OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.Timeout, $"Timed out while the gRPC layer was trying to reconnect to the server. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
+                    break;
                 }
 
                 // If we requested 'exit' for the server, the channel can go to 'Idle' state.

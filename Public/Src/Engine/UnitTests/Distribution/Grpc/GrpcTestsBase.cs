@@ -10,6 +10,7 @@ using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -31,6 +32,15 @@ namespace Test.BuildXL.Distribution
         public GrpcTestsBase(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+
+            // Reset default static values between tests
+            ResetDefaultSettings();
+        }
+
+        protected static void ResetDefaultSettings()
+        {
+            EngineEnvironmentSettings.DistributionConnectTimeout.Value = EngineEnvironmentSettings.DefaultDistributionConnectTimeout;
+            EngineEnvironmentSettings.WorkerAttachTimeout.Value = EngineEnvironmentSettings.DefaultWorkerAttachTimeout;
         }
 
         internal abstract class DistributedActorHarness

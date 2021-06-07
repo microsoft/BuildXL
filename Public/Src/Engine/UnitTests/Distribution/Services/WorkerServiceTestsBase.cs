@@ -13,6 +13,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using System.Threading;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Scheduler.Distribution;
+using System;
 
 namespace Test.BuildXL.Distribution
 {
@@ -25,6 +26,8 @@ namespace Test.BuildXL.Distribution
     
         public WorkerServiceTestsBase(ITestOutputHelper output) : base(output)
         {
+            // Reset default value between tests
+            EngineEnvironmentSettings.WorkerAttachTimeout.Value = EngineEnvironmentSettings.DefaultWorkerAttachTimeout;
         }
 
         internal class WorkerServiceTestRun

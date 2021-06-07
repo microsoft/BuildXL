@@ -145,17 +145,19 @@ namespace BuildXL.Utilities.Configuration
 
         #region Distribution-related timeouts
 
+        /// <nodoc/>
+        public static readonly TimeSpan DefaultWorkerAttachTimeout = TimeSpan.FromMinutes(75);
         /// <summary>
         /// Allows optionally specifying an alternative timeout for workers to wait for attach from orchestrator
         /// </summary>
-        public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(75));
+        public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ?? DefaultWorkerAttachTimeout);
 
+        /// <nodoc/>
+        public static readonly TimeSpan DefaultDistributionConnectTimeout = TimeSpan.FromMinutes(5);
         /// <summary>
         /// Maximum time to wait while establishing a connection to the remote machine (both orchestrator->worker and worker->orchestrator)
         /// </summary>
-        public static readonly Setting<TimeSpan> DistributionConnectTimeout = CreateSetting("BuildXLDistribConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ??
-            TimeSpan.FromMinutes(5));
+        public static readonly Setting<TimeSpan> DistributionConnectTimeout = CreateSetting("BuildXLDistribConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ?? DefaultDistributionConnectTimeout);
 
         /// <summary>
         /// Whether KeepAlive is enabled for grpc. It allows http2 pings between client and server over transport.

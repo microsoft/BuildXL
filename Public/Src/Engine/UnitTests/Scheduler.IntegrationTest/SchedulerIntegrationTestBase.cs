@@ -438,6 +438,9 @@ namespace Test.BuildXL.Scheduler
             var localLoggingContext = CreateLoggingContextForTest();
             var config = new CommandLineConfiguration(Configuration);
 
+            // By default we allow out of mount writes for tests, unless specified otherwise.
+            config.Engine.UnsafeAllowOutOfMountWrites ??= true;
+
             // Populating the configuration may modify the configuration, so it should occur first.
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, Context.PathTable, bxlExeLocation: null, inTestMode: true);
             if (!BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext))

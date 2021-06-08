@@ -304,7 +304,7 @@ namespace Test.BuildXL.Scheduler
 
         [Feature(Features.Mount)]
         [Fact]
-        public Task TestWarnOnOutputOutsideMount()
+        public void TestErrorOnOutputOutsideMount()
         {
             Setup();
             string outOfMount = Path.Combine(TemporaryDirectory, "outOfMount");
@@ -317,12 +317,22 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { outputFile },
                 outputDirectoryPaths: new[] { outputDirectory.Path });
 
-            XAssert.IsTrue(PipGraphBuilder.AddProcess(process));
+            // Create a PipBuilder where writes outside mounts are explicitly blocked, since
+            // the default for tests is to allow them
+            var configuration = new ConfigurationImpl();
+            configuration.Engine.UnsafeAllowOutOfMountWrites = false;
 
-            var result = RunScheduler();
-            AssertWarningEventLogged(PipLogEventId.WriteDeclaredOutsideOfKnownMount, 2);
+            var pipGraphBuilder = new PipGraph.Builder(
+                PipTable,
+                Context,
+                global::BuildXL.Pips.Tracing.Logger.Log,
+                LoggingContext,
+                configuration,
+                Expander);
 
-            return result;
+            XAssert.IsFalse(pipGraphBuilder.AddProcess(process));
+            
+            AssertErrorEventLogged(PipLogEventId.WriteDeclaredOutsideOfKnownMount, 1);
         }
 
         [Feature(Features.SealedDirectory)]

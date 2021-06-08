@@ -169,6 +169,9 @@ namespace Test.BuildXL.TestUtilities
             configuration.Schedule.UnsafeDisableGraphPostValidation = false;
             configuration.Schedule.ComputePipStaticFingerprints = true;
             configuration.Sandbox.FileAccessIgnoreCodeCoverage = true;
+            
+            // For tests, allow writes outside of mounts unles defined otherwise
+            configuration.Engine.UnsafeAllowOutOfMountWrites ??= true;
 
             customizeConfig?.Invoke(configuration);
 

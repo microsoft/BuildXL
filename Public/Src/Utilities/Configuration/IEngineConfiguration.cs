@@ -183,5 +183,13 @@ namespace BuildXL.Utilities.Configuration
         /// Whether or not duplicate temporary directories are allowed between Pips.
         /// </summary>
         bool? AllowDuplicateTemporaryDirectory { get; }
+
+        /// <summary>
+        /// Whether to allow writes outside any declared mounts
+        /// </summary>
+        /// <remarks>
+        /// Defaults to false
+        /// </remarks>
+        bool? UnsafeAllowOutOfMountWrites { get; }
     }
 }

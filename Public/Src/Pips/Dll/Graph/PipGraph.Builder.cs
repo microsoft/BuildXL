@@ -1604,11 +1604,12 @@ namespace BuildXL.Pips.Graph
             {
                 semanticPathInfo = semanticPathExpander.GetSemanticPathInfo(path);
 
-                // For historical reasons, writes happening outside of known mounts are allowed. This behavior needs to eventually change, but for the
-                // time being we just print a warning and continue. TODO: turn this into an error once all customers are in compliance
-                if (!semanticPathInfo.IsValid)
+                // Enforce that writable paths need to be under a writable mount (unless the check is explicitly
+                // disabled from the configuration)
+                if (m_configuration.Engine.UnsafeAllowOutOfMountWrites != true && !semanticPathInfo.IsValid)
                 {
                     Logger.WriteDeclaredOutsideOfKnownMount(LoggingContext, path.ToString(Context.PathTable));
+                    return false;
                 }
 
                 return !semanticPathInfo.IsValid || semanticPathInfo.IsWritable;
@@ -1630,12 +1631,16 @@ namespace BuildXL.Pips.Graph
                 SemanticPathInfo semanticPathInfo;
                 if (!IsWritablePath(path, semanticPathExpander, out semanticPathInfo))
                 {
-                    LogEventWithPipProvenance(
+                    if (semanticPathInfo.IsValid)
+                    {
+                        LogEventWithPipProvenance(
                         Logger.ScheduleFailAddPipInvalidTempDirectoryUnderNonWritableRoot,
                         pip,
                         path,
                         semanticPathInfo.Root,
                         tempEnvironmentVariable.Name);
+                    }
+
                     return false;
                 }
 
@@ -1674,7 +1679,11 @@ namespace BuildXL.Pips.Graph
                 SemanticPathInfo semanticPathInfo;
                 if (!IsWritablePath(output.Path, semanticPathExpander, out semanticPathInfo))
                 {
-                    LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidOutputUnderNonWritableRoot, pip, output, semanticPathInfo.Root);
+                    if (semanticPathInfo.IsValid)
+                    {
+                        LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidOutputUnderNonWritableRoot, pip, output, semanticPathInfo.Root);
+                    }
+
                     return false;
                 }
 
@@ -1869,7 +1878,11 @@ namespace BuildXL.Pips.Graph
                 // An output directory must be under a writable mount
                 if (!IsWritablePath(directory.Path, semanticPathExpander, out var semanticPathInfo))
                 {
-                    LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidOutputUnderNonWritableRoot, pip, directory.Path, semanticPathInfo.Root);
+                    if (semanticPathInfo.IsValid)
+                    {
+                        LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidOutputUnderNonWritableRoot, pip, directory.Path, semanticPathInfo.Root);
+                    }
+
                     return false;
                 }
 

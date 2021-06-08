@@ -1160,7 +1160,7 @@ namespace BuildXL.Pips.Tracing
         [GeneratedEvent(
             (int)LogEventId.WriteDeclaredOutsideOfKnownMount,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
             Message = "Output '{writePath}' is declared outside any known mount. Please consider declaring a writable mount that contains the output.")]

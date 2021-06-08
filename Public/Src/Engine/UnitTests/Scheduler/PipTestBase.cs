@@ -338,6 +338,9 @@ namespace Test.BuildXL.Scheduler
             Expander = new MountPathExpander(pathTable);
             configuration = configuration ?? new ConfigurationImpl();
 
+            // For tests, allow writes outside of mounts unles defined otherwise
+            ((EngineConfiguration)configuration.Engine).UnsafeAllowOutOfMountWrites ??= true;
+
             var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,

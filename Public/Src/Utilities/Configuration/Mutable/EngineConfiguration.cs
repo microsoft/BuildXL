@@ -75,6 +75,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TrackGvfsProjections = template.TrackGvfsProjections;
             UseFileContentTable = template.UseFileContentTable;
             AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
+            UnsafeAllowOutOfMountWrites = template.UnsafeAllowOutOfMountWrites;
         }
 
         /// <inheritdoc />
@@ -129,6 +130,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? AllowDuplicateTemporaryDirectory { get; set; }
+
+        /// <inheritdoc />
+        public bool? UnsafeAllowOutOfMountWrites { get; set; }
 
         /// <inheritdoc />
         public int BuildLockPollingIntervalSec { get; set; }

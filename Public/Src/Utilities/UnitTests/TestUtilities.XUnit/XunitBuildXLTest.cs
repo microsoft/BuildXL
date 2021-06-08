@@ -155,7 +155,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             }
 
             // Many tests declare outputs outside of known mounts.
-            AllowWarningEventMaybeLogged(global::BuildXL.Pips.Tracing.LogEventId.WriteDeclaredOutsideOfKnownMount);
+            AllowErrorEventMaybeLogged(global::BuildXL.Pips.Tracing.LogEventId.WriteDeclaredOutsideOfKnownMount);
         }
 
         /// <summary>

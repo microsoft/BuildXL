@@ -168,7 +168,8 @@ namespace Test.DScript.Ast.PartialEvaluation
                 new EngineContext(CancellationToken.None, PathTable, SymbolTable, new QualifierTable(PathTable.StringTable), FrontEndContext.FileSystem, new TokenTextTable()),
                 global::BuildXL.Pips.Tracing.Logger.Log,
                 FrontEndContext.LoggingContext,
-                new ConfigurationImpl(),
+                // For tests, allow writes outside of mounts unles defined otherwise
+                new ConfigurationImpl() { Engine = { UnsafeAllowOutOfMountWrites = true } },
                 new MountPathExpander(PathTable));
 
             IMutablePipGraph pipGraph = oldPipGraph != null

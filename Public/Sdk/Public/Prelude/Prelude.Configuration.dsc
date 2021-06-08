@@ -298,6 +298,12 @@ interface EngineConfiguration {
     cleanTempDirectories?: boolean;
     defaultFilter?: string;
     allowDuplicateTemporaryDirectory? : boolean;
+    
+    /**
+     * Whether to allow writes outside any declared mounts.
+     * Defaults to false.
+     */
+    unsafeAllowOutOfMountWrites?: boolean;
 }
 
 interface SandboxConfiguration {

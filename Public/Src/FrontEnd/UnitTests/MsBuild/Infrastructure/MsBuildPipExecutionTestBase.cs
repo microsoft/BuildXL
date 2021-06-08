@@ -317,6 +317,7 @@ config({{
             useManagedSharedCompilation: {(useSharedCompilation ? "true" : "false")},
         }},
     ],
+    engine: {{unsafeAllowOutOfMountWrites: true}},
 }});";
 
         private string DefaultMsBuildPrelude(
@@ -336,6 +337,7 @@ config({{
             {extraArguments ?? string.Empty}
         }},
     ],
+    engine: {{unsafeAllowOutOfMountWrites: true}},
 }});";
 
         private static string DictionaryToExpression(string memberName, Dictionary<string, string> dictionary)

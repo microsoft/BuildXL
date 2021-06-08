@@ -217,7 +217,7 @@ namespace Tool.ExecutionLogSdk
 
         static ExecutionLog()
         {
-            LoadSystemBuffersAssembly();
+            LoadSystemMemoryAssembly();
         }
 
         /// <summary>
@@ -246,21 +246,23 @@ namespace Tool.ExecutionLogSdk
             m_parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
         }
 
-        private static void LoadSystemBuffersAssembly()
+        private static void LoadSystemMemoryAssembly()
         {
             AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
         }
 
         private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
         {
+            var systemMemoryDependencies = new HashSet<string> { "System.Memory", "System.Buffers", "System.Numerics.Vectors", "System.Runtime.CompilerServices.Unsafe" };
             try
             {
-                // It is necessary for us to apply this "binding redirect" programatically because OSGTools calls this from PowerShell
+                // It is necessary for us to apply this "binding redirect" programatically for all the depenendencies of System.Memory 
+                // because OSGTools calls this from PowerShell and fails otherwise.
                 var name = new AssemblyName(args.Name);
-                if (name.Name == "System.Buffers")
+                if (systemMemoryDependencies.Contains(name.Name))
                 {
                     var executingAssemblyPath = Assembly.GetExecutingAssembly().Location;
-                    var buffersLocation = Path.Combine(Path.GetDirectoryName(executingAssemblyPath), "System.Buffers.dll");
+                    var buffersLocation = Path.Combine(Path.GetDirectoryName(executingAssemblyPath), $"{name.Name}.dll");
                     var assembly = Assembly.LoadFrom(buffersLocation);
                     return assembly;
                 }

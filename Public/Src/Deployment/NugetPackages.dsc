@@ -289,6 +289,7 @@ namespace NugetPackages {
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getGrpcPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackages(false),
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSystemTextJson(false),
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier(net472PackageQualifer).pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472PackageQualifer).getRocksDbPackages(false),

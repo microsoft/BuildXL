@@ -64,10 +64,14 @@ namespace Distributed {
             importFrom("protobuf-net.Grpc.Native").pkg,
             ...getGrpcPackages(true),
             ...BuildXLSdk.getSystemMemoryPackages(true),
+            ...getSystemTextJson(true),
             importFrom("System.ServiceModel.Http").pkg,
             importFrom("System.ServiceModel.Primitives").pkg,
             ...addIf(qualifier.targetFramework === "net472",
                 importFrom("System.Private.ServiceModel").pkg),
+
+            importFrom("Polly").pkg,
+            importFrom("Polly.Contrib.WaitAndRetry").pkg,
         ],
         runtimeReferences: [
             importFrom("System.Private.ServiceModel").pkg
@@ -78,6 +82,8 @@ namespace Distributed {
             "BuildXL.Cache.MemoizationStore.Distributed",
             "BuildXL.Cache.MemoizationStore.Distributed.Test",
             "BuildXL.Cache.MemoizationStore.Vsts.Test",
+            "BuildXL.Cache.DistributedCache.Host",
+            "BuildXL.Cache.Host.Service",
         ],
         skipDocumentationGeneration: true,
         sourceGenerators: [importFrom("StructRecordGenerator").pkg],

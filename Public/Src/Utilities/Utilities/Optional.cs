@@ -47,6 +47,15 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Gets the value if available. Otherwise, returns false.
+        /// </summary>
+        public bool TryGetValue(out T value)
+        {
+            value = m_value;
+            return HasValue;
+        }
+
+        /// <summary>
         /// Returns the value if this Optional has a value, or the specified alternative if this is the empty Optional
         /// </summary>
         [Pure]

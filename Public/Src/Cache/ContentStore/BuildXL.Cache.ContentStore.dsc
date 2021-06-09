@@ -23,10 +23,15 @@ export const redisPackages = [
             importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
           ] 
         : [
-            importFrom("System.IO.Pipelines").pkg,
-            importFrom("System.Threading.Channels").pkg,
-            // Don't need to add Unsafe for netcoreapp3.1 or net5.0
-            ...(BuildXLSdk.isDotNetCoreApp ? [] : [importFrom("System.Runtime.CompilerServices.Unsafe").pkg]),
+            importFrom("System.IO.Pipelines").pkg,            
+            ...(BuildXLSdk.isDotNetCoreApp ? [] : [
+                // Don't need to add Unsafe for netcoreapp3.1 or net5.0
+                importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+
+                // System.Threading.Channels comes bundled with .NET Core, so we don't need to provide it. If we do,
+                // the version we provide will likely conflict with the official one
+                importFrom("System.Threading.Channels").pkg
+            ]),
             importFrom("Pipelines.Sockets.Unofficial").pkg,
           ]),
     ...BuildXLSdk.bclAsyncPackages,

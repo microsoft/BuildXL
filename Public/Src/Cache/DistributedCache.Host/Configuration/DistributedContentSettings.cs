@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
@@ -1104,6 +1105,36 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int PublishingConcurrencyLimit { get; set; } = 128;
+
+        [DataMember]
+        public bool ContentMetadataEnableResilience { get; set; }
+
+        [DataMember]
+        public bool UseBlobVolatileStorage { get; set; }
+
+        [DataMember]
+        public string ContentMetadataRedisSecretName { get; set; }
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double ContentMetadataPersistIntervalSeconds { get; set; } = 5;
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double ContentMetadataShutdownTimeoutSeconds { get; set; } = 30;
+
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double ContentMetadataRedisMaximumKeyLifetimeMinutes { get; set; } = 60 * 2;
+
+        [DataMember]
+        public string ContentMetadataLogBlobContainerName { get; set; } = "persistenteventstorage";
+
+        [DataMember]
+        public string ContentMetadataCentralStorageContainerName { get; set; } = "contentmetadata";
+
+        [DataMember]
+        public bool ContentMetadataBatchVolatileWrites { get; set; } = true;
 
         [DataMember]
         public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;

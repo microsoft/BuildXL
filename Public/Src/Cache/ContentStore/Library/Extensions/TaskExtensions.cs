@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         public static Task FireAndForgetErrorsAsync(this Task task, Context context, [CallerMemberName]string? operation = null)
         {
             task.FireAndForget(context, operation);
-            return task.IgnoreErrors();
+            return task.IgnoreErrorsAndReturnCompletion();
         }
 
         /// <nodoc />

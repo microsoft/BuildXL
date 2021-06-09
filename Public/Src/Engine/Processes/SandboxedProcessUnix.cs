@@ -667,9 +667,9 @@ namespace BuildXL.Processes
 
                     await Task.Delay(SandboxConnection.IsInTestMode ? 5 : 250);
                 }
-            }, m_timeoutTaskCancelationSource.Token).IgnoreErrors();
+            }, m_timeoutTaskCancelationSource.Token).IgnoreErrorsAndReturnCompletion();
 
-            return processTreeTimeoutSource.Task.IgnoreErrors();
+            return processTreeTimeoutSource.Task.IgnoreErrorsAndReturnCompletion();
         }
 
         private void UpdateAverageTimeSpentInReportQueue(AccessReportStatistics stats)

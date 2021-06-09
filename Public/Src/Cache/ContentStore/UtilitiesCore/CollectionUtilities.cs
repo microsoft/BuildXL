@@ -52,11 +52,29 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
         /// <summary>
         /// Compare two operands and returns true if two instances are equivalent.
         /// </summary>
-        public static bool IsCompareEquals<T>(T x1, T x2, out int compareResult, bool greatestFirst = false)
+        public static bool IsCompareEquals<T>(this T x1, T x2, out int compareResult, bool greatestFirst = false)
             where T : IComparable<T>
         {
             compareResult = (int)Order(x1, x2, greatestFirst: greatestFirst);
             return compareResult == 0;
+        }
+
+        /// <summary>
+        /// Compare two operands and returns true if first instance is greater.
+        /// </summary>
+        public static bool IsGreaterThan<T>(this T x1, T x2)
+            where T : IComparable<T>
+        {
+            return Order(x1, x2, greatestFirst: true) == OrderResult.PreferFirst;
+        }
+
+        /// <summary>
+        /// Compare two operands and returns true if first instance is less.
+        /// </summary>
+        public static bool IsLessThan<T>(this T x1, T x2)
+            where T : IComparable<T>
+        {
+            return Order(x1, x2, greatestFirst: false) == OrderResult.PreferFirst;
         }
 
         /// <summary>
@@ -95,6 +113,9 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
                 return compareResult < 0 ? OrderResult.PreferFirst : OrderResult.PreferSecond;
             }
         }
+
+        /// <nodoc />
+        public static int ToCompareResult(this OrderResult orderResult) => (int)orderResult;
 
         /// <summary>
         /// Compare two operands and returns true if two instances are equivalent.

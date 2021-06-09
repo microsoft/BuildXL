@@ -9,9 +9,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
+using BuildXL.Cache.ContentStore.Distributed.Test.MetadataService;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -28,9 +30,12 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
+using BuildXL.Native.IO;
+using ContentStoreTest.Distributed.ContentLocation.NuCache;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -87,6 +92,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected MemoryContentLocationEventStoreConfiguration MemoryEventStoreConfiguration { get; } = new MemoryContentLocationEventStoreConfiguration();
 
         protected TestHost Host { get; } = new TestHost();
+        protected TestInfo[] TestInfos { get; private set; }
 
         public LocalLocationStoreDistributedContentTestsBase(LocalRedisFixture redis, ITestOutputHelper output)
             : base(output)
@@ -156,6 +162,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                // Specify event hub and storage secrets even thoug they are not used in tests to satisfy DistributedContentStoreFactory
                                EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
                                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
+                               ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),
 
                                IsContentLocationDatabaseEnabled = true,
                                UseDistributedCentralStorage = true,
@@ -232,7 +239,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     GrpcPort = grpcPort,
                     GrpcPortFileName = Guid.NewGuid().ToString(),
-                    ScenarioName = _overrideScenarioName ?? Guid.NewGuid().ToString(),
+                    ScenarioName = $"{_overrideScenarioName}_{index}" ?? Guid.NewGuid().ToString(),
                     MaxProactivePushRequestHandlers = ProactivePushCountLimit,
                 }
             };
@@ -261,7 +268,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileSystem: FileSystem
             );
 
-            arguments.Overrides = new TestHostOverrides(this, index);
+            arguments.Overrides = TestInfos[index].Overrides;
 
             if (UseGrpcServer)
             {
@@ -308,11 +315,33 @@ namespace ContentStoreTest.Distributed.Sessions
             base.Dispose(disposing);
         }
 
+        protected override void InitializeTestRun(int storeCount)
+        {
+            var persistentState = new MockPersistentEventStorageState();
+            TestInfos = Enumerable.Range(0, storeCount).Select(i =>
+            {
+                return new TestInfo()
+                {
+                    Overrides = new TestHostOverrides(this, i)
+                    {
+                        PersistentState = persistentState
+                    }
+                };
+            }).ToArray();
+
+            base.InitializeTestRun(storeCount);
+        }
+
         public class TestDistributedContentSettings : DistributedContentSettings
         {
             public int TestMachineIndex { get; set; }
 
             public int TestIteration { get; set; } = 0;
+        }
+
+        protected class TestInfo
+        {
+            public TestHostOverrides Overrides;
         }
 
         protected class TestHost : IDistributedCacheServiceHost
@@ -349,10 +378,30 @@ namespace ContentStoreTest.Distributed.Sessions
             private readonly LocalLocationStoreDistributedContentTestsBase _tests;
             private readonly int _storeIndex;
 
+            public FailureMode PersistentFailureMode { get; set; } = FailureMode.None;
+            public FailureMode VolatileFailureMode { get; set; } = FailureMode.None;
+            public MockPersistentEventStorageState PersistentState { get; set; } = new MockPersistentEventStorageState();
+
             public TestHostOverrides(LocalLocationStoreDistributedContentTestsBase tests, int storeIndex)
             {
                 _tests = tests;
                 _storeIndex = storeIndex;
+            }
+
+            public override IWriteBehindEventStorage PersistentEventStorage
+            {
+                get
+                {
+                    return new FailingPersistentEventStorage(
+                        PersistentFailureMode,
+                        new MockPersistentEventStorage(PersistentState));
+                }
+            }
+
+            public override IWriteAheadEventStorage Override(IWriteAheadEventStorage storage)
+            {
+                var failingStorage = new FailingVolatileEventStorage(VolatileFailureMode, storage);
+                return failingStorage;
             }
 
             public override IClock Clock => _tests.TestClock;

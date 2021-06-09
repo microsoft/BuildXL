@@ -44,10 +44,10 @@ namespace BuildXL.Cache.Host.Configuration
         WriteDistributed = 1 << 3,
 
         /// <nodoc />
-        PreferRedis = ReadBoth,
+        PreferRedis = 1 << 4 | ReadBoth,
 
         /// <nodoc />
-        PreferDistributed = 1 << 4 | ReadBoth,
+        PreferDistributed = 1 << 5 | ReadBoth,
 
         /// <nodoc />
         PreferenceMask = PreferRedis | PreferDistributed,

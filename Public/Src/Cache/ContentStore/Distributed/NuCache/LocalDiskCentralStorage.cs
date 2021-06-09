@@ -27,6 +27,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Contract.Requires(configuration != null);
 
             _workingDirectory = configuration.WorkingDirectory;
+            if (!string.IsNullOrEmpty(configuration.ContainerName))
+            {
+                _workingDirectory /= configuration.ContainerName;
+            }
         }
 
         protected override Task<Result<string>> UploadFileCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool garbageCollect)

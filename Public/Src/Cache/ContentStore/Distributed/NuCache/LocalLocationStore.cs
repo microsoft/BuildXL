@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
@@ -112,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly VolatileSet<ShortHash> _recentlyRemovedHashes;
 
         private DateTime _lastCheckpointTime;
-        private Task<BoolResult> _pendingProcessCheckpointTask;
+        private Task<BoolResult> _pendingProcessCheckpointTask = BoolResult.SuccessTask;
         private readonly object _pendingProcessCheckpointTaskLock = new object();
 
         private DateTime _lastRestoreTime;
@@ -159,13 +160,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly MachineList.Settings _machineListSettings;
 
+        public IHeartbeatObserver? HeartbeatObserver { get; }
+
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
             IGlobalLocationStore globalStore,
             IContentMetadataStore contentMetadataStore,
             LocalLocationStoreConfiguration configuration,
-            DistributedContentCopier copier)
+            DistributedContentCopier copier,
+            IHeartbeatObserver? observer = null)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(globalStore);
@@ -175,6 +179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Configuration = configuration;
             GlobalStore = globalStore;
             ContentMetadataStore = contentMetadataStore;
+            HeartbeatObserver = observer;
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ShortHash>(clock);
@@ -184,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             Contract.Assert(Configuration.IsValidForLls());
 
-            _innerCentralStorage = CreateCentralStorage(Configuration.CentralStore);
+            _innerCentralStorage = Configuration.CentralStore.CreateCentralStorage();
 
             if (Configuration.DistributedCentralStore != null)
             {
@@ -276,20 +281,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 CentralStorage,
                 configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder,
                 _clock);
-        }
-
-        private CentralStorage CreateCentralStorage(CentralStoreConfiguration configuration)
-        {
-            // TODO: Validate configuration before construction (bug 1365340)
-            switch (configuration)
-            {
-                case LocalDiskCentralStoreConfiguration localDiskConfig:
-                    return new LocalDiskCentralStorage(localDiskConfig);
-                case BlobCentralStoreConfiguration blobStoreConfig:
-                    return new BlobCentralStorage(blobStoreConfig);
-                default:
-                    throw new NotSupportedException();
-            }
         }
 
         /// <summary>
@@ -688,6 +679,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         ClusterState.SetMasterMachine(checkpointState.Value.Master);
 
+                        HeartbeatObserver?.OnSuccessfulHeartbeatAsync(context, checkpointState.Value.Role).FireAndForget(context);
+
                         var processStateResult = await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
                         if (!processStateResult)
                         {
@@ -751,19 +744,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, object locker, PerformAsyncOperationBuilder<BoolResult> operation, out bool factoryWasCalled, [CallerMemberName] string caller = null)
         {
+            Contract.Requires(pendingTask != null);
+
             factoryWasCalled = false;
             if (inline)
             {
-                operation.AppendStartMessage(extraStartMessage: "inlined=true");
-                return operation.RunAsync(caller);
+                var priorPendingTask = pendingTask;
+                async Task<BoolResult> runInlineAsync()
+                {
+                    await priorPendingTask.IgnoreErrorsAndReturnCompletion();
+
+                    operation.AppendStartMessage(extraStartMessage: "inlined=true");
+                    return await operation.RunAsync(caller);
+                }
+
+                factoryWasCalled = true;
+                pendingTask = runInlineAsync();
+                return pendingTask;
             }
 
             // Using a separate method to avoid a race condition.
-            if (pendingTaskIsNullOrCompleted(pendingTask))
+            if (pendingTask.IsCompleted)
             {
                 lock (locker)
                 {
-                    if (pendingTaskIsNullOrCompleted(pendingTask))
+                    if (pendingTask.IsCompleted)
                     {
                         factoryWasCalled = true;
                         pendingTask = Task.Run(() => operation.RunAsync(caller));
@@ -772,11 +777,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return BoolResult.SuccessTask;
-
-            static bool pendingTaskIsNullOrCompleted(Task task)
-            {
-                return task == null || task.IsCompleted;
-            }
         }
 
         internal async Task<BoolResult> CreateCheckpointAsync(OperationContext context)

@@ -4,6 +4,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -14,8 +15,12 @@ using Grpc.Core;
 using ProtoBuf.Grpc.Client;
 using ProtoBuf.Grpc.Configuration;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    /// <summary>
+    /// Creates a gRPC connection to the CASaaS master, and returns a client that implements <typeparamref name="T"/>
+    /// by talking via gRPC with it.
+    /// </summary>
     public class GrpcMasterClientFactory<T> : StartupShutdownSlimBase, IClientFactory<T>
         where T : class
     {

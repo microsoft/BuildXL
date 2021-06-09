@@ -101,7 +101,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <returns>Whether the process exited.</returns>
         public bool WaitForExit(int milliseconds = -1)
         {
-            return _process.WaitForExit(milliseconds) && _outputWaitHandle.WaitOne(milliseconds) && _errorWaitHandle.WaitOne(milliseconds);
+            bool outputExited = _outputWaitHandle.WaitOne(milliseconds);
+            bool errorExited = _errorWaitHandle.WaitOne(milliseconds);
+            bool processExited = _process.HasExited || _process.WaitForExit(milliseconds);
+
+            return processExited && outputExited && errorExited;
         }
 
         /// <summary>

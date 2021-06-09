@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
@@ -69,7 +70,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             private readonly bool _traceStoreStatistics;
             public readonly Context Context;
-            public readonly Context[] StoreContexts;
+            public readonly OperationContext[] StoreContexts;
             public readonly TestFileCopier TestFileCopier;
             public readonly IRemoteFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
@@ -102,7 +103,7 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
-                StoreContexts = stores.Select((s, index) => CreateContext(index, iteration)).ToArray();
+                StoreContexts = stores.Select((s, index) => new OperationContext(CreateContext(index, iteration))).ToArray();
                 TestFileCopier = fileCopier as TestFileCopier;
                 FileCopier = fileCopier;
                 Directories = directories;
@@ -126,7 +127,7 @@ namespace ContentStoreTest.Distributed.Sessions
             private Context CreateContext(int index, int iteration)
             {
                 var idBytes = Enumerable.Repeat(byte.MaxValue, 16).ToArray();
-                
+
                 idBytes[0] = (byte)index;
                 idBytes[5] = (byte)iteration;
 
@@ -275,6 +276,9 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 return session;
             }
+
+            public ResilientContentMetadataService GetContentMetadataService(int? idx = null) =>
+                (ResilientContentMetadataService)GetLocalLocationStore(idx ?? GetMasterIndex()).HeartbeatObserver;
 
             public LocalLocationStore GetLocalLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).LocalLocationStore;
@@ -839,6 +843,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        protected virtual void InitializeTestRun(int storeCount)
+        {
+        }
+
         public async Task RunTestAsync(
             Context context,
             int storeCount,
@@ -856,8 +864,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / (i + startIndex).ToString()) })
                 .ToList();
 
+            InitializeTestRun(storeCount);
+
             try
             {
+                var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
+
                 for (int iteration = 0; iteration < iterations; iteration++)
                 {
                     if (testCopier != null)
@@ -871,8 +883,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     };
 
                     _tracer.Always(context, $"Starting test iteration {iteration}");
-
-                    var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
 
                     IRemoteFileCopier[] testFileCopiers;
                     if (UseGrpcServer && storeCount > 1)

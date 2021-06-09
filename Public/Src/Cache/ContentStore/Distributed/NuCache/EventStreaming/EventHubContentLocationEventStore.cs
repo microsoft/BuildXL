@@ -448,9 +448,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected override BoolResult DoStartProcessing(OperationContext context, EventSequencePoint sequencePoint)
         {
             _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
-            _eventHubClient.StartProcessing(context, sequencePoint, _currentEventProcessor).ThrowIfFailure();
-
             _lastProcessedSequencePoint = sequencePoint;
+
+            _eventHubClient.StartProcessing(context, sequencePoint, _currentEventProcessor).ThrowIfFailure();
             return BoolResult.Success;
         }
 

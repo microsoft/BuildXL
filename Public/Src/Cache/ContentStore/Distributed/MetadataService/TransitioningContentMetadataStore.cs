@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -13,11 +14,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-using Google.Protobuf.WellKnownTypes;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public class TransitioningContentMetadataStore : StartupShutdownSlimBase, IContentMetadataStore
     {
@@ -25,6 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly IContentMetadataStore _distributedStore;
         private readonly RedisContentLocationStoreConfiguration _configuration;
         private readonly bool _preferDistributed;
+        private readonly bool _preferRedis;
 
         public bool AreBlobsSupported => _redisStore.AreBlobsSupported && _distributedStore.AreBlobsSupported;
 
@@ -40,6 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _redisStore = redisStore;
             _distributedStore = distributedStore;
             _preferDistributed = configuration.ContentMetadataStoreModeFlags.HasFlag(ContentMetadataStoreModeFlags.PreferDistributed);
+            _preferRedis = configuration.ContentMetadataStoreModeFlags.HasFlag(ContentMetadataStoreModeFlags.PreferRedis);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -99,15 +100,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             string caller)
             where TResult : ResultBase
         {
-            var flags = _configuration.ContentMetadataStoreModeFlags & modeMask;
-            var redisTask = MeasuredExecuteAsync(_redisStore, flags & ContentMetadataStoreModeFlags.Redis, executeAsync);
+            var mode = _configuration.ContentMetadataStoreModeFlags & modeMask;
+            var preference = _configuration.ContentMetadataStoreModeFlags & ContentMetadataStoreModeFlags.PreferenceMask;
+            var redisTask = MeasuredExecuteAsync(_redisStore, mode & ContentMetadataStoreModeFlags.Redis, executeAsync);
+            var distributedTask = MeasuredExecuteAsync(_distributedStore, mode & ContentMetadataStoreModeFlags.Distributed, executeAsync);
 
             string extraEndMessage = null;
             var combinedResultTask = context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    var distributedTask = MeasuredExecuteAsync(_distributedStore, flags & ContentMetadataStoreModeFlags.Distributed, executeAsync);
                     var (redisResult, distributedResult) = await WhenBothAsync(redisTask, distributedTask);
                     var result = _preferDistributed ? distributedResult : redisResult;
                     extraEndMessage = $"Redis={redisResult.message}, Distrib={distributedResult.message}";
@@ -116,10 +118,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 caller: caller,
                 extraEndMessage: r => extraEndMessage);
 
-            if ((flags & ContentMetadataStoreModeFlags.PreferRedis) != 0)
+            if (_preferRedis)
             {
                 // If preferring redis, return the redis result without waiting for combined result
                 return (await redisTask).result;
+            }
+            else if (_preferDistributed)
+            {
+                // If preferring distributed, return the distributed result without waiting for combined result
+                return (await distributedTask).result;
             }
             else
             {
@@ -142,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             await Task.Yield();
             var sw = StopwatchSlim.Start();
             var result = await executeAsync(store);
-            string message = $"[{Math.Round(sw.Elapsed.TotalMilliseconds, 3)}ms, {result.GetStatus()}]";
+            var message = $"[{Math.Round(sw.Elapsed.TotalMilliseconds, 3)}ms, {result.GetStatus()}]";
             return (result, message);
         }
 

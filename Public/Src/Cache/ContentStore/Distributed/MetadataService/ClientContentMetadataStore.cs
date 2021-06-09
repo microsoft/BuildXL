@@ -5,16 +5,15 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
-using Grpc.Core;
-using Microsoft.WindowsAzure.Storage.RetryPolicies;
+using ProtoBuf.Grpc;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
     /// Interface that represents a global content metadata store which routes requests to a remote machine
@@ -23,15 +22,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         public bool AreBlobsSupported => false;
 
-        private MachineId MachineId => _globalStore.ClusterState.PrimaryMachineId;
-
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClientContentMetadataStore));
 
         private readonly IClientFactory<IContentMetadataService> _metadataServiceClientFactory;
 
         private readonly IGlobalLocationStore _globalStore;
 
-        private readonly Utils.IRetryPolicy _retryPolicy;
+        private readonly IRetryPolicy _retryPolicy;
 
         private readonly ClientContentMetadataStoreConfiguration _configuration;
 
@@ -41,10 +38,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _metadataServiceClientFactory = metadataServiceClientFactory;
             _configuration = configuration;
 
-            _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(exception =>
-            {
-                return true;
-            });
+            _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(
+                _ => true,
+                // We use an absurdly high retry count because the actual operation timeout is controlled through
+                // PerformOperationAsync in ExecuteAsync.
+                1_000_000,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                TimeSpan.FromSeconds(30));
         }
 
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -101,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     ContextId = context.TracingContext.TraceId,
                     Hashes = contentHashes,
-                });
+                }, context.Token);
 
                 if (response.Succeeded)
                 {
@@ -110,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 else
                 {
                     return new Result<IReadOnlyList<ContentLocationEntry>>(response.ErrorMessage, response.Diagnostics);
-                }                    
+                }
             });
         }
 
@@ -123,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     ContextId = context.TracingContext.TraceId,
                     Hashes = contentHashes,
                     MachineId = machineId,
-                });
+                }, context.Token);
 
                 if (response.Succeeded)
                 {

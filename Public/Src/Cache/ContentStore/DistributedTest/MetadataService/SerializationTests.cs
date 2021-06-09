@@ -4,9 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using ProtoBuf;
 using ProtoBuf.Meta;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -70,6 +73,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         }
 
         [Fact]
+        public void RegisterContentLocationsRequestRoundtrip()
+        {
+            var model = MetadataServiceSerializer.TypeModel;
+
+            var schema = MetadataServiceSerializer.TypeModel.GetSchema(typeof(RegisterContentLocationsRequest));
+
+            var obj = new RegisterContentLocationsRequest()
+            {
+                ContextId = "1",
+                Hashes = new List<ShortHashWithSize>() {
+                    (ContentHash.Random(), 42),
+                },
+                MachineId = new MachineId(79)
+            };
+
+            var deserialized = Roundtrip(model, obj);
+
+            var b1 = ToByteArray(ms => MetadataServiceSerializer.TypeModel.Serialize(ms, obj));
+            var b2 = ToByteArray(ms => MetadataServiceSerializer.TypeModel.SerializeWithLengthPrefix(ms, obj, typeof(RegisterContentLocationsRequest), PrefixStyle.Base128, 51));
+            var b3 = ToByteArray(ms => MetadataServiceSerializer.TypeModel.SerializeWithLengthPrefix(ms, obj, typeof(RegisterContentLocationsRequest), PrefixStyle.Fixed32, 51));
+
+        }
+
+        [Fact]
         public void GetContentLocationsRequestRoundtrip()
         {
             var model = MetadataServiceSerializer.TypeModel;
@@ -81,6 +108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                     ContentHash.Random(),
                 },
             };
+
 
             var deserialized = Roundtrip(model, obj);
 
@@ -116,6 +144,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             // Equality seems to be defined wrong for the record type somehow. However, the deserialization does result
             // in the same objects.
             // Assert.Equal(obj, deserialized);
+        }
+
+        private byte[] ToByteArray(Action<MemoryStream> serialize)
+        {
+            var stream = new MemoryStream();
+            serialize(stream);
+            return stream.ToArray();
         }
 
         private void CheckSerializationRoundtrip(RuntimeTypeModel model, ContentLocationEntry obj)

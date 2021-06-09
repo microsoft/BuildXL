@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
@@ -22,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// Creates <see cref="IContentLocationStore"/> instance backed by Local Location Store.
     /// </summary>
-    public class ContentLocationStoreFactory : StartupShutdownBase, IContentLocationStoreFactory
+    public class ContentLocationStoreFactory : StartupShutdownBase, IContentLocationStoreFactory, IRedisDatabaseFactory
     {
         /// <summary>
         /// Default value for keyspace used for partitioning Redis data
@@ -39,10 +40,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         // Maintain the same connection multiplexer to reuse across sessions
 
         /// <nodoc />
-        protected readonly IClock Clock;
+        protected IClock Clock => Arguments.Clock;
 
         /// <nodoc />
-        protected readonly DistributedContentCopier Copier;
+        protected DistributedContentCopier Copier => Arguments.Copier;
 
         /// <nodoc />
         protected string KeySpace => Configuration.Keyspace;
@@ -50,29 +51,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         protected readonly RedisContentLocationStoreConfiguration Configuration;
 
-        /// <nodoc />
-        protected RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStore;
+        protected ContentLocationStoreFactoryArguments Arguments { get; }
+
+        public IHeartbeatObserver Observer { get; set; } = new NullHeartbeatObserver();
 
         /// <nodoc />
-        protected RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStoreSecondary;
+        public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStore;
+
+        /// <nodoc />
+        public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStoreSecondary;
 
         private readonly Lazy<LocalLocationStore> _lazyLocalLocationStore;
+
+        public ContentLocationStoreFactory(
+            IClock clock,
+            RedisContentLocationStoreConfiguration configuration,
+            DistributedContentCopier copier)
+            : this(
+                new ContentLocationStoreFactoryArguments()
+                {
+                    Clock = clock,
+                    Copier = copier
+                },
+                configuration)
+        {
+
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentLocationStoreFactory"/> class.
         /// </summary>
         public ContentLocationStoreFactory(
-            IClock clock,
-            RedisContentLocationStoreConfiguration configuration,
-            DistributedContentCopier copier)
+            ContentLocationStoreFactoryArguments arguments,
+            RedisContentLocationStoreConfiguration configuration)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(!string.IsNullOrEmpty(configuration.RedisGlobalStoreConnectionString));
             Contract.Requires(!string.IsNullOrWhiteSpace(configuration.Keyspace));
-            Contract.Requires(copier != null);
+            Contract.Requires(arguments.Copier != null);
 
-            Clock = clock;
-            Copier = copier;
+            Arguments = arguments;
             _lazyLocalLocationStore = new Lazy<LocalLocationStore>(() => CreateLocalLocationStore());
             Configuration = configuration;
         }
@@ -98,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             var globalStore = CreateRedisGlobalStore();
             var contentMetadataStore = CreateContentMetadataStore(globalStore);
-            var localLocationStore = new LocalLocationStore(Clock, globalStore, contentMetadataStore, Configuration, Copier);
+            var localLocationStore = new LocalLocationStore(Clock, globalStore, contentMetadataStore, Configuration, Copier, Observer);
             return localLocationStore;
         }
 
@@ -172,6 +190,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return globalStore;
         }
 
+        internal RedisDatabaseAdapter CreateRedisDatabase(string databaseName)
+        {
+            return CreateDatabase(RedisDatabaseFactoryForRedisGlobalStore, databaseName)!;
+        }
+
         private RedisDatabaseAdapter? CreateDatabase(RedisDatabaseFactory? factory, string databaseName, bool optional = false)
         {
             if (factory != null)
@@ -216,6 +239,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
 
             return BoolResult.Success;
+        }
+
+        async Task<RedisDatabaseAdapter> IRedisDatabaseFactory.CreateAsync(OperationContext context, string databaseName, string connectionString)
+        {
+            var factory = await RedisDatabaseFactory.CreateAsync(
+                context,
+                new LiteralConnectionStringProvider(connectionString),
+                Configuration.RedisConnectionMultiplexerConfiguration);
+
+            return CreateDatabase(factory, databaseName)!;
         }
     }
 }

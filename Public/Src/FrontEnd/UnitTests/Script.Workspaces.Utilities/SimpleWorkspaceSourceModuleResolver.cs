@@ -13,11 +13,11 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
-using ValueTask = BuildXL.Utilities.Tasks.ValueTask;
 
 namespace Test.DScript.Workspaces.Utilities
 {
@@ -57,7 +57,7 @@ namespace Test.DScript.Workspaces.Utilities
         /// <nodoc/>
         public ValueTask<Possible<ModuleDefinition>> TryGetModuleDefinitionAsync(ModuleDescriptor moduleDescriptor)
         {
-            return ValueTask.FromResult(m_moduleDefinitions.ContainsKey(moduleDescriptor)
+            return ValueTaskFactory.FromResult(m_moduleDefinitions.ContainsKey(moduleDescriptor)
                 ? new Possible<ModuleDefinition>(m_moduleDefinitions[moduleDescriptor])
                 : new Possible<ModuleDefinition>(
                     new ModuleNotFoundInSimpleSourceResolverFailure(moduleDescriptor)));
@@ -67,7 +67,7 @@ namespace Test.DScript.Workspaces.Utilities
         public ValueTask<Possible<IReadOnlyCollection<ModuleDescriptor>>> TryGetModuleDescriptorsAsync(ModuleReferenceWithProvenance moduleReference)
         {
             return
-                ValueTask.FromResult(
+                ValueTaskFactory.FromResult(
                     new Possible<IReadOnlyCollection<ModuleDescriptor>>(
                         m_moduleDefinitions.Keys.Where(moduleDescriptor => moduleDescriptor.Name.Equals(moduleReference.Name))
                             .ToList()));
@@ -80,12 +80,12 @@ namespace Test.DScript.Workspaces.Utilities
             {
                 if (moduleDefinition.Specs.Contains(specPath))
                 {
-                    return ValueTask.FromResult(new Possible<ModuleDescriptor>(moduleDefinition.Descriptor));
+                    return ValueTaskFactory.FromResult(new Possible<ModuleDescriptor>(moduleDefinition.Descriptor));
                 }
             }
 
             return
-                ValueTask.FromResult(
+                ValueTaskFactory.FromResult(
                     new Possible<ModuleDescriptor>(new ModuleNotFoundInSimpleSourceResolverFailure(specPath)));
         }
 
@@ -93,7 +93,7 @@ namespace Test.DScript.Workspaces.Utilities
         public ValueTask<Possible<HashSet<ModuleDescriptor>>> GetAllKnownModuleDescriptorsAsync()
         {
             return
-                ValueTask.FromResult(
+                ValueTaskFactory.FromResult(
                     new Possible<HashSet<ModuleDescriptor>>(new HashSet<ModuleDescriptor>(m_moduleDefinitions.Keys)));
         }
 

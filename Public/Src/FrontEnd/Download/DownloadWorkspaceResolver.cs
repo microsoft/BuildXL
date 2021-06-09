@@ -17,7 +17,7 @@ using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using ValueTask = BuildXL.Utilities.Tasks.ValueTask;
+using ValueTaskFactory = BuildXL.Utilities.Tasks.ValueTaskFactory;
 
 namespace BuildXL.FrontEnd.Download
 {
@@ -195,10 +195,10 @@ namespace BuildXL.FrontEnd.Download
 
             if (m_definitions.TryGetValue(moduleDescriptor, out var result))
             {
-                return ValueTask.FromResult(Possible.Create(result));
+                return ValueTaskFactory.FromResult(Possible.Create(result));
             }
 
-            return ValueTask.FromResult((Possible<ModuleDefinition>)new ModuleNotOwnedByThisResolver(moduleDescriptor));
+            return ValueTaskFactory.FromResult((Possible<ModuleDefinition>)new ModuleNotOwnedByThisResolver(moduleDescriptor));
         }
 
         /// <inheritdoc />
@@ -216,7 +216,7 @@ namespace BuildXL.FrontEnd.Download
                 result = CollectionUtilities.EmptyArray<ModuleDescriptor>();
             }
 
-            return ValueTask.FromResult(Possible.Create(result));
+            return ValueTaskFactory.FromResult(Possible.Create(result));
         }
 
         /// <inheritdoc />
@@ -226,11 +226,11 @@ namespace BuildXL.FrontEnd.Download
 
             if (m_descriptorsBySpecPath.TryGetValue(specPath, out var result))
             {
-                return ValueTask.FromResult(Possible.Create(result));
+                return ValueTaskFactory.FromResult(Possible.Create(result));
             }
 
             var notOwnedFailure = new SpecNotOwnedByResolverFailure(specPath.ToString(m_context.PathTable));
-            return ValueTask.FromResult((Possible<ModuleDescriptor>)notOwnedFailure);
+            return ValueTaskFactory.FromResult((Possible<ModuleDescriptor>)notOwnedFailure);
         }
 
         /// <inheritdoc />

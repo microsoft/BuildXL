@@ -22,7 +22,7 @@ namespace BuildXL.Ide.JsonRpc
         {
             m_pushRpc
                 .NotifyWithParameterObjectAsync(TraceTargetName, LogMessageParams.Create(level, message))
-                .IgnoreErrors();
+                .IgnoreErrorsAndReturnCompletion();
         }
     }
 }

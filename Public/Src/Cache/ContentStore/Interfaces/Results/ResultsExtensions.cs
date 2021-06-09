@@ -139,6 +139,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Maps result into different result type or propagates error to result type
         /// </summary>
+        public static Result<TResult> Select<TResult>(this BoolResult result, Func<TResult> selector)
+        {
+            if (result.Succeeded)
+            {
+                return Result.Success(selector());
+            }
+            else
+            {
+                return new Result<TResult>(result);
+            }
+        }
+
+        /// <summary>
+        /// Maps result into different result type or propagates error to result type
+        /// </summary>
         public static Result<TResult> Select<T, TResult>(this Result<T> result, Func<T, TResult> selector)
         {
             if (result.Succeeded)

@@ -36,5 +36,13 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         /// <inheritdoc cref="AsMemoryStream(System.ReadOnlyMemory{byte},out bool)"/>
         public static MemoryStream AsMemoryStream(this ReadOnlyMemory<byte> input) => input.AsMemoryStream(out _);
+
+        /// <summary>
+        /// Creates a ReadOnlyMemory for the entire span of the memory stream
+        /// </summary>
+        public static ReadOnlyMemory<byte> AsReadOnlyMemory(this MemoryStream stream)
+        {
+            return stream.GetBuffer().AsMemory(0, (int)stream.Length);
+        }
     }
 }

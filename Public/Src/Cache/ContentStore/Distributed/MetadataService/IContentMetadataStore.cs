@@ -1,22 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.MemoizationStore.Interfaces.Results;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
     /// Interface that represents a central store (currently backed by Redis).

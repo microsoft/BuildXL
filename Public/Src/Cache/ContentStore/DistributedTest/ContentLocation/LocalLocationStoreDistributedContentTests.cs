@@ -128,7 +128,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var context = new OperationContext(new Context(Logger));
             var tracer = new Tracer("tracer");
             var locker = new object();
-            Task<BoolResult> task = null;
+            Task<BoolResult> task = BoolResult.SuccessTask;
 
             var operation = context.CreateOperation(tracer,
                 async () =>
@@ -156,7 +156,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var context = new OperationContext(new Context(Logger));
             var tracer = new Tracer("tracer");
             var locker = new object();
-            Task<BoolResult> task = null;
+            Task<BoolResult> task = BoolResult.SuccessTask;
 
             var operation = context.CreateOperation(tracer,
                 async () =>
@@ -168,7 +168,7 @@ namespace ContentStoreTest.Distributed.Sessions
             Task<BoolResult> result = LocalLocationStore.RunOutOfBandAsync(inline: true, ref task, locker, operation, out _);
 
             result.IsCompleted.Should().BeFalse("The task should not be completed synchronously.");
-            task.Should().BeNull("Task is not set when inline is true");
+            task.Should().NotBeNull("Task is set when inline is true");
         }
 
         [Theory]

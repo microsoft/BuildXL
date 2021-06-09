@@ -350,15 +350,6 @@ namespace BuildXL.Utilities.Tasks
         /// <summary>
         /// "Swallow" an exception that happen in fire-and-forget task.
         /// </summary>
-        public static Task IgnoreErrors(this Task task)
-        {
-            task.ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
-            return task;
-        }
-
-        /// <summary>
-        /// "Swallow" an exception that happen in fire-and-forget task.
-        /// </summary>
         public static Task IgnoreErrorsAndReturnCompletion(this Task task)
         {
             return task.ContinueWith(t =>
@@ -449,6 +440,40 @@ namespace BuildXL.Utilities.Tasks
                 // due to TaskUnobservedException.
                 task.Forget();
                 throw new TimeoutException($"The operation has timed out. Timeout is '{timeout}'.");
+            }
+        }
+
+        /// <nodoc />
+        public static async Task<Optional<T>> WaitAsync<T>(this Task<T> task, TimeSpan? timeout = null)
+        {
+            timeout ??= Timeout.InfiniteTimeSpan;
+
+            if (timeout == Timeout.InfiniteTimeSpan)
+            {
+                return await task;
+            }
+            else if (timeout == TimeSpan.Zero)
+            {
+                if (task.IsCompleted)
+                {
+                    return await task;
+                }
+                else
+                {
+                    return Optional<T>.Empty;
+                }
+            }
+
+            var completedTask = await Task.WhenAny(task, Task.Delay(timeout.Value));
+            completedTask.Forget();
+
+            if (task.IsCompleted)
+            {
+                return await task;
+            }
+            else
+            {
+                return Optional<T>.Empty;
             }
         }
 

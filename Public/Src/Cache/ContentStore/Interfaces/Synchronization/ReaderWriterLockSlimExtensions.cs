@@ -12,8 +12,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization
     public static class ReaderWriterLockSlimExtensions
     {
         /// <nodoc />
+        public static bool TryAcquireReadLock(this ReaderWriterLockSlim @lock, out ReadLockExiter exiter)
+        {
+            if (@lock.TryEnterReadLock(0))
+            {
+                exiter = new ReadLockExiter(@lock);
+                return true;
+            }
+            else
+            {
+                exiter = default;
+                return false;
+            }
+        }
+
+        /// <nodoc />
         public static ReadLockExiter AcquireReadLock(this ReaderWriterLockSlim @lock)
         {
+            @lock.EnterReadLock();
             return new ReadLockExiter(@lock);
         }
 
@@ -26,7 +42,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization
             internal ReadLockExiter(ReaderWriterLockSlim @lock)
             {
                 _lock = @lock;
-                @lock.EnterReadLock();
             }
 
             /// <inheritdoc />
@@ -39,6 +54,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization
         /// <nodoc />
         public static UpgradeableReadLockExiter AcquireUpgradeableRead(this ReaderWriterLockSlim @lock)
         {
+            @lock.EnterUpgradeableReadLock();
             return new UpgradeableReadLockExiter(@lock);
         }
 
@@ -51,7 +67,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization
             internal UpgradeableReadLockExiter(ReaderWriterLockSlim @lock)
             {
                 _lock = @lock;
-                @lock.EnterUpgradeableReadLock();
             }
 
             /// <inheritdoc />
@@ -75,6 +90,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization
         /// <nodoc />
         public static WriteLockExiter AcquireWriteLock(this ReaderWriterLockSlim @lock)
         {
+            @lock.EnterWriteLock();
             return new WriteLockExiter(@lock);
         }
 
@@ -87,7 +103,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization
             internal WriteLockExiter(ReaderWriterLockSlim @lock)
             {
                 _lock = @lock;
-                @lock.EnterWriteLock();
             }
 
             /// <inheritdoc />

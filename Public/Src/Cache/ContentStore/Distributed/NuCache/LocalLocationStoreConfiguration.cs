@@ -392,30 +392,28 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Base class for a central store configuration.
     /// </summary>
-    public class CentralStoreConfiguration
+    public record CentralStoreConfiguration(string CentralStateKeyBase, string ContainerName)
     {
-        /// <summary>
-        /// The key used to store checkpoints information in Redis.
-        /// </summary>
-        public string CentralStateKeyBase { get; }
-
-        /// <nodoc />
-        public CentralStoreConfiguration(string checkpointsKey) => CentralStateKeyBase = checkpointsKey;
+        public CentralStorage CreateCentralStorage()
+        {
+            // TODO: Validate configuration before construction (bug 1365340)
+            switch (this)
+            {
+                case LocalDiskCentralStoreConfiguration localDiskConfig:
+                    return new LocalDiskCentralStorage(localDiskConfig);
+                case BlobCentralStoreConfiguration blobStoreConfig:
+                    return new BlobCentralStorage(blobStoreConfig);
+                default:
+                    throw new NotSupportedException();
+            }
+        }
     }
 
     /// <summary>
     /// Configuration for <see cref="DistributedCentralStorage"/>
     /// </summary>
-    public class DistributedCentralStoreConfiguration
+    public record DistributedCentralStoreConfiguration(AbsolutePath CacheRoot)
     {
-        /// <nodoc />
-        public DistributedCentralStoreConfiguration(AbsolutePath cacheRoot) => CacheRoot = cacheRoot;
-
-        /// <summary>
-        /// The working directory used by central store for storing 'uploaded' checkpoints.
-        /// </summary>
-        public AbsolutePath CacheRoot { get; }
-
         /// <summary>
         /// The time between iterations to wait for content to propagate to more machines
         /// </summary>
@@ -466,11 +464,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Configuration of a central store backed by azure blob storage.
     /// </summary>
-    public class BlobCentralStoreConfiguration : CentralStoreConfiguration
+    public record BlobCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <nodoc />
         public BlobCentralStoreConfiguration(IReadOnlyList<AzureBlobStorageCredentials> credentials, string containerName, string checkpointsKey)
-            : base(checkpointsKey)
+            : base(checkpointsKey, containerName)
         {
             Contract.Requires(!string.IsNullOrEmpty(containerName));
             Contract.Requires(!string.IsNullOrEmpty(checkpointsKey));
@@ -492,11 +490,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public IReadOnlyList<AzureBlobStorageCredentials> Credentials { get; }
 
         /// <summary>
-        /// The blob container name used to store checkpoints.
-        /// </summary>
-        public string ContainerName { get; }
-
-        /// <summary>
         /// The retention time for checkpoint blobs.
         /// </summary>
         public TimeSpan RetentionTime { get; set; } = TimeSpan.FromHours(5);
@@ -513,7 +506,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Configuration of a central store backed by a local file system.
     /// </summary>
-    public class LocalDiskCentralStoreConfiguration : CentralStoreConfiguration
+    public record LocalDiskCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <summary>
         /// The working directory used by central store for storing 'uploaded' checkpoints.
@@ -522,26 +515,34 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
         /// <nodoc />
         public LocalDiskCentralStoreConfiguration(AbsolutePath workingDirectory, string checkpointsKey)
-            : base(checkpointsKey) => WorkingDirectory = workingDirectory;
+            : base(checkpointsKey, ContainerName: "") => WorkingDirectory = workingDirectory;
+    }
+
+    public record CheckpointManagerConfiguration(AbsolutePath WorkingDirectory)
+    {
+        /// <summary>
+        /// The interval by which the checkpoint manager creates checkpoints.
+        /// </summary>
+        public TimeSpan CreateCheckpointInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <nodoc />
+        public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
+
+        /// <summary>
+        /// Time after which a restore checkpoint operation is automatically cancelled.
+        /// </summary>
+        public TimeSpan? RestoreCheckpointTimeout { get; set; }
     }
 
     /// <summary>
     /// Configuration used by for creating/restoring checkpoints.
     /// </summary>
-    public class CheckpointConfiguration
+    public record CheckpointConfiguration : CheckpointManagerConfiguration
     {
         /// <summary>
         /// Temporary configuration of a machine's role.
         /// </summary>
         public Role? Role { get; set; } = Distributed.Role.Worker;
-
-        /// <summary>
-        /// The working directory used by checkpoint manager for staging checkpoints before upload and restore.
-        /// </summary>
-        public AbsolutePath WorkingDirectory { get; }
-
-        /// <nodoc />
-        public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
 
         /// <summary>
         /// The time period before the master lease expires and is eligible to be taken by another machine.
@@ -554,11 +555,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
-        /// The interval by which the checkpoint manager creates checkpoints.
-        /// </summary>
-        public TimeSpan CreateCheckpointInterval { get; set; } = TimeSpan.FromMinutes(5);
-
-        /// <summary>
         /// The interval by which the checkpoint manager applies checkpoints to the local database.
         /// </summary>
         public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
@@ -567,11 +563,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Age threshold after which we should eagerly restore checkpoint blocking the caller.
         /// </summary>
         public TimeSpan RestoreCheckpointAgeThreshold { get; set; }
-
-        /// <summary>
-        /// Time after which a restore checkpoint operation is automatically cancelled.
-        /// </summary>
-        public TimeSpan? RestoreCheckpointTimeout { get; set; }
 
         /// <summary>
         /// The interval by which LLS' heartbeat will update the cluster state. Default is to do it on every heartbeat.
@@ -594,6 +585,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool PacemakerUseRandomIdentifier { get; set; } = false;
 
         /// <nodoc />
-        public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;
+        public CheckpointConfiguration(AbsolutePath workingDirectory) : base(workingDirectory) { }
     }
 }

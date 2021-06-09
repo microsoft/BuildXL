@@ -9,32 +9,26 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore.Sketching;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using Microsoft.WindowsAzure.Storage.Table;
-using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
     /// RocksDb-based version of <see cref="ContentLocationDatabase"/>.
@@ -42,6 +36,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public sealed class RocksDbContentMetadataDatabase : ContentLocationDatabase
     {
         private readonly RocksDbContentLocationDatabaseConfiguration _configuration;
+
+        protected override Tracer Tracer { get; } = new Tracer(nameof(RocksDbContentMetadataDatabase));
 
         private KeyValueStoreGuard _keyValueStore;
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
@@ -153,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var result = Load(context, activeSlot, clean);
 
-            bool reload = false;
+            var reload = false;
 
             if (!clean)
             {
@@ -209,7 +205,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
-                bool dbAlreadyExists = Directory.Exists(storeLocation);
+                var dbAlreadyExists = Directory.Exists(storeLocation);
                 Directory.CreateDirectory(storeLocation);
 
                 Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, Configured Epoch='{_configuration.Epoch}'");
@@ -218,7 +214,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     new RocksDbStoreConfiguration(storeLocation)
                     {
                         AdditionalColumns = ColumnNames,
-                        RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
+                        RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : (ulong)"1MB".ToSize(),
                         RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
                         RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
                         EnableStatistics = true,
@@ -308,7 +304,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _storeLocation = storeLocation;
                 }
 
-                return possibleStore.Succeeded ? BoolResult.Success : new BoolResult($"Failed to initialize a RocksDb store at {_storeLocation}:", possibleStore.Failure.DescribeIncludingInnerFailures());
+                return possibleStore.Succeeded ? BoolResult.Success : new BoolResult($"Failed to initialize a RocksDb store at {storeLocation}:", possibleStore.Failure.DescribeIncludingInnerFailures());
             }
             catch (Exception ex) when (ex.IsRecoverableIoException())
             {
@@ -389,6 +385,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                        this).ThrowOnError();
                },
                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent],
+               extraEndMessage: r => $"NewActiveColumnsGroup={_activeColumnsGroup}",
                isCritical: true);
         }
 

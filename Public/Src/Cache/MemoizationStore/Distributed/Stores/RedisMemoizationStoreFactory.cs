@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -19,10 +20,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
         /// <nodoc />
         public RedisMemoizationStoreFactory(
-            IClock clock,
-            RedisMemoizationStoreConfiguration configuration,
-            DistributedContentCopier copier)
-            : base(clock, configuration, copier)
+            ContentLocationStoreFactoryArguments arguments,
+            RedisMemoizationStoreConfiguration configuration)
+            : base(arguments, configuration)
         {
         }
 

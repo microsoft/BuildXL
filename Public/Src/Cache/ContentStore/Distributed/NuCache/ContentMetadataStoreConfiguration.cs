@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -22,12 +23,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// The amount of time to wait for a connection to be established
         /// </summary>
-        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(20);
+        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
         /// The amount of time to wait for an operation to complete
         /// </summary>
-        public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(1);
+        public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(15);
     }
 
     /// <summary>

@@ -611,6 +611,11 @@ INTERPOSE(int, close, int fd) ({
     return bxl->fwd_close(fd).restore();
 })
 
+INTERPOSE(int, fclose, FILE *f) ({
+    bxl->reset_fd_table_entry(fileno(f));
+    return bxl->fwd_fclose(f).restore();
+})
+
 static void report_exit(int exitCode, void *args)
 {
     BxlObserver::GetInstance()->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
@@ -637,7 +642,6 @@ int main(int argc, char **argv)
 
 /* ============ Sometimes useful (for debugging) to interpose without access checking
 
-INTERPOSE(int, fclose, FILE *f)           ({ return bxl->fwd_fclose(f).restore(); })
 INTERPOSE(int, dup, int fd)               ({ return bxl->fwd_dup(fd).restore(); })
 INTERPOSE(int, dup2, int oldfd, int newfd)({ return bxl->fwd_dup2(oldfd, newfd).restore(); })
 

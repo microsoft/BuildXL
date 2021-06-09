@@ -642,6 +642,27 @@ int CallOpenFileThroughMultipleDirectorySymlinks()
     return (int)GetLastError();
 }
 
+int CallOpenFileThroughDirectorySymlinksSelectivelyEnforce()
+{
+    HANDLE hFile = CreateFileW(
+        L"F\\A.lnk\\D\\B.lnk\\e.txt",
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}
+
 int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve()
 {
     HANDLE hFile = CreateFileW(

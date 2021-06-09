@@ -91,7 +91,7 @@ namespace Test.BuildXL.Processes.Detours
             bool enforceAccessPoliciesOnDirectoryCreation = false,
             bool probeDirectorySymlinkAsDirectory = false,
             bool ignoreFullReparsePointResolving = true,
-            List<string> directoriesToEnableFullReparsePointParsing = null)
+            List<AbsolutePath> directoriesToEnableFullReparsePointParsing = null)
         {
             errorString = null;
 
@@ -7247,6 +7247,79 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [InlineData(@"F\A.lnk\D\B.lnk\e.txt", new[] { @"F\A.lnk\D\B.lnk\e.txt" })]
+        [InlineData(@"A", new[] { @"F\A.lnk\D\B.lnk\e.txt" })]
+        [InlineData(@"F\A.lnk\D\B.lnk", new[] { @"A\E\B1.lnk", @"F\A.lnk\D\B.lnk", @"A\B2\e.txt" })]
+        [InlineData(@"F\A.lnk\D", new[] { @"A\E\B1.lnk", @"F\A.lnk\D\B.lnk", @"A\B2\e.txt" })]
+        [InlineData(@"F\A.lnk", new[] { @"F\A.lnk", @"A\E\B1.lnk", @"A\D\B.lnk", @"A\B2\e.txt" })]
+        [InlineData(@"F", new[] { @"F\A.lnk", @"A\E\B1.lnk", @"A\D\B.lnk", @"A\B2\e.txt" })]
+        public async Task CallOpenFileThroughDirectorySymlinksSelectivelyEnforceAsync(string directoryToEnforceReparsePointsFor, string[] accessedFiles)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var directory_A = tempFiles.GetDirectory(pathTable, "A");
+                var directory_F = tempFiles.GetDirectory(pathTable, @"F");
+                var directory_A_B2 = tempFiles.GetDirectory(pathTable, @"A\B2");
+                var directory_A_D = tempFiles.GetDirectory(pathTable, @"A\D");
+                var directory_A_E = tempFiles.GetDirectory(pathTable, @"A\E");
+
+                // Create symlink from A.lnk -> A
+                var symlink_F_ALnk = tempFiles.GetFileName(pathTable, @"F\A.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_F_ALnk.Expand(pathTable).ExpandedPath, directory_A.Expand(pathTable).ExpandedPath, isTargetFile: false));
+
+                // Create symlink from A\B1.lnk -> A\B2
+                var symlink_A_E_B1Lnk = tempFiles.GetFileName(pathTable, @"A\E\B1.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_A_E_B1Lnk.Expand(pathTable).ExpandedPath, directory_A_B2.Expand(pathTable).ExpandedPath, isTargetFile: false));
+
+                // Create symlink from A\B.lnk -> A\B1.lnk
+                var symlink_A_D_BLnk = tempFiles.GetFileName(pathTable, @"A\D\B.lnk");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlink_A_D_BLnk.Expand(pathTable).ExpandedPath, symlink_A_E_B1Lnk.Expand(pathTable).ExpandedPath, isTargetFile: false));
+
+                var file_Alnk_D_Blnk_eTxt = tempFiles.GetFileName(pathTable, @"F\A.lnk\D\B.lnk\e.txt");
+                File.WriteAllText(file_Alnk_D_Blnk_eTxt.Expand(pathTable).ExpandedPath, "test");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallOpenFileThroughDirectorySymlinksSelectivelyEnforce",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                        accessedFiles.Select(accessedFile =>
+                        {
+                            return FileArtifact.CreateSourceFile(tempFiles.GetFileName(pathTable, accessedFile));
+                        }).ToArray()),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty); ;
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString,
+                    unexpectedFileAccessesAreErrors: false,
+                    ignoreFullReparsePointResolving: true,
+                    directoriesToEnableFullReparsePointParsing: new List<AbsolutePath>() { tempFiles.GetFileName(pathTable, directoryToEnforceReparsePointsFor) });
+                Console.WriteLine("FOO: " + process.StandardOutput.Path.ToString(pathTable));
+                VerifyNormalSuccess(context, result);
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, accessedFiles.Select(accessedFile =>
+                {
+                    return (tempFiles.GetFileName(pathTable, accessedFile), RequestedAccess.Read, FileAccessStatus.Allowed);
+                }).ToArray());
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(false, false)]
         [InlineData(false, true)]
         [InlineData(true, false)]
@@ -7314,7 +7387,7 @@ namespace Test.BuildXL.Processes.Detours
                     errorString: out errorString,
                     unexpectedFileAccessesAreErrors: false,
                     ignoreFullReparsePointResolving: ignoreFullReparsePointResolving,
-                    directoriesToEnableFullReparsePointParsing: useSelectDirectoriesForFullyResolving ? new List<string>() { directory_A.ToString(pathTable), directory_AA.ToString(pathTable) } : new List<string>() { directory_AA.ToString(pathTable) });
+                    directoriesToEnableFullReparsePointParsing: useSelectDirectoriesForFullyResolving ? new List<AbsolutePath>() { directory_A, directory_AA } : new List<AbsolutePath>() { directory_AA });
 
                 if (!ignoreFullReparsePointResolving || useSelectDirectoriesForFullyResolving)
                 {

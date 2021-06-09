@@ -42,6 +42,18 @@ static bool IgnoreFullReparsePointResolvingForPath(const PolicyResult& policyRes
 }
 
 /// <summary>
+/// Given a policy result, get the level of the file path where the path should start to be checked for reparse points.
+/// d: is level 0, d:\a is level 1, etc...
+/// Every level >= the returned level should be checked for a reparse point.
+/// If a reparse point is found, all levels of the newly resolved path should be checked for reparse points again.
+/// Calls <code>IgnoreFullReparsePointResolving</code> and <code>PolicyResult.GetFirstLevelForFileAccessPolicy</code> to determine the level.
+/// </summary>
+static size_t GetLevelToEnableFullReparsePointParsing(const PolicyResult& policyResult)
+{
+    return IgnoreFullReparsePointResolving() ? policyResult.FindLowestConsecutiveLevelThatStillHasProperty(FileAccessPolicy::FileAccessPolicy_EnableFullReparsePointParsing) : 0;
+}
+
+/// <summary>
 /// Checks if a file is a reparse point by calling <code>GetFileAttributesW</code>.
 /// </summary>
 static bool IsReparsePoint(_In_ LPCWSTR lpFileName, _In_ HANDLE hFile)
@@ -470,15 +482,19 @@ static bool ShouldResolveReparsePointsInPath(
 
     wstring target;
     wstring resolver;
+    size_t level = 0;
+    size_t levelToEnforceReparsePointParsingFrom = GetLevelToEnableFullReparsePointParsing(policyResult);
     for(auto iter = atoms.begin(); iter != atoms.end(); iter++)
     {
         resolver.append(*iter);
 
-        if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target, policyResult))
+        if (level >= levelToEnforceReparsePointParsingFrom && TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target, policyResult))
         {
             PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true, policyResult);
             return true;
         }
+
+        level++;
 
         resolver.append(L"\\");
     }
@@ -486,7 +502,7 @@ static bool ShouldResolveReparsePointsInPath(
     // remove the trailing backslash
     resolver.pop_back();
 
-    if (TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target, policyResult))
+    if (level >= levelToEnforceReparsePointParsingFrom && TryGetReparsePointTarget(resolver, INVALID_HANDLE_VALUE, target, policyResult))
     {
         PathCache_InsertResolvingCheckResult(path.GetPathStringWithoutTypePrefix(), true, policyResult);
         return true;
@@ -1234,6 +1250,11 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     std::shared_ptr<vector<wstring>> order = std::make_shared<vector<wstring>>();
     std::shared_ptr< map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> resolvedPaths = std::make_shared<map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>();
 
+    // levelToEnforceReparsePointParsingFrom is only valid for the path associated with policyResult.
+    // Once we follow that symlink, the next path has to be checked at each level.
+    bool first = true;
+    size_t level = 0;
+    size_t levelToEnforceReparsePointParsingFrom = GetLevelToEnableFullReparsePointParsing(policyResult);
     while (true)
     {
         auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
@@ -1267,40 +1288,47 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
         {
             resolved += L"\\";
             resolved += next;
+            level++;
             
-            bool result = TryGetReparsePointTarget(resolved, INVALID_HANDLE_VALUE, target, policyResult);
-            bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
-            if (!foundReparsePoint && result && !isFilteredPath)
+            if (!first || level >= levelToEnforceReparsePointParsingFrom)
             {
-                order->push_back(resolved);
-                resolvedPaths->emplace(resolved, ResolvedPathType::Intermediate);
 
-                success &= EnforceReparsePointAccess(
-                    resolved,
-                    dwDesiredAccess,
-                    dwShareMode,
-                    dwCreationDisposition,
-                    dwFlagsAndAttributes,
-                    pNtStatus,
-                    enforceAccess,
-                    isCreateDirectory);
-
-                if (GetRootLength(target.c_str()) > 0)
+                bool result = TryGetReparsePointTarget(resolved, INVALID_HANDLE_VALUE, target, policyResult);
+                bool isFilteredPath = PathContainedInPathTranslations(resolved) || PathContainedInPathTranslations(target, true);
+                if (!foundReparsePoint && result && !isFilteredPath)
                 {
-                    resolved = target;
-                }
-                else
-                {
-                    resolved = resolved.substr(0, resolved.length() - lstrlenW(next));
-                    resolved += target;
-                }
+                    order->push_back(resolved);
+                    resolvedPaths->emplace(resolved, ResolvedPathType::Intermediate);
 
-                foundReparsePoint = true;
+                    success &= EnforceReparsePointAccess(
+                        resolved,
+                        dwDesiredAccess,
+                        dwShareMode,
+                        dwCreationDisposition,
+                        dwFlagsAndAttributes,
+                        pNtStatus,
+                        enforceAccess,
+                        isCreateDirectory);
+
+                    if (GetRootLength(target.c_str()) > 0)
+                    {
+                        resolved = target;
+                    }
+                    else
+                    {
+                        resolved = resolved.substr(0, resolved.length() - lstrlenW(next));
+                        resolved += target;
+                    }
+
+                    foundReparsePoint = true;
+                }
             }
 
             next = wcstok_s(nullptr, L"\\/", &context);
             target = L"";
         }
+
+        first = false;
 
         // If the original path ends with a trailing slash, then file name and extension are both an empty string
         // So make sure we don't append a trailing slash in that case

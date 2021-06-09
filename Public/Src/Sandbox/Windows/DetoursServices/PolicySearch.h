@@ -15,21 +15,35 @@
 // already-found policy - i.e., Find(<root cursor>, "C:\foo") -> Cursor ; Find(Cursor, "bar") is
 // equivalent to Find("C:\foo\bar"); but repeated work is saved and the original path is not needed.
 struct PolicySearchCursor {
+#if _WIN32
+    typedef std::shared_ptr<PolicySearchCursor> PPolicySearchCursor;
+#define MakePPolicySearchCursor(cursor) std::make_shared<PolicySearchCursor>(cursor)
+#else
+    typedef PolicySearchCursor* PPolicySearchCursor;
+#define MakePPolicySearchCursor(cursor) nullptr
+#endif
+
     PolicySearchCursor()
-        : Record(nullptr), SearchWasTruncated(true)
+        : Record(nullptr), Level(0), Parent(nullptr), SearchWasTruncated(true)
     {
         assert(!IsValid());
     };
 
     // Implicit conversion constructor to start a search from a manifest record.
     PolicySearchCursor(ManifestRecord const* record)
-        : Record(record), SearchWasTruncated(false)
+        : Record(record), Level(0), Parent(nullptr), SearchWasTruncated(false)
+    {
+        assert(record != nullptr);
+    }
+
+    PolicySearchCursor(ManifestRecord const* record, size_t level, PPolicySearchCursor parent)
+        : Record(record), Level(level), Parent(parent), SearchWasTruncated(false)
     { 
         assert(record != nullptr);
     }
 
-    PolicySearchCursor(ManifestRecord const* record, bool searchWasTruncated)
-        : Record(record), SearchWasTruncated(searchWasTruncated)
+    PolicySearchCursor(ManifestRecord const* record, size_t level, PPolicySearchCursor parent, bool searchWasTruncated)
+        : Record(record), Level(level), Parent(parent), SearchWasTruncated(searchWasTruncated)
     { 
         assert(record != nullptr);
     }
@@ -51,6 +65,12 @@ struct PolicySearchCursor {
     }
 
     ManifestRecord const* Record;
+
+    // The level of the paths contained under this record.
+    // d: is level 1, d:\a is level 2, d:\a\b is level 3, etc...
+    size_t Level;
+
+    PPolicySearchCursor Parent;
 
     // Indicates if the search generating this cursor was truncated due to reaching the bottom of the tree.
     // A search for "C:\foo\A" in a tree containing only the leaf C:\foo\B will point to the C:\foo record, but will

@@ -4243,12 +4243,12 @@ namespace BuildXL.Scheduler
 
             if (configuration.Sandbox.UnsafeSandboxConfiguration.IgnoreFullReparsePointResolving)
             {
-                var pathstring = outputPath.ToString(pathTable);
-                if (configuration.Sandbox.DirectoriesToEnableFullReparsePointParsing.Any(x => pathstring.StartsWith(x, StringComparison.OrdinalIgnoreCase)))
+                if (configuration.Sandbox.DirectoriesToEnableFullReparsePointParsing.Any(x => outputPath.IsWithin(pathTable, x)))
                 {
                     return true;
                 }
 
+                var pathstring = outputPath.ToString(pathTable);
                 var possibleReparsePointType = FileUtilities.TryGetReparsePointType(pathstring);
                 if (possibleReparsePointType.Succeeded && possibleReparsePointType.Result == ReparsePointType.DirectorySymlink)
                 {

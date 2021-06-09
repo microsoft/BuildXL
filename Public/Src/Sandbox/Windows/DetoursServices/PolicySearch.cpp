@@ -78,7 +78,7 @@ PolicySearchCursor FindFileAccessPolicyInTreeEx(
     bool endOfPath = absolutePath[0] == 0; // no more path to search, wherever we ended up is the node to consider
     if (isLeaf || endOfPath)
     {
-        return PolicySearchCursor(cursor.Record, /*searchWasTruncated*/ !endOfPath);
+        return PolicySearchCursor(cursor.Record, cursor.Level, cursor.Parent, /*searchWasTruncated*/ !endOfPath);
     }
 
     // We're now committed to tokenizing a further path component, and trying to find a matching child.
@@ -95,7 +95,7 @@ PolicySearchCursor FindFileAccessPolicyInTreeEx(
     {
         // There was path to consume, and a chance of finding a child record, but that didn't work.
         // So, this is a third terminal case (but we had to do a bit of work to determine so).
-        return PolicySearchCursor(cursor.Record, /*searchWasTruncated*/ true);
+        return PolicySearchCursor(cursor.Record, cursor.Level, cursor.Parent, /*searchWasTruncated*/ true);
     }
 
     assert(childRecord != NULL);
@@ -104,7 +104,7 @@ PolicySearchCursor FindFileAccessPolicyInTreeEx(
     size_t remainderLength = absolutePathLength - (remainder - absolutePath);
     assert(remainderLength == pathlen(remainder));
     // Recursive step: Consume some more of the path, if any. Note that we always recurse with a non-truncated cursor due to the terminal cases above.
-    return FindFileAccessPolicyInTreeEx(PolicySearchCursor(childRecord), remainder, remainderLength);
+    return FindFileAccessPolicyInTreeEx(PolicySearchCursor(childRecord, cursor.Level + 1, MakePPolicySearchCursor(cursor)), remainder, remainderLength);
 }
 
 #ifdef BUILDXL_NATIVES_LIBRARY
@@ -121,7 +121,7 @@ BOOL WINAPI FindFileAccessPolicyInTree(
         return false;
     }
 
-    PolicySearchCursor newCursor = FindFileAccessPolicyInTreeEx(PolicySearchCursor(record), absolutePath, absolutePathLength);
+    PolicySearchCursor newCursor = FindFileAccessPolicyInTreeEx(PolicySearchCursor(record, 0, 0), absolutePath, absolutePathLength);
 	conePolicy = newCursor.Record->GetConePolicy();
 	nodePolicy = newCursor.Record->GetNodePolicy();
     expectedUsn = newCursor.GetExpectedUsn();

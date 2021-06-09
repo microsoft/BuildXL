@@ -31,4 +31,5 @@ int CallProbeDirectorySymlinkTargetWithReparsePointFlag();
 int CallProbeDirectorySymlinkTargetWithoutReparsePointFlag();
 int CallValidateFileSymlinkAccesses();
 int CallOpenFileThroughMultipleDirectorySymlinks();
+int CallOpenFileThroughDirectorySymlinksSelectivelyEnforce();
 int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve();

@@ -2178,9 +2178,8 @@ namespace BuildXL.Processes
             {
                 foreach (var directoryToEnableFullReparsePointParsing in m_sandboxConfig.DirectoriesToEnableFullReparsePointParsing)
                 {
-                    var directory = AbsolutePath.Create(m_pathTable, directoryToEnableFullReparsePointParsing);
                     m_fileAccessManifest.AddScope(
-                        directory,
+                        directoryToEnableFullReparsePointParsing,
                         mask: FileAccessPolicy.MaskNothing,
                         values: FileAccessPolicy.EnableFullReparsePointParsing);
                 }

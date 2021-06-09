@@ -165,7 +165,7 @@ public:
 #endif
     bool AllowSymlinkCreation() const { return (m_policy & FileAccessPolicy_AllowSymlinkCreation) != 0; }
     bool AllowCreateDirectory() const { return (m_policy & FileAccessPolicy_AllowCreateDirectory) != 0; }
-	bool AllowRealInputTimestamps() const { return (m_policy & FileAccessPolicy_AllowRealInputTimestamps) != 0; }
+    bool AllowRealInputTimestamps() const { return (m_policy & FileAccessPolicy_AllowRealInputTimestamps) != 0; }
     bool OverrideAllowWriteForExistingFiles() const { return (m_policy & FileAccessPolicy_OverrideAllowWriteForExistingFiles) != 0; }
     bool ReportUsnAfterOpen() const { return (m_policy & FileAccessPolicy_ReportUsnAfterOpen) != 0; }
     bool ReportDirectoryEnumeration() const { return (m_policy & FileAccessPolicy_ReportDirectoryEnumerationAccess) != 0; }
@@ -177,6 +177,44 @@ public:
     USN GetExpectedUsn() const { return m_policySearchCursor.GetExpectedUsn(); }
     // Indicates if this policy is invalid (iff Initialize did not complete successfully or has not been called).
     bool IsIndeterminate() const { return m_isIndeterminate; }
+
+    // d: is level 0, d:\office is level 1, d:\office\dev is level 2, etc...
+    // Level of a policy search cursor refers to the level of the remainder of the path after this policyresult.
+    // To find the level including this policy result, we subtract 1
+    size_t Level() const { return m_policySearchCursor.Level -1; }
+
+    // Given a file access policy to search for, search from this policy result through parents to find the lowest level at which the given file access policy is detected consecutively.
+    // All parents from the given policy result's level through to the returned level inclusive must have fileAccessPolicy set.
+    // For instance, if the policy manifests for levels 0,1,2,3,4 are 10, 5, 10, 10, 10, and you searched for fileAccess policy 10, it would return level 2.
+    // 0 is not returned because level 1 have a policy of 5, and the chain of matching fileAccessPolicys must be consecutive
+    // The choice of being consecutive is somewhat arbitrary and was chosen to match EnableFullReparsePointParsing(),
+    // which is always set on the cone policy and thus if one policy has it, all children will.
+    size_t FindLowestConsecutiveLevelThatStillHasProperty(const FileAccessPolicy fileAccessPolicy) const
+    {
+        size_t first_level = 0;
+        if ((m_policy & fileAccessPolicy) != 0)
+        {
+            if (m_policy & fileAccessPolicy)
+            {
+                first_level = Level();
+            }
+
+            PolicySearchCursor::PPolicySearchCursor parent = m_policySearchCursor.Parent;
+            while (parent != nullptr)
+            {
+                if ((parent->Record->GetConePolicy() & fileAccessPolicy) != 0)
+                {
+                    // Level of a policy search cursor refers to the level of the remainder of the path after this policyresult.
+                    // To find the level including this policy result, we subtract 1
+                    first_level = parent->Level - 1;
+                }
+
+                parent = parent->Parent;
+            }
+        }
+
+        return first_level;
+    }
 
     // Indicates if a file-open should have FILE_SHARE_READ implicitly added (as a hack to workaround tools accidentally
     // asking for exclusive read). We are conservative here:

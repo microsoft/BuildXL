@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private KeyValueStoreGuard _keyValueStore;
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
         private StoreSlot _activeSlot = StoreSlot.Slot1;
-        private ColumnGroup _activeColumnsGroup = ColumnGroup.One;
+        public ColumnGroup ActiveColumnsGroup { get; private set; } = ColumnGroup.One;
         private string? _storeLocation;
         private readonly string _activeSlotFilePath;
 
@@ -273,11 +273,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         {
                             if (db.TryGetValue(nameof(GlobalKeys.ActiveColummGroup), out var activeColumnGroup))
                             {
-                                _activeColumnsGroup = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
+                                ActiveColumnsGroup = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
                             }
                             else
                             {
-                                _activeColumnsGroup = ColumnGroup.One;
+                                ActiveColumnsGroup = ColumnGroup.One;
                             }
 
                             return true;
@@ -291,11 +291,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         {
                             if (db.TryGetValue(nameof(GlobalKeys.ActiveColummGroup), out var activeColumnGroup))
                             {
-                                _activeColumnsGroup = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
+                                ActiveColumnsGroup = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
                             }
                             else
                             {
-                                _activeColumnsGroup = ColumnGroup.One;
+                                ActiveColumnsGroup = ColumnGroup.One;
                             }
                         }).ThrowOnError();
                     }
@@ -379,19 +379,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                store.CreateColumnFamily(columnName);
                            }
 
-                           _activeColumnsGroup = otherColumnGroup;
+                           ActiveColumnsGroup = otherColumnGroup;
                            return BoolResult.SuccessTask;
                        },
                        this).ThrowOnError();
                },
                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent],
-               extraEndMessage: r => $"NewActiveColumnsGroup={_activeColumnsGroup}",
+               extraEndMessage: r => $"NewActiveColumnsGroup={ActiveColumnsGroup}",
                isCritical: true);
         }
 
         private ColumnGroup GetFormerColumnGroup()
         {
-            return _activeColumnsGroup == ColumnGroup.One
+            return ActiveColumnsGroup == ColumnGroup.One
                 ? ColumnGroup.Two
                 : ColumnGroup.One;
         }
@@ -468,7 +468,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private string NameOf(Columns columns, ColumnGroup? group = null)
         {
-            return ColumnNames[(int)(group ?? _activeColumnsGroup) * EnumTraits<Columns>.ValueCount + (int)columns];
+            return ColumnNames[(int)(group ?? ActiveColumnsGroup) * EnumTraits<Columns>.ValueCount + (int)columns];
         }
 
         public bool PutBlob(ShortHash key, byte[] value)

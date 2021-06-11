@@ -136,7 +136,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
             var deserialized = Roundtrip(model, obj);
 
-            Assert.Equal(obj.PersistRequest, deserialized.PersistRequest);
             Assert.Equal(obj.Diagnostics, deserialized.Diagnostics);
             Assert.Equal(obj.ErrorMessage, deserialized.ErrorMessage);
             Assert.Equal(obj.Entries, deserialized.Entries);

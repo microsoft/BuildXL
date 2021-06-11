@@ -12,9 +12,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <nodoc />
     public class PutBlobResult : BoolResult
     {
-        private readonly ShortHash _hash;
+        private readonly ShortHash? _hash;
 
-        private readonly long _blobSize;
+        private readonly long? _blobSize;
         private readonly long? _newRedisCapacity; 
 
         private readonly bool _alreadyInRedis;
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly SkipReason _skipReason;
 
-        private enum SkipReason
+        internal enum SkipReason
         {
             NotSkipped,
             OutOfCapacity,
@@ -32,7 +32,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        private PutBlobResult(ShortHash hash, long blobSize, bool alreadyInRedis = false, long? newRedisCapacity = null, string? redisKey = null, SkipReason skipReason = SkipReason.NotSkipped, string? extraMsg = null)
+        internal PutBlobResult(
+            ShortHash? hash = null,
+            long? blobSize = null,
+            bool alreadyInRedis = false,
+            long? newRedisCapacity = null,
+            string? redisKey = null,
+            SkipReason skipReason = SkipReason.NotSkipped,
+            string? extraMsg = null)
             : base(succeeded: true)
         {
             _hash = hash;
@@ -45,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public PutBlobResult(ShortHash hash, long blobSize, string errorMessage)
+        public PutBlobResult(ShortHash? hash, long? blobSize, string errorMessage)
             : base(errorMessage)
         {
             _hash = hash;
@@ -53,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public PutBlobResult(ResultBase other, string message, ShortHash hash, long blobSize)
+        public PutBlobResult(ShortHash? hash, long? blobSize, ResultBase other, string message)
             : base(other, message)
         {
             _hash = hash;
@@ -88,10 +95,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public static PutBlobResult RedisHasAlready(ShortHash hash, long blobSize, string redisKey) => new PutBlobResult(hash, blobSize, redisKey: redisKey, alreadyInRedis: true);
+        public static PutBlobResult RedisHasAlready(ShortHash hash, long blobSize, string redisKey)
+        {
+            return new PutBlobResult(hash, blobSize, redisKey: redisKey, alreadyInRedis: true);
+        }
 
         /// <nodoc />
-        public static PutBlobResult NewRedisEntry(ShortHash hash, long blobSize, long newCapacity, string redisKey) => new PutBlobResult(hash, blobSize, newRedisCapacity: newCapacity, alreadyInRedis: false, redisKey: redisKey);
+        public static PutBlobResult NewRedisEntry(ShortHash hash, long blobSize, string redisKey, long newCapacity)
+        {
+            return new PutBlobResult(hash, blobSize, newRedisCapacity: newCapacity, alreadyInRedis: false, redisKey: redisKey);
+        }
 
         /// <inheritdoc />
         public override string ToString()

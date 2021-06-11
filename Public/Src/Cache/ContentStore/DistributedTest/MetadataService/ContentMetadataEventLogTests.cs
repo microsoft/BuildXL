@@ -53,12 +53,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             return RunTest(async (context, stream, _, _) =>
             {
                 var ev1 = new PutBlobRequest();
+
                 await stream.WriteEventAsync(context, ev1).SelectResult(r => r.Should().BeTrue());
                 var cursor = await stream.BeforeCheckpointAsync(context).ThrowIfFailureAsync();
 
                 var events = await CollectStream(context, stream, cursor).ThrowIfFailureAsync();
                 events.Count.Should().Be(1);
-                events[0].Should().BeEquivalentTo(ev1);
+                events[0].MethodId.Should().Be(ev1.MethodId);
             });
         }
 

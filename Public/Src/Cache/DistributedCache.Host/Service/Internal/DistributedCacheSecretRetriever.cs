@@ -56,8 +56,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                     $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
                     $"{nameof(_distributedSettings.AzureStorageSecretName)}: {_distributedSettings.AzureStorageSecretName}, " +
                     $"{nameof(_distributedSettings.GlobalRedisSecretName)}: {_distributedSettings.GlobalRedisSecretName}, " +
-                    $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}," +
-                    $"{nameof(_distributedSettings.ContentMetadataRedisSecretName)}: {_distributedSettings.ContentMetadataRedisSecretName}");
+                    $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}, " +
+                    $"{nameof(_distributedSettings.ContentMetadataRedisSecretName)}: {_distributedSettings.ContentMetadataRedisSecretName}, " +
+                    $"{nameof(_distributedSettings.ContentMetadataBlobSecretName)}: {_distributedSettings.ContentMetadataBlobSecretName}");
 
                 bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)}");
                 invalidConfiguration |= appendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");
@@ -88,15 +89,18 @@ namespace BuildXL.Cache.Host.Service.Internal
                 retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
 
                 retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
-                if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
+
+                void addOptionalSecret(string name)
                 {
-                    retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.SecondaryGlobalRedisSecretName, SecretKind.PlainText));
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        retrieveSecretsRequests.Add(new RetrieveSecretsRequest(name, SecretKind.PlainText));
+                    }
                 }
 
-                if (!string.IsNullOrEmpty(_distributedSettings.ContentMetadataRedisSecretName))
-                {
-                    retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.ContentMetadataRedisSecretName, SecretKind.PlainText));
-                }
+                addOptionalSecret(_distributedSettings.SecondaryGlobalRedisSecretName);
+                addOptionalSecret(_distributedSettings.ContentMetadataRedisSecretName);
+                addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName);
 
                 // Ask the host for credentials
                 var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);

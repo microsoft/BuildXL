@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public Task<BoolResult> CreateCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
-            context = context.CreateNested(nameof(CheckpointManager));
+            context = context.CreateNested(Tracer.Name);
 
             string checkpointId = "Unknown";
             var dbStats = new DatabaseStats();
@@ -244,7 +244,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public Task<BoolResult> RestoreCheckpointAsync(OperationContext context, CheckpointState checkpointState)
         {
-            context = context.CreateNested(nameof(CheckpointManager));
+            context = context.CreateNested(Tracer.Name);
+
             var checkpointId = checkpointState.CheckpointId;
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,

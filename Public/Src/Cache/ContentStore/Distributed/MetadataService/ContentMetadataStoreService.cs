@@ -2,11 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -44,70 +45,92 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <inheritdoc />
         public Task<GetContentLocationsResponse> GetContentLocationsAsync(GetContentLocationsRequest request, CallContext callContext = default)
         {
-            return ExecuteAsync(request, callContext, async context =>
+            return ExecuteAsync(request, callContext, context =>
             {
-                var result = await _store.GetBulkAsync(context, request.Hashes);
-                return result.Select(entries => new GetContentLocationsResponse()
+                return _store.GetBulkAsync(context, request.Hashes)
+                    .SelectAsync(entries => new GetContentLocationsResponse()
+                    {
+                        Entries = entries
+                    });
+            },
+            extraEndMessage: r => {
+                if (!r.Succeeded)
                 {
-                    Entries = entries
-                });
+                    var csv = string.Join(",", request.Hashes);
+                    return $"Hashes=[{csv}]";
+                }
+                else
+                {
+                    var entries = r.Value.Entries;
+                    var csv = string.Join(",", request.Hashes.Zip(entries, (hash, entry) => $"{hash}:{entry.Locations.Count}"));
+                    return $"Hashes=[{csv}]";
+                }
             });
         }
 
         /// <inheritdoc />
         public Task<RegisterContentLocationsResponse> RegisterContentLocationsAsync(RegisterContentLocationsRequest request, CallContext callContext = default)
         {
-            return ExecuteAsync(request, callContext, async context =>
+            return ExecuteAsync(request, callContext, context =>
             {
-                var result = await _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false);
-                if (result.Succeeded)
-                {
-                    return Result.Success(new RegisterContentLocationsResponse()
+                return _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false)
+                    .SelectAsync(_ => new RegisterContentLocationsResponse()
                     {
                         PersistRequest = true
                     });
-                }
-                else
-                {
-                    return Result.FromError<RegisterContentLocationsResponse>(result);
-                }
+            },
+            extraEndMessage: r => {
+                var csv = string.Join(",", request.Hashes.Select(h => h.Hash));
+                return $"MachineId=[{request.MachineId}] Hashes=[{csv}]";
             });
         }
 
-        protected virtual async Task<TResponse> ExecuteCoreAsync<TRequest, TResponse>(
+        public Task<PutBlobResponse> PutBlobAsync(PutBlobRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return _store.PutBlobAsync(context, request.ContentHash, request.Blob)
+                    .SelectAsync(_ => new PutBlobResponse());
+            },
+            extraEndMessage: _ => $"Hash=[{request.ContentHash}] Size=[{request.Blob.Length}]");
+        }
+
+        public Task<GetBlobResponse> GetBlobAsync(GetBlobRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return _store.GetBlobAsync(context, request.ContentHash)
+                    .SelectAsync(r => new GetBlobResponse()
+                    {
+                        Blob = r.Blob,
+                    });
+            },
+            extraEndMessage: r => {
+                if (!r.Succeeded)
+                {
+                    return $"Hash=[{request.ContentHash}]";
+                }
+
+                return $"Hash=[{request.ContentHash}] Size=[{r.Value.Blob.Length}]";
+            });
+        }
+
+        protected virtual Task<Result<TResponse>> ExecuteCoreAsync<TRequest, TResponse>(
             OperationContext context,
             TRequest request,
-            Func<OperationContext, Task<Result<TResponse>>> executeAsync,
-            [CallerMemberName] string caller = null)
+            Func<OperationContext, Task<Result<TResponse>>> executeAsync)
             where TRequest : ServiceRequestBase
             where TResponse : ServiceResponseBase, new()
         {
-            var result = await context.PerformOperationAsync(
-                Tracer,
-                () => executeAsync(context),
-                caller: caller,
-                traceOperationStarted: false);
-
-            if (result.Succeeded)
-            {
-                return result.Value;
-            }
-            else
-            {
-                var response = new TResponse()
-                {
-                    ErrorMessage = result.ErrorMessage,
-                    Diagnostics = result.Diagnostics
-                };
-
-                return response;
-            }
+            return executeAsync(context);
         }
 
-        protected Task<TResponse> ExecuteAsync<TRequest, TResponse>(
+        protected virtual Task<TResponse> ExecuteAsync<TRequest, TResponse>(
             TRequest request,
             CallContext callContext,
             Func<OperationContext, Task<Result<TResponse>>> executeAsync,
+            string extraStartMessage = null,
+            Func<Result<TResponse>, string> extraEndMessage = null,
             [CallerMemberName] string caller = null)
             where TRequest : ServiceRequestBase
             where TResponse : ServiceResponseBase, new()
@@ -116,7 +139,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return WithOperationContext(
                 tracingContext,
                 callContext.CancellationToken,
-                context => ExecuteCoreAsync(context, request, executeAsync, caller));
+                async context =>
+                {
+                    var result = await context.PerformOperationAsync(
+                        Tracer,
+                        () => ExecuteCoreAsync(context, request, executeAsync),
+                        caller: caller,
+                        traceOperationStarted: false,
+                        extraStartMessage: extraStartMessage,
+                        extraEndMessage: r => string.Join(" ", extraEndMessage(r), request.BlockId?.ToString(), $"Retry=[{r.GetValueOrDefault()?.ShouldRetry}]"));
+
+                        if (result.Succeeded)
+                        {
+                            return result.Value;
+                        }
+                        else
+                        {
+                            var response = new TResponse()
+                            {
+                                ErrorMessage = result.ErrorMessage,
+                                Diagnostics = result.Diagnostics
+                            };
+
+                            return response;
+                        }
+                });
         }
 
         /// <inheritdoc />

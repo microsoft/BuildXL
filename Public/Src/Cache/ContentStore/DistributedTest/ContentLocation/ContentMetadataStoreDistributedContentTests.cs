@@ -35,8 +35,10 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var config = new MemoryContentMetadataStoreConfiguration(new RocksDbContentMetadataStore(
                 TestClock,
-                new RocksDbContentLocationDatabaseConfiguration(TestRootDirectoryPath / "rdbcms")
-                {
+                new RocksDbContentMetadataStoreConfiguration() {
+                    Database = new RocksDbContentLocationDatabaseConfiguration(TestRootDirectoryPath / "rdbcms")
+                    {
+                    },
                 }));
 
             ConfigureWithOneMaster(
@@ -113,7 +115,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ContentMetadataPersistIntervalSeconds = 1000;
+                    d.ContentMetadataPersistInterval = "1000s";
                 },
                 overrideRedis: r =>
                 {
@@ -153,7 +155,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ContentMetadataPersistIntervalSeconds = 1000;
+                    d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
 
@@ -200,7 +202,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.IsMasterEligible = d.TestIteration >= d.TestMachineIndex;
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ContentMetadataPersistIntervalSeconds = 1000;
+                    d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
 
@@ -273,7 +275,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ContentMetadataPersistIntervalSeconds = 1000;
+                    d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
 

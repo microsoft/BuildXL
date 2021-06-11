@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -11,7 +12,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using ProtoBuf.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public class ClientContentMetadataStore : StartupShutdownSlimBase, IContentMetadataStore
     {
-        public bool AreBlobsSupported => false;
+        public bool AreBlobsSupported => _configuration.AreBlobsSupported;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClientContentMetadataStore));
 
@@ -58,14 +58,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return _metadataServiceClientFactory.ShutdownAsync(context);
         }
 
-        private Task<TResult> ExecuteAsync<TResult>(OperationContext context, Func<IContentMetadataService, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
+        private Task<TResult> ExecuteAsync<TResult>(
+            OperationContext context,
+            Func<IContentMetadataService, Task<TResult>> executeAsync,
+            string extraStartMessage = null,
+            Func<TResult, string> extraEndMessage = null,
+            [CallerMemberName] string caller = null)
             where TResult : ResultBase
         {
+            var attempt = -1;
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 context =>
                 {
-                    var attempt = -1;
                     return _retryPolicy.ExecuteAsync(async () =>
                     {
                         attempt++;
@@ -75,7 +80,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                             var client = await _metadataServiceClientFactory.CreateClientAsync(context);
                             return await executeAsync(client);
                         },
-                        extraEndMessage: _ => $"Attempt=[{attempt}]",
+                        extraStartMessage: extraStartMessage,
+                        extraEndMessage: r => $"Attempt=[{attempt}] {extraEndMessage(r)}",
                         caller: caller,
                         traceErrorsOnly: true);
 
@@ -91,6 +97,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 },
                 caller: caller,
                 traceErrorsOnly: true,
+                extraStartMessage: extraStartMessage,
+                extraEndMessage: r => $"Attempts=[{attempt + 1}] {extraEndMessage(r)}",
                 timeout: _configuration.OperationTimeout);
         }
 
@@ -106,11 +114,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                 if (response.Succeeded)
                 {
-                    return Result.Success<IReadOnlyList<ContentLocationEntry>>(response.Entries);
+                    return Result.Success(response.Entries);
                 }
                 else
                 {
                     return new Result<IReadOnlyList<ContentLocationEntry>>(response.ErrorMessage, response.Diagnostics);
+                }
+            },
+            extraEndMessage: r => {
+                if (!r.Succeeded)
+                {
+                    var csv = string.Join(",", contentHashes);
+                    return $"Hashes=[{csv}]";
+                }
+                else
+                {
+                    var entries = r.Value;
+                    var csv = string.Join(",", contentHashes.Zip(entries, (hash, entry) => $"{hash}:{entry.Locations.Count}"));
+                    return $"Hashes=[{csv}]";
                 }
             });
         }
@@ -134,17 +155,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     return new BoolResult(response.ErrorMessage, response.Diagnostics);
                 }
+            },
+            extraEndMessage: _ => {
+                var csv = string.Join(",", contentHashes.Select(s => s.Hash));
+                return $"MachineId=[{machineId}] Touch=[{touch}] Hashes=[{csv}]";
             });
         }
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
-            throw new NotImplementedException();
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.PutBlobAsync(new PutBlobRequest()
+                {
+                    ContextId = context.TracingContext.TraceId,
+                    ContentHash = hash,
+                    Blob = blob,
+                }, context.Token);
+
+                return response.ToPutBlobResult(hash, blob.Length);
+            },
+            extraEndMessage: _ => $"Hash=[{hash}] Size=[{blob.Length}]");
         }
 
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
-            throw new NotImplementedException();
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.GetBlobAsync(new GetBlobRequest()
+                {
+                    ContextId = context.TracingContext.TraceId,
+                    ContentHash = hash,
+                }, context.Token);
+
+                return response.ToGetBlobResult(hash);
+            },
+            extraEndMessage: r => $"Hash=[{hash}] Size=[{r.Blob?.Length ?? -1}]");
         }
     }
 }

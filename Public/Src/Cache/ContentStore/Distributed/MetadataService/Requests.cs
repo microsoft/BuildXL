@@ -1,15 +1,40 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    public enum RpcMethodId
+    {
+        GetContentLocations = 0,
+        RegisterContentLocations = 1,
+        PutBlob = 2,
+        GetBlob = 3,
+    }
+
+    [ProtoContract]
+    [ProtoInclude(10, typeof(GetContentLocationsRequest))]
+    [ProtoInclude(11, typeof(RegisterContentLocationsRequest))]
+    [ProtoInclude(12, typeof(PutBlobRequest))]
+    [ProtoInclude(13, typeof(GetBlobRequest))]
+    public abstract record ServiceRequestBase
+    {
+        public abstract RpcMethodId MethodId { get; }
+
+        [ProtoMember(1)]
+        public string ContextId { get; set; }
+
+        public bool Replaying { get; set; }
+
+        public BlockReference? BlockId { get; set; }
+    }
+
     [ProtoContract]
     [ProtoInclude(10, typeof(GetContentLocationsResponse))]
     [ProtoInclude(11, typeof(RegisterContentLocationsResponse))]
@@ -36,63 +61,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public string ErrorMessage { get; set; }
 
         [ProtoMember(2)]
-        public string Diagnostics { get; init; }
+        public string Diagnostics { get; set; }
 
         [ProtoMember(3)]
-        public bool PersistRequest { get; init; }
-
-        [ProtoMember(4)]
         public bool ShouldRetry { get; set; }
-    }
 
-    [ProtoContract]
-    public record GetContentLocationsResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.GetContentLocations;
-
-        [ProtoMember(1)]
-        public IReadOnlyList<ContentLocationEntry> Entries { get; init; } = new List<ContentLocationEntry>();
-    }
-
-    [ProtoContract]
-    public record RegisterContentLocationsResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.RegisterContentLocations;
-    }
-
-    [ProtoContract]
-    public record PutBlobResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.PutBlob;
-    }
-
-    [ProtoContract]
-    public record GetBlobResponse : ServiceResponseBase
-    {
-        public override RpcMethodId MethodId => RpcMethodId.GetBlob;
-    }
-
-    [ProtoContract]
-    [ProtoInclude(10, typeof(GetContentLocationsRequest))]
-    [ProtoInclude(11, typeof(RegisterContentLocationsRequest))]
-    [ProtoInclude(12, typeof(PutBlobRequest))]
-    [ProtoInclude(13, typeof(GetBlobRequest))]
-    public abstract record ServiceRequestBase
-    {
-        public abstract RpcMethodId MethodId { get; }
-
-        [ProtoMember(1)]
-        public string ContextId { get; set; }
-
-        public bool Replaying { get; set; }
-    }
-
-    public enum RpcMethodId
-    {
-        GetContentLocations = 0,
-        RegisterContentLocations = 1,
-        PutBlob = 2,
-        GetBlob = 3,
+        public bool PersistRequest { get; init; }
     }
 
     [ProtoContract]
@@ -102,6 +76,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         [ProtoMember(1)]
         public IReadOnlyList<ShortHash> Hashes { get; init; } = new List<ShortHash>();
+    }
+
+    [ProtoContract]
+    public record GetContentLocationsResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetContentLocations;
+
+        [ProtoMember(1)]
+        public IReadOnlyList<ContentLocationEntry> Entries { get; init; } = new List<ContentLocationEntry>();
     }
 
     [ProtoContract]
@@ -117,14 +100,68 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     }
 
     [ProtoContract]
+    public record RegisterContentLocationsResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.RegisterContentLocations;
+    }
+
+    [ProtoContract]
     public record PutBlobRequest : ServiceRequestBase
     {
         public override RpcMethodId MethodId => RpcMethodId.PutBlob;
+
+        [ProtoMember(1)]
+        public ShortHash ContentHash { get; init; }
+
+        [ProtoMember(2)]
+        public byte[] Blob { get; init; }
+    }
+
+    [ProtoContract]
+    public record PutBlobResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.PutBlob;
+
+        public PutBlobResult ToPutBlobResult(ShortHash contentHash, long blobSize)
+        {
+            if (ErrorMessage != null)
+            {
+                return new PutBlobResult(hash: contentHash, blobSize: blobSize, errorMessage: ErrorMessage);
+            }
+            else
+            {
+                return new PutBlobResult(hash: contentHash, blobSize: blobSize);
+            }
+        }
     }
 
     [ProtoContract]
     public record GetBlobRequest : ServiceRequestBase
     {
         public override RpcMethodId MethodId => RpcMethodId.GetBlob;
+
+        [ProtoMember(1)]
+        public ShortHash ContentHash { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetBlobResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetBlob;
+
+        [ProtoMember(1)]
+        public byte[] Blob { get; init; }
+
+        internal GetBlobResult ToGetBlobResult(ShortHash contentHash)
+        {
+            if (ErrorMessage != null)
+            {
+                return new GetBlobResult(ErrorMessage, Diagnostics, contentHash);
+            }
+            else
+            {
+                return new GetBlobResult(contentHash, Blob);
+            }
+        }
     }
 }

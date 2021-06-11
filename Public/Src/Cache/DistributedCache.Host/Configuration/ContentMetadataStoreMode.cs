@@ -63,5 +63,8 @@ namespace BuildXL.Cache.Host.Configuration
 
         /// <nodoc />
         Distributed = ReadDistributed | WriteDistributed,
+
+        /// <nodoc />
+        All = -1
     }
 }

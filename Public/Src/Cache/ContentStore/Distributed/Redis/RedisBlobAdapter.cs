@@ -112,14 +112,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 if (success)
                 {
                     _counters[Counters.PutBlobSuccess].Increment();
-                    return PutBlobResult.NewRedisEntry(hash, blob.Length, reservationResult.Value.newCapacity, reservationResult.Value.key);
+                    return PutBlobResult.NewRedisEntry(hash, blob.Length, reservationResult.Value.key, reservationResult.Value.newCapacity);
                 }
 
                 return new PutBlobResult(hash, blob.Length, ErrorMessage);
             }
             catch (Exception e)
             {
-                return new PutBlobResult(new ErrorResult(e), ErrorMessage, hash, blob.Length);
+                return new PutBlobResult(hash, blob.Length, new ErrorResult(e), ErrorMessage);
             }
         }
 

@@ -29,13 +29,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
-using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
-using BuildXL.Native.IO;
-using ContentStoreTest.Distributed.ContentLocation.NuCache;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -55,7 +51,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         private const int InfiniteHeartbeatMinutes = 10_000;
 
-        protected string _overrideScenarioName = null;
+        protected string _overrideScenarioName = Guid.NewGuid().ToString();
 
         protected bool _enableSecondaryRedis = false;
         protected bool _poolSecondaryRedisDatabase = true;
@@ -163,6 +159,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
                                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
                                ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),
+                               ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob_Unspecified", "Unused"),
 
                                IsContentLocationDatabaseEnabled = true,
                                UseDistributedCentralStorage = true,
@@ -239,7 +236,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     GrpcPort = grpcPort,
                     GrpcPortFileName = Guid.NewGuid().ToString(),
-                    ScenarioName = $"{_overrideScenarioName}_{index}" ?? Guid.NewGuid().ToString(),
+                    ScenarioName = $"{_overrideScenarioName}_{index}",
                     MaxProactivePushRequestHandlers = ProactivePushCountLimit,
                 }
             };

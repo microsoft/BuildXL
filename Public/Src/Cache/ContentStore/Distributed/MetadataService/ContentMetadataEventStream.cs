@@ -251,6 +251,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
+            request.BlockId = block.QualifiedBlockId;
+
             if (_configuration.BatchWriteAheadWrites)
             {
                 await block.Events.Writer.WriteAsync(logEvent);
@@ -283,10 +285,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             await Task.Yield();
 
+            using var cancelContext = context.WithCancellationToken(block.WriteAheadCommitCancellation.Token);
+            context = cancelContext;
+
             LogEvent writeAheadCommit = new LogEvent();
             var reader = block.Events.Reader;
-            while (await reader.WaitToReadAsync(block.WriteAheadCommitCancellation.Token))
+            while (await reader.WaitToReadAsync(context.Token))
             {
+                block.PendingWriteAheadLogEvents.Clear();
+                writeAheadCommit.Reset();
+
                 while (reader.TryRead(out var logEvent))
                 {
                     if (!logEvent.Completion.Task.IsCompleted)
@@ -296,6 +304,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
+                if (block.PendingWriteAheadLogEvents.Count == 0)
+                {
+                    continue;
+                }
+
                 await _writeAheadEventStorage.AppendAsync(context, block.QualifiedBlockId, writeAheadCommit.GetBytes())
                     .FireAndForgetErrorsAsync(context);
 
@@ -303,9 +316,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     completion.Completion.TrySetResult(true);
                 }
-
-                block.PendingWriteAheadLogEvents.Clear();
-                writeAheadCommit.Reset();
             }
         }
 

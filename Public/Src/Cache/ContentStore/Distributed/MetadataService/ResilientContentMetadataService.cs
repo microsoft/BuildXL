@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -153,11 +154,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        protected override async Task<TResponse> ExecuteCoreAsync<TRequest, TResponse>(
+        protected override async Task<Result<TResponse>> ExecuteCoreAsync<TRequest, TResponse>(
             OperationContext context,
             TRequest request,
-            Func<OperationContext, Task<Result<TResponse>>> executeAsync,
-            string caller = null)
+            Func<OperationContext, Task<Result<TResponse>>> executeAsync)
         {
             if (!request.Replaying && ForceClientRetries)
             {
@@ -167,21 +167,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 };
             }
 
-            var response = await base.ExecuteCoreAsync(context, request, executeAsync, caller);
-            if (ForceClientRetries)
+            var result = await base.ExecuteCoreAsync(context, request, executeAsync);
+
+            if (!request.Replaying)
             {
-                response.ShouldRetry = true;
-            }
-            else if (!request.Replaying && response.PersistRequest)
-            {
-                var success = await _eventStream.WriteEventAsync(context, request);
-                if (!success)
+                if (result.TryGetValue(out var response))
                 {
-                    response.ShouldRetry = true;
+                    if (ForceClientRetries)
+                    {
+                        response.ShouldRetry = true;
+                    }
+                    else if (response.PersistRequest)
+                    {
+                        var success = await _eventStream.WriteEventAsync(context, request);
+                        if (!success)
+                        {
+                            response.ShouldRetry = true;
+                        }
+                    }
+                }
+                else if (ForceClientRetries)
+                {
+                    return new TResponse()
+                    {
+                        ShouldRetry = true
+                    };
                 }
             }
 
-            return response;
+            return result;
         }
 
         private async Task<BoolResult> RestoreCheckpointAsync(OperationContext context)
@@ -195,31 +209,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                     CheckpointLogId logId = default;
 
-                    await _checkpointManager.RestoreCheckpointAsync(context, checkpointState).ThrowIfFailureAsync();
+                    using (await _createCheckpointGate.AcquireAsync())
+                    {
+                        await _checkpointManager.RestoreCheckpointAsync(context, checkpointState).ThrowIfFailureAsync();
+                    }
 
                     logId = CheckpointLogId.InitialLogId;
+                    var startReadLogId = logId;
                     if (_store.Database.TryGetGlobalEntry(LogCursorKey, out var cursor))
                     {
                         logId = CheckpointLogId.Deserialize(cursor);
+
+                        // We start reading from the next log id because database contains
+                        // all events up to AND INCLUDING the stored log id
+                        startReadLogId = logId.Next();
                     }
 
                     var requestChannel = Channel.CreateBounded<ServiceRequestBase>(1000);
                     var dispatchTasks = Enumerable.Range(0, _configuration.MaxEventParallelism).Select(_ => DispatchAsync(context, requestChannel.Reader)).ToArray();
 
-                    var startLogId = await _eventStream.ReadEventsAsync(
+                    var startWriteLogId = await _eventStream.ReadEventsAsync(
                         context,
-                        logId,
+                        startReadLogId,
                         request => requestChannel.Writer.WriteAsync(request, context.Token)).ThrowIfFailureAsync();
 
                     requestChannel.Writer.Complete();
 
                     await Task.WhenAll(dispatchTasks);
 
-                    await _eventStream.CompleteOrChangeLogAsync(context, startLogId);
+                    await _eventStream.CompleteOrChangeLogAsync(context, startWriteLogId);
 
-                    return Result.Success((checkpointId: checkpointState.CheckpointId, logId, startLogId: startLogId.Value));
+                    return Result.Success((checkpointId: checkpointState.CheckpointId, logId, startReadLogId, startWriteLogId: startWriteLogId.Value));
                 },
-                extraEndMessage: r => $"CheckpointId=[{r.GetValueOrDefault().checkpointId}] LogId=[{r.GetValueOrDefault().logId}] StartLogId=[{r.GetValueOrDefault().startLogId}]");
+                extraEndMessage: r => $"CheckpointId=[{r.GetValueOrDefault().checkpointId}] DbLogId=[{r.GetValueOrDefault().logId}] StartReadLogId=[{r.GetValueOrDefault().startReadLogId}] StartWriteLogId=[{r.GetValueOrDefault().startWriteLogId}]");
         }
 
         private static IAsyncEnumerable<ServiceRequestBase> ReadAsync(ChannelReader<ServiceRequestBase> reader, CancellationToken cancellationToken)

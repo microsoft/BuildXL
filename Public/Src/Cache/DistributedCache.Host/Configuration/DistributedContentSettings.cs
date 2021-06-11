@@ -1116,16 +1116,22 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataRedisSecretName { get; set; }
 
         [DataMember]
-        [Validation.Range(0, double.MaxValue)]
-        public double ContentMetadataPersistIntervalSeconds { get; set; } = 5;
+        public string ContentMetadataBlobSecretName { get; set; }
 
         [DataMember]
-        [Validation.Range(0, double.MaxValue)]
-        public double ContentMetadataShutdownTimeoutSeconds { get; set; } = 30;
+        public TimeSpanSetting ContentMetadataPersistInterval { get; set; } = TimeSpan.FromSeconds(5);
 
         [DataMember]
-        [Validation.Range(0, double.MaxValue)]
-        public double ContentMetadataRedisMaximumKeyLifetimeMinutes { get; set; } = 60 * 2;
+        public TimeSpanSetting ContentMetadataShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        [DataMember]
+        public TimeSpanSetting ContentMetadataClientConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        [DataMember]
+        public TimeSpanSetting ContentMetadataClientOperationTimeout { get; set; } = TimeSpan.FromMinutes(15);
+
+        [DataMember]
+        public TimeSpanSetting ContentMetadataRedisMaximumKeyLifetime { get; set; } = TimeSpan.FromMinutes(120);
 
         [DataMember]
         public string ContentMetadataLogBlobContainerName { get; set; } = "persistenteventstorage";
@@ -1134,13 +1140,19 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataCentralStorageContainerName { get; set; } = "contentmetadata";
 
         [DataMember]
+        public string RedisWriteAheadKeyPrefix { get; set; } = "rwalog";
+
+        [DataMember]
         public bool ContentMetadataBatchVolatileWrites { get; set; } = true;
 
         [DataMember]
-        public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;
+        public EnumSetting<ContentMetadataStoreMode> ContentMetadataStoreMode { get; set; } = Configuration.ContentMetadataStoreMode.Redis;
 
         [DataMember]
-        public TimeSpan? AsyncSessionShutdownTimeout { get; set; }
+        public bool ContentMetadataBlobsEnabled { get; set; } = true;
+
+        [DataMember]
+        public TimeSpanSetting? AsyncSessionShutdownTimeout { get; set; }
     }
 
     /// <summary>

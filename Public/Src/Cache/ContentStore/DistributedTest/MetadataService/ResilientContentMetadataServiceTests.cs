@@ -127,7 +127,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
 
             var rocksDbContentLocationDatabaseConfiguration = new RocksDbContentLocationDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
-            var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, rocksDbContentLocationDatabaseConfiguration);
+            var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, new RocksDbContentMetadataStoreConfiguration() {
+                Database = rocksDbContentLocationDatabaseConfiguration,
+            });
 
             var checkpointManager = new CheckpointManager(
                 rocksDbContentMetadataStore.Database,

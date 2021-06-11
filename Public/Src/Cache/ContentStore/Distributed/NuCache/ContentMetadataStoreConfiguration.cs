@@ -29,6 +29,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// The amount of time to wait for an operation to complete
         /// </summary>
         public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(15);
+
+        /// <summary>
+        /// Whether the server-side supports blob operations
+        /// </summary>
+        public bool AreBlobsSupported { get; set; } = true;
     }
 
     /// <summary>

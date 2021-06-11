@@ -12,24 +12,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public class GetBlobResult : BoolResult
     {
         /// <nodoc />
-        public ShortHash Hash { get; }
+        private readonly ShortHash? _hash;
 
         /// <nodoc />
         public byte[]? Blob { get; }
 
         /// <nodoc />
-        public GetBlobResult(ShortHash hash, byte[]? blob)
+        public GetBlobResult(ShortHash? hash, byte[]? blob)
             : base(succeeded: true)
         {
-            Hash = hash;
+            _hash = hash;
             Blob = blob;
         }
 
         /// <nodoc />
-        public GetBlobResult(string errorMessage, string? diagnostics = null)
+        public GetBlobResult(string errorMessage, string? diagnostics = null, ShortHash? hash = null)
             : base(errorMessage, diagnostics)
         {
-
+            _hash = hash;
         }
 
         /// <nodoc />
@@ -42,14 +42,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public GetBlobResult(ResultBase other, string message, ShortHash hash)
             : base(other, message)
         {
-            Hash = hash;
+            _hash = hash;
         }
 
         /// <nodoc />
         public GetBlobResult(ResultBase other, ShortHash hash)
             : base(other)
         {
-            Hash = hash;
+            _hash = hash;
         }
 
         /// <inheritdoc />
@@ -57,10 +57,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (Succeeded)
             {
-                return $"Hash=[{Hash}] Size=[{Blob?.Length ?? -1}]";
+                return $"Hash=[{_hash.ToString() ?? "Unknown"}] Size=[{Blob?.Length ?? -1}]";
             }
 
-            return $"Hash=[{Hash}]. Error=[{ErrorMessage}]";
+            return $"Hash=[{_hash.ToString() ?? "Unknown"}]. Error=[{ErrorMessage}]";
         }
     }
 }

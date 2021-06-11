@@ -32,12 +32,10 @@ using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthC
 using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
-using BuildXL.Cache.Logging;
 using ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
-using BuildXL.Native.IO;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Tracing;
 
@@ -196,12 +194,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists,
             };
 
-            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode;
-            if ((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
-            {
-                redisContentLocationStoreConfiguration.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort);
-            }
-
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisContentLocationStoreConfiguration.BlobOperationLimitCount = v);
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisContentLocationStoreConfiguration.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisContentLocationStoreConfiguration.UseSeparateConnectionForRedisBlobs = v);
@@ -264,6 +256,17 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplySecretSettingsForLls(redisContentLocationStoreConfiguration, primaryCacheRoot, dbConfig);
             }
 
+            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode.Value;
+            if ((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
+            {
+                redisContentLocationStoreConfiguration.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort)
+                {
+                    AreBlobsSupported = _distributedSettings.ContentMetadataBlobsEnabled && redisContentLocationStoreConfiguration.AreBlobsSupported,
+                    OperationTimeout = _distributedSettings.ContentMetadataClientOperationTimeout,
+                    ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
+                };
+            }
+
             _arguments.Overrides.Override(redisContentLocationStoreConfiguration);
 
             ConfigurationPrinter.TraceConfiguration(redisContentLocationStoreConfiguration, _logger);
@@ -272,7 +275,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public IGrpcServiceEndpoint CreateContentMetadataService()
         {
-            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode;
+            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode.Value;
             if (((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) == 0) || !_distributedSettings.IsMasterEligible)
             {
                 return null;
@@ -289,7 +292,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var store = new RocksDbContentMetadataStore(
                 _arguments.Overrides.Clock,
-                dbConfig);
+                new RocksDbContentMetadataStoreConfiguration() {
+                    MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
+                    Database = dbConfig,
+                });
 
             if (!_distributedSettings.ContentMetadataEnableResilience)
             {
@@ -303,12 +309,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                 VolatileEventStorage = new RedisVolatileEventStorageConfiguration()
                 {
                     ConnectionString = (GetRequiredSecret(_distributedSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
-                    KeyPrefix = "rvlog" + _distributedSettings.KeySpacePrefix,
-                    MaximumKeyLifetime = TimeSpan.FromMinutes(_distributedSettings.ContentMetadataRedisMaximumKeyLifetimeMinutes),
+                    KeyPrefix = _distributedSettings.RedisWriteAheadKeyPrefix,
+                    MaximumKeyLifetime = _distributedSettings.ContentMetadataRedisMaximumKeyLifetime,
                 },
                 PersistentEventStorage = new BlobEventStorageConfiguration()
                 {
-                    Credentials = (RedisContentLocationStoreConfiguration.CentralStore as BlobCentralStoreConfiguration)?.Credentials.Last(),
+                    Credentials = GetStorageCredentials(new[] { _distributedSettings.ContentMetadataBlobSecretName }).First(),
                     FolderName = "events" + _distributedSettings.KeySpacePrefix,
                     ContainerName = _distributedSettings.ContentMetadataLogBlobContainerName,
                 },
@@ -319,8 +325,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EventStream = new ContentMetadataEventStreamConfiguration()
                 {
                     BatchWriteAheadWrites = _distributedSettings.ContentMetadataBatchVolatileWrites,
-                    ShutdownTimeout = TimeSpan.FromSeconds(_distributedSettings.ContentMetadataShutdownTimeoutSeconds),
-                    LogBlockRefreshInterval = TimeSpan.FromSeconds(_distributedSettings.ContentMetadataPersistIntervalSeconds)
+                    ShutdownTimeout = _distributedSettings.ContentMetadataShutdownTimeout,
+                    LogBlockRefreshInterval = _distributedSettings.ContentMetadataPersistInterval
                 },
                 Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
                 {
@@ -825,10 +831,15 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private AzureBlobStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)
         {
-            var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
+            IEnumerable<string> storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             // This would have failed earlier otherwise
             Contract.Assert(storageSecretNames != null);
 
+            return GetStorageCredentials(storageSecretNames);
+        }
+
+        private AzureBlobStorageCredentials[] GetStorageCredentials(IEnumerable<string> storageSecretNames)
+        {
             var credentials = new List<AzureBlobStorageCredentials>();
             foreach (var secretName in storageSecretNames)
             {

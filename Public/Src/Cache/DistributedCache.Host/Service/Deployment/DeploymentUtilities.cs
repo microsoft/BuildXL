@@ -34,6 +34,7 @@ namespace BuildXL.Cache.Host.Service
             Converters =
             {
                 new TimeSpanJsonConverter(),
+                new StringConvertibleSettingJsonConverterFactory(),
                 new BoolJsonConverter(),
                 new JsonStringEnumConverter()
             }
@@ -132,82 +133,11 @@ namespace BuildXL.Cache.Host.Service
         }
 
         /// <summary>
-        /// Parses a <see cref="TimeSpan"/> in readable format
-        ///
-        /// Format:
-        /// [-][#d][#h][#m][#s][#ms]
-        /// where # represents any valid non-negative double. All parts are optional but string must be non-empty.
+        /// Deserialize the value to json using <see cref="ConfigurationSerializationOptions"/>
         /// </summary>
-        public static bool TryParseReadableTimeSpan(string value, out TimeSpan result)
+        public static T JsonDeserialize<T>(string value)
         {
-            int start = 0;
-            int lastUnitIndex = -1;
-
-            result = TimeSpan.Zero;
-            bool isNegative = false;
-            bool succeeded = true;
-
-            // Easier to process if all specifiers are mutually exclusive characters
-            // So replace 'ms' with 'f' so it doesn't conflict with 'm' and 's' specifiers
-            value = value.Trim().Replace("ms", "f");
-
-            for (int i = 0; i < value.Length; i++)
-            {
-                switch (value[i])
-                {
-                    case ':':
-                        // Quickly bypass normal timespans which contain ':' character
-                        // that is not allowed in readable timespan format
-                        return false;
-                    case '-':
-                        succeeded = lastUnitIndex == -1;
-                        lastUnitIndex = 0;
-                        isNegative = true;
-                        break;
-                    case 'd':
-                        succeeded = process(1, TimeSpan.FromDays(1), ref result);
-                        break;
-                    case 'h':
-                        succeeded = process(2, TimeSpan.FromHours(1), ref result);
-                        break;
-                    case 'm':
-                        succeeded = process(3, TimeSpan.FromMinutes(1), ref result);
-                        break;
-                    case 's':
-                        succeeded = process(4, TimeSpan.FromSeconds(1), ref result);
-                        break;
-                    case 'f':
-                        succeeded = process(5, TimeSpan.FromMilliseconds(1), ref result);
-                        break;
-                }
-
-                if (!succeeded)
-                {
-                    return false;
-                }
-
-                bool process(int unitIndex, TimeSpan unit, ref TimeSpan result)
-                {
-                    // No duplicate units allowed and units must appear in decreasing order of magnitude.
-                    if (unitIndex > lastUnitIndex)
-                    {
-                        var factorString = value.Substring(start, i - start).Trim();
-                        if (double.TryParse(factorString, out var factor))
-                        {
-                            result += unit.Multiply(factor);
-                            lastUnitIndex = unitIndex;
-                            start = i + 1;
-                            return true;
-                        }
-                    }
-
-                    // Invalidate
-                    return false;
-                }
-            }
-
-            result = result.Multiply(isNegative ? -1 : 1);
-            return start == value.Length;
+            return JsonSerializer.Deserialize<T>(value, ConfigurationSerializationOptions);
         }
 
 #pragma warning disable AsyncFixer03 // Fire & forget async void methods
@@ -326,11 +256,10 @@ namespace BuildXL.Cache.Host.Service
 
         private class TimeSpanJsonConverter : JsonConverter<TimeSpan>
         {
-
             public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
                 var timeSpanString = reader.GetString();
-                if (TryParseReadableTimeSpan(timeSpanString, out var result))
+                if (TimeSpanSetting.TryParseReadableTimeSpan(timeSpanString, out var result))
                 {
                     return result;
                 }
@@ -341,6 +270,36 @@ namespace BuildXL.Cache.Host.Service
             public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
             {
                 writer.WriteStringValue(value.ToString());
+            }
+        }
+
+        private class StringConvertibleSettingJsonConverterFactory : JsonConverterFactory
+        {
+            public override bool CanConvert(Type typeToConvert)
+            {
+                return typeToConvert.IsValueType && typeof(IStringConvertibleSetting).IsAssignableFrom(typeToConvert);
+            }
+
+            public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+            {
+                return (JsonConverter)Activator.CreateInstance(typeof(Converter<>).MakeGenericType(typeToConvert));
+            }
+
+            private class Converter<T> : JsonConverter<T>
+                where T : struct, IStringConvertibleSetting
+            {
+                private readonly T _defaultValue = default;
+
+                public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+                {
+                    var stringValue = reader.GetString();
+                    return (T)_defaultValue.ConvertFromString(stringValue);
+                }
+
+                public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+                {
+                    writer.WriteStringValue(value.ConvertToString());
+                }
             }
         }
     }

@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public record RedisVolatileEventStorageConfiguration
     {
-        public string KeyPrefix { get; init; } = "rvlog";
+        public string KeyPrefix { get; init; } = "rwalog";
 
         public TimeSpan MaximumKeyLifetime { get; init; } = TimeSpan.FromDays(2);
 

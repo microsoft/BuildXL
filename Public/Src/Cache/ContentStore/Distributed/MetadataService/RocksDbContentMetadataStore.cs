@@ -3,28 +3,30 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.MemoizationStore.Interfaces.Results;
-using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    public class RocksDbContentMetadataStoreConfiguration
+    {
+        public long MaxBlobCapacity { get; init; } = 100_000;
+
+        public RocksDbContentLocationDatabaseConfiguration Database { get; init; }
+    }
+
     public class RocksDbContentMetadataStore : StartupShutdownSlimBase, IContentMetadataStore
     {
         public RocksDbContentMetadataDatabase Database { get; }
+
+        private readonly RocksDbContentMetadataStoreConfiguration _configuration;
 
         public bool AreBlobsSupported => true;
 
@@ -32,11 +34,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(RocksDbContentMetadataStore));
 
+        private DatabaseCapacity _capacity;
+
         public RocksDbContentMetadataStore(
             IClock clock,
-            RocksDbContentLocationDatabaseConfiguration configuration)
+            RocksDbContentMetadataStoreConfiguration configuration)
         {
-            Database = new RocksDbContentMetadataDatabase(clock, configuration);
+            _configuration = configuration;
+            Database = new RocksDbContentMetadataDatabase(clock, configuration.Database);
         }
 
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -78,12 +83,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
-            return Task.FromResult(PutBlobResult.OutOfCapacity(hash, 0, ""));
+
+            var capacity = _capacity;
+            if (capacity?.Group != Database.ActiveColumnsGroup)
+            {
+                Interlocked.CompareExchange(ref _capacity, new DatabaseCapacity()
+                {
+                    Group = Database.ActiveColumnsGroup,
+                    Remaining = _configuration.MaxBlobCapacity,
+                },
+                capacity);
+            }
+
+            if (_capacity.Remaining < blob.Length)
+            {
+                return Task.FromResult(PutBlobResult.OutOfCapacity(hash, blob.Length, ""));
+            }
+
+            if (Database.PutBlob(hash, blob))
+            {
+                Interlocked.Add(ref _capacity.Remaining, -blob.Length);
+                return Task.FromResult(PutBlobResult.NewRedisEntry(hash, blob.Length, "", Math.Max(_capacity.Remaining, 0)));
+            }
+            else
+            {
+                return Task.FromResult(PutBlobResult.RedisHasAlready(hash, blob.Length, ""));
+            }
         }
 
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
-            return Task.FromResult(new GetBlobResult(hash, null));
+            if (Database.TryGetBlob(hash, out var blob))
+            {
+                blob = null;
+            }
+
+            return Task.FromResult(new GetBlobResult(hash, blob));
+        }
+
+        private class DatabaseCapacity
+        {
+            public RocksDbContentMetadataDatabase.ColumnGroup Group { get; init; }
+            public long Remaining;
         }
     }
 }

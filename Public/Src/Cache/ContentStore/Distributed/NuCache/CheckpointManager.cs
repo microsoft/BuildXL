@@ -237,7 +237,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return newManifest;
         }
 
-        internal readonly static Regex RocksDbCorruptionRegex = new Regex(@".*block checksum mismatch.*Slot(?:1|2)(?:\/|\\)(?<name>.*\.sst)\soffset.*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        internal readonly static Regex RocksDbCorruptionRegex = new Regex(@".*Slot(?:1|2)(?:\/|\\)(?<name>.*\.sst).*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Restores the checkpoint for a given checkpoint id.
@@ -293,7 +293,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return BoolResult.Success;
                         }
 
-                        if (!restoreResult.Diagnostics.Contains("block checksum mismatch"))
+                        var attemptPrune = restoreResult.Diagnostics.Contains("block checksum mismatch")
+                            || restoreResult.Diagnostics.Contains("Bad table magic number");
+                        if (!attemptPrune)
                         {
                             return restoreResult;
                         }

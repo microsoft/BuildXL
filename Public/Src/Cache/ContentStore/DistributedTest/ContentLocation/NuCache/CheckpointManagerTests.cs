@@ -54,6 +54,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             CorruptionRegexCheck(error, expectedName);
         }
 
+        [Fact]
+        public void RocksDbCorruptionRegexMatchesBadTableMagicNumber()
+        {
+            var error = @"RocksDbSharp.RocksDbException: Corruption: Bad table magic number: expected 9863518390377041911, found 0 in K:\dbs\Cache\ContentAddressableStore\LocationDb\Slot2/1709103.sst
+   at RocksDbSharp.Native.rocksdb_open_for_read_only_column_families(IntPtr options, String name, Int32 num_column_families, String[] column_family_names, IntPtr[] column_family_options, IntPtr[] column_family_handles, Boolean error_if_log_file_exist)
+   at RocksDbSharp.RocksDb.OpenReadOnly(DbOptions options, String path, ColumnFamilies columnFamilies, Boolean errIfLogFileExists)
+   at BuildXL.Engine.Cache.KeyValueStores.RocksDbStore..ctor(RocksDbStoreConfiguration configuration) in \.\Public\Src\Utilities\KeyValueStore\RocksDb\RocksDbStore.cs:line 246
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor..ctor(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createdNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 715
+   at BuildXL.Engine.Cache.KeyValueStores.KeyValueStoreAccessor.OpenInternal(RocksDbStoreConfiguration storeConfiguration, Int32 storeVersion, Action`1 failureHandler, Boolean createNewStore, Action`1 invalidationHandler) in \.\Public\Src\Utilities\KeyValueStore\KeyValueStoreAccessor.cs:line 581";
+            var expectedName = "1709103.sst";
+
+            CorruptionRegexCheck(error, expectedName);
+        }
+
         private static void CorruptionRegexCheck(string error, string expectedName)
         {
             var match = CheckpointManager.RocksDbCorruptionRegex.Match(error);

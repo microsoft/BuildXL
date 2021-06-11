@@ -74,5 +74,11 @@ namespace BuildXL.Utilities.Configuration
         /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
         /// </summary>
         int? NumRetryFailedPipsOnAnotherWorker { get; }
+
+
+        /// <summary>
+        /// Verify that source files that are statically declared pip inputs match between an orchestrator and a worker.
+        /// </summary>
+        bool VerifySourceFilesOnWorkers { get; }
     }
 }

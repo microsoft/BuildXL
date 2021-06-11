@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumWorkers = 1;
             EarlyWorkerReleaseMultiplier = 0.5;
             EarlyWorkerRelease = true;
+            VerifySourceFilesOnWorkers = false; // TODO: For testing purposes, this is going to be disabled by default. Update in the future to be enabled by default
         }
 
         /// <nodoc />
@@ -39,6 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
             FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
             NumRetryFailedPipsOnAnotherWorker = template.NumRetryFailedPipsOnAnotherWorker;
+            VerifySourceFilesOnWorkers = template.VerifySourceFilesOnWorkers;
         }
 
         /// <inhertidoc />
@@ -80,5 +82,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int? NumRetryFailedPipsOnAnotherWorker { get; set; }
+
+        /// <inheritdoc />
+        public bool VerifySourceFilesOnWorkers { get; set; }
     }
 }

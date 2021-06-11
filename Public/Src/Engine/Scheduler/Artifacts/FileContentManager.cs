@@ -1948,7 +1948,7 @@ namespace BuildXL.Scheduler.Artifacts
                 if (file.IsSourceFile)
                 {
                     // Only distributed workers need to verify/materialize source files
-                    if (IsDistributedWorker && !sealDirMember)
+                    if (IsDistributedWorker && !sealDirMember && Configuration.Distribution.VerifySourceFilesOnWorkers)
                     {
                         return AddFileMaterializationBehavior.Verify;
                     }

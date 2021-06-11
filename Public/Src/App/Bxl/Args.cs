@@ -1314,6 +1314,9 @@ namespace BuildXL
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "verifySourceFilesOnWorkers",
+                            opt => distributionConfiguration.VerifySourceFilesOnWorkers = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "virtualizeUnknownPips",
                             sign => cacheConfiguration.VirtualizeUnknownPips = sign),
                         OptionHandlerFactory.CreateOption(

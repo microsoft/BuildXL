@@ -104,7 +104,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
             VmConcurrencyLimit = template.VmConcurrencyLimit;
             RemoteAllProcesses = template.RemoteAllProcesses;
-            DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>(template.DirectoriesToEnableFullReparsePointParsing);
+            DirectoriesToEnableFullReparsePointParsing = pathRemapper.Remap(template.DirectoriesToEnableFullReparsePointParsing);
         }
 
         /// <inheritdoc />
@@ -274,6 +274,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public List<AbsolutePath> DirectoriesToEnableFullReparsePointParsing { get; set; }
 
         /// <inheritdoc />
-        IReadOnlyCollection<AbsolutePath> ISandboxConfiguration.DirectoriesToEnableFullReparsePointParsing => DirectoriesToEnableFullReparsePointParsing;
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.DirectoriesToEnableFullReparsePointParsing => DirectoriesToEnableFullReparsePointParsing;
     }
 }

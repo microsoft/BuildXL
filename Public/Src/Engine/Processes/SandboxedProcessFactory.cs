@@ -211,7 +211,9 @@ namespace BuildXL.Processes
             Contract.Requires(info != null);
             Contract.Requires(info.FileName != null);
             Contract.Requires(info.LoggingContext != null);
-            Contract.Requires(info.GetCommandLine().Length <= SandboxedProcessInfo.MaxCommandLineLength);
+            Contract.Requires(
+                info.GetCommandLine().Length <= SandboxedProcessInfo.MaxCommandLineLength,
+                $"Command line's length ({info.GetCommandLine().Length}) exceeds the max length {SandboxedProcessInfo.MaxCommandLineLength}");
 
             if (info.TestRetries)
             {

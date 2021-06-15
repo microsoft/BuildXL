@@ -287,6 +287,7 @@ namespace NugetPackages {
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getGrpcPackages(false),
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getProtobufNetPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSystemTextJson(false),

@@ -59,11 +59,8 @@ namespace DistributedTest {
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             importFrom("WindowsAzure.Storage").pkg,
 
-            importFrom("protobuf-net").pkg,
-            importFrom("protobuf-net.Core").pkg,
-            importFrom("protobuf-net.Grpc").pkg,
-            importFrom("protobuf-net.Grpc.Native").pkg,
             ...getGrpcPackages(true),
+            ...getProtobufNetPackages(true),
             ...BuildXLSdk.getSystemMemoryPackages(true),
             importFrom("System.ServiceModel.Http").pkg,
             importFrom("System.ServiceModel.Primitives").pkg,

@@ -120,6 +120,17 @@ export function getGrpcPackages(includeNetStandard: boolean) {
     ];
 }
 
+@@public
+export function getProtobufNetPackages(includeNetStandard: boolean) {
+    return [
+        ...getGrpcPackages(includeNetStandard),
+        importFrom("protobuf-net.Core").pkg,
+        importFrom("protobuf-net").pkg,
+        importFrom("protobuf-net.Grpc").pkg,
+        importFrom("protobuf-net.Grpc.Native").pkg,
+    ];
+}
+
 namespace Default {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 

@@ -58,11 +58,8 @@ namespace Distributed {
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
             Grpc.dll,
 
-            importFrom("protobuf-net").pkg,
-            importFrom("protobuf-net.Core").pkg,
-            importFrom("protobuf-net.Grpc").pkg,
-            importFrom("protobuf-net.Grpc.Native").pkg,
             ...getGrpcPackages(true),
+            ...getProtobufNetPackages(true),
             ...BuildXLSdk.getSystemMemoryPackages(true),
             ...getSystemTextJson(true),
             importFrom("System.ServiceModel.Http").pkg,

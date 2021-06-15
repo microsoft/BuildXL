@@ -273,17 +273,24 @@ namespace BuildXL.Native.IO
                 using (Counters?.StartStopwatch(StorageCounters.InKernelFileCopyDuration))
                 {
                     Counters?.IncrementCounter(StorageCounters.InKernelFileCopyCount);
-                    s_fileUtilities.InKernelFileCopy(source, destination, followSymlink);
-                    Counters?.IncrementCounter(StorageCounters.SuccessfulInKernelFileCopyCount);
-                    return Unit.Void;
+                    Possible<Unit> result = s_fileUtilities.InKernelFileCopy(source, destination, followSymlink);
+                    if (result.Succeeded)
+                    {
+                        Counters?.IncrementCounter(StorageCounters.SuccessfulInKernelFileCopyCount);
+                    }
+
+                    return result;
                 }
             }
             catch (NativeWin32Exception ex)
             {
                return NativeFailure.CreateFromException(ex);
             }
+            catch (Exception ex)
+            {
+                return new NativeFailure((int)BuildXL.Interop.Unix.IO.Errno.ENOSYS, ex.ToString());
+            }
         }
-
 
         /// <see cref="IFileUtilities.CreateReplacementFile(string, FileShare, bool, bool)"/>
         public static FileStream CreateReplacementFile(

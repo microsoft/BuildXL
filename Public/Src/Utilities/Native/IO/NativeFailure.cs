@@ -4,7 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities;
 
-namespace BuildXL.Native.IO.Windows
+namespace BuildXL.Native.IO
 {
     /// <summary>
     /// <see cref="Failure" /> type wrapping a failed native API call.

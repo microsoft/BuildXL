@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -31,6 +32,18 @@ namespace BuildXL.Native.IO.Unix
         /// A concrete native FileSystem implementation based on Unix APIs
         /// </summary>
         private readonly FileSystemUnix m_fileSystem;
+
+        /// <summary>
+        /// Whether the `copy_file_range` system call is supported.
+        /// Will be set to false if calling `copy_file_range` fails with <see cref="EntryPointNotFoundException"/>.
+        /// </summary>
+        private bool m_copyFileRangeSupported = true;
+
+        /// <summary>
+        /// Whether the `sendfile` system call is supported.
+        /// Will be set to false if calling `sendfile` fails with <see cref="EntryPointNotFoundException"/>.
+        /// </summary>
+        private bool m_sendFileSupported = true;
 
         /// <inheritdoc />
         public PosixDeleteMode PosixDeleteMode { get; set; }
@@ -489,7 +502,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public void InKernelFileCopy(string source, string destination, bool followSymlink)
+        public Possible<Unit> InKernelFileCopy(string source, string destination, bool followSymlink)
         {
             SafeFileHandle sourceHandle;
             OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
@@ -502,7 +515,7 @@ namespace BuildXL.Native.IO.Unix
 
             if (!openResult.Succeeded)
             {
-                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to open source file '{source}' in {nameof(InKernelFileCopy)}"));
+                return new NativeFailure(Marshal.GetLastWin32Error(), I($"Failed to open source file '{source}' in {nameof(InKernelFileCopy)}"));
             }
 
             using (sourceHandle)
@@ -522,7 +535,7 @@ namespace BuildXL.Native.IO.Unix
 
                 if (!openResult.Succeeded)
                 {
-                    throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to open destination file '{destination}' in {nameof(InKernelFileCopy)}"));
+                    return new NativeFailure(Marshal.GetLastWin32Error(), I($"Failed to open destination file '{destination}' in {nameof(InKernelFileCopy)}"));
                 }
 
                 using (destinationHandle)
@@ -530,7 +543,7 @@ namespace BuildXL.Native.IO.Unix
                     var statBuffer = new StatBuffer();
                     if (StatFileDescriptor(sourceHandle, ref statBuffer) != 0)
                     {
-                        throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to stat source file '{source}' for size query in {nameof(InKernelFileCopy)}"));
+                        return new NativeFailure(Marshal.GetLastWin32Error(), I($"Failed to stat source file '{source}' for size query in {nameof(InKernelFileCopy)}"));
                     }
 
                     var length = statBuffer.Size;
@@ -539,42 +552,47 @@ namespace BuildXL.Native.IO.Unix
 
                     do
                     {
-                        bytesCopied = Interop.Unix.IO.CopyFileRange(sourceHandle, IntPtr.Zero, destinationHandle, IntPtr.Zero, s_copyBufferSizeMax);
+                        bytesCopied = CopyBytes(sourceHandle, destinationHandle);
                         if (bytesCopied == -1)
                         {
-                            lastError = Marshal.GetLastWin32Error();
-                            break;
+                            return new NativeFailure(Marshal.GetLastWin32Error(), I($"{nameof(InKernelFileCopy)} failed  copying '{source}' to '{destination}' with error code: {lastError}"));
                         }
 
                         length -= bytesCopied;
                     } while (length > 0 && bytesCopied > 0);
 
-                    // copy_file_range() is available in kernel versions > 4.5, let's try sendfile() if copy_file_range() is not implemented
-                    if (lastError == (int)Errno.ENOSYS)
-                    {
-                        length = statBuffer.Size;
-                        bytesCopied = 0;
-                        lastError = 0;
-
-                        do
-                        {
-                            bytesCopied = Interop.Unix.IO.SendFile(sourceHandle, destinationHandle, IntPtr.Zero, s_copyBufferSizeMax);
-                            if (bytesCopied == -1)
-                            {
-                                lastError = Marshal.GetLastWin32Error();
-                                break;
-                            }
-
-                            length -= bytesCopied;
-                        } while (length > 0 && bytesCopied > 0);
-                    }
-
-                    if (lastError != 0)
-                    {
-                        throw new NativeWin32Exception(lastError, I($"{nameof(InKernelFileCopy)} failed  copying '{source}' to '{destination}' with error code: {lastError}"));
-                    }
+                    return Unit.Void;
                 }
             }
+        }
+
+        private long CopyBytes(SafeFileHandle sourceHandle, SafeFileHandle destinationHandle)
+        {
+            if (m_copyFileRangeSupported)
+            {
+                try
+                {
+                    return Interop.Unix.IO.CopyFileRange(sourceHandle, IntPtr.Zero, destinationHandle, IntPtr.Zero, s_copyBufferSizeMax);
+                }
+                catch (System.EntryPointNotFoundException)
+                {
+                    m_copyFileRangeSupported = false;
+                }
+            }
+
+            if (m_sendFileSupported)
+            {
+                try
+                {
+                    return Interop.Unix.IO.SendFile(sourceHandle, destinationHandle, IntPtr.Zero, s_copyBufferSizeMax);
+                }
+                catch (System.EntryPointNotFoundException)
+                {
+                    m_sendFileSupported = false;
+                } 
+            }
+
+            return -1;
         }
 
         /// <inheritdoc />

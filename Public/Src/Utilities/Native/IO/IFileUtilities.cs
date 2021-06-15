@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.Streams;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Native.IO
@@ -154,8 +155,8 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// This method must be implemented if <see cref="IFileSystem.IsInKernelCopyingSupportedByHostSystem"/> returns true.
         /// </remarks>
-        /// <exception cref="NativeWin32Exception">Throw native exception upon failure.</exception>
-        void InKernelFileCopy(string source, string destination, bool followSymlink);
+        /// <exception cref="NotImplementedException">When not supported by the OS.</exception>
+        Possible<Unit> InKernelFileCopy(string source, string destination, bool followSymlink);
 
         /// <summary>
         /// Returns a new <see cref="FileStream" /> with the share mode. The target path is always deleted (if present) and re-created.

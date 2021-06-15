@@ -10,7 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using BuildXL.App.Tracing;
-using BuildXL.Native.IO.Windows;
+using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Storage;
 using BuildXL.Utilities;

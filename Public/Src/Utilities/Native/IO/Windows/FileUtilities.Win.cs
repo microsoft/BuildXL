@@ -1187,7 +1187,7 @@ namespace BuildXL.Native.IO.Windows
         public void CloneFile(string source, string destination, bool followSymlink) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public void InKernelFileCopy(string source, string destination, bool followSymlink) => throw new NotImplementedException();
+        public Possible<Unit> InKernelFileCopy(string source, string destination, bool followSymlink) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public FileStream CreateAsyncFileStream(

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Common;
@@ -32,6 +33,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private readonly byte[] _credentialBytes;
 
         private readonly VsoCredentialHelper _helper;
+        private readonly AzureArtifactsCredentialHelper _artifactsCredentialHelper = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VssCredentialsFactory"/> class.
@@ -39,6 +41,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
         public VssCredentialsFactory(VsoCredentialHelper helper)
         {
             _helper = helper;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VssCredentialsFactory"/> class.
+        /// </summary>
+        public VssCredentialsFactory(VsoCredentialHelper helper, [CanBeNull] string userName, AzureArtifactsCredentialHelper artifactsCredentialHelper)
+            : this(helper, userName)
+        {
+            _artifactsCredentialHelper = artifactsCredentialHelper;
         }
 
         /// <summary>
@@ -129,6 +140,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_pat != null)
             {
                 return _helper.GetPATCredentials(_pat);
+            }
+
+            if (_artifactsCredentialHelper != null)
+            {
+                var credentialHelperResult = await _artifactsCredentialHelper.AcquirePat(baseUri, PatType.CacheReadWrite);
+
+                if (credentialHelperResult.Result == AzureArtifactsCredentialHelperResultType.Success)
+                {
+                    return _helper.GetPATCredentials(credentialHelperResult.Pat);
+                }
             }
 
 #if NET_CORE

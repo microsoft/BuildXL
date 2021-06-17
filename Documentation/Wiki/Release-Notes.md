@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210611.5 (Release [110170](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110170)) Released 6/16/2021
+- Remap paths properly for reparse point paths to enforce
+- Add a flag to disable source file verification
+- Improve client-to-server connection monitoring
+- Optimize file-based hashing
+- Add enforceFullReparsePointsUnderPath argument
+- Optimize searching for reparse points in a path
+
 # 0.1.0-20210528.7 (Release [108880](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108880)) Released 6/2/2021
 - DumpStringTable Analyzer
 - Deprecate IDistributionConfiguration.EnableSourceFileMaterialization

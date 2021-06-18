@@ -208,7 +208,13 @@ namespace BuildXL.Engine.Distribution
                 try
                 {
                     // Sending of notifications is driven by pip results - block until we have a new result to send
-                    firstItem = m_pipResultListener.ReadyToSendResultList.Take(cancellationToken);
+                    // but also send a message every two minutes to keep the execution log and potential delayed
+                    // events flowing.
+                    if(!m_pipResultListener.ReadyToSendResultList.TryTake(out firstItem, (int)TimeSpan.FromMinutes(2).TotalMilliseconds, cancellationToken))
+                    {
+                        // Timeout is hit, we don't have any result to send right now
+                        firstItem = null;
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -250,7 +256,8 @@ namespace BuildXL.Engine.Distribution
 
                 if (m_executionResults.Count == 0 && m_eventList.Count == 0 && m_flushedExecutionLog.Length == 0)
                 {
-                    // Nothing to send. This can potentially happen while exiting.
+                    // Nothing to send. This can potentially happen while exiting or if the timeout for
+                    // ReadyToSendResultList.TryTake above is hit and there is no new data to send
                     continue;
                 }
 

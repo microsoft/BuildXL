@@ -1,4 +1,4 @@
-.create-or-alter function with (folder = "common", docstring = "AnnotatedSessions2", skipvalidation = "true") AnnotatedSessions2(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", stamp:string="", bucketGroup:string="") {
+.create-or-alter function with (folder = "common", docstring = "AnnotatedSessions2", skipvalidation = "true") AnnotatedSessions2(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", isDeveloperBuild:string="False", stamp:string="", bucketGroup:string="") {
 // let startDate=datetime(2020-06-28 00:00:00.0000000); 
 // let endDate=datetime(2020-07-01 00:00:00.0000000);
 // let infra = "CB";
@@ -6,6 +6,7 @@
 // let customer = "Office";
 // let buildQueue = "";
 // let buildInfo_Build = "";
+// let isDeveloperBuild = "False";
 // let stamp = "";
 // let bucketGroup = "";
 // ************** Exception regexes **************
@@ -40,7 +41,6 @@ let annotatedSessions =
 cluster('cbuild').database('Domino').dominoinvocation
 | where EventInfo_Time between (startDate .. endDate)
 | project-away CommandLine 
-| where BuildInfo_IsDeveloperBuild != "True"
 | extend OfficeBuildType = case(
             Environment startswith "OfficeEnlistmentBuild", "enlist",
             Environment startswith "OfficeMetaBuild", "meta",
@@ -125,6 +125,7 @@ cluster('cbuild').database('Domino').dominoinvocation
 | summarize SessionId = any(SessionId), 
     EventInfo_Time = min(EventInfo_Time), 
     BuildInfo_Build = any(BuildInfo_Build),
+    BuildInfo_IsDeveloperBuild = any(BuildInfo_IsDeveloperBuild),
     BucketGroup = iff(isnotnull(anyif(Bucket, MasterInternalError != 0)), anyif(Bucket, MasterInternalError != 0), min(Bucket)),
     BucketMessage = min(ErrorMessage_InternalErrorOnly),
     RootCause = max(RootCause), 
@@ -155,7 +156,7 @@ cluster('cbuild').database('Domino').dominoinvocation
 // 
 // 7. Collapse together non-internal error sessions to limit the number of records returned by the query
 | extend TimeBucket = iff(InternalError == 1 or NonFatalInternalError == 1, EventInfo_Time, startofday(EventInfo_Time))
-| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, BucketGroup, RootCause, Exception, InternalError, NonFatalInternalError, BuildQueue, CBCanRetry, CBReturnType, CBReturnCode, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, Stamp, SuggestedBugName, MachineNames, BucketMessage
+| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, BuildInfo_IsDeveloperBuild, BucketGroup, RootCause, Exception, InternalError, NonFatalInternalError, BuildQueue, CBCanRetry, CBReturnType, CBReturnCode, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, Stamp, SuggestedBugName, MachineNames, BucketMessage
 | extend week = startofweek(TimeBucket)
 | extend BuildUrl = iff(Stamp != "",  strcat("http://cloudbuild.microsoft.com/build/", UniqueSession), "");
 annotatedSessions
@@ -164,6 +165,7 @@ annotatedSessions
 | where customer == "" or Customer == customer
 | where buildQueue == "" or BuildQueue == buildQueue
 | where buildInfo_Build == "" or BuildInfo_Build == buildInfo_Build
+| where isDeveloperBuild  == "" or BuildInfo_IsDeveloperBuild == isDeveloperBuild
 | where stamp == "" or Stamp == stamp
 | where bucketGroup == "" or BucketGroup == bucketGroup;
-}
+} 

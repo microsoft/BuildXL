@@ -4,11 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using FluentAssertions;
 using ProtoBuf;
 using ProtoBuf.Meta;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -143,6 +146,65 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             // Equality seems to be defined wrong for the record type somehow. However, the deserialization does result
             // in the same objects.
             // Assert.Equal(obj, deserialized);
+        }
+
+        [Fact]
+        public void GetContentHashListRequestRoundTrip()
+        {
+            var model = MetadataServiceSerializer.TypeModel;
+
+            var obj = new GetContentHashListRequest()
+            {
+                StrongFingerprint = StrongFingerprint.Random()
+            };
+
+            var deserialized = Roundtrip(model, obj);
+
+            obj.StrongFingerprint.Should().BeEquivalentTo(deserialized.StrongFingerprint);
+        }
+
+        [Fact]
+        public void CompareExchangeRequestRoundTrip()
+        {
+            var model = MetadataServiceSerializer.TypeModel;
+
+            var obj = new CompareExchangeRequest()
+            {
+                StrongFingerprint = StrongFingerprint.Random(),
+                ExpectedReplacementToken = "ErT",
+                Replacement = new SerializedMetadataEntry()
+                {
+                    SequenceNumber = 10,
+                    Data = Guid.NewGuid().ToByteArray(),
+                    ReplacementToken = "Rt"
+                }
+            };
+
+            var deserialized = Roundtrip(model, obj);
+
+            obj.Replacement.Should().BeEquivalentTo(deserialized.Replacement);
+            obj.ExpectedReplacementToken.Should().BeEquivalentTo(deserialized.ExpectedReplacementToken);
+            obj.StrongFingerprint.Should().BeEquivalentTo(deserialized.StrongFingerprint);
+        }
+
+        [Fact]
+        public void GetLevelSelectorsResponseRoundTrip()
+        {
+            var model = MetadataServiceSerializer.TypeModel;
+
+            var obj = new GetLevelSelectorsResponse()
+            {
+                Selectors = new List<Selector>()
+                {
+                    Selector.Random(),
+                    Selector.Random(),
+                    Selector.Random()
+                }
+            };
+
+            var deserialized = Roundtrip(model, obj);
+
+            obj.Selectors.Should().BeEquivalentTo(deserialized.Selectors);
         }
 
         private byte[] ToByteArray(Action<MemoryStream> serialize)

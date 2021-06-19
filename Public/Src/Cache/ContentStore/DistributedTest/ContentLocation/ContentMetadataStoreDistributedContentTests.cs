@@ -52,7 +52,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
 
             return RunTestAsync(
-                new Context(Logger),
                 3,
                 async context =>
                 {
@@ -86,7 +85,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
 
             return RunTestAsync(
-                new Context(Logger),
                 3,
                 async context =>
                 {
@@ -102,7 +100,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     var putResult = await workerSession0.PutRandomAsync(contexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
                     await OpenStreamAndDisposeAsync(workerSession1, contexts[worker1], putResult.ContentHash);
-                }, ensureLiveness: true);
+                },
+                ensureLiveness: true);
         }
 
         [Fact]
@@ -123,7 +122,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
 
             return RunTestAsync(
-                new Context(Logger),
                 3,
                 async context =>
                 {
@@ -162,7 +160,6 @@ namespace ContentStoreTest.Distributed.Sessions
             PutResult putResult = null;
 
             return RunTestAsync(
-                new Context(Logger),
                 3,
                 async context =>
                 {
@@ -209,7 +206,6 @@ namespace ContentStoreTest.Distributed.Sessions
             PutResult putResult = null;
 
             return RunTestAsync(
-                new Context(Logger),
                 3,
                 async context =>
                 {
@@ -282,7 +278,6 @@ namespace ContentStoreTest.Distributed.Sessions
             PutResult putResult = null;
 
             return RunTestAsync(
-                new Context(Logger),
                 3,
                 async context =>
                 {

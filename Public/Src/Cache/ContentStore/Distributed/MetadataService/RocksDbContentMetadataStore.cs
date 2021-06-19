@@ -12,6 +12,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -113,12 +115,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
-            if (Database.TryGetBlob(hash, out var blob))
-            {
-                blob = null;
-            }
-
+            Database.TryGetBlob(hash, out var blob);
             return Task.FromResult(new GetBlobResult(hash, blob));
+        }
+
+        public Task<Result<bool>> CompareExchangeAsync(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            SerializedMetadataEntry replacement,
+            string expectedReplacementToken)
+        {
+            var result = Database.CompareExchange(
+                context,
+                strongFingerprint,
+                replacement,
+                expectedReplacementToken,
+                null).ToResult();
+
+            return Task.FromResult(result);
+        }
+
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        {
+            var selectors = Database.GetSelectors(context, weakFingerprint);
+            return Task.FromResult(selectors.Select(s => new LevelSelectors(s, hasMore: false)));
+            
+        }
+
+        public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            var result = Database.GetSerializedContentHashList(context, strongFingerprint);
+            return Task.FromResult(result);
         }
 
         private class DatabaseCapacity

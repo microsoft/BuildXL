@@ -26,7 +26,10 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     /// <summary>
     /// Cache which acts on a local cache but also publishes content hash lists to a remote cache.
     /// </summary>
-    public class PublishingCache<TInner> : StartupShutdownBase, IPublishingCache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
+    public class PublishingCache<TInner> : StartupShutdownBase,
+        IPublishingCache, IContentStore, IStreamStore,
+        IRepairStore, ICopyRequestHandler, IPushFileHandler,
+        IComponentWrapper<TInner>
         where TInner : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
     {
         private readonly TInner _local;
@@ -34,6 +37,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
         /// <inheritdoc />
         public Guid Id { get; }
+
+        /// <inheritdoc />
+        TInner IComponentWrapper<TInner>.Inner => _local;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(PublishingCache<TInner>));

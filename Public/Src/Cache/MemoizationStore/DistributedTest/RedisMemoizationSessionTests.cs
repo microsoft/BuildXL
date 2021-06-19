@@ -63,7 +63,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 usePreventThreadTheft: false).GetAwaiter().GetResult();
             var secondaryRedisAdapter = new RedisDatabaseAdapter(secondaryFactory, keySpace: keySpace);
 
-            var memoizationDb = new RedisMemoizationDatabase(primaryRedisAdapter, secondaryRedisAdapter, _clock, _memoizationExpiryTime, operationsTimeout: null, slowOperationRedisTimeout: null);
+            var memoizationDb = new RedisMemoizationDatabase(primaryRedisAdapter, secondaryRedisAdapter, new RedisMemoizationConfiguration()
+            {
+                ExpiryTime = _memoizationExpiryTime,
+                SlowOperationCancellationTimeout = null
+            });
             return new RedisMemoizationStore(_logger, memoizationDb);
         }
 

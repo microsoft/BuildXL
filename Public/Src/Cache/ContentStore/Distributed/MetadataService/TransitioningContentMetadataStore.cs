@@ -14,6 +14,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
@@ -23,10 +25,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly IContentMetadataStore _redisStore;
         private readonly IContentMetadataStore _distributedStore;
         private readonly RedisContentLocationStoreConfiguration _configuration;
-        private readonly bool _preferDistributed;
-        private readonly bool _preferRedis;
 
         public bool AreBlobsSupported { get; }
+
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
+        private ContentMetadataStoreMode BlobMode => (_configuration.BlobContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode).Mask(_blobSupportedMask);
+        private ContentMetadataStoreMode LocationMode => _configuration.LocationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
+        private ContentMetadataStoreMode MemoizationMode => _configuration.MemoizationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
 
         private readonly ContentMetadataStoreModeFlags _blobSupportedMask;
 
@@ -41,14 +47,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _configuration = configuration;
             _redisStore = redisStore;
             _distributedStore = distributedStore;
-            _preferDistributed = configuration.ContentMetadataStoreModeFlags.HasFlag(ContentMetadataStoreModeFlags.PreferDistributed);
-            _preferRedis = configuration.ContentMetadataStoreModeFlags.HasFlag(ContentMetadataStoreModeFlags.PreferRedis);
-
-            if (_preferRedis)
+            
+            if (BlobMode.CheckFlag(ContentMetadataStoreModeFlags.PreferRedis) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Distributed) == 0)
             {
                 AreBlobsSupported = _redisStore.AreBlobsSupported;
             }
-            else if (_preferDistributed)
+            else if (BlobMode.CheckFlag(ContentMetadataStoreModeFlags.PreferDistributed) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Redis) == 0)
             {
                 AreBlobsSupported = _distributedStore.AreBlobsSupported;
             }
@@ -57,9 +61,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 AreBlobsSupported = _redisStore.AreBlobsSupported || _distributedStore.AreBlobsSupported;
             }
 
-            _blobSupportedMask =
-                (_redisStore.AreBlobsSupported ? ContentMetadataStoreModeFlags.Redis : 0)
-                | (_distributedStore.AreBlobsSupported ? ContentMetadataStoreModeFlags.Distributed : 0);
+            // Mask used to only include valid flags for BlobMode based on blob support in the respective stores
+            _blobSupportedMask = ContentMetadataStoreModeFlags.All
+                .Subtract(_redisStore.AreBlobsSupported ? 0 : ContentMetadataStoreModeFlags.Redis | ContentMetadataStoreModeFlags.PreferRedis)
+                .Subtract(_distributedStore.AreBlobsSupported ? 0 : ContentMetadataStoreModeFlags.Distributed | ContentMetadataStoreModeFlags.PreferDistributed);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -82,49 +87,68 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
         {
-            return ReadAsync(context, store => store.GetBulkAsync(context, contentHashes));
+            return ReadAsync(context, LocationMode, store => store.GetBulkAsync(context, contentHashes));
         }
 
         public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
-            return WriteAsync(context, store => store.RegisterLocationAsync(context, machineId, contentHashes, touch));
+            return WriteAsync(context, LocationMode, store => store.RegisterLocationAsync(context, machineId, contentHashes, touch));
         }
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
-            return WriteAsync(context, store => store.PutBlobAsync(context, hash, blob), modeMask: _blobSupportedMask);
+            return WriteAsync(context, BlobMode, store => store.PutBlobAsync(context, hash, blob));
         }
 
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
-            return ReadAsync(context, store => store.GetBlobAsync(context, hash), modeMask: _blobSupportedMask);
+            return ReadAsync(context, BlobMode, store => store.GetBlobAsync(context, hash));
         }
 
-        public Task<TResult> ReadAsync<TResult>(OperationContext context, Func<IContentMetadataStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null, ContentMetadataStoreModeFlags modeMask = ContentMetadataStoreModeFlags.All)
-            where TResult : ResultBase
+        public Task<Result<bool>> CompareExchangeAsync(OperationContext context, StrongFingerprint strongFingerprint, SerializedMetadataEntry replacement, string expectedReplacementToken)
         {
-            return ExecuteAsync(context, ContentMetadataStoreModeFlags.ReadBoth & modeMask, executeAsync, caller);
+            return WriteAsync(context, MemoizationMode, store => store.CompareExchangeAsync(context, strongFingerprint, replacement, expectedReplacementToken));
         }
 
-        public Task<TResult> WriteAsync<TResult>(OperationContext context, Func<IContentMetadataStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null, ContentMetadataStoreModeFlags modeMask = ContentMetadataStoreModeFlags.All)
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        {
+            return ReadAsync(context, MemoizationMode, store => store.GetLevelSelectorsAsync(context, weakFingerprint, level));
+        }
+
+        public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            return ReadAsync(context, MemoizationMode, store => store.GetContentHashListAsync(context, strongFingerprint));
+        }
+
+        public Task<TResult> ReadAsync<TResult>(OperationContext context, ContentMetadataStoreMode mode, Func<IContentMetadataStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
             where TResult : ResultBase
         {
-            return ExecuteAsync(context, ContentMetadataStoreModeFlags.WriteBoth & modeMask, executeAsync, caller);
+            return ExecuteAsync(context, mode, ContentMetadataStoreModeFlags.ReadBoth, executeAsync, caller);
+        }
+
+        public Task<TResult> WriteAsync<TResult>(OperationContext context, ContentMetadataStoreMode mode, Func<IContentMetadataStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
+            where TResult : ResultBase
+        {
+            return ExecuteAsync(context, mode, ContentMetadataStoreModeFlags.WriteBoth, executeAsync, caller);
         }
 
         private async Task<TResult> ExecuteAsync<TResult>(
             OperationContext context,
+            ContentMetadataStoreMode mode,
             ContentMetadataStoreModeFlags modeMask,
             Func<IContentMetadataStore, Task<TResult>> executeAsync,
             string caller)
             where TResult : ResultBase
         {
-            var mode = _configuration.ContentMetadataStoreModeFlags & modeMask;
-            var preference = _configuration.ContentMetadataStoreModeFlags & ContentMetadataStoreModeFlags.PreferenceMask;
-            var redisFlags = mode & ContentMetadataStoreModeFlags.Redis;
+            var modeFlags = mode.MaskFlags(modeMask);
+            var preference = mode.MaskFlags(ContentMetadataStoreModeFlags.PreferenceMask);
+            var redisFlags = modeFlags & ContentMetadataStoreModeFlags.Redis;
             var redisTask = MeasuredExecuteAsync(_redisStore, redisFlags, executeAsync);
-            var distributedFlags = mode & ContentMetadataStoreModeFlags.Distributed;
+            var distributedFlags = modeFlags & ContentMetadataStoreModeFlags.Distributed;
             var distributedTask = MeasuredExecuteAsync(_distributedStore, distributedFlags, executeAsync);
+
+            bool preferRedis = preference.CheckFlag(ContentMetadataStoreModeFlags.PreferRedis) || distributedFlags == 0;
+            bool preferDistributed = preference.CheckFlag(ContentMetadataStoreModeFlags.PreferDistributed) || redisFlags == 0;
 
             string extraEndMessage = null;
             var combinedResultTask = context.PerformOperationAsync(
@@ -132,19 +156,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 async () =>
                 {
                     var (redisResult, distributedResult) = await WhenBothAsync(redisTask, distributedTask);
-                    var result = _preferDistributed ? distributedResult : redisResult;
+                    var result = preferDistributed ? distributedResult : redisResult;
                     extraEndMessage = $"Redis={redisResult.message}, Distrib={distributedResult.message}";
                     return result.result;
                 },
                 caller: caller,
                 extraEndMessage: r => extraEndMessage);
 
-            if (_preferRedis || distributedFlags == 0)
+            if (preferRedis)
             {
                 // If preferring redis, return the redis result without waiting for combined result
                 return (await redisTask).result;
             }
-            else if (_preferDistributed || redisFlags == 0)
+            else if (preferDistributed)
             {
                 // If preferring distributed, return the distributed result without waiting for combined result
                 return (await distributedTask).result;

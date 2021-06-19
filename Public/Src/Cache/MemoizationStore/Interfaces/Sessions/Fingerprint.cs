@@ -104,8 +104,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         public ReadOnlyFixedBytes ToFixedBytes()
         {
-            Contract.Requires(Length > 0);
-
             return _bytes;
         }
 

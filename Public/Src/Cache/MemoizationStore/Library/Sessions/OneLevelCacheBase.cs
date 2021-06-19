@@ -30,7 +30,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.
     /// </summary>
-    public abstract class OneLevelCacheBase : StartupShutdownBase, ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
+    public abstract class OneLevelCacheBase : StartupShutdownBase, ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler, IComponentWrapper<IContentStore>
     {
         /// <summary>
         ///     Exposes the ContentStore to subclasses. NOTE: Only available after calling <see cref="CreateAndStartStoresAsync(OperationContext)"/>
@@ -47,6 +47,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         /// <nodoc />
         protected abstract CacheTracer CacheTracer { get; }
+
+        /// <inheritdoc />
+        IContentStore IComponentWrapper<IContentStore>.Inner => ContentStore!;
 
         /// <summary>
         ///     Determines if the content session will be passed to the memoization store when constructing a non-readonly session.

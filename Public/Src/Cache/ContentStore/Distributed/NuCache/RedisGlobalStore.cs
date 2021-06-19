@@ -22,6 +22,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -33,7 +35,7 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public sealed class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, IContentMetadataStore, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, IContentMetadataStore, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
         private const int MaxCheckpointSlotCount = 5;
         private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();
@@ -57,6 +59,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public RedisKey FullyQualifiedClusterStateKey => _clusterStateKey.UnsafeGetFullKey();
 
         internal RedisContentLocationStoreConfiguration Configuration { get; }
+
+        private RedisMemoizationAdapter MemoizationAdapter { get; }
 
         internal RedisBlobAdapter PrimaryBlobAdapter { get; }
 
@@ -98,6 +102,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, RaidedRedis);
             _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, RaidedRedis);
             _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, RaidedRedis);
+
+            MemoizationAdapter = new RedisMemoizationAdapter(RaidedRedis, configuration.Memoization);
 
             PrimaryBlobAdapter = new RedisBlobAdapter(primaryRedisBlobDb, _clock, Configuration);
             SecondaryBlobAdapter = new RedisBlobAdapter(secondaryRedisBlobDb, _clock, Configuration);
@@ -713,6 +719,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return hash[0] >= 128 ? PrimaryBlobAdapter : SecondaryBlobAdapter;
-        } 
+        }
+
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        {
+            return MemoizationAdapter.GetLevelSelectorsAsync(context, weakFingerprint, level);
+        }
+
+        public Task<Result<bool>> CompareExchangeAsync(OperationContext context, StrongFingerprint strongFingerprint, SerializedMetadataEntry replacement, string expectedReplacementToken)
+        {
+            return MemoizationAdapter.CompareExchangeAsync(context, strongFingerprint, replacement, expectedReplacementToken);
+        }
+
+        public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            return MemoizationAdapter.GetContentHashListAsync(context, strongFingerprint);
+        }
     }
 }

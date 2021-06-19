@@ -155,8 +155,55 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public ContentMetadataStoreMode ContentMetadataStoreMode { get; set; } = ContentMetadataStoreMode.Redis;
 
         /// <summary>
-        /// Controls which implementation is used for content metadata store
+        /// Controls which memoization operation implementation is used for content metadata store
         /// </summary>
-        internal ContentMetadataStoreModeFlags ContentMetadataStoreModeFlags => (ContentMetadataStoreModeFlags)ContentMetadataStoreMode;
+        public ContentMetadataStoreMode? MemoizationContentMetadataStoreModeOverride { get; set; }
+
+        /// <summary>
+        /// Controls which content location operation implementation is used for content metadata store
+        /// </summary>
+        public ContentMetadataStoreMode? LocationContentMetadataStoreModeOverride { get; set; }
+
+        /// <summary>
+        /// Controls which blob operation implementation is used for content metadata store
+        /// </summary>
+        public ContentMetadataStoreMode? BlobContentMetadataStoreModeOverride { get; set; }
+
+        /// <summary>
+        /// Indicates whether IContentMetadataStore implementation should be used instead of RedisGlobalStore implementation
+        /// for global metadata tracking. NOTE: IContentMetadataStore supports Redis operations as well.
+        /// </summary>
+        public bool UseMemoizationContentMetadataStore { get; set; }
+
+        /// <summary>
+        /// Configuration for RedisMemoizationDatabase/RedisMemoizationAdapter
+        /// </summary>
+        public RedisMemoizationConfiguration Memoization { get; set; } = new RedisMemoizationConfiguration();
+    }
+
+    /// <summary>
+    /// Configuration for RedisMemoizationDatabase
+    /// </summary>
+    public record RedisMemoizationConfiguration
+    {
+        /// <summary>
+        /// Time Delay given to raided redis databases to complete its result after the first redis instance has completed.
+        /// </summary>
+        public TimeSpan? SlowOperationCancellationTimeout { get; set; }
+
+        /// <summary>
+        /// A default timeout for memoization database operations.
+        /// </summary>
+        public static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// A timeout for memoization database operations.
+        /// </summary>
+        public TimeSpan OperationTimeout { get; set; } = DefaultOperationTimeout;
+
+        /// <summary>
+        /// Time before memoization entries expire.
+        /// </summary>
+        public TimeSpan ExpiryTime { get; set; }
     }
 }

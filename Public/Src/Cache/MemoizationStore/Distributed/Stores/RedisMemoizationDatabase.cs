@@ -31,48 +31,38 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     ///     WeakFingerprint -> Dictionary(Selector, (ContentHashList:byte[], replacementToken:string))
     /// The difference is that, since Redis does not have the concept of value tuple, we duplicate each Selector, prefixed with either a 1 or a 0, depending if we're storing the ContentHasList or the token.
     /// The motivation behind using the token (which is just a GUID created on adds) is to avoid comparing the two byte arrays.
+    ///
+    /// TODO: Deprecate. This is superseded by <see cref="RedisGlobalStore"/> via <see cref="RedisMemoizationAdapter"/>.
     /// </summary>
     internal class RedisMemoizationDatabase : MemoizationDatabase
     {
         private readonly RaidedRedisDatabase _redis;
-        private readonly IClock _clock;
-
         private readonly SerializationPool _serializationPool = new SerializationPool();
-
-        private readonly TimeSpan _metadataExpiryTime;
-        private readonly TimeSpan? _slowOperationCancellationTimeout;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(RedisMemoizationDatabase));
 
         private string GetKey(Fingerprint weakFingerprint) => $"WF_{weakFingerprint.Serialize()}";
 
+        private RedisMemoizationConfiguration Configuration { get; }
+
         /// <nodoc />
         public RedisMemoizationDatabase(
             RaidedRedisDatabase redis,
-            IClock clock,
-            TimeSpan metadataExpiryTime,
-            TimeSpan? operationsTimeout,
-            TimeSpan? slowOperationCancellationTimeout)
-            : base(operationsTimeout)
+            RedisMemoizationConfiguration configuration)
         {
             _redis = redis;
-            _clock = clock;
-            _metadataExpiryTime = metadataExpiryTime;
-            _slowOperationCancellationTimeout = slowOperationCancellationTimeout;
+            Configuration = configuration;
         }
 
         /// <nodoc />
         public RedisMemoizationDatabase(
             RedisDatabaseAdapter primaryRedis,
             RedisDatabaseAdapter secondaryRedis,
-            IClock clock,
-            TimeSpan metadataExpiryTime,
-            TimeSpan? operationsTimeout,
-            TimeSpan? slowOperationRedisTimeout)
-            : this(null, clock, metadataExpiryTime, operationsTimeout, slowOperationRedisTimeout)
+            RedisMemoizationConfiguration configuration)
         {
             _redis = new RaidedRedisDatabase(Tracer, primaryRedis, secondaryRedis);
+            Configuration = configuration;
         }
 
         /// <inheritdoc />
@@ -90,7 +80,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             string newReplacementToken)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
-            var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow);
+            var replacementMetadata = new MetadataEntry(replacement, DateTime.UtcNow);
             var replacementBytes = SerializeMetadataEntry(replacementMetadata);
 
             byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
@@ -113,12 +103,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                                 expectedReplacementToken,
                                 replacementBytes,
                                 newReplacementToken);
-                            batch.KeyExpireAsync(key, _metadataExpiryTime).FireAndForget(nestedContext);
+                            batch.KeyExpireAsync(key, Configuration.ExpiryTime).FireAndForget(nestedContext);
                             return task;
                         },
                         RedisOperation.CompareExchange);
                 },
-                retryWindow: _slowOperationCancellationTimeout);
+                retryWindow: Configuration.SlowOperationCancellationTimeout);
 
             Contract.Assert(primaryResult != null || secondaryResult != null);
 
@@ -164,7 +154,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                         },
                         RedisOperation.GetContentHashList);
                 },
-                retryWindow: _slowOperationCancellationTimeout);
+                retryWindow: Configuration.SlowOperationCancellationTimeout);
             Contract.Assert(primaryResult != null || secondaryResult != null);
 
             MetadataEntry? metadata = null;

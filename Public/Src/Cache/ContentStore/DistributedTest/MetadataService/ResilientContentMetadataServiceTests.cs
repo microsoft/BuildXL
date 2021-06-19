@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation.NuCache;
 using ContentStoreTest.Distributed.Redis;
@@ -79,6 +80,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 getResponse.Succeeded.Should().BeTrue();
                 getResponse.Entries.Count.Should().Be(1);
                 getResponse.Entries[0].Locations.Contains(machineId).Should().BeTrue();
+            });
+        }
+
+        [Fact]
+        public Task SimpleBlobPutAndGetTest()
+        {
+            return RunTest(async (context, service) =>
+            {
+                // First heartbeat lets the service know its master, so it's willing to process requests
+                await service.OnSuccessfulHeartbeatAsync(context, Role.Master);
+
+                var machineId = new MachineId(0);
+                var data = ThreadSafeRandom.GetBytes((int)100);
+                var contentHash = HashInfoLookup.GetContentHasher(HashType.Vso0).GetContentHash(data);
+
+                var putResponse = await service.PutBlobAsync(new PutBlobRequest()
+                {
+                    ContextId = Guid.NewGuid().ToString(),
+                    ContentHash = contentHash,
+                    Blob = data
+                });
+
+                putResponse.Succeeded.Should().BeTrue();
+
+                var getResponse = await service.GetBlobAsync(new GetBlobRequest()
+                {
+                    ContextId = Guid.NewGuid().ToString(),
+                    ContentHash = contentHash,
+                });
+
+                getResponse.Succeeded.Should().BeTrue();
+                getResponse.Blob.Should().NotBeNull();
+                getResponse.Blob.Should().BeEquivalentTo(data);
             });
         }
 

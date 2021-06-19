@@ -174,7 +174,6 @@ namespace ContentStoreTest.Distributed.Sessions
             });
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {

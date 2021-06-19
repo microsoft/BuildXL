@@ -919,6 +919,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseRedisMetadataStore { get; set; } = false;
 
         [DataMember]
+        public bool UseMemoizationContentMetadataStore { get; set; } = false;
+
+        [DataMember]
         public bool UseRoxisMetadataStore { get; set; } = false;
 
         [DataMember]
@@ -1147,6 +1150,16 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public EnumSetting<ContentMetadataStoreMode> ContentMetadataStoreMode { get; set; } = Configuration.ContentMetadataStoreMode.Redis;
+
+        [DataMember]
+        public EnumSetting<ContentMetadataStoreMode>? BlobContentMetadataStoreModeOverride { get; set; }
+
+        [DataMember]
+        public EnumSetting<ContentMetadataStoreMode>? LocationContentMetadataStoreModeOverride { get; set; }
+
+        [DataMember]
+        public EnumSetting<ContentMetadataStoreMode>? MemoizationContentMetadataStoreModeOverride { get; set; }
+
 
         [DataMember]
         public bool ContentMetadataBlobsEnabled { get; set; } = true;

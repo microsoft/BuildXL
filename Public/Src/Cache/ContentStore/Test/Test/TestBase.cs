@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -70,6 +71,11 @@ namespace ContentStoreTest.Test
         protected virtual IAbsFileSystem CreateFileSystem()
         {
             return null;
+        }
+
+        protected void TraceLine(string message = null, [CallerLineNumber] int line =0)
+        {
+            Logger.Log(Severity.Always, $"--- TraceLine({line}, '{message}') ---");
         }
 
         public override void Dispose()

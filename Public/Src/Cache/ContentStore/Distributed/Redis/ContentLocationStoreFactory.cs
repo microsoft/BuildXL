@@ -122,11 +122,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         protected virtual IContentMetadataStore CreateContentMetadataStore(RedisGlobalStore redisStore)
         {
-            if ((Configuration.ContentMetadataStoreModeFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
+            if (Configuration.ContentMetadataStoreMode.MaskFlags(ContentMetadataStoreModeFlags.Distributed) != 0)
             {
                 var distributedStore = CreateDistributedContentMetadataStore(redisStore);
 
-                if ((Configuration.ContentMetadataStoreModeFlags & ContentMetadataStoreModeFlags.Redis) == 0)
+                if (Configuration.ContentMetadataStoreMode.MaskFlags(ContentMetadataStoreModeFlags.Redis) == 0)
                 {
                     return distributedStore;
                 }

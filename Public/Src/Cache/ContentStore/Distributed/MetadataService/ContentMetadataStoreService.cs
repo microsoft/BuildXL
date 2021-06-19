@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using ProtoBuf.Grpc;
 using ProtoBuf.Grpc.Server;
 using static Grpc.Core.Server;
@@ -89,6 +90,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return ExecuteAsync(request, callContext, context =>
             {
+                // NOTE: We don't persist put blob requests currently because they are not critical.
+                // This can be enabled by setting PersistRequest=true
                 return _store.PutBlobAsync(context, request.ContentHash, request.Blob)
                     .SelectAsync(_ => new PutBlobResponse());
             },
@@ -111,7 +114,47 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     return $"Hash=[{request.ContentHash}]";
                 }
 
-                return $"Hash=[{request.ContentHash}] Size=[{r.Value.Blob.Length}]";
+                return $"Hash=[{request.ContentHash}] Size=[{r.Value.Blob?.Length ?? -1}]";
+            });
+        }
+
+        public Task<CompareExchangeResponse> CompareExchangeAsync(CompareExchangeRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return _store.CompareExchangeAsync(context, request.StrongFingerprint, request.Replacement, request.ExpectedReplacementToken)
+                    .SelectAsync(r => new CompareExchangeResponse()
+                    {
+                        Exchanged = r.Value,
+
+                        // Only persist if we succeeded in exchanging the value
+                        PersistRequest = r.Value
+                    });
+            });
+        }
+
+        public Task<GetLevelSelectorsResponse> GetLevelSelectorsAsync(GetLevelSelectorsRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return _store.GetLevelSelectorsAsync(context, request.WeakFingerprint, request.Level)
+                    .SelectAsync(r => new GetLevelSelectorsResponse()
+                    {
+                        HasMore = r.Value.HasMore,
+                        Selectors = r.Value.Selectors
+                    });
+            });
+        }
+
+        public Task<GetContentHashListResponse> GetContentHashListAsync(GetContentHashListRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return _store.GetContentHashListAsync(context, request.StrongFingerprint)
+                    .SelectAsync(r => new GetContentHashListResponse()
+                    {
+                        MetadataEntry = r.Value
+                    });
             });
         }
 
@@ -147,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         caller: caller,
                         traceOperationStarted: false,
                         extraStartMessage: extraStartMessage,
-                        extraEndMessage: r => string.Join(" ", extraEndMessage(r), request.BlockId?.ToString(), $"Retry=[{r.GetValueOrDefault()?.ShouldRetry}]"));
+                        extraEndMessage: r => string.Join(" ", extraEndMessage?.Invoke(r), request.BlockId?.ToString(), $"Retry=[{r.GetValueOrDefault()?.ShouldRetry}]"));
 
                         if (result.Succeeded)
                         {

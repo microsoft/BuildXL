@@ -35,7 +35,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMasterAndSmallBlobs();
 
             return RunTestAsync(
-                new Context(Logger),
                 1,
                 async context =>
                 {
@@ -54,7 +53,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMasterAndSmallBlobs();
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {
@@ -78,7 +76,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMasterAndSmallBlobs();
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {
@@ -90,7 +87,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
                     Assert.Equal(1, redisStore0.Counters[GlobalStoreCounters.PutBlob].Value);
-                    
+
                     await session1.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ShouldBeSuccess();
                     Assert.Equal(1, redisStore1.Counters[GlobalStoreCounters.GetBlob].Value);
                 });
@@ -109,7 +106,6 @@ namespace ContentStoreTest.Distributed.Sessions
             });
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {
@@ -139,7 +135,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMasterAndSmallBlobs();
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {
@@ -170,7 +165,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMasterAndSmallBlobs();
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {
@@ -207,7 +201,6 @@ namespace ContentStoreTest.Distributed.Sessions
             });
 
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {

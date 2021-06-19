@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
@@ -16,6 +18,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         RegisterContentLocations = 1,
         PutBlob = 2,
         GetBlob = 3,
+        CompareExchange = 4,
+        GetLevelSelectors = 5,
+        GetContentHashList = 6,
+    }
+
+    public static class ServiceRequestExtensions
+    {
+        public static TResult ToResult<TResponse, TResult>(this TResponse response, Func<TResponse, TResult> select)
+            where TResponse : ServiceResponseBase
+            where TResult : ResultBase
+        {
+            if (response.Succeeded)
+            {
+                return select(response);
+            }
+            else
+            {
+                return new ErrorResult(response.ErrorMessage, response.Diagnostics).AsResult<TResult>();
+            }
+        }
     }
 
     [ProtoContract]
@@ -23,6 +45,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(11, typeof(RegisterContentLocationsRequest))]
     [ProtoInclude(12, typeof(PutBlobRequest))]
     [ProtoInclude(13, typeof(GetBlobRequest))]
+    [ProtoInclude(14, typeof(GetContentHashListRequest))]
+    [ProtoInclude(15, typeof(CompareExchangeRequest))]
+    [ProtoInclude(16, typeof(GetLevelSelectorsRequest))]
     public abstract record ServiceRequestBase
     {
         public abstract RpcMethodId MethodId { get; }
@@ -40,6 +65,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(11, typeof(RegisterContentLocationsResponse))]
     [ProtoInclude(12, typeof(PutBlobResponse))]
     [ProtoInclude(13, typeof(GetBlobResponse))]
+    [ProtoInclude(14, typeof(GetContentHashListResponse))]
+    [ProtoInclude(15, typeof(CompareExchangeResponse))]
+    [ProtoInclude(16, typeof(GetLevelSelectorsResponse))]
     public abstract record ServiceResponseBase
     {
         public abstract RpcMethodId MethodId { get; }
@@ -163,5 +191,84 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return new GetBlobResult(contentHash, Blob);
             }
         }
+    }
+
+    [ProtoContract]
+    public record CompareExchangeRequest : ServiceRequestBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.CompareExchange;
+
+        [ProtoMember(1)]
+        public StrongFingerprint StrongFingerprint { get; init; }
+
+        [ProtoMember(2)]
+        public SerializedMetadataEntry Replacement { get; init; }
+
+        [ProtoMember(3)]
+        public string ExpectedReplacementToken { get; init; }
+    }
+
+    [ProtoContract]
+    public record CompareExchangeResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.CompareExchange;
+
+        [ProtoMember(1)]
+        public bool Exchanged { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetLevelSelectorsRequest : ServiceRequestBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetLevelSelectors;
+
+        [ProtoMember(1)]
+        public Fingerprint WeakFingerprint { get; init; }
+
+        [ProtoMember(2)]
+        public int Level { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetLevelSelectorsResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetLevelSelectors;
+
+        [ProtoMember(1)]
+        public IReadOnlyList<Selector> Selectors { get; init; } = new List<Selector>();
+
+        [ProtoMember(2)]
+        public bool HasMore { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetContentHashListRequest : ServiceRequestBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetContentHashList;
+
+        [ProtoMember(1)]
+        public StrongFingerprint StrongFingerprint { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetContentHashListResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetContentHashList;
+
+        [ProtoMember(1)]
+        public SerializedMetadataEntry MetadataEntry { get; init; }
+    }
+
+    [ProtoContract]
+    public class SerializedMetadataEntry
+    {
+        [ProtoMember(1)]
+        public byte[] Data { get; init;  }
+
+        [ProtoMember(2)]
+        public string ReplacementToken { get; set; }
+
+        [ProtoMember(3)]
+        public long? SequenceNumber { get; set; }
     }
 }

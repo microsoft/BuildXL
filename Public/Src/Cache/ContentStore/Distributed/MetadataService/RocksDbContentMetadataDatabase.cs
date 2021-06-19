@@ -23,6 +23,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -76,6 +77,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             /// This serves all of CaChaaS' needs for storage, modulo garbage collection.
             /// </summary>
             Metadata,
+
+            MetadataHeaders,
 
             Blobs,
         }
@@ -568,19 +571,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentMetadataDatabase db)
         {
             ContentLocationEntry? result = null;
-            if (store.TryGetValue(db.GetKey(hash), out var data, db.NameOf(Columns.Content)))
-            {
-                result = db.DeserializeContentLocationEntry(data);
-            }
-            // NOTE: This relies on the fact that updates to entries use copy modify write. Otherwise, we would need to merge
-            // the entries between the current and former column group.
-            // TODO: Write a test to detect if this breaks.
-            else if (store.TryGetValue(db.GetKey(hash), out data, db.NameOf(Columns.Content, db.GetFormerColumnGroup())))
+            if (db.TryGetValue(store, db.GetKey(hash), out var data, Columns.Content))
             {
                 result = db.DeserializeContentLocationEntry(data);
             }
 
             return result;
+        }
+
+        private bool TryGetValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out byte[]? value, Columns columns)
+        {
+            return store.TryGetValue(key, out value, NameOf(columns))
+                || store.TryGetValue(key, out value, NameOf(columns, GetFormerColumnGroup()));
         }
 
         /// <inheritdoc />
@@ -649,22 +651,144 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return hash.ToByteArray();
         }
 
+        /// <nodoc />
+        public Result<SerializedMetadataEntry> GetSerializedContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            // This method calls _keyValueStore.Use with non-static lambda, because this code is complicated
+            // and not as perf critical as other places.
+            var key = GetMetadataKey(strongFingerprint);
+            SerializedMetadataEntry? result = null;
+            var status = _keyValueStore.Use(
+                store =>
+                {
+                    using (_metadataLocks[key[0]].AcquireReadLock())
+                    {
+                        if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders)
+                            && TryGetValue(store, key, out var data, Columns.Metadata))
+                        {
+                            var header = DeserializeMetadataEntryHeader(headerData);
+
+                            // Update last access time in database
+                            header.LastAccessTimeUtc = Clock.UtcNow;
+                            store.Put(key, SerializeMetadataEntryHeader(header), NameOf(Columns.MetadataHeaders));
+
+                            return new SerializedMetadataEntry()
+                            {
+                                ReplacementToken = header.ReplacementToken,
+                                Data = data,
+                            };
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+                });
+
+            if (!status.Succeeded)
+            {
+                return new Result<SerializedMetadataEntry>(status.Failure.CreateException());
+            }
+
+            return new Result<SerializedMetadataEntry>(result!, isNullAllowed: true);
+        }
+
         /// <inheritdoc />
         public override Result<MetadataEntry?> GetMetadataEntry(OperationContext context, StrongFingerprint strongFingerprint, bool touch)
         {
             throw new NotImplementedException();
         }
 
-        /// <inheritdoc />
-        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        /// <summary>
+        /// Fine-grained locks that used for all operations that mutate Metadata records.
+        /// </summary>
+        private readonly ReaderWriterLockSlim[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new ReaderWriterLockSlim()).ToArray();
+
+        public override Possible<bool> TryUpsert(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism replacement, Func<MetadataEntry, bool> shouldReplace, DateTime? lastAccessTimeUtc)
         {
             throw new NotImplementedException();
+        }
+
+        /// <nodoc />
+        public Possible<bool> CompareExchange(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            SerializedMetadataEntry replacement,
+            string expectedReplacementToken,
+            DateTime? lastAccessTimeUtc)
+        {
+            return _keyValueStore.Use(
+                store =>
+                {
+                    var key = GetMetadataKey(strongFingerprint);
+
+                    using (_metadataLocks[key[0]].AcquireWriteLock())
+                    {
+                        MetadataEntryHeader header = default;
+
+                        if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders))
+                        {
+                            header = DeserializeMetadataEntryHeader(headerData);
+
+                            // If sequence number is present, we are replaying meaning
+                            // the latest sequence number should take precedence
+                            bool shouldReplace = replacement.SequenceNumber == null
+                                ? header.ReplacementToken == expectedReplacementToken
+                                : replacement.SequenceNumber > header.SequenceNumber;
+                            if (!shouldReplace)
+                            {
+                                return false;
+                            }
+
+                            // Set the sequence number so it can be used when replaying
+                            replacement.SequenceNumber ??= header.SequenceNumber + 1;
+                        }
+
+                        header = new MetadataEntryHeader()
+                        {
+                            LastAccessTimeUtc = lastAccessTimeUtc ?? Clock.UtcNow,
+                            ReplacementToken = replacement.ReplacementToken,
+                            SequenceNumber = replacement.SequenceNumber ?? 1,
+                        };
+
+                        // Don't put if content hash list is null since this represents a touch which arrived before
+                        // the initial put for the content hash list.
+                        if (replacement.Data != null)
+                        {
+                            store.Put(key, replacement.Data, NameOf(Columns.Metadata));
+                        }
+
+                        store.Put(key, SerializeMetadataEntryHeader(header), NameOf(Columns.MetadataHeaders));
+                    }
+
+                    return true;
+                });
         }
 
         /// <inheritdoc />
         public override IEnumerable<Result<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
         {
-            throw new NotImplementedException();
+            var result = new List<Result<StrongFingerprint>>();
+            var status = _keyValueStore.Use(
+                static (store, state) =>
+                {
+                    foreach (var kvp in store.PrefixSearch((byte[]?)null, nameof(Columns.Metadata)))
+                    {
+                        // TODO(jubayard): since this method only needs the keys and not the values, it wouldn't hurt
+                        // to make an alternative prefix search that doesn't even read the values from RocksDB.
+                        var strongFingerprint = state.@this.DeserializeStrongFingerprint(kvp.Key);
+                        state.result.Add(Result.Success(strongFingerprint));
+                    }
+
+                    return state.result;
+                }, (result: result, @this: this));
+
+            if (!status.Succeeded)
+            {
+                result.Add(new Result<StrongFingerprint>(status.Failure.CreateException()));
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -673,10 +797,90 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             throw new NotImplementedException();
         }
 
+        private static readonly Comparer<(DateTime TimeUtc, Selector Selector)> SelectorComparer =
+            Comparer<(DateTime TimeUtc, Selector Selector)>.Create((x, y) => y.TimeUtc.CompareTo(x.TimeUtc));
+
         /// <inheritdoc />
-        public override Possible<bool> TryUpsert(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism replacement, Func<MetadataEntry, bool> shouldReplace, DateTime? lastAccessTimeUtc)
+        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
-            throw new NotImplementedException();
+            var selectors = new List<(DateTime TimeUtc, Selector Selector)>();
+            var status = _keyValueStore.Use(
+                static (store, state) =>
+                {
+                    var @this = state.@this;
+                    var key = @this.SerializeWeakFingerprint(state.weakFingerprint);
+
+                    // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
+                    // we know that all keys here are strong fingerprints that match the weak fingerprint.
+                    foreach (var kvp in state.@this.PrefixSearch(store, key, Columns.MetadataHeaders))
+                    {
+                        var strongFingerprint = @this.DeserializeStrongFingerprint(kvp.Key);
+                        var timeUtc = @this.DeserializeMetadataEntryHeader(kvp.Value).LastAccessTimeUtc;
+                        state.selectors.Add((timeUtc, strongFingerprint.Selector));
+                    }
+
+                    return Unit.Void;
+                }, (selectors: selectors, @this: this, weakFingerprint: weakFingerprint));
+
+            if (!status.Succeeded)
+            {
+                return new Result<IReadOnlyList<Selector>>(status.Failure.CreateException());
+            }
+
+            selectors.Sort(SelectorComparer);
+
+            return new Result<IReadOnlyList<Selector>>(selectors.SelectList(t => t.Selector));
+        }
+
+        private IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(RocksDbStore store, byte[] key, Columns column)
+        {
+            return store.PrefixSearch(key, columnFamilyName: NameOf(column))
+                .Concat(store.PrefixSearch(key, columnFamilyName: NameOf(column, GetFormerColumnGroup())));
+        }
+
+        private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
+        {
+            return SerializationPool.Serialize(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
+        {
+            return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
+        {
+            return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
+        }
+
+        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
+        {
+            return SerializeStrongFingerprint(strongFingerprint);
+        }
+
+        private byte[] SerializeMetadataEntry(MetadataEntry value)
+        {
+            return SerializationPool.Serialize(value, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        private byte[] SerializeMetadataEntryHeader(MetadataEntryHeader value)
+        {
+            return SerializationPool.Serialize(value, static (instance, writer) => MetadataServiceSerializer.TypeModel.Serialize(writer.BaseStream, instance));
+        }
+
+        private MetadataEntry DeserializeMetadataEntry(byte[] data)
+        {
+            return SerializationPool.Deserialize(data, static reader => MetadataEntry.Deserialize(reader));
+        }
+
+        private MetadataEntryHeader DeserializeMetadataEntryHeader(byte[] data)
+        {
+            return MetadataServiceSerializer.TypeModel.Deserialize<MetadataEntryHeader>((ReadOnlySpan<byte>)data);
+        }
+
+        private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
+        {
+            return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
         private class KeyValueStoreGuard : IDisposable

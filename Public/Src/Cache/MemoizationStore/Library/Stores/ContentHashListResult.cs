@@ -44,7 +44,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// The source of <see cref="ContentHashList"/>.
         /// </summary>
         public ContentHashListSource Source { get; set; } = ContentHashListSource.Unknown;
-        
+
         /// <nodoc />
         public void Deconstruct(
             out ContentHashListWithDeterminism contentHashListInfo,
@@ -52,7 +52,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             out ContentHashListSource source)
         {
             source = Source;
-            
+
             if (Succeeded)
             {
                 contentHashListInfo = Value.contentHashListInfo;

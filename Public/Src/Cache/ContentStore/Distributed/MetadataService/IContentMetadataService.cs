@@ -20,5 +20,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         Task<PutBlobResponse> PutBlobAsync(PutBlobRequest request, CallContext callContext = default);
 
         Task<GetBlobResponse> GetBlobAsync(GetBlobRequest request, CallContext callContext = default);
+
+        /// <nodoc />
+        Task<CompareExchangeResponse> CompareExchangeAsync(CompareExchangeRequest request, CallContext callContext = default);
+
+        /// <nodoc />
+        Task<GetLevelSelectorsResponse> GetLevelSelectorsAsync(GetLevelSelectorsRequest request, CallContext callContext = default);
+
+        /// <nodoc />
+        Task<GetContentHashListResponse> GetContentHashListAsync(GetContentHashListRequest request, CallContext callContext = default);
+
     }
 }

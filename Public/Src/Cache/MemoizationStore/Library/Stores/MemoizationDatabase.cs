@@ -18,7 +18,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// <summary>
     /// Defines a database which stores memoization information
     /// </summary>
-    public abstract class MemoizationDatabase : StartupShutdownSlimBase, IName
+    public abstract class MemoizationDatabase : StartupShutdownComponentBase, IName
     {
         private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(5);
         private readonly TimeSpan _timeout;

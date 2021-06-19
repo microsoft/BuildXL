@@ -8,6 +8,8 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -22,30 +24,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <remarks>
         /// The resulting collection (in success case) will have the same size as <paramref name="contentHashes"/>.
         /// </remarks>
-        //Task<GetContentLocationsResponse> GetContentLocationsAsync(GetContentLocationsRequest request);
         Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes);
 
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        //Task<ClientResponse> UpdateLocationsAsync(UpdateLocationsRequest request);
         Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch);
 
         /// <summary>
         /// Puts a blob into the content location store.
         /// </summary>
-        //Task<PutBlobResponse> PutBlobAsync(PutBlobRequest request);
         Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob);
 
         /// <summary>
         /// Gets a blob from the content location store.
         /// </summary>
-        //Task<GetBlobResponse> GetBlobAsync(GetBlobRequest request);
         Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash);
 
         /// <summary>
         /// Gets a value indicating whether the store supports storing and retrieving blobs.
         /// </summary>
         bool AreBlobsSupported { get; }
+
+        #region Memoization Operations
+
+        /// <nodoc />
+        Task<Result<bool>> CompareExchangeAsync(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            SerializedMetadataEntry replacement,
+            string expectedReplacementToken);
+
+        /// <nodoc />
+        Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level);
+
+        /// <nodoc />
+        Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
+
+        #endregion Memoization Operations
     }
 }

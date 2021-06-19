@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using System.Security.Cryptography;
 
 #pragma warning disable CS3008 // CLS
 
@@ -323,6 +324,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             buffer[0] = (byte)_hashType;
             _bytes.Serialize(buffer, length - 1, offset: 1);
             return buffer;
+        }
+
+        /// <nodoc />
+        public static ContentHash FromFixedBytes(HashType hashType, ReadOnlyFixedBytes bytes)
+        {
+            return new ContentHash(hashType, bytes);
         }
 
         /// <summary>

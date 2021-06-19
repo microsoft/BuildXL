@@ -34,6 +34,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Distributed.ContentLocation;
@@ -45,9 +46,11 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
-    public abstract class DistributedContentTests : TestBase
+    public abstract class DistributedContentTests<TStore, TSession> : TestBase
+        where TSession : IContentSession
+        where TStore : IStartupShutdown
     {
-        private static readonly Tracer _tracer = new Tracer(nameof(DistributedContentTests));
+        private static readonly Tracer _tracer = new Tracer(nameof(DistributedContentTests<TStore, TSession>));
 
         // It is very important to use "cancellable" cancellation token instance.
         // This fact can be used by the system and change the behavior based on it.
@@ -58,7 +61,19 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public MemoryClock TestClock { get; } = new MemoryClock();
 
-        protected abstract (IContentStore store, IStartupShutdown server) CreateStore(
+        protected abstract CreateSessionResult<TSession> CreateSession(TStore store, Context context, string name, ImplicitPin implicitPin);
+
+        protected abstract Task<GetStatsResult> GetStatsAsync(TStore store, Context context);
+
+        protected abstract IContentStore UnwrapRootContentStore(TStore store);
+
+        protected virtual IContentSession UnwrapRootContentSession(TSession session) => session;
+
+        protected abstract TStore CreateFromTopLevelContentStore(IContentStore store);
+
+        protected virtual DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments) => arguments;
+
+        protected abstract (TStore store, IStartupShutdown server) CreateStore(
             Context context,
             IRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
@@ -68,20 +83,24 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public class TestContext
         {
+            private readonly DistributedContentTests<TStore, TSession> _testInstance;
             private readonly bool _traceStoreStatistics;
             public readonly Context Context;
             public readonly OperationContext[] StoreContexts;
             public readonly TestFileCopier TestFileCopier;
             public readonly IRemoteFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
-            public IList<IContentSession> Sessions { get; protected set; }
-            public readonly IList<IContentStore> Stores;
+            public IList<TSession> Sessions { get; protected set; }
+            public readonly IList<TStore> Stores;
             public readonly IList<IStartupShutdown> Servers;
             public readonly int[] Ports;
             public readonly int Iteration;
 
+            public virtual bool ShouldCreateContentSessions => true;
+
             public TestContext(TestContext other)
                 : this(
+                      other._testInstance,
                       other.Context,
                       other.FileCopier,
                       other.Directories,
@@ -93,14 +112,16 @@ namespace ContentStoreTest.Distributed.Sessions
             }
 
             public TestContext(
+                DistributedContentTests<TStore, TSession> testInstance,
                 Context context,
                 IRemoteFileCopier fileCopier,
                 IList<DisposableDirectory> directories,
-                IList<(IContentStore store, IStartupShutdown server)> stores,
+                IList<(TStore store, IStartupShutdown server)> stores,
                 int iteration,
                 int[] ports,
                 bool traceStoreStatistics = false)
             {
+                _testInstance = testInstance;
                 _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
                 StoreContexts = stores.Select((s, index) => new OperationContext(CreateContext(index, iteration))).ToArray();
@@ -154,8 +175,11 @@ namespace ContentStoreTest.Distributed.Sessions
                     var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccess();
                 }
 
-                Sessions = Stores.Select((store, id) => store.CreateSession(Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
-                await TaskUtilities.SafeWhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
+                if (ShouldCreateContentSessions)
+                {
+                    Sessions = Stores.Select((store, id) => _testInstance.CreateSession(store, Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
+                    await TaskUtilities.SafeWhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
+                }
             }
 
             protected static string GetSessionName(int id, string buildId) =>
@@ -210,7 +234,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 for (int storeId = 0; storeId < Stores.Count; storeId++)
                 {
                     var store = Stores[storeId];
-                    var stats = await store.GetStatsAsync(StoreContexts[storeId]);
+                    var stats = await _testInstance.GetStatsAsync(store, StoreContexts[storeId]);
                     if (stats.Succeeded)
                     {
                         foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
@@ -225,7 +249,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public static implicit operator OperationContext(TestContext context) => new OperationContext(context);
 
-            public virtual IContentSession GetSession(int idx)
+            public virtual TSession GetSession(int idx)
             {
                 return Sessions[idx];
             }
@@ -245,10 +269,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetTypedSession<FileSystemContentSession>(idx, primary);
             }
 
-            private TSession GetTypedSession<TSession>(int idx, bool primary)
+            private TTypedSession GetTypedSession<TTypedSession>(int idx, bool primary)
             {
-                var session = GetSession(idx);
-                while (!(session is TSession))
+                var session = _testInstance.UnwrapRootContentSession(GetSession(idx));
+                while (!(session is TTypedSession))
                 {
                     var nextSession = UnwrapSession(session, primary);
                     if (nextSession == session)
@@ -259,7 +283,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     session = nextSession;
                 }
 
-                return (TSession)session;
+                return (TTypedSession)session;
             }
 
             private static IContentSession UnwrapSession(IContentSession session, bool primary)
@@ -299,10 +323,15 @@ namespace ContentStoreTest.Distributed.Sessions
                 return GetTypedStore<FileSystemContentStore>(idx, primary);
             }
 
-            private TStore GetTypedStore<TStore>(int idx, bool primary)
+            private TTypedStore GetTypedStore<TTypedStore>(int idx, bool primary)
             {
-                var store = Stores[idx];
-                while (!(store is TStore))
+                var store = _testInstance.UnwrapRootContentStore(Stores[idx]);
+                return GetTypedStore<TTypedStore>(store, primary);
+            }
+
+            public static TTypedStore GetTypedStore<TTypedStore>(IContentStore store, bool primary = true)
+            {
+                while (!(store is TTypedStore))
                 {
                     var nextStore = UnwrapStore(store, primary);
                     if (nextStore == store)
@@ -313,7 +342,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     store = nextStore;
                 }
 
-                return (TStore)store;
+                return (TTypedStore)store;
             }
 
             private static IContentStore UnwrapStore(IContentStore store, bool primary)
@@ -411,7 +440,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task GetFilesFromDifferentReplicas()
         {
-            await RunTestAsync(new Context(Logger), 3, async context =>
+            await RunTestAsync(3, async context =>
             {
                 var sessions = context.Sessions;
 
@@ -443,7 +472,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task RemoteFileAddedToLocalBeforePlace()
         {
-            return RunTestAsync(new Context(Logger), 2, async context =>
+            return RunTestAsync(2, async context =>
             {
                 var sessions = context.Sessions;
 
@@ -473,7 +502,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact(Skip = "Fails without old redis")]
         public Task NoRetryOfCopyWhenLocalIsFull()
         {
-            return RunTestAsync(new Context(Logger), 2, async context =>
+            return RunTestAsync(2, async context =>
             {
                 var sessions = context.Sessions;
 
@@ -504,7 +533,6 @@ namespace ContentStoreTest.Distributed.Sessions
             var loggingContext = new Context(Logger);
 
             await RunTestAsync(
-                loggingContext,
                 1,
                 async context =>
                 {
@@ -521,7 +549,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
 
             await RunTestAsync(
-                loggingContext,
                 1,
                 async context =>
                 {
@@ -538,7 +565,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task SomeLocalContentStoresCorrupt()
         {
-            return RunTestAsync(new Context(Logger), 3, async context =>
+            return RunTestAsync(3, async context =>
             {
                 var sessions = context.Sessions;
 
@@ -564,7 +591,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public Task PutWithWrongHash()
         {
-            return RunTestAsync(new Context(Logger), 2, async testContext =>
+            return RunTestAsync(2, async testContext =>
             {
                 var sessions = testContext.Sessions;
 
@@ -588,7 +615,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
             // HACK: Existing purge code removes an extra file. Testing with this in mind.
             await RunTestAsync(
-                loggingContext,
                 1,
                 async context =>
                 {
@@ -625,7 +651,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 implicitPin: ImplicitPin.None);
 
             await RunTestAsync(
-                loggingContext,
                 1,
                 async context =>
                 {
@@ -780,7 +805,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public Task StreamEmptyFileWithoutCopying()
         {
             return RunTestAsync(
-                new Context(Logger),
                 1,
                 async context =>
                 {
@@ -801,7 +825,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public Task PinEmptyFileWithoutCopying()
         {
             return RunTestAsync(
-                new Context(Logger),
                 1,
                 async context =>
                 {
@@ -820,7 +843,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public Task PlaceEmptyFileWithoutCopying()
         {
             return RunTestAsync(
-                new Context(Logger),
                 2,
                 async context =>
                 {
@@ -848,7 +870,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         public async Task RunTestAsync(
-            Context context,
             int storeCount,
             Func<TestContext, Task> testFunc,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
@@ -859,6 +880,7 @@ namespace ContentStoreTest.Distributed.Sessions
             TestFileCopier testCopier = null,
             string buildId = null)
         {
+            var context = new Context(Logger);
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / (i + startIndex).ToString()) })
@@ -925,7 +947,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 iteration: iteration,
                                 grpcPort: (uint)ports[directory.Index])).ToList();
 
-                    var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
+                    var testContext = ConfigureTestContext(new TestContext(this, context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration, ports));
 
                     await testContext.StartupAsync(implicitPin, storeToStartupLast, buildId);
 

@@ -71,7 +71,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private readonly List<ResolvedNamedCacheSettings> _orderedResolvedCacheSettings;
         private readonly Dictionary<string, Secret> _secrets;
 
-        public RedisMemoizationStoreConfiguration RedisContentLocationStoreConfiguration { get; }
+        public RedisContentLocationStoreConfiguration RedisContentLocationStoreConfiguration { get; }
 
         public DistributedContentStoreFactory(DistributedCacheServiceArguments arguments)
         {
@@ -165,11 +165,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configuration: RedisContentLocationStoreConfiguration);
         }
 
-        private RedisMemoizationStoreConfiguration CreateRedisConfiguration()
+        private RedisContentLocationStoreConfiguration CreateRedisConfiguration()
         {
             var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
 
-            var redisContentLocationStoreConfiguration = new RedisMemoizationStoreConfiguration
+            var redisConfig = new RedisContentLocationStoreConfiguration
             {
                 Keyspace = _keySpace + RedisKeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
@@ -184,7 +184,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 EvictionDiscardFraction = _distributedSettings.EvictionDiscardFraction,
                 UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,
-                MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
+                Memoization =
+                {
+                    ExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
+                },
                 ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                 UseBinManager = _distributedSettings.UseBinManager || _distributedSettings.ProactiveCopyUsePreferredLocations,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
@@ -192,27 +195,32 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists,
+                UseMemoizationContentMetadataStore= _distributedSettings.UseMemoizationContentMetadataStore,
             };
 
-            ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisContentLocationStoreConfiguration.BlobOperationLimitCount = v);
-            ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisContentLocationStoreConfiguration.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
-            ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisContentLocationStoreConfiguration.UseSeparateConnectionForRedisBlobs = v);
+            ApplyIfNotNull(_distributedSettings.BlobContentMetadataStoreModeOverride, v => redisConfig.BlobContentMetadataStoreModeOverride = v.Value);
+            ApplyIfNotNull(_distributedSettings.LocationContentMetadataStoreModeOverride, v => redisConfig.LocationContentMetadataStoreModeOverride = v.Value);
+            ApplyIfNotNull(_distributedSettings.MemoizationContentMetadataStoreModeOverride, v => redisConfig.MemoizationContentMetadataStoreModeOverride = v.Value);
+
+            ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisConfig.BlobOperationLimitCount = v);
+            ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisConfig.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisConfig.UseSeparateConnectionForRedisBlobs = v);
 
             // Stop passing additional stores when fully transitioned to unified mode
             // since all drives appear under the same machine id
             if (_distributedSettings.GetMultiplexMode() != MultiplexMode.Unified)
             {
-                redisContentLocationStoreConfiguration.AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray();
+                redisConfig.AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray();
             }
 
-            ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisContentLocationStoreConfiguration.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisConfig.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
 
             // Redis-related configuration.
-            ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisContentLocationStoreConfiguration.RedisConnectionErrorLimit = v);
-            ApplyIfNotNull(_distributedSettings.RedisReconnectionLimitBeforeServiceRestart, v => redisContentLocationStoreConfiguration.RedisReconnectionLimitBeforeServiceRestart = v);
-            ApplyIfNotNull(_distributedSettings.DefaultRedisOperationTimeoutInSeconds, v => redisContentLocationStoreConfiguration.OperationTimeout = TimeSpan.FromSeconds(v));
-            ApplyIfNotNull(_distributedSettings.MinRedisReconnectInterval, v => redisContentLocationStoreConfiguration.MinRedisReconnectInterval = v);
-            ApplyIfNotNull(_distributedSettings.CancelBatchWhenMultiplexerIsClosed, v => redisContentLocationStoreConfiguration.CancelBatchWhenMultiplexerIsClosed = v);
+            ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisConfig.RedisConnectionErrorLimit = v);
+            ApplyIfNotNull(_distributedSettings.RedisReconnectionLimitBeforeServiceRestart, v => redisConfig.RedisReconnectionLimitBeforeServiceRestart = v);
+            ApplyIfNotNull(_distributedSettings.DefaultRedisOperationTimeoutInSeconds, v => redisConfig.OperationTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(_distributedSettings.MinRedisReconnectInterval, v => redisConfig.MinRedisReconnectInterval = v);
+            ApplyIfNotNull(_distributedSettings.CancelBatchWhenMultiplexerIsClosed, v => redisConfig.CancelBatchWhenMultiplexerIsClosed = v);
 
             if (_distributedSettings.RedisExponentialBackoffRetryCount != null)
             {
@@ -222,27 +230,27 @@ namespace BuildXL.Cache.Host.Service.Internal
                     maxBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffMaxIntervalInSeconds, v => TimeSpan.FromSeconds(v)),
                     deltaBackoff: IfNotNull(_distributedSettings.RedisExponentialBackoffDeltaIntervalInSeconds, v => TimeSpan.FromSeconds(v))
                     );
-                redisContentLocationStoreConfiguration.ExponentialBackoffConfiguration = exponentialBackoffConfiguration;
+                redisConfig.ExponentialBackoffConfiguration = exponentialBackoffConfiguration;
             }
 
-            ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisContentLocationStoreConfiguration.MachineRisk = v);
-            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => redisContentLocationStoreConfiguration.LocationEntryExpiry = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineStateRecomputeInterval = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineActiveToClosedInterval = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineActiveToExpiredInterval = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.TouchFrequencyMinutes, v => redisContentLocationStoreConfiguration.TouchFrequency = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.ReconcileCacheLifetimeMinutes, v => redisContentLocationStoreConfiguration.ReconcileCacheLifetime = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MaxProcessingDelayToReconcileMinutes, v => redisContentLocationStoreConfiguration.MaxProcessingDelayToReconcile = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisContentLocationStoreConfiguration.EvictionMinAge = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisContentLocationStoreConfiguration.RetryWindow = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisConfig.ContentLifetime = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisConfig.MachineRisk = v);
+            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => redisConfig.LocationEntryExpiry = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => redisConfig.MachineStateRecomputeInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => redisConfig.MachineActiveToClosedInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => redisConfig.MachineActiveToExpiredInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.TouchFrequencyMinutes, v => redisConfig.TouchFrequency = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.ReconcileCacheLifetimeMinutes, v => redisConfig.ReconcileCacheLifetime = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MaxProcessingDelayToReconcileMinutes, v => redisConfig.MaxProcessingDelayToReconcile = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisConfig.EvictionMinAge = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisConfig.RetryWindow = TimeSpan.FromSeconds(v));
 
-            ApplyIfNotNull(_distributedSettings.Unsafe_MasterThroughputCheckMode, v => redisContentLocationStoreConfiguration.MasterThroughputCheckMode = v);
-            ApplyIfNotNull(_distributedSettings.Unsafe_EventHubCursorPosition, v => redisContentLocationStoreConfiguration.EventHubCursorPosition = v);
-            ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisContentLocationStoreConfiguration.BlobTimeout = TimeSpan.FromMilliseconds(v));
-            ApplyIfNotNull(_distributedSettings.RedisGetCheckpointStateTimeoutInSeconds, v => redisContentLocationStoreConfiguration.ClusterRedisOperationTimeout = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(_distributedSettings.Unsafe_MasterThroughputCheckMode, v => redisConfig.MasterThroughputCheckMode = v);
+            ApplyIfNotNull(_distributedSettings.Unsafe_EventHubCursorPosition, v => redisConfig.EventHubCursorPosition = v);
+            ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisConfig.BlobTimeout = TimeSpan.FromMilliseconds(v));
+            ApplyIfNotNull(_distributedSettings.RedisGetCheckpointStateTimeoutInSeconds, v => redisConfig.ClusterRedisOperationTimeout = TimeSpan.FromSeconds(v));
 
-            redisContentLocationStoreConfiguration.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
+            redisConfig.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
 
             if (_distributedSettings.IsContentLocationDatabaseEnabled)
             {
@@ -252,25 +260,25 @@ namespace BuildXL.Cache.Host.Service.Internal
                     primaryCacheRoot / "LocationDbLogs",
                     logsKeepLongTerm: true
                     );
-                redisContentLocationStoreConfiguration.Database = dbConfig;
-                ApplySecretSettingsForLls(redisContentLocationStoreConfiguration, primaryCacheRoot, dbConfig);
+                redisConfig.Database = dbConfig;
+                ApplySecretSettingsForLls(redisConfig, primaryCacheRoot, dbConfig);
             }
 
             var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode.Value;
             if ((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
             {
-                redisContentLocationStoreConfiguration.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort)
+                redisConfig.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort)
                 {
-                    AreBlobsSupported = _distributedSettings.ContentMetadataBlobsEnabled && redisContentLocationStoreConfiguration.AreBlobsSupported,
+                    AreBlobsSupported = _distributedSettings.ContentMetadataBlobsEnabled && redisConfig.AreBlobsSupported,
                     OperationTimeout = _distributedSettings.ContentMetadataClientOperationTimeout,
                     ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
                 };
             }
 
-            _arguments.Overrides.Override(redisContentLocationStoreConfiguration);
+            _arguments.Overrides.Override(redisConfig);
 
-            ConfigurationPrinter.TraceConfiguration(redisContentLocationStoreConfiguration, _logger);
-            return redisContentLocationStoreConfiguration;
+            ConfigurationPrinter.TraceConfiguration(redisConfig, _logger);
+            return redisConfig;
         }
 
         public IGrpcServiceEndpoint CreateContentMetadataService()
@@ -501,7 +509,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static DistributedContentStoreSettings CreateDistributedStoreSettings(
             DistributedCacheServiceArguments arguments,
-            RedisMemoizationStoreConfiguration redisContentLocationStoreConfiguration)
+            RedisContentLocationStoreConfiguration redisContentLocationStoreConfiguration)
         {
             var distributedSettings = arguments.Configuration.DistributedContentSettings;
 
@@ -673,7 +681,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         private void ApplySecretSettingsForLls(
-            RedisMemoizationStoreConfiguration configuration,
+            RedisContentLocationStoreConfiguration configuration,
             AbsolutePath localCacheRoot,
             RocksDbContentLocationDatabaseConfiguration dbConfig)
         {
@@ -750,8 +758,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             });
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
-            ApplyIfNotNull(_distributedSettings.RedisMemoizationDatabaseOperationTimeoutInSeconds, value => configuration.MemoizationOperationTimeout = TimeSpan.FromSeconds(value));
-            ApplyIfNotNull(_distributedSettings.RedisMemoizationSlowOperationCancellationTimeoutInSeconds, value => configuration.MemoizationSlowOperationCancellationTimeout = TimeSpan.FromSeconds(value));
+            ApplyIfNotNull(_distributedSettings.RedisMemoizationDatabaseOperationTimeoutInSeconds, value => configuration.Memoization.OperationTimeout = TimeSpan.FromSeconds(value));
+            ApplyIfNotNull(_distributedSettings.RedisMemoizationSlowOperationCancellationTimeoutInSeconds, value => configuration.Memoization.SlowOperationCancellationTimeout = TimeSpan.FromSeconds(value));
 
             configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(_distributedSettings.GlobalRedisSecretName)).Secret;
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)

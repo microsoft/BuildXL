@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ProtoBuf;
 using ProtoBuf.Grpc.Configuration;
 using ProtoBuf.Meta;
@@ -35,6 +36,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             model.SetSurrogate<MachineId, int>(MachineIdToInt, IntToMachineId);
             model.SetSurrogate<ShortHashWithSize, (ShortHash hash, long size)>(ShortHashWithSizeToSurrogate, SurrogateToShortHashWithSize);
             model.SetSurrogate<ContentLocationEntry, (IReadOnlyCollection<MachineId> locations, long size)>(ContentLocationEntryToSurrogate, SurrogateToContentLocationEntry);
+
+            model.SetSurrogate<Fixed<uint>, uint>(dataFormat: DataFormat.FixedSize);
+            model.SetSurrogate<Fixed<ulong>, ulong>(dataFormat: DataFormat.FixedSize);
+
+            model.SetSurrogate<ContentHash, HashSurrogate>();
+            model.SetSurrogate<Fingerprint, HashSurrogate>();
+
+            model.SetSurrogate<StrongFingerprint, (Fingerprint, Selector)>(Convert, Convert);
+            model.SetSurrogate<Selector, (ContentHash, byte[])>(Convert, Convert);
 
             return model;
         }
@@ -90,6 +100,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return (parts[0], parts[1], parts[2]);
         }
 
+        private static (ContentHash hash, byte[] output) Convert(Selector selector)
+        {
+            return (selector.ContentHash, selector.Output);
+        }
+
+        private static Selector Convert((ContentHash hash, byte[] output) value)
+        {
+            return new Selector(value.hash, value.output);
+        }
+
+        private static (Fingerprint weakFingerprint, Selector selector) Convert(StrongFingerprint value)
+        {
+            return (value.WeakFingerprint, value.Selector);
+        }
+
+        private static StrongFingerprint Convert((Fingerprint weakFingerprint, Selector selector) value)
+        {
+            return new StrongFingerprint(value.weakFingerprint, value.selector);
+        }
+
         public static void SerializeWithLengthPrefix<T>(Stream stream, T value)
         {
             TypeModel.SerializeWithLengthPrefix(stream, value, typeof(T), PrefixStyle.Fixed32, default);
@@ -98,6 +128,88 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public static T DeserializeWithLengthPrefix<T>(Stream stream)
         {
             return (T)TypeModel.DeserializeWithLengthPrefix(stream, null, typeof(T), PrefixStyle.Fixed32, default);
+        }
+
+        [ProtoContract]
+        [StructLayout(LayoutKind.Explicit)]
+        private struct HashSurrogate
+        {
+            // Header byte for length or hash type
+
+            [ProtoMember(1)]
+            [FieldOffset(0)]
+            public byte Header;
+
+            // The next 4 ulongs and byte (33 bytes) overlap with ReadOnlyFixedBytes
+
+            [ProtoMember(2)]
+            [FieldOffset(1)]
+            public Fixed<ulong> BytesPart0;
+
+            [ProtoMember(3)]
+            [FieldOffset(1 + 8 * 1)]
+            public Fixed<ulong> BytesPart1;
+
+            [ProtoMember(4)]
+            [FieldOffset(1 + 8 * 2)]
+            public Fixed<ulong> BytesPart2;
+
+            [ProtoMember(5)]
+            [FieldOffset(1 + 8 * 3)]
+            public Fixed<ulong> BytesPart3;
+
+            [ProtoMember(6)]
+            [FieldOffset(1 + 8 * 4)]
+            public byte BytesPart4;
+
+            [FieldOffset(1)]
+            public ReadOnlyFixedBytes Bytes;
+
+            public static implicit operator Fingerprint(HashSurrogate value)
+            {
+                return new Fingerprint(value.Bytes, value.Header);
+            }
+
+            public static implicit operator HashSurrogate(Fingerprint value)
+            {
+                return new HashSurrogate()
+                {
+                    Bytes = value.ToFixedBytes(),
+                    Header = (byte)value.Length
+                };
+            }
+
+            public static implicit operator ContentHash(HashSurrogate value)
+            {
+                return ContentHash.FromFixedBytes((HashType)value.Header, value.Bytes);
+            }
+
+            public static implicit operator HashSurrogate(ContentHash value)
+            {
+                var result = new HashSurrogate()
+                {
+                    Bytes = value.ToFixedBytes(),
+                    Header = (byte)value.HashType
+                };
+
+                return result;
+            }
+
+        }
+
+        private struct Fixed<T>
+        {
+            public T Value;
+
+            public static implicit operator T(Fixed<T> value)
+            {
+                return value.Value;
+            }
+
+            public static implicit operator Fixed<T>(T value)
+            {
+                return new Fixed<T>() { Value = value };
+            }
         }
     }
 }

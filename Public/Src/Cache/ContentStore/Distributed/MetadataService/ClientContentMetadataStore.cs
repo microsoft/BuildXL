@@ -12,6 +12,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -191,6 +193,59 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return response.ToGetBlobResult(hash);
             },
             extraEndMessage: r => $"Hash=[{hash}] Size=[{r.Blob?.Length ?? -1}]");
+        }
+
+        public Task<Result<bool>> CompareExchangeAsync(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            SerializedMetadataEntry replacement,
+            string expectedReplacementToken)
+        {
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.CompareExchangeAsync(new CompareExchangeRequest()
+                {
+                    ContextId = context.TracingContext.TraceId,
+                    StrongFingerprint = strongFingerprint,
+                    Replacement = replacement,
+                    ExpectedReplacementToken = expectedReplacementToken
+                }, context.Token);
+
+                return response.ToResult(r => Result.Success(r.Exchanged));
+            },
+            extraEndMessage: r => $"Exchanged=[{r.GetValueOrDefault()}]");
+        }
+
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        {
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.GetLevelSelectorsAsync(new GetLevelSelectorsRequest()
+                {
+                    ContextId = context.TracingContext.TraceId,
+                    WeakFingerprint = weakFingerprint,
+                    Level = level,
+                }, context.Token);
+
+                return response.ToResult(r => Result.Success(new LevelSelectors(r.Selectors, r.HasMore)));
+            },
+            extraEndMessage: r => $"Count=[{r.GetValueOrDefault()?.Selectors.Count}] HasMore=[{r.GetValueOrDefault()?.HasMore ?? false}]");
+        }
+
+        public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.GetContentHashListAsync(new GetContentHashListRequest()
+                {
+                    ContextId = context.TracingContext.TraceId,
+                    StrongFingerprint = strongFingerprint,
+                }, context.Token);
+
+                return response.ToResult(r => Result.Success(r.MetadataEntry, isNullAllowed: true));
+            },
+            // TODO: What to log here?
+            extraEndMessage: r => $"Exchanged=[{r.GetValueOrDefault()}]");
         }
     }
 }

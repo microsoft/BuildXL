@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -35,7 +36,38 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
-    public abstract class LocalLocationStoreDistributedContentTestsBase : DistributedContentTests
+    public abstract class LocalLocationStoreDistributedContentTestsBase
+        : LocalLocationStoreDistributedContentTestsBase<IContentStore, IContentSession>
+    {
+        protected LocalLocationStoreDistributedContentTestsBase(LocalRedisFixture redis, ITestOutputHelper output)
+            : base(redis, output)
+        {
+        }
+
+        protected override IContentStore UnwrapRootContentStore(IContentStore store)
+        {
+            return store;
+        }
+
+        protected override Task<GetStatsResult> GetStatsAsync(IContentStore store, Context context)
+        {
+            return store.GetStatsAsync(context);
+        }
+
+        protected override CreateSessionResult<IContentSession> CreateSession(IContentStore store, Context context, string name, ImplicitPin implicitPin)
+        {
+            return store.CreateSession(context, name, implicitPin);
+        }
+
+        protected override IContentStore CreateFromTopLevelContentStore(IContentStore store)
+        {
+            return store;
+        }
+    }
+
+    public abstract class LocalLocationStoreDistributedContentTestsBase<TStore, TSession> : DistributedContentTests<TStore, TSession>
+        where TSession : IContentSession
+        where TStore : IStartupShutdown
     {
         protected static readonly Tracer Tracer = new Tracer(nameof(LocalLocationStoreDistributedContentTestsBase));
 
@@ -124,7 +156,7 @@ namespace ContentStoreTest.Distributed.Sessions
             _overrideRedis = overrideRedis;
         }
 
-        protected override (IContentStore store, IStartupShutdown server) CreateStore(
+        protected override (TStore store, IStartupShutdown server) CreateStore(
             Context context,
             IRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
@@ -267,14 +299,16 @@ namespace ContentStoreTest.Distributed.Sessions
 
             arguments.Overrides = TestInfos[index].Overrides;
 
+            arguments = ModifyArguments(arguments);
+
             if (UseGrpcServer)
             {
-                var server = (ILocalContentServer<IContentStore>)new CacheServerFactory(arguments).Create();
-                IContentStore store = server.StoresByName["Default"];
-                if (store is MultiplexedContentStore multiplexedStore)
-                {
-                    store = multiplexedStore.PreferredContentStore;
-                }
+                var server = (ILocalContentServer<TStore>)new CacheServerFactory(arguments).Create();
+                TStore store = server.StoresByName["Default"];
+                //if (store is MultiplexedContentStore multiplexedStore)
+                //{
+                //    store = multiplexedStore.PreferredContentStore;
+                //}
 
                 return (store, server);
             }
@@ -283,7 +317,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 var factory = new DistributedContentStoreFactory(arguments);
 
                 var topLevelStore = factory.CreateTopLevelStore().topLevelStore;
-                return (topLevelStore, null);
+                return (CreateFromTopLevelContentStore(topLevelStore), null);
             }
         }
 
@@ -372,14 +406,14 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected class TestHostOverrides : DistributedCacheServiceHostOverrides
         {
-            private readonly LocalLocationStoreDistributedContentTestsBase _tests;
+            private readonly LocalLocationStoreDistributedContentTestsBase<TStore, TSession> _tests;
             private readonly int _storeIndex;
 
             public FailureMode PersistentFailureMode { get; set; } = FailureMode.None;
             public FailureMode VolatileFailureMode { get; set; } = FailureMode.None;
             public MockPersistentEventStorageState PersistentState { get; set; } = new MockPersistentEventStorageState();
 
-            public TestHostOverrides(LocalLocationStoreDistributedContentTestsBase tests, int storeIndex)
+            public TestHostOverrides(LocalLocationStoreDistributedContentTestsBase<TStore, TSession> tests, int storeIndex)
             {
                 _tests = tests;
                 _storeIndex = storeIndex;

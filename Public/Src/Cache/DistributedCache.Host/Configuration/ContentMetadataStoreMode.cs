@@ -17,10 +17,10 @@ namespace BuildXL.Cache.Host.Configuration
         WriteBothReadRedis = WriteBoth | ReadRedis,
 
         /// <nodoc />
-        WriteBothPreferRedis = WriteBoth | PreferRedis,
+        WriteBothPreferRedis = WriteBoth | ReadBoth | PreferRedis,
 
         /// <nodoc />
-        WriteBothPreferDistributed = WriteBoth | PreferDistributed,
+        WriteBothPreferDistributed = WriteBoth | ReadBoth | PreferDistributed,
 
         /// <nodoc />
         WriteBothReadDistributed = WriteBoth | ReadDistributed,
@@ -44,10 +44,10 @@ namespace BuildXL.Cache.Host.Configuration
         WriteDistributed = 1 << 3,
 
         /// <nodoc />
-        PreferRedis = 1 << 4 | ReadBoth,
+        PreferRedis = 1 << 4 | Redis,
 
         /// <nodoc />
-        PreferDistributed = 1 << 5 | ReadBoth,
+        PreferDistributed = 1 << 5 | Distributed,
 
         /// <nodoc />
         PreferenceMask = PreferRedis | PreferDistributed,
@@ -66,5 +66,39 @@ namespace BuildXL.Cache.Host.Configuration
 
         /// <nodoc />
         All = -1
+    }
+
+    public static class ContentMetadataStoreModeExtensions
+    {
+        public static bool CheckFlag(this ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags flags)
+        {
+            return mode.Flags().CheckFlag(flags);
+        }
+
+        public static bool CheckFlag(this ContentMetadataStoreModeFlags mode, ContentMetadataStoreModeFlags flags)
+        {
+            return (mode & flags) == flags;
+        }
+
+        public static ContentMetadataStoreMode Mask(this ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags? mask)
+        {
+            return (ContentMetadataStoreMode)mode.MaskFlags(mask);
+        }
+
+        public static ContentMetadataStoreModeFlags MaskFlags(this ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags? mask)
+        {
+            var maskFlags = mask ?? ContentMetadataStoreModeFlags.All;
+            return mode.Flags() & maskFlags;
+        }
+
+        public static ContentMetadataStoreModeFlags Subtract(this ContentMetadataStoreModeFlags mode, ContentMetadataStoreModeFlags mask)
+        {
+            return mode & (~mask);
+        }
+
+        public static ContentMetadataStoreModeFlags Flags(this ContentMetadataStoreMode mode)
+        {
+            return (ContentMetadataStoreModeFlags)mode;
+        }
     }
 }

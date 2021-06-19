@@ -13,7 +13,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     public static class Result
     {
         /// <nodoc />
-        public static Result<T> Success<T>(T result) => new Result<T>(result);
+        public static Result<T> Success<T>(T result, bool isNullAllowed = false)
+            => new Result<T>(result, isNullAllowed: isNullAllowed);
 
         /// <nodoc />
         public static Result<T> FromError<T>(ResultBase other)

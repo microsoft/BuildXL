@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -268,21 +269,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 request.Replaying = true;
 
-                switch (request.MethodId)
+                await DispatchAsync(request);
+            }
+        }
+
+        private async Task<ServiceResponseBase> DispatchAsync(ServiceRequestBase request)
+        {
+            switch (request.MethodId)
+            {
+                case RpcMethodId.RegisterContentLocations:
                 {
-                    case RpcMethodId.RegisterContentLocations:
-                    {
-                        var typedRequest = (RegisterContentLocationsRequest)request;
-                        await RegisterContentLocationsAsync(typedRequest);
-                        break;
-                    }
-                    case RpcMethodId.GetContentLocations:
-                    case RpcMethodId.PutBlob:
-                    case RpcMethodId.GetBlob:
-                    default:
-                        // Unhandled
-                        break;
+                    var typedRequest = (RegisterContentLocationsRequest)request;
+                    return await RegisterContentLocationsAsync(typedRequest);
                 }
+                case RpcMethodId.PutBlob:
+                {
+                    var typedRequest = (PutBlobRequest)request;
+                    return await PutBlobAsync(typedRequest);
+                }
+                case RpcMethodId.CompareExchange:
+                {
+                    var typedRequest = (CompareExchangeRequest)request;
+                    return await CompareExchangeAsync(typedRequest);
+                }
+                case RpcMethodId.GetContentLocations:
+                {
+                    var typedRequest = (GetContentLocationsRequest)request;
+                    return await GetContentLocationsAsync(typedRequest);
+                }
+                case RpcMethodId.GetBlob:
+                {
+                    var typedRequest = (GetBlobRequest)request;
+                    return await GetBlobAsync(typedRequest);
+                }
+                case RpcMethodId.GetContentHashList:
+                {
+                    var typedRequest = (GetContentHashListRequest)request;
+                    return await GetContentHashListAsync(typedRequest);
+                }
+                case RpcMethodId.GetLevelSelectors:
+                {
+                    var typedRequest = (GetLevelSelectorsRequest)request;
+                    return await GetLevelSelectorsAsync(typedRequest);
+                }
+                default:
+                    throw Contract.AssertFailure($"Unhandled method id: {request.MethodId}");
             }
         }
 

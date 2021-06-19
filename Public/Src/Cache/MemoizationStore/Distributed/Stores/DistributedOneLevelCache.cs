@@ -4,6 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -55,23 +56,29 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     return new BoolResult("LocalLocationStore not available");
                 }
 
-                var memoizationStoreConfiguration = localLocationStore.Configuration as RedisMemoizationStoreConfiguration;
-                if (memoizationStoreConfiguration == null)
+                var config = localLocationStore.Configuration as RedisContentLocationStoreConfiguration;
+                if (config?.Memoization == null)
                 {
                     return new BoolResult($"LocalLocationStore.Configuration should be of type 'RedisMemoizationStoreConfiguration' but was {localLocationStore.Configuration.GetType()}");
                 }
 
-                var redisStore = (RedisGlobalStore)localLocationStore.GlobalStore;
+                MemoizationDatabase getGlobalMemoizationDatabase()
+                {
+                    if (config.UseMemoizationContentMetadataStore)
+                    {
+                        return new MetadataStoreMemoizationDatabase(localLocationStore.ContentMetadataStore);
+                    }
+                    else
+                    {
+                        var redisStore = (RedisGlobalStore)localLocationStore.GlobalStore;
+                        return new RedisMemoizationDatabase(redisStore.RaidedRedis, config.Memoization);
+                    }
+                }
 
                 MemoizationStore = new DatabaseMemoizationStore(
                     new DistributedMemoizationDatabase(
                         localLocationStore,
-                        new RedisMemoizationDatabase(
-                            redisStore.RaidedRedis,
-                            localLocationStore.EventStore.Clock,
-                            memoizationStoreConfiguration.LocationEntryExpiry,
-                            memoizationStoreConfiguration.MemoizationOperationTimeout,
-                            memoizationStoreConfiguration.MemoizationSlowOperationCancellationTimeout)));
+                        getGlobalMemoizationDatabase()));
 
                 return await MemoizationStore.StartupAsync(context);
             });

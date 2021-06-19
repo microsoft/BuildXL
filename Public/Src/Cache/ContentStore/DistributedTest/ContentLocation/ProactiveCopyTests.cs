@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -31,16 +31,12 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             EnableProactiveCopy = true;
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             var contentHashes = new List<ContentHash>();
 
             int machineCount = 2;
             ConfigureWithOneMaster();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {
@@ -67,16 +63,12 @@ namespace ContentStoreTest.Distributed.Sessions
             EnableProactiveCopy = true;
             ProactiveCopyRetries = 2;
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             var contentHashes = new List<ContentHash>();
 
             int machineCount = 2;
             ConfigureWithOneMaster();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {
@@ -131,14 +123,10 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             EnableProactiveCopy = true;
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             int machineCount = 3;
             ConfigureWithOneMaster();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {
@@ -166,16 +154,12 @@ namespace ContentStoreTest.Distributed.Sessions
             EnableProactiveCopy = true;
             ProactiveCopyOnPuts = true;
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             var contentHashes = new List<ContentHash>();
 
             int machineCount = 3;
             ConfigureWithOneMaster();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {
@@ -205,9 +189,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ProactiveCopyOnPins = true;
             ProactiveCopyLocationThreshold = 4; // Large enough that we 'always' try to push.
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             var contentHashes = new List<ContentHash>();
 
             int machineCount = 3;
@@ -216,7 +197,6 @@ namespace ContentStoreTest.Distributed.Sessions
             var buildId = Guid.NewGuid().ToString();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {
@@ -268,15 +248,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 dcs.RestoreCheckpointAgeThresholdMinutes = 0;
             });
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             int machineCount = 3;
 
             var buildId = Guid.NewGuid().ToString();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {
@@ -339,13 +315,12 @@ namespace ContentStoreTest.Distributed.Sessions
             var proactiveReplicator = 1;
 
             return RunTestAsync(
-                new Context(Logger),
                 storeCount,
                 // Iteration 0 content is put and state (checkpoint, bin manager) is uploaded
                 // Iteration 1 is just to allow state to propagate before
                 // Iteration 2 where proactive replication is enabled and we verify correct behavior
                 iterations: 3,
-                storeToStartupLast: proactiveReplicator, // Make sure that the machine doing the proactive copy is the last, since otherwise it might not find machines to copy to.
+                storeToStartupLast: proactiveReplicator,
                 testFunc: async context =>
                 {
                     var sessions = context.Sessions;
@@ -411,13 +386,12 @@ namespace ContentStoreTest.Distributed.Sessions
             var proactiveReplicator = 1;
 
             return RunTestAsync(
-                new Context(Logger),
                 storeCount,
                 // Iteration 0 content is put and state (checkpoint, bin manager) is uploaded
                 // Iteration 1 is just to allow state to propagate before
                 // Iteration 2 where proactive replication is enabled and we verify correct behavior
                 iterations: 3,
-                storeToStartupLast: proactiveReplicator, // Make sure that the machine doing the proactive copy is the last, since otherwise it might not find machines to copy to.
+                storeToStartupLast: proactiveReplicator,
                 testFunc: async context =>
                 {
                     var sessions = context.Sessions;
@@ -488,7 +462,6 @@ namespace ContentStoreTest.Distributed.Sessions
             List<ContentHash> putHashes = new List<ContentHash>();
 
             return RunTestAsync(
-                new Context(Logger),
                 storeCount: 3,
                 iterations: 2,
                 testFunc: async context =>
@@ -565,7 +538,6 @@ namespace ContentStoreTest.Distributed.Sessions
             PutResult putResult = default;
 
             return RunTestAsync(
-                new Context(Logger),
                 storeCount: 3,
                 iterations: 2,
                 testFunc: async context =>
@@ -610,7 +582,6 @@ namespace ContentStoreTest.Distributed.Sessions
             var largeFileSize = Config.MaxSizeQuota.Hard / 2 + 1;
 
             return RunTestAsync(
-                new Context(Logger),
                 storeCount: 2,
                 iterations: 1,
                 implicitPin: ImplicitPin.None,
@@ -675,7 +646,6 @@ namespace ContentStoreTest.Distributed.Sessions
             Task runTestAsync(int count, bool expectAllSuccesses)
             {
                 return RunTestAsync(
-                    new Context(Logger),
                     storeCount: 2,
                     iterations: 1,
                     implicitPin: ImplicitPin.None,
@@ -724,9 +694,6 @@ namespace ContentStoreTest.Distributed.Sessions
             ProactiveCopyLocationThreshold = 4; // Large enough that we 'always' try to push.
             ProactiveCopyRetries = 2;
 
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
             var contentHashes = new List<ContentHash>();
 
             int machineCount = 3;
@@ -735,7 +702,6 @@ namespace ContentStoreTest.Distributed.Sessions
             var buildId = Guid.NewGuid().ToString();
 
             return RunTestAsync(
-                loggingContext,
                 machineCount,
                 async context =>
                 {

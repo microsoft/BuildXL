@@ -16,12 +16,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     public class RedisMemoizationStoreFactory : ContentLocationStoreFactory
     {
         /// <nodoc />
-        protected new RedisMemoizationStoreConfiguration Configuration => (RedisMemoizationStoreConfiguration)base.Configuration;
-
-        /// <nodoc />
         public RedisMemoizationStoreFactory(
             ContentLocationStoreFactoryArguments arguments,
-            RedisMemoizationStoreConfiguration configuration)
+            RedisContentLocationStoreConfiguration configuration)
             : base(arguments, configuration)
         {
         }
@@ -40,10 +37,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             var memoizationDb = new RedisMemoizationDatabase(
                 primaryRedisDatabaseAdapter,
                 secondaryRedisDatabaseAdapter,
-                Clock,
-                Configuration.MemoizationExpiryTime,
-                Configuration.MemoizationOperationTimeout,
-                Configuration.MemoizationSlowOperationCancellationTimeout);
+                Configuration.Memoization);
             return new RedisMemoizationStore(logger, memoizationDb);
         }
 

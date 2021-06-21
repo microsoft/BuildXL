@@ -287,7 +287,10 @@ namespace NugetPackages {
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getGrpcPackages(false),
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getProtobufNetPackages(false),
+            // Including the following reference is the most correct thing to do, but it causes a conflict in NuGet 
+            // because we reference things inconsistently. If someone depends on the ProtoBuf.Net functionality, they 
+            // must themselves refer to the required packages.
+            // ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getProtobufNetPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSystemTextJson(false),

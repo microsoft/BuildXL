@@ -128,7 +128,7 @@ config({
 
                 { id: "AsyncFixer", version: "1.5.1" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.3.1-beta.2" },
-                { id: "protobuf-net.BuildTools", version: "3.0.101"},
+                { id: "protobuf-net.BuildTools", version: "3.0.101" },
                 { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "16.9.60"},
                 { id: "StructRecordGenerator", version: "0.4.0"},
                 

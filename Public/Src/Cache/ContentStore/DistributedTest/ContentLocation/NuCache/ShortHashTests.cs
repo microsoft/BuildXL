@@ -32,6 +32,19 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Fact]
+        public void TestEquality()
+        {
+            for (int i = 0; i < 1000; i++)
+            {
+                var hash = ContentHash.Random(HashType.Vso0);
+                var shortHash = new ShortHash(hash);
+                var shortHash2 = new ShortHash(hash);
+                shortHash.GetHashCode().Should().Be(shortHash2.GetHashCode());
+                shortHash.Should().Be(shortHash2);
+            }
+        }
+
+        [Fact]
         public void TestToString()
         {
             var hash = ContentHash.Random(HashType.Vso0);

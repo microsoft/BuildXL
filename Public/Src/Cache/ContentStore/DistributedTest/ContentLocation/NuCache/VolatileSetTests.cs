@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using FluentAssertions;
 using Xunit;
@@ -11,6 +12,22 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
     public class VolatileSetTests
     {
+        [Fact]
+        public void TestVolatileWithShortHashSet()
+        {
+            var clock = new MemoryClock();
+            var set = new VolatileSet<ShortHash>(clock);
+
+            for (int i = 0; i < 500_000; i++)
+            {
+                var hash = ContentHash.Random(HashType.Vso0);
+                var shortHash = new ShortHash(hash);
+
+                set.Add(shortHash, TimeSpan.FromMinutes(30));
+                set.Contains(shortHash).Should().BeTrue();
+            }
+        }
+
         [Fact]
         public void TestVolatileSet()
         {

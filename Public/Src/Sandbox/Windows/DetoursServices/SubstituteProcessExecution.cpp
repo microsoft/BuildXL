@@ -3,6 +3,8 @@
 
 #include "stdafx.h"
 
+#include <cwctype>
+
 #include "DebuggingHelpers.h"
 #include "DetouredFunctions.h"
 #include "DetoursHelpers.h"
@@ -68,31 +70,27 @@ static BOOL WINAPI InjectShim(
     return rv;
 }
 
+// trim from start (in place)
 // https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-static inline const wchar_t *trim_start(const wchar_t *str)
-{
-    while (wmemchr(L" \t\n\r", *str, 4))  ++str;
-    return str;
+static inline void ltrim_inplace(std::wstring& s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](wchar_t ch) {
+        return !std::iswspace(ch);
+        }));
 }
 
+// trim from end (in place)
 // https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-static inline const wchar_t *trim_end(const wchar_t *end)
-{
-    while (wmemchr(L" \t\n\r", end[-1], 4)) --end;
-    return end;
+static inline void rtrim_inplace(std::wstring& s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](wchar_t ch) {
+        return !std::iswspace(ch);
+        }).base(), s.end());
 }
 
+// trim from both ends (in place)
 // https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-static inline std::wstring trim(const wchar_t *buffer, size_t len) // trim a buffer (input?)
-{
-    return std::wstring(trim_start(buffer), trim_end(buffer + len));
-}
-
-// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-static inline void trim_inplace(std::wstring& str)
-{
-    str.assign(trim_start(str.c_str()),
-        trim_end(str.c_str() + str.length()));
+static inline void trim_inplace(std::wstring& s) {
+    ltrim_inplace(s);
+    rtrim_inplace(s);
 }
 
 // Returns in 'command' the command from lpCommandLine without quotes, and in commandArgs the arguments from the remainder of the string.
@@ -113,7 +111,7 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
     {
         // Find the close quote. Might not be present which means the command
         // is the full command line minus the initial quote.
-        size_t closeQuoteIndex = fullCommandLine.find('"', 1);
+        size_t closeQuoteIndex = fullCommandLine.find(L'"', 1);
         if (closeQuoteIndex == wstring::npos)
         {
             // No close quote. Take everything through the end of the command line as the command.
@@ -154,7 +152,7 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
     else
     {
         // No open quote, pure space delimiter.
-        size_t spaceDelimiterIndex = fullCommandLine.find(' ');
+        size_t spaceDelimiterIndex = fullCommandLine.find(L' ');
         if (spaceDelimiterIndex == wstring::npos)
         {
             // No space, take everything through the end of the command line.

@@ -112,16 +112,13 @@ namespace Test.BuildXL.Processes.Detours
         [InlineData("\"", "\"")]  // Quoted command - cmd /C should stip the quotes off when running child
         [InlineData("\"", "")]  // Single start quote with no end quote
         [InlineData("\"\"", "\"\"")]  // Force case where child process is executed with double quotes around it
+        [InlineData("\"", "  \"")] // Trailing spaces at the end. This tests the trimming functions of SubstituteProcessExecution.cpp.
         public async Task CmdWithSingleTokenChildProcessNoArgsAsync(string preCommand, string postCommand)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var shimProgramPath = GetShimProgramPath(context);
 
             string executable = CmdHelper.CmdX64;
-            string childExecutable = executable;
-            string quotedExecutable = '"' + executable + '"';
-            childExecutable = quotedExecutable;
-
             var fam = CreateCommonFileAccessManifest(context.PathTable);
 
             // Use 'doskey' (alias manager) built into Windows.

@@ -39,7 +39,7 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         [Theory]
         [InlineData("[{symbolName: 'test', content: ['non-existent']}]", LogEventId.SpecifiedPackageForExportDoesNotExist)]
-        [InlineData("[{symbolName: 'test', content: [{packageName:'@ms/project-A', commands: ['non-existent']}]}]", LogEventId.SpecifiedCommandForExportDoesNotExist)]
+        [InlineData("[{symbolName: 'test', content: [{packageName:'@ms/project-A', commands: ['non-existent']}]}]", LogEventId.SpecifiedPackageForExportDoesNotExist)]
         public void MissingPackageInExportsIsFlagged(string exports, LogEventId expectedError)
         {
             var config = Build(rushExports: exports)

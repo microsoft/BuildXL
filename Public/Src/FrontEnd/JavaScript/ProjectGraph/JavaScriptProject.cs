@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
@@ -17,6 +18,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
     [DebuggerDisplay("{Name}-{ScriptCommandName}")]
     public sealed class JavaScriptProject : GenericJavaScriptProject<JavaScriptProject>, IProjectWithDependencies<JavaScriptProject>
     {
+        private readonly HashSet<FileArtifact> m_inputFiles = new HashSet<FileArtifact>();
+        private readonly HashSet<DirectoryArtifact> m_inputDirectories = new HashSet<DirectoryArtifact>();
+
         /// <nodoc/>
         public JavaScriptProject(
             string name,
@@ -25,16 +29,19 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             [CanBeNull] string scriptCommand,
             AbsolutePath tempFolder,
             IReadOnlyCollection<AbsolutePath> outputDirectories,
-            IReadOnlyCollection<AbsolutePath> sourceFiles) : base(name, projectFolder, null, tempFolder)
+            IEnumerable<FileArtifact> inputFiles,
+            IEnumerable<DirectoryArtifact> inputDirectories) : base(name, projectFolder, null, tempFolder)
         {
             Contract.RequiresNotNullOrEmpty(scriptCommandName);
             Contract.RequiresNotNull(outputDirectories);
-            Contract.RequiresNotNull(sourceFiles);
+            Contract.RequiresNotNull(inputFiles);
+            Contract.RequiresNotNull(inputDirectories);
 
             ScriptCommand = scriptCommand;
             ScriptCommandName = scriptCommandName;
             OutputDirectories = outputDirectories;
-            SourceFiles = sourceFiles;
+            m_inputFiles.AddRange(inputFiles);
+            m_inputDirectories.AddRange(inputDirectories);
         }
 
         /// <nodoc/>
@@ -42,7 +49,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         {
             // Filter the output directories and source files that apply to this particular script command name
             var outputDirectories = ExtractRelevantPaths(scriptCommandName, deserializedJavaScriptProject.OutputDirectories);
-            var sourceFiles = ExtractRelevantPaths(scriptCommandName, deserializedJavaScriptProject.SourceFiles);
+            var inputFiles = ExtractRelevantPaths(scriptCommandName, deserializedJavaScriptProject.SourceFiles).Select(path => FileArtifact.CreateSourceFile(path)).ToList();
 
             return new JavaScriptProject(
                 deserializedJavaScriptProject.Name,
@@ -51,7 +58,8 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
                 scriptCommand,
                 deserializedJavaScriptProject.TempFolder,
                 outputDirectories,
-                sourceFiles);
+                inputFiles,
+                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>());
         }
 
         private static List<AbsolutePath> ExtractRelevantPaths(
@@ -68,6 +76,18 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         public void SetDependencies(IReadOnlyCollection<JavaScriptProject> dependencies)
         {
             Dependencies = dependencies;
+        }
+
+        /// <nodoc/>
+        public void AddInputFile(FileArtifact file)
+        {
+            m_inputFiles.Add(file);
+        }
+
+        /// <nodoc/>
+        public void AddInputDirectory(DirectoryArtifact directory)
+        {
+            m_inputDirectories.Add(directory);
         }
 
         /// <summary>
@@ -95,6 +115,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         public IReadOnlyCollection<AbsolutePath> OutputDirectories { get; }
 
         /// <nodoc/>
-        public IReadOnlyCollection<AbsolutePath> SourceFiles { get; }
+        public IReadOnlyCollection<FileArtifact> InputFiles => m_inputFiles;
+
+        /// <nodoc/>
+        public IReadOnlyCollection<DirectoryArtifact> InputDirectories => m_inputDirectories;
     }
 }

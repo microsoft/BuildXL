@@ -174,3 +174,10 @@ export declare function addIf<T>(condition: boolean, ...items: T[]) : T[];
  * ]
  */
 export declare function addIfLazy<T>(condition: boolean, items: () => T[]) : T[];
+
+/**
+ * An arbitrary DScript expression that can be later evaluated and whose expected return type is T.
+ */
+interface LazyEval<T> {
+  expression: string;
+}

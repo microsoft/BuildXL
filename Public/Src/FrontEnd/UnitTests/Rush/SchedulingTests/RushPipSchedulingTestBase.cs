@@ -79,8 +79,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string scriptCommand = null,
             AbsolutePath? tempFolder = null,
             IReadOnlyCollection<AbsolutePath> outputDirectories = null,
-            IReadOnlyCollection<AbsolutePath> sourceFiles = null,
-            IReadOnlyCollection<JavaScriptProject> dependencies = null)
+            IReadOnlyCollection<FileArtifact> inputFiles = null,
+            IReadOnlyCollection<JavaScriptProject> dependencies = null,
+            IReadOnlyCollection<DirectoryArtifact> inputDirectories = null)
         {
             projectName ??= "@ms/rush-proj";
 
@@ -92,7 +93,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 scriptCommand ?? "node ./main.js",
                 tempDirectory,
                 outputDirectories ?? CollectionUtilities.EmptyArray<AbsolutePath>(),
-                sourceFiles ?? CollectionUtilities.EmptyArray<AbsolutePath>()
+                inputFiles ?? CollectionUtilities.EmptyArray<FileArtifact>(),
+                inputDirectories ?? CollectionUtilities.EmptyArray<DirectoryArtifact>()
             );
 
             rushProject.SetDependencies(dependencies ?? CollectionUtilities.EmptyArray<JavaScriptProject>());

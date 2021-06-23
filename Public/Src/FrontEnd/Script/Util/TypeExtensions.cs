@@ -127,6 +127,13 @@ namespace BuildXL.FrontEnd.Script.Util
 
         /// <nodoc />
         [Pure]
+        public static bool IsLazyEval(this TypeInfo type)
+        {
+            return typeof(ILazyEval).IsAssignableFrom(type);
+        }
+
+        /// <nodoc />
+        [Pure]
         public static bool IsAbsolutePath(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(AbsolutePath).TypeHandle);

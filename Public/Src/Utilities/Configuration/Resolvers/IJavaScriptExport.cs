@@ -13,8 +13,8 @@ namespace BuildXL.Utilities.Configuration
     /// The resolver will expose 'symbolName : StaticDirectory[]' value, with all the output directories from the projects 
     /// specified as content.
     /// A project can be just a package name(that will be matched against names declared in package.json), in which case the exposed
-    /// outputs under a given symbol will be of all the commands in that project, or it can be a <see cref="IJavaScriptProjectOutputs"/>, 
-    /// where specific script commands can be specified.
+    /// outputs under a given symbol will be of all the commands in that project, or it can be a <see cref="IJavaScriptProjectSimpleSelector"/>
+    /// or <see cref="IJavaScriptProjectRegexSelector"/> where specific script commands can be specified.
     /// </remarks>
     public interface IJavaScriptExport
     {
@@ -22,6 +22,6 @@ namespace BuildXL.Utilities.Configuration
         FullSymbol SymbolName { get; }
 
         /// <nodoc/>
-        IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectOutputs>> Content { get; }
+        IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>> Content { get; }
     }
 }

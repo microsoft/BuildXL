@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -45,6 +46,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SuccessExitCodes = resolverSettings.SuccessExitCodes;
             RetryExitCodes = resolverSettings.RetryExitCodes;
             ProcessRetries = resolverSettings.ProcessRetries;
+            AdditionalDependencies = resolverSettings.AdditionalDependencies?.Select(additionalDependency => new JavaScriptDependency(additionalDependency, pathRemapper))?.ToList();
         }
 
         /// <inheritdoc/>
@@ -112,5 +114,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public int? ProcessRetries { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<IJavaScriptDependency> AdditionalDependencies { get; set; }
     }
 }

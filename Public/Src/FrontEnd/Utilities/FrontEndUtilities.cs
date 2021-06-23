@@ -22,6 +22,9 @@ using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
+using TypeScript.Net.Binding;
+using TypeScript.Net.BuildXLScript;
+using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Utilities
@@ -403,6 +406,31 @@ namespace BuildXL.FrontEnd.Utilities
             var sourceFile = workspace.GetSourceFile(conversionTarget);
 
             return factory.ConvertSourceFileAsync(parserContext, sourceFile);
+        }
+
+        /// <summary>
+        /// Parses and binds an arbitrary string returning a corresponding ISourceFile.
+        /// </summary>
+        /// <returns>Whether parsing and binding succeded</returns>
+        public static bool TryParseAndBindSourceFile(FrontEndHost host, FrontEndContext context, AbsolutePath sourceFilePath, string sourceFileContent, out TypeScript.Net.Types.SourceFile sourceFile)
+        {
+            var parser = new DScriptParser(context.PathTable);
+            sourceFile = (TypeScript.Net.Types.SourceFile) parser.ParseSourceFileContent(sourceFilePath.ToString(context.PathTable), sourceFileContent, ParsingOptions.DefaultParsingOptions);
+            
+            if (sourceFile.ParseDiagnostics.Count != 0)
+            {
+                return false;
+            }
+            
+            Binder binder = new Binder();
+            binder.BindSourceFile(sourceFile, CompilerOptions.Empty);
+
+            if (sourceFile.BindDiagnostics.Count != 0)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>

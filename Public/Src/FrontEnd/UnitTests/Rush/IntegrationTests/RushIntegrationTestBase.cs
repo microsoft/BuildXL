@@ -92,7 +92,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             bool addDScriptResolver = false,
             string commonTempFolder = null,
             string schedulingCallback = null,
-            string customScripts = null)
+            string customScripts = null,
+            string additionalDependencies = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -109,7 +110,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 addDScriptResolver,
                 commonTempFolder,
                 schedulingCallback,
-                customScripts);
+                customScripts,
+                additionalDependencies);
         }
 
         /// <inheritdoc/>
@@ -123,7 +125,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             bool addDScriptResolver = false,
             string commonTempFolder = null,
             string schedulingCallback = null,
-            string customScripts = null)
+            string customScripts = null,
+            string additionalDependencies = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -151,7 +154,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     // we want to use the shrinkwrap-deps file to track dependencies
                     trackDependenciesWithShrinkwrapDepsFile: commonTempFolder != null,
                     schedulingCallback: schedulingCallback,
-                    customScripts: customScripts));
+                    customScripts: customScripts,
+                    additionalDependencies));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -241,7 +245,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             bool addDScriptResolver,
             bool trackDependenciesWithShrinkwrapDepsFile,
             string schedulingCallback,
-            string customScripts) => $@"
+            string customScripts,
+            string additionalDependencies) => $@"
 config({{
     resolvers: [
         {{
@@ -257,6 +262,7 @@ config({{
             {(trackDependenciesWithShrinkwrapDepsFile ? $"trackDependenciesWithShrinkwrapDepsFile: true," : string.Empty)}
             {(schedulingCallback != null? $"customScheduling: {schedulingCallback}," : string.Empty)}
             {(customScripts != null ? $"customScripts: {customScripts}," : string.Empty)}
+            {(additionalDependencies != null ? $"additionalDependencies: {additionalDependencies}," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

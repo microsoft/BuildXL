@@ -405,6 +405,25 @@ namespace BuildXL.FrontEnd.Script.Util
             return union;
         }
 
+        private ILazyEval ConvertToLazyEval(object val, Type resultType, object targetInstance, in ConversionContext context)
+        {
+            Contract.Requires(val != null);
+
+            var lazyEval = val as LazyEvalObjectLiteral;
+            if (lazyEval == null)
+            {
+                throw new ConversionException(
+                    I($"Cannot convert value of type '{val.GetType()}' to LazyEval<>"),
+                    context.ErrorContext);
+            }
+
+            // Convert the LazyEval object literal as a regular one, and populate the expected return type
+            var instance = ConvertToObject(val, resultType, new LazyEval(), context) as LazyEval;
+            instance.FormattedExpectedType = lazyEval.ReturnType;
+            
+            return instance;
+        }
+
         private object ConvertToObject(object val, Type resultType, object targetInstance, in ConversionContext context)
         {
             Contract.Requires(val != null);
@@ -1005,6 +1024,12 @@ namespace BuildXL.FrontEnd.Script.Util
             if (resultTypeInfo.IsUnionType())
             {
                 return ConvertToUnionType(overridingOrMergeIntoValue ?? valueToConvert, resultType, context);
+            }
+
+            // target: LazyEval
+            if (resultTypeInfo.IsLazyEval())
+            {
+                return ConvertToLazyEval(valueToConvert, resultType, overridingOrMergeIntoValue, context);
             }
 
             // target: object

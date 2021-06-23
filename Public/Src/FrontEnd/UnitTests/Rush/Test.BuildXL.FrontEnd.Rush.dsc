@@ -38,7 +38,8 @@ namespace Test.Rush {
                  "RushLibLocationTests",
                  "RushSchedulingTests",
                  "RushCustomSchedulingTests",
-                 "RushCustomScriptsTests"
+                 "RushCustomScriptsTests",
+                 "RushAdditionalDependenciesTests"
             ]
         },
         assemblyName: "Test.BuildXL.FrontEnd.Rush",

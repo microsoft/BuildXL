@@ -428,6 +428,15 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
     additionalOutputDirectories?: (Path | RelativePath)[];
 
     /**
+     * Extra dependencies that can be specified for selected projects.
+     * Dependencies can be declared against JavaScript projects or regular
+     * files or directories.
+     * These additional dependencies are added to the build graph after
+     * the regular project-to-project ones are computed
+     */
+    additionalDependencies?: JavaScriptDependency[];
+
+    /**
      * Defines a collection of custom JavaScript commands that can later be used as part of 'execute'.
      */
     customCommands?: JavaScriptCustomCommand[];
@@ -522,6 +531,16 @@ interface CustomSchedulingCallBack {
 }
 
 /**
+ * A JavaScriptDependency configures all dependents to depend on all specified dependencies.
+ * The way to specify additional files are directories are via LazyEval expressions to enable
+ * importing values from other modules at configuration time.
+ */
+interface JavaScriptDependency {
+    dependencies: (JavaScriptProjectSelector | LazyEval<File> | LazyEval<StaticDirectory>)[], 
+    dependents: JavaScriptProjectSelector[]
+}
+
+/**
  * The list of commands to execute can be specified with finer-grained detail
  */
 interface JavaScriptResolverWithExecutionSemantics extends JavaScriptResolver
@@ -572,24 +591,42 @@ interface JavaScriptProject {
 }
 
 /**
- * Project outputs are selected with a package name (a string that will be matched against names declared in package.json), in which case the exposed
- * outputs under a given symbol will be of all the commands in that project, or it can be a JavaScriptProjectOutputs, where specific script commands
- * can be specified for a given package.
+ * The following are kept for back-compat reasons. Please use JavaScriptProjectSelector instead
  */
-type JavaScriptProjectOutputSelector = string | JavaScriptProjectOutputs;
+type JavaScriptProjectOutputSelector = JavaScriptProjectSelector;
+type JavaScriptProjectOutputs = JavaScriptProjectSelector;
+
+
+/**
+ * A project selector can be 
+ * 1) a package name that will be matched against names declared in package.json) and all commands for that package will be included
+ * 2) A JavaScriptProjectSimpleSelector, where specific script commands can be specified for a given package or
+ * 3) A JavaScriptProjectRegexSelector, where a regular expression is used to match package names and script commands
+ */
+type JavaScriptProjectSelector = string | JavaScriptProjectSimpleSelector | JavaScriptProjectRegexSelector;
 
 /**
  * A project with a name as specified in its corresponding package.json, together with a collection of script commmands
  */
-interface JavaScriptProjectOutputs {
+interface JavaScriptProjectSimpleSelector {
     packageName: string;
     commands: string[];
 }
 
 /**
+ * Matches a set of package names (as specified in package.json) and script commands
+ * by applying the given regular expressions.
+ * If commandRegex is not provided, it is interpreted as '.*'.
+ */
+interface JavaScriptProjectRegexSelector {
+    packageNameRegex: string;
+    commandRegex?: string;
+}
+
+/**
  * Likely to be extended with other types of commands (e.g. a way to add commands as if they were specified in package.json)
  */
-type JavaScriptCustomCommand  = ExtraArgumentsJavaScript;
+type JavaScriptCustomCommand = ExtraArgumentsJavaScript;
 
 /**
  * Appends extra arguments to the corresponding script defined in package.json for every JavaScript project. 

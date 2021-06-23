@@ -25,7 +25,15 @@ namespace BuildXL.Utilities.Configuration
         /// If a relative path is provided, it will be interpreted relative to every project root
         /// </remarks>
         IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; }
-        
+
+        /// <summary>
+        /// Extra dependencies that can be specified for selected projects. 
+        /// </summary>
+        /// <remarks>
+        /// Dependencies can be declared against JavaScript projects or regular files or directories.
+        /// These additional dependencies are added to the build graph after the regular project-to-project are computed</remarks>
+        IReadOnlyList<IJavaScriptDependency> AdditionalDependencies { get; }
+
         /// <summary>
         /// A collection of script commands to execute, where depedencies on other commands can be explicitly provided
         /// E.g. {command: "test", dependsOn: {kind: "local", command: "build"}}

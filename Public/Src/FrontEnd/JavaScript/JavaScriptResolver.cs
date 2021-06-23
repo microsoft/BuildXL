@@ -14,6 +14,7 @@ using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
@@ -28,6 +29,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using TypeScript.Net.Types;
+using TypeScript.Net.Utilities;
 using static BuildXL.FrontEnd.Script.Values.Thunk;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -159,33 +162,11 @@ namespace BuildXL.FrontEnd.JavaScript
                     }
 
                     // Each specified project must be non-empty
-                    foreach (var project in javaScriptExport.Content)
+                    foreach (var selector in javaScriptExport.Content)
                     {
-                        object projectValue = project.GetValue();
-
-                        string packageName = projectValue is string ? (string)projectValue : ((IJavaScriptProjectOutputs)projectValue).PackageName;
-                        if (string.IsNullOrEmpty(packageName))
+                        if (!ValidateProjectSelector(selector, pathToFile, $"JavaScript export '{javaScriptExport.SymbolName.ToString(Context.SymbolTable)}'"))
                         {
-                            Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), "Package name must be defined.");
                             return false;
-                        }
-
-                        if (projectValue is IJavaScriptProjectOutputs javaScriptProjectCommand)
-                        { 
-                            if (javaScriptProjectCommand.Commands == null)
-                            {
-                                Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Commands for JavaScript export '{javaScriptExport.SymbolName.ToString(Context.SymbolTable)}' must be defined.");
-                                return false;
-                            }
-
-                            foreach (var command in javaScriptProjectCommand.Commands)
-                            {
-                                if (string.IsNullOrEmpty(command))
-                                {
-                                    Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Command name for JavaScript export '{javaScriptExport.SymbolName.ToString(Context.SymbolTable)}' must be defined.");
-                                    return false;
-                                }
-                            }
                         }
                     }
                 }
@@ -212,6 +193,97 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
             }
 
+            if (resolverSettings.AdditionalDependencies != null)
+            {
+                foreach (var additionalDependency in resolverSettings.AdditionalDependencies)
+                {
+                    if (additionalDependency.Dependents == null)
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Dependents is undefined.");
+                        return false;
+                    }
+
+                    if (additionalDependency.Dependencies == null)
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Dependencies is undefined.");
+                        return false;
+                    }
+
+                    foreach (var dependent in additionalDependency.Dependents)
+                    {
+                        if (!ValidateProjectSelector(dependent, pathToFile, "JavaScript dependent"))
+                        {
+                            return false;
+                        }
+                    }
+
+                    foreach (var dependency in additionalDependency.Dependencies.Where(dependency => dependency.GetValue() is not ILazyEval))
+                    {
+                        var javaScriptProjectSelector = new DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>();
+                        javaScriptProjectSelector.TrySetValue(dependency.GetValue());
+                        if (!ValidateProjectSelector(javaScriptProjectSelector, pathToFile, "JavaScript dependency"))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        private bool ValidateProjectSelector(DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector> selector, string pathToFile, string provenance)
+        {
+            object projectValue = selector.GetValue();
+
+            switch (projectValue)
+            {
+                case string packageName: 
+                {
+                    if (string.IsNullOrEmpty(packageName))
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Package name for {provenance} must be defined.");
+                        return false;
+                    }
+
+                    break;
+                }
+                case IJavaScriptProjectSimpleSelector simpleSelector:
+                {
+                    if (string.IsNullOrEmpty(simpleSelector.PackageName))
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Package name for {provenance} must be defined.");
+                        return false;
+                    }
+
+                    if (simpleSelector.Commands == null)
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Commands for {provenance} must be defined.");
+                        return false;
+                    }
+
+                    foreach (var command in simpleSelector.Commands)
+                    {
+                        if (string.IsNullOrEmpty(command))
+                        {
+                            Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Command name for {provenance} must be defined.");
+                            return false;
+                        }
+                    }
+                    break;
+                }
+                case IJavaScriptProjectRegexSelector regexSelector:
+                {
+                    if (string.IsNullOrEmpty(regexSelector.PackageNameRegex))
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), $"Package name regular expression for {provenance} must be defined.");
+                        return false;
+                    }
+
+                    break;
+                }
+            }
+
             return true;
         }
 
@@ -233,6 +305,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             ConvertExportsFile(moduleRegistry, module, package);
             await ConvertImportsFileAsync(package);
+            await ConvertLazyEvaluationsFileAsync(package);
 
             return true;
         }
@@ -242,16 +315,30 @@ namespace BuildXL.FrontEnd.JavaScript
             if (m_javaScriptWorkspaceResolver.CustomSchedulingCallback != null)
             {
                 // The imports file does not need any special callbacks and it is regular DScript. Run the normal AST conversion process on it.
-                var conversionResult = await FrontEndUtilities.RunAstConversionAsync(m_host, Context, m_logger, new FrontEndStatistics(), package, m_javaScriptWorkspaceResolver.ImportsFile);
-                Contract.Assert(conversionResult.Success);
-
-                var moduleData = new UninstantiatedModuleInfo(
-                    conversionResult.SourceFile,
-                    conversionResult.Module,
-                    conversionResult.QualifierSpaceId.IsValid ? conversionResult.QualifierSpaceId : Context.QualifierTable.EmptyQualifierSpaceId);
-
-                m_host.ModuleRegistry.AddUninstantiatedModuleInfo(moduleData);
+                await RunAstConverstionForFileAsync(package, m_javaScriptWorkspaceResolver.ImportsFile);
             }
+        }
+
+        private async Task ConvertLazyEvaluationsFileAsync(Package package)
+        {
+            if (m_resolverSettings.AdditionalDependencies != null)
+            {
+                await RunAstConverstionForFileAsync(package, m_javaScriptWorkspaceResolver.LazyEvaluationsFile);
+            }
+        }
+
+
+        private async Task RunAstConverstionForFileAsync(Package package, AbsolutePath file)
+        {
+            var conversionResult = await FrontEndUtilities.RunAstConversionAsync(m_host, Context, m_logger, new FrontEndStatistics(), package, file);
+            Contract.Assert(conversionResult.Success);
+
+            var moduleData = new UninstantiatedModuleInfo(
+                conversionResult.SourceFile,
+                conversionResult.Module,
+                conversionResult.QualifierSpaceId.IsValid ? conversionResult.QualifierSpaceId : Context.QualifierTable.EmptyQualifierSpaceId);
+
+            m_host.ModuleRegistry.AddUninstantiatedModuleInfo(moduleData);
         }
 
         private void ConvertExportsFile(IModuleRegistry moduleRegistry, ParsedModule module, Package package)
@@ -439,6 +526,17 @@ namespace BuildXL.FrontEnd.JavaScript
             // If custom scheduling is specified, get the scheduler callback. The result is null if no custom callback is provided.
             Func<ProjectCreationResult<JavaScriptProject>, Possible<ProcessOutputs>> customScheduler = GetCustomSchedulerIfConfigured(scheduler, out ContextTree context);
 
+            if (m_resolverSettings.AdditionalDependencies != null)
+            {
+                // Evaluate lazy artifacts and add them to the corresponding projects
+                if (!TryEvaluateLazyEvals(scheduler, out var evaluatedLazys))
+                {
+                    return false;
+                }
+
+                AddAdditionalLazyDependencies(evaluatedLazys);
+            }
+
             using (context)
             {
                 var scheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId, customScheduler);
@@ -515,6 +613,106 @@ namespace BuildXL.FrontEnd.JavaScript
             };
 
             return new EvaluationResult(ObjectLiteral.Create(bindings, default, m_resolverSettings.File));
+        }
+
+        private void AddAdditionalLazyDependencies(IReadOnlyDictionary<ILazyEval, EvaluationResult> result)
+        {
+            foreach (var kvp in m_javaScriptWorkspaceResolver.AdditionalLazyArtifactsPerProject)
+            {
+                foreach(var evaluationResult in  kvp.Value.Select(lazyEval => result[lazyEval]))
+                {
+                    switch (evaluationResult.Value)
+                    {
+                        case FileArtifact fileArtifact:
+                            kvp.Key.AddInputFile(fileArtifact);
+                            break;
+                        case StaticDirectory staticDirectory:
+                            kvp.Key.AddInputDirectory(staticDirectory.Root);
+                            break;
+                        // We just ignore expressions that evaluate to undefined
+                        case UndefinedValue:
+                            break;
+                        default:
+                            Contract.Assert(false, $"Unexpected type {evaluationResult.Value.GetType()}");
+                            break;
+                    }
+                }
+            }
+        }
+
+        private bool TryEvaluateLazyEvals(IEvaluationScheduler scheduler, out IReadOnlyDictionary<ILazyEval, EvaluationResult> result)
+        {
+            var moduleRegistry = (ModuleRegistry)m_host.ModuleRegistry;
+
+            // The lazy file is always evaluated with the empty qualifier. Instantiate it using the module registry
+            var lazysModule = moduleRegistry
+                .GetUninstantiatedModuleInfoByPath(m_javaScriptWorkspaceResolver.LazyEvaluationsFile)
+                .FileModuleLiteral
+                .InstantiateFileModuleLiteral(moduleRegistry, QualifierValue.CreateEmpty(Context.QualifierTable));
+
+            using (var contextTree = new ContextTree(
+                m_host,
+                Context,
+                m_logger,
+                new EvaluationStatistics(),
+                new QualifierValueCache(),
+                isBeingDebugged: false,
+                decorator: null,
+                lazysModule,
+                new EvaluatorConfiguration(trackMethodInvocations: false, cycleDetectorStartupDelay: TimeSpanUtilities.MillisecondsToTimeSpan(10)),
+                scheduler,
+                FileType.Project))
+            {
+
+                var lazyStatements = m_javaScriptWorkspaceResolver.LazyEvaluationStatementMapping.Keys;
+
+                var mutableResult = new Dictionary<ILazyEval, EvaluationResult>(lazyStatements.Count());
+                result = mutableResult;
+                foreach (var lazyVariableStatement in lazyStatements)
+                {
+                    var entryPosition = lazyVariableStatement.DeclarationList.Declarations[0].Pos;
+
+                    bool success = lazysModule.TryGetResolvedEntry(
+                        moduleRegistry,
+                        new FilePosition(entryPosition, m_javaScriptWorkspaceResolver.LazyEvaluationsFile),
+                        out var lazyEvalEntry,
+                        out _);
+                    // The entry should be there because we added it in JavaScriptWorkspaceResolver to lazyEvals.dsc
+                    Contract.Assert(success);
+                    
+                    // If the expresion is 'undefined' we get a constant expression and not a thunk
+                    if (lazyEvalEntry.ConstantExpression != null)
+                    {
+                        Contract.Assert(lazyEvalEntry.ConstantExpression == UndefinedLiteral.Instance);
+                        mutableResult[m_javaScriptWorkspaceResolver.LazyEvaluationStatementMapping[lazyVariableStatement]] = EvaluationResult.Undefined;
+                        continue;
+                    }
+
+                    // Otherwise the entry should be a thunk
+                    Contract.AssertNotNull(lazyEvalEntry.Thunk);
+
+                    var lazyName = FullSymbol.Create(Context.SymbolTable, SymbolAtom.Create(Context.StringTable, lazyVariableStatement.DeclarationList.Declarations[0].Name.GetText()));
+
+                    var lineAndColumn = LineInfoExtensions.GetLineAndColumnBy(entryPosition, lazyVariableStatement.GetSourceFile(), skipTrivia: false);
+
+                    var factory = new MutableContextFactory(
+                                lazyEvalEntry.Thunk,
+                                lazyName,
+                                lazysModule,
+                                templateValue: null,
+                                TypeScript.Net.Utilities.LineInfo.FromLineAndPosition(lineAndColumn.Line, lineAndColumn.Character));
+
+                    var evaluationResult = lazyEvalEntry.Thunk.Evaluate(contextTree.RootContext, lazysModule, EvaluationStackFrame.Empty(), ref factory);
+                    if (evaluationResult.IsErrorValue)
+                    {
+                        return false;
+                    }
+
+                    mutableResult[m_javaScriptWorkspaceResolver.LazyEvaluationStatementMapping[lazyVariableStatement]] = evaluationResult;
+                }
+                
+                return true;
+            }
         }
 
         private Func<ProjectCreationResult<JavaScriptProject>, Possible<ProcessOutputs>> GetCustomSchedulerIfConfigured(IEvaluationScheduler scheduler, out ContextTree evaluationContext)

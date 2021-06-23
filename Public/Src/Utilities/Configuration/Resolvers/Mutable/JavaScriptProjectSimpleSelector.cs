@@ -6,17 +6,17 @@ using System.Collections.Generic;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <inheritdoc/>
-    public class JavaScriptProjectOutputs : IJavaScriptProjectOutputs
+    public class JavaScriptProjectSimpleSelector : IJavaScriptProjectSimpleSelector
     {
         /// <nodoc />
-        public JavaScriptProjectOutputs()
+        public JavaScriptProjectSimpleSelector()
         {
             PackageName = string.Empty;
             Commands = new List<string>();
         }
 
         /// <nodoc />
-        public JavaScriptProjectOutputs(IJavaScriptProjectOutputs template)
+        public JavaScriptProjectSimpleSelector(IJavaScriptProjectSimpleSelector template)
         {
             PackageName = template.PackageName;
             Commands = template.Commands ?? new List<string>();
@@ -27,5 +27,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<string> Commands { get; set; }
+
+        /// <inheritdoc/>
+        public override string ToString() => $"Package name '{PackageName} with a script commands in '[{string.Join(",", Commands)}']";
     }
 }

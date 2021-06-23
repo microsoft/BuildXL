@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         JavaScriptCommandIsDuplicated = 11910,
         CycleInJavaScriptCommands = 11911,
         CannotFindGraphBuilderTool = 11912,
-        SpecifiedCommandForExportDoesNotExist = 11913,
+        // Was: SpecifiedCommandForExportDoesNotExist = 11913,
         SpecifiedPackageForExportDoesNotExist = 11914,
         RequestedExportIsNotPresent = 11915,
         SpecifiedExportIsAReservedName = 11916,
@@ -35,5 +35,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         JavaScriptCommandGroupCanOnlyContainRegularCommands = 11918,
         CustomScriptsFailure = 11919,
         CannotLoadScriptsFromJsonFile = 11920,
+        InvalidRegexInProjectSelector = 11921,
     }
 }

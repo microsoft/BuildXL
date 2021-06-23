@@ -22,7 +22,6 @@ namespace Artifact {
 
     /** 
      * Creates a shared opaque directory from a directory. 
-     * This is an unsafe feature, the current implementation is in a prototyping stage. Use at your own risk.
      * */
     @@public
     export function sharedOpaqueOutput(value: Directory): Artifact {

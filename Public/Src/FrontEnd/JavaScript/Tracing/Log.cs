@@ -156,25 +156,14 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         public abstract void CannotFindGraphBuilderTool(LoggingContext context, Location location, string details);
 
         [GeneratedEvent(
-            (ushort)LogEventId.SpecifiedCommandForExportDoesNotExist,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Message = EventConstants.LabeledProvenancePrefix + "The specified content for export symbol '{exportSymbol}' includes package '{packageName}' with a " +
-            "script command '{commandName}'. However, that command is not defined in the corresponding package.json. Available script commands for that package: {availableCommands}.",
-            EventTask = (ushort)Tasks.Engine,
-            EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void SpecifiedCommandForExportDoesNotExist(LoggingContext context, Location location, string exportSymbol, string packageName, string commandName, string availableCommands);
-
-        [GeneratedEvent(
             (ushort)LogEventId.SpecifiedPackageForExportDoesNotExist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Message = EventConstants.LabeledProvenancePrefix + "The specified content for export symbol '{exportSymbol}' specifies a non-existent package '{packageName}'.",
+            Message = EventConstants.LabeledProvenancePrefix + "The specified content for export symbol '{exportSymbol}' does not contain any valid package. Selector: '{selector}'.",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void SpecifiedPackageForExportDoesNotExist(LoggingContext context, Location location, string exportSymbol, string packageName);
+        public abstract void SpecifiedPackageForExportDoesNotExist(LoggingContext context, Location location, string exportSymbol, string selector);
 
         [GeneratedEvent(
             (ushort)LogEventId.RequestedExportIsNotPresent,
@@ -237,5 +226,16 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void CannotLoadScriptsFromJsonFile(LoggingContext context, Location location, string pathToJson, string failure);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.InvalidRegexInProjectSelector,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Invalid regular expression in project selector: {selector}. Failure: {failure}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void InvalidRegexInProjectSelector(LoggingContext context, Location location, string selector, string failure);
+
     }
 }

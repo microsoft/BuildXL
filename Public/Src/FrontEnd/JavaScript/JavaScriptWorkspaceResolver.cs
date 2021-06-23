@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Script;
@@ -27,6 +28,7 @@ using JetBrains.Annotations;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TypeScript.Net.DScript;
+using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
 using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
 using SourceFile = TypeScript.Net.Types.SourceFile;
@@ -101,6 +103,27 @@ namespace BuildXL.FrontEnd.JavaScript
         public AbsolutePath ImportsFile { get; private set; }
 
         /// <summary>
+        /// The path to an in-memory DScript file with all the LazyEval expressions
+        /// </summary>
+        /// <remarks>
+        /// This file is added in addition to the current one-file-per-project
+        /// approach, as a single place to contain all imported values.
+        /// </remarks>
+        public AbsolutePath LazyEvaluationsFile { get; private set; }
+
+        /// <summary>
+        /// Mapping between the ILazyEval instance specified in the resolver configuration with its corresponding statement in the lazy expression source file
+        /// </summary>
+        [CanBeNull]
+        public IReadOnlyDictionary<IVariableStatement, ILazyEval> LazyEvaluationStatementMapping { get; private set; }
+
+        /// <summary>
+        /// Mapping between JavaScript projects and the additional lazy evaluation artifacts
+        /// </summary>
+        [CanBeNull]
+        public IReadOnlyDictionary<JavaScriptProject, IReadOnlySet<ILazyEval>> AdditionalLazyArtifactsPerProject { get; private set; }
+
+        /// <summary>
         /// If a custom scheduling callback is specified, this is the variable declaration (with function type) that has to be evaluated
         /// to get the result of the custom scheduling
         /// </summary>
@@ -130,6 +153,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             ExportsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "exports.dsc");
             ImportsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "imports.dsc");
+            LazyEvaluationsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "lazyEvals.dsc"); 
             AllProjectsSymbol = FullSymbol.Create(m_context.SymbolTable, "all");
 
             // The context is initialized as if all evaluations happen on the main config file.
@@ -159,6 +183,7 @@ namespace BuildXL.FrontEnd.JavaScript
         protected bool TryResolveExports(
             IReadOnlyCollection<JavaScriptProject> projects,
             IReadOnlyCollection<DeserializedJavaScriptProject> deserializedProjects,
+            [CanBeNull] JavaScriptProjectSelector projectSelector,
             out IReadOnlyCollection<ResolvedJavaScriptExport> resolvedExports)
         {
             // Build dictionaries to speed up subsequent look-ups
@@ -177,6 +202,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 return true;
             }
 
+            projectSelector ??= new JavaScriptProjectSelector(projects);
+
             foreach (var export in m_resolverSettings.Exports)
             {
                 // The export symbol cannot be one of the reserved ones (which for now is just one: 'all')
@@ -191,80 +218,46 @@ namespace BuildXL.FrontEnd.JavaScript
 
                 var projectsForSymbol = new List<JavaScriptProject>();
 
-                foreach (var project in export.Content)
+                foreach (var selector in export.Content)
                 {
-                    // The project outputs can be a plain string, meaning all build commands, or an IJavaScriptProjectOutputs
-                    IJavaScriptProjectOutputs projectOutputs;
-                    object projectValue = project.GetValue();
-                    if (projectValue is IJavaScriptProjectOutputs outputs)
+                    if (!projectSelector.TryGetMatches(selector, out var selectedProjects, out var failure))
                     {
-                        projectOutputs = outputs;
-                    }
-                    else
-                    {
-                        projectOutputs = new JavaScriptProjectOutputs { PackageName = (string)projectValue, Commands = null };
-                    }
-
-                    // Let's retrieve the deserialized project. If it is not there, that's an error, since the package name
-                    // does not exist at all (regardless of any build filter)
-                    if (nameToDeserializedProjects.TryGetValue(projectOutputs.PackageName, out var deserializedJavaScriptProject))
-                    {
-                        // If no commands were specified, add all available scripts that can be scheduled
-                        if (projectOutputs.Commands == null)
-                        {
-                            foreach (string command in deserializedJavaScriptProject.AvailableScriptCommands.Keys)
-                            {
-                                // If the project/command is there, add it to the export symbol if it can be scheduled
-                                if (nameAndCommandToProjects.TryGetValue((projectOutputs.PackageName, command), out JavaScriptProject javaScriptProject) && javaScriptProject.CanBeScheduled())
-                                {
-                                    projectsForSymbol.Add(javaScriptProject);
-                                }
-                                else
-                                {
-                                    // The project/command is not there. This can happen if the corresponding command was
-                                    // not requested to be executed. So just log an informational message here
-                                    Tracing.Logger.Log.RequestedExportIsNotPresent(
+                        Tracing.Logger.Log.InvalidRegexInProjectSelector(
                                         m_context.LoggingContext,
                                         m_resolverSettings.Location(m_context.PathTable),
-                                        export.SymbolName.ToString(m_context.SymbolTable),
-                                        projectOutputs.PackageName,
-                                        command);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Otherwise, add just the specified ones
-                            foreach (string commandName in projectOutputs.Commands)
-                            {
-                                if (nameAndCommandToProjects.TryGetValue((projectOutputs.PackageName, commandName), out var javaScriptProject))
-                                {
-                                    projectsForSymbol.Add(javaScriptProject);
-                                }
-                                else
-                                {
-                                    Tracing.Logger.Log.SpecifiedCommandForExportDoesNotExist(
-                                        m_context.LoggingContext,
-                                        m_resolverSettings.Location(m_context.PathTable),
-                                        export.SymbolName.ToString(m_context.SymbolTable),
-                                        projectOutputs.PackageName,
-                                        commandName,
-                                        string.Join(", ", deserializedJavaScriptProject.AvailableScriptCommands.Keys.Select(command => $"'{command}'")));
+                                        selector.GetValue().ToString(),
+                                        failure);
 
-                                    return false;
-                                }
-                            }
-                        }
+                        return false;
                     }
-                    else
+
+                    if (!selectedProjects.Any())
                     {
                         Tracing.Logger.Log.SpecifiedPackageForExportDoesNotExist(
                                         m_context.LoggingContext,
                                         m_resolverSettings.Location(m_context.PathTable),
                                         export.SymbolName.ToString(m_context.SymbolTable),
-                                        projectOutputs.PackageName);
+                                        selector.GetValue().ToString());
 
                         return false;
+                    }
+
+                    foreach (var selectedProject in selectedProjects)
+                    {
+                        if (!selectedProject.CanBeScheduled())
+                        {
+                            // The project/command is not there. This can happen if the corresponding command was
+                            // not requested to be executed. So just log an informational message here
+                            Tracing.Logger.Log.RequestedExportIsNotPresent(
+                                m_context.LoggingContext,
+                                m_resolverSettings.Location(m_context.PathTable),
+                                export.SymbolName.ToString(m_context.SymbolTable),
+                                selectedProject.Name,
+                                selectedProject.ScriptCommandName);
+
+                            continue;
+                        }
+                        projectsForSymbol.Add(selectedProject);
                     }
                 }
 
@@ -280,19 +273,69 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </summary>
         protected override SourceFile DoCreateSourceFile(AbsolutePath path)
         {
-            var sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
+            if (path == LazyEvaluationsFile)
+            {
+                return CreateLazyEvaluationsFile(path);
+            }
+            else
+            {
+                var sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
 
-            // We consider all files to be DScript files, even though the extension might not be '.dsc'
-            // And additionally, we consider them to be external modules, so exported stuff is interpreted appropriately
-            // by the type checker
-            sourceFile.OverrideIsScriptFile = true;
-            sourceFile.ExternalModuleIndicator = sourceFile;
+                // We consider all files to be DScript files, even though the extension might not be '.dsc'
+                // And additionally, we consider them to be external modules, so exported stuff is interpreted appropriately
+                // by the type checker
+                sourceFile.OverrideIsScriptFile = true;
+                sourceFile.ExternalModuleIndicator = sourceFile;
 
-            // If we need to generate the export file, add all specified export symbols
-            PopulateExportsFileIfNeeded(path, sourceFile);
+                // If we need to generate the export file, add all specified export symbols
+                PopulateExportsFileIfNeeded(path, sourceFile);
 
-            // If a custom scheduling function is referenced, let's add the reference to the imports file
-            PopulateImportsFileIfNeeded(path, sourceFile);
+                // If a custom scheduling function is referenced, let's add the reference to the imports file
+                PopulateImportsFileIfNeeded(path, sourceFile);
+
+                return sourceFile;
+            }
+        }
+
+        private SourceFile CreateLazyEvaluationsFile(AbsolutePath path)
+        {
+            if (m_resolverSettings.AdditionalDependencies == null)
+            {
+                return SourceFile.Create(path.ToString(m_context.PathTable));
+            }
+
+            // Collect all lazy expressions in declaration order
+            ILazyEval[] lazyEvaluations = m_resolverSettings.AdditionalDependencies
+                .SelectMany(javaScriptDependency =>
+                    javaScriptDependency.Dependencies
+                        .Where(dependency => dependency.GetValue() is ILazyEval)
+                        .Select(union => union.GetValue() as ILazyEval))
+                .ToArray();
+
+            // For each lazy expression, add a variable declaration with the shape
+            // const lazyN : expectedReturnType = lazyExpression
+            // In this way we validate the provided expression is legit and compatible with the declared expected type
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < lazyEvaluations.Length; i++)
+            {
+                var lazyEvaluation = lazyEvaluations[i];
+
+                sb.AppendLine($"const lazy{i} : {lazyEvaluation.FormattedExpectedType} = {lazyEvaluation.Expression};");
+            }
+
+            // Parse and bind the source file
+            // As a result, all the statements of the file are variable declarations, corresponding to each lazy
+            FrontEndUtilities.TryParseAndBindSourceFile(m_host, m_context, LazyEvaluationsFile, sb.ToString(), out var sourceFile);
+
+            // Create a mapping from statements to lazys for the resolver to consume, so they can be later linked
+            // with the JavaScriptProjects they affect
+            var lazyMapping = new Dictionary<IVariableStatement, ILazyEval>(lazyEvaluations.Length);
+            for (int i = 0; i < lazyEvaluations.Length; i++)
+            {
+                lazyMapping[(IVariableStatement)sourceFile.Statements[i]] = lazyEvaluations[i];
+            }
+
+            LazyEvaluationStatementMapping = lazyMapping;
 
             return sourceFile;
         }
@@ -437,7 +480,20 @@ namespace BuildXL.FrontEnd.JavaScript
             var javaScriptGraph = maybeResult.Result.graph;
             var flattenedGraph = maybeResult.Result.flattenedGraph;
 
-            if (!TryResolveExports(javaScriptGraph.Projects, flattenedGraph.Projects, out var exports))
+            JavaScriptProjectSelector projectSelector = null;
+
+            // If additional dependencies are specified, let's extend projects with them
+            if (m_resolverSettings.AdditionalDependencies != null)
+            {
+                projectSelector = new JavaScriptProjectSelector(javaScriptGraph.Projects);
+                if (!TryUpdateProjectsWithAdditionalDependencies(projectSelector))
+                {
+                    // Specific error should have been logged
+                    return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                }
+            }
+
+            if (!TryResolveExports(javaScriptGraph.Projects, flattenedGraph.Projects, projectSelector, out var exports))
             {
                 // Specific error should have been logged
                 return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
@@ -458,6 +514,9 @@ namespace BuildXL.FrontEnd.JavaScript
             // Add an 'imports' source file at the root of the repo that will contain all top-level imported values
             projectFiles.Add(ImportsFile);
 
+            // Add a file with all the lazy evaluations
+            projectFiles.Add(LazyEvaluationsFile);
+
             var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 moduleDescriptor,
@@ -469,6 +528,117 @@ namespace BuildXL.FrontEnd.JavaScript
                 mounts: null);
 
             return new JavaScriptGraphResult<TGraphConfiguration>(javaScriptGraph, moduleDefinition, exports);
+        }
+
+        /// <summary>
+        /// Adds all project-to-project additional dependencies to the existing graph
+        /// </summary>
+        /// <remarks>
+        /// Lazy artifacts cannot be added at this point because the workspace is not constructed yet.
+        /// This function keeps track of them by populating <see cref="AdditionalLazyArtifactsPerProject"/> as a side
+        /// effect
+        /// </remarks>
+        private bool TryUpdateProjectsWithAdditionalDependencies(JavaScriptProjectSelector projectSelector)
+        {
+            // A given project can be extended by multiple additional dependencies, so let's keep a dictionary with the additions
+            var additionalProjectDependenciesByProject = new Dictionary<JavaScriptProject, HashSet<JavaScriptProject>>();
+            var additionalLazyArtifactDependenciesByProject = new Dictionary<JavaScriptProject, HashSet<ILazyEval>>();
+
+            // Each IJavaScriptDependency defines a set of dependents and dependencies where all dependents depend on all dependencies
+            foreach (var additionalDependency in m_resolverSettings.AdditionalDependencies)
+            {
+                using (var inputProjectsWrapper = JavaScriptPools.JavaScriptProjectSet.GetInstance())
+                using (var inputLazyArtifactsWrapper = JavaScriptPools.LazyEvalSet.GetInstance())
+                {
+                    var inputProjects = inputProjectsWrapper.Instance;
+                    var inputLazyArtifacts = inputLazyArtifactsWrapper.Instance;
+
+                    // Each dependency can be a selector over JavaScript projects or a lazy evaluation representing an artifact. 
+                    // Here we care only about project dependencies
+                    foreach (var dependency in additionalDependency.Dependencies)
+                    {
+                        if (dependency.GetValue() is ILazyEval eval)
+                        {
+                            inputLazyArtifacts.Add(eval);
+                        }
+                        else
+                        {
+                            // Let's project the discriminating union to the types we know so we can reuse the project selector
+                            var selector = new DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>();
+                            selector.TrySetValue(dependency.GetValue());
+                            if (!projectSelector.TryGetMatches(selector, out var matches, out var failure))
+                            {
+                                Tracing.Logger.Log.InvalidRegexInProjectSelector(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        selector.GetValue().ToString(),
+                                        failure);
+                                return false;
+                            }
+
+                            inputProjects.AddRange(matches);
+                        }
+                    }
+
+                    // If there are no dependencies to add, shortcut the search
+                    if (inputProjects.Count == 0 && inputLazyArtifacts.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    // Dependents are all JS project selectors. Each dependent depends on all the computed dependencies
+                    foreach (var dependent in additionalDependency.Dependents.SelectMany(dependent => { 
+                        if (!projectSelector.TryGetMatches(dependent, out var matches, out var failure))
+                        {
+                            // If the regex is not legit, log and return a null singleton
+                            Tracing.Logger.Log.InvalidRegexInProjectSelector(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        dependent.GetValue().ToString(),
+                                        failure);
+                            return new JavaScriptProject[] { null };
+                        }
+
+                        return matches;
+                    }))
+                    {
+                        // This is the case where the regex is not legit. Error has been logged already, just return.
+                        if (dependent == null)
+                        {
+                            return false;
+                        }
+
+                        if (additionalProjectDependenciesByProject.TryGetValue(dependent, out var additionalDependencies))
+                        {
+                            additionalDependencies.AddRange(inputProjects);
+                        }
+                        else
+                        {
+                            additionalProjectDependenciesByProject[dependent] = new HashSet<JavaScriptProject>(inputProjects);
+                        }
+
+                        if (additionalLazyArtifactDependenciesByProject.TryGetValue(dependent, out var lazyArtifacts))
+                        {
+                            lazyArtifacts.AddRange(inputLazyArtifacts);
+                        }
+                        else
+                        {
+                            additionalLazyArtifactDependenciesByProject[dependent] = new HashSet<ILazyEval>(inputLazyArtifacts);
+                        }
+                    }
+                }
+
+                AdditionalLazyArtifactsPerProject = additionalLazyArtifactDependenciesByProject.ToDictionary(kvp => kvp.Key, kvp => (IReadOnlySet<ILazyEval>)kvp.Value.ToReadOnlySet());
+            }
+
+            // We update all the additional project dependencies here. LazyArtifacts need to be resolved after the workspace is constructed since those
+            // expressions might reference other modules
+            foreach (var kvp in additionalProjectDependenciesByProject)
+            {
+                kvp.Key.SetDependencies(kvp.Value.AddRange(kvp.Key.Dependencies));
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -704,7 +874,8 @@ namespace BuildXL.FrontEnd.JavaScript
         private JavaScriptProject CreateGroupProject(string commandName, string projectName, IReadOnlyList<JavaScriptProject> members, DeserializedJavaScriptProject deserializedProject)
         {
             // Source files and output directories are the union of the corresponding ones of each member
-            var sourceFiles = members.SelectMany(member => member.SourceFiles).ToHashSet();
+            var inputFiles = members.SelectMany(member => member.InputFiles).ToHashSet();
+            var inputDirectories = members.SelectMany(member => member.InputDirectories).ToHashSet();
             var outputDirectories = members.SelectMany(member => member.OutputDirectories).ToHashSet();
 
             // The script sequence is composed from every script command
@@ -717,7 +888,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 computedScript, 
                 deserializedProject.TempFolder, 
                 outputDirectories, 
-                sourceFiles);
+                inputFiles,
+                inputDirectories);
 
             return projectGroup;
         }
@@ -1148,7 +1320,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 return false;
             }
 
-            if (project.SourceFiles.Any(path => !path.IsValid))
+            if (project.InputFiles.Any(path => !path.IsValid))
             {
                 failure = $"Specified source file in '{project.ProjectFolder.Combine(m_context.PathTable, BxlConfigurationFilename).ToString(m_context.PathTable)}' is invalid.";
                 return false;

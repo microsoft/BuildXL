@@ -110,6 +110,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private BuildXL.Utilities.SymbolTable SymbolTable => m_conversionContext.RuntimeModelContext.SymbolTable;
 
+        private readonly StringId m_lazyExpression;
+
         private AstConverter(QualifierTable qualifierTable, AstConversionContext conversionContext, AstConversionConfiguration conversionConfiguration, [CanBeNull]Workspace workspace)
         {
             Contract.Requires(conversionContext != null);
@@ -129,6 +131,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             m_binder = Binder.Create(conversionContext.RuntimeModelContext);
             m_interpolationConverter = new InterpolationConverter(this, m_conversionContext);
+
+            //CODESYNC: Public\Sdk\Public\Prelude\Prelude.Primitive.dsc
+            m_lazyExpression = StringId.Create(conversionContext.StringTable, "expression");
         }
 
         /// <summary>
@@ -1993,9 +1998,50 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                     .ToList();
 
             var location = Location(source);
+
+            // Object literals with type LazyEval<T> need an extended object where the declared type T is preserved
+            // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Primitive.dsc
+            // To avoid potentially expensive type checking, rule out object literals that don't match structurally
+            if (properties.Count == 1 && properties[0].Name == m_lazyExpression)
+            {
+                // Try get the contextual type, and if we find LazyEval<T> preserve the instantiated type argument
+                var type = m_semanticModel?.TypeChecker.GetContextualType(source);
+                if (IsLazyEvalType(type))
+                {
+                    return LazyEvalObjectLiteral.Create(properties, location, CurrentFileModule.Path, PrintType(type.As<TypeReference>().TypeArguments[0], source));
+                }
+                // The other option is that the contextual type is a union.
+                // Extract all the LazyEval in the union and define the resulting expected type as the union
+                // of their type arguments
+                else if (type.As<IUnionType>() is IUnionType unionType)
+                {
+                    var lazyTypes = unionType.Types.Where(type => IsLazyEvalType(type)).ToList();
+                    if (lazyTypes.Count > 0)
+                    {
+                        var union = new TypeScript.Net.Types.UnionType() { Flags = TypeFlags.Union };
+                        union.Types = lazyTypes.Select(type => type.As<TypeReference>().TypeArguments[0]).ToList();
+                        return LazyEvalObjectLiteral.Create(properties, location, CurrentFileModule.Path, PrintType(union, source));
+                    }
+                }
+            }
+
             var result = ObjectLiteral.Create(properties, location, CurrentFileModule.Path);
 
             return result;
+        }
+
+        private bool IsLazyEvalType(IType typeCandidate) => typeCandidate.As<TypeReference>() is var type && type?.Symbol?.Name == "LazyEval" && type.TypeArguments.Count == 1;
+
+        private string PrintType(IType type, INode node)
+        {
+            if (m_semanticModel.TryPrintType(type, out string result, node.Parent, TypeFormatFlags.NoTruncation))
+            {
+                return result;
+            }
+
+            // In some circumstances the type checker may not be able to print a type. In those cases
+            // just relax the type so it doesn't get validated.
+            return "any";
         }
 
         private bool CheckObjectLiteralForDuplicateProperties(IObjectLiteralExpression source)

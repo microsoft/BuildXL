@@ -263,10 +263,15 @@ namespace BuildXL.FrontEnd.JavaScript
             JavaScriptProject project,
             ProcessBuilder processBuilder)
         {
-            // Add all explicitly declared source files
-            foreach (AbsolutePath sourceFile in project.SourceFiles)
+            // Add all explicitly declared input files and directories
+            foreach (FileArtifact inputFile in project.InputFiles)
             {
-                processBuilder.AddInputFile(FileArtifact.CreateSourceFile(sourceFile));
+                processBuilder.AddInputFile(inputFile);
+            }
+
+            foreach (DirectoryArtifact inputDirectory in project.InputDirectories)
+            {
+                processBuilder.AddInputDirectory(inputDirectory);
             }
 
             // Add package.json, which should always be present at the root of the project

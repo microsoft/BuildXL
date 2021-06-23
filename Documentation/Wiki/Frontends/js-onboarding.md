@@ -39,7 +39,6 @@ The basic configuration shown above may not be enough for some cases. These are 
 ### Missing project-to-project dependencies
 BuildXL is very strict when it comes to declaring dependencies on other artifacts produced during the build, since that guarantees a sound scheduling. So missing dependencies is something relatively common to encounter when moving to BuildXL. 
 
-
 Missing dependencies will usually manifest as a dependency violation error, indicating that a pip produced a file consumed by another pip in an undeclared manner. The fix is usually about adding the missing dependency in the corresponding ```package.json```.
 
 The violation in this case will manifest as a missing dependency error. For example, the error may look like this one:
@@ -62,7 +61,9 @@ This is telling us the violation is related to a write happening on the file `co
 
 The problem here is about `@ms/sp-client-release` not being allowed to read `combined-strings.json` produced by `@ms/sp-mixed-reality-workbench` without explicitly declaring it as a dependency. When there is not a declared dependency, BuildXL interprets reads as happening on source files, but sources files are not supposed to be written during the build.
 
-You can try running the [JavaScript dependency fixer](../Advanced-Features/Javascript-dependency-fixer.md), an analyzer that will attempt to fix missing dependencies by observing the dependency violation errors coming from a previous build.
+When a missing dependency is detected, there are usually two main paths to follow:
+1) The missing dependency is a legit dependency and therefore needs to be declared in its corresponding `package.json` file. This can be done manually, or you can try running the [JavaScript dependency fixer](../Advanced-Features/Javascript-dependency-fixer.md), an analyzer that will attempt to fix missing dependencies by observing the dependency violation errors coming from a previous build.
+2) The missing dependency shouldn't actually be happening. In this case tool behavior has to be changed. A typical case is a tool scanning the drive in a very liberal way, implicitly adding those file accesses (usually reads or enumerations) to the dependencies of the project. A escape hatch for this scenario is declaring [additional dependencies](js-additional-dependencies.md) for the involved projects. As a potential downside, adding extra dependencies may have an impact on performance by making the build graph less parallelizable.
 
 ### Rewrites
 We call a rewrite the case of two different pips writing to the same file (regardless of whether those writes race or not). Rewrites are problematic since it is not clear whether a dependency on the file being rewritten is supposed to see the original or the rewritten version of it. BuildXL will allow rewrites where the same content is written, since in that case read races are not problematic, but it will block different-content ones.
@@ -151,4 +152,5 @@ There are some additional configuration options that may be required in more adv
 * [Package installation under BuildXL](js-package-install.md)
 * [Coordinator-specific options](js-coordinator-options.md)
 * [Building beyond well-known monorepo managers](js-custom-graph.md)
+* [Specifying additional dependencies](js-additional-dependencies.md)
 * [Other misc options](js-misc-options.md)

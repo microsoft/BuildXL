@@ -11,21 +11,19 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public JavaScriptExport()
         {
-            SymbolName = FullSymbol.Invalid;
-            Content = new List<DiscriminatingUnion<string, IJavaScriptProjectOutputs>>();
         }
 
         /// <nodoc />
         public JavaScriptExport(IJavaScriptExport template)
         {
             SymbolName = template.SymbolName;
-            Content = template.Content ?? new List<DiscriminatingUnion<string, IJavaScriptProjectOutputs>>();
+            Content = template.Content;
         }
 
         /// <inheritdoc/>
         public FullSymbol SymbolName { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectOutputs>> Content { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>> Content { get; set; }
     }
 }

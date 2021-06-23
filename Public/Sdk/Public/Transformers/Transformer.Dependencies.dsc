@@ -30,7 +30,6 @@ namespace Transformer {
     }
     
      /** An output directory can be shared or exclusive 
-     * Note: Shared directories is an experimental feature, use it at your own risk.
      */
     @@public
     export type OutputDirectoryKind = "shared" | "exclusive";

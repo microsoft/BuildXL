@@ -30,6 +30,16 @@ namespace BuildXL.Pips.Filter
         public const string TriggerWorkerProcessStartFailed = "buildxl.internal:triggerProcessStartFailed";
 
         /// <summary>
+        /// Ensures pip triggers on a worker for testing purposes.
+        /// </summary>
+        public const string TriggerWorkerRemotePipTimeout = "buildxl.internal:triggerWorkerRemotePipTimeout";
+
+        /// <summary>
+        /// Ensures pip is dispatched to a remote worker for testing purposes.
+        /// </summary>
+        public const string RunPipRemotely = "buildxl.internal:runRemotely";
+
+        /// <summary>
         /// Creates a new instance of <see cref="TagFilter"/>
         /// </summary>
         public TagFilter(StringId tag)

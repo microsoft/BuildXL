@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Artifacts;
@@ -213,6 +214,11 @@ namespace BuildXL.Scheduler.Distribution
                 return LocalWorker.TryAcquire(runnablePip, out limitingResource, loadFactor: MaxLoadFactor) ? LocalWorker : null;
             }
 
+            // For integration tests we require some pips to run remotely
+            var mustRunRemotely = 
+                (runnablePip.Pip is Process processPip && processPip.Priority == Process.IntegrationTestPriority) &&
+                runnablePip.Pip.Tags.Any(a => runnablePip.Environment.Context.StringTable.Equals(TagFilter.RunPipRemotely, a));
+
             ResetStatus();
 
             var pendingWorkerSelectionPipCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumRunningByKind(DispatcherKind.ChooseWorkerCpu);
@@ -253,6 +259,12 @@ namespace BuildXL.Scheduler.Distribution
                 for (int i = 0; i < workerSetupCosts.Length; i++)
                 {
                     var worker = workerSetupCosts[i].Worker;
+                    
+                    if (mustRunRemotely && worker.IsLocal)
+                    {
+                        continue;
+                    }
+
                     if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor))
                     {
                         runnablePip.Performance.SetInputMaterializationCost(ByteSizeFormatter.ToMegabytes((ulong)setupCostForBestWorker), ByteSizeFormatter.ToMegabytes((ulong)workerSetupCosts[i].SetupBytes));

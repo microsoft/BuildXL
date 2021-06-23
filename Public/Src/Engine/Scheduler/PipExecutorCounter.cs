@@ -690,6 +690,11 @@ namespace BuildXL.Scheduler
         RetriedUserExecutionDuration,
 
         /// <summary>
+        /// Counts the number of pips that timed out remotely.
+        /// </summary>
+        PipsTimedOutRemotely,
+
+        /// <summary>
         /// Counts the number of process pips executed on remote workers
         /// </summary>
         ProcessesExecutedRemotely,

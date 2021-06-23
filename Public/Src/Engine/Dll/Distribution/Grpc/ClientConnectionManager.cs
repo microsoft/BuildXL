@@ -25,7 +25,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             /// <summary>
             /// Possible scenarios of connection failure
             /// </summary>
-            public enum FailureType { Timeout, UnrecoverableFailure }
+            public enum FailureType { ConnectionTimeout, RemotePipTimeout, UnrecoverableFailure }
 
             /// <nodoc />
             public FailureType Type { get; init; }
@@ -46,7 +46,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             public void Log(LoggingContext loggingContext, string machineName)
             {
                 var details = Details ?? "";
-                if (Type == FailureType.Timeout)
+                if (Type == FailureType.ConnectionTimeout)
                 {
                     Logger.Log.DistributionConnectionTimeout(loggingContext, machineName, details);
                 }
@@ -180,7 +180,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 if (monitorConnectingState && connectingStateTimer.IsRunning && connectingStateTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
                 {
-                    OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.Timeout, $"Timed out while the gRPC layer was trying to reconnect to the server. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
+                    OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.ConnectionTimeout, $"Timed out while the gRPC layer was trying to reconnect to the server. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
                     break;
                 }
 
@@ -191,7 +191,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     bool isReconnected = await TryReconnectAsync();
                     if (!isReconnected)
                     {
-                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.Timeout, "Reconnection attempts failed"));
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.ConnectionTimeout, "Reconnection attempts failed"));
                         break;
                     }
                 }

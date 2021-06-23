@@ -19,6 +19,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
@@ -30,6 +31,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
+using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Utilities.Tasks.TaskUtilities;
 using Logger = BuildXL.Engine.Tracing.Logger;
@@ -726,7 +728,7 @@ namespace BuildXL.Engine.Distribution
                 // It is expected to lose the connection with the worker, so that we force the pips 
                 // assigned to that worker to retry on different workers.
                 OnConnectionFailureAsync(null, 
-                    new ConnectionFailureEventArgs(ConnectionFailureEventArgs.FailureType.Timeout, 
+                    new ConnectionFailureEventArgs(FailureType.ConnectionTimeout, 
                     "Triggered connection timeout for integration tests"));
             }
 
@@ -943,17 +945,45 @@ namespace BuildXL.Engine.Distribution
         {
             var pipId = runnable.PipId;
             var pipType = runnable.PipType;
+            var environment = runnable.Environment;
 
             Contract.Assert(m_pipCompletionTasks.ContainsKey(pipId), "RemoteWorker tried to await the result of a pip which it did not start itself");
 
             ExecutionResult executionResult = null;
+            var operationTimedOut = false;
 
             using (operationContext.StartOperation(PipExecutorCounter.AwaitRemoteResultDuration))
             {
-                executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
+                var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
+
+                try
+                {
+                    executionResult = await completionTask.WithTimeoutAsync(EngineEnvironmentSettings.RemotePipTimeout);
+                }
+                catch (TimeoutException)
+                {
+                    Logger.Log.PipTimedOutRemotely(m_appLoggingContext, pipId.ToString(), runnable.Step.AsString(), runnable.Worker.Name);
+                    environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
+                    operationTimedOut = true;
+                }
             }
 
             m_pipCompletionTasks.TryRemove(runnable.PipId, out var pipCompletionTask);
+
+            if (operationTimedOut
+                // For integration tests, simulate a timeout on the first try
+                || runnable.Pip is Process processPip && processPip.Priority == Process.IntegrationTestPriority &&
+                    runnable.Pip.Tags.Any(a => a.ToString(environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout) 
+                    && runnable.Performance.RetryCountDueToStoppedWorker == 0)
+            {
+                environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
+
+                // We assume the worker is in a bad state and abandon it so we can schedule pips elsewhere
+                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(FailureType.RemotePipTimeout, $"Pip {pipId} timed out remotely on step {runnable.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
+
+                // We consider the pip not run so we can retry it elsewhere
+                return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.StoppedWorker));
+            }
 
             // TODO: Make worker reported time nested under AwaitRemoteResult operation
             ReportRemoteExecutionStepDuration(operationContext, runnable, pipCompletionTask);

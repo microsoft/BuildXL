@@ -2874,6 +2874,16 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Preserve output mode is enabled with /unsafe_IgnorePreserveOutputsPrivatization and /storeOutputsToCache: Build can fail because pips are not able to make their existing outputs private before execution.")]
         public abstract void ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipTimedOutRemotely,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Pip {pipId} timed out on step {step} remotely on worker {worker}.")]
+        public abstract void PipTimedOutRemotely(LoggingContext context, string pipId, string step, string worker);
+
     }
 
     /// <summary>

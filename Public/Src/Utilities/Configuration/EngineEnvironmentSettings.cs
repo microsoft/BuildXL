@@ -168,6 +168,15 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
 
         /// <summary>
+        /// Maximum time waiting for a pip to be executed remotely. If this timeout is hit the worker is disconnected, so this number should be conservative
+        /// </summary>
+        /// <remarks>
+        /// Defaults to 5.25 hours
+        /// </remarks>
+        public static readonly Setting<TimeSpan> RemotePipTimeout = CreateSetting("BuildXLRemotePipTimeoutMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ??
+        TimeSpan.FromHours(5.25));
+
+        /// <summary>
         /// The amount of concurrency to allow for input/output materialization
         /// </summary>
         public static readonly Setting<int> MaterializationConcurrency = CreateSetting(

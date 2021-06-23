@@ -76,7 +76,7 @@ if %buildResult% NEQ 0 (
 
 echo.
 echo ################################################################################
-echo # Build is expected to pass with one worker failing.                           #
+echo # Build is expected to pass with two workers failing.                           #
 echo ################################################################################
 echo #                                                                              #
 echo # Errors in the output are expected, do not worry this is not a false positive #

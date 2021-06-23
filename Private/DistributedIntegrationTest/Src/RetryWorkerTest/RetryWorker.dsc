@@ -11,7 +11,8 @@ function main() {
     let result = Transformer.execute({
         tool: cmdExe,
         description: "Process pip causing a retry on another worker",
-        tags: ["buildxl.internal:triggerWorkerConnectionTimeout"],         // Tag specified in TagFilter.TriggerWorkerConnection and causes this pip to run on a worker rather than running on master
+         // Tag specified in TagFilter.TriggerWorkerConnection and causes this pip to run on a worker rather than running on orchestrator
+        tags: ["buildxl.internal:runRemotely", "buildxl.internal:triggerWorkerConnectionTimeout"],
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
@@ -19,7 +20,7 @@ function main() {
             Cmd.argument(">"),
             Cmd.argument(Artifact.output(outputFile1)),
         ],
-		priority: 99,
+        priority: 99, // indicate that this is used for integration test purposes so the tags above apply.
         workingDirectory: d`.`
     });
 

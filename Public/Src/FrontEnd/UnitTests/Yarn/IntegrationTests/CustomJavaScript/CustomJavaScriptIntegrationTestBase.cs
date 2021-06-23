@@ -60,14 +60,16 @@ namespace Test.BuildXL.FrontEnd.Yarn
         protected SpecEvaluationBuilder Build(
             string customGraph,
             string customScripts,
-            string moduleName = "Test")
+            string moduleName = "Test",
+            string configExtension = null)
         {
             // Let's explicitly pass an environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
                 DefaultCustomJavaScriptPrelude(
                     customGraph: customGraph,
                     customScripts: customScripts,
-                    moduleName: moduleName));
+                    moduleName: moduleName,
+                    configExtension: configExtension));
         }
 
         protected BuildXLEngineResult RunCustomJavaScriptProjects(
@@ -98,7 +100,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
         private string DefaultCustomJavaScriptPrelude(
             string moduleName,
             string customGraph,
-            string customScripts) => $@"
+            string customScripts,
+            string configExtension) => $@"
 config({{
     resolvers: [
         {{
@@ -108,7 +111,8 @@ config({{
             customProjectGraph: {customGraph},
             {(customScripts != null? $"customScripts: {customScripts}," : string.Empty)}
         }}
-    ]
+    ],
+    {configExtension ?? string.Empty}
 }});";
     }
 }

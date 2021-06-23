@@ -18,4 +18,5 @@ enum SemanticPathFlags{
     HasPotentialBuildOutputs = 64;
     Writable = 72;
     AllowCreateDirectory = 128;
+    Static = 256;
 }

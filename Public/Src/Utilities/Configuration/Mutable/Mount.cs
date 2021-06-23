@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IsSystem = template.IsSystem;
             IsScrubbable = template.IsScrubbable;
             AllowCreateDirectory = template.AllowCreateDirectory;
+            IsStatic = template.IsStatic;
         }
 
         /// <inheritdoc />
@@ -47,6 +48,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IsSystem { get; set; }
+
+        /// <inheritdoc />
+        public bool IsStatic { get; set; }
 
         /// <inheritdoc />
         public bool IsScrubbable { get; set; }

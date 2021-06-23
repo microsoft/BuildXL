@@ -94,6 +94,9 @@ namespace BuildXL.Execution.Analyzer
                             writer.WritePropertyName("IsSystem");
                             writer.WriteValue(mount.Value.IsSystem);
 
+                            writer.WritePropertyName("IsStatic");
+                            writer.WriteValue(mount.Value.IsStatic);
+
                             writer.WritePropertyName("IsScrubbable");
                             writer.WriteValue(mount.Value.IsScrubbable);
 

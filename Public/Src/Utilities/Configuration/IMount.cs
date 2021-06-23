@@ -40,6 +40,12 @@ namespace BuildXL.Utilities.Configuration
         bool IsSystem { get; }
 
         /// <summary>
+        /// Internal use only.
+        /// Indicates whether the root represents a mount statically added at the beginning of the build (e.g. LogsDirectory)
+        /// </summary>
+        bool IsStatic { get; }
+
+        /// <summary>
         /// Indicates whether a mount may be scrubbed (have files not registered in the current build graph as inputs or
         /// outputs deleted)
         /// </summary>

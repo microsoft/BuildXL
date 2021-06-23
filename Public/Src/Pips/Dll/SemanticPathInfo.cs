@@ -37,7 +37,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Creates a new SemanticPathInfo
         /// </summary>
-        public SemanticPathInfo(PathAtom rootName, AbsolutePath root, bool allowHashing, bool readable, bool writable, bool system = false, bool scrubbable = false, bool allowCreateDirectory = false)
+        public SemanticPathInfo(PathAtom rootName, AbsolutePath root, bool allowHashing, bool readable, bool writable, bool system = false, bool isStatic = false, bool scrubbable = false, bool allowCreateDirectory = false)
         {
             RootName = rootName;
             Root = root;
@@ -46,6 +46,7 @@ namespace BuildXL.Pips
                 (readable ? SemanticPathFlags.Readable : SemanticPathFlags.None) |
                 (writable ? SemanticPathFlags.Writable : SemanticPathFlags.None) |
                 (system ? SemanticPathFlags.System : SemanticPathFlags.None) |
+                (isStatic ? SemanticPathFlags.Static : SemanticPathFlags.None) |
                 (scrubbable ? SemanticPathFlags.Scrubbable : SemanticPathFlags.None) |
                 (allowCreateDirectory ? SemanticPathFlags.AllowCreateDirectory : SemanticPathFlags.None);
         }
@@ -89,6 +90,11 @@ namespace BuildXL.Pips
         /// Gets whether the path is a system location
         /// </summary>
         public bool IsSystem => (Flags & SemanticPathFlags.System) != SemanticPathFlags.None;
+
+        /// <summary>
+        /// Gets whether the path is a static location
+        /// </summary>
+        public bool IsStatic => (Flags & SemanticPathFlags.Static) != SemanticPathFlags.None;
 
         /// <summary>
         /// Gets whether the path is a location that can be scrubbed
@@ -175,5 +181,10 @@ namespace BuildXL.Pips
         /// Indicates that the path represents a location where a directory can be created
         /// </summary>
         AllowCreateDirectory = 1 << 6,
+
+        /// <summary>
+        /// Indicates that the path represents a static location added when the build started.
+        /// </summary>
+        Static = 1 << 7,
     }
 }

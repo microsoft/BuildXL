@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.IO;
+using System.Linq;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -205,6 +207,51 @@ namespace Test.BuildXL.FrontEnd.Yarn.IntegrationTests
 
             AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.CustomScriptsFailure);
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+        }
+
+        [Theory]
+        [InlineData("LogsDirectory", true)]
+        [InlineData("ProgramFiles", true)]
+        [InlineData("UserDefinedMount", false)]
+        public void MountsAreAccesibleDuringCustomScriptEvaluation(string mountName, bool expectSuccess)
+        {
+            string customGraph = @"Map.empty<string, {location: RelativePath, workspaceDependencies: string[]}>()
+                                    .add('@ms/project-A', {location: r`src/custom/project-A`, workspaceDependencies: []})";
+
+            // Retrieve the mount name during custom script evaluation
+            string spec = @$"
+export function customScripts(packageName: string, location: RelativePath): File | Map<string, FileContent> {{
+    const t = Context.getMount('{mountName}');
+    return Map.empty<string, FileContent>().add('build', 'do build');
+}}";
+            
+            // Define a user-defined mount, which shouldn't be visible
+            var config = Build(
+                    customGraph: customGraph,
+                    customScripts: $"importFile(f`customScripts.dsc`).customScripts",
+                    configExtension: "mounts: [{name: a`UserDefinedMount`, path: p`Out/Bin`, trackSourceFileChanges: true, isWritable: true, isReadable: true}]")
+                  .AddJavaScriptProject("@ms/project-A", "src/project-A", scriptCommands: new[] { ("build", "do build") })
+                .AddSpec("customScripts.dsc", spec)
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunCustomJavaScriptProjects(config);
+
+            if (expectSuccess)
+            {
+                Assert.True(result.IsSuccess);
+            }
+            else
+            {
+                Assert.False(result.IsSuccess);
+                AssertErrorEventLogged(global::BuildXL.FrontEnd.Script.Tracing.LogEventId.GetMountNameNotFound);
+
+                // When GetMount fails, the error message uses GetMountNames to list the available mounts. Partially test that here by validating the log message.
+                string mountNotFoundMessage = EventListener.GetLogMessagesForEventId((int)global::BuildXL.FrontEnd.Script.Tracing.LogEventId.GetMountNameNotFound).Single();
+                XAssert.Contains(mountNotFoundMessage, "LogsDirectory", "ProgramFiles");
+
+                AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.CustomScriptsFailure);
+                AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+            }
         }
     }
 }

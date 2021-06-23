@@ -473,7 +473,8 @@ namespace BuildXL.Engine
                             IsReadable = isReadable,
                             IsSystem = isSystem,
                             IsScrubbable = isScrubbable,
-                            AllowCreateDirectory = allowCreateDirectory
+                            AllowCreateDirectory = allowCreateDirectory,
+                            IsStatic = true,
                         };
 
             var location = CreateToken(m_context);
@@ -622,7 +623,7 @@ namespace BuildXL.Engine
                         {
                             MountPathExpander.AddWithExistingName(
                                 m_context.PathTable,
-                                new SemanticPathInfo(childMount.Name, root, childMount.TrackSourceFileChanges, childMount.IsReadable, childMount.IsWritable, childMount.IsSystem, childMount.IsScrubbable,  childMount.AllowCreateDirectory));
+                                new SemanticPathInfo(childMount.Name, root, childMount.TrackSourceFileChanges, childMount.IsReadable, childMount.IsWritable, childMount.IsSystem, childMount.IsStatic, childMount.IsScrubbable,  childMount.AllowCreateDirectory));
                         }
                     }
                 }
@@ -665,24 +666,42 @@ namespace BuildXL.Engine
         public override BuildXL.FrontEnd.Sdk.TryGetMountResult TryGetMount(string name, ModuleId currentPackage, out IMount mount)
         {
             Contract.Requires(currentPackage.IsValid);
-            Contract.Assert(m_finalized);
 
             if (string.IsNullOrEmpty(name))
             {
                 mount = null;
                 return BuildXL.FrontEnd.Sdk.TryGetMountResult.NameNullOrEmpty;
             }
-
-            return m_mountsByName.TryGetValue(name, out mount)
+            
+            var result = m_mountsByName.TryGetValue(name, out mount)
                 ? BuildXL.FrontEnd.Sdk.TryGetMountResult.Success
                 : BuildXL.FrontEnd.Sdk.TryGetMountResult.NameNotFound;
+
+            // If the mount is found but it is not a static one and the mount table is not finalized, then this means the call is happening
+            // before the workspace is fully constructed and we shouldn't expose non-static mounts
+            if (!m_finalized && result == BuildXL.FrontEnd.Sdk.TryGetMountResult.Success)
+            {
+                // We shouldn't expose non-static mounts if the mount table is not finalized
+                return mount.IsStatic ? result : BuildXL.FrontEnd.Sdk.TryGetMountResult.NameNotFound;
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
         public override IEnumerable<string> GetMountNames(ModuleId currentPackage)
         {
-            Contract.Assert(m_finalized);
-            return m_mountsByName.Keys;
+            // If the mount table is finalized, just return all mounts.
+            // Otherwise, this means the function is called during config evaluation, and in
+            // that case only static mounts are exposed, which don't depend on module evaluation.
+            if (m_finalized)
+            {
+                return m_mountsByName.Keys;
+            }
+            else
+            {
+                return m_mountsByName.Where(kvp => kvp.Value.IsStatic).Select(kvp => kvp.Key);
+            }
         }
     }
 }

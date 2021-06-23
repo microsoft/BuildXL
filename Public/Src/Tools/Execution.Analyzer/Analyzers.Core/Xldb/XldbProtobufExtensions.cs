@@ -869,6 +869,7 @@ namespace BuildXL.Execution.Analyzer
                 IsWriteable = pathInfo.IsWritable,
                 AllowCreateDirectory = pathInfo.AllowCreateDirectory,
                 IsSystem = pathInfo.IsSystem,
+                IsStatic = pathInfo.IsStatic,
                 IsScrubbable = pathInfo.IsScrubbable,
                 HasPotentialBuildOutputs = pathInfo.HasPotentialBuildOutputs,
             };

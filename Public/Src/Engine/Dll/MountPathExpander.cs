@@ -83,7 +83,7 @@ namespace BuildXL.Engine
             Contract.Requires(pathTable != null);
             Contract.Requires(mount != null);
 
-            Add(pathTable, new SemanticPathInfo(mount.Name, mount.Path, mount.TrackSourceFileChanges, mount.IsReadable, mount.IsWritable, mount.IsSystem, mount.IsScrubbable,  mount.AllowCreateDirectory));
+            Add(pathTable, new SemanticPathInfo(mount.Name, mount.Path, mount.TrackSourceFileChanges, mount.IsReadable, mount.IsWritable, mount.IsSystem, mount.IsStatic, mount.IsScrubbable,  mount.AllowCreateDirectory));
         }
 
         /// <summary>

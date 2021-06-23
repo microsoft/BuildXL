@@ -201,4 +201,7 @@ message SemanticPathInfo{
 
     // The semantic flags describing behavior for the path
     SemanticPathFlags Flags = 11;
+
+    // Gets whether the path is a static location
+    bool IsStatic = 12;
 }

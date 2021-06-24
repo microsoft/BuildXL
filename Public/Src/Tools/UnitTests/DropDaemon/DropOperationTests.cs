@@ -484,7 +484,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter}",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ##",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -552,7 +552,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .*",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .* --directoryRelativePathReplace ##",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -647,7 +647,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .*",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ##",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
                             
@@ -660,6 +660,107 @@ namespace Test.Tool.DropDaemon
                         bxlApiClient);
                     return Task.CompletedTask;
                 }).GetAwaiter().GetResult();
+        }
+
+        [Theory]
+        [InlineData(@"C:\dir\", @"C:\dir\foo.txt", null, null, "foo.txt")]
+        [InlineData(@"C:\dir", @"C:\dir\foo.txt", null, null, "foo.txt")]
+        [InlineData(@"C:\dir", @"C:\dir\dir2\foo.txt", null, null, @"dir2\foo.txt")]
+        [InlineData(@"C:\dir", @"C:\dir\dir2\foo.txt", @"dir3", "", @"dir2\foo.txt")] // no match
+        [InlineData(@"C:\dir", @"C:\dir\dir2\foo.txt", @"dir2\", "", @"foo.txt")]
+        [InlineData(@"C:\dir", @"C:\dir\dir2\foo.txt", @"dir2", "", @"\foo.txt")]
+        [InlineData(@"C:\dir", @"C:\dir\dir2\dir2\foo.txt", @"dir2", "", @"\dir2\foo.txt")] // replacing only the first match
+        [InlineData(@"C:\dir", @"C:\dir\dir2\dir2\foo.txt", @"dir2\dir2", "dir3", @"dir3\foo.txt")]
+        public void TestGetRelativePath(string root, string filePath, string oldValue, string newValue, string expectedPath)
+        {
+            var replacementArgs = new global::Tool.DropDaemon.DropDaemon.RelativePathReplacementArguments(oldValue, newValue);
+            XAssert.ArePathEqual(expectedPath, global::Tool.DropDaemon.DropDaemon.GetRelativePath(root, filePath, replacementArgs));
+        }
+
+        [Theory]
+        [InlineData(".", null, null, "a", "dir/b", "dir/dir/c", "dir/dir2/d", "dir3/e")]
+        [InlineData("x", null, null, "x/a", "x/dir/b", "x/dir/dir/c", "x/dir/dir2/d", "x/dir3/e")]
+        [InlineData("x", "x", "", "x/a", "x/dir/b", "x/dir/dir/c", "x/dir/dir2/d", "x/dir3/e")] // replacement is not applied to the dropPath
+        [InlineData("x", @"dir\", "", "x/a", "x/b", "x/dir/c", "x/dir2/d", "x/dir3/e")]
+        [InlineData(".", @"dir\", "", "a", "b", "dir/c", "dir2/d", "dir3/e")]
+        [InlineData("x", @"dir\dir2", "newDir", "x/a", "x/dir/b", "x/dir/dir/c", "x/newDir/d", "x/dir3/e")]
+        public void TestAdddingDirectoryToDropWithSpecifiedRelativePathReplacement(string dropPath, string replaceOldValue, string replaceNewValue, params string[] expectedFiles)
+        {
+            /*
+             * Directory content:
+             *  a
+             *  dir\b
+             *  dir\dir\c
+             *  dir\dir2\d
+             *  dir3\e
+             */
+            
+            var expectedDropPaths = new HashSet<string>(expectedFiles);
+            var dropPaths = new List<string>();
+            var fakeDirectoryId = "123:1:12345";
+            var directoryPath = Path.Combine(TestOutputDirectory, "foo");
+            var files = new List<string>
+            {
+                Path.Combine(directoryPath, "a"),
+                Path.Combine(directoryPath, "dir","b"),
+                Path.Combine(directoryPath, "dir","dir", "c"),
+                Path.Combine(directoryPath, "dir","dir2", "d"),
+                Path.Combine(directoryPath, "dir3","e"),
+            };
+
+            var dropClient = new MockDropClient(addFileFunc: (item) =>
+            {
+                dropPaths.Add(item.RelativeDropPath);
+                return Task.FromResult(AddFileResult.UploadedAndAssociated);
+            });
+
+            var ipcProvider = IpcFactory.GetProvider();
+
+            // this lambda mocks BuildXL server receiving 'GetSealedDirectoryContent' API call and returning a response
+            var ipcExecutor = new LambdaIpcOperationExecutor(op =>
+            {
+                var cmd = ReceiveGetSealedDirectoryContentCommandAndCheckItMatchesDirectoryId(op.Payload, fakeDirectoryId);
+
+                // Now 'fake' the response - here we only care about the 'FileName' field.
+                // In real life it's not the case, but this is a test and our custom addFileFunc
+                // in dropClient simply collects the drop file names.
+                var result = files.Select(file => CreateFakeSealedDirectoryFile(file)).ToList();
+
+                return IpcResult.Success(cmd.RenderResult(result));
+            });
+
+            WithIpcServer(
+                ipcProvider,
+                ipcExecutor,
+                new ServerConfig(),
+                (moniker, mockServer) =>
+                {
+                    var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
+                    WithSetup(
+                        dropClient,
+                        (daemon, etwListener) =>
+                        {
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {dropPath} --directoryFilter .* --directoryRelativePathReplace {serializeReplaceArgument(replaceOldValue, replaceNewValue)}",
+                                new UnixParser());
+                            var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
+
+                            XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
+                            XAssert.AreSetsEqual(expectedDropPaths, dropPaths, expectedResult: true);
+                        },
+                        bxlApiClient);
+                    return Task.CompletedTask;
+                }).GetAwaiter().GetResult();
+
+            string serializeReplaceArgument(string oldValue, string newValue)
+            {
+                if (oldValue != null || newValue != null)
+                {
+                    return $"#{oldValue}#{newValue}#";
+                }
+
+                return "##";
+            }
         }
 
         private static SealedDirectoryFile CreateFakeSealedDirectoryFile(string fileName)

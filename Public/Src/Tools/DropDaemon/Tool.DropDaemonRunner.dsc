@@ -108,7 +108,9 @@ export namespace DropDaemonRunner {
         return <DropDirectoryInfo>{ 
             kind: "directory", 
             directory: directoryInfo.directory, 
-            dropPath: directoryInfo.dropPath 
+            dropPath: directoryInfo.dropPath,
+            contentFilter: directoryInfo.contentFilter,
+            relativePathReplacementArguments: directoryInfo.relativePathReplacementArguments
         }; 
     }
 
@@ -495,5 +497,17 @@ export namespace DropDaemonRunner {
                 forwardEnvironmentVars: cloudBuildVars
             }
         );
+    }
+
+    function serializeRelativePathReplace(replacementArgs: RelativePathReplacementArguments): string {
+        // we need to use a char that cannot appear in url/uri
+        const delim = '#';
+
+        if (replacementArgs !== undefined) {
+            
+            return `${delim}${replacementArgs.oldValue}${delim}${replacementArgs.newValue}${delim}`;
+        }
+
+        return `${delim}${delim}`;
     }
 }

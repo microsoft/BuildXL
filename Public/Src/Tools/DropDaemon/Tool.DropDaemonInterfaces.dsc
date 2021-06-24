@@ -151,6 +151,17 @@ export interface DropFileInfo extends DropArtifactInfoBase {
     file: File;
 }
 
+/** Arguments for changing a relative path of a file before adding it to drop. */
+@@public
+export interface RelativePathReplacementArguments {
+
+    /** string to search for */
+    oldValue: string;
+
+    /** string to replace with */
+    newValue: string;
+}
+
 /**
  * Arguments for the 'dropd addartifacts' operation for dropping directory.
  */
@@ -162,8 +173,36 @@ export interface DropDirectoryInfo extends DropArtifactInfoBase {
     /** Input directory to add to drop. */
     directory: StaticDirectory;
 
-    /** regex filter */
+    /** 
+     * Optional file path regex pattern that specifies which files from this
+     * directory should be processed. 
+     * 
+     * (The filter is applied to the original file name)
+     */
     contentFilter?: string;
+
+    /** 
+     * Optional relative path replace arguments.
+     * 
+     * If specified, the replacement is performed on a relative path of
+     * each file that is being added to drop when the daemon calculates
+     * the final drop path.
+     * 
+     * For example:
+     *             directory: C:\a\
+     *                 files: C:\a\1.txt
+     *                        C:\a\b\2.txt
+     *                        C:\a\c\3.txt
+     *  replacementArguments: "b\" -> "c\"
+     *              dropPath: "b"
+     * 
+     *         files in drop: b/1.txt    <- "b" is not a part of file's ('C:\a\1.txt') relative path ('1.txt'), 
+     *                                      so it's not affected by the replacement
+     *                        b/c/2.txt  <- file's relative path ('b\2.txt') was changed
+     *                        b/c/3.txt  <- file's relative path ('c\2.txt') did not match the search pattern,
+     *                                      so it was not modified
+     */
+    relativePathReplacementArguments?: RelativePathReplacementArguments;   
 }
 
 @@public
@@ -199,9 +238,19 @@ export interface DirectoryInfo extends ArtifactInfo {
     /** Input directory to add to drop. */
     directory: StaticDirectory;
 
-    /** regex filter */
+    /**
+     * Optional file path regex pattern that specifies which files from this
+     * directory should be processed. 
+     * 
+     * (The filter is applied to the original file name)
+     */
     contentFilter?: string;
+
+    /** Optional relative path replace arguments. */
+    relativePathReplacementArguments?: RelativePathReplacementArguments; 
 }
+
+
 //////////// Legacy types, preserved to maintain back compatibility
 
 /**

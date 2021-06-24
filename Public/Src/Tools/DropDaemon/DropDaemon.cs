@@ -60,6 +60,8 @@ namespace Tool.DropDaemon
         public string DropName => DropConfig.Name;
 
         private readonly Task<IDropClient> m_dropClientTask;
+        private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<DirectoryArtifact, AsyncLazy<Possible<List<SealedDirectoryFile>>>> m_directoryArtifactContent
+            = new();
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
@@ -264,6 +266,15 @@ namespace Tool.DropDaemon
             IsMultiValue = true,
         };
 
+        internal static readonly StrOption DirectoryRelativePathReplace = new StrOption("directoryRelativePathReplace")
+        {
+            ShortName = "drpr",
+            HelpText = "Relative path replace arguments.",
+            DefaultValue = null,
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
         internal static readonly Command StartNoDropCmd = RegisterCommand(
             name: "start-nodrop",
             description: @"Starts a server process without a backing VSO drop client (useful for testing/pinging the daemon).",
@@ -419,7 +430,7 @@ namespace Tool.DropDaemon
         internal static readonly Command AddArtifactsToDropCmd = RegisterCommand(
             name: "addartifacts",
             description: "[RPC] invokes the 'addartifacts' operation.",
-            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter },
+            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace },
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
@@ -886,7 +897,7 @@ namespace Tool.DropDaemon
             byte? domainId;
             checked
             {
-                domainId = (byte?) conf.Get(OptionalDropDomainId);
+                domainId = (byte?)conf.Get(OptionalDropDomainId);
             }
 
             return new DropConfig(
@@ -940,18 +951,31 @@ namespace Tool.DropDaemon
             var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
             var directoryDropPaths = RelativeDirectoryDropPath.GetValues(conf.Config).ToArray();
             var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
+            var directoryRelativePathsReplaceSerialized = DirectoryRelativePathReplace.GetValues(conf.Config).ToArray();
 
-            if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryDropPaths.Length || directoryPaths.Length != directoryFilters.Length)
+            // temporary workaround while waiting for a new LKG
+            if (directoryRelativePathsReplaceSerialized.Length == 0)
+            {
+                directoryRelativePathsReplaceSerialized = Enumerable.Repeat("##", directoryPaths.Length).ToArray();
+            }
+
+            if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryDropPaths.Length || directoryPaths.Length != directoryFilters.Length || directoryPaths.Length != directoryRelativePathsReplaceSerialized.Length)
             {
                 return new IpcResult(
                     IpcResultStatus.GenericError,
-                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}"));
+                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}, #directoryRelativePathReplace = {directoryRelativePathsReplaceSerialized.Length}"));
             }
 
             var possibleFilters = InitializeFilters(directoryFilters);
             if (!possibleFilters.Succeeded)
             {
                 return new IpcResult(IpcResultStatus.ExecutionError, possibleFilters.Failure.Describe());
+            }
+
+            var possibleRelativePathReplacementArguments = InitializeRelativePathReplacementArguments(directoryRelativePathsReplaceSerialized);
+            if (!possibleRelativePathReplacementArguments.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, possibleRelativePathReplacementArguments.Failure.Describe());
             }
 
             var dropFileItemsKeyedByIsAbsent = Enumerable
@@ -980,7 +1004,8 @@ namespace Tool.DropDaemon
                 directoryPaths,
                 directoryIds,
                 directoryDropPaths,
-                possibleFilters.Result);
+                possibleFilters.Result,
+                possibleRelativePathReplacementArguments.Result);
 
             if (error != null)
             {
@@ -1006,12 +1031,47 @@ namespace Tool.DropDaemon
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
+        private static Possible<RelativePathReplacementArguments[]> InitializeRelativePathReplacementArguments(string[] serializedValues)
+        {
+            const char DelimChar = '#';
+            const string NoRereplacement = "##";
+
+            /*
+                Format:
+                    Replacement arguments are not specified: "##"
+                    Replacement arguments are specified:     "#{searchString}#{replaceString}#"
+             */
+
+            var initializedValues = new RelativePathReplacementArguments[serializedValues.Length];
+            for (int i = 0; i < serializedValues.Length; i++)
+            {
+                if (serializedValues[i] == NoRereplacement)
+                {
+                    initializedValues[i] = RelativePathReplacementArguments.Invalid;
+                    continue;
+                }
+
+                var arr = serializedValues[i].Split(DelimChar);
+                if (arr.Length != 4
+                    || arr[0].Length != 0
+                    || arr[3].Length != 0)
+                {
+                    return new Failure<string>($"Failed to deserialize relative path replacement arguments: '{serializedValues[i]}'.");
+                }
+
+                initializedValues[i] = new RelativePathReplacementArguments(arr[1], arr[2]);
+            }
+
+            return initializedValues;
+        }
+
         private static async Task<(DropItemForBuildXLFile[], string error)> CreateDropItemsForDirectoryAsync(
             DropDaemon daemon,
             string directoryPath,
             string directoryId,
             string dropPath,
-            Regex contentFilter)
+            Regex contentFilter,
+            RelativePathReplacementArguments relativePathReplacementArgs)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
             Contract.Requires(!string.IsNullOrEmpty(directoryId));
@@ -1024,7 +1084,7 @@ namespace Tool.DropDaemon
 
             DirectoryArtifact directoryArtifact = BuildXL.Ipc.ExternalApi.DirectoryId.Parse(directoryId);
 
-            var maybeResult = await daemon.ApiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
+            var maybeResult = await daemon.GetSealedDirectoryContentAsync(directoryArtifact, directoryPath);
             if (!maybeResult.Succeeded)
             {
                 return (null, "could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
@@ -1052,7 +1112,7 @@ namespace Tool.DropDaemon
                 // The dropPath can be an empty relative path (i.e. '.') which we need to remove since even though it is not a valid
                 // directory name for a Windows file system, it is a valid name for a drop and it doesn't get resolved properly
                 var resolvedDropPath = dropPath == "." ? string.Empty : I($"{dropPath}/");
-                var remoteFileName = I($"{resolvedDropPath}{GetRelativePath(directoryPath, file.FileName).Replace('\\', '/')}");
+                var remoteFileName = I($"{resolvedDropPath}{GetRelativePath(directoryPath, file.FileName, relativePathReplacementArgs).Replace('\\', '/')}");
 
                 dropItemForBuildXLFiles.Add(new DropItemForBuildXLFile(
                     daemon.ApiClient,
@@ -1065,12 +1125,26 @@ namespace Tool.DropDaemon
             return (dropItemForBuildXLFiles.ToArray(), null);
         }
 
-        private static string GetRelativePath(string root, string file)
+        internal static string GetRelativePath(string root, string file, RelativePathReplacementArguments pathReplacementArgs)
         {
             var rootEndsWithSlash =
                 root[root.Length - 1] == System.IO.Path.DirectorySeparatorChar
                 || root[root.Length - 1] == System.IO.Path.AltDirectorySeparatorChar;
-            return file.Substring(root.Length + (rootEndsWithSlash ? 0 : 1));
+            var relativePath = file.Substring(root.Length + (rootEndsWithSlash ? 0 : 1));
+            if (pathReplacementArgs.IsValid)
+            {
+                int searchStringPosition = relativePath.IndexOf(pathReplacementArgs.OldValue);
+                if (searchStringPosition < 0)
+                {
+                    // no match found; return the path that we constructed so far
+                    return relativePath;
+                }
+
+                // we are only replacing the first match
+                return I($"{relativePath.Substring(0, searchStringPosition)}{pathReplacementArgs.NewValue}{relativePath.Substring(searchStringPosition + pathReplacementArgs.OldValue.Length)}");
+            }
+
+            return relativePath;
         }
 
         private static async Task<(IEnumerable<DropItemForBuildXLFile>, string error)> CreateDropItemsForDirectoriesAsync(
@@ -1079,7 +1153,8 @@ namespace Tool.DropDaemon
             string[] directoryPaths,
             string[] directoryIds,
             string[] dropPaths,
-            Regex[] contentFilters)
+            Regex[] contentFilters,
+            RelativePathReplacementArguments[] relativePathsReplacementArgs)
         {
             Contract.Requires(directoryPaths != null);
             Contract.Requires(directoryIds != null);
@@ -1088,10 +1163,13 @@ namespace Tool.DropDaemon
             Contract.Requires(directoryPaths.Length == directoryIds.Length);
             Contract.Requires(directoryPaths.Length == dropPaths.Length);
             Contract.Requires(directoryPaths.Length == contentFilters.Length);
+            Contract.Requires(directoryPaths.Length == relativePathsReplacementArgs.Length);
 
             var createDropItemsTasks = Enumerable
                 .Range(0, directoryPaths.Length)
-                .Select(i => CreateDropItemsForDirectoryAsync(daemon, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i])).ToArray();
+                .Select(i => CreateDropItemsForDirectoryAsync(
+                    daemon, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], relativePathsReplacementArgs[i]))
+                .ToArray();
 
             var createDropItemsResults = await TaskUtilities.SafeWhenAll(createDropItemsTasks);
 
@@ -1150,6 +1228,34 @@ namespace Tool.DropDaemon
         {
             var daemonConfig = CreateDaemonConfig(conf);
             return IpcProvider.GetClient(daemonConfig.Moniker, daemonConfig);
+        }
+
+        /// <summary>
+        /// Gets the content of a SealedDirectory from BuildXL and caches the result
+        /// </summary>
+        public Task<Possible<List<SealedDirectoryFile>>> GetSealedDirectoryContentAsync(DirectoryArtifact artifact, string path)
+        {
+            return m_directoryArtifactContent.GetOrAdd(artifact, (daemon: this, path), static (key, tuple) =>
+            {
+                return new AsyncLazy<Possible<List<SealedDirectoryFile>>>(() => tuple.daemon.ApiClient.GetSealedDirectoryContent(key, tuple.path));
+            }).Item.Value.GetValueAsync();
+        }
+
+        internal readonly struct RelativePathReplacementArguments
+        {
+            public string OldValue { get; } 
+
+            public string NewValue { get; }
+
+            public bool IsValid => OldValue != null && NewValue != null;
+
+            public RelativePathReplacementArguments(string oldValue, string newValue)
+            {
+                OldValue = oldValue;
+                NewValue = newValue;
+            }
+
+            public static RelativePathReplacementArguments Invalid => new RelativePathReplacementArguments(null, null);
         }
     }
 }

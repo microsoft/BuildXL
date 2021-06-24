@@ -82,7 +82,7 @@ namespace Test.Tool.DropDaemon
             yield return new object[] { "finalize", new[] { DropNameOption }, new[] { "mydrop" } };
             yield return new object[] { "stop", new Option[0], new string[0] };
             yield return new object[] { "stop", new[] { DropNameOption }, new[] { "mydrop" } };
-            yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, Directory, DirectoryId, RelativeDirectoryDropPath }, new[] { "moniker_string", @"c:\dir", "123:1:12345", "/remote/" } };
+            yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace }, new[] { "moniker_string", @"c:\dir", "123:1:12345", "/remote/", ".*", "##" } };
             yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath }, new[] { "moniker_string", @"c:\dir\f.txt", "id1", "123:1:12345", "/remote/f.txt" } };
         }
 

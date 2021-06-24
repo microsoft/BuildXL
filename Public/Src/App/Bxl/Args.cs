@@ -1032,6 +1032,21 @@ namespace BuildXL
                             "temporary_PreserveOutputsForIncrementalTool",
                             sign =>
                             sandboxConfiguration.PreserveOutputsForIncrementalTool = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableMemoryMappedBasedFileHashing",
+                            sign => {
+#if NET_COREAPP
+                                if (sign)
+                                {
+                                    ContentHashingUtilities.EnableMemoryMappedBasedFileHashing();
+                                }
+                                else
+                                {
+                                    ContentHashingUtilities.DisableMemoryMappedBasedFileHashing();
+                                }
+#endif // NET_COREAPP
+                                // if it's not NET_COREAPP - do nothing
+                            }),
                         OptionHandlerFactory.CreateOption(
                             "traceInfo",
                             opt => CommandLineUtilities.ParsePropertyOption(opt, loggingConfiguration.TraceInfo)),

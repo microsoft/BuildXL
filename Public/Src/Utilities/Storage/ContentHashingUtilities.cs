@@ -331,6 +331,8 @@ namespace BuildXL.Storage
 
         private static Task<ContentHash> HashContentStreamCoreAsync(StreamWithLength content, HashType hashType)
         {
+            hashType = GetKnownHashType(hashType);
+
 #if NET_COREAPP
             if (s_useMemoryMappedFileHashing && content.Stream is FileStream fileStream)
             {
@@ -353,6 +355,7 @@ namespace BuildXL.Storage
         public static async Task<ContentHash> HashFileAsync(string absoluteFilePath, HashType hashType = HashType.Unknown)
         {
             Contract.Requires(Path.IsPathRooted(absoluteFilePath), "File path must be absolute");
+            hashType = GetKnownHashType(hashType);
 
 #if NET_COREAPP
             if (s_useMemoryMappedFileHashing)
@@ -374,6 +377,7 @@ namespace BuildXL.Storage
         public static ContentHash HashFile(string absoluteFilePath, HashType hashType = HashType.Unknown)
         {
             Contract.Requires(Path.IsPathRooted(absoluteFilePath), "File path must be absolute");
+            hashType = GetKnownHashType(hashType);
 
 #if NET_COREAPP
             if (s_useMemoryMappedFileHashing)
@@ -433,6 +437,11 @@ namespace BuildXL.Storage
             }
 
             return new ContentHash(left.HashType, leftBytes);
+        }
+
+        private static HashType GetKnownHashType(HashType hashType)
+        {
+            return hashType != HashType.Unknown ? hashType : s_hasher.Info.HashType;
         }
     }
 }

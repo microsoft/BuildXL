@@ -92,7 +92,7 @@ namespace Tool.SymbolDaemon
         public static bool DefaultEnableTelemetry { get; } = false;
 
         /// <nodoc/>
-        public const int DefaultBatchSize = 300;
+        public const int DefaultBatchSize = 100;
 
         /// <nodoc/>
         public static int DefaultMaxParallelUploads { get; } = Environment.ProcessorCount;

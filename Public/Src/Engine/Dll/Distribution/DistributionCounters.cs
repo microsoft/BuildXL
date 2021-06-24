@@ -19,19 +19,37 @@ namespace BuildXL.Engine.Distribution
         SendEventMessagesDuration,
 
         /// <summary>
-        /// Tracks occurrences of Bond 'No such method' exception
+        /// Amount of lost workers
         /// </summary>
-        ClientNoSuchMethodErrorCount,
+        LostClientConnections,
 
         /// <summary>
-        /// Tracks occurrences of Bond message checksum mismatches on client
+        /// Lost workers due to call deadline exceeded
         /// </summary>
-        ClientChecksumMismatchCount,
+        LostClientConnectionsDeadlineExceeded,
 
         /// <summary>
-        /// Tracks occurrences of Bond message checksum mismatches on server
+        /// Lost workers after failed reconnection attempt
         /// </summary>
-        ServerChecksumMismatchCount,
+        LostClientConnectionsReconnectionTimeout,
+
+        /// <summary>
+        /// Lost workers due to unrecoverable failure in communication
+        /// </summary>
+        /// <remarks>
+        /// As of now, this amounts to mismatch in build ids
+        /// </remarks>
+        LostClientUnrecoverableFailure,
+
+        /// <summary>
+        /// Lost workers due to timeout before attachment
+        /// </summary>
+        LostClientAttachmentTimeout,
+
+        /// <summary>
+        /// Lost workers due to timing out waiting a pip result from the remote worker 
+        /// </summary>
+        LostClientRemotePipTimeout,
 
         /// <summary>
         /// The size of the ExecutionResult sent over the network for process pips

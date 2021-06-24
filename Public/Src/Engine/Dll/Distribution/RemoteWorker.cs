@@ -64,6 +64,12 @@ namespace BuildXL.Engine.Distribution
         private string m_exitFailure;
 
         private volatile bool m_isConnectionLost;
+
+        /// <summary>
+        /// Possible scenarios of connection failure
+        /// </summary>
+        public enum ConnectionFailureType { CallDeadlineExceeded, ReconnectionTimeout, UnrecoverableFailure, AttachmentTimeout, RemotePipTimeout }
+
         private int m_connectionClosedFlag = 0;     // Used to prevent double shutdowns upon connection failures
 
         /// <inheritdoc />
@@ -357,14 +363,15 @@ namespace BuildXL.Engine.Distribution
             }
 
             e?.Log(m_appLoggingContext, machineName: $"Worker#{WorkerId} - {Name}");
-            await LostConnectionAsync();
+            await LostConnectionAsync(e.Type);
         }
 
-        public async Task LostConnectionAsync()
+        public async Task LostConnectionAsync(ConnectionFailureType failureType)
         {
             // Unblock the caller to make it a fire&forget event handler.
             await Task.Yield();
 
+            CountConnectionFailure(failureType);
             m_isConnectionLost = true;
 
             // Connection is lost. As the worker might have pending tasks, 
@@ -373,6 +380,26 @@ namespace BuildXL.Engine.Distribution
             // We need to finish DrainCompletion task here to prevent hanging.
             DrainCompletion.TrySetResult(false);
             await FinishAsync(null);
+        }
+
+        private void CountConnectionFailure(ConnectionFailureType failureType)
+        {
+            m_orchestratorService.Counters.IncrementCounter(DistributionCounter.LostClientConnections);
+
+            DistributionCounter? specificCounter = failureType switch
+            {
+                ConnectionFailureType.CallDeadlineExceeded => DistributionCounter.LostClientConnectionsDeadlineExceeded,
+                ConnectionFailureType.ReconnectionTimeout => DistributionCounter.LostClientConnectionsReconnectionTimeout,
+                ConnectionFailureType.UnrecoverableFailure => DistributionCounter.LostClientUnrecoverableFailure,
+                ConnectionFailureType.AttachmentTimeout => DistributionCounter.LostClientAttachmentTimeout,
+                ConnectionFailureType.RemotePipTimeout => DistributionCounter.LostClientRemotePipTimeout,
+                _ => null
+            };
+
+            if (specificCounter.HasValue)
+            {
+                m_orchestratorService.Counters.IncrementCounter(specificCounter.Value);
+            }
         }
 
         /// <inheritdoc/>
@@ -398,7 +425,7 @@ namespace BuildXL.Engine.Distribution
                 }
                 else
                 {
-                    await LostConnectionAsync();
+                    await LostConnectionAsync(ConnectionFailureType.AttachmentTimeout);
                 }
             }
         }
@@ -481,14 +508,14 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc />
         public override async Task FinishAsync(string buildFailure, [CallerMemberName] string callerName = null)
         {
-            Logger.Log.DistributionWorkerFinish(
-                m_appLoggingContext,
-                m_serviceLocation.IpAddress,
-                m_serviceLocation.Port,
-                callerName);
-
             if (TryInitiateStop())
             {
+                Logger.Log.DistributionWorkerFinish(
+                    m_appLoggingContext,
+                    m_serviceLocation.IpAddress,
+                    m_serviceLocation.Port,
+                    callerName);
+
                 await DisconnectAsync(buildFailure);
             }
         }
@@ -529,6 +556,12 @@ namespace BuildXL.Engine.Distribution
             Contract.Assert(m_pipCompletionTasks.IsEmpty || !isDrainedWithSuccess, "There cannot be pending completion tasks when we drain the pending tasks successfully");
 
             var disconnectStopwatch = new StopwatchVar();
+
+            Logger.Log.DistributionWorkerFinish(
+                m_appLoggingContext,
+                m_serviceLocation.IpAddress,
+                m_serviceLocation.Port,
+                "EarlyReleaseAsync");
 
             using (disconnectStopwatch.Start())
             {
@@ -728,7 +761,7 @@ namespace BuildXL.Engine.Distribution
                 // It is expected to lose the connection with the worker, so that we force the pips 
                 // assigned to that worker to retry on different workers.
                 OnConnectionFailureAsync(null, 
-                    new ConnectionFailureEventArgs(FailureType.ConnectionTimeout, 
+                    new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, 
                     "Triggered connection timeout for integration tests"));
             }
 
@@ -979,7 +1012,7 @@ namespace BuildXL.Engine.Distribution
                 environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
 
                 // We assume the worker is in a bad state and abandon it so we can schedule pips elsewhere
-                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(FailureType.RemotePipTimeout, $"Pip {pipId} timed out remotely on step {runnable.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
+                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(ConnectionFailureType.RemotePipTimeout, $"Pip {pipId} timed out remotely on step {runnable.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
 
                 // We consider the pip not run so we can retry it elsewhere
                 return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.StoppedWorker));

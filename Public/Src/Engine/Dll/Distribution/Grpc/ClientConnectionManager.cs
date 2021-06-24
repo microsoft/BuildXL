@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -14,6 +15,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
+using static BuildXL.Engine.Distribution.RemoteWorker;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -22,19 +24,14 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         public class ConnectionFailureEventArgs : EventArgs
         {
-            /// <summary>
-            /// Possible scenarios of connection failure
-            /// </summary>
-            public enum FailureType { ConnectionTimeout, RemotePipTimeout, UnrecoverableFailure }
-
             /// <nodoc />
-            public FailureType Type { get; init; }
+            public ConnectionFailureType Type { get; init; }
             
             /// <nodoc />
             public string Details { get; init; }
 
             /// <nodoc />
-            public ConnectionFailureEventArgs(FailureType failureType, string details)
+            public ConnectionFailureEventArgs(ConnectionFailureType failureType, string details)
             {
                 Type = failureType;
                 Details = details;
@@ -46,13 +43,20 @@ namespace BuildXL.Engine.Distribution.Grpc
             public void Log(LoggingContext loggingContext, string machineName)
             {
                 var details = Details ?? "";
-                if (Type == FailureType.ConnectionTimeout)
+                switch (Type)
                 {
-                    Logger.Log.DistributionConnectionTimeout(loggingContext, machineName, details);
-                }
-                else
-                {
-                    Logger.Log.DistributionConnectionUnrecoverableFailure(loggingContext, machineName, details);
+                    case ConnectionFailureType.CallDeadlineExceeded:
+                    case ConnectionFailureType.ReconnectionTimeout:
+                    case ConnectionFailureType.AttachmentTimeout:
+                    case ConnectionFailureType.RemotePipTimeout:
+                        Logger.Log.DistributionConnectionTimeout(loggingContext, machineName, details);
+                        break;
+                    case ConnectionFailureType.UnrecoverableFailure:
+                        Logger.Log.DistributionConnectionUnrecoverableFailure(loggingContext, machineName, details);
+                        break;
+                    default:
+                        Contract.Assert(false, "Unknown failure type");
+                        break;
                 }
             }
         }
@@ -72,6 +76,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public event EventHandler<ConnectionFailureEventArgs> OnConnectionFailureAsync;
         private volatile bool m_isShutdownInitiated;
         private volatile bool m_isExitCalledForServer;
+        private volatile bool m_attached;
         
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -136,12 +141,16 @@ namespace BuildXL.Engine.Distribution.Grpc
             ChannelState state = ChannelState.Idle;
             ChannelState lastState = state;
 
-            // After a successful connection was established we want to detect connection issues
-            bool monitorConnectingState = false;
             var connectingStateTimer = new Stopwatch();
             
             while (state != ChannelState.Shutdown)
             {
+                // We start monitoring for disconnections only after observing some 'connected' (i.e., Ready, Idle)
+                // state to avoid abandoning workers that may become available some time after the build
+                // starts in the orchestrator -- we will still timeout in this case but this will
+                // be governed by WorkerAttachTimeout rather than DistributionConnectTimeout.
+                bool monitorConnectingState = m_attached;
+
                 try
                 {
                     lastState = state;
@@ -170,17 +179,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
                 else
                 {
-                    // We start monitoring for disconnections only after observing some 'connected' (i.e., Ready, Idle)
-                    // state to avoid abandoning workers that may become available some time after the build
-                    // starts in the orchestrator -- we will still timeout in this case but this will
-                    // be governed by WorkerAttachTimeout rather than DistributionConnectTimeout.
-                    monitorConnectingState = true;
                     connectingStateTimer.Reset();
                 }
 
                 if (monitorConnectingState && connectingStateTimer.IsRunning && connectingStateTimer.Elapsed >= EngineEnvironmentSettings.DistributionConnectTimeout)
                 {
-                    OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.ConnectionTimeout, $"Timed out while the gRPC layer was trying to reconnect to the server. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
+                    OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, $"Timed out while the gRPC layer was trying to reconnect to the server. Timeout: {EngineEnvironmentSettings.DistributionConnectTimeout.Value.TotalMinutes} minutes"));
                     break;
                 }
 
@@ -191,7 +195,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     bool isReconnected = await TryReconnectAsync();
                     if (!isReconnected)
                     {
-                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.ConnectionTimeout, "Reconnection attempts failed"));
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, "Reconnection attempts from the Idle state failed"));
                         break;
                     }
                 }
@@ -245,6 +249,11 @@ namespace BuildXL.Engine.Distribution.Grpc
             await m_monitorConnectionTask;
         }
 
+        public void OnAttachmentCompleted()
+        {
+            m_attached = true;
+        }
+
         public async Task<RpcCallResult<Unit>> CallAsync(
             Func<CallOptions, Task<RpcResponse>> func, 
             string operation,
@@ -278,6 +287,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             Failure failure = null;
 
             uint numTry = 0;
+            var timeouts = 0;
             while (numTry < GrpcSettings.MaxRetry)
             {
                 numTry++;
@@ -299,9 +309,18 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
                 catch (RpcException e)
                 {
+                    Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
+                    state = e.Status.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
+                    failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
+
+                    if (e.Status.StatusCode == StatusCode.DeadlineExceeded)
+                    {
+                        timeouts++;
+                    }
+
                     if (e.Trailers.Get(GrpcMetadata.IsUnrecoverableError)?.Value == GrpcMetadata.True)
                     {
-                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(FailureType.UnrecoverableFailure, e.Status.Detail));
+                        OnConnectionFailureAsync?.Invoke(this, new ConnectionFailureEventArgs(ConnectionFailureType.UnrecoverableFailure, e.Status.Detail));
                         state = RpcCallResultState.Failed;
                         
                         // Unrecoverable failure - do not retry
@@ -315,13 +334,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                             // The invocation ids don't match but it's not an unrecoverable error
                             // Do not retry this call because it is doomed to fail
                             state = RpcCallResultState.Failed;
+                            failure = new RecoverableExceptionFailure(new BuildXLException(e.Message));
                             break;
                         }
                     }
-
-                    state = e.Status.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
-                    failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
-                    Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
 
                     // If the call is cancelled or channel is shutdown, then do not retry the call.
                     if (state == RpcCallResultState.Cancelled || m_isShutdownInitiated)
@@ -347,6 +363,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (state == RpcCallResultState.Succeeded)
             {
                 return new RpcCallResult<Unit>(Unit.Void, attempts: numTry, duration: totalCallDuration, waitForConnectionDuration: waitForConnectionDuration);
+            }
+            else if (m_attached && timeouts == GrpcSettings.MaxRetry)
+            {
+                // We assume the worker is lost if we timed out every time
+                OnConnectionFailureAsync?.Invoke(this,
+                    new ConnectionFailureEventArgs(ConnectionFailureType.CallDeadlineExceeded,
+                    $"Timed out on a call to the worker. Assuming the worker is dead. Call timeout: {GrpcSettings.CallTimeout.TotalMinutes} min. Retries: {GrpcSettings.MaxRetry}"));
             }
 
             return new RpcCallResult<Unit>(

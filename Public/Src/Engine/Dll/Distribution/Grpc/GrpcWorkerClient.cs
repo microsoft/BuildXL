@@ -36,15 +36,22 @@ namespace BuildXL.Engine.Distribution.Grpc
         public void Dispose()
         { }
 
-        public Task<RpcCallResult<Unit>> AttachAsync(OpenBond.BuildStartData message, CancellationToken cancellationToken)
+        public async Task<RpcCallResult<Unit>> AttachAsync(OpenBond.BuildStartData message, CancellationToken cancellationToken)
         {
             var grpcMessage = message.ToGrpc();
 
-            return m_connectionManager.CallAsync(
+            var attachment = await m_connectionManager.CallAsync(
                 async (callOptions) => await m_client.AttachAsync(grpcMessage, options: callOptions),
                 "Attach",
                 cancellationToken,
                 waitForConnection: true);
+
+            if (attachment.Succeeded)
+            {
+                m_connectionManager.OnAttachmentCompleted();
+            }
+
+            return attachment;
         }
 
         public Task<RpcCallResult<Unit>> ExecutePipsAsync(OpenBond.PipBuildRequest message, IList<long> semiStableHashes)

@@ -10,6 +10,7 @@ using BuildXL.Utilities.Configuration;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
+using static BuildXL.Engine.Distribution.RemoteWorker;
 
 namespace Test.BuildXL.Distribution
 {
@@ -72,6 +73,73 @@ namespace Test.BuildXL.Distribution
         }
 
         [Fact]
+        public async Task CallTimeoutDoesntCauseFailureBeforeAttachment()
+        {
+            // The ClientConnectionManager uses DistributionConnectTimeout to time out the calls
+            EngineEnvironmentSettings.DistributionConnectTimeout.Value = TimeSpan.FromSeconds(1);
+
+            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
+
+            // Make the worker calls take a long time so we hit deadline exceeded
+            var workerHarness = new WorkerHarness(LoggingContext, s_defaultDistributedInvocationId, callDelay: TimeSpan.FromSeconds(2));
+            var workerServicePort = workerHarness.StartServer();
+
+            var remoteWorker = orchestratorHarness.AddWorker();
+            remoteWorker.StartClient(workerServicePort);
+
+            // Attachment will result in timeout
+            var attachResult = await remoteWorker.AttachAsync();
+            Assert.False(attachResult.Succeeded);
+            Assert.Equal(GrpcSettings.MaxRetry, (int)attachResult.Attempts);
+
+            // The worker should be still alive
+            Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
+
+            // With a longer timeout the call will succeed
+            EngineEnvironmentSettings.DistributionConnectTimeout.Value = TimeSpan.FromSeconds(10);
+            attachResult = await remoteWorker.AttachAsync();
+            Assert.True(attachResult.Succeeded);
+
+            // Everything should have worked OK after extending the timeout period
+            await StopServicesAsync(orchestratorHarness, workerHarness);
+            Assert.False(workerHarness.ClientConnectionFailure.HasValue);
+            Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
+        }
+
+        [Fact]
+        public async Task CallDeadlineExceededCausesFailureAfterAttachment()
+        {
+            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
+
+            // Make the worker calls take a long time so we hit deadline exceeded after attaching
+            var workerHarness = new WorkerHarness(LoggingContext, s_defaultDistributedInvocationId, callDelay: TimeSpan.FromSeconds(2));
+            var workerServicePort = workerHarness.StartServer();
+
+            var remoteWorker = orchestratorHarness.AddWorker();
+            remoteWorker.StartClient(workerServicePort);
+
+            // Attach
+            EngineEnvironmentSettings.DistributionConnectTimeout.Value = TimeSpan.FromSeconds(10);
+            var attachResult = await remoteWorker.AttachAsync();
+            Assert.True(attachResult.Succeeded);
+
+            // Make the timeout shorter so we time out next
+            EngineEnvironmentSettings.DistributionConnectTimeout.Value = TimeSpan.FromSeconds(1);
+           
+            var callResult = await remoteWorker.SendBuildRequestAsync();
+
+            // Call failed after every attempt
+            Assert.Equal(GrpcSettings.MaxRetry, (int)callResult.Attempts);
+            Assert.False(callResult.Succeeded);
+
+            // The connection should have failed and terminated
+            await ExpectConnectionFailureAsync(remoteWorker, ConnectionFailureType.CallDeadlineExceeded);
+            AssertLogContains(true, "Timed out on a call to the worker. Assuming the worker is dead.");
+
+            await StopServicesAsync(orchestratorHarness, workerHarness);
+        }
+
+        [Fact]
         public async Task InvocationIdUnrecoverableMismatch()
         {
             var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
@@ -89,13 +157,12 @@ namespace Test.BuildXL.Distribution
             Assert.Equal(1, (int)attachResult.Attempts);    // The call is not retried
 
             // The id mismatch should cause an unrecoverable failure which triggers connection shutdown
-            await ExpectConnectionFailureAsync(remoteWorkerHarness, FailureType.UnrecoverableFailure);
+            await ExpectConnectionFailureAsync(remoteWorkerHarness, ConnectionFailureType.UnrecoverableFailure);
 
             // Logged id mismatch
             AssertLogContains(true, "The receiver and sender distributed invocation ids do not match");
 
             await StopServicesAsync(orchestratorHarness, workerHarness);
-
 
             Assert.False(workerHarness.ClientConnectionFailure.HasValue);
         }

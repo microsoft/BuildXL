@@ -68,7 +68,7 @@ namespace Test.BuildXL.Distribution
             return data;
         }
 
-        public static GrpcPipBuildRequest PipBuildRequest(int initialSequenceNumber, params (uint, PipExecutionStep)[] pips)
+        public static GrpcPipBuildRequest PipBuildRequest(int initialSequenceNumber, params (uint pipId, PipExecutionStep step)[] pips)
         {
             List<SinglePipBuildRequest> buildRequests = new List<SinglePipBuildRequest>(pips.Length);
             List<FileArtifactKeyedHash> hashes = pips.Select(p => new FileArtifactKeyedHash()).ToList();
@@ -148,7 +148,7 @@ namespace Test.BuildXL.Distribution
         
         Task<RpcCallResult<Unit>> IOrchestratorClient.AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo)
         {
-            m_attachmentCompletedSource.TrySetResult(true);
+            m_attachmentCompletedSource.TrySetResult(true);            
             return Task.FromResult(SuccessResult);
         }
 

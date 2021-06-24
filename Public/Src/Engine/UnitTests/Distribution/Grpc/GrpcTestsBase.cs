@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
+using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -19,6 +21,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
+using static BuildXL.Engine.Distribution.RemoteWorker;
 
 namespace Test.BuildXL.Distribution
 {
@@ -68,7 +71,7 @@ namespace Test.BuildXL.Distribution
             /// </summary>
             Task<bool> ClientShutdownTask { get; }
 
-            Optional<FailureType> ClientConnectionFailure { get;  }
+            Optional<ConnectionFailureType> ClientConnectionFailure { get;  }
 
             void StartClient(int port);
         }
@@ -85,7 +88,10 @@ namespace Test.BuildXL.Distribution
             public Task<bool> ClientShutdownTask => m_clientShutdownTcs.Task;
             private readonly TaskCompletionSource<bool> m_clientShutdownTcs = new TaskCompletionSource<bool>();
 
-            public Optional<FailureType> ClientConnectionFailure { get; private set; }
+            // Used to simulate operations taking a long time so the RPC times out
+            private TimeSpan? m_callDelay;
+
+            public Optional<ConnectionFailureType> ClientConnectionFailure { get; private set; }
 
             public bool ReceivedAttachCall { get; private set; }
             public bool ReceivedExitCall { get; private set; }
@@ -111,8 +117,9 @@ namespace Test.BuildXL.Distribution
                 Client.Initialize("localhost", port, OnConnectionFailureAsync);
             }
 
-            public WorkerHarness(LoggingContext loggingContext, DistributedInvocationId invocationId) : base(loggingContext, invocationId)
+            public WorkerHarness(LoggingContext loggingContext, DistributedInvocationId invocationId, TimeSpan? callDelay = null) : base(loggingContext, invocationId)
             {
+                m_callDelay = callDelay;
             }
 
             public override async Task StopAllServicesAsync()
@@ -136,19 +143,29 @@ namespace Test.BuildXL.Distribution
                 m_clientShutdownTcs.TrySetResult(false);
             }
 
+            private void Delay()
+            {
+                if (m_callDelay.HasValue) {
+                    Thread.Sleep(m_callDelay.Value);
+                }
+            }
+
             #region IWorkerService methods
 
             void IWorkerService.Attach(global::BuildXL.Engine.Distribution.OpenBond.BuildStartData buildStartData, string sender)
             {
+                Delay();
                 ReceivedAttachCall = true;
             }
 
             void IWorkerService.ExecutePips(global::BuildXL.Engine.Distribution.OpenBond.PipBuildRequest request)
             {
+                Delay();
             }
 
             void IWorkerService.ExitRequested(Optional<string> failure)
             {
+                Delay();
                 ReceivedExitCall = true;
             }
 
@@ -236,7 +253,8 @@ namespace Test.BuildXL.Distribution
             /// <inheritdoc />
             public Task<bool> ClientShutdownTask => m_shutdownTcs.Task;
             private readonly TaskCompletionSource<bool> m_shutdownTcs = new TaskCompletionSource<bool>();
-            public Optional<FailureType> ClientConnectionFailure { get; private set; }
+            private int m_nextPipSequenceNumber = 0;
+            public Optional<ConnectionFailureType> ClientConnectionFailure { get; private set; }
 
             public RemoteWorkerHarness(LoggingContext loggingContext, DistributedInvocationId invocationId) : base(loggingContext, invocationId)
             {
@@ -251,6 +269,12 @@ namespace Test.BuildXL.Distribution
             {
                 var buildStartData = GrpcMockData.BuildStartData;
                 return WorkerClient.AttachAsync(buildStartData.ToOpenBond(), CancellationToken.None);
+            }
+
+            public Task<RpcCallResult<Unit>> SendBuildRequestAsync()
+            {
+                var pipRequest = GrpcMockData.PipBuildRequest(m_nextPipSequenceNumber++, (0, PipExecutionStep.CacheLookup));
+                return WorkerClient.ExecutePipsAsync(pipRequest.ToOpenBond(), new List<long> { 0 });
             }
 
             public async Task<RpcCallResult<Unit>> ExitAsync(bool exitWithFailure = false)
@@ -269,6 +293,7 @@ namespace Test.BuildXL.Distribution
             {
                 await WorkerClient.CloseAsync();
                 ClientConnectionFailure = args.Type;
+                args.Log(LoggingContext, "TestWorker");
                 m_shutdownTcs.TrySetResult(false);
             }
 
@@ -286,7 +311,7 @@ namespace Test.BuildXL.Distribution
         /// Waits for a client to have a connection failure and asserts this is the case.
         /// This method will fail the test if the connection failure doesn't happen after 10 seconds
         /// </summary>
-        internal static async Task ExpectConnectionFailureAsync(ITestDistributedClient client, FailureType? expectedFailureType = null)
+        internal static async Task ExpectConnectionFailureAsync(ITestDistributedClient client, ConnectionFailureType? expectedFailureType = null)
         {
             var shutdownTask = client.ClientShutdownTask;
 

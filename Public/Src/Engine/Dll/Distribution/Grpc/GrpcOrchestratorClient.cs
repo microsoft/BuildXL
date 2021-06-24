@@ -48,15 +48,22 @@ namespace BuildXL.Engine.Distribution.Grpc
             return m_connectionManager.CloseAsync();
         }
 
-        public Task<RpcCallResult<Unit>> AttachCompletedAsync(OpenBond.AttachCompletionInfo message)
+        public async Task<RpcCallResult<Unit>> AttachCompletedAsync(OpenBond.AttachCompletionInfo message)
         {
             Contract.Assert(m_initialized);
 
             var grpcMessage = message.ToGrpc();
-            return m_connectionManager.CallAsync(
+            var attachmentCompletion = await m_connectionManager.CallAsync(
                 async (callOptions) => await m_client.AttachCompletedAsync(grpcMessage, options: callOptions),
                 "AttachCompleted",
                 waitForConnection: true);
+
+            if (attachmentCompletion.Succeeded)
+            {
+                m_connectionManager.OnAttachmentCompleted();
+            }
+
+            return attachmentCompletion;
         }
 
         public Task<RpcCallResult<Unit>> NotifyAsync(OpenBond.WorkerNotificationArgs message, IList<long> semiStableHashes, CancellationToken cancellationToken = default)

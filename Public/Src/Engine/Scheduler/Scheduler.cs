@@ -241,6 +241,11 @@ namespace BuildXL.Scheduler
         /// </remarks>
         public IList<Worker> Workers => m_workers;
 
+        /// <summary>
+        /// Enumerates the remote workers
+        /// </summary>
+        public IEnumerable<RemoteWorkerBase> RemoteWorkers => m_workers.Skip(1).Select(w => w as RemoteWorkerBase);
+
         private AllWorker m_allWorker;
 
         /// <summary>
@@ -374,7 +379,7 @@ namespace BuildXL.Scheduler
                 worker.Start();
             }
 
-            m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(m_workers.Skip(1).Select(static w => (w as RemoteWorkerBase).SetupCompletionTask));
+            m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(RemoteWorkers.Select(static w => w.SetupCompletionTask));
 
             m_allWorker = new AllWorker(m_workers.ToArray());
 

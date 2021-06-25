@@ -7,8 +7,10 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.Services.AppAuthentication;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -77,15 +79,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             await base.StartupCoreAsync(context).ThrowIfFailure();
 
-            var connectionStringBuilder =
-                new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
-                {
-                    EntityPath = _configuration.EventHubName,
-                };
-
             // Retry behavior in the Azure Event Hubs Client Library is controlled by the RetryPolicy property on the EventHubClient class.
             // The default policy retries with exponential backoff when Azure Event Hub returns a transient EventHubsException or an OperationCanceledException.
-            _eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+            if (ManagedIdentityUriHelper.TryParseForManagedIdentity(_configuration.EventHubConnectionString, out Uri eventHubNamespaceUri, out string eventHubName, out string managedIdentityId))
+            {
+                // https://docs.microsoft.com/en-us/dotnet/api/overview/azure/service-to-service-authentication#connection-string-support
+                var tokenProvider = new ManagedIdentityTokenProvider(new AzureServiceTokenProvider($"RunAs=App;AppId={managedIdentityId}"));
+                _eventHubClient = EventHubClient.CreateWithTokenProvider(
+                    eventHubNamespaceUri,
+                    eventHubName,
+                    tokenProvider);
+            }
+            else
+            {
+                var connectionStringBuilder =
+                    new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
+                    {
+                        EntityPath = _configuration.EventHubName,
+                    };
+
+                _eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+            }
+
             _partitionSender = _eventHubClient.CreatePartitionSender(PartitionId);
 
             return BoolResult.Success;

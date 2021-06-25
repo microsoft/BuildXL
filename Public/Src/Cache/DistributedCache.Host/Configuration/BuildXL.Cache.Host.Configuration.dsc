@@ -10,7 +10,8 @@ namespace Configuration {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Runtime.Serialization.dll,
-                NetFx.System.ComponentModel.DataAnnotations.dll
+                NetFx.System.ComponentModel.DataAnnotations.dll,
+                NetFx.System.Web.dll
             ),
             ...addIf(qualifier.targetFramework === "netstandard2.0",
                 NetFx.System.ComponentModel.DataAnnotations.dll

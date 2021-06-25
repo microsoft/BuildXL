@@ -753,8 +753,27 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int SecretsRetrievalDeltaBackoffSeconds { get; set; } = 10;
 
+        /// <summary>
+        /// Name of an environment variable which contains an EventHub connection string.
+        /// </summary>
         [DataMember]
         public string EventHubSecretName { get; set; }
+
+        /// <summary>
+        /// This is either:
+        /// * a connection string for EventHub (don't do this).
+        /// * OR a URI such that:
+        ///   * The URI's scheme and host define the URI for the intended Event Hub Namespace. This
+        ///     resembles "sb://yourEventHub.servicebus.windows.net".
+        ///   * The URI's query string contains a value for the Event Hub Name. Note that this must
+        ///     be an Event Hub within the Namespace defined at the beginning of the URI.
+        ///   * The URI's query string contains a value for the Managed Identity Id. Note that this
+        ///     is a guid which currently appears as the "Client ID" for the managed identity.
+        ///   * In all, this should resemble "sb://yourEventHub.servicebus.windows.net/name=eventHubName&identity=identityId".
+        ///     Use <see cref="ManagedIdentityUriHelper"/> to construct or parse this value.
+        /// </summary>
+        [DataMember]
+        public string EventHubConnectionString { get; set; }
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

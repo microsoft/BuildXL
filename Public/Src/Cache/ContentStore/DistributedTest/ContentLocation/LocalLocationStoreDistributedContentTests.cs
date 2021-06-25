@@ -52,6 +52,11 @@ namespace ContentStoreTest.Distributed.Sessions
     [Collection("Redis-based tests")]
     public partial class LocalLocationStoreDistributedContentTests : LocalLocationStoreDistributedContentTestsBase
     {
+        private const string EventHubConnectionStringEnvVar = "TestEventHub_EventHubConnectionString";
+        private const string EventHubNameEnvVar = "TestEventHub_EventHubName";
+        private const string StorageAccountKeyEnvVar = "TestEventHub_StorageAccountKey";
+        private const string StorageAccountNameEnvVar = "TestEventHub_StorageAccountName";
+
         /// <nodoc />
         public LocalLocationStoreDistributedContentTests(LocalRedisFixture redis, ITestOutputHelper output)
             : base(redis, output)
@@ -66,7 +71,13 @@ namespace ContentStoreTest.Distributed.Sessions
             UseRealStorage = true;
             UseRealEventHub = true;
 
-            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out var eventHubConnectionString, out var eventHubName))
+            if (!ReadStorageConfig(out var storageAccountKey, out var storageAccountName))
+            {
+                return false;
+            }
+
+            Action<TestDistributedContentSettings> applyEventHubConfigChanges = ReadEventHubConfig();
+            if (applyEventHubConfigChanges == null)
             {
                 return false;
             }
@@ -74,19 +85,52 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(s =>
                 {
                     overrideDistributed?.Invoke(s);
-                    s.EventHubSecretName = Host.StoreSecret(eventHubName, eventHubConnectionString);
+
+                    applyEventHubConfigChanges(s);
                     s.AzureStorageSecretName = Host.StoreSecret(storageAccountName, storageAccountKey);
                 },
                 overrideRedis);
             return true;
         }
 
+        private bool ReadStorageConfig(out string storageAccountKey, out string storageAccountName)
+        {
+            storageAccountKey = Environment.GetEnvironmentVariable(StorageAccountKeyEnvVar);
+            storageAccountName = Environment.GetEnvironmentVariable(StorageAccountNameEnvVar);
+
+            if (UseRealStorage)
+            {
+                if (EnvVarIsValidAndSet(StorageAccountKeyEnvVar, out storageAccountKey)
+                    && EnvVarIsValidAndSet(StorageAccountNameEnvVar, out storageAccountName))
+                {
+                    Output.WriteLine("Storage is configured correctly.");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private Action<TestDistributedContentSettings> ReadEventHubConfig()
+        {
+            if (EnvVarIsValidAndSet(EventHubNameEnvVar, out string eventHubName)
+                && EnvVarIsValidAndSet(EventHubConnectionStringEnvVar, out string eventHubConnectionString))
+            {
+                return (TestDistributedContentSettings s) =>
+                {
+                    s.EventHubSecretName = Host.StoreSecret(eventHubName, eventHubConnectionString);
+                };
+            }
+
+            return null;
+        }
+
         private bool ReadConfiguration(out string storageAccountKey, out string storageAccountName, out string eventHubConnectionString, out string eventHubName)
         {
-            storageAccountKey = Environment.GetEnvironmentVariable("TestEventHub_StorageAccountKey");
-            storageAccountName = Environment.GetEnvironmentVariable("TestEventHub_StorageAccountName");
-            eventHubConnectionString = Environment.GetEnvironmentVariable("TestEventHub_EventHubConnectionString");
-            eventHubName = Environment.GetEnvironmentVariable("TestEventHub_EventHubName");
+            storageAccountKey = Environment.GetEnvironmentVariable(StorageAccountKeyEnvVar);
+            storageAccountName = Environment.GetEnvironmentVariable(StorageAccountNameEnvVar);
+            eventHubConnectionString = Environment.GetEnvironmentVariable(EventHubConnectionStringEnvVar);
+            eventHubName = Environment.GetEnvironmentVariable(EventHubNameEnvVar);
 
             if (UseRealStorage)
             {
@@ -119,6 +163,19 @@ namespace ContentStoreTest.Distributed.Sessions
             }
 
             Output.WriteLine("The test is configured correctly.");
+            return true;
+        }
+
+        private bool EnvVarIsValidAndSet(string envVarName, out string envVal)
+        {
+            envVal = Environment.GetEnvironmentVariable(envVarName);
+
+            if (string.IsNullOrEmpty(envVal))
+            {
+                Output.WriteLine($"Please specify '{envVarName}' to run this test");
+                return false;
+            }
+
             return true;
         }
 
@@ -3013,8 +3070,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     //   - Session2: EH (worker) + RocksDb
                     //
                     // 1. Put a location into Worker1
-                    // 2. Get a local location from Master0. Location should exists in a local database, because master synchronizes events eagerly.
-                    // 3. Get a local location from Worker2. Location SHOULD NOT exists in a local database, because worker does not receive events eagerly.
+                    // 2. Get a local location from Master0. Location should exist in a local database, because master synchronizes events eagerly.
+                    // 3. Get a local location from Worker2. Location SHOULD NOT exist in a local database, because worker does not receive events eagerly.
                     // 4. Remove the location from Worker1
                     // 5. Get a local location from Master0 (should not exists)
                     // 6. Get a local location from Worker2 (should still exists).

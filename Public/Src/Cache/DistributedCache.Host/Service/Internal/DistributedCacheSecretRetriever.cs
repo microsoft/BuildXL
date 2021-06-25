@@ -60,7 +60,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     $"{nameof(_distributedSettings.ContentMetadataRedisSecretName)}: {_distributedSettings.ContentMetadataRedisSecretName}, " +
                     $"{nameof(_distributedSettings.ContentMetadataBlobSecretName)}: {_distributedSettings.ContentMetadataBlobSecretName}");
 
-                bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)}");
+                bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName ?? _distributedSettings.EventHubConnectionString,
+                    $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)} or {nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubConnectionString)}");
                 invalidConfiguration |= appendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");
 
                 if (invalidConfiguration)
@@ -80,13 +81,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                 var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
                 retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
 
-                if (string.IsNullOrEmpty(_distributedSettings.EventHubSecretName) ||
-                    string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
+                if (string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
                 {
                     return null;
                 }
 
-                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
+                if (!string.IsNullOrEmpty(_distributedSettings.EventHubSecretName))
+                {
+                    retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
+                }
 
                 retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
 

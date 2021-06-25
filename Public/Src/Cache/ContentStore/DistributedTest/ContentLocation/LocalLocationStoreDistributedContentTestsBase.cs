@@ -187,7 +187,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase.ConnectionString) : null,
                                RedisInternalLogSeverity = Severity.Info.ToString(),
 
-                               // Specify event hub and storage secrets even thoug they are not used in tests to satisfy DistributedContentStoreFactory
+                               // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
                                EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
                                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
                                ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),

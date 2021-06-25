@@ -38,6 +38,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Exceptions;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -313,7 +314,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             var configuration = new ContentMetadataServiceConfiguration()
             {
                 MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
-                MasterLeaseStaleThreshold = RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime.Multiply(0.5),
+                MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
                 VolatileEventStorage = new RedisVolatileEventStorageConfiguration()
                 {
                     ConnectionString = (GetRequiredSecret(_distributedSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
@@ -814,12 +815,16 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configuration.DistributedCentralStore = distributedCentralStoreConfiguration;
             }
 
-            var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
+            EventHubContentLocationEventStoreConfiguration eventStoreConfiguration;
+            string epoch = _keySpace + _distributedSettings.EventHubEpoch;
+            bool ignoreEpoch = _distributedSettings.Unsafe_IgnoreEpoch ?? false;
+
+            eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
                 eventHubName: _distributedSettings.EventHubName,
-                eventHubConnectionString: ((PlainTextSecret)GetRequiredSecret(_distributedSettings.EventHubSecretName)).Secret,
+                eventHubConnectionString: _distributedSettings.EventHubConnectionString ?? ((PlainTextSecret)GetRequiredSecret(_distributedSettings.EventHubSecretName)).Secret,
                 consumerGroupName: _distributedSettings.EventHubConsumerGroupName,
-                epoch: _keySpace + _distributedSettings.EventHubEpoch,
-                ignoreEpoch: _distributedSettings.Unsafe_IgnoreEpoch ?? false);
+                epoch: epoch,
+                ignoreEpoch: ignoreEpoch);
 
             dbConfig.Epoch = eventStoreConfiguration.Epoch;
 

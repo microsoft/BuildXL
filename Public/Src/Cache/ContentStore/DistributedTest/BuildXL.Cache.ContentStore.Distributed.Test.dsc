@@ -3,9 +3,34 @@
 
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as ManagedSdk from "Sdk.Managed";
+import { Transformer } from "Sdk.Transformers";
 
 namespace DistributedTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+
+    const storageKeyEnvVar = "TestEventHub_StorageAccountKey";
+    const storageNameEnvVar = "TestEventHub_StorageAccountName";
+    const ehConStrEnvVar = "TestEventHub_EventHubConnectionString";
+    const ehNameEnvVar = "TestEventHub_EventHubName";
+    const ehUriEnvVar = "TestEventHub_FullyQualifiedUriEnvVar";
+    const ehGroupNameEnvVar = "TestEventHub_EventHubManagedIdentityId";
+    const ehPathEnvVar = "TestEventHub_EventHubPath";
+    const ehConsumerEnvVar = "TestEventHub_EventHubConsumerGroupName";
+
+    const envVars = [ 
+        sToEnvVar(storageKeyEnvVar),
+        sToEnvVar(storageNameEnvVar),
+        sToEnvVar(ehConStrEnvVar),
+        sToEnvVar(ehNameEnvVar),
+        sToEnvVar(ehUriEnvVar),
+        sToEnvVar(ehGroupNameEnvVar),
+        sToEnvVar(ehPathEnvVar),
+        sToEnvVar(ehConsumerEnvVar),
+    ];
+
+    export function sToEnvVar(s: string) : Transformer.EnvironmentVariable {
+        return { name: s, value: Environment.hasVariable(s) ? Environment.getStringValue(s) : "" };
+    }
 
     @@public
     export const dll = BuildXLSdk.cacheTest({
@@ -15,6 +40,11 @@ namespace DistributedTest {
                 // Need to untrack the test output directory, because redis server tries to write some pdbs.
                 untrackTestDirectory: true,
                 parallelBucketCount: 8,
+                tools: {
+                    exec: {
+                        environmentVariables: envVars
+                    }
+                }
             },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),

@@ -82,7 +82,7 @@ config({
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net462", version: "1.0.0" },
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "4.5.0" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "4.5.1" },
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
@@ -181,24 +181,28 @@ config({
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
-                { id: "Microsoft.Azure.Amqp", version: "2.3.5" },
-                { id: "Microsoft.Azure.EventHubs", version: "2.1.0",
+                { id: "Microsoft.Azure.Amqp", version: "2.4.11" },
+                { id: "Microsoft.Azure.EventHubs", version: "4.3.2",
                     dependentPackageIdsToSkip: ["System.Net.Http", "System.Reflection.TypeExtensions", "System.Runtime.Serialization.Primitives", "Newtonsoft.Json", "System.Diagnostics.DiagnosticSource"],
                 },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
                 { id: "Microsoft.Azure.Services.AppAuthentication", version: "1.0.3" },
-                { id: "Microsoft.IdentityModel.Logging", version: "5.2.2" },
-                { id: "Microsoft.IdentityModel.Tokens", version: "5.2.2",
+                { id: "Microsoft.IdentityModel.Logging", version: "5.4.0" },
+                { id: "Microsoft.IdentityModel.Tokens", version: "5.4.0",
                     dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
-                { id: "System.IdentityModel.Tokens.Jwt", version: "5.2.2",
+                { id: "System.IdentityModel.Tokens.Jwt", version: "5.4.0",
                     dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
+                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "5.4.0" },
 
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.0.3" },
-                { id: "Azure.Identity", version: "1.1.1" },
+                { id: "Azure.Identity", version: "1.4.0" },
                 { id: "Microsoft.Identity.Client", version: "4.16.1" },
-                { id: "Azure.Core", version: "1.3.0" },
+                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
+                { id: "Azure.Core", version: "1.14.0", 
+                    dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors" ] },
+                { id: "System.Memory.Data", version: "1.0.2" },
 
 
                 // Package sets

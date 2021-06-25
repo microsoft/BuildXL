@@ -125,6 +125,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// </summary>
         public EventHubContentLocationEventStoreConfiguration WithConsumerGroupName(string consumerGroupName)
             => new EventHubContentLocationEventStoreConfiguration(EventHubName, EventHubConnectionString, consumerGroupName, Epoch, IgnoreEpoch);
-
     }
 }

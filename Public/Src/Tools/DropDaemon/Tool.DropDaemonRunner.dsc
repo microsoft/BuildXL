@@ -270,6 +270,7 @@ export namespace DropDaemonRunner {
                 Cmd.options("--directoryId ", directoryInfos.map(di => Artifact.directoryId(di.directory))),
                 Cmd.options("--directoryDropPath ", directoryInfos.map(di => toString(di.dropPath))),
                 Cmd.options("--directoryFilter ", directoryInfos.map(di => di.contentFilter || ".*")),
+                Cmd.options("--directoryRelativePathReplace ", directoryInfos.map(di => serializeRelativePathReplace(di.relativePathReplacementArguments))),
               ]
             : [];
 

@@ -953,12 +953,6 @@ namespace Tool.DropDaemon
             var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
             var directoryRelativePathsReplaceSerialized = DirectoryRelativePathReplace.GetValues(conf.Config).ToArray();
 
-            // temporary workaround while waiting for a new LKG
-            if (directoryRelativePathsReplaceSerialized.Length == 0)
-            {
-                directoryRelativePathsReplaceSerialized = Enumerable.Repeat("##", directoryPaths.Length).ToArray();
-            }
-
             if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryDropPaths.Length || directoryPaths.Length != directoryFilters.Length || directoryPaths.Length != directoryRelativePathsReplaceSerialized.Length)
             {
                 return new IpcResult(

@@ -112,6 +112,51 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void NonExistentAllowedSourceReadIsASafeRewrite()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            FileArtifact source = FileArtifact.CreateSourceFile(sharedOpaqueDirPath.Combine(Context.PathTable, "source.txt")); 
+
+            // A reader before the writer. The reader tries to read a non-existent file, which gets classified as an undeclared source read
+            var reader = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(source, doNotInfer:true), // non-existent file
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+
+            reader.Options |= Process.Options.AllowUndeclaredSourceReads;
+            reader.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+
+            var beforeReader = SchedulePipBuilder(reader);
+
+            // The writer writes and delete the file
+            var sourceAsOutput = source.CreateNextWrittenVersion();
+            var writerBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(sourceAsOutput, doNotInfer: true),
+                Operation.DeleteFile(sourceAsOutput, doNotInfer: true),
+            });
+
+            writerBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+            writerBuilder.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+            writerBuilder.AddOutputDirectory(sharedOpaqueDirPath, kind: SealDirectoryKind.SharedOpaque);
+
+            writerBuilder.AddInputFile(beforeReader.ProcessOutputs.GetOutputFiles().Single());
+            var writer = SchedulePipBuilder(writerBuilder);
+
+            // An unordered reader
+            var unorderedReader = SchedulePipBuilder(CreateReader(source));
+
+            // Run should succeed. All readers are guaranteed to see the same content across the build.
+            // Make sure the unordered reader runs after the writer just to avoid write locks.
+            RunScheduler(constraintExecutionOrder: new[] { ((Pip)writer.Process, (Pip)unorderedReader.Process) }).AssertSuccess();
+            // Double check the same content rewrite was detected and allowed
+            AssertVerboseEventLogged(LogEventId.AllowedRewriteOnUndeclaredFile);
+        }
+
+        [Fact]
         public void RacyReadersOnDifferentContentAreBlocked()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
@@ -165,8 +210,6 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             return reader;
         }
-
-        
     }
 }
 

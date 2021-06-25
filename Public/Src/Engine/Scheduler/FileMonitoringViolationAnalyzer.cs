@@ -1221,16 +1221,19 @@ namespace BuildXL.Scheduler
                 // If this reader is ordered before the writer, we can determine isSameContent (if not determined already).
                 if (isSameContent == null && writerDependsOnReader)
                 {
-                    // Retrieve the hash of the undeclared file. Observe in this case the hash should always be retrieved from the cache since an undeclared read on that path already happened
+                    // Try to retrieve the hash of the undeclared file. Even though there was a reader ordered before the writer, this operation may fail if the file was never there. Consider the case
+                    // where the reader found a non-existent file (which is classified as an undeclared read as well) and the writer created and deleted the file.
                     var maybeUndeclaredSourceMaterializationInfo = m_fileContentManager.TryQueryUndeclaredInputContentAsync(undeclaredRead).GetAwaiter().GetResult();
                     if (!maybeUndeclaredSourceMaterializationInfo.HasValue)
                     {
-                        Contract.Assert(false, $"TryQueryUndeclaredInputContentAsync returned null for '{undeclaredRead.ToString(Context.PathTable)}'. " +
-                            $"This is unexpected since pip ${m_graph.GetFormattedSemiStableHash(reader)} has already read the path.");
+                        // The reader could not observe the file content and the writer ended up deleting the file. This means unordered readers can safely read the file.
+                        isSameContent = true;
                     }
-
-                    // Set the value that tells us if we saw the same content. Observe if alls reads happened after the write, we may get the same content but that just means we didn't get the chance to know the original content
-                    isSameContent = writerHash == maybeUndeclaredSourceMaterializationInfo.Value.Hash;
+                    else
+                    {
+                        // Set the value that tells us if we saw the same content. Observe if alls reads happened after the write, we may get the same content but that just means we didn't get the chance to know the original content
+                        isSameContent = writerHash == maybeUndeclaredSourceMaterializationInfo.Value.Hash;
+                    }
 
                     // If we saw the same content and there is a read before the write, that means we can trust we saw the before/after
                     // and there are actually no restrictions on the readers order

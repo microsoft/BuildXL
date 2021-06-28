@@ -34,6 +34,48 @@
 #include "SandboxedPip.hpp"
 #include "utils.h"
 
+/*
+ * We want to compile against glibc 2.17 so that we are compatible with a broad range of Linux distributions. (e.g., starting from CentOS7)
+ *
+ * Compiling against that version of glibc does not prevent us from interposing the system calls that are present only in newer versions
+ * (e.g., copy_file_range), as long as we provide appropriate INTERPOSE definitions for those system calls in detours.cpp.
+ */
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 17)
+    #warning This library must support glibc 2.17.  Please compile against at most glibc 2.17 before publishing a new version of this library.
+#endif
+
+/*
+ * This header is compiled into two different libraries: libDetours.so and libAudit.so.
+ *
+ * When compiling libDetours.so, the ENABLE_INTERPOSING macro is defined, otherwise it is not.
+ *
+ * When ENABLE_INTERPOSING is defined, we do not need static declarations for the system calls of interest, because
+ * we resolve those dynamically via `dlsym(name)` calls.  That means that, even though we compile libDetours.so against
+ * glibc 2.17 (where, for example, `copy_file_range` is not defined), when our libDetours.so is loaded into a process that
+ * runs against a newer version of glibc, `dlsym("copy_file_range")` will still return a valid function pointer and we 
+ * will be able to interpose system calls that are not necessarily present in the glibc 2.17.
+ * 
+ * When ENABLE_INTERPOSING is not defined, we need static definitions for all the system calls we reference.  Therefore, 
+ * here we need to add fake definitions for the calls that we want to reference (because of libDetours) which are not present
+ * in glibc we are compiling against.  Adding empty definitions here is fine as long as in our code we never explicitly call
+ * the corresponding real_<missing-syscall> instance methods in the BxlObserver class.
+ */
+#ifndef ENABLE_INTERPOSING
+    // Library support for copy_file_range was added in glibc 2.27 (https://man7.org/linux/man-pages/man2/copy_file_range.2.html)
+    #if __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 27)
+    inline ssize_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
+        return -1;
+    }
+    #endif
+
+    // Library support for pwritev2 was added in glibc 2.26 (https://man7.org/linux/man-pages/man2/pwritev2.2.html)
+    #if __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 26)
+    inline ssize_t pwritev2(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags) {
+        return -1;
+    }
+    #endif
+#endif
+
 using namespace std;
 
 extern const char *__progname;
@@ -61,17 +103,17 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
     // the call to BxlObserver::GetInstance() because we might not
     // have the process initialized far enough for that call to succeed.
     #define INTERPOSE_SOMETIMES(ret, name, short_circuit_check, ...) \
-    ret name(__VA_ARGS__) { \
-        short_circuit_check \
-        BxlObserver *bxl = BxlObserver::GetInstance(); \
-        BXL_LOG_DEBUG(bxl, "Intercepted %s", #name); \
-        MAKE_BODY
+        DLL_EXPORT ret name(__VA_ARGS__) {                           \
+            short_circuit_check                                      \
+            BxlObserver *bxl = BxlObserver::GetInstance();           \
+            BXL_LOG_DEBUG(bxl, "Intercepted %s", #name);             \
+            MAKE_BODY
 
     #define INTERPOSE(ret, name, ...) \
         INTERPOSE_SOMETIMES(ret, name, ;, __VA_ARGS__)
 #else
-    #define GEN_FN_DEF_REAL(ret, name, ...)                                         \
-        typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+    #define GEN_FN_DEF_REAL(ret, name, ...)         \
+        typedef ret (*fn_real_##name)(__VA_ARGS__); \
         const fn_real_##name real_##name = (fn_real_##name)name;
 
     #define IGNORE_BODY(B)
@@ -79,8 +121,8 @@ static const char LD_PRELOAD_ENV_VAR_PREFIX[] = "LD_PRELOAD=";
     #define INTERPOSE(ret, name, ...) IGNORE_BODY
 #endif
 
-#define GEN_FN_DEF(ret, name, ...) \
-    GEN_FN_DEF_REAL(ret, name, __VA_ARGS__) \
+#define GEN_FN_DEF(ret, name, ...)                                              \
+    GEN_FN_DEF_REAL(ret, name, __VA_ARGS__)                                     \
     template<typename ...TArgs> result_t<ret> fwd_##name(TArgs&& ...args)       \
     {                                                                           \
         ret result = real_##name(std::forward<TArgs>(args)...);                 \
@@ -176,6 +218,7 @@ private:
     // File descriptors can be greater than 1024, and if that happens we just won't cache their paths.
     static const int MAX_FD = 1024;
     std::string fdTable_[MAX_FD];
+    std::string empty_str_;
 
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;

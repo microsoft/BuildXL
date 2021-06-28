@@ -4,8 +4,6 @@
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
 
-static std::string empty_str("");
-
 static void HandleAccessReport(AccessReport report, int _)
 {
     BxlObserver::GetInstance()->SendReport(report);
@@ -21,6 +19,7 @@ BxlObserver* BxlObserver::GetInstance()
 
 BxlObserver::BxlObserver()
 {
+    empty_str_ = "";
     real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
 
     const char *rootPidStr = getenv(BxlEnvRootPid);
@@ -232,7 +231,7 @@ bool BxlObserver::SendReport(AccessReport &report)
 void BxlObserver::report_exec(const char *syscallName, const char *procName, const char *file)
 {
     // first report 'procName' as is (without trying to resolve it) to ensure that a process name is reported before anything else
-    report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str);
+    report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(procName), empty_str_);
     report_access(syscallName, ES_EVENT_TYPE_NOTIFY_EXEC, file);
 }
 
@@ -288,7 +287,7 @@ AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_even
 {
     std::string fullpath = fd_to_path(fd);
     return fullpath[0] == '/'
-        ? report_access(syscallName, eventType, fullpath, empty_str)
+        ? report_access(syscallName, eventType, fullpath, empty_str_)
         : sNotChecked; // this file descriptor is a non-file (e.g., a pipe, or socket, etc.) so we don't care about it
 }
 
@@ -338,7 +337,7 @@ void BxlObserver::reset_fd_table_entry(int fd)
 {
     if (fd >= 0 && fd < MAX_FD)
     {
-        fdTable_[fd] = empty_str;
+        fdTable_[fd] = empty_str_;
     }
 }
 
@@ -497,7 +496,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 
         // report readlink for the current path
         *pFullpath = '\0';
-        report_access("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, std::string(fullpath), empty_str);
+        report_access("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, std::string(fullpath), empty_str_);
         *pFullpath = ch;
 
         // append the rest of the original path to the readlink target

@@ -620,8 +620,9 @@ namespace BuildXL.Scheduler.Distribution
                     else
                     {
                         Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
-                        OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
                     }
+
+                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
 
                     Interlocked.Add(ref m_acquiredPostProcessSlots, 1);
                     runnablePip.AcquiredResourceWorker = this;
@@ -827,11 +828,18 @@ namespace BuildXL.Scheduler.Distribution
                 else
                 {
                     Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
-                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
                 }
 
                 var resources = processRunnablePip.Resources.Value;
                 m_workerSemaphores.ReleaseResources(resources);
+
+                // Notify that resources have changed so that choose worker queue can be unblocked
+                // We need to do this after all resources are released to prevent race condition
+                // where choose worker queue runs and can't acquire resources which have not yet been released
+                // in this method.
+                // NOTE: Though the WorkerResource is AvailableProcessSlots this is used to signal
+                // release of semaphore resources as well.
+                OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
             }
 
             void releasePostProcessSlots()

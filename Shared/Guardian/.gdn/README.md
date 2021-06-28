@@ -1,0 +1,1 @@
+This empty directory is required for Guardian to run on a repo that does not have Guardian initialized.

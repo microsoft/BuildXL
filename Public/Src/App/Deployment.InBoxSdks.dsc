@@ -73,6 +73,18 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, evaluationOnly
                                 importFrom("Sdk.JavaScript").deployment
                             ]
                         },
+                        {
+                            subfolder: "Sdk.Json",
+                            contents: [ 
+                                importFrom("Sdk.Json").deployment
+                            ]
+                        },
+                        {
+                            subfolder: "Sdk.Guardian",
+                            contents: [ 
+                                importFrom("BuildXL.Tools.Guardian").deployment
+                            ]
+                        },
                     ])
                 ]
             }

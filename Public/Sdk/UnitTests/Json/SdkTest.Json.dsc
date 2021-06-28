@@ -6,8 +6,9 @@ namespace StandardSdk.Json {
     export const hashingTest = BuildXLSdk.sdkTest({
         testFiles: globR(d`.`, "Test.*.dsc"),
         sdkFolders: [
-            d`${Context.getMount("SdkRoot").path}/Json`
+            d`${Context.getMount("SdkRoot").path}/Json`,
+            d`${Context.getMount("SourceRoot").path}/Public/Sdk/Public/Deployment`,
         ],
-        autoFixLkgs: true, // Uncomment this line to have all lkgs automatically updated.
+        // autoFixLkgs: true, // Uncomment this line to have all lkgs automatically updated.
     });
 }

@@ -73,7 +73,9 @@ namespace Test.BuildXL.FrontEnd.Yarn
             Dictionary<string, string> environment = null,
             string yarnLocation = "",
             string moduleName = "Test",
-            string root = "d`.`")
+            string root = "d`.`",
+            string additionalOutputDirectories = null,
+            bool? enableFullReparsePointResolving = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -83,7 +85,9 @@ namespace Test.BuildXL.FrontEnd.Yarn
                 environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)),
                 yarnLocation,
                 moduleName,
-                root);
+                root,
+                additionalOutputDirectories,
+                enableFullReparsePointResolving);
         }
 
         /// <inheritdoc/>
@@ -91,7 +95,9 @@ namespace Test.BuildXL.FrontEnd.Yarn
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string yarnLocation = "",
             string moduleName = "Test",
-            string root = "d`.`")
+            string root = "d`.`",
+            string additionalOutputDirectories = null,
+            bool? enableFullReparsePointResolving = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -109,7 +115,9 @@ namespace Test.BuildXL.FrontEnd.Yarn
                     environment: environment,
                     yarnLocation: yarnLocation,
                     moduleName: moduleName,
-                    root: root));
+                    root: root,
+                    additionalOutputDirectories,
+                    enableFullReparsePointResolving));
         }
 
         protected BuildXLEngineResult RunYarnProjects(
@@ -155,7 +163,9 @@ namespace Test.BuildXL.FrontEnd.Yarn
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string yarnLocation,
             string moduleName,
-            string root) => $@"
+            string root,
+            string additionalOutputDirectories,
+            bool? enableFullReparsePointResolving = null) => $@"
 config({{
     resolvers: [
         {{
@@ -165,8 +175,10 @@ config({{
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
             {(yarnLocation != null ? $"yarnLocation: f`{yarnLocation}`," : string.Empty)}
+            {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}
         }}
-    ]
+    ],
+    {(enableFullReparsePointResolving != null ? $"sandbox: {{unsafeSandboxConfiguration: {{enableFullReparsePointResolving: {(enableFullReparsePointResolving.Value ? "true" : "false")}}}}}" : string.Empty)}
 }});";
 
         private static string DictionaryToExpression(string memberName, Dictionary<string, DiscriminatingUnion<string, UnitValue>> dictionary)

@@ -46,6 +46,16 @@ namespace BuildXL.Utilities.Configuration
         bool AllowWritableSourceDirectory { get; }
 
         /// <summary>
+        /// Resolvers can opt-in to request full reparse point resolving
+        /// </summary>
+        /// <remarks>
+        /// Full reparse point resolving is not on by default. Resolvers can request the feature by
+        /// turning on this flag, even though the final configuration may not have the feature enabled if the user
+        /// explicitly disabled it.
+        /// </remarks>
+        bool RequestFullReparsePointResolving { get; }
+
+        /// <summary>
         /// Allows the resolver name be set (once) in case the user did not configure it in the configuration file.
         /// </summary>
         void SetName(string name);

@@ -2352,23 +2352,27 @@ namespace Test.BuildXL.Processes.Detours
             directoryTranslator.AddDirectoryTranslationFromEnvironment();
             directoryTranslator.Seal();
 
+            var configuration = new ConfigurationImpl()
+            {
+                Sandbox = (SandboxConfiguration) config,
+                Distribution = new DistributionConfiguration { ValidateDistribution = false },
+                Engine = new EngineConfiguration { DisableConHostSharing = false },
+                Layout = new LayoutConfiguration { ObjectDirectory = AbsolutePath.Create(context.PathTable, TemporaryDirectory)}
+            };
+
             return new SandboxedProcessPipExecutor(
                 context,
                 loggingContext,
                 process,
-                config,
-                null, // Not full instantiation of the engine. For such cases this is null.
-                null, // Not full instantiation of the engine. For such cases this is null.
+                configuration,
                 rootMap,
                 new ProcessInContainerManager(loggingContext, context.PathTable),
                 fileAccessAllowlist,
                 null,
                 process.AllowPreserveOutputs ? dummyMakeOutputPrivate : null,
                 expander,
-                false,
                 new PipEnvironment(loggingContext),
                 isLazySharedOpaqueOutputDeletionEnabled: false,
-                validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 processIdListener: processIdListener,

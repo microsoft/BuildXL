@@ -4,9 +4,13 @@
 using System;
 using System.IO;
 using System.Linq;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.FrontEnd.Yarn;
+using Test.BuildXL.TestUtilities;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -98,6 +102,48 @@ namespace Test.BuildXL.FrontEnd.Yarn
             // The project should be B
             var projectBPip = engineResult.EngineState.RetrieveProcess("_ms_project_B");
             Assert.NotNull(projectBPip);
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        // Explicitly setting the full reparse flag should induce a DFA
+        [InlineData(true, true)]
+        [InlineData(false, false)]
+        // If unset, the presence of a JS based resolver should be enough to turn in on by default
+        [InlineData(null, true)]
+        public void JSResolverForcesReparsePointResolution(bool? enableFullReparsePointResolving, bool expectDFA)
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var tempDirectory = tempFiles.GetDirectory("source");
+                // Create a symlink source -> target
+                var source = Path.Combine(tempDirectory, "source").Replace("\\", "/");
+                var target = Path.Combine(tempDirectory, "target").Replace("\\", "/");
+                FileUtilities.CreateDirectory(target);
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateReparsePoint(source, target, ReparsePointType.Junction));
+
+                // Run a project that writes a file under 'source'. Only specify 'source' as an output dir (and not 'target').
+                var config = (CommandLineConfiguration)Build(additionalOutputDirectories: $"[p`{source}`]", enableFullReparsePointResolving: enableFullReparsePointResolving)
+                        .AddJavaScriptProject(
+                            "@ms/project-A",
+                            "src/A",
+                            $@"
+var fs = require('fs'); 
+fs.writeFileSync('{source}/out.txt', 'hello');")
+                        .PersistSpecsAndGetConfiguration();
+
+                config.Engine.UnsafeAllowOutOfMountWrites = true;
+                ((UnsafeSandboxConfiguration)(config.Sandbox.UnsafeSandboxConfiguration)).UnexpectedFileAccessesAreErrors = false;
+
+                var engineResult = RunYarnProjects(config);
+
+                // If reparse point resolution is enabled we should get a DFA because 'target' is not a directory where outputs are expected
+                Assert.True(engineResult.IsSuccess);
+                if (expectDFA)
+                {
+                    AssertWarningEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringWarning);
+                    AssertWarningEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
+                }
+            }
         }
     }
 }

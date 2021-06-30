@@ -96,7 +96,7 @@ namespace BuildXL.Processes
         /// Indicate whether a intentional retry attempt is initiated for the sake of integration testing.
         /// </summary>
         private static bool s_testRetryOccurred;
-
+        private readonly IConfiguration m_configuration;
         private readonly PipExecutionContext m_context;
         private readonly PathTable m_pathTable;
 
@@ -235,18 +235,14 @@ namespace BuildXL.Processes
             PipExecutionContext context,
             LoggingContext loggingContext,
             Process pip,
-            ISandboxConfiguration sandBoxConfig,
-            ILayoutConfiguration layoutConfig,
-            ILoggingConfiguration loggingConfig,
+            IConfiguration configuration,
             IReadOnlyDictionary<string, string> rootMappings,
             ProcessInContainerManager processInContainerManager,
             FileAccessAllowlist allowlist,
             Func<FileArtifact, Task<bool>> makeInputPrivate,
             Func<string, Task<bool>> makeOutputPrivate,
             SemanticPathExpander semanticPathExpander,
-            bool disableConHostSharing,
             PipEnvironment pipEnvironment,
-            bool validateDistribution,
             IDirectoryArtifactContext directoryArtifactContext,
             ITempCleaner tempDirectoryCleaner,
             bool isLazySharedOpaqueOutputDeletionEnabled,
@@ -259,7 +255,6 @@ namespace BuildXL.Processes
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
             SubstituteProcessExecutionInfo shimInfo = null,
-            IReadOnlyList<RelativePath> incrementalTools = null,
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
             IDetoursEventListener detoursListener = null,
             ReparsePointResolver reparsePointResolver = null,
@@ -271,7 +266,7 @@ namespace BuildXL.Processes
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
             Contract.Requires(loggingContext != null);
-            Contract.Requires(sandBoxConfig != null);
+            Contract.Requires(configuration != null);
             Contract.Requires(rootMappings != null);
             Contract.Requires(pipEnvironment != null);
             Contract.Requires(directoryArtifactContext != null);
@@ -279,12 +274,13 @@ namespace BuildXL.Processes
             // The tempDirectoryCleaner must not be null since it is relied upon for robust file deletion
             Contract.Requires(tempDirectoryCleaner != null);
 
+            m_configuration = configuration;
             m_context = context;
             m_loggingContext = loggingContext;
             m_pathTable = context.PathTable;
             m_pip = pip;
             m_pipDescription = m_pip.GetDescription(m_context);
-            m_sandboxConfig = sandBoxConfig;
+            m_sandboxConfig = configuration.Sandbox;
             m_rootMappings = rootMappings;
             m_workingDirectory = pip.WorkingDirectory.ToString(m_pathTable);
             m_fileAccessManifest =
@@ -293,35 +289,35 @@ namespace BuildXL.Processes
                     directoryTranslator,
                     m_pip.ChildProcessesToBreakawayFromSandbox.Select(process => process.ToString(context.StringTable)).ToReadOnlyArray())
                 {
-                    MonitorNtCreateFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
-                    MonitorZwCreateOpenQueryFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
-                    ForceReadOnlyForRequestedReadWrite = sandBoxConfig.ForceReadOnlyForRequestedReadWrite,
-                    IgnoreReparsePoints = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreReparsePoints,
-                    IgnoreFullReparsePointResolving = !sandBoxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving(),
-                    IgnorePreloadedDlls = sandBoxConfig.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
-                    IgnoreZwRenameFileInformation = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreZwRenameFileInformation,
-                    IgnoreZwOtherFileInformation = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreZwOtherFileInformation,
-                    IgnoreNonCreateFileReparsePoints = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreNonCreateFileReparsePoints,
-                    IgnoreSetFileInformationByHandle = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreSetFileInformationByHandle,
+                    MonitorNtCreateFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
+                    MonitorZwCreateOpenQueryFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
+                    ForceReadOnlyForRequestedReadWrite = m_sandboxConfig.ForceReadOnlyForRequestedReadWrite,
+                    IgnoreReparsePoints = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreReparsePoints,
+                    IgnoreFullReparsePointResolving = !configuration.EnableFullReparsePointResolving(),
+                    IgnorePreloadedDlls = m_sandboxConfig.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
+                    IgnoreZwRenameFileInformation = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreZwRenameFileInformation,
+                    IgnoreZwOtherFileInformation = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreZwOtherFileInformation,
+                    IgnoreNonCreateFileReparsePoints = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreNonCreateFileReparsePoints,
+                    IgnoreSetFileInformationByHandle = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreSetFileInformationByHandle,
                     NormalizeReadTimestamps =
-                        sandBoxConfig.NormalizeReadTimestamps &&
+                        m_sandboxConfig.NormalizeReadTimestamps &&
                         // Do not normalize read timestamps if preserved-output mode is enabled and pip wants its outputs to be preserved.
-                        (sandBoxConfig.UnsafeSandboxConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled || !pip.AllowPreserveOutputs),
-                    UseLargeNtClosePreallocatedList = sandBoxConfig.UseLargeNtClosePreallocatedList,
-                    UseExtraThreadToDrainNtClose = sandBoxConfig.UseExtraThreadToDrainNtClose,
-                    DisableDetours = sandBoxConfig.UnsafeSandboxConfiguration.DisableDetours(),
-                    LogProcessData = sandBoxConfig.LogProcesses && sandBoxConfig.LogProcessData,
-                    IgnoreGetFinalPathNameByHandle = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
+                        (m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled || !pip.AllowPreserveOutputs),
+                    UseLargeNtClosePreallocatedList = m_sandboxConfig.UseLargeNtClosePreallocatedList,
+                    UseExtraThreadToDrainNtClose = m_sandboxConfig.UseExtraThreadToDrainNtClose,
+                    DisableDetours = m_sandboxConfig.UnsafeSandboxConfiguration.DisableDetours(),
+                    LogProcessData = m_sandboxConfig.LogProcesses && m_sandboxConfig.LogProcessData,
+                    IgnoreGetFinalPathNameByHandle = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                     // SemiStableHash is 0 for pips with no provenance;
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
                     QBuildIntegrated = isQbuildIntegrated,
-                    IgnoreCreateProcessReport = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreCreateProcessReport,
-                    ProbeDirectorySymlinkAsDirectory = sandBoxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory,
+                    IgnoreCreateProcessReport = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreCreateProcessReport,
+                    ProbeDirectorySymlinkAsDirectory = m_sandboxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory,
                     SubstituteProcessExecutionInfo = shimInfo,
                 };
 
-            if (!sandBoxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
+            if (!m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
             {
                 // If monitoring of file accesses is disabled, make sure a valid
                 // manifest is still provided and disable detours for this pip.
@@ -333,7 +329,7 @@ namespace BuildXL.Processes
             m_makeOutputPrivate = makeOutputPrivate;
             m_semanticPathExpander = semanticPathExpander;
             m_logger = logger ?? new SandboxedProcessLogger(m_loggingContext, pip, context);
-            m_disableConHostSharing = disableConHostSharing;
+            m_disableConHostSharing = configuration.Engine.DisableConHostSharing;
             m_shouldPreserveOutputs = m_pip.AllowPreserveOutputs && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled
                                       && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel <= m_pip.PreserveOutputsTrustLevel;
             m_processIdListener = processIdListener;
@@ -365,10 +361,10 @@ namespace BuildXL.Processes
             }
 
             m_buildEngineDirectory = buildEngineDirectory;
-            m_validateDistribution = validateDistribution;
+            m_validateDistribution = configuration.Distribution.ValidateDistribution;
             m_directoryArtifactContext = directoryArtifactContext;
-            m_layoutConfiguration = layoutConfig;
-            m_loggingConfiguration = loggingConfig;
+            m_layoutConfiguration = configuration.Layout;
+            m_loggingConfiguration = configuration.Logging;
             m_remainingUserRetryCount = remainingUserRetryCount;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
             m_isLazySharedOpaqueOutputDeletionEnabled = isLazySharedOpaqueOutputDeletionEnabled;
@@ -390,10 +386,10 @@ namespace BuildXL.Processes
 
             m_vmInitializer = vmInitializer;
 
-            if (incrementalTools != null)
+            if (configuration.IncrementalTools != null)
             {
                 m_incrementalToolFragments = new List<string>(
-                    incrementalTools.Select(toolSuffix =>
+                    configuration.IncrementalTools.Select(toolSuffix =>
                         // Append leading separator to ensure suffix only matches valid relative path fragments
                         Path.DirectorySeparatorChar + toolSuffix.ToString(context.StringTable)));
             }
@@ -3968,7 +3964,7 @@ namespace BuildXL.Processes
                         }
 
                         // Absent accesses may still contain reparse points. If we are fully resolving them, keep track of them for further processing
-                        if (!hasEnumeration && m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
+                        if (!hasEnumeration && m_configuration.EnableFullReparsePointResolving() && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
                         {
                             maybeUnresolvedAbsentAccesses.Add(entry.Key);
                         }
@@ -4122,7 +4118,7 @@ namespace BuildXL.Processes
                     // Let's try to make sure then that unresolved absent probes don't end up in the observed path set. Here we address the case when reparse point are produced by the same pip. Cross-pip
                     // scenarios are not addressed here.
 
-                    if (m_sandboxConfig.UnsafeSandboxConfiguration.EnableFullReparsePointResolving() && reparsePointProduced)
+                    if (m_configuration.EnableFullReparsePointResolving() && reparsePointProduced)
                     {
                         foreach(AbsolutePath absentAccess in maybeUnresolvedAbsentAccesses)
                         {

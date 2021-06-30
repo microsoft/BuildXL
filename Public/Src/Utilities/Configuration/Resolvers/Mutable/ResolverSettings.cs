@@ -24,6 +24,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             File = pathRemapper.Remap(template.File);
             Location = template.Location;
             AllowWritableSourceDirectory = template.AllowWritableSourceDirectory;
+            RequestFullReparsePointResolving = template.RequestFullReparsePointResolving;
         }
 
         /// <inheritdoc />
@@ -40,6 +41,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool AllowWritableSourceDirectory { get; set; }
+
+        /// <inheritdoc />
+        public bool RequestFullReparsePointResolving { get; set; }
 
         /// <summary>
         /// Polymorphic instantiation from template function

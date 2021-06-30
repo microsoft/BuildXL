@@ -37,15 +37,3 @@ config({
   ]
 });
 ```
-
-## Turn on reparse points/symlink resolution
-BuildXL does not resolve symlinks/reparse points by default. This option is likely to change and will eventually become the default. In the meantime, enabling full reparse point resolution will ensure pip fingerprints will always get consistent paths, regardless of how files are accessed. This can be turned on via a command line option `\unsafe_IgnoreFullReparsePointResolving+` (the 'unsafe' part is about not enabling them) or with a main config file option:
-
-```typescript
-config({
-  resolvers: [
-      ...
-  ],
-  sandbox: {unsafeSandboxConfiguration: {enableFullReparsePointResolving: true}},
-});
-```

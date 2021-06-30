@@ -143,23 +143,26 @@ namespace Test.BuildXL.Processes.Detours
 
             var loggingContext = CreateLoggingContextForTest();
 
+            var configuration = new ConfigurationImpl() { 
+                Sandbox = sandboxConfiguration,
+                Distribution = new DistributionConfiguration { ValidateDistribution = false },
+                Engine = new EngineConfiguration { DisableConHostSharing = false },
+                Layout = new LayoutConfiguration { ObjectDirectory = AbsolutePath.Create(context.PathTable, TemporaryDirectory) }
+            };
+
             return new SandboxedProcessPipExecutor(
                 context,
                 loggingContext,
                 pip,
-                sandboxConfiguration,
-                null,
-                null,
+                configuration,
                 new Dictionary<string, string>(),
                 new ProcessInContainerManager(loggingContext, context.PathTable),
                 null,
                 null,
                 null,
                 SemanticPathExpander.Default,
-                false,
                 isLazySharedOpaqueOutputDeletionEnabled: false,
                 pipEnvironment: new PipEnvironment(loggingContext),
-                validateDistribution: false,
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty,
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,

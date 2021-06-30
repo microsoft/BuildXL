@@ -38,6 +38,9 @@ namespace Test.DScript.Workspaces.Utilities
         public LineInfo Location { get; }
 
         /// <nodoc/>
+        public bool RequestFullReparsePointResolving { get; } 
+
+        /// <nodoc/>
         public SimpleSourceResolverSettings(
             Dictionary<ModuleDescriptor, ModuleDefinition> moduleDefinitions,
             IFileSystem fileSystem,
@@ -51,6 +54,7 @@ namespace Test.DScript.Workspaces.Utilities
             File = file;
             Location = location;
             AllowWritableSourceDirectory = false;
+            RequestFullReparsePointResolving = false;
         }
 
         /// <inheritdoc />

@@ -36,6 +36,28 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <summary>
+        /// Whether full reparse point resolving should be enabled
+        /// </summary>
+        /// <remarks>
+        /// The value can be explicitly configured with <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/>, in which case it is honored. Otherwise
+        /// if any configured resolver requires it via <see cref="IResolverSettings.RequestFullReparsePointResolving"/>, then it is enabled.
+        /// </remarks>
+        public static bool EnableFullReparsePointResolving(this IConfiguration configuration)
+        {
+            if (configuration.Sandbox.UnsafeSandboxConfiguration.EnableFullReparsePointResolving.HasValue)
+            {
+                return configuration.Sandbox.UnsafeSandboxConfiguration.EnableFullReparsePointResolving.Value;
+            }
+
+            if (configuration.Resolvers.Any(resolver => resolver.RequestFullReparsePointResolving))
+            {
+                return true;
+            }
+
+            return configuration.Sandbox.UnsafeSandboxConfiguration.EnableFullReparsePointResolving();
+        }
+
+        /// <summary>
         /// False unless specified otherwise
         /// </summary>
         public static bool DisableInBoxSdkSourceResolver(this IConfiguration configuration)

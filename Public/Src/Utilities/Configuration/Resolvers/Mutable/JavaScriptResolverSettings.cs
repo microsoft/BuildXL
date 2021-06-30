@@ -17,6 +17,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             // We allow the source directory to be writable by default
             AllowWritableSourceDirectory = true;
+            // Request full reparse point resolution for all JS based resolvers
+            RequestFullReparsePointResolving = true;
         }
 
         /// <nodoc/>

@@ -191,22 +191,26 @@ namespace Test.BuildXL.Processes
         {
             var loggingContext = CreateLoggingContextForTest();
 
+            var configuration = new ConfigurationImpl()
+            {
+                Sandbox = new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
+                Distribution = new DistributionConfiguration { ValidateDistribution = false },
+                Engine = new EngineConfiguration { DisableConHostSharing = false },
+                Layout = new LayoutConfiguration { ObjectDirectory = AbsolutePath.Create(context.PathTable, TestOutputDirectory) }
+            };
+
             var pipExecutor = new SandboxedProcessPipExecutor(
                 context,
                 loggingContext,
                 pip,
-                new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
-                layoutConfig: null,
-                loggingConfig: null,
+                configuration,
                 rootMappings: new Dictionary<string, string>(),
                 processInContainerManager: new ProcessInContainerManager(loggingContext, context.PathTable),
                 allowlist: null,
                 makeInputPrivate: null,
                 makeOutputPrivate: null,
                 semanticPathExpander: SemanticPathExpander.Default,
-                disableConHostSharing: false,
                 pipEnvironment: new PipEnvironment(loggingContext),
-                validateDistribution: false,
                 isLazySharedOpaqueOutputDeletionEnabled: false,
                 tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty);

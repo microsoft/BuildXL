@@ -76,7 +76,7 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreZwOtherFileInformation,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreNonCreateFileReparsePoints,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreReparsePoints,
-                !config.Sandbox.UnsafeSandboxConfiguration.EnableFullReparsePointResolving(),
+                !config.EnableFullReparsePointResolving(),
                 config.Sandbox.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                 config.Sandbox.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations,

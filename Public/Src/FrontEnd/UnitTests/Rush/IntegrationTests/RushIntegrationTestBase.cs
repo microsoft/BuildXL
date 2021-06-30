@@ -93,7 +93,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string commonTempFolder = null,
             string schedulingCallback = null,
             string customScripts = null,
-            string additionalDependencies = null)
+            string additionalDependencies = null,
+            string additionalOutputDirectories = null,
+            bool? enableFullReparsePointResolving = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -111,7 +113,9 @@ namespace Test.BuildXL.FrontEnd.Rush
                 commonTempFolder,
                 schedulingCallback,
                 customScripts,
-                additionalDependencies);
+                additionalDependencies,
+                additionalOutputDirectories,
+                enableFullReparsePointResolving);
         }
 
         /// <inheritdoc/>
@@ -126,7 +130,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string commonTempFolder = null,
             string schedulingCallback = null,
             string customScripts = null,
-            string additionalDependencies = null)
+            string additionalDependencies = null,
+            string additionalOutputDirectories = null,
+            bool? enableFullReparsePointResolving = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -155,15 +161,24 @@ namespace Test.BuildXL.FrontEnd.Rush
                     trackDependenciesWithShrinkwrapDepsFile: commonTempFolder != null,
                     schedulingCallback: schedulingCallback,
                     customScripts: customScripts,
-                    additionalDependencies));
+                    additionalDependencies,
+                    additionalOutputDirectories,
+                    enableFullReparsePointResolving));
         }
 
         protected BuildXLEngineResult RunRushProjects(
             ICommandLineConfiguration config,
             (string, string)[] rushPathAndProjectNames,
             TestCache testCache = null, 
-            IDetoursEventListener detoursListener = null)
+            IDetoursEventListener detoursListener = null,
+            bool overrideDisableReparsePointResolution = true)
         {
+            // The out folder is junctioned in some environments, so disable full reparse point resolving unless specified otherwise
+            if (overrideDisableReparsePointResolution)
+            {
+                ((UnsafeSandboxConfiguration)(config.Sandbox.UnsafeSandboxConfiguration)).EnableFullReparsePointResolving = false;
+            }
+
             // Run 'rush init'. This bootstraps the 'repo' with rush template files, including rush.json
             if (!RushInit(config))
             {
@@ -246,7 +261,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             bool trackDependenciesWithShrinkwrapDepsFile,
             string schedulingCallback,
             string customScripts,
-            string additionalDependencies) => $@"
+            string additionalDependencies,
+            string additionalOutputDirectories,
+            bool? enableFullReparsePointResolving = null) => $@"
 config({{
     resolvers: [
         {{
@@ -263,10 +280,12 @@ config({{
             {(schedulingCallback != null? $"customScheduling: {schedulingCallback}," : string.Empty)}
             {(customScripts != null ? $"customScripts: {customScripts}," : string.Empty)}
             {(additionalDependencies != null ? $"additionalDependencies: {additionalDependencies}," : string.Empty)}
+            {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],
     engine: {{unsafeAllowOutOfMountWrites: true}},
+    {(enableFullReparsePointResolving != null ? $"sandbox: {{unsafeSandboxConfiguration: {{enableFullReparsePointResolving: {(enableFullReparsePointResolving.Value ? "true" : "false")}}}}}" : string.Empty)}
 }});";
 
         private static string DictionaryToExpression(string memberName, Dictionary<string, DiscriminatingUnion<string, UnitValue>> dictionary)

@@ -28,6 +28,18 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
     },
     "Public\\Src\\Engine\\UnitTests\\Processes_retail_X64": {
       "FlakyTestMap": {
+        "Test.BuildXL.Processes.SandboxedProcessTest.CheckDetoursNotifications": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessTest.CheckDetoursNotifications",
+          "DetectionTimeUtc": "2021-06-26T02:01:04.1409746Z",
+          "QuarantineExpiryTimeUtc": "2021-12-23T02:01:04.1409746Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1855165",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "process claims it or a child process was killed; exit code: #NUM#, stdout: 'success', stderr: ''. expected: false actual: true"
+          ],
+          "SessionUri": "https://cloudbuild.microsoft.com/build/e1be25f6-2b43-2877-90b0-b057ae618cd1",
+          "ScheduledDeletionTimeUtc": null
+        },
         "Test.BuildXL.Processes.SandboxedProcessTest.EnvironmentVariables": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.EnvironmentVariables",
           "DetectionTimeUtc": "2021-05-22T08:00:18.1590073Z",

@@ -670,6 +670,7 @@ namespace Test.Tool.DropDaemon
         [InlineData(@"C:\dir", @"C:\dir\dir2\foo.txt", @"dir2\", "", @"foo.txt")]
         [InlineData(@"C:\dir", @"C:\dir\dir2\foo.txt", @"dir2", "", @"\foo.txt")]
         [InlineData(@"C:\dir", @"C:\dir\dir2\dir2\foo.txt", @"dir2", "", @"\dir2\foo.txt")] // replacing only the first match
+        [InlineData(@"C:\dir", @"C:\dir\Dir2\dir2\foo.txt", @"dir2", "", @"\dir2\foo.txt")] // on Windows, search is case-insensitive
         [InlineData(@"C:\dir", @"C:\dir\dir2\dir2\foo.txt", @"dir2\dir2", "dir3", @"dir3\foo.txt")]
         public void TestGetRelativePath(string root, string filePath, string oldValue, string newValue, string expectedPath)
         {

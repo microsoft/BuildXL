@@ -1125,9 +1125,11 @@ namespace Tool.DropDaemon
                 root[root.Length - 1] == System.IO.Path.DirectorySeparatorChar
                 || root[root.Length - 1] == System.IO.Path.AltDirectorySeparatorChar;
             var relativePath = file.Substring(root.Length + (rootEndsWithSlash ? 0 : 1));
+            // On Windows, file paths are case-insensitive.
+            var stringCompareMode = OperatingSystemHelper.IsUnixOS ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
             if (pathReplacementArgs.IsValid)
             {
-                int searchStringPosition = relativePath.IndexOf(pathReplacementArgs.OldValue);
+                int searchStringPosition = relativePath.IndexOf(pathReplacementArgs.OldValue, stringCompareMode);
                 if (searchStringPosition < 0)
                 {
                     // no match found; return the path that we constructed so far

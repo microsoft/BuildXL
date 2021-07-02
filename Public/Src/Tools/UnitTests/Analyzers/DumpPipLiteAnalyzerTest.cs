@@ -3,10 +3,10 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using BuildXL.Execution.Analyzer;
-using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
+using Test.BuildXL.Executables.TestProcess;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;
@@ -24,19 +24,34 @@ namespace Test.Tool.Analyzers
         /// <summary>
         /// Tests basic functionality with any pip to ensure that is dumped by the analyzer.
         /// </summary>
-        [Fact]
-        public void TestDumpPipLite()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestDumpPipLite(bool logObservedFileAccesses)
         {
-            var copyFile = new CopyFile(CreateSourceFile(), CreateOutputFileArtifact(), new List<StringId>().ToReadOnlyArray(), PipProvenance.CreateDummy(Context));
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+            Configuration.Sandbox.LogProcessDetouringStatus = logObservedFileAccesses;
+            Configuration.Sandbox.LogProcesses = logObservedFileAccesses;
 
-            PipGraphBuilder.AddCopyFile(copyFile);
-
-            var schedulerResult = RunScheduler().AssertSuccess();
+            var output = CreateOutputFileArtifact();
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.SpawnExe
+                (
+                    Context.PathTable,
+                    CmdExecutable,
+                    string.Format(OperatingSystemHelper.IsUnixOS ? "-c \"echo 'hi' > {0}\"" : "/d /c echo 'hi' > {0}", output.Path.ToString(Context.PathTable))
+                ),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+            builder.AddInputFile(CmdExecutable);
+            var pip = SchedulePipBuilder(builder).Process;
+            var schedulerResult = RunScheduler().AssertFailure();
 
             var logFolder = Path.Combine(schedulerResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), "FailedPips");
-            var pipDumpFile = Path.Combine(logFolder, $"{copyFile.FormattedSemiStableHash}.json");
+            var pipDumpFile = Path.Combine(logFolder, $"{pip.FormattedSemiStableHash}.json");
 
-            List<Option> options = new List<Option>
+            var options = new List<Option>
             {
                 new Option()
                 {
@@ -46,7 +61,11 @@ namespace Test.Tool.Analyzers
                 new Option()
                 {
                     Name="p",
-                    Value=copyFile.FormattedSemiStableHash
+                    Value=pip.FormattedSemiStableHash
+                },
+                new Option()
+                {
+                    Name = "dumpObservedFileAccesses" + (logObservedFileAccesses ? "+" : "-")
                 }
             };
 
@@ -54,41 +73,25 @@ namespace Test.Tool.Analyzers
 
             Assert.True(Directory.Exists(logFolder));
             Assert.True(File.Exists(pipDumpFile));
-        }
 
-        /// <summary>
-        /// Tests the dumpAllFailing pips flag by passing in one passing and one failing pip.
-        /// </summary>
-        /// <param name="dumpAllFailingPips"></param>
-        [Fact]
-        public void TestDumpPipLiteWithPassingAndFailingPips()
-        {
-            var passingCopyFile = new CopyFile(CreateSourceFile(), CreateOutputFileArtifact(), new List<StringId>().ToReadOnlyArray(), PipProvenance.CreateDummy(Context));
-            var failingCopyFile = new CopyFile(FileArtifact.CreateSourceFile(CreateUniqueSourcePath(SourceRootPrefix)), CreateOutputFileArtifact(), new List<StringId>().ToReadOnlyArray(), PipProvenance.CreateDummy(Context));
+            var dumpString = Encoding.UTF8.GetString(File.ReadAllBytes(pipDumpFile));
 
-            PipGraphBuilder.AddCopyFile(passingCopyFile);
-            PipGraphBuilder.AddCopyFile(failingCopyFile);
-
-            var schedulerResult = RunScheduler().AssertFailure();
-
-            var logFolder = Path.Combine(schedulerResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), "FailedPips");
-            var failingPipDumpFile = Path.Combine(logFolder, $"{failingCopyFile.FormattedSemiStableHash}.json");
-            var passingPipDumpFile = Path.Combine(logFolder, $"{passingCopyFile.FormattedSemiStableHash}.json");
-
-
-            List<Option> options = new List<Option>
+            if (logObservedFileAccesses)
             {
-                new Option()
+                Assert.True(dumpString.Contains("ReportedFileAccesses"));
+                // This specific test doesn't appear to report any processes on macos, but should still work for Windows
+                if (!OperatingSystemHelper.IsUnixOS)
                 {
-                    Name="d+"
+                    Assert.True(dumpString.Contains("ProcessDetouringStatuses"));
+                    Assert.True(dumpString.Contains("ReportedProcesses"));
                 }
-            };
-
-            RunAnalyzer(schedulerResult, null, options);
-
-            Assert.True(Directory.Exists(logFolder));
-            Assert.True(File.Exists(failingPipDumpFile));
-            Assert.True(!File.Exists(passingPipDumpFile));
+            }
+            else
+            {
+                Assert.False(dumpString.Contains("ReportedFileAccesses"));
+                Assert.False(dumpString.Contains("ProcessDetouringStatuses"));
+                Assert.False(dumpString.Contains("ReportedProcesses"));
+            }
         }
     }
 }

@@ -35,6 +35,7 @@ namespace BuildXL.Scheduler.Tracing
         public WriteFileSpecificDetails WriteFileSpecificDetails { get; set; }
         public List<ReportedProcessData> ReportedProcesses { get; set; }
         public List<ReportedFileAccessData> ReportedFileAccesses { get; set; }
+        public List<ProcessDetouringStatusDataJson> ProcessDetouringStatuses { get; set; }
     }
 
     /// <nodoc/>
@@ -303,6 +304,26 @@ namespace BuildXL.Scheduler.Tracing
         public uint Process { get; set; }
         public bool ExplicitlyReported { get; set; }
         public string EnumeratePattern { get; set; }
+    }
+
+    public class ProcessDetouringStatusDataJson
+    {
+        public ulong ProcessId { get; set; }
+        public ulong JobId { get; set; }
+        public uint ReportStatus { get; set; }
+        public string ProcessName { get; set; }
+        public string StartApplicationName { get; set; }
+        public string StartCommandLine { get; set; }
+        public bool NeedsInjection { get; set; }
+        public bool NeedsRemoteInjection { get; set; }
+        public bool IsCurrent64BitProcess { get; set; }
+        public bool IsCurrentWow64Process { get; set; }
+        public bool IsProcessWow64 { get; set; }
+        public bool DisableDetours { get; set; }
+        public string CreationFlags { get; set; }
+        public bool Detoured { get; set; }
+        public uint Error { get; set; }
+        public uint CreateProcessStatusReturn { get; set; }    
     }
     #endregion ObservedFileAccesses
 

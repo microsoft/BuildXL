@@ -190,6 +190,15 @@ namespace BuildXL.Scheduler.Tracing
                         serializedPip.ReportedFileAccesses.Add(CreateReportedFileAccessData(reportedFileAccess, pathTable));
                     }
                 }
+
+                if (dynamicData.Value.ProcessDetouringStatuses != null && dynamicData.Value.ProcessDetouringStatuses.Count > 0)
+                {
+                    serializedPip.ProcessDetouringStatuses = new List<ProcessDetouringStatusDataJson>();
+                    foreach (var processDetouringStatus in dynamicData.Value.ProcessDetouringStatuses)
+                    {
+                        serializedPip.ProcessDetouringStatuses.Add(CreateProcessDetouringStatusDataJson(processDetouringStatus));
+                    }
+                }
             }
 
             return serializedPip;
@@ -454,6 +463,29 @@ namespace BuildXL.Scheduler.Tracing
                 Process = data.Process.ProcessId,
                 ExplicitlyReported = data.ExplicitlyReported,
                 EnumeratePattern = data.EnumeratePattern
+            };
+        }
+
+        private static ProcessDetouringStatusDataJson CreateProcessDetouringStatusDataJson(ProcessDetouringStatusData data)
+        {
+            return new ProcessDetouringStatusDataJson
+            {
+                ProcessId = data.ProcessId,
+                JobId = data.Job,
+                ReportStatus = data.ReportStatus,
+                ProcessName = data.ProcessName,
+                StartApplicationName = data.StartApplicationName,
+                StartCommandLine = data.StartCommandLine,
+                NeedsInjection = data.NeedsInjection,
+                NeedsRemoteInjection = data.NeedsRemoteInjection,
+                IsCurrent64BitProcess = data.IsCurrent64BitProcess,
+                IsCurrentWow64Process = data.IsCurrentWow64Process,
+                IsProcessWow64 = data.IsProcessWow64,
+                DisableDetours = data.DisableDetours,
+                CreationFlags = data.CreationFlags.ToString(CultureInfo.InvariantCulture),
+                Detoured = data.Detoured,
+                Error = data.Error,
+                CreateProcessStatusReturn = data.CreateProcessStatusReturn,
             };
         }
         #endregion ObservedFileAccesses

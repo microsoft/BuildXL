@@ -1621,6 +1621,8 @@ namespace BuildXL.Scheduler.Artifacts
             state.Virtualize = !materializatingOutputs && IsVirtualizationEnabled();
 
             IEnumerable<AbsolutePath> readPaths = null;
+            // The first encountered materialization failure. Even if there are more failures, we only return the first one.
+            ArtifactMaterializationResult? firstFailure = null;
 
             if (state.Virtualize)
             {
@@ -1643,7 +1645,11 @@ namespace BuildXL.Scheduler.Artifacts
             // Get the files which need to be materialized
             // We reserve completion of directory deletions and file materialization so only a single deleter/materializer of a
             // directory/file. If the operation is reserved, code will perform the operation. Otherwise, it will await a task
-            // signaling the completion of the operation
+            // signaling the completion of the operation.
+            // PopulateArtifactsToMaterialize tries to reserve the completion for the files we are trying to materialize. If the 
+            // completion is reserved, the current invocation of this method is the only place where that completion can be marked
+            // as completed. Therefore it's crucial that we reach the end of the method and do not return early, oterwise other 
+            // threads will be deadlocked waiting on those never finished completions.
             PopulateArtifactsToMaterialize(state, allowReadOnly);
 
             // When virtualization is enabled, check which input files to fully materialize
@@ -1663,7 +1669,7 @@ namespace BuildXL.Scheduler.Artifacts
                 // a later step will materialize/delete the file as necessary
                 if (!await PrepareDirectoriesAsync(state, operationContext))
                 {
-                    return ArtifactMaterializationResult.PrepareDirectoriesFailed;
+                    firstFailure ??= ArtifactMaterializationResult.PrepareDirectoriesFailed;
                 }
             }
 
@@ -1673,30 +1679,35 @@ namespace BuildXL.Scheduler.Artifacts
                 // source file to be materialized later if the materializeSourceFiles option is set (distributed worker))
                 if (!await VerifySourceFileInputsAsync(operationContext, pipInfo, state))
                 {
-                    return ArtifactMaterializationResult.VerifySourceFilesFailed;
+                    firstFailure ??= ArtifactMaterializationResult.VerifySourceFilesFailed;
                 }
             }
 
             // Delete the absent files if any
             if (!await DeleteFilesRequiredAbsentAsync(state, operationContext))
             {
-                return ArtifactMaterializationResult.DeleteFilesRequiredAbsentFailed;
+                firstFailure ??= ArtifactMaterializationResult.DeleteFilesRequiredAbsentFailed;
             }
 
             // Place Files:
             var possiblyPlaced = await PlaceFilesAsync(operationContext, pipInfo, state);
             if (possiblyPlaced != PlaceFile.Success)
             {
-                return possiblyPlaced == PlaceFile.UserError
+                firstFailure ??= (possiblyPlaced == PlaceFile.UserError
                     ? ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure
-                    : ArtifactMaterializationResult.PlaceFileFailed;
+                    : ArtifactMaterializationResult.PlaceFileFailed);
             }
 
-            // Mark directories as materialized so that the full set of files in the directory will
-            // not need to be checked for completion on subsequent materialization calls
-            MarkDirectoryMaterializations(state);
+            if (!firstFailure.HasValue)
+            {
+                // Mark directories as materialized so that the full set of files in the directory will
+                // not need to be checked for completion on subsequent materialization calls
+                MarkDirectoryMaterializations(state);
+            }
 
-            return ArtifactMaterializationResult.Succeeded;
+            Contract.Assert(state.MaterializationFiles.All(file => file.MaterializationCompletion.Task.IsCompleted), "All stared materializations must have finished.");
+
+            return firstFailure ?? ArtifactMaterializationResult.Succeeded;
         }
 
         private void PopulateFilesToHydrate(OperationContext operationContext, PipArtifactsState state, IEnumerable<AbsolutePath> readPaths)

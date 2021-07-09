@@ -71,6 +71,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ErrorLog = pathRemapper.Remap(template.ErrorLog);
             WarningLog = pathRemapper.Remap(template.WarningLog);
             LogExecution = template.LogExecution;
+            LogPackedExecution = template.LogPackedExecution;
             ExecutionLog = pathRemapper.Remap(template.ExecutionLog);
             StoreFingerprints = template.StoreFingerprints;
             SaveFingerprintStoreToLogs = template.SaveFingerprintStoreToLogs;
@@ -180,6 +181,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool LogExecution { get; set; }
+
+        /// <inheritdoc />
+        public bool LogPackedExecution { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath ExecutionLog { get; set; }

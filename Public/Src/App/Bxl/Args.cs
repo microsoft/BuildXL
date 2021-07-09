@@ -642,6 +642,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "logOutput",
                             opt => sandboxConfiguration.OutputReportingMode = CommandLineUtilities.ParseEnumOption<OutputReportingMode>(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "logPackedExecution",
+                            sign => loggingConfiguration.LogPackedExecution = sign),
                          OptionHandlerFactory.CreateBoolOption(
                             "logPipStaticFingerprintTexts",
                             sign => schedulingConfiguration.LogPipStaticFingerprintTexts = sign),

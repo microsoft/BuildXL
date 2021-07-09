@@ -64,7 +64,7 @@ namespace BuildXL.Execution.Analyzer
         public PackedExecutionExporterAnalyzer(AnalysisInput input, string outputDirectoryPath)
             : base(input)
         {
-            m_exporter = new PackedExecutionExporter(input.CachedGraph.PipGraph, outputDirectoryPath);
+            m_exporter = new PackedExecutionExporter(input.CachedGraph.PipGraph, outputDirectoryPath, threadSafe: false);
         }
 
         /// <inheritdoc />

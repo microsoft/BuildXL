@@ -54,6 +54,17 @@ namespace BuildXL.Scheduler.Tracing
         private readonly PackedExecution m_packedExecution;
 
         /// <summary>
+        /// If this is non-null, it will be locked before handling each incoming event.
+        /// </summary>
+        /// <remarks>
+        /// When running as a post-execution XLG analyzer, the event callbacks are called serially.
+        /// When running as a tracer in the build, the event callbacks are called concurrently.
+        /// This object is only set in the latter scenario (and is set to this exporter itself,
+        /// as it happens).
+        /// </remarks>
+        private readonly object m_lockObject;
+   
+        /// <summary>
         /// The Builder for the PackedExecution being built.
         /// </summary>
         private readonly PackedExecution.Builder m_packedExecutionBuilder;
@@ -105,7 +116,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Construct a PackedExecutionExporter.
         /// </summary>
-        public PackedExecutionExporter(PipGraph input, string outputDirectoryPath)
+        public PackedExecutionExporter(PipGraph input, string outputDirectoryPath, bool threadSafe = true)
             : base(input)
         {
 #if NET_CORE
@@ -116,6 +127,11 @@ namespace BuildXL.Scheduler.Tracing
             m_packedExecution.ConstructRelationTables();
 
             m_packedExecutionBuilder = new PackedExecution.Builder(m_packedExecution);
+
+            if (threadSafe)
+            {
+                m_lockObject = this;
+            }
 
             Console.WriteLine($"PackedExecutionExporter: Constructed at {DateTime.Now}.");
 #endif
@@ -133,8 +149,6 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override int Analyze()
         {
-            Console.WriteLine($"PackedExecutionExporter: Starting export at {DateTime.Now}.");
-
             if (!Directory.Exists(m_outputDirectoryPath))
             {
                 Directory.CreateDirectory(m_outputDirectoryPath);
@@ -151,17 +165,45 @@ namespace BuildXL.Scheduler.Tracing
             // and write it out
             m_packedExecution.SaveToDirectory(m_outputDirectoryPath);
 
-            Console.WriteLine($"PackedExecutionExporter: Wrote out packed execution at {DateTime.Now}.");
-
             return 0;
         }
 
-        #region Analyzer event handlers
+            #region Analyzer event handlers
+
+        /// <summary>
+        /// Call the action from within a lock if m_lockObject is set.
+        /// </summary>
+        /// <remarks>
+        /// The "this" object and the action's argument are passed separately, to allow the
+        /// action to be static.
+        /// </remarks>
+        private void CallSerialized<T>(Action<PackedExecutionExporter, T> action, T argument)
+        {
+            if (m_lockObject != null)
+            {
+                lock (m_lockObject)
+                {
+                    action(this, argument);
+                }
+            }
+            else
+            {
+                action(this, argument);
+            }
+        }
+
+        private static readonly Action<PackedExecutionExporter, WorkerListEventData> s_workerListAction =
+            (exporter, data) => exporter.WorkerListInternal(data);
 
         /// <summary>
         /// Handle a list of workers.
         /// </summary>
         public override void WorkerList(WorkerListEventData data)
+        {
+            CallSerialized(s_workerListAction, data);
+        }
+
+        private void WorkerListInternal(WorkerListEventData data)
         {
             foreach (string workerName in data.Workers)
             {
@@ -170,10 +212,18 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
+        private static readonly Action<PackedExecutionExporter, FileArtifactContentDecidedEventData> s_fileArtifactContentDecidedAction =
+            (exporter, data) => exporter.FileArtifactContentDecidedInternal(data);
+
         /// <summary>
         /// File artifact content (size, origin) is now known; create a FileTable entry for this file.
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
+        {
+            CallSerialized(s_fileArtifactContentDecidedAction, data);
+        }
+
+        private void FileArtifactContentDecidedInternal(FileArtifactContentDecidedEventData data)
         {
             if (data.FileArtifact.IsOutputFile && data.FileContentInfo.HasKnownLength)
             {
@@ -211,10 +261,18 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
+        private static readonly Action<PackedExecutionExporter, ProcessFingerprintComputationEventData> s_processFingerprintComputedAction =
+            (exporter, data) => exporter.ProcessFingerprintComputedInternal(data);
+
         /// <summary>
         /// A process fingerprint was computed; use the execution data.
         /// </summary>
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
+        {
+            CallSerialized(s_processFingerprintComputedAction, data);
+        }
+
+        private void ProcessFingerprintComputedInternal(ProcessFingerprintComputationEventData data)
         {
             if (data.Kind == FingerprintComputationKind.Execution)
             {
@@ -224,14 +282,22 @@ namespace BuildXL.Scheduler.Tracing
                 }
             }
 
-            GetWorkerAnalyzer().ProcessFingerprintComputed(data);
+            GetWorkerAnalyzer()?.ProcessFingerprintComputed(data);
         }
+
+        private static readonly Action<PackedExecutionExporter, PipExecutionDirectoryOutputs> s_pipExecutionDirectoryOutputsAction =
+            (exporter, data) => exporter.PipExecutionDirectoryOutputsInternal(data);
 
         /// <summary>
         /// The directory outputs of a pip are now known; index the directory contents
         /// </summary>
         /// <param name="data"></param>
         public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+        {
+            CallSerialized(s_pipExecutionDirectoryOutputsAction, data);
+        }
+
+        private void PipExecutionDirectoryOutputsInternal(PipExecutionDirectoryOutputs data)
         {
             foreach (var kvp in data.DirectoryOutputs)
             {
@@ -275,6 +341,20 @@ namespace BuildXL.Scheduler.Tracing
         /// <returns></returns>
         private WorkerAnalyzer GetWorkerAnalyzer()
         {
+            // If GetWorkerAnalyzer() is called while m_workerAnalyzers is empty,
+            // we presume this is because this is a local BXL execution with no WorkerList.
+            // So we add one analyzer for the "local" worker.
+            if (m_workerAnalyzers.Count == 0)
+            {
+                m_workerAnalyzers.Add(new WorkerAnalyzer(this, "", default(WorkerId)));
+            }
+
+            if (m_workerAnalyzers.Count == 1)
+            {
+                // no choice (local case)
+                return m_workerAnalyzers[0];
+            }
+
             return m_workerAnalyzers[(int)CurrentEventWorkerId];
         }
 
@@ -296,8 +376,6 @@ namespace BuildXL.Scheduler.Tracing
                     throw new ArgumentException($"Graph pip ID {graphPipId.Value} does not equal BXL pip ID {pipList[i].PipId.Value}");
                 }
             }
-
-            Console.WriteLine($"PackedExecutionExporter: Added {PipGraph.PipCount} pips at {DateTime.Now}.");
 
             // ensure the PipExecutionTable is ready to be pipulated (heh)
             m_packedExecution.PipExecutionTable.FillToBaseTableCount();
@@ -351,14 +429,10 @@ namespace BuildXL.Scheduler.Tracing
                 // don't need to use a builder here, we're adding all dependencies in PipId order
                 m_packedExecution.PipDependencies.Add(buffer.AsSpan());
             }
-
-            Console.WriteLine($"PackedExecutionExporter: Added {m_packedExecution.PipDependencies.MultiValueCount} total dependencies at {DateTime.Now}.");
         }
 
         private void BuildProcessPipRelations()
         {
-            // BXL: isn't it necessary to Complete() all WorkerAnalyzers before starting to iterate over their process pip information?
-            // How else can that result be synchronized?
             int totalProcessPips = 0;
             int totalDeclaredInputFiles = 0, totalDeclaredInputDirectories = 0, totalConsumedFiles = 0;
 
@@ -367,7 +441,6 @@ namespace BuildXL.Scheduler.Tracing
                 Console.WriteLine($"Completing worker {worker.Name}");
                 worker.Complete();
 
-                // TODO: determine whether these m_pathsToWherever lookups are doomed -- do we have to create new files/directories here?
                 foreach (WorkerAnalyzer.ProcessPipInfo processPipInfo in worker.ProcessPipInfoList)
                 {
                     foreach (AbsolutePath declaredInputFilePath in processPipInfo.DeclaredInputFiles)
@@ -397,8 +470,6 @@ namespace BuildXL.Scheduler.Tracing
             m_packedExecutionBuilder.DeclaredInputFilesBuilder.Complete();
             m_packedExecutionBuilder.DeclaredInputDirectoriesBuilder.Complete();
             m_packedExecutionBuilder.ConsumedFilesBuilder.Complete();
-
-            Console.WriteLine($"PackedExecutionExporter: Analyzed {totalProcessPips} executed process pips ({totalDeclaredInputFiles} declared input files, {totalDeclaredInputDirectories} declared input directories, {totalConsumedFiles} consumed files) at {DateTime.Now}.");
         }
 
         private void BuildFileProducers()
@@ -442,8 +513,6 @@ namespace BuildXL.Scheduler.Tracing
                         m_packedExecution.FileTable[tuple.fileId] = entry.WithProducerPip(new P_PipId((int)producer.Value));
                     }
                 });
-
-            Console.WriteLine($"PackedExecutionExporter: Analyzed {m_decidedFiles.Count} decided files (to determine their producers) at {DateTime.Now}.");
         }
 
         #endregion
@@ -574,6 +643,7 @@ namespace BuildXL.Scheduler.Tracing
 
                 // part 1: collect requested inputs
                 // count only output files/directories
+                // TODO: use a builder here? 400K or so objects seems livable though....
                 var declaredInputFiles = pip.Dependencies.Where(f => f.IsOutputFile).Select(f => f.Path).ToList();
                 var declaredInputDirs = pip.DirectoryDependencies.Where(d => d.IsOutputDirectory()).ToList();
 

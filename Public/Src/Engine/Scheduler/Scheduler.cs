@@ -1096,6 +1096,11 @@ namespace BuildXL.Scheduler
         /// </remarks>
         private readonly Dictionary<ModuleId, (int NumPips, List<Worker> Workers)> m_moduleWorkerMapping = new Dictionary<ModuleId, (int, List<Worker>)>();
 
+        /// <summary>
+        /// The PackedExecution exporter, used for emitting analysis-optimized log data.
+        /// </summary>
+        private readonly PackedExecutionExporter m_packedExecutionExporter;
+
         #endregion Statistics
 
         /// <summary>
@@ -1324,6 +1329,14 @@ namespace BuildXL.Scheduler
             OchestratorSpecificExecutionLogTarget orchestratorTarget = null;
             WeakFingerprintAugmentationExecutionLogTarget fingerprintAugmentationTarget = null;
             BuildManifestStoreTarget buildManifestStoreTarget = null;
+
+            var executionLogPath = configuration.Logging.ExecutionLog;
+            if (configuration.Logging.LogPackedExecution && executionLogPath.IsValid && IsDistributedOrchestrator)
+            {
+                var packedExecutionPath = Path.ChangeExtension(executionLogPath.ToString(Context.PathTable), "PXL"); // Packed eXecution Log
+                m_packedExecutionExporter = new PackedExecutionExporter(PipGraph, packedExecutionPath);
+            }
+
             m_dumpPipLiteExecutionLogTarget = null;
 
             if (!IsDistributedWorker)
@@ -1354,8 +1367,8 @@ namespace BuildXL.Scheduler
                 orchestratorTarget,
                 fingerprintAugmentationTarget,
                 buildManifestStoreTarget,
-                m_dumpPipLiteExecutionLogTarget);
-
+                m_dumpPipLiteExecutionLogTarget,
+                m_packedExecutionExporter);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
@@ -1645,6 +1658,9 @@ namespace BuildXL.Scheduler
                         failedPaths.Count,
                         $"{Environment.NewLine}{string.Join(Environment.NewLine, failedPaths.Select(p => p.ToString(Context.PathTable)))}");
                 }
+
+                // Complete writing out PackedExecution log (on orchestrator only, since exporter is only created on orchestrator)
+                m_packedExecutionExporter?.Analyze();
 
                 return !HasFailed && shutdownServicesSucceeded;
             }

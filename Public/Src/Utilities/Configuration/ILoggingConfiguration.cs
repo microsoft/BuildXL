@@ -56,6 +56,14 @@ namespace BuildXL.Utilities.Configuration
         bool LogExecution { get; }
 
         /// <summary>
+        /// Specifies whether packed execution log is emitted.
+        /// </summary>
+        /// <remarks>
+        /// No effect if LogExecution is not set.
+        /// </remarks>
+        bool LogPackedExecution { get; }
+
+        /// <summary>
         /// Specifies the path to the execution log file. If a file path is not specified, one will be chosen based on the location of the main log file
         /// </summary>
         AbsolutePath ExecutionLog { get; }

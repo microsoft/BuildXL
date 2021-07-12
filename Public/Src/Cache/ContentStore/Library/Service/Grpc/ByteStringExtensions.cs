@@ -19,8 +19,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public static class ByteStringExtensions
     {
-        private static readonly Lazy<Func<byte[], ByteString>> UnsafeCreateByteStringFromBytes = new Lazy<Func<byte[], ByteString>>(() => UnsafeCreateByteStringFromBytesFunc());
-
         /// <summary>
         /// Creates <see cref="ByteString"/> without copying a given <paramref name="buffer"/>.
         /// </summary>
@@ -30,20 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </remarks>
         public static ByteString UnsafeCreateFromBytes(byte[] buffer)
         {
-            return UnsafeCreateByteStringFromBytes.Value(buffer);
-        }
-
-        private static Func<byte[], ByteString> UnsafeCreateByteStringFromBytesFunc()
-        {
-            var internalType = typeof(ByteString).GetNestedType("Unsafe", BindingFlags.NonPublic);
-            Contract.Assert(internalType != null, "Can't find ByteString.Unsafe type.");
-            var method = internalType.GetMethod("FromBytes", BindingFlags.Static | BindingFlags.NonPublic);
-            if (method == null)
-            {
-                throw new InvalidOperationException($"Can't find method Unsafe.FromBytes in `{nameof(ByteString)}` class.");
-            }
-
-            return (Func<byte[], ByteString>)Delegate.CreateDelegate(typeof(Func<byte[], ByteString>), method);
+            return UnsafeByteOperations.UnsafeWrap(buffer);
         }
 
         /// <summary>

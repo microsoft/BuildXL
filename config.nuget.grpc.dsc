@@ -1,7 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-const protoVersion = "3.14.0";
+// Ideally these are same version, but ProtoBuf has a newer patch version.
+const protoVersion = "3.17.3";
+const protoToolsVersion = "3.17.2";
+
 const grpcVersion = "2.32.0";
 
 export const pkgs = [
@@ -14,7 +17,7 @@ export const pkgs = [
 
     // protobuf
     { id: "Google.Protobuf", version: protoVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
-    { id: "Google.Protobuf.Tools", version: protoVersion },
+    { id: "Google.Protobuf.Tools", version: protoToolsVersion },
 
     // protobuf-net
     { id: "protobuf-net.Core", version: "3.0.101",

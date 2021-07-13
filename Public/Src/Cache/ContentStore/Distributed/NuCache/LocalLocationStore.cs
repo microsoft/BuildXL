@@ -206,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
-            Database = ContentLocationDatabase.Create(clock, Configuration.Database, () => ClusterState.InactiveMachines);
+            Database = ContentLocationDatabase.Create(clock, Configuration.Database, () => ClusterState.InactiveMachineList);
 
             _machineListSettings = new MachineList.Settings
             {
@@ -944,8 +944,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public async Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
         {
-            Contract.Requires(contentHashes != null);
-
             var postInitializationResult = await EnsureInitializedAsync();
             if (!postInitializationResult)
             {
@@ -968,8 +966,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             string getExtraEndMessage(GetBulkLocationsResult r)
             {
                 // Print the resulting hashes with locations if succeeded, but still print the set of hashes to simplify diagnostics in case of a failure as well.
+                // Printing filtered out locations if available for successful results.
+                string? filteredOutLocations = r.Succeeded ? r.GetShortHashesTraceStringForInactiveMachines() : null;
+                filteredOutLocations = filteredOutLocations != null ? $", Inactive: {filteredOutLocations}" : null;
+
+                var timeSinceLastRestore = _clock.UtcNow - _lastRestoreTime;
+                // Checking if the checkpoint is stale (only valid for the local case).
+                string isCheckpointStaleMessage =
+                    r.Succeeded && origin == GetBulkOrigin.Local && timeSinceLastRestore > Configuration.LocationEntryExpiry
+                    ? $", StaleCheckpointAge={timeSinceLastRestore}"
+                    : string.Empty;
+
                 return r.Succeeded
-                    ? $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]"
+                    ? $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]{filteredOutLocations}{isCheckpointStaleMessage}"
                     : $"GetBulk({origin}) => [{contentHashes.GetShortHashesTraceString()}]";
             }
         }
@@ -1002,7 +1011,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new GetBulkLocationsResult(entries);
                     }
 
-                    return await ResolveLocationsAsync(context, requestingMachineId, entries.Value, contentHashes, GetBulkOrigin.Global);
+                    return await ResolveLocationsAsync(context, entries.Value, contentHashes, GetBulkOrigin.Global);
                 },
                 Counters[ContentLocationStoreCounters.GetBulkGlobal],
                 traceErrorsOnly: true); // Intentionally tracing errors only.
@@ -1046,35 +1055,65 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         EventStore.Touch(context, requestingMachineId, touchEventHashes, _clock.UtcNow).ThrowIfFailure();
                     }
 
-                    return ResolveLocationsAsync(context, requestingMachineId, entries, contentHashes, GetBulkOrigin.Local);
+                    return ResolveLocationsAsync(context, entries, contentHashes, GetBulkOrigin.Local);
                 },
                 traceErrorsOnly: true, // Intentionally tracing errors only.
                 counter: Counters[ContentLocationStoreCounters.GetBulkLocal]);
         }
 
-        private async Task<GetBulkLocationsResult> ResolveLocationsAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentLocationEntry> entries, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
+        private async Task<GetBulkLocationsResult> ResolveLocationsAsync(OperationContext context, IReadOnlyList<ContentLocationEntry> entries, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
         {
             Contract.Requires(entries.Count == contentHashes.Count);
-
+            
             var results = new List<ContentHashWithSizeAndLocations>(entries.Count);
             bool hasUnknownLocations = false;
 
+            // Inactive machines can be filtered on this level (and not on the database level) for tracing purposes.
+            // But the filtering only applies to local locations, because we explicitly want to try out
+            // the global locations.
+            // When the machines switches from inactive state we forcing the locations to be registered in the global store.
+            // It means that filtering out the global store will not allow us to see those locations until the
+            // machine state will be propagated to all the clients.
+            bool shouldFilter = Configuration.ShouldFilterInactiveMachinesInLocalLocationStore && origin == GetBulkOrigin.Local;
+            var inactiveMachineSet = shouldFilter ? ClusterState.InactiveMachines : null;
+            var inactiveMachineList = shouldFilter ? ClusterState.InactiveMachineList : null;
+
             for (int i = 0; i < entries.Count; i++)
             {
+                var filteredOutMachines = Configuration.ShouldFilterInactiveMachinesInLocalLocationStore ? new List<MachineId>() : null;
+
                 // TODO: Its probably possible to do this by getting the max machine id in the locations set rather than enumerating all of them (bug 1365340)
                 var entry = entries[i];
                 Contract.AssertNotNull(entry);
 
                 foreach (var machineId in entry.Locations.EnumerateMachineIds())
                 {
+                    // Filtering out inactive machines if configured.
+                    if (inactiveMachineSet?.Contains(machineId) == true)
+                    {
+                        filteredOutMachines!.Add(machineId);
+                        continue;
+                    }
+
                     if (!ClusterState.TryResolve(machineId, out _))
                     {
                         hasUnknownLocations = true;
                     }
                 }
 
+                if (Configuration.ShouldFilterInactiveMachinesInLocalLocationStore)
+                {
+                    entry = entry.SetMachineExistence(MachineIdCollection.Create(inactiveMachineList!), exists: false);
+                }
+
                 var contentHash = contentHashes[i];
-                results.Add(new ContentHashWithSizeAndLocations(contentHash, entry.ContentSize, GetMachineList(contentHash, entry), entry));
+                results.Add(
+                    new ContentHashWithSizeAndLocations(
+                        contentHash,
+                        entry.ContentSize,
+                        GetMachineList(contentHash, entry),
+                        entry,
+                        GetFilteredOutMachineList(contentHash, filteredOutMachines)));
             }
 
             // Machine locations are resolved lazily by MachineList.
@@ -1102,6 +1141,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return new MachineList(
                 entry.Locations,
+                MachineReputationTracker,
+                ClusterState,
+                hash,
+                _machineListSettings);
+        }
+
+        private IReadOnlyList<MachineLocation>? GetFilteredOutMachineList(ContentHash hash, List<MachineId>? machineIds)
+        {
+            if (machineIds == null)
+            {
+                return null;
+            }
+
+            return new MachineList(
+                MachineIdSet.Empty.SetExistence(MachineIdCollection.Create(machineIds), exists: true),
                 MachineReputationTracker,
                 ClusterState,
                 hash,
@@ -1634,7 +1688,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Forces reconciliation process between local content store and LLS.
         /// </summary>
-        public async Task<ReconciliationResult> ReconcileAsync(OperationContext context, MachineId machineId, ILocalContentStore localContentStore)
+        public async Task<ReconciliationResult> ReconcileAsync(OperationContext context, MachineId machineId, ILocalContentStore? localContentStore)
         {
             var token = context.Token;
             var postInitializationResult = await EnsureInitializedAsync();

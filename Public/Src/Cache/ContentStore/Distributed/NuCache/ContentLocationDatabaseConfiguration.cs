@@ -107,6 +107,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Specifies whether to trace the cases when the call to SetMachineExistence didn't change the database's state.
         /// </summary>
         public bool TraceNoStateChangeOperations { get; set; } = false;
+
+        /// <summary>
+        /// Specifies whether to filter inactive machines when getting the locations information.
+        /// </summary>
+        /// <remarks>
+        /// Historically, the filtering logic was implemented in the database level and not on LocalLocationStore level.
+        /// But filtering out inactive machines in the database means that the same logic should be duplicated for the locations obtained from redis.
+        /// Plus this approach makes it harder to trace filtered out machines as well.
+        /// This flag is used for backwards compatibility reasons and will be removed once the LLS-based filtering is fully rolled out.
+        /// </remarks>
+        public bool FilterInactiveMachines { get; set; } = true;
     }
 
     /// <summary>
@@ -273,6 +284,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             ApplyIfNotNull(settings.ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInDbEnumeration, v => configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = v);
             ApplyIfNotNull(settings.ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInGarbageCollection, v => configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = v);
+
+            // If filtering is not happening on LLS layer, then it should still happen here.
+            ApplyIfNotNull(settings.ShouldFilterInactiveMachinesInLocalLocationStore, v => configuration.FilterInactiveMachines = !v);
 
             return configuration;
         }

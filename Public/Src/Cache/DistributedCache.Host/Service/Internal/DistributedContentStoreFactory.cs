@@ -251,6 +251,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisConfig.BlobTimeout = TimeSpan.FromMilliseconds(v));
             ApplyIfNotNull(_distributedSettings.RedisGetCheckpointStateTimeoutInSeconds, v => redisConfig.ClusterRedisOperationTimeout = TimeSpan.FromSeconds(v));
 
+            ApplyIfNotNull(_distributedSettings.ShouldFilterInactiveMachinesInLocalLocationStore, v => redisConfig.ShouldFilterInactiveMachinesInLocalLocationStore = v);
+
             redisConfig.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
 
             if (_distributedSettings.IsContentLocationDatabaseEnabled)

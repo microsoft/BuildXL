@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Utils; // Needed for .NET Standard build.
 
 #nullable enable
 

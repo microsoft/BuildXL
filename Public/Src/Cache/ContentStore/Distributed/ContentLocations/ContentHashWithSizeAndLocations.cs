@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
+
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed
@@ -23,6 +24,14 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// TODO: change the comment. It is stale. (bug 1365340)
         /// <remarks>Can be null only for non-LLS case.</remarks>
         public IReadOnlyList<MachineLocation>? Locations { get; }
+
+        /// <summary>
+        /// A list of machines that used to have the content but they're currently unavailable.
+        /// </summary>
+        /// <remarks>
+        /// Used for tracing purposes only.
+        /// </remarks>
+        public IReadOnlyList<MachineLocation>? FilteredOutInactiveMachineLocations { get; }
 
         /// <summary>
         /// The content hash for the specified locations.
@@ -52,12 +61,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <nodoc />
-        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size, IReadOnlyList<MachineLocation> locations, ContentLocationEntry? entry = null)
+        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size, IReadOnlyList<MachineLocation> locations, ContentLocationEntry? entry = null, IReadOnlyList<MachineLocation>? filteredOutLocations = null)
         {
             ContentHash = contentHash;
             Size = size;
             Locations = locations;
             Entry = entry;
+            FilteredOutInactiveMachineLocations = filteredOutLocations;
         }
 
         /// <summary>

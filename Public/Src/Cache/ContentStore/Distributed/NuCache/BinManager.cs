@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Makes sure that the bin manager has a specific view of what machines are active and inactive.
         /// </summary>
-        public BoolResult UpdateAll(IReadOnlyList<MachineId> activeMachines, IReadOnlyList<MachineId> inactiveMachines)
+        public BoolResult UpdateAll(IReadOnlyList<MachineId> activeMachines, IReadOnlySet<MachineId> inactiveMachines)
         {
             try
             {

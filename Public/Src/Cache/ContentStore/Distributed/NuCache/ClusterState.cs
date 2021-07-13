@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 
 #nullable enable
@@ -124,9 +125,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public MachineId? MasterMachineId => Read(static c => c.MasterMachineId);
 
         /// <summary>
+        /// Returns a set of inactive machines.
+        /// </summary>
+        public IReadOnlySet<MachineId> InactiveMachines => Read(static c => c.InactiveMachines);
+
+        /// <summary>
         /// Returns a list of inactive machines.
         /// </summary>
-        public IReadOnlyList<MachineId> InactiveMachines => Read(static c => c.InactiveMachines);
+        public IReadOnlyList<MachineId> InactiveMachineList => Read(static c => c.InactiveMachineList);
 
         /// <summary>
         /// Returns a list of closed machines.

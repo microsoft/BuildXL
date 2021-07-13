@@ -28,9 +28,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal IReadOnlyList<MachineLocation> Locations => _locationByIdMap;
 
         /// <summary>
+        /// Returns a set of inactive machines.
+        /// </summary>
+        public IReadOnlySet<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptySet<MachineId>();
+
+        /// <summary>
         /// Returns a list of inactive machines.
         /// </summary>
-        public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
+        public IReadOnlyList<MachineId> InactiveMachineList { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
 
         private BitMachineIdSet _closedMachinesSet = BitMachineIdSet.EmptyInstance;
 
@@ -250,7 +255,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (inactiveMachines != null)
             {
-                clone.InactiveMachines = inactiveMachines;
+                clone.InactiveMachines = inactiveMachines.ToReadOnlySet();
+                clone.InactiveMachineList = inactiveMachines;
             }
 
             if (closedMachines != null)

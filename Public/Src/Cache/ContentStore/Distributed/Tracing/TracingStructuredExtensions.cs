@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -19,6 +20,8 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 {
@@ -85,6 +88,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             Contract.Requires(result.Succeeded);
 
             return string.Join(", ", result.ContentHashesInfo.Select(info => $"{info.ContentHash.ToShortString()}={info.Locations?.Count ?? 0}"));
+        }
+
+        /// <nodoc />
+        public static string? GetShortHashesTraceStringForInactiveMachines(this GetBulkLocationsResult result)
+        {
+            Contract.Requires(result.Succeeded);
+            const int MaxMachines = 3;
+
+            // The output format:
+            // Hash1=3 (M1, M2, M3), Hash2=4 (M1, M2, M3, ...)
+            var hashesWithInactiveMachines = result.ContentHashesInfo.Where(hashInfo => hashInfo.FilteredOutInactiveMachineLocations is not null);
+            if (hashesWithInactiveMachines.Any())
+            {
+                // Some of the locations were filtered out because the machines that used to have them are inactive.
+                using (var stringBuilderWrapper = Pools.StringBuilderPool.GetInstance())
+                {
+                    var stringBuilder = stringBuilderWrapper.Instance;
+
+                    bool first = true;
+                    foreach (var info in hashesWithInactiveMachines)
+                    {
+                        if (!first)
+                        {
+                            stringBuilder.Append(", ");
+                        }
+
+                        first = false;
+                        var machines = info.FilteredOutInactiveMachineLocations!;
+                        stringBuilder.AppendFormat("{0}={1}", info.ContentHash.ToShortString(), machines.Count);
+
+                        string extra = machines.Count > MaxMachines ? ", ..." : string.Empty;
+                        stringBuilder.AppendFormat(" ({0}{1})", machines.Take(MaxMachines).Select(m => m.ToString()), extra);
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <nodoc />

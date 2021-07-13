@@ -310,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private int GetMachineNumber()
         {
             var machineId = _locationStore.ClusterState.PrimaryMachineId.Index;
-            var machineNumber = machineId - _locationStore.ClusterState.InactiveMachines.Where(id => id.Index < machineId).Count();
+            var machineNumber = machineId - _locationStore.ClusterState.InactiveMachineList.Count(id => id.Index < machineId);
             return machineNumber;
         }
 

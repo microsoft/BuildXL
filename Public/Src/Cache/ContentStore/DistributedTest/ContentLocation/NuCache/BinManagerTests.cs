@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -11,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Utilities.Collections;
 using FluentAssertions;
 using Xunit;
 
@@ -29,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var activeMachines = new MachineId[] {new MachineId(3), new MachineId(12),};
             var inactiveMachines = new MachineId[]{new MachineId(1), new MachineId(11), };
             // The original implementation was causing a runtime failure.
-            manager.UpdateAll(activeMachines, inactiveMachines).ThrowIfFailure();
+            manager.UpdateAll(activeMachines, inactiveMachines.ToReadOnlySet()).ThrowIfFailure();
         }
 
         [Theory]

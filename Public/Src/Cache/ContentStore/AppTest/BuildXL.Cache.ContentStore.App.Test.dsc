@@ -10,7 +10,6 @@ namespace AppTest {
         assemblyName: "BuildXL.Cache.ContentStore.App.Test",
         sources: globR(d`.`, "*.cs"),
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
-        appConfig: f`App.Config`,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,

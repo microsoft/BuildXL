@@ -58,7 +58,10 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         Contract.fail(`The specified framework does not match the given qualifier. Your project uses targetFramework '${qualifier.targetFramework}' where the specified framework is '${framework.targetFramework}'.`);
     }
 
-    args = processDeploymentDefaults(args, targetType, framework);
+    // Check if we need to update or create the App.Config file for assembly binding redirects.
+    let appConfig = processAppConfigAndBindingRedirects(args, framework);
+
+    args = processDeploymentDefaults(args, targetType, framework, appConfig);
 
     let name = args.assemblyName || Context.getLastActiveUseNamespace();
     let compileClosure = Helpers.computeCompileClosure(framework, args.references);
@@ -69,8 +72,6 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     // Process resources
     let resourceResult = processResources(args, name);
 
-    // Check if we need to update or create the App.Config file for assembly binding redirects.
-    let appConfig = processAppConfigAndBindingRedirects(args, framework);
 
     // Adding helper tags that allow building only a subset of the codebase.
     // For instance, bxl CompileDebugNet472 will only compile all the sources and target net472
@@ -245,7 +246,7 @@ function processResources(args: Arguments, name: string) : { sources: File[], li
  * Checks the type of application an sets the deployment option defaults for that
  * type. We pass the default as the first argument to merge so applications can always override.
  */
-function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework)
+function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework, appConfig: File)
 {
     switch (targetType)
     {
@@ -262,7 +263,7 @@ function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, 
             // For libraries we deploy the runtime config file if we have an explicit appconfig.
             args = Object.merge<Arguments>(
                 {
-                    deployRuntimeConfigFile: args.appConfig !== undefined,
+                    deployRuntimeConfigFile: appConfig !== undefined,
                 },
                 args
             );

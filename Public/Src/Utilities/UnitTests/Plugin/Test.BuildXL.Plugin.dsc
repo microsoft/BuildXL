@@ -7,7 +7,7 @@ namespace Plugin {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Plugin",
-        appConfig: f`App.Config`,
+        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
         // This disables using QTest for this test. For an unknown reason, QTest breaks the test.
         testFramework: XUnit.framework,

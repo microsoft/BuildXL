@@ -48,7 +48,6 @@ namespace DistributedTest {
             },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
-        appConfig: f`App.config`,
         references: [
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
             ...addIf(BuildXLSdk.isFullFramework,

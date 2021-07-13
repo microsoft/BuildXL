@@ -8,7 +8,6 @@ namespace Storage {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Storage",
         allowUnsafeBlocks: true,
-        appConfig: f`App.config`,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         runTestArgs: {
             unsafeTestRunArguments: {

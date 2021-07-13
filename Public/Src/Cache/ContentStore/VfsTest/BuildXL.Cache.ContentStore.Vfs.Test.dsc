@@ -16,7 +16,6 @@ namespace VfsTest {
             },
         skipTestRun: !BuildXLSdk.isHostOsWin || BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
-        appConfig: f`App.config`,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,

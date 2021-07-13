@@ -30,9 +30,7 @@ namespace BuildXL.Cache.Host.Configuration
             string cacheRootPath,
             string cacheName = LocalCasServiceSettings.DefaultCacheName,
             bool useCasService = false,
-            uint connectionsPerSession = LocalCasClientSettings.DefaultConnectionsPerSession,
             uint gracefulShutdownSeconds = LocalCasServiceSettings.DefaultGracefulShutdownSeconds,
-            uint maxPipeListeners = LocalCasServiceSettings.DefaultMaxPipeListeners,
             uint retryIntervalSecondsOnFailServiceCalls = LocalCasClientSettings.DefaultRetryCountOnFailServiceCalls,
             uint retryCountOnFailServiceCalls = LocalCasClientSettings.DefaultRetryCountOnFailServiceCalls,
             bool supportsSensitiveSessions = false,
@@ -42,12 +40,11 @@ namespace BuildXL.Cache.Host.Configuration
             bool supportsProactiveReplication = true,
             int? bufferSizeForGrpcCopies = null)
         {
-            CasClientSettings = new LocalCasClientSettings(useCasService, cacheName, connectionsPerSession, retryIntervalSecondsOnFailServiceCalls, retryCountOnFailServiceCalls);
+            CasClientSettings = new LocalCasClientSettings(useCasService, cacheName, retryIntervalSecondsOnFailServiceCalls, retryCountOnFailServiceCalls);
 
             ServiceSettings = new LocalCasServiceSettings(
                 defaultSingleInstanceTimeoutSec,
                 gracefulShutdownSeconds: gracefulShutdownSeconds,
-                maxPipeListeners: maxPipeListeners,
                 scenarioName: scenarioName,
                 grpcPort: grpcPort,
                 grpcPortFileName: grpcPortFileName,
@@ -64,9 +61,7 @@ namespace BuildXL.Cache.Host.Configuration
                 cacheRootPath: cacheRootPath ?? (DefaultCacheDrive / "Cache" / "cacheRoot").Path,
                 cacheName: cacheName,
                 useCasService: false,
-                connectionsPerSession: 4,
                 gracefulShutdownSeconds: 15,
-                maxPipeListeners: 128,
                 retryIntervalSecondsOnFailServiceCalls: 12,
                 retryCountOnFailServiceCalls: 12,
                 supportsSensitiveSessions: false,

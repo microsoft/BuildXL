@@ -8,7 +8,6 @@ namespace BuildXL.Cache.Host.Configuration
     [DataContract]
     public class LocalCasClientSettings
     {
-        public const uint DefaultConnectionsPerSession = 4;
         public const uint DefaultRetryIntervalSecondsOnFailServiceCalls = 10;
         public const uint DefaultRetryCountOnFailServiceCalls = 12;
 
@@ -19,13 +18,11 @@ namespace BuildXL.Cache.Host.Configuration
         public LocalCasClientSettings(
             bool useCasService,
             string defaultCacheName = LocalCasServiceSettings.DefaultCacheName,
-            uint connectionsPerSession = DefaultConnectionsPerSession,
             uint retryIntervalSecondsOnFailServiceCalls = DefaultRetryIntervalSecondsOnFailServiceCalls,
             uint retryCountOnFailServiceCalls = DefaultRetryCountOnFailServiceCalls)
         {
             UseCasService = useCasService;
             DefaultCacheName = defaultCacheName;
-            ConnectionsPerSession = connectionsPerSession;
             RetryIntervalSecondsOnFailServiceCalls = retryIntervalSecondsOnFailServiceCalls;
             RetryCountOnFailServiceCalls = retryCountOnFailServiceCalls;
         }
@@ -38,12 +35,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public string DefaultCacheName { get; set; } = LocalCasServiceSettings.DefaultCacheName;
-        
-        /// <summary>
-        /// Number of pipes used for each client for concurrent requests.
-        /// </summary>
-        [DataMember]
-        public uint ConnectionsPerSession { get; set; } = DefaultConnectionsPerSession;
 
         /// <summary>
         /// Time in seconds between each client request retry attempt.

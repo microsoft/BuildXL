@@ -108,7 +108,6 @@ namespace ContentStoreTest.Grpc
             return new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> { { CacheName, path } },
                 path,
-                ServiceConfiguration.DefaultMaxConnections,
                 ServiceConfiguration.DefaultGracefulShutdownSeconds,
                 grpcPort,
                 grpcPortFileName);

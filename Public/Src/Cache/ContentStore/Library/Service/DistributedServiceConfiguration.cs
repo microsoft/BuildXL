@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Service
             string cacheName,
             AbsolutePath cachePath,
             string? grpcPortFileName = null)
-            : base(new Dictionary<string, AbsolutePath>(), dataRootPath, 0, gracefulShutdownSeconds, (int)grpcPort, grpcPortFileName)
+            : base(new Dictionary<string, AbsolutePath>(), dataRootPath, gracefulShutdownSeconds, (int)grpcPort, grpcPortFileName)
         {
             StampId = stampId;
             RingId = ringId;
@@ -65,9 +65,12 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        public override string GetCommandLineArgs(LocalServerConfiguration? localContentServerConfiguration, string? scenario, bool logAutoFlush, bool passMaxConnections)
+        public override string GetCommandLineArgs(
+            LocalServerConfiguration? localContentServerConfiguration,
+            string? scenario = null,
+            bool logAutoFlush = false)
         {
-            var args = new StringBuilder(base.GetCommandLineArgs(localContentServerConfiguration, scenario, logAutoFlush, false));
+            var args = new StringBuilder(base.GetCommandLineArgs(localContentServerConfiguration, scenario, logAutoFlush));
 
             if (!string.IsNullOrEmpty(StampId))
             {

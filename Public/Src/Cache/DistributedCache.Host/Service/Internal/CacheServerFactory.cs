@@ -355,7 +355,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             var result = new ServiceConfiguration(
                 namedCacheRoots,
                 dataRootPath,
-                localCasSettings.ServiceSettings.MaxPipeListeners,
                 localCasSettings.ServiceSettings.GracefulShutdownSeconds,
                 (int)localCasSettings.ServiceSettings.GrpcPort,
                 grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName,

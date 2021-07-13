@@ -32,11 +32,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool UseEmptyContentShortcut { get; set; } = true;
 
         /// <summary>
-        /// Whether to use native (unmanaged) file enumeration or not.
-        /// </summary>
-        public bool UseNativeBlobEnumeration { get; set; } = false;
-
-        /// <summary>
         /// A timeout for space reservation operation.
         /// </summary>
         public TimeSpan ReserveTimeout { get; set; } = Timeout.InfiniteTimeSpan;

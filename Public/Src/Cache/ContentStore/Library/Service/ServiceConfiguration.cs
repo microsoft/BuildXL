@@ -23,11 +23,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         ///     A good default for simple uses.
         /// </summary>
-        public const uint DefaultMaxConnections = 16;
-
-        /// <summary>
-        ///     A good default for simple uses.
-        /// </summary>
         public const uint DefaultGracefulShutdownSeconds = 3;
 
         /// <summary>
@@ -54,7 +49,6 @@ namespace BuildXL.Cache.ContentStore.Service
         public ServiceConfiguration(
             IDictionary<string, AbsolutePath> namedCacheRoots,
             AbsolutePath? dataRootPath,
-            uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
             string? grpcPortFileName = null,
@@ -70,7 +64,6 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _namedCacheRootsRaw = namedCacheRoots.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Path);
             _dataRootPathRaw = dataRootPath?.Path;
-            MaxConnections = maxConnections;
             GracefulShutdownSeconds = gracefulShutdownSeconds;
             GrpcPort = (uint)grpcPort;
             GrpcPortFileName = grpcPortFileName;
@@ -90,11 +83,10 @@ namespace BuildXL.Cache.ContentStore.Service
         public ServiceConfiguration(
             IDictionary<string, string> namedCacheRootsRaw,
             AbsolutePath dataRootPath,
-            uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
             string? grpcPortFileName = null)
-            : this(namedCacheRootsRaw.ToDictionary(x => x.Key, v => new AbsolutePath(v.Value)), dataRootPath, maxConnections, gracefulShutdownSeconds, grpcPort, grpcPortFileName)
+            : this(namedCacheRootsRaw.ToDictionary(x => x.Key, v => new AbsolutePath(v.Value)), dataRootPath, gracefulShutdownSeconds, grpcPort, grpcPortFileName)
         {
             Contract.Requires(dataRootPath != null);
         }
@@ -108,12 +100,6 @@ namespace BuildXL.Cache.ContentStore.Service
         ///     Gets a descriptive error when IsValid gives false.
         /// </summary>
         public string? Error { get; private set; }
-
-        /// <summary>
-        ///     Gets maximum number of concurrent IPC connections.
-        /// </summary>
-        [DataMember]
-        public uint MaxConnections { get; private set; }
 
         /// <summary>
         ///     Gets number of seconds to give clients to disconnect before connections are closed hard.
@@ -211,14 +197,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Create the command line arguments to match this configuration.
         /// </summary>
-        public virtual string GetCommandLineArgs(LocalServerConfiguration? localContentServerConfiguration = null, string? scenario = null, bool logAutoFlush = false, bool passMaxConnections = true)
+        public virtual string GetCommandLineArgs(
+            LocalServerConfiguration? localContentServerConfiguration = null,
+            string? scenario = null,
+            bool logAutoFlush = false)
         {
             var args = new StringBuilder(GetVerb());
-
-            if (passMaxConnections)
-            {
-                args.AppendFormat(" /maxConnections={0}", MaxConnections);
-            }
 
             if (GrpcPort != ServiceConfiguration.GrpcDisabledPort)
             {
@@ -299,7 +283,6 @@ namespace BuildXL.Cache.ContentStore.Service
                 sb.AppendFormat(", DataRootPath={0}", _dataRootPath);
             }
 
-            sb.AppendFormat(", MaxConnections={0}", MaxConnections);
             sb.AppendFormat(", GracefulShutdownSeconds={0}", GracefulShutdownSeconds);
             sb.AppendFormat(", GrpcPort={0}", GrpcPort);
             sb.AppendFormat(", GrcpPortFileName={0}", GrpcPortFileName);
@@ -316,11 +299,6 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private void Initialize()
         {
-            if (MaxConnections == 0)
-            {
-                MaxConnections = DefaultMaxConnections;
-            }
-
             if (GracefulShutdownSeconds == 0)
             {
                 GracefulShutdownSeconds = DefaultGracefulShutdownSeconds;

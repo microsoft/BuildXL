@@ -48,9 +48,12 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        public override string GetCommandLineArgs(LocalServerConfiguration? localContentServerConfiguration = null, string? scenario = null, bool logAutoFlush = false, bool passMaxConfigurations = false)
+        public override string GetCommandLineArgs(
+            LocalServerConfiguration? localContentServerConfiguration = null,
+            string? scenario = null,
+            bool logAutoFlush = false)
         {
-            var args = new StringBuilder(base.GetCommandLineArgs(localContentServerConfiguration, scenario, logAutoFlush, false));
+            var args = new StringBuilder(base.GetCommandLineArgs(localContentServerConfiguration, scenario, logAutoFlush));
 
             args.AppendFormat(" /hash:{0}", ContentHash.ToHex());
             args.AppendFormat(" /hashType:{0}", ContentHash.HashType.ToString());

@@ -30,7 +30,6 @@ namespace ContentStoreTest.Sessions
     public abstract class LargeStreamServiceClientTests : TestBase
     {
         protected const string CacheName = "test";
-        protected const uint MaxConnections = 4;
         protected const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
         private const string Name = "name";
         private const HashType ContentHashType = HashType.Vso0;
@@ -157,7 +156,6 @@ namespace ContentStoreTest.Sessions
            var serviceConfiguration = new ServiceConfiguration(
                new Dictionary<string, AbsolutePath> { { CacheName, rootPath } },
                rootPath,
-               MaxConnections,
                GracefulShutdownSeconds,
                PortExtensions.GetNextAvailablePort(),
                grpcPortFileName);
@@ -189,7 +187,6 @@ namespace ContentStoreTest.Sessions
             var serviceConfiguration = new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> {{CacheName, rootPath}},
                 rootPath,
-                MaxConnections,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),
                 grpcPortFileName);

@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using ContentStoreTest.Stores;
 using ContentStoreTest.Test;
 using Xunit.Abstractions;
@@ -29,8 +28,6 @@ namespace ContentStoreTest.Sessions
         }
 
         protected const string CacheName = "test";
-        protected const uint MaxConnections = 4;
-        protected const uint ConnectionsPerSession = 2;
         protected const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
 
         protected virtual string SessionName { get; set; } = "name";

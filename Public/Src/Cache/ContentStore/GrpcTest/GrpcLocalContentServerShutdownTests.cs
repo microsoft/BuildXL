@@ -34,7 +34,6 @@ namespace ContentStoreTest.Grpc
     {
         private const string CacheName = "cacheName";
         private const string SessionName = "sessionName";
-        private const uint MaxConnections = ServiceConfiguration.DefaultMaxConnections;
 
         public GrpcLocalContentServerShutdownTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
@@ -143,7 +142,6 @@ namespace ContentStoreTest.Grpc
                 var configuration = new ServiceConfiguration(
                     namedCacheRoots,
                     rootPath,
-                    MaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
                     grpcPort,
                     grpcPortFileName);
@@ -210,7 +208,6 @@ namespace ContentStoreTest.Grpc
                 var configuration = new ServiceConfiguration(
                     namedCacheRoots,
                     rootPath,
-                    MaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
                     grpcPort,
                     grpcPortFileName);
@@ -273,7 +270,6 @@ namespace ContentStoreTest.Grpc
                 var configuration = new ServiceConfiguration(
                     namedCacheRoots,
                     rootPath,
-                    MaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
                     grpcPort,
                     grpcPortFileName);
@@ -322,7 +318,6 @@ namespace ContentStoreTest.Grpc
                 var configuration = new ServiceConfiguration(
                     namedCacheRoots,
                     rootPath,
-                    MaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
                     grpcPort,
                     grpcPortFileName);
@@ -369,7 +364,6 @@ namespace ContentStoreTest.Grpc
                 var configuration = new ServiceConfiguration(
                     namedCacheRoots,
                     rootPath,
-                    MaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
                     grpcPort,
                     grpcPortFileName);

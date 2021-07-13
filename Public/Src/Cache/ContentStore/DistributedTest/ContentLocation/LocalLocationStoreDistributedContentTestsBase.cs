@@ -150,7 +150,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             _overrideDistributed = s =>
                                    {
-                                       s.IsPinBetterEnabled = true;
                                        overrideDistributed?.Invoke(s);
                                    };
             _overrideRedis = overrideRedis;
@@ -198,7 +197,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                RedisMemoizationExpiryTimeMinutes = 60,
                                MachineActiveToClosedIntervalMinutes = 5,
                                MachineActiveToExpiredIntervalMinutes = 10,
-                               IsDistributedEvictionEnabled = true,
                                IsRepairHandlingEnabled = true,
 
                                UseUnsafeByteStringConstruction = true,
@@ -217,7 +215,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                // Tests disable reconciliation by default
                                ReconcileMode = ReconciliationMode.None.ToString(),
 
-                               IsPinBetterEnabled = false,
                                PinMinUnverifiedCount = 1,
                                // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
                                MachineRisk = 0.0000001,

@@ -16,7 +16,6 @@ namespace BuildXL.Cache.Host.Configuration
         public const string DefaultCacheName = "DEFAULT";
 
         public const uint DefaultGracefulShutdownSeconds = 15;
-        public const uint DefaultMaxPipeListeners = 128;
 
         public LocalCasServiceSettings()
         {
@@ -25,7 +24,6 @@ namespace BuildXL.Cache.Host.Configuration
         public LocalCasServiceSettings(
             long defaultSingleInstanceTimeoutSec,
             uint gracefulShutdownSeconds = DefaultGracefulShutdownSeconds,
-            uint maxPipeListeners = DefaultMaxPipeListeners,
             string scenarioName = null,
             uint grpcPort = 0,
             string grpcPortFileName = null,
@@ -34,7 +32,6 @@ namespace BuildXL.Cache.Host.Configuration
         {
             DefaultSingleInstanceTimeoutSec = defaultSingleInstanceTimeoutSec;
             GracefulShutdownSeconds = gracefulShutdownSeconds;
-            MaxPipeListeners = maxPipeListeners;
             ScenarioName = scenarioName;
             GrpcPort = grpcPort;
             GrpcPortFileName = grpcPortFileName;
@@ -52,13 +49,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public uint GracefulShutdownSeconds { get; set; } = DefaultGracefulShutdownSeconds;
-
-        /// <summary>
-        /// Number of CASaaS listening threads (pipe servers), max 254. This restricts
-        /// the total connections allowed across the entire machine.
-        /// </summary>
-        [DataMember]
-        public uint MaxPipeListeners { get; set; } = DefaultMaxPipeListeners;
 
         /// <summary>
         /// The GRPC port to use.

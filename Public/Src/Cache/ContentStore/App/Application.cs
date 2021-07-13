@@ -99,7 +99,6 @@ namespace BuildXL.Cache.ContentStore.App
         private int _logMaxFileCount;
         private bool _pause;
         private string _scenario;
-        private uint _connectionsPerSession;
         private uint _retryIntervalSeconds;
         private uint _retryCount;
         private bool _enableRemoteTelemetry;
@@ -286,15 +285,6 @@ namespace BuildXL.Cache.ContentStore.App
         [Obsolete]
         public void Sensitivity(Sensitivity sensitivity)
         {
-        }
-
-        /// <summary>
-        ///     Set number of pipe connections to use per session to service.
-        /// </summary>
-        [Global("ConnectionsPerSession", Description = "Number of pipe connections to use per session to service")]
-        public void ConnectionsPerSession(uint value)
-        {
-            _connectionsPerSession = value;
         }
 
         /// <summary>

@@ -21,9 +21,7 @@ namespace BuildXL.Cache.ContentStore.App
 {
     internal sealed partial class Application
     {
-        private const uint DefaultMaxConnections = ServiceConfiguration.DefaultMaxConnections;
         private const uint DefaultGracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
-        private const string MaxConnectionsDescription = "Maximum number of concurrent clients";
         private const string GracefulShutdownSecondsDescription =
             "Number of seconds to give clients to disconnect before connections are closed hard";
 
@@ -40,7 +38,6 @@ namespace BuildXL.Cache.ContentStore.App
             (
             [Description("Cache names")] string[] names,
             [Description("Cache root paths")] string[] paths,
-            [DefaultValue(DefaultMaxConnections), Description(MaxConnectionsDescription)] uint maxConnections,
             [DefaultValue(DefaultGracefulShutdownSeconds), Description(GracefulShutdownSecondsDescription)] uint gracefulShutdownSeconds,
             [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] uint grpcPort,
             [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName,

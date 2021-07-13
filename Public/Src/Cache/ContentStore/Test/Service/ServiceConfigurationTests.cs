@@ -27,9 +27,8 @@ namespace ContentStoreTest.Service
         private static readonly string Path2 = "path2";
 
         private static readonly string GoodJson =
-            $@"{{""BufferSizeForGrpcCopies"":1000,""DataRootPath"":""{FilePrefixJson}{ValidDataRoot}"",""GracefulShutdownSeconds"":44,""GrpcPort"":779,""GrpcPortFileName"":""MyTest"",""MaxConnections"":77,""NamedCacheRoots"":{{""name1"":""{FilePrefixJson}{Path1}"",""name2"":""{FilePrefixJson}{Path2}""}}}}";
+            $@"{{""BufferSizeForGrpcCopies"":1000,""DataRootPath"":""{FilePrefixJson}{ValidDataRoot}"",""GracefulShutdownSeconds"":44,""GrpcPort"":779,""GrpcPortFileName"":""MyTest"",""NamedCacheRoots"":{{""name1"":""{FilePrefixJson}{Path1}"",""name2"":""{FilePrefixJson}{Path2}""}}}}";
 
-        private const uint MaxConnections = 77;
         private const uint GracefulShutdownSeconds = 44;
         private const int GrpcPort = 779;
         private const string GrpcPortFileName = "MyTest";
@@ -51,7 +50,7 @@ namespace ContentStoreTest.Service
             NamedRoots["name2"].Path.Should().Be(OperatingSystemHelper.IsUnixOS ? "/path2" : @"C:\path2");
 
             var configuration = new ServiceConfiguration(
-                NamedRoots, ValidDataRootPath, MaxConnections, GracefulShutdownSeconds, GrpcPort, GrpcPortFileName, _bufferSizeForCopies, _grpcBarrierSizeForGrpcCopies);
+                NamedRoots, ValidDataRootPath, GracefulShutdownSeconds, GrpcPort, GrpcPortFileName, _bufferSizeForCopies, _grpcBarrierSizeForGrpcCopies);
 
             var json = configuration.SerializeToJSON();
             json.Should().Be(GoodJson);
@@ -64,7 +63,6 @@ namespace ContentStoreTest.Service
             {
                 var configuration = stream.DeserializeFromJSON<ServiceConfiguration>();
                 configuration.NamedCacheRoots.Should().BeEquivalentTo(NamedRoots);
-                configuration.MaxConnections.Should().Be(MaxConnections);
                 configuration.GracefulShutdownSeconds.Should().Be(GracefulShutdownSeconds);
                 configuration.GrpcPortFileName.Should().Be(GrpcPortFileName);
                 configuration.BufferSizeForGrpcCopies.Should().Be(_bufferSizeForCopies);
@@ -78,7 +76,6 @@ namespace ContentStoreTest.Service
             {
                 var configuration = stream.DeserializeFromJSON<ServiceConfiguration>();
                 configuration.NamedCacheRoots.Count.Should().Be(0);
-                configuration.MaxConnections.Should().Be(ServiceConfiguration.DefaultMaxConnections);
                 configuration.GracefulShutdownSeconds.Should().Be(ServiceConfiguration.DefaultGracefulShutdownSeconds);
                 configuration.GrpcPortFileName.Should().Be(null);
             }
@@ -111,7 +108,7 @@ namespace ContentStoreTest.Service
         [Fact]
         public void Roundtrip()
         {
-            var configuration = new ServiceConfiguration(NamedRoots, ValidDataRootPath, MaxConnections, GracefulShutdownSeconds, GrpcPort, GrpcPortFileName);
+            var configuration = new ServiceConfiguration(NamedRoots, ValidDataRootPath, GracefulShutdownSeconds, GrpcPort, GrpcPortFileName);
             using (var ms = new MemoryStream())
             {
                 configuration.SerializeToJSON(ms);

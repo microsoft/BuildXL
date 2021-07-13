@@ -31,7 +31,6 @@ namespace ContentStoreTest.Sessions
     public abstract class ServiceClientContentSessionTests : ContentSessionTests
     {
         protected const string CacheName = "test";
-        protected const uint MaxConnections = 4;
         protected const uint ConnectionsPerSession = 2;
         protected const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
         private const int RandomContentByteCount = 100;
@@ -184,7 +183,6 @@ namespace ContentStoreTest.Sessions
                 var serviceConfiguration = new ServiceConfiguration(
                     new Dictionary<string, AbsolutePath> { { CacheName1, rootPath1 }, { CacheName2, rootPath2 } },
                     testDirectory0.Path,
-                    ServiceConfiguration.DefaultMaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
                     grpcPort,
                     grpcPortFileName);

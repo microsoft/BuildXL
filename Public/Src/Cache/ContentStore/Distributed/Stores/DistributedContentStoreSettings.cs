@@ -203,11 +203,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool EnableRepairHandling { get; set; } = true;
 
         /// <summary>
-        /// The amount of time added per replica for distributed eviction effective age computation.
-        /// </summary>
-        public int? ReplicaCreditInMinutes { get; set; }
-
-        /// <summary>
         /// Every time interval we trace a report on copy progression.
         /// </summary>
         public TimeSpan PeriodicCopyTracingInterval { get; set; } = TimeSpan.FromMinutes(5);

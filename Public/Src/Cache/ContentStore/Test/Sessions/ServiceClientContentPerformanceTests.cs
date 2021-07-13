@@ -26,7 +26,6 @@ namespace ContentStoreTest.Performance.Sessions
     public abstract class ServiceClientContentPerformanceTests : ContentPerformanceTests
     {
         private const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
-        private const uint MaxConnections = 10;
         private readonly string _scenario;
 
         protected ServiceClientContentPerformanceTests(
@@ -44,7 +43,6 @@ namespace ContentStoreTest.Performance.Sessions
             var serviceConfiguration = new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> { { cacheName, rootPath } },
                 rootPath,
-                MaxConnections,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),
                 grpcPortFileName);

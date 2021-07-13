@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -28,7 +27,6 @@ namespace ContentStoreTest.Stores
         private const string CacheName = "cacheName";
         private const string SessionName = "sessionName";
         private const int SessionId = 3;
-        private const uint MaxConnections = ServiceConfiguration.DefaultMaxConnections;
         private const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
         private const int TimeoutSecs = 5;
 
@@ -60,7 +58,7 @@ namespace ContentStoreTest.Stores
                 var grpcPort = PortExtensions.GetNextAvailablePort();
                 var grpcPortFileName = Guid.NewGuid().ToString();
 
-                var configuration = new ServiceConfiguration(namedCacheRoots, rootPath, MaxConnections, GracefulShutdownSeconds, grpcPort, grpcPortFileName);
+                var configuration = new ServiceConfiguration(namedCacheRoots, rootPath, GracefulShutdownSeconds, grpcPort, grpcPortFileName);
                 var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = (path) =>
                     new FileSystemContentStore(
@@ -117,7 +115,7 @@ namespace ContentStoreTest.Stores
                 var grpcPort = PortExtensions.GetNextAvailablePort();
                 var grpcPortFileName = Guid.NewGuid().ToString();
 
-                var configuration = new ServiceConfiguration(namedCacheRoots, rootPath, MaxConnections, GracefulShutdownSeconds, grpcPort, grpcPortFileName);
+                var configuration = new ServiceConfiguration(namedCacheRoots, rootPath, GracefulShutdownSeconds, grpcPort, grpcPortFileName);
                 var storeConfig = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(1);
                 Func<AbsolutePath, IContentStore> contentStoreFactory = (path) =>
                     new FileSystemContentStore(
@@ -181,7 +179,7 @@ namespace ContentStoreTest.Stores
                 var grpcPort = PortExtensions.GetNextAvailablePort();
                 var grpcPortFileName = Guid.NewGuid().ToString();
 
-                var configuration = new ServiceConfiguration(namedCacheRoots, rootPath, MaxConnections, GracefulShutdownSeconds, grpcPort, grpcPortFileName);
+                var configuration = new ServiceConfiguration(namedCacheRoots, rootPath, GracefulShutdownSeconds, grpcPort, grpcPortFileName);
 
                 Func<AbsolutePath, IContentStore> contentStoreFactory =
                     (path) => new TestFailingContentStore();

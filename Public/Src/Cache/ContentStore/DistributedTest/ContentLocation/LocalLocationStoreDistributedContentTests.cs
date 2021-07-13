@@ -438,10 +438,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             _overrideDistributed = s =>
             {
-                // Enable pin better to ensure pin configuration is passed to distributed store,
-                // but defaults use low risk and high risk tolerance for machine 
-                // or file loss to prevent pin better from kicking in.
-                s.IsPinBetterEnabled = true;
                 s.PinMinUnverifiedCount = 2;
             };
 
@@ -482,10 +478,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             _overrideDistributed = s =>
             {
-                // Enable pin better to ensure pin configuration is passed to distributed store,
-                // but defaults use low risk and high risk tolerance for machine 
-                // or file loss to prevent pin better from kicking in.
-                s.IsPinBetterEnabled = true;
                 s.PinMinUnverifiedCount = 2;
                 s.AsyncCopyOnPinThreshold = threshold;
             };
@@ -585,10 +577,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             _overrideDistributed = s =>
             {
-                // Enable pin better to ensure pin configuration is passed to distributed store,
-                // but defaults use low risk and high risk tolerance for machine 
-                // or file loss to prevent pin better from kicking in.
-                s.IsPinBetterEnabled = true;
                 s.PinMinUnverifiedCount = 2;
                 s.AsyncCopyOnPinThreshold = 1;
             };

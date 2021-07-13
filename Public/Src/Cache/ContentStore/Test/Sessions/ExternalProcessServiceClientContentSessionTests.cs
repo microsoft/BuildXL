@@ -39,7 +39,6 @@ namespace ContentStoreTest.Sessions
             var serviceConfig = new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> { { CacheName, rootPath } },
                 rootPath,
-                MaxConnections,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),
                 grpcPortFileName);

@@ -119,7 +119,6 @@ namespace ContentStoreTest.Grpc
                     new ServiceConfiguration(
                         new Dictionary<string, AbsolutePath> { { CacheName, directory.Path } },
                         directory.Path,
-                        ServiceConfiguration.DefaultMaxConnections,
                         ServiceConfiguration.DefaultGracefulShutdownSeconds,
                         PortExtensions.GetNextAvailablePort(),
                         Guid.NewGuid().ToString())

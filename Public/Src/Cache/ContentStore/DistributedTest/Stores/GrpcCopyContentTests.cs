@@ -343,7 +343,6 @@ namespace ContentStoreTest.Distributed.Stores
                 var configuration = new ServiceConfiguration(
                                         namedCacheRoots,
                                         rootPath,
-                                        42,
                                         ServiceConfiguration.DefaultGracefulShutdownSeconds,
                                         grpcPort,
                                         grpcPortFileName) {CopyRequestHandlingCountLimit = _copyToLimit, ProactivePushCountLimit = _proactivePushCountLimit};

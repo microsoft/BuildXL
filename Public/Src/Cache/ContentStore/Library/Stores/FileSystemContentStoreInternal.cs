@@ -1514,17 +1514,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             // We are using a list of classes instead of structs due to the maximum object size restriction
             // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
             var contentHashes = new ContentDirectorySnapshot<FileInfo>();
-            if (_settings.UseNativeBlobEnumeration)
-            {
-                EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
-            }
-            else
-            {
-                foreach (var fileInfo in EnumerateBlobPathsFromDisk())
-                {
-                    parseAndAccumulateContentHashes(fileInfo);
-                }
-            }
+            EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
 
             return contentHashes;
 

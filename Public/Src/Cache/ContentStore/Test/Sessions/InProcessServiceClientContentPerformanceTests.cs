@@ -25,24 +25,18 @@ namespace ContentStoreTest.Performance.Sessions
     public abstract class InProcessServiceClientContentPerformanceTests : ContentPerformanceTests
     {
         private const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
-        private readonly uint _maxConnections;
-        private readonly uint _connectionsPerSession;
         private readonly string _scenario;
 
         protected InProcessServiceClientContentPerformanceTests
             (
             ILogger logger,
             InitialSize initialSize,
-            uint maxConnections,
-            uint connectionsPerSession,
             PerformanceResultsFixture resultsFixture,
             string scenario,
             ITestOutputHelper output
             )
             : base(logger, initialSize, resultsFixture, output)
         {
-            _maxConnections = maxConnections;
-            _connectionsPerSession = connectionsPerSession;
             _scenario = scenario;
         }
 
@@ -54,7 +48,6 @@ namespace ContentStoreTest.Performance.Sessions
             var serviceConfig = new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> { { cacheName, rootPath } },
                 rootPath,
-                _maxConnections,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),
                 grpcPortFileName);
@@ -76,11 +69,9 @@ namespace ContentStoreTest.Performance.Sessions
         : InProcessServiceClientContentPerformanceTests, IClassFixture<PerformanceResultsFixture>
     {
         private const string Scenario = nameof(FullInsensitiveInProcessServiceClientContentPerformanceTests);
-        private const uint MaxConnections = 16;
-        private const uint ConnectionsPerSession = 16;
 
         public FullInsensitiveInProcessServiceClientContentPerformanceTests(PerformanceResultsFixture resultsFixture, ITestOutputHelper output)
-            : base(TestGlobal.Logger, InitialSize.Full, MaxConnections, ConnectionsPerSession, resultsFixture, Scenario, output)
+            : base(TestGlobal.Logger, InitialSize.Full, resultsFixture, Scenario, output)
         {
         }
 

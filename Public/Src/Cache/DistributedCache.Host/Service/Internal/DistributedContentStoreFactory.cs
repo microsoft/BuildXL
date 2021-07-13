@@ -517,13 +517,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             var distributedSettings = arguments.Configuration.DistributedContentSettings;
 
             PinConfiguration pinConfiguration = new PinConfiguration();
-            if (distributedSettings.IsPinBetterEnabled)
-            {
-                ApplyIfNotNull(distributedSettings.PinMinUnverifiedCount, v => pinConfiguration.PinMinUnverifiedCount = v);
-                ApplyIfNotNull(distributedSettings.StartCopyWhenPinMinUnverifiedCountThreshold, v => pinConfiguration.AsyncCopyOnPinThreshold = v);
-                ApplyIfNotNull(distributedSettings.AsyncCopyOnPinThreshold, v => pinConfiguration.AsyncCopyOnPinThreshold = v);
-                ApplyIfNotNull(distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);
-            }
+            ApplyIfNotNull(distributedSettings.PinMinUnverifiedCount, v => pinConfiguration.PinMinUnverifiedCount = v);
+            ApplyIfNotNull(distributedSettings.StartCopyWhenPinMinUnverifiedCountThreshold, v => pinConfiguration.AsyncCopyOnPinThreshold = v);
+            ApplyIfNotNull(distributedSettings.AsyncCopyOnPinThreshold, v => pinConfiguration.AsyncCopyOnPinThreshold = v);
+            ApplyIfNotNull(distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);
 
             var distributedContentStoreSettings = new DistributedContentStoreSettings()
             {
@@ -540,7 +537,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ProactiveCopyUsePreferredLocations = distributedSettings.ProactiveCopyUsePreferredLocations,
                 ProactiveCopyLocationsThreshold = distributedSettings.ProactiveCopyLocationsThreshold,
                 ProactiveCopyRejectOldContent = distributedSettings.ProactiveCopyRejectOldContent,
-                ReplicaCreditInMinutes = distributedSettings.IsDistributedEvictionEnabled ? distributedSettings.ReplicaCreditInMinutes : null,
                 EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
                 LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
                 RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
@@ -646,7 +642,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             var result = new ContentStoreSettings()
             {
                 CheckFiles = settings.CheckLocalFiles,
-                UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
                 SelfCheckSettings = CreateSelfCheckSettings(settings),
                 OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                 UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,

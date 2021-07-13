@@ -171,7 +171,6 @@ namespace ContentStoreTest.Grpc
             var serviceConfiguration = new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> { { CacheName, rootPath } },
                 rootPath,
-                MaxConnections,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),
                 grpcPortFileName);
@@ -217,7 +216,6 @@ namespace ContentStoreTest.Grpc
             var serviceConfiguration = new ServiceConfiguration(
                 new Dictionary<string, AbsolutePath> { { CacheName, rootPath } },
                 rootPath,
-                MaxConnections,
                 GracefulShutdownSeconds,
                 PortExtensions.GetNextAvailablePort(),
                 grpcPortFileName);

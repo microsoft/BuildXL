@@ -263,12 +263,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public string SelfCheckEpoch { get; set; } = "E0";
 
-        /// <summary>
-        /// Whether to use native (unmanaged) file enumeration or not.
-        /// </summary>
-        [DataMember]
-        public bool UseNativeBlobEnumeration { get; set; } = false;
-
         [DataMember]
         [Validation.Range(0, double.MaxValue, minInclusive: false)]
         public double? ReserveSpaceTimeoutInMinutes { get; set; }
@@ -541,9 +535,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ShutdownEvictionBeforeHibernation { get; set; } = false;
 
         [DataMember]
-        public bool IsDistributedEvictionEnabled { get; set; } = false;
-
-        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? ReplicaCreditInMinutes { get; set; } = 180;
 
@@ -577,10 +568,7 @@ namespace BuildXL.Cache.Host.Configuration
         public BandwidthConfiguration[] BandwidthConfigurations { get; set; }
         #endregion
 
-        #region Pin Better
-        [DataMember]
-        public bool IsPinBetterEnabled { get; set; } = false;
-
+        #region Pin Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? PinMinUnverifiedCount { get; set; }

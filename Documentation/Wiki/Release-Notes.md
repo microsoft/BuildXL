@@ -1,18 +1,27 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210709.1 (Release [112441](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=112441)) Released 7/14/2021
+- [LinuxSandbox] Compile libDetours against glibc 2.17
+- [Guardian] Add updates for compliance build
+- [JS] Turn on full reparse point resolution whenever a JS resolver is present
+- Dump Pip Lite - Add observed file accesses to post execution analyzer
+- Support packed execution as analyzer in scheduler
+- RocksDb Upgrade
+- Minor Bug fixes and improvements
+
 # 0.1.0-20210625.2.1 (Release [111646](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=111646)) Released 6/30/2021
--	[Detours] Fix buggy trim functions used in substitute process execution.
+- [Detours] Fix buggy trim functions used in substitute process execution.
 - [JS] Enable extra dependencies to JavaScript projects.
 - [Drop] Allow customization of drop paths for directory content.
 - Handle non-existent safe rewrite.
 - Add orchestrator-side pip timeout for pips scheduled in the remote workers.
 
 # 0.1.0-20210618.5 (Release [110868](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110868)) Released 6/23/2021
--	InKernelFileCopy will no longer throw an exception when it is not supported by the OS.
--	Print info about command-line length violation.
--	Use scoped PAT for build cache.
--	Workers message every two minutes even if there are no pip results to send.
+- InKernelFileCopy will no longer throw an exception when it is not supported by the OS.
+- Print info about command-line length violation.
+- Use scoped PAT for build cache.
+- Workers message every two minutes even if there are no pip results to send.
 
 # 0.1.0-20210611.5 (Release [110170](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=110170)) Released 6/16/2021
 - Remap paths properly for reparse point paths to enforce
@@ -32,11 +41,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Bugfix: avoid arithmetic overflow in ChooseQueueFastNextCount
 
 # 0.1.0-20210521.7.1 (Release [108460](https://mseng.visualstudio.com/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=108460)) Released 5/26/2021
--	Perf improvement on detours reparse point resolution logic
--	Expanded capacity of StringTable to deal with overflows
--	JavaScript SourceMap symbol support added to Symbol Daemon
--	Enable source verification across workers
--	Usability improvements for Guardian under BuildXL
+- Perf improvement on detours reparse point resolution logic
+- Expanded capacity of StringTable to deal with overflows
+- JavaScript SourceMap symbol support added to Symbol Daemon
+- Enable source verification across workers
+- Usability improvements for Guardian under BuildXL
 
 # 0.1.0-20210507.6 (Release [106582](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=106582)) Released 5/12/2021
 - [Dump pip Lite] Fixed minor issues in the output file

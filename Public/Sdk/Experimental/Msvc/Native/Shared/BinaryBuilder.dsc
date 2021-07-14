@@ -147,7 +147,8 @@ namespace Binary {
         sources: undefined,
         preprocessorSymbols: [
             {name: "_STL_WARNING_LEVEL", value: "3" }
-        ]
+        ],
+        enableSpectreVariantOneMitigation: true,
     };
 
     /** Computes all the include search paths from the NativeBinaryArguments */

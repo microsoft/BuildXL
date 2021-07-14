@@ -265,6 +265,7 @@ function evaluateOneSourceFile(
             "telemetry:cl", 
             ...(args.tags || [])
         ],
+        allowedSurvivingChildProcessNames: importFrom("VisualCpp").clToolSurvivingChildProcesses,
     });
 
     let compOutput = <CompilationOutput> {
@@ -448,6 +449,7 @@ function optionsToCmdLineArgs(opts: ClOptions, includeLocalDir: boolean, include
         Cmd.sign("/guard:cf",   opts.guardControlFlow, true),
         Cmd.flag("/Brepro",     opts.compilerDeterminism),
         Cmd.flag("/ZH:SHA_256", opts.useSha256ForChecksum),
+        Cmd.flag("/Qspectre",   opts.enableSpectreVariantOneMitigation),
     ];
 }
 
@@ -1232,6 +1234,12 @@ export interface ClOptions {
         */
     @@Tool.option("/ZH:SHA_256")
     useSha256ForChecksum?: boolean;
+
+    /**
+        * The compiler will generate instructions to mitigate certain Spectre variant 1 vulnerabilities.
+        */
+    @@Tool.option("/Qspectre")
+    enableSpectreVariantOneMitigation?: boolean;
 }
 
 /**

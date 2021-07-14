@@ -31,6 +31,7 @@
 #include "SendReport.h"
 #include <Psapi.h>
 #include "FilesCheckedForAccess.h"
+#include "locale.h"
 
 #define BUILDXL_DETOURS_CREATE_PROCESS_RETRY_COUNT 5
 #define BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT 5
@@ -1210,6 +1211,8 @@ static bool DllProcessAttach()
     // Next, attach to (detour) each API function of interest.
     if (!DisableDetours())
     {
+#pragma warning( push )
+#pragma warning( disable : 5039)
         ATTACH(CreateProcessA);
         ATTACH(CreateProcessW);
 
@@ -1284,6 +1287,7 @@ static bool DllProcessAttach()
             // on this function.
             ATTACH(NtClose);
             ATTACH(ZwSetInformationFile);
+#pragma warning( pop )
         }
         else {
             Dbg(L"File detours are disabled while running inside of WinDbg. Child processes will still be detoured.");

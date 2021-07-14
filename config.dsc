@@ -50,6 +50,10 @@ config({
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
+                    // If nuget resolver failed to download VisualCpp tool, then download it
+                    // manually from "BuildXL.Selfhost" feed into some folder, and specify
+                    // that folder as the value of "MyInternal" feed below.
+                    // "MyInternal": "E:/BuildXLInternalRepos/NuGetInternal",
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.
@@ -164,9 +168,6 @@ config({
                 { id: "NuGet.Commandline", version: "4.7.1" },
                 { id: "NuGet.Versioning", version: "4.6.0" }, // Can't use the latest becuase nuget extracts to folder with metadata which we don't support yet.
                 { id: "NuGet.Frameworks", version: "5.0.0"}, // needed for qtest on .net core
-
-                // Cpp Sdk
-                { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506", osSkip: [ "macOS", "unix" ] },
 
                 // ProjFS (virtual file system)
                 { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },
@@ -691,5 +692,11 @@ config({
             toolPath: f`${Environment.getDirectoryValue("SystemRoot")}/system32/vsjitdebugger.exe`,
             pathRegex: `.*${Environment.getStringValue("CommonProgramFiles").replace("\\", "\\\\")}\\\\Microsoft Shared\\\\VS7Debug\\\\.*`
         },
+        // cl.exe may write temporary files under its working directory
+        {
+            name: "cl.exe",
+            toolPath: a`cl.exe`,
+            pathRegex: ".*.tmp"
+        }
     ]
 });

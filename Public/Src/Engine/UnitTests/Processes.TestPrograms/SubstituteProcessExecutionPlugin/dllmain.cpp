@@ -1,10 +1,11 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 // Disable warnings about unreferenced inline functions. We'd do this below but this disable has to be in effect
 // at optimization time.
-#pragma warning( disable : 4514 4710 )
+#pragma warning( disable : 4514 4710 5045 )
 
+// C4820 'bytes' bytes padding added after construct 'member_name' hit on certain Windows SDK headers
 #pragma warning( push )
-#pragma warning( disable : 4350 4668 )
+#pragma warning( disable : 4350 4668 4820 )
 #include <windows.h>
 #include <string>
 #include <iostream>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#pragma warning(disable: 4710)
+#pragma warning(disable: 4710 5045)
 
 #define EXPORT __declspec( dllexport )
 

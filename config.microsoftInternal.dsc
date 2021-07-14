@@ -64,6 +64,9 @@ export const pkgs = isMicrosoftInternal ? [
     // Internal version of Redis
     { id: "Microsoft.Caching.Redis", version: "3.0.57", 
         dependentPackageIdsToSkip: [ "System.Runtime.CompilerServices.Unsafe", "System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial" ] },
+
+    // Cpp Sdk
+    { id: "VisualCppTools.Internal.VS2017Layout", version: "14.16.27034", osSkip: [ "macOS", "unix" ] },
 ] : [
 
     // Artifact packages and dependencies in OSS

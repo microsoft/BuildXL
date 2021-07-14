@@ -4019,8 +4019,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "VisualCppTools.Community.VS2017Layout",
-          "Version": "14.11.25506"
+          "Name": "VisualCppTools.Internal.VS2017Layout",
+          "Version": "14.16.27034"
         }
       }
     },

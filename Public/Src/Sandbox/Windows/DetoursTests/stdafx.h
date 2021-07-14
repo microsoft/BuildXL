@@ -15,6 +15,10 @@
 // We don't care about the addition of needed struct padding.
 #pragma warning( disable : 4820 )
 
+// warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+// This spectre mitigation has been applied to detours, however this warning will continue to show up with /Wall enabled
+#pragma warning( disable : 5045)
+
 // BuildXL should run on Win7+.
 #include <WinSDKVer.h>
 #define _WIN32_WINNT _WIN32_WINNT_WIN7

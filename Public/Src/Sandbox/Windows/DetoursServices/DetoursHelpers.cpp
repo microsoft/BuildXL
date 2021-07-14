@@ -730,8 +730,11 @@ bool ParseFileAccessManifest(
 
     if (*g_manifestSizePtr <= sizeof(size_t))
     {
+#pragma warning( push ) //warning C4777: 'wprintf' : format string '%llu' requires an argument of type 'unsigned __int64', but variadic argument 2 has type 'size_t'
+#pragma warning( disable : 4777)
         wprintf(L"Error bad payload size %d:%llu.", (int)*g_manifestSizePtr, (unsigned long long)sizeof(size_t));
         fwprintf(stderr, L"Error bad payload size %d:%llu.", (int)*g_manifestSizePtr, (unsigned long long)sizeof(size_t));
+#pragma warning( pop )
         HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_14, L"Error bad payload size: exit(-56).", DETOURS_WINDOWS_LOG_MESSAGE_14);
         return false;
     }

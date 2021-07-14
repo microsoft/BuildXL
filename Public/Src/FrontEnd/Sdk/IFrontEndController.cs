@@ -32,7 +32,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Parses the configuration
         /// </summary>
         [CanBeNull]
-        IConfiguration ParseConfig([NotNull]ICommandLineConfiguration configuration);
+        IConfiguration ParseConfig([NotNull] FrontEndEngineAbstraction engineAbstraction, [NotNull]ICommandLineConfiguration configuration);
 
         /// <summary>
         /// Asks the frontEndController to parse and evaluate any specs, definition to construct the pipGraph.

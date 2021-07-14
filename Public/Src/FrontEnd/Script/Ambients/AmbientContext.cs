@@ -49,8 +49,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
         {
             GetNewOutputDirectoryFunctionName,
             GetTempDirectoryFunctionName,
-            GetMountFunctionName,
-            HasMountFunctionName,
             GetTemplateFunctionName,
             GetLastActiveUseModuleNameFunctionName,
         };

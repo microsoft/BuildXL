@@ -60,6 +60,7 @@ namespace Engine {
             "Test.BuildXL.FrontEnd.Script",
             "Test.BuildXL.FrontEnd.Core",
             "Test.Tool.Analyzers",
+            "BuildXL.FrontEnd.Script.Testing.Helper"
         ],
     });
 }

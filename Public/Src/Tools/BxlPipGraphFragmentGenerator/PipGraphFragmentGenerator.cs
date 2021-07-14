@@ -65,7 +65,14 @@ namespace BuildXL.PipGraphFragmentGenerator
 
             FrontEndHostController frontEndHostController = (FrontEndHostController)controller;
 
-            var config = controller.ParseConfig(mutableCommandlineConfig);
+            var configurationEngine = new BasicFrontEndEngineAbstraction(engineContext.PathTable, engineContext.FileSystem, mutableCommandlineConfig);
+            if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, engineContext, mutableCommandlineConfig, commandLineConfig.Startup.Properties))
+            {
+                // Errors are logged already
+                return false;
+            }
+
+            var config = controller.ParseConfig(configurationEngine, mutableCommandlineConfig);
 
             if (config == null)
             {

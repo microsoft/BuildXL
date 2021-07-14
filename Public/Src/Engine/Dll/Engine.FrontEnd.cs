@@ -518,7 +518,15 @@ namespace BuildXL.Engine
             //     executed on the old controller; those steps are (1) InitializeHost, and (2) ParseConfig
             FrontEndController = m_frontEndControllerFactory.Create(Context.PathTable, Context.SymbolTable);
             FrontEndController.InitializeHost(Context.ToFrontEndContext(loggingContext), m_initialCommandLineConfiguration);
-            FrontEndController.ParseConfig(m_initialCommandLineConfiguration);
+
+            var configurationEngine = new BasicFrontEndEngineAbstraction(Context.PathTable, Context.FileSystem, m_initialCommandLineConfiguration);
+            if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, Context, m_initialCommandLineConfiguration, m_initialCommandLineConfiguration.Startup.Properties))
+            {
+                Contract.Assert(loggingContext.ErrorWasLogged);
+                return null;
+            }
+
+            FrontEndController.ParseConfig(configurationEngine, m_initialCommandLineConfiguration);
 
             return GraphReuseResult.CreateForPartialReuse(t.Item1, inputChanges);
         }

@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Mount names defined in the configuration (populated during construction).
         /// </summary>
         [CanBeNull]
-        protected readonly Dictionary<string, IMount> m_customMountsTable;
+        protected Dictionary<string, IMount> m_customMountsTable;
 
         /// <nodoc />
         public SimpleFrontEndEngineAbstraction(PathTable pathTable, IFileSystem filesystem, IConfiguration configuration = null)

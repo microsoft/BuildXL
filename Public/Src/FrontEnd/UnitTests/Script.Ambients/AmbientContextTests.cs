@@ -79,5 +79,23 @@ namespace A.B.C {
             Assert.Equal("A", result["A.x"]);
             Assert.Equal("A.B.C", result["A.B.C.x"]);
         }
+
+        [Fact]
+        public void TestMountInConfig()
+        {
+            var config = @"
+config({mounts:[{name: a`TestMount`, path: d`${Context.getMount('LogsDirectory').path}`}]});
+";
+            var spec = @"
+export const x = Context.getMount('TestMount').path;
+";
+            var result = Build()
+                .Configuration(config)
+                .AddSpec("spec.dsc", spec)
+                .RootSpec("spec.dsc")
+                .Evaluate("x");
+
+            Assert.Equal(result.Configuration.Logging.RedirectedLogsDirectory, result.Values[0]);
+        }
     }
 }

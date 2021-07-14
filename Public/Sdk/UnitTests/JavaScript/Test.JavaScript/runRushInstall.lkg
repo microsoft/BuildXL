@@ -1,6 +1,6 @@
 Transformer.sealSourceDirectory({root: d`./src/userprofile`, include: "topDirectoryOnly"});
 Transformer.execute({
-    tool: {exe: f`\${Context.getMount('Windows').path}/System32/Robocopy.exe`},
+    tool: {exe: f`\${Context.getMount('Windows').path}/system32/Robocopy.exe`},
     arguments: {
         escaping: "CRuntimeArgumentRules",
         separator: " ",
@@ -15,7 +15,7 @@ Transformer.execute({
         ],
     },
     workingDirectory: d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`,
-    dependencies: [f`\${Context.getMount('Windows').path}/System32/Robocopy.exe`, d`./src/userprofile`],
+    dependencies: [f`\${Context.getMount('Windows').path}/system32/Robocopy.exe`, d`./src/userprofile`],
     implicitOutputs: [d`./obj_test/k/w/6k5ykzrovlnle3hdbgx4lv7q/userprofile`],
     successExitCodes: [
         0,
@@ -67,7 +67,7 @@ Transformer.execute({
         {name: "NO_UPDATE_NOTIFIER", value: "1"},
         {
             name: "PATH",
-            value: [p`./path/to`, p`\${Context.getMount('Windows').path}/System32/windowspowershell/v1.0`, p`\${Context.getMount('Windows').path}/System32`],
+            value: [p`./path/to`, p`\${Context.getMount('Windows').path}/system32/windowspowershell/v1.0`, p`\${Context.getMount('Windows').path}/system32`],
         },
         {name: "RUSH_ABSOLUTE_SYMLINKS", value: "FALSE"},
         {name: "RUSH_PNPM_STORE_PATH", value: p`./Out/path/to/pnpm/store`},

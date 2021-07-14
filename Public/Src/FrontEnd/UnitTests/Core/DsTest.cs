@@ -566,7 +566,7 @@ namespace Test.BuildXL.FrontEnd.Core
             if (parseOnly || CapturedErrors.Count != 0)
             {
                 var uninstantiatedModuleInfo = sharedModuleRegistry.GetUninstantiatedModuleInfoByPathForTests(specFullPath);
-                return TestResult.Create(new object[0], CapturedWarningsAndErrors, uninstantiatedModuleInfo?.FileModuleLiteral, uninstantiatedModuleInfo?.SourceFile);
+                return TestResult.Create(new object[0], CapturedWarningsAndErrors, finalConfig, uninstantiatedModuleInfo?.FileModuleLiteral, uninstantiatedModuleInfo?.SourceFile);
             }
 
             if (CapturedWarningsAndErrors.Any(e => e.Level.IsError()))
@@ -623,7 +623,7 @@ namespace Test.BuildXL.FrontEnd.Core
             if (expressions.Length == 0)
             {
                 frontEndHost.NotifyResolversEvaluationIsFinished();
-                return TestResult.Create(new object[0], CapturedWarningsAndErrors);
+                return TestResult.Create(new object[0], CapturedWarningsAndErrors, finalConfig);
             }
 
             FileModuleLiteral module = GetQualifiedFileModule(frontEndHost, sharedModuleRegistry, specFullPath, qualifierId);
@@ -657,7 +657,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
             frontEndHost.NotifyResolversEvaluationIsFinished();
 
-            return TestResult.Create(result, CapturedWarningsAndErrors, module);
+            return TestResult.Create(result, CapturedWarningsAndErrors, finalConfig, module);
         }
 
         ///<nodoc/>///
@@ -1061,6 +1061,8 @@ namespace Test.BuildXL.FrontEnd.Core
                 InitializationLogger, 
                 collector: null,
                 collectMemoryAsSoonAsPossible: false);
+
+            BuildXLEngine.PopulateLoggingAndLayoutConfiguration((CommandLineConfiguration)config, PathTable, config.Layout.BuildEngineDirectory.ToString(PathTable), inTestMode: true);
 
             var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller), new BuildViewModel());
 

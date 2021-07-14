@@ -7,6 +7,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine
 {
@@ -16,47 +17,33 @@ namespace BuildXL.Engine
     /// </summary>
     public class BasicFrontEndEngineAbstraction : SimpleFrontEndEngineAbstraction
     {
-        private MountsTable m_mountsTable;
-
         /// <nodoc />
         public BasicFrontEndEngineAbstraction(PathTable pathTable, IFileSystem fileSystem, IConfiguration configuration = null)
             : base(pathTable, fileSystem, configuration)
         {
         }
 
-        /// <inheritdoc />
-        public override IEnumerable<string> GetMountNames(string frontEnd, ModuleId moduleId)
-        {
-            if (m_customMountsTable != null)
-            {
-                return m_customMountsTable.Keys;
-            }
-
-            return m_mountsTable?.GetMountNames(moduleId) ?? Enumerable.Empty<string>();
-        }
-
-        /// <inheritdoc />
-        public override TryGetMountResult TryGetMount(string name, string frontEnd, ModuleId moduleId, out IMount mount)
-        {
-            mount = null;
-
-            if (string.IsNullOrEmpty(name))
-            {
-                return TryGetMountResult.NameNullOrEmpty;
-            }
-
-            if (m_customMountsTable?.TryGetValue(name, out mount) == true)
-            {
-                return TryGetMountResult.Success;
-            }
-
-            return m_mountsTable == null ? TryGetMountResult.NameNotFound : m_mountsTable.TryGetMount(name, moduleId, out mount);
-        }
-
         /// <nodoc />
         public void SetMountsTable(MountsTable mountsTable)
         {
-            m_mountsTable = mountsTable;
+            m_customMountsTable = mountsTable.AllMounts.ToDictionary(mount => mount.Name.ToString(m_pathTable.StringTable), mount => mount);
+        }
+
+        /// <summary>
+        /// Creates a default mount table with the regular system and configuration defined mounts and sets it.
+        /// </summary>
+        public bool TryPopulateWithDefaultMountsTable(LoggingContext loggingContext, BuildXLContext buildXLContext, IConfiguration configuration, IReadOnlyDictionary<string, string> properties)
+        {
+            var mountsTable = MountsTable.CreateAndRegister(loggingContext, buildXLContext, configuration, properties);
+            
+            if (!mountsTable.CompleteInitialization())
+            {
+                return false;
+            }
+
+            SetMountsTable(mountsTable);
+
+            return true;
         }
     }
 }

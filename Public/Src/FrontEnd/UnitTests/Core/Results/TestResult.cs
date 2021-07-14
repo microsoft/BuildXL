@@ -9,6 +9,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Values;
 using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FrontEnd.Core
 {
@@ -58,11 +59,12 @@ namespace Test.BuildXL.FrontEnd.Core
         {
         }
 
-        public TestResult(object[] result, Diagnostic[] diagnostics, FileModuleLiteral fileModuleLiteral = null, SourceFile sourceFile = null)
+        public TestResult(object[] result, Diagnostic[] diagnostics, IConfiguration configuration, FileModuleLiteral fileModuleLiteral = null, SourceFile sourceFile = null)
             : base(result ?? CollectionUtilities.EmptyArray<object>(), diagnostics)
         {
             FileModuleLiteral = fileModuleLiteral;
             SourceFile = sourceFile;
+            Configuration = configuration;
         }
 
         /// <summary>
@@ -79,14 +81,17 @@ namespace Test.BuildXL.FrontEnd.Core
         /// <nodoc />
         public SourceFile SourceFile { get; }
 
+        /// <nodoc />
+        public IConfiguration Configuration { get; }
+
         /// <summary>
         /// Returns instance of <see cref="TestResult" /> for invocation with potential results and potential failure.
         /// </summary>
-        public static TestResult Create(object[] values, IEnumerable<Diagnostic> diagnostics, FileModuleLiteral moduleLiteral = null, SourceFile sourceFile = null)
+        public static TestResult Create(object[] values, IEnumerable<Diagnostic> diagnostics, IConfiguration configuration, FileModuleLiteral moduleLiteral = null, SourceFile sourceFile = null)
         {
             Contract.Requires(diagnostics != null);
 
-            return new TestResult(values, diagnostics.ToArray(), moduleLiteral, sourceFile);
+            return new TestResult(values, diagnostics.ToArray(), configuration, moduleLiteral, sourceFile);
         }
 
         /// <summary>

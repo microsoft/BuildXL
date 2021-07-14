@@ -154,8 +154,20 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             {
                 frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: mutableCommandlineConfig);
             }
+            else
+            {
+                // Otherwise we construct one with all mounts populated for config evaluation
+                var configurationEngine = new BasicFrontEndEngineAbstraction(engineContext.PathTable, engineContext.FileSystem, mutableCommandlineConfig);
+                if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, engineContext, mutableCommandlineConfig, mutableCommandlineConfig.Startup.Properties))
+                {
+                    // Errors are logged already
+                    return false;
+                }
 
-            var config = controller.ParseConfig(mutableCommandlineConfig);
+                frontEndEngineAbstraction = configurationEngine;
+            }
+
+            var config = controller.ParseConfig(frontEndEngineAbstraction, mutableCommandlineConfig);
             if (config == null)
             {
                 return false;

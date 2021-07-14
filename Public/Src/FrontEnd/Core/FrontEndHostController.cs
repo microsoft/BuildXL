@@ -179,6 +179,19 @@ namespace BuildXL.FrontEnd.Core
             }
         }
 
+        /// <summary>
+        /// Sets the engine to be used for main configuration evaluation
+        /// </summary>
+        /// <remarks>
+        /// This engine is typically not the one used during workspace evaluation, since many of the values
+        /// that configure the final engine are defined in the main configuration file
+        /// </remarks>
+        internal void SetEngineForConfigEvaluation(FrontEndEngineAbstraction engine)
+        {
+            Contract.RequiresNotNull(engine);
+            Engine = engine;
+        }
+
         private FrontEndArtifactManager CreateFrontEndArtifactManager()
         {
             Contract.Assert(Engine != null, "Engine != null");
@@ -224,12 +237,13 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <inheritdoc />
-        IConfiguration IFrontEndController.ParseConfig(ICommandLineConfiguration configuration)
+        IConfiguration IFrontEndController.ParseConfig(FrontEndEngineAbstraction engineAbstraction, ICommandLineConfiguration configuration)
         {
             Contract.Requires(configuration != null);
             Contract.Assume(HostState == State.Initialized);
 
             IConfiguration resultingConfiguration = null;
+            SetEngineForConfigEvaluation(engineAbstraction);
 
             // Seed the config environment variables with the ones from the commandline
             EnvVariablesUsedInConfig.Clear();

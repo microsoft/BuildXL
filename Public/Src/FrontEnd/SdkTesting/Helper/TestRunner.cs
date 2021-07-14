@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,7 +149,23 @@ export function test(args: TestArguments): TestResult {{
             {
                 var frontEndController = (IFrontEndController)frontEndHostController;
                 frontEndController.InitializeHost(frontEndContext, configuration);
-                frontEndController.ParseConfig(configuration);
+                
+                var configurationEngine = new BasicFrontEndEngineAbstraction(pathTable, frontEndContext.FileSystem, configuration);
+                var engineContext = new EngineContext(
+                    frontEndContext.CancellationToken, 
+                    frontEndContext.PathTable, 
+                    frontEndContext.SymbolTable, 
+                    frontEndContext.QualifierTable, 
+                    frontEndContext.FileSystem, 
+                    new TokenTextTable());
+
+                if (!configurationEngine.TryPopulateWithDefaultMountsTable(frontEndContext.LoggingContext, engineContext, configuration, configuration.Startup.Properties))
+                {
+                    // Errors are logged already
+                    return false;
+                }
+
+                frontEndController.ParseConfig(configurationEngine, configuration);
 
                 // Populate the graph
                 using (var pipTable = new PipTable(
@@ -320,6 +337,9 @@ export function test(args: TestArguments): TestResult {{
                     },
                     DisableDefaultSourceResolver = false,
                 };
+
+            BuildXLEngine.PopulateLoggingAndLayoutConfiguration(configuration, pathTable, Assembly.GetExecutingAssembly().Location, inTestMode: true);
+
             return configuration;
         }
 

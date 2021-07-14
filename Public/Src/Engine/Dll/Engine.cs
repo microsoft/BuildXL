@@ -390,7 +390,14 @@ namespace BuildXL.Engine
                 Logger.Log.StartParseConfig,
                 Logger.Log.EndParseConfig))
             {
-                var parsedConfiguration = frontEndController.ParseConfig(initialCommandLineConfiguration);
+                var configurationEngine = new BasicFrontEndEngineAbstraction(context.PathTable, context.FileSystem, initialCommandLineConfiguration);
+                if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, context, initialCommandLineConfiguration, initialCommandLineConfiguration.Startup.Properties))
+                {
+                    Contract.Assert(loggingContext.ErrorWasLogged);
+                    return null;
+                }
+
+                var parsedConfiguration = frontEndController.ParseConfig(configurationEngine, initialCommandLineConfiguration);
                 if (parsedConfiguration == null)
                 {
                     return null;

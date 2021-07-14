@@ -995,7 +995,7 @@ namespace BuildXL.Engine.Distribution
                 }
                 catch (TimeoutException)
                 {
-                    Logger.Log.PipTimedOutRemotely(m_appLoggingContext, pipId.ToString(), runnable.Step.AsString(), runnable.Worker.Name);
+                    Logger.Log.PipTimedOutRemotely(m_appLoggingContext, runnable.Pip.FormattedSemiStableHash, runnable.Step.AsString(), Name);
                     environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
                     operationTimedOut = true;
                 }
@@ -1012,7 +1012,7 @@ namespace BuildXL.Engine.Distribution
                 environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
 
                 // We assume the worker is in a bad state and abandon it so we can schedule pips elsewhere
-                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(ConnectionFailureType.RemotePipTimeout, $"Pip {pipId} timed out remotely on step {runnable.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
+                OnConnectionFailureAsync(null, new ConnectionFailureEventArgs(ConnectionFailureType.RemotePipTimeout, $"Pip {runnable.Pip.FormattedSemiStableHash} timed out remotely on step {runnable.Step.AsString()}. Timeout: {EngineEnvironmentSettings.RemotePipTimeout.Value.TotalMilliseconds} ms"));
 
                 // We consider the pip not run so we can retry it elsewhere
                 return ExecutionResult.GetRetryableNotRunResult(m_appLoggingContext, RetryInfo.GetDefault(RetryReason.StoppedWorker));

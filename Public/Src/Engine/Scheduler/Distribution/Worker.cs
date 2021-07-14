@@ -961,12 +961,10 @@ namespace BuildXL.Scheduler.Distribution
         {
             operationContext = operationContext.IsValid ? operationContext : runnable.OperationContext;
             var scope = new PipExecutionScope(runnable, this, operationContext);
-
             if (IsContentTrackingEnabled)
             {
                 // Only perform this operation for distributed orchestrator.
-                var pip = runnable.Pip;
-                Logger.Log.DistributionExecutePipRequest(operationContext, pip.FormattedSemiStableHash, Name, runnable.Step.AsString());
+                Logger.Log.DistributionExecutePipRequest(operationContext, runnable.FormattedSemiStableHash, Name, runnable.Step.AsString());
             }
 
             return scope;
@@ -984,10 +982,9 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             var operationContext = runnable.OperationContext;
-            var pip = runnable.Pip;
             var executionResult = runnable.ExecutionResult;
 
-            Logger.Log.DistributionFinishedPipRequest(operationContext, pip.FormattedSemiStableHash, Name, runnable.Step.AsString());
+            Logger.Log.DistributionFinishedPipRequest(operationContext, runnable.FormattedSemiStableHash, Name, runnable.Step.AsString());
 
             if (executionResult == null)
             {
@@ -1022,7 +1019,7 @@ namespace BuildXL.Scheduler.Distribution
                     // may be changed due to cache convergence
                     Logger.Log.DistributionOrchestratorWorkerProcessOutputContent(
                         operationContext,
-                        pip.FormattedSemiStableHash,
+                        runnable.FormattedSemiStableHash,
                         outputFile.fileArtifact.Path.ToString(runnable.Environment.Context.PathTable),
                         outputFile.fileInfo.Hash.ToHex(),
                         outputFile.fileInfo.ReparsePointInfo.ToString(),

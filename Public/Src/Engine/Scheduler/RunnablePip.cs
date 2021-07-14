@@ -105,6 +105,24 @@ namespace BuildXL.Scheduler
         private string m_description;
 
         /// <summary>
+        /// Formatted SemiStableHash
+        /// </summary>
+        public string FormattedSemiStableHash
+        {
+            get
+            {
+                if (m_formattedSemiStableHash == null)
+                {
+                    m_formattedSemiStableHash = Pip.FormattedSemiStableHash;
+                }
+
+                return m_formattedSemiStableHash;
+            }
+        }
+
+        private string m_formattedSemiStableHash;
+
+        /// <summary>
         /// Whether the pip is set as cancelled due to 'StopOnFirstFailure'.
         /// </summary>
         public bool IsCancelled { get; private set; }

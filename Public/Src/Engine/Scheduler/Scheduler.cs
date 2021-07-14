@@ -3724,7 +3724,7 @@ namespace BuildXL.Scheduler
                 {
                     var durationMs = (long)runnablePip.StepDuration.TotalMilliseconds;
                     BuildXL.Tracing.Logger.Log.TracerCompletedEvent(runnablePip.OperationContext,
-                        runnablePip.Pip.FormattedSemiStableHash,
+                        runnablePip.FormattedSemiStableHash,
                         runnablePip.Step.ToString(),
                         runnablePip.Worker.Name + " - " + DecideDispatcherKind(runnablePip),
                         runnablePip.ThreadId,

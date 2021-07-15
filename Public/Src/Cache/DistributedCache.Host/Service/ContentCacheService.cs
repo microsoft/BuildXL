@@ -61,7 +61,7 @@ namespace BuildXL.Launcher.Server
             DownloadQueue = new ActionQueue(configuration.DownloadConcurrency ?? Environment.ProcessorCount);
         }
 
-        public Task<OpenStreamResult> GetContentAsync(OperationContext context, string hash, string downloadUrl)
+        public Task<OpenStreamResult> GetContentAsync(OperationContext context, string hash, string downloadUrl  = null)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -69,7 +69,7 @@ namespace BuildXL.Launcher.Server
                 {
                     var contentHash = new ContentHash(hash);
                     var openResult = await StreamStore.OpenStreamAsync(context, contentHash);
-                    if (openResult.Code == OpenStreamResult.ResultCode.ContentNotFound)
+                    if (openResult.Code == OpenStreamResult.ResultCode.ContentNotFound && downloadUrl != null)
                     {
                         await EnsureContentLocalAsync(context, hash, downloadUrl);
                         openResult = await StreamStore.OpenStreamAsync(context, contentHash);

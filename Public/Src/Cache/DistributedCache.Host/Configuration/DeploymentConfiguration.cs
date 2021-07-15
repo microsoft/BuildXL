@@ -217,6 +217,11 @@ namespace BuildXL.Cache.Host.Configuration
         public string OverrideProxyHost { get; set; }
 
         /// <summary>
+        /// Gets whether the node is only capable of consuming from proxy nodes
+        /// </summary>
+        public bool ConsumerOnly { get; set; }
+
+        /// <summary>
         /// Configuration for proxy service on machine
         /// </summary>
         public ProxyServiceConfiguration ServiceConfiguration { get; set; }

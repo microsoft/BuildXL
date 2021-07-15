@@ -330,7 +330,7 @@ namespace BuildXL.Launcher.Server
                         configuration.Proxy.ServiceConfiguration.ProxyAddressTimeToLive,
                         () => new ProxyManager(configuration));
 
-                    return new Result<string>(proxyManager.GetBaseAddress(parameters, configuration.Proxy.OverrideProxyHost) ?? getDefaultBaseAddress?.Invoke(configuration), isNullAllowed: true);
+                    return new Result<string>(proxyManager.GetBaseAddress(parameters, configuration) ?? getDefaultBaseAddress?.Invoke(configuration), isNullAllowed: true);
                 },
                 messageFactory: r => $"{parameters} BaseAddress={r.GetValueOrDefault()}").Value;
         }
@@ -614,21 +614,27 @@ namespace BuildXL.Launcher.Server
                 _configuration = configuration;
             }
 
-            public string GetBaseAddress(HostParameters parameters, string overrideHost)
+            public string GetBaseAddress(HostParameters parameters, DeploymentConfiguration machineSpecificConfiguration)
             {
-                var host = overrideHost;
+                var host = machineSpecificConfiguration.Proxy.OverrideProxyHost;
                 if (host == null)
                 {
-                    var result = _machines.GetOrAdd(parameters.Machine);
-                    var machineIndex = result.Index;
-                    if (machineIndex < _configuration.Proxy.Seeds)
-                    {
-                        // Seed machines do not use proxy. Instead they use the real storage SAS url
-                        return null;
-                    }
+                    int minProxyMachineIndexInclusive = 0;
+                    int maxProxyMachineIndexExclusive = _machines.Count;
 
-                    int minProxyMachineIndexInclusive = machineIndex / _configuration.Proxy.FanOutFactor;
-                    int maxProxyMachineIndexExclusive = Math.Min(machineIndex, minProxyMachineIndexInclusive + _configuration.Proxy.FanOutFactor);
+                    if (!machineSpecificConfiguration.Proxy.ConsumerOnly)
+                    {
+                        var result = _machines.GetOrAdd(parameters.Machine);
+                        var machineIndex = result.Index;
+                        if (machineIndex < _configuration.Proxy.Seeds)
+                        {
+                            // Seed machines do not use proxy. Instead they use the real storage SAS url
+                            return null;
+                        }
+
+                        minProxyMachineIndexInclusive = machineIndex / _configuration.Proxy.FanOutFactor;
+                        maxProxyMachineIndexExclusive = Math.Min(machineIndex, minProxyMachineIndexInclusive + _configuration.Proxy.FanOutFactor);
+                    }
 
                     int proxyMachineIndex = ThreadSafeRandom.Generator.Next(minProxyMachineIndexInclusive, maxProxyMachineIndexExclusive);
                     host = _machines[proxyMachineIndex];

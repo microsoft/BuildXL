@@ -1,14 +1,14 @@
 .create-or-alter function with (folder = "common", docstring = "AnnotatedSessions2", skipvalidation = "true") AnnotatedSessions2(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", isDeveloperBuild:string="False", stamp:string="", bucketGroup:string="") {
- // let startDate=ago(1h); 
- // let endDate=ago(0d);
- // let infra = "CB";
- // let mSRReportable = "";
- // let customer = "Office,WDG";
- // let buildQueue = "";
- // let buildInfo_Build = "";
- // let isDeveloperBuild = "False";
- // let stamp = "";
- // let bucketGroup = "";
+// let startDate=ago(1h); 
+// let endDate=ago(0d);
+// let infra = "CB";
+// let mSRReportable = "";
+// let customer = "Office,WDG";
+// let buildQueue = "";
+// let buildInfo_Build = "";
+// let isDeveloperBuild = "False";
+// let stamp = "";
+// let bucketGroup = "";
 // ************** Exception regexes **************
 // The goal of the following regexes is parse enough information out of the crash exception and stack trace that a single line can be created that uniquely identifies the crash, this can be used as a "SuggestedBugName".
 // The SuggestedBugName should be unique enough to differentiate conceptually different crashes, but generic enough that slight variations in the exception or crash stack still results in the same SuggestedBugName.
@@ -51,6 +51,8 @@ cluster('cbuild').database('Domino').dominoinvocation
         UserName startswith "_qcloud" or UserName startswith "CBA" , "CB",
         UserName == "y-arnold" or UserName == "tcptext", "Lab",
         "Dev")
+| join kind=leftouter (scheduleconstructedwithconfiguration | where EventInfo_Time between (startDate .. endDate) | project SessionId, FrontendKinds) on SessionId 
+| extend IsJavaScriptBuild = FrontendKinds has "Yarn" or FrontendKinds has "Rush" or FrontendKinds has "Lage" or FrontendKinds has "CustomJavaScript"
     | extend Customer = 
         case(
             Environment startswith "OfficeAPEX" , "APEX",
@@ -58,6 +60,7 @@ cluster('cbuild').database('Domino').dominoinvocation
             Environment startswith "SelfHost", "TSE",
             Environment startswith "OSGTools", "OSGTools",
             Environment startswith "OSG", "WDG",
+            IsJavaScriptBuild, "JavaScript",
             "Unknown") 
 // Normalize CloudBuild per-session usernames
 | extend UserName = iff(UserName startswith "CBA-", "CBA-", UserName)

@@ -93,17 +93,17 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
 
-                void addOptionalSecret(string name)
+                void addOptionalSecret(string name, SecretKind secretKind = SecretKind.PlainText)
                 {
                     if (!string.IsNullOrEmpty(name))
                     {
-                        retrieveSecretsRequests.Add(new RetrieveSecretsRequest(name, SecretKind.PlainText));
+                        retrieveSecretsRequests.Add(new RetrieveSecretsRequest(name, secretKind));
                     }
                 }
 
                 addOptionalSecret(_distributedSettings.SecondaryGlobalRedisSecretName);
                 addOptionalSecret(_distributedSettings.ContentMetadataRedisSecretName);
-                addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName);
+                addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName, azureBlobStorageCredentialsKind);
 
                 // Ask the host for credentials
                 var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);

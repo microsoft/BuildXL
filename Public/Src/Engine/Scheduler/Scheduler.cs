@@ -147,6 +147,16 @@ namespace BuildXL.Scheduler
         private const long StatusSnapshotInterval = 60;
 
         /// <summary>
+        /// Interval used to trigger/unpause ChooseWorkerCpu queue
+        /// </summary>
+        /// <remarks>
+        /// ChooseWorkerCpu queue can be paused for a long time if the available RAM is low when it was run the last time.
+        /// We do not trigger ChooseWorkerCpu whenever the available RAM increases.
+        /// Instead, we started to trigger it every 60 seconds regardless of available RAM.
+        /// </remarks>
+        private const long ChooseWorkerCpuInterval = 60;
+
+        /// <summary>
         /// Dirty nodes file name for incremental scheduling.
         /// </summary>
         public const string DefaultIncrementalSchedulingStateFile = "SchedulerIncrementalSchedulingState";
@@ -596,6 +606,11 @@ namespace BuildXL.Scheduler
         /// Tracks time when the status snapshot was last updated
         /// </summary>
         private DateTime m_statusSnapshotLastUpdated;
+
+        /// <summary>
+        /// Tracks time when ChooseWorkerCpu queue is unpaused last time.
+        /// </summary>
+        private DateTime m_chooseWorkerCpuLastUnpaused;
 
         /// <summary>
         /// Indicates that the scheduler is disposed
@@ -2476,6 +2491,12 @@ namespace BuildXL.Scheduler
                     BuildXL.Tracing.Logger.Log.StatusSnapshot(m_executePhaseLoggingContext, snapshotData);
 
                     m_statusSnapshotLastUpdated = DateTime.UtcNow;
+                }
+
+                if (DateTime.UtcNow > m_chooseWorkerCpuLastUnpaused.AddSeconds(ChooseWorkerCpuInterval))
+                {
+                    m_chooseWorkerCpuLastUnpaused = DateTime.UtcNow;
+                    m_chooseWorkerCpu.TogglePauseChooseWorkerQueue(pause: false);
                 }
 
                 if (m_scheduleConfiguration.AdaptiveIO)

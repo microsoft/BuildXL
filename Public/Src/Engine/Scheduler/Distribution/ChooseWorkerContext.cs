@@ -121,7 +121,7 @@ namespace BuildXL.Scheduler.Distribution
             return runnablePip.PipType == PipType.Ipc && ((IpcPip)runnablePip.Pip).MustRunOnOrchestrator;
         }
 
-        protected void TogglePauseChooseWorkerQueue(bool pause, RunnablePip blockedPip = null)
+        public void TogglePauseChooseWorkerQueue(bool pause, RunnablePip blockedPip = null)
         {
             Contract.Requires(pause == (blockedPip != null), "Must specify blocked pip if and only if pausing the choose worker queue");
 

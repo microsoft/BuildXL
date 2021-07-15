@@ -1351,7 +1351,7 @@ namespace BuildXL.Scheduler
                 }
 
                 m_buildManifestGenerator = new BuildManifestGenerator(loggingContext, Context.StringTable);
-                buildManifestStoreTarget = new BuildManifestStoreTarget(m_buildManifestGenerator);
+                buildManifestStoreTarget = new BuildManifestStoreTarget(m_buildManifestGenerator, m_pipTwoPhaseCache);
 
                 // Only log failed pips on orchestrator to make it easier to retrieve logs for failing pips on workers
                 if (configuration.Logging.DumpFailedPips.GetValueOrDefault())
@@ -1491,7 +1491,7 @@ namespace BuildXL.Scheduler
                         StopOnFirstFailure = false,
                         Logger = CreateLoggerForApiServer(loggingContext),
                     },
-                    Cache,
+                    m_pipTwoPhaseCache,
                     ExecutionLog,
                     m_buildManifestGenerator);
                 m_apiServer.Start(loggingContext);

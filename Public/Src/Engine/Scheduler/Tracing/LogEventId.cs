@@ -412,7 +412,6 @@ namespace BuildXL.Scheduler.Tracing
         ErrorApiServerMaterializeFileFailed = 12106,
         ApiServerReceivedMessage = 12107,
         ApiServerReceivedWarningMessage = 12108,
-        ApiServerStoreBuildManifestHashToCacheFailed = 12109,
         ErrorApiServerGetBuildManifestHashFromLocalFileFailed = 12110,
 
         // Copy file cont'd.

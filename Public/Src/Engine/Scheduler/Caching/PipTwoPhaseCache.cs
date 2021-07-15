@@ -467,5 +467,23 @@ namespace BuildXL.Scheduler.Cache
         public virtual void RegisterOutputContentMaterializationResult(StrongContentFingerprint strongFingerprint, ContentHash metadataHash, bool succeeded)
         {
         }
+
+        /// <summary>
+        /// Tries to store the hash-to-hash mapping into cache
+        /// </summary>
+        /// <remarks>
+        /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
+        /// </remarks>
+        public virtual void TryStoreBuildManifestHash(ContentHash contentHash, ContentHash buildManifestContentHash)
+        {
+        }
+
+        /// <summary>
+        /// Given a hash, tries to get a corresponding build manifest hash from cache. If the hash cannot be find, returns an invalid ContentHash.
+        /// </summary>
+        /// <remarks>
+        /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
+        /// </remarks>
+        public virtual ContentHash TryGetBuildManifestHash(ContentHash contentHash) => default;
     }
 }

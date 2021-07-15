@@ -60,7 +60,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
-        /// Record details of a file added to drop.
+        /// Record details of files added to drop.
         /// </summary>
         public void RecordFileForBuildManifest(List<BuildManifestEntry> records)
         {

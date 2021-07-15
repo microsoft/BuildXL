@@ -62,6 +62,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> DebugGraphFingerprintSalt = CreateSetting("BUILDXL_GRAPH_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
 
         /// <summary>
+        /// Defines optional text used to salt a historic metadata cache fingerprint.
+        /// Unspecified means salt is not added to fingerprint.
+        /// '*' corresponds to using a random guid as the salt.
+        /// Otherwise, specified text is added to fingerprint as salt.
+        /// </summary>
+        public static readonly Setting<string> DebugHistoricMetadataCacheFingerprintSalt = CreateSetting("BUILDXL_HISTORIC_METADATA_CACHE_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
+
+        /// <summary>
         /// Path pointing to VM command proxy needed for build in VM feature.
         /// </summary>
         public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
@@ -245,12 +253,6 @@ namespace BuildXL.Utilities.Configuration
         /// Overrides the default overflow buffer count for string tables.
         /// </summary>
         public static readonly Setting<int?> StringTableOverflowBufferCount = CreateSetting("BuildXLStringTableOverflowBufferCount", value => ParseInt32(value));
-
-        /// <summary>
-        /// Specifies whether a salt is used for internal VSO:SHA cache mapping for Build Manifest.
-        /// Null or empty salt will be treated as no salt, and will follow default behavior.
-        /// </summary>
-        public static readonly Setting<string> BuildManifestHashCacheSalt = CreateSetting("BuildXLBuildManifestHashCacheSalt", value => value);
 
         /// <summary>
         /// Sets the variable for consumption by settings

@@ -6,16 +6,17 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler.Artifacts;
+using BuildXL.Scheduler.Cache;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
@@ -36,15 +37,17 @@ namespace BuildXL.Scheduler
         private const int GetBuildManifestHashFromLocalFileRetryLimit = 6;          // Starts from 0, retry multiplier is applied upto (GetBuildManifestHashFromLocalFileRetryLimit - 1)
 
         private readonly FileContentManager m_fileContentManager;
-        private readonly EngineCache m_engineCache;
+        private readonly PipTwoPhaseCache m_pipTwoPhaseCache;
         private readonly IServer m_server;
         private readonly PipExecutionContext m_context;
         private readonly Tracing.IExecutionLogTarget m_executionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
-        private readonly string m_buildManifestHashCacheSalt;
         private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
         private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
         private LoggingContext m_loggingContext;
+        // Build manifest requires HistoricMetadataCache. If it's not available, we need to log a warning on the
+        // first build manifest API call. 
+        private int m_historicMetadataCacheCheckComplete = 0;
 
         /// <summary>
         /// Counters for all ApiServer related statistics.
@@ -56,11 +59,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static readonly CounterCollection<BuildManifestCounters> ManifestCounters = new CounterCollection<BuildManifestCounters>();
 
-        /// <summary>
-        /// EngineEnviromentSettings.BuildManifestHashCacheSalt is used to create a salted weak fingerprint for [VSO:SHA] cache entries using the file's VSO hash as input.
-        /// </summary>
-        private WeakContentFingerprint GenerateSaltedWeakFingerprint(ContentHash hash) => new WeakContentFingerprint(FingerprintUtilities.Hash($"Hash: '{hash.ToHex()}' Salt: '{m_buildManifestHashCacheSalt}'")); // Changes to this string will invalidate all existing cache entries
-
         /// <nodoc />
         public ApiServer(
             IIpcProvider ipcProvider,
@@ -68,7 +66,7 @@ namespace BuildXL.Scheduler
             FileContentManager fileContentManager,
             PipExecutionContext context,
             IServerConfig config,
-            EngineCache engineCache,
+            PipTwoPhaseCache pipTwoPhaseCache,
             Tracing.IExecutionLogTarget executionLog,
             Tracing.BuildManifestGenerator buildManifestGenerator)
         {
@@ -76,19 +74,16 @@ namespace BuildXL.Scheduler
             Contract.Requires(fileContentManager != null);
             Contract.Requires(context != null);
             Contract.Requires(config != null);
-            Contract.Requires(engineCache != null);
+            Contract.Requires(pipTwoPhaseCache != null);
             Contract.Requires(executionLog != null);
 
             m_fileContentManager = fileContentManager;
             m_server = ipcProvider.GetServer(ipcProvider.LoadAndRenderMoniker(ipcMonikerId), config);
             m_context = context;
-            m_engineCache = engineCache;
             m_executionLog = executionLog;
             m_buildManifestGenerator = buildManifestGenerator;
+            m_pipTwoPhaseCache = pipTwoPhaseCache;
             m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, ContentHash>();
-            m_buildManifestHashCacheSalt = string.IsNullOrEmpty(Utilities.Configuration.EngineEnvironmentSettings.BuildManifestHashCacheSalt)
-                ? string.Empty
-                : Utilities.Configuration.EngineEnvironmentSettings.BuildManifestHashCacheSalt;
             m_receivedStatistics = new ConcurrentBigMap<string, long>();
         }
 
@@ -129,48 +124,34 @@ namespace BuildXL.Scheduler
             Logger.Log.BulkStatistic(m_loggingContext, m_receivedStatistics.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
         }
 
-        /// <summary>
-        /// Generates <see cref="WeakContentFingerprint"/> and <see cref="StrongContentFingerprint"/> for given Vso Hash
-        /// </summary>
-        private (WeakContentFingerprint wf, StrongContentFingerprint sf) GetBuildManifestHashKey(ContentHash hash)
-        {
-            var wf = GenerateSaltedWeakFingerprint(hash);
-            var sf = StrongContentFingerprint.BuildManifestFingerprintMarker;
-            return (wf, sf);
-        }
-
-        private async Task StoreBuildManifestHashAsync(ContentHash hash, ContentHash manifestHash)
+        private void StoreBuildManifestHash(ContentHash hash, ContentHash manifestHash)
         {
             using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalHashToHashCacheWriteDuration))
             {
                 ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheWriteCount);
-                (var wf, var sf) = GetBuildManifestHashKey(hash);
-
-                var result = await m_engineCache.TwoPhaseFingerprintStore.TryPublishCacheEntryAsync(wf, hash, sf, new CacheEntry(manifestHash, "", ArrayView<ContentHash>.Empty));
-
-                if (!result.Succeeded)
-                {
-                    Tracing.Logger.Log.ApiServerStoreBuildManifestHashToCacheFailed(m_loggingContext, hash.Serialize(), manifestHash.Serialize(), result.Failure.DescribeIncludingInnerFailures());
-                }
+                m_pipTwoPhaseCache.TryStoreBuildManifestHash(hash, manifestHash);
             }
         }
 
-        private async Task<ContentHash?> TryGetBuildManifestHashAsync(ContentHash hash)
+        private ContentHash TryGetBuildManifestHashAsync(ContentHash hash)
         {
+            if (Interlocked.CompareExchange(ref m_historicMetadataCacheCheckComplete, 1, 0) == 0)
+            {
+                // It's the first time this API is called. We need to check that the historic metadata cache is available.
+                // The cache is vital to the perf of build manifest, so we need to emit a warning if it cannot be used.
+                // CompareExchange ensures that we do this check at most one time.
+                var hmc = m_pipTwoPhaseCache as HistoricMetadataCache;
+                if (hmc == null || !hmc.Valid)
+                {
+                    Tracing.Logger.Log.ApiServerReceivedWarningMessage(m_loggingContext, "Build manifest requires historic metadata cache; however, it is not available in this build. This will negatively affect build performance.");
+                }
+            }
+
             using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalHashToHashCacheReadDuration))
             {
                 ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheReadCount);
-                (var wf, var sf) = GetBuildManifestHashKey(hash);
-
-                var result = await m_engineCache.TwoPhaseFingerprintStore.TryGetCacheEntryAsync(wf, hash, sf);
-
-                if (result.Succeeded && result.Result?.MetadataHash != null)
-                {
-                    // HashType information is sometimes lost in the caching layers. Manually overwriting the HashType to avoid invalid build manifest generation.
-                    return new ContentHash(ContentHashingUtilities.BuildManifestHashType, result.Result?.MetadataHash.ToHashByteArray());
-                }
-
-                return null;
+                var buildManifestHash = m_pipTwoPhaseCache.TryGetBuildManifestHash(hash);
+                return buildManifestHash;
             }
         }
 
@@ -220,6 +201,8 @@ namespace BuildXL.Scheduler
                     return new Failure<string>($"Invalid absolute path: '{buildManifestEntry.FullFilePath}'");
                 }
 
+                // TODO(1859065): Fix the how FileArtifact is created - we cannot blindly assign rewrite count of 1 (it's ok to treat this as an output due to the condition above)
+                // Maybe call materialization on existing files as well? (this will trigger source validation for source files)
                 MaterializeFileCommand materializeCommand = new MaterializeFileCommand(FileArtifact.CreateOutputFile(path), buildManifestEntry.FullFilePath);
                 IIpcResult materializeResult = await ExecuteMaterializeFileAsync(materializeCommand);
                 if (!materializeResult.Succeeded)
@@ -431,11 +414,11 @@ namespace BuildXL.Scheduler
             }
 
             // (2) Attempt hash read from cache
-            ContentHash? hashFromCache = await TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
-            if (hashFromCache.HasValue)
+            ContentHash hashFromCache = TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
+            if (hashFromCache.IsValid)
             {
-                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache.Value);
-                return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache.Value);
+                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache);
+                return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache);
             }
 
             // (3) Attempt to compute hash for locally existing file (Materializes non-existing files)
@@ -446,7 +429,7 @@ namespace BuildXL.Scheduler
                 if (computeHashResult.Succeeded)
                 {
                     m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, computeHashResult.Result);
-                    await StoreBuildManifestHashAsync(buildManifestEntry.Hash, computeHashResult.Result);
+                    StoreBuildManifestHash(buildManifestEntry.Hash, computeHashResult.Result);
                     return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
                 }
 

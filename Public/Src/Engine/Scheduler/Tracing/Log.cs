@@ -3753,15 +3753,6 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater(LoggingContext loggingContext, int count, string paths);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ApiServerStoreBuildManifestHashToCacheFailed,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation Store BuildManifest Hash (Hash: '{hash}', BuildManifestHash: {buildManifestHash}) failed. Reason: {reason}.")]
-        internal abstract void ApiServerStoreBuildManifestHashToCacheFailed(LoggingContext loggingContext, string hash, string buildManifestHash, string reason);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ErrorApiServerGetBuildManifestHashFromLocalFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

@@ -41,7 +41,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// The version for format of <see cref="HistoricMetadataCache"/>
         /// </summary>
-        public const int FormatVersion = 23;
+        public const int FormatVersion = 24;
 
         /// <summary>
         /// Indicates if entries should be purged as soon as there TTL reaches zero versus reaching a limit in percentage expired.
@@ -53,6 +53,11 @@ namespace BuildXL.Scheduler.Cache
         /// The TTL of an entry is the number of save / load round-trips until eviction (assuming it is not accessed within that time).
         /// </summary>
         public static byte TimeToLive => (byte)(EngineEnvironmentSettings.HistoricMetadataCacheDefaultTimeToLive.Value ?? 5);
+
+        /// <summary>
+        /// Time-to-live for build manifest hashes.
+        /// </summary>
+        public const int BuildManifestHashTimeToLive = 10;
 
         private static readonly Task<Possible<Unit>> s_genericSuccessTask = Task.FromResult(new Possible<Unit>(Unit.Void));
 
@@ -104,7 +109,7 @@ namespace BuildXL.Scheduler.Cache
         private readonly ConcurrentBigMap<ContentFingerprint, ContentHash> m_fullFingerprintEntries;
 
         /// <summary>
-        /// Tracking mapping from weak fingerpint to semistable hash. Serialization is based on weak fingerprints. So in order to serialize
+        /// Tracking mapping from weak fingerprint to semistable hash. Serialization is based on weak fingerprints. So in order to serialize
         /// <see cref="m_pipSemistableHashToWeakFingerprintMap"/> we need to lookup the corresponding semistable hash for a given weak
         /// fingerprint.
         /// </summary>
@@ -123,7 +128,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// The age of the historic metadata cache
         /// </summary>
-        public int Age;
+        public int Age { get; private set; }
 
         /// <summary>
         /// Whether the historic metadata cache contains valid information.
@@ -141,7 +146,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 return Volatile.Read(ref m_closed);
             }
-            set
+            private set
             {
                 Volatile.Write(ref m_closed, value);
             }
@@ -173,6 +178,7 @@ namespace BuildXL.Scheduler.Cache
         }
 
         private readonly Lazy<KeyValueStoreAccessor> m_storeAccessor;
+        private int m_activeBuildManifestHashColumnIndex;
 
         /// <nodoc/>
         public HistoricMetadataCache(
@@ -202,6 +208,7 @@ namespace BuildXL.Scheduler.Cache
             m_retainedContentHashCodes = new ConcurrentBigSet<int>();
 
             Age = 0;
+            m_activeBuildManifestHashColumnIndex = -1;
 
             TaskSourceSlim<Unit> prepareCompletion = TaskSourceSlim.Create<Unit>();
             m_loadTask = new Lazy<Task>(() => ExecuteLoadTask(prepareAsync, prepareCompletion));
@@ -225,6 +232,8 @@ namespace BuildXL.Scheduler.Cache
                     {
                         LoadCacheEntries(database);
                     }
+
+                    PrepareBuildManifestColumn(database);
                 });
 
                 m_garbageCollectTask = Task.Run(() => GarbageCollect());
@@ -711,6 +720,47 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
+        /// <inheritdoc/>
+        public override void TryStoreBuildManifestHash(ContentHash contentHash, ContentHash buildManifestContentHash)
+        {
+            StoreAccessor?.Use(database =>
+            {
+                using var key = contentHash.ToPooledByteArray();
+                if (!database.TryGetValue(key.Value, out var existingValue, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]))
+                {
+                    using var value = buildManifestContentHash.ToPooledByteArray();
+                    // While we are checking both columns, we are storing only into the active one.
+                    database.Put(key.Value, value.Value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+                }
+            });
+        }
+
+        /// <inheritdoc/>
+        public override ContentHash TryGetBuildManifestHash(ContentHash contentHash)
+        {
+            ContentHash foundHash = default;
+            StoreAccessor?.Use(database =>
+            {
+                using var key = contentHash.ToPooledByteArray();
+
+                // First, check the active column. If the hash is not there, check the other column.
+                if (database.TryGetValue(key.Value, out var value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]))
+                {
+                    foundHash = new ContentHash(value);
+                }
+                else if (database.TryGetValue(key.Value, out value, StoreColumnNames.BuildManifestHashes[(m_activeBuildManifestHashColumnIndex + 1) % 2]))
+                {
+                    // need to update the active column
+                    database.Put(key.Value, value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+                    foundHash = new ContentHash(value);
+                }
+            });
+
+            Contract.Assert(!foundHash.IsValid || foundHash.HashType == ContentHashingUtilities.BuildManifestHashType);
+            
+            return foundHash;
+        }
+
         /// <summary>
         /// Adding pathset
         /// </summary>
@@ -843,6 +893,7 @@ namespace BuildXL.Scheduler.Cache
                 }
             }
 
+            m_activeBuildManifestHashColumnIndex = ComputeBuildManifestActiveColumnIndex(Age);
             Counters.AddToCounter(PipCachingCounter.HistoricMetadataLoadedAge, Age);
         }
 
@@ -1050,10 +1101,22 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
+        private void PrepareBuildManifestColumn(RocksDbStore database)
+        {
+            if (m_activeBuildManifestHashColumnIndex != ComputeBuildManifestActiveColumnIndex(Age - 1))
+            {
+                // The active column has changed, need to clean it before its first use.
+                database.DropColumnFamily(StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+                database.CreateColumnFamily(StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]);
+            }
+        }
+
         #endregion
 
         private KeyValueStoreAccessor OpenStore()
         {
+            Contract.Assert(StoreColumnNames.BuildManifestHashes.Length == 2);
+
             var keyTrackedColumns = new string[]
             {
                 StoreColumnNames.Content
@@ -1062,6 +1125,7 @@ namespace BuildXL.Scheduler.Cache
             var possibleAccessor = KeyValueStoreAccessor.OpenWithVersioning(
                 StoreLocation,
                 FormatVersion,
+                additionalColumns: StoreColumnNames.BuildManifestHashes,
                 additionalKeyTrackedColumns: keyTrackedColumns,
                 failureHandler: (f) => HandleStoreFailure(f.Failure),
                 onFailureDeleteExistingStoreAndRetry: true);
@@ -1089,6 +1153,14 @@ namespace BuildXL.Scheduler.Cache
             // but if there are concurrent operations that fail, then this may log multiple times.
         }
 
+        /// <summary>
+        /// Given the age of the cache, computes the index of the build manifest column that
+        /// should be used for storing new build manifest hashes.
+        /// 
+        /// Essentially, we alternating between two columns every <see cref="BuildManifestHashTimeToLive"/> number of builds.
+        /// </summary>
+        private static int ComputeBuildManifestActiveColumnIndex(int age) => age >= 0 ? (age / BuildManifestHashTimeToLive) % 2 : 0;
+
         private readonly struct StoreColumnNames
         {
             /// <summary>
@@ -1096,6 +1168,18 @@ namespace BuildXL.Scheduler.Cache
             /// content blobs for metadata and pathsets)
             /// </summary>
             public static string Content = "Content";
+
+            /// <summary>
+            /// We use two columns for storing hash -> build manifest hash map. This way we don't need to track the TTL of
+            /// individual entries; instead, all entries in a column sort of share the same TTL. 
+            /// 
+            /// On look up, we check both columns. If entry is found only on the non-active column, we copy it to the active one.
+            /// Because of that, the active column always contains all entries that were accessed since it became active.
+            /// 
+            /// On active column change, we clear the new active column. So any entries that have not been accessed (i.e., copied
+            /// to the other column) will be evicted.
+            /// </summary>
+            public static string[] BuildManifestHashes = { "BuildManifestHash_1", "BuildManifestHash_2" };
         }
 
         private static byte[] StringToBytes(string str)
@@ -1199,7 +1283,7 @@ namespace BuildXL.Scheduler.Cache
             var extraFingerprintSalt = new ExtraFingerprintSalts(
                 configuration,
                 PipFingerprintingVersion.TwoPhaseV2,
-                fingerprintSalt: string.Empty,
+                fingerprintSalt: EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt,
                 searchPathToolsHash: null);
 
             using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
@@ -1209,9 +1293,10 @@ namespace BuildXL.Scheduler.Cache
                 hasher.Add("LookupVersion", HistoricMetadataCacheLookupVersion);
                 hasher.Add("PerformanceDataFingerprint", performanceDataFingerprint.Hash);
                 hasher.Add("ExtraFingerprintSalt", extraFingerprintSalt.CalculatedSaltsFingerprint);
+                hasher.Add("BuildManifestHashType", (int)ContentHashingUtilities.BuildManifestHashType);
 
                 var fingerprint = new ContentFingerprint(hasher.GenerateHash());
-                Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Computed historic metadata cache fingerprint: {fingerprint}"));
+                Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Computed historic metadata cache fingerprint: {fingerprint}. Salt: '{EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt.Value}'"));
                 return fingerprint;
             }
         }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.Scheduler.Cache;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -11,6 +12,7 @@ namespace BuildXL.Scheduler.Tracing
     public sealed class BuildManifestStoreTarget : ExecutionLogTargetBase
     {
         private readonly BuildManifestGenerator m_buildManifestGenerator;
+        private readonly PipTwoPhaseCache m_pipTwoPhaseCache;
 
         /// <summary>
         /// Handle the events from workers
@@ -25,16 +27,23 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Constructor.
         /// </summary>
-        public BuildManifestStoreTarget(BuildManifestGenerator buildManifestGenerator)
+        public BuildManifestStoreTarget(BuildManifestGenerator buildManifestGenerator, PipTwoPhaseCache pipTwoPhaseCache)
         {
             Contract.Requires(buildManifestGenerator != null);
             m_buildManifestGenerator = buildManifestGenerator;
+            m_pipTwoPhaseCache = pipTwoPhaseCache;
         }
 
         /// <inheritdoc/>
         public override void RecordFileForBuildManifest(RecordFileForBuildManifestEventData data)
         {
             m_buildManifestGenerator.RecordFileForBuildManifest(data.Records);
+            
+            // Need to update the HistoricMetadataCache on the orchestrator (only orchestrator uploads the db to cache)
+            foreach (var entry in data.Records)
+            {
+                m_pipTwoPhaseCache.TryStoreBuildManifestHash(entry.AzureArtifactsHash, entry.BuildManifestHash);
+            }
         }
     }
 }

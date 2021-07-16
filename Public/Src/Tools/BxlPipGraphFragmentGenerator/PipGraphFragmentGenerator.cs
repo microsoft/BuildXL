@@ -66,7 +66,7 @@ namespace BuildXL.PipGraphFragmentGenerator
             FrontEndHostController frontEndHostController = (FrontEndHostController)controller;
 
             var configurationEngine = new BasicFrontEndEngineAbstraction(engineContext.PathTable, engineContext.FileSystem, mutableCommandlineConfig);
-            if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, engineContext, mutableCommandlineConfig, commandLineConfig.Startup.Properties))
+            if (!configurationEngine.TryPopulateWithDefaultMountsTable(loggingContext, engineContext, mutableCommandlineConfig, mutableCommandlineConfig.Startup.Properties))
             {
                 // Errors are logged already
                 return false;

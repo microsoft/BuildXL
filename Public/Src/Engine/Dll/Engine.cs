@@ -527,7 +527,7 @@ namespace BuildXL.Engine
 
                         if (!Directory.Exists(fixedSsdSessionDir))
                         {
-                            return;
+                            continue;
                         }
 
                         foreach (var directoryTranslation in commandLineConfiguration.Engine.DirectoriesToTranslate)
@@ -542,8 +542,7 @@ namespace BuildXL.Engine
 
                         if (!checkedHasDirectoryTranslation)
                         {
-                            // todo should this be 'continue' (bug 1386527)
-                            return;
+                            continue;
                         }
                     }
                     commandLineConfiguration.Startup.Properties.Add(key, replacedValue);

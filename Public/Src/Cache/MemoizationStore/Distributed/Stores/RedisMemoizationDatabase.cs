@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -81,10 +80,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
             var replacementMetadata = new MetadataEntry(replacement, DateTime.UtcNow);
-            var replacementBytes = SerializeMetadataEntry(replacementMetadata);
-
-            byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
-            byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
+            using var replacementBytes = SerializeMetadataEntry(replacementMetadata);
+            using var selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
+            using var tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
 
             var (primaryResult, secondaryResult) = await _redis.ExecuteRaidedAsync<bool>(
                 context,
@@ -98,10 +96,10 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                         {
                             var task = batch.CompareExchangeAsync(
                                 key,
-                                selectorBytes,
-                                tokenFieldNameBytes,
+                                (ReadOnlyMemory<byte>)selectorBytes,
+                                (ReadOnlyMemory<byte>)tokenFieldNameBytes,
                                 expectedReplacementToken,
-                                replacementBytes,
+                                (ReadOnlyMemory<byte>)replacementBytes,
                                 newReplacementToken);
                             batch.KeyExpireAsync(key, Configuration.ExpiryTime).FireAndForget(nestedContext);
                             return task;
@@ -135,8 +133,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var key = GetKey(strongFingerprint.WeakFingerprint);
-            byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
-            byte[] replacementTokenFieldName = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
+
+            using var selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
+            using var replacementTokenFieldName = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
 
             var (primaryResult, secondaryResult) = await _redis.ExecuteRaidedAsync<(byte[], string)>(
                 context,
@@ -148,8 +147,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                         context,
                         async batch =>
                         {
-                            var metadataBytesTask = batch.AddOperation(key, b => b.HashGetAsync(key, selectorBytes));
-                            var replacementTokenTask = batch.AddOperation(key, b => b.HashGetAsync(key, replacementTokenFieldName));
+                            var metadataBytesTask = batch.AddOperation(key, b => b.HashGetAsync(key, (ReadOnlyMemory<byte>)selectorBytes));
+                            var replacementTokenTask = batch.AddOperation(key, b => b.HashGetAsync(key, (ReadOnlyMemory<byte>)replacementTokenFieldName));
                             return ((byte[])await metadataBytesTask, (string)await replacementTokenTask);
                         },
                         RedisOperation.GetContentHashList);
@@ -239,7 +238,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             return LevelSelectors.Single<List<Selector>>(result.ToList());
         }
 
-        private (Selector, bool isReplacementToken) DeserializeSelector(byte[] selectorBytes)
+        private (Selector, bool isReplacementToken) DeserializeSelector(ReadOnlyMemory<byte> selectorBytes)
         {
             return _serializationPool.Deserialize(selectorBytes, reader =>
             {
@@ -249,21 +248,21 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             });
         }
 
-        private byte[] SerializeSelector(Selector selector, bool isReplacementToken)
+        private PooledBuffer SerializeSelector(Selector selector, bool isReplacementToken)
         {
-            return _serializationPool.Serialize(selector, isReplacementToken, (isReplacementToken, selector, writer) =>
+            return _serializationPool.SerializePooled(selector, isReplacementToken, (isReplacementToken, selector, writer) =>
             {
                 writer.Write(isReplacementToken);
                 selector.Serialize(writer);
             });
         }
 
-        private byte[] SerializeMetadataEntry(MetadataEntry metadata)
+        private PooledBuffer SerializeMetadataEntry(MetadataEntry metadata)
         {
-            return _serializationPool.Serialize(metadata, (metadata, writer) => metadata.Serialize(writer));
+            return _serializationPool.SerializePooled(metadata, (metadata, writer) => metadata.Serialize(writer));
         }
 
-        private MetadataEntry DeserializeMetadataEntry(byte[] bytes)
+        private MetadataEntry DeserializeMetadataEntry(ReadOnlyMemory<byte> bytes)
         {
             return _serializationPool.Deserialize(bytes, reader => MetadataEntry.Deserialize(reader));
         }

@@ -1,21 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.Roxis.Client;
-using BuildXL.Cache.Roxis.Common;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.MemoizationStore.Stores

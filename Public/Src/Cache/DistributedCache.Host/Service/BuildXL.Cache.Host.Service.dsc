@@ -30,8 +30,6 @@ namespace Service {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
 
-            importFrom("BuildXL.Cache.Roxis").Client.dll,
-
             importFrom("BuildXL.Cache.Logging").Library.dll,
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("NLog").pkg,

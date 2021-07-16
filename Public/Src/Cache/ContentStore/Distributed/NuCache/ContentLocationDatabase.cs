@@ -244,13 +244,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public class EnumerationFilter
         {
             /// <nodoc />
-            public Func<byte[], bool> ShouldEnumerate { get; }
+            public Func<ReadOnlyMemory<byte>, bool> ShouldEnumerate { get; }
 
             /// <nodoc />
             public ShortHash? StartingPoint { get; }
 
             /// <nodoc />
-            public EnumerationFilter(Func<byte[], bool> shouldEnumerate, ShortHash? startingPoint) =>
+            public EnumerationFilter(Func<ReadOnlyMemory<byte>, bool> shouldEnumerate, ShortHash? startingPoint) =>
                 (ShouldEnumerate, StartingPoint) = (shouldEnumerate, startingPoint);
         }
 
@@ -619,15 +619,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal abstract void Persist(OperationContext context, ShortHash hash, ContentLocationEntry? entry);
 
         /// <nodoc />
-        internal virtual void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
-        {
-            foreach (var pair in pairs)
-            {
-                Persist(context, pair.Key, pair.Value);
-            }
-        }
-
-        /// <nodoc />
         public void Store(OperationContext context, ShortHash hash, ContentLocationEntry? entry)
         {
             Counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].Increment();
@@ -837,15 +828,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Serialize a given <paramref name="entry"/> into a byte stream.
         /// </summary>
-        protected byte[] SerializeContentLocationEntry(ContentLocationEntry entry)
+        protected PooledBuffer SerializeContentLocationEntry(ContentLocationEntry entry)
         {
-            return SerializationPool.Serialize(entry, static (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.SerializePooled(entry, static (instance, writer) => instance.Serialize(writer));
         }
 
         /// <summary>
         /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
         /// </summary>
-        protected ContentLocationEntry DeserializeContentLocationEntry(byte[] bytes)
+        protected ContentLocationEntry DeserializeContentLocationEntry(ReadOnlyMemory<byte> bytes)
         {
             // Please do not convert the delegate to a method group, because this code is called many times
             // and method group allocates a delegate on each conversion to a delegate.
@@ -859,7 +850,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// This is an optimization that allows the clients to "poke" inside the value stored in the database without full deserialization.
         /// The approach is very useful in reconciliation scenarios, when the client wants to obtain content location entries for the current machine only.
         /// </remarks>
-        public bool HasMachineId(byte[] bytes, int machineId)
+        public bool HasMachineId(ReadOnlyMemory<byte> bytes, int machineId)
         {
             return SerializationPool.Deserialize(
                 bytes,

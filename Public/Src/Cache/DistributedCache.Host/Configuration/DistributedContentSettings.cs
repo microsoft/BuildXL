@@ -932,15 +932,6 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseMemoizationContentMetadataStore { get; set; } = false;
 
         [DataMember]
-        public bool UseRoxisMetadataStore { get; set; } = false;
-
-        [DataMember]
-        public string RoxisMetadataStoreHost { get; set; } = null;
-
-        [DataMember]
-        public int? RoxisMetadataStorePort { get; set; } = null;
-
-        [DataMember]
         public bool EnablePublishingCache { get; set; } = false;
 
         #endregion

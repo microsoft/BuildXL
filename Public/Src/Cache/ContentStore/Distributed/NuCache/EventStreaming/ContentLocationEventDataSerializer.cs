@@ -324,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
 
                     var data = message.Body;
-                    return _reader.DeserializeSequence(data, reader => ContentLocationEventData.Deserialize(reader, eventTimeUtc.Value)).ToList();
+                    return _reader.DeserializeSequence(data.AsMemory(), reader => ContentLocationEventData.Deserialize(reader, eventTimeUtc.Value));
                 });
         }
 

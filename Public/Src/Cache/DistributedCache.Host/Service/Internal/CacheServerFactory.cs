@@ -264,14 +264,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 return factory.CreateMemoizationStoreAsync().GetAwaiter().GetResult();
             }
-            else if (distributedSettings.UseRoxisMetadataStore)
-            {
-                var config = new RoxisMemoizationDatabaseConfiguration();
-                ApplyIfNotNull(distributedSettings.RoxisMetadataStoreHost, v => config.MetadataClientConfiguration.GrpcHost = v);
-                ApplyIfNotNull(distributedSettings.RoxisMetadataStorePort, v => config.MetadataClientConfiguration.GrpcPort = v);
-
-                return config.CreateStore(_logger, SystemClock.Instance);
-            }
             else
             {
                 var config = new RocksDbMemoizationStoreConfiguration()

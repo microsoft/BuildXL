@@ -31,6 +31,7 @@ namespace Distributed {
                 linkedContent: glob(d`Redis/Scripts`,"*.lua"),
             },
         ],
+        allowUnsafeBlocks: true,
         references: [
             ...eventHubPackages,
             // Intentionally using different Azure storage package

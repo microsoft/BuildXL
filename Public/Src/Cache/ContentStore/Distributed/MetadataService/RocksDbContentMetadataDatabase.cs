@@ -487,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                     return false;
                 },
-                (key: key.ToByteArray(), value, db: this)).ThrowOnError();
+                (key: key.ToByteArray(), value: value, db: this)).ThrowOnError();
         }
 
         public bool TryGetBlob(ShortHash key, [NotNullWhen(true)] out byte[]? value)
@@ -598,21 +598,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        /// <inheritdoc />
-        internal override void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
-        {
-            _keyValueStore.Use(static (store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
-        }
-
-        private static Unit PersistBatchHelper(RocksDbStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentMetadataDatabase db)
-        {
-            store.ApplyBatch(
-                pairs.SelectWithState(
-                    static (kvp, db) => new KeyValuePair<byte[], byte[]?>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null),
-                    state: db));
-            return Unit.Void;
-        }
-
         private void SaveToDb(ShortHash hash, ContentLocationEntry entry)
         {
             _keyValueStore.Use(
@@ -622,8 +607,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         // NOTE: This should remain static to avoid allocations in Store
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentMetadataDatabase db)
         {
-            var value = db.SerializeContentLocationEntry(entry);
-            store.Put(db.GetKey(hash), value, db.NameOf(Columns.Content));
+            using var value = db.SerializeContentLocationEntry(entry);
+            store.Put(db.GetKey(hash).AsSpan(), value, db.NameOf(Columns.Content));
 
             return Unit.Void;
         }
@@ -670,7 +655,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                             // Update last access time in database
                             header.LastAccessTimeUtc = Clock.UtcNow;
-                            store.Put(key, SerializeMetadataEntryHeader(header), NameOf(Columns.MetadataHeaders));
+
+                            using var serializedHeader = SerializeMetadataEntryHeader(header);
+                            store.Put(key.AsSpan(), serializedHeader, NameOf(Columns.MetadataHeaders));
 
                             return new SerializedMetadataEntry()
                             {
@@ -758,7 +745,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                             store.Put(key, replacement.Data, NameOf(Columns.Metadata));
                         }
 
-                        store.Put(key, SerializeMetadataEntryHeader(header), NameOf(Columns.MetadataHeaders));
+                        using var serializedHeader = SerializeMetadataEntryHeader(header);
+                        store.Put(key.AsSpan(), serializedHeader, NameOf(Columns.MetadataHeaders));
                     }
 
                     return true;
@@ -858,29 +846,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return SerializeStrongFingerprint(strongFingerprint);
         }
 
-        private byte[] SerializeMetadataEntry(MetadataEntry value)
+        private PooledBuffer SerializeMetadataEntryHeader(MetadataEntryHeader value)
         {
-            return SerializationPool.Serialize(value, static (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.SerializePooled(value, static (instance, writer) => MetadataServiceSerializer.TypeModel.Serialize(writer.BaseStream, instance));
         }
 
-        private byte[] SerializeMetadataEntryHeader(MetadataEntryHeader value)
-        {
-            return SerializationPool.Serialize(value, static (instance, writer) => MetadataServiceSerializer.TypeModel.Serialize(writer.BaseStream, instance));
-        }
-
-        private MetadataEntry DeserializeMetadataEntry(byte[] data)
-        {
-            return SerializationPool.Deserialize(data, static reader => MetadataEntry.Deserialize(reader));
-        }
-
-        private MetadataEntryHeader DeserializeMetadataEntryHeader(byte[] data)
+        private MetadataEntryHeader DeserializeMetadataEntryHeader(ReadOnlySpan<byte> data)
         {
             return MetadataServiceSerializer.TypeModel.Deserialize<MetadataEntryHeader>((ReadOnlySpan<byte>)data);
-        }
-
-        private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
-        {
-            return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
         private class KeyValueStoreGuard : IDisposable

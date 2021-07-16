@@ -123,7 +123,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
                         return true;
                     }
 
-                    return valueFilter?.ShouldEnumerate == null || valueFilter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true;
+                    using var serialized = SerializeContentLocationEntry(kvp.Value);
+                    return valueFilter?.ShouldEnumerate == null || valueFilter.ShouldEnumerate?.Invoke(serialized) == true;
                 })
                 .Select(kvp => (kvp.Key, returnKeysOnly ? null : kvp.Value));
         }

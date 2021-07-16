@@ -357,6 +357,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <inheritdoc />
+        public void Put(ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, string? columnFamilyName = null)
+        {
+            var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+            m_store.Put(key, value, columnFamilyInfo.Handle, m_defaults.WriteOptions);
+        }
+
+        /// <inheritdoc />
         public void PutMultiple(IEnumerable<(string key, string value, string columnFamilyName)> entries) =>
             PutMultiple(entries.Select(e => (StringToBytes(e.key), StringToBytes(e.value), e.columnFamilyName)));
 
@@ -380,6 +387,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// </summary>
         private static void AddPutOperation(WriteBatch writeBatch, ColumnFamilyInfo columnFamilyInfo, byte[] key, byte[] value)
         {
+            if (key is null)
+            {
+                throw new RocksDbSharpException("Attempt to insert key value pair with null key");
+            }
+
             writeBatch.Put(key, (uint)key.Length, value, (uint)value.Length, columnFamilyInfo.Handle);
 
             if (columnFamilyInfo.UseKeyTracking)
@@ -418,15 +430,27 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <inheritdoc />
         public bool TryGetValue(string key, [NotNullWhen(true)] out string? value, string? columnFamilyName = null)
         {
+            if (key is null)
+            {
+                throw new RocksDbSharpException("Attempt to fetch key value pair with empty key");
+            }
+
             bool keyFound = TryGetValue(StringToBytes(key), out var valueInBytes, columnFamilyName);
             value = BytesToString(valueInBytes);
             return keyFound;
         }
 
         /// <inheritdoc />
-        public bool TryGetValue(byte[] key, [NotNullWhen(true)] out byte[]? value, string? columnFamilyName = null)
+        public bool TryGetValue(ReadOnlySpan<byte> key, [NotNullWhen(true)] out byte[]? value, string? columnFamilyName = null)
         {
             value = m_store.Get(key, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
+            return value != null;
+        }
+
+        /// <inheritdoc />
+        public bool TryGetPinnableValue(ReadOnlySpan<byte> key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, string? columnFamilyName = null)
+        {
+            value = m_store.UnsafeGetPinnable(key, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
             return value != null;
         }
 
@@ -512,7 +536,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <inheritdoc />
-        public bool Contains(byte[] key, string? columnFamilyName = null)
+        public bool Contains(ReadOnlySpan<byte> key, string? columnFamilyName = null)
         {
             var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -558,7 +582,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             CancellationToken cancellationToken = default,
             byte[]? startValue = null)
         {
-            return GarbageCollectByKeyValue(i => canCollect(i.Key()), columnFamilyName, additionalColumnFamilies, cancellationToken, startValue);
+            return GarbageCollectByKeyValue(i => canCollect(i.Key().ToArray()), columnFamilyName, additionalColumnFamilies, cancellationToken, startValue);
         }
 
         /// <inheritdoc />
@@ -611,7 +635,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     if (canCollectResult)
                     {
                         var bytesKey = iterator.Key();
-                        keysToRemove.Add(bytesKey);
+                        keysToRemove.Add(bytesKey.ToArray());
                     }
 
                     iterator.Next();
@@ -692,8 +716,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 {
                     var startTime = TimestampUtilities.Timestamp;
                     gcResult.TotalCount++;
-                    var bytesKey = iterator.Key();
-                    var bytesValue = iterator.Value();
+                    var bytesKey = iterator.Key().ToArray();
+                    var bytesValue = iterator.Value().ToArray();
 
                     gcResult.LastKey = bytesKey;
                     if (canCollect(bytesKey, bytesValue))
@@ -808,12 +832,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <inheritdoc />
-        public IEnumerable<KeyValuePair<string, string>> PrefixSearch(string? prefix, string? columnFamilyName = null)
-        {
-            return PrefixSearch(StringToBytes(prefix), columnFamilyName).Select(kvp => new KeyValuePair<string, string>(BytesToString(kvp.Key), BytesToString(kvp.Value)));
-        }
-
-        /// <inheritdoc />
         public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[]? prefix = null, string? columnFamilyName = null)
         {
             // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they
@@ -836,13 +854,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 while (iterator.Valid())
                 {
-                    var key = iterator.Key();
+                    var key = iterator.Key().ToArray();
                     if (!StartsWith(prefix, key))
                     {
                         break;
                     }
 
-                    yield return new KeyValuePair<byte[], byte[]>(key, iterator.Value());
+                    yield return new KeyValuePair<byte[], byte[]>(key, iterator.Value().ToArray());
 
                     iterator.Next();
                 }

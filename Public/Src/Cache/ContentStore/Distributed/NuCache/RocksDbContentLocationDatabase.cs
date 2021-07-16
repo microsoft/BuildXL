@@ -28,6 +28,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
+using RocksDbSharp;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -524,7 +525,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 var iterationResult = store.IterateDbContent(
                                     onNextItem: iterator =>
                                     {
-                                        var key = iterator.Key();
+                                        var key = iterator.Key().ToArray();
                                         if (processedKeys == 0 && ByteArrayComparer.Instance.Equals(startValue, key))
                                         {
                                             // Start value is the same as the key. Skip it to keep from double processing the start value.
@@ -538,7 +539,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         else
                                         {
                                             byte[]? value = null;
-                                            if (valueFilter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
+                                            if (valueFilter?.ShouldEnumerate?.Invoke(value = iterator.Value().ToArray()) == true)
                                             {
                                                 keyBuffer.Add((DeserializeKey(key), DeserializeContentLocationEntry(value!)));
                                             }
@@ -588,9 +589,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             ContentLocationEntry? result = null;
             using var poolHandle = db.GetKey(hash);
-            if (store.TryGetValue(poolHandle.Value, out var data))
+            if (store.TryGetPinnableValue(poolHandle.Value, out var span))
             {
-                result = db.DeserializeContentLocationEntry(data);
+                result = db.DeserializeContentLocationEntry(span.Value);
             }
 
             return result;
@@ -609,21 +610,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        /// <inheritdoc />
-        internal override void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
-        {
-            _keyValueStore.Use(static (store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
-        }
-
-        private static Unit PersistBatchHelper(RocksDbStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
-        {
-            store.ApplyBatch(
-                pairs.SelectWithState(
-                    static (kvp, db) => new KeyValuePair<byte[], byte[]?>(db.GetMaterializedKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null),
-                    state: db));
-            return Unit.Void;
-        }
-
         private void SaveToDb(ShortHash hash, ContentLocationEntry entry)
         {
             _keyValueStore.Use(
@@ -633,9 +619,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in Store
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
-            var value = db.SerializeContentLocationEntry(entry);
+            using var value = db.SerializeContentLocationEntry(entry);
             using var poolHandle = db.GetKey(hash);
-            store.Put(poolHandle.Value, value);
+            store.Put(poolHandle.Value.AsSpan(), value);
 
             return Unit.Void;
         }
@@ -649,8 +635,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in Delete
         private static Unit DeleteFromDbHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
-            using var poolHandle = db.GetKey(hash);
-            store.Remove(poolHandle.Value);
+            using var key = db.GetKey(hash);
+            store.Remove(key.Value);
             return Unit.Void;
         }
 
@@ -664,32 +650,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash.ToPooledByteArray();
         }
 
-        private byte[] GetMaterializedKey(in ShortHash hash)
-        {
-            return hash.ToByteArray();
-        }
-
         /// <inheritdoc />
         public override Result<MetadataEntry?> GetMetadataEntry(OperationContext context, StrongFingerprint strongFingerprint, bool touch)
         {
             // This method calls _keyValueStore.Use with non-static lambda, because this code is complicated
             // and not as perf critical as other places.
-            var key = GetMetadataKey(strongFingerprint);
+            using var key = GetMetadataKey(strongFingerprint);
+
             MetadataEntry? result = null;
             var status = _keyValueStore.Use(
                 store =>
                 {
-                    if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                    if (store.TryGetPinnableValue(key, out var pinnableSpan, nameof(Columns.Metadata)))
                     {
-                        var metadata = DeserializeMetadataEntry(data);
-                        result = metadata;
+                        result = DeserializeMetadataEntry(pinnableSpan.Value);
 
                         if (!_configuration.OpenReadOnly && IsDatabaseWriteable && touch)
                         {
                             // Update the time, only if no one else has changed it in the mean time. We don't
                             // really care if this succeeds or not, because if it doesn't it only means someone
                             // else changed the stored value before this operation but after it was read.
-                            Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
+                            Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, result.Value.ContentHashListWithDeterminism, result.Value.ContentHashListWithDeterminism));
                         }
 
                         // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
@@ -718,16 +699,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Func<MetadataEntry, bool> shouldReplace,
             DateTime? lastAccessTimeUtc)
         {
+            using var key = GetMetadataKey(strongFingerprint);
             return _keyValueStore.Use(
                 store =>
                 {
-                    var key = GetMetadataKey(strongFingerprint);
-
-                    lock (_metadataLocks[key[0]])
+                    lock (_metadataLocks[key.Buffer.Span[0]])
                     {
-                        if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                        if (store.TryGetPinnableValue(key, out var pinnableSpan, nameof(Columns.Metadata)))
                         {
-                            var current = DeserializeMetadataEntry(data);
+                            MetadataEntry current = DeserializeMetadataEntry(pinnableSpan.Value);
 
                             if (!shouldReplace(current))
                             {
@@ -752,8 +732,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // the initial put for the content hash list.
                         if (replacement.ContentHashList != null)
                         {
-                            var replacementMetadata = new MetadataEntry(replacement, lastAccessTimeUtc ?? Clock.UtcNow);
-                            store.Put(key, SerializeMetadataEntry(replacementMetadata), nameof(Columns.Metadata));
+                            using var serializedReplacementMetadata = SerializeMetadataEntry(new MetadataEntry(replacement, (lastAccessTimeUtc ?? Clock.UtcNow)));
+                            store.Put(key, serializedReplacementMetadata, nameof(Columns.Metadata));
                         }
                     }
 
@@ -794,20 +774,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var status = _keyValueStore.Use(
                 static (store, state) =>
                 {
-                    var @this = state.@this;
-                    var key = @this.SerializeWeakFingerprint(state.weakFingerprint);
+                    using var key = state.db.SerializeWeakFingerprint(state.weakFingerprint);
 
                     // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
                     // we know that all keys here are strong fingerprints that match the weak fingerprint.
-                    foreach (var kvp in store.PrefixSearch(key, columnFamilyName: nameof(Columns.Metadata)))
+                    foreach (var kvp in store.PrefixSearch(key.ToArray(), columnFamilyName: nameof(Columns.Metadata)))
                     {
-                        var strongFingerprint = @this.DeserializeStrongFingerprint(kvp.Key);
-                        var timeUtc = @this.DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                        var strongFingerprint = state.db.DeserializeStrongFingerprint(kvp.Key);
+                        var timeUtc = state.db.DeserializeMetadataLastAccessTimeUtc(kvp.Value);
                         state.selectors.Add((timeUtc, strongFingerprint.Selector));
                     }
 
                     return Unit.Void;
-                }, (selectors: selectors, @this: this, weakFingerprint: weakFingerprint));
+                }, (selectors: selectors, db: this, weakFingerprint: weakFingerprint));
 
             if (!status.Succeeded)
             {
@@ -819,37 +798,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 .Select(entry => entry.Selector).ToList());
         }
 
-        private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
+        private ContentLocationEntry DeserializeContentLocationEntry(RocksDbPinnableSpan span)
         {
-            return SerializationPool.Serialize(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
+            // Please do not convert the delegate to a method group, because this code is called many times
+            // and method group allocates a delegate on each conversion to a delegate.
+            using (span)
+            {
+                unsafe
+                {
+                    using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), (long)span.LengthPtr);
+                    return SerializationPool.Deserialize(stream, static reader => ContentLocationEntry.Deserialize(reader));
+                }
+            }
         }
 
-        private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
+        private PooledBuffer SerializeWeakFingerprint(Fingerprint weakFingerprint)
         {
-            return SerializationPool.Serialize(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.SerializePooled(weakFingerprint, static (instance, writer) => instance.Serialize(writer));
         }
 
-        private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
+        private PooledBuffer SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
+        {
+            return SerializationPool.SerializePooled(strongFingerprint, static (instance, writer) => instance.Serialize(writer));
+        }
+
+        private StrongFingerprint DeserializeStrongFingerprint(ReadOnlyMemory<byte> bytes)
         {
             return SerializationPool.Deserialize(bytes, static reader => StrongFingerprint.Deserialize(reader));
         }
 
-        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
+        private PooledBuffer GetMetadataKey(StrongFingerprint strongFingerprint)
         {
             return SerializeStrongFingerprint(strongFingerprint);
         }
 
-        private byte[] SerializeMetadataEntry(MetadataEntry value)
+        private PooledBuffer SerializeMetadataEntry(MetadataEntry value)
         {
-            return SerializationPool.Serialize(value, static (instance, writer) => instance.Serialize(writer));
+            return SerializationPool.SerializePooled(value, static (instance, writer) => instance.Serialize(writer));
         }
 
-        private MetadataEntry DeserializeMetadataEntry(byte[] data)
+        private MetadataEntry DeserializeMetadataEntry(RocksDbPinnableSpan span)
         {
-            return SerializationPool.Deserialize(data, static reader => MetadataEntry.Deserialize(reader));
+            using (span)
+            {
+                unsafe
+                {
+                    using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), (long)span.LengthPtr);
+                    return SerializationPool.Deserialize(stream, static reader => MetadataEntry.Deserialize(reader));
+                }
+            }
         }
 
-        private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
+        private long DeserializeMetadataLastAccessTimeUtc(ReadOnlyMemory<byte> data)
         {
             return SerializationPool.Deserialize(data, static reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }

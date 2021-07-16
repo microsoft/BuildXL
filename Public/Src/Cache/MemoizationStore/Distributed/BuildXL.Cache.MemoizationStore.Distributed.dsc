@@ -21,9 +21,7 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").Collections.dll,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             ...BuildXLSdk.bclAsyncPackages,
-
-            importFrom("BuildXL.Cache.Roxis").Client.dll,
-            importFrom("BuildXL.Cache.Roxis").Common.dll
+            ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

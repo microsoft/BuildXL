@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using BuildXL.Cache.Roxis.Client;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -142,18 +141,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(500_000)]
             public int RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; }
-
-            /// <nodoc />
-            [DefaultValue(false)]
-            public bool RoxisEnabled { get; set; }
-
-            /// <nodoc />
-            [DefaultValue("")]
-            public string RoxisMetadataStoreHost { get; set; }
-
-            /// <nodoc />
-            [DefaultValue(-1)]
-            public int RoxisMetadataStorePort { get; set; }
 
             /// <nodoc />
             [DefaultValue(null)]
@@ -358,38 +345,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStoreConfiguration GetInProcMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
         {
-            if (config.RoxisEnabled)
+            return new RocksDbMemoizationStoreConfiguration()
             {
-                var roxisClientConfiguration = new RoxisClientConfiguration();
-
-                if (!string.IsNullOrEmpty(config.RoxisMetadataStoreHost))
+                Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore")
                 {
-                    roxisClientConfiguration.GrpcHost = config.RoxisMetadataStoreHost;
-                }
-
-                if (config.RoxisMetadataStorePort > 0)
-                {
-                    roxisClientConfiguration.GrpcPort = config.RoxisMetadataStorePort;
-                }
-
-                return new RoxisMemoizationDatabaseConfiguration()
-                {
-                    MetadataClientConfiguration = roxisClientConfiguration,
-                };
-            }
-            else
-            {
-                return new RocksDbMemoizationStoreConfiguration() {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore") {
-                        CleanOnInitialize = false,
-                        GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
-                        MetadataGarbageCollectionEnabled = true,
-                        MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = config.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
-                        OnFailureDeleteExistingStoreAndRetry = true,
-                        LogsKeepLongTerm = false,
-                    },
-                };
-            }
+                    CleanOnInitialize = false,
+                    GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
+                    MetadataGarbageCollectionEnabled = true,
+                    MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = config.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
+                    OnFailureDeleteExistingStoreAndRetry = true,
+                    LogsKeepLongTerm = false,
+                },
+            };
         }
 
         private static MemoizationStore.Interfaces.Caches.ICache CreateGrpcCache(Config config, DisposeLogger logger)

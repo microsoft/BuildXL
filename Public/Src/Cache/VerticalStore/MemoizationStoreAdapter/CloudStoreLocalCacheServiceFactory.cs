@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
@@ -116,18 +115,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(true)]
             public bool VfsUseSymlinks { get; set; } = true;
-
-            /// <nodoc />
-            [DefaultValue(false)]
-            public bool RoxisEnabled { get; set; }
-
-            /// <nodoc />
-            [DefaultValue("")]
-            public string RoxisMetadataStoreHost { get; set; }
-
-            /// <nodoc />
-            [DefaultValue(-1)]
-            public int RoxisMetadataStorePort { get; set; }
 
             /// <nodoc />
             [DefaultValue(null)]
@@ -248,26 +235,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStoreConfiguration CreateInProcMemoizationStoreConfiguration(Config cacheConfig, AbsolutePath cacheRootPath)
         {
-            if (cacheConfig.RoxisEnabled)
-            {
-                var roxisClientConfiguration = new Roxis.Client.RoxisClientConfiguration();
-
-                if (!string.IsNullOrEmpty(cacheConfig.RoxisMetadataStoreHost))
-                {
-                    roxisClientConfiguration.GrpcHost = cacheConfig.RoxisMetadataStoreHost;
-                }
-
-                if (cacheConfig.RoxisMetadataStorePort > 0)
-                {
-                    roxisClientConfiguration.GrpcPort = cacheConfig.RoxisMetadataStorePort;
-                }
-
-                return new RoxisMemoizationDatabaseConfiguration()
-                {
-                    MetadataClientConfiguration = roxisClientConfiguration,
-                };
-            }
-
             return new RocksDbMemoizationStoreConfiguration()
             {
                 Database = new RocksDbContentLocationDatabaseConfiguration(cacheRootPath / "RocksDbMemoizationStore")

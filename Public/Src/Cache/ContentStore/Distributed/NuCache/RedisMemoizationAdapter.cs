@@ -169,11 +169,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeSelector(Selector selector, bool isReplacementToken)
         {
-            return _serializationPool.Serialize(selector, isReplacementToken, (isReplacementToken, selector, writer) =>
+            using var pooled = _serializationPool.SerializePooled(selector, isReplacementToken, (isReplacementToken, selector, writer) =>
             {
                 writer.Write(isReplacementToken);
                 selector.Serialize(writer);
             });
+
+            // Return a clone because the buffer will be returned to the pool and reused
+            return pooled.ToArray();
         }
     }
 }

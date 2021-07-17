@@ -343,7 +343,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         private readonly PerProcessPipPerformanceInformationStore m_perPipPerformanceInfoStore;
 
-
         private const double BytesInMb = 1024 * 1024;
 
         /// <summary>
@@ -1715,7 +1714,7 @@ namespace BuildXL.Scheduler
             // Count all workers that were running at some point (including the local worker)
             int everAvailableWorkers = 1 + setUpResults.Count(a => a);
 
-            if (m_drainThread.IsAlive)
+            if (m_drainThread.IsAlive && !IsTerminating)
             {
                 if (everAvailableWorkers < minimumWorkers)
                 {

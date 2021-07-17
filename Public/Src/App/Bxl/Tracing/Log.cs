@@ -490,6 +490,24 @@ namespace BuildXL.App.Tracing
             Message = "An exception was occurred/swallowed when initializing performance collector: {exception}.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void PerformanceCollectorInitializationFailed(LoggingContext context, string exception);
+
+        [GeneratedEvent(
+            (int)LogEventId.CbTimeoutReached,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Message = "Build Termination started {timeoutMins} mins before CB timeout for clean exit. BuildXL had a total of {availableMins} mins to complete the build.")]
+        public abstract void CbTimeoutReached(LoggingContext context, int timeoutMins, int availableMins);
+
+        [GeneratedEvent(
+            (int)LogEventId.CbTimeoutTooLow,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Message = "Build Terminated immediately since CB timeout is less than {mins} mins, please increase the CB timeout in your queue config")]
+        public abstract void CbTimeoutTooLow(LoggingContext context, int mins);
     }
 
     /// <summary>

@@ -64,5 +64,7 @@ namespace BuildXL.App.Tracing
         // ProblematicWorkerExitError = 14013,
 
         PerformanceCollectorInitializationFailed = 15000,
+        CbTimeoutReached = 15001,
+        CbTimeoutTooLow = 15002,
     }
 }

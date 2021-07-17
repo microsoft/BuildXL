@@ -159,6 +159,7 @@ namespace BuildXL
         // Cancellation request handling.
         private readonly CancellationTokenSource m_cancellationSource = new CancellationTokenSource();
         private int m_cancellationAlreadyAttempted = 0;
+        private const int EarlyCbTimeoutMins = 5; // Start Termination 5 mins before CB timeout gets triggered
         private LoggingContext m_appLoggingContext;
 
         private BuildViewModel m_buildViewModel;
@@ -2159,6 +2160,14 @@ namespace BuildXL
                 return engineState;
             }
 
+            // Ensure BuildXL terminates before CloudBuild Timeout
+            if (EngineEnvironmentSettings.CbUtcTimeoutTicks.Value != null)
+            {
+                long cbTimeoutTicks = EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value - DateTime.UtcNow.AddMinutes(EarlyCbTimeoutMins).Ticks;
+                int cbTimeoutMs = Convert.ToInt32(cbTimeoutTicks / TimeSpan.TicksPerMillisecond);
+                CbTimeoutCleanExitAsync(cbTimeoutMs);
+            }
+
             if (configuration.Export.SnapshotFile.IsValid && configuration.Export.SnapshotMode != SnapshotMode.None)
             {
                 engine.SetSnapshotCollector(
@@ -2555,6 +2564,23 @@ namespace BuildXL
         private void WriteErrorToConsoleWithDefaultColor(string format, params object[] args)
         {
             m_console.WriteOutputLine(MessageLevel.ErrorNoColor, string.Format(CultureInfo.InvariantCulture, format, args));
+        }
+
+#pragma warning disable AsyncFixer03 // Fire-and-forget async-void methods or delegates
+        private async void CbTimeoutCleanExitAsync(int msUntilTimeout)
+#pragma warning restore AsyncFixer03 // Fire-and-forget async-void methods or delegates
+        {
+            if (msUntilTimeout <= 0)
+            {
+                Logger.Log.CbTimeoutTooLow(m_appLoggingContext, EarlyCbTimeoutMins);
+                m_cancellationSource.Cancel();
+                return;
+            }
+
+            await Task.Delay(msUntilTimeout);
+            Logger.Log.CbTimeoutReached(m_appLoggingContext, EarlyCbTimeoutMins, 
+                Convert.ToInt32(TimeSpan.FromMilliseconds(msUntilTimeout).TotalMinutes));
+            m_cancellationSource.Cancel();
         }
     }
 

@@ -55,6 +55,7 @@ namespace BuildXL.Engine.Distribution
         private BondContentHash m_cacheValidationContentHash;
         private int m_nextSequenceNumber;
         private PipGraph m_pipGraph;
+        private CancellationTokenRegistration m_cancellationTokenRegistration;
 
         /// <summary>
         /// Indicates failure which should cause the worker build to fail. NOTE: This may not correspond to the
@@ -408,7 +409,8 @@ namespace BuildXL.Engine.Distribution
             Contract.Requires(!m_sendThread.IsAlive);
             m_executionLogBinaryReader?.Dispose();
             m_workerClient?.Dispose();
-            
+            m_cancellationTokenRegistration.Dispose();
+
             base.Dispose();
         }
 
@@ -416,6 +418,8 @@ namespace BuildXL.Engine.Distribution
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         public override async void Start()
         {
+            m_cancellationTokenRegistration = m_orchestratorService.Environment.Context.CancellationToken.Register(() => m_setupCompletion.TrySetResult(false));
+
             if (ChangeStatus(WorkerNodeStatus.NotStarted, WorkerNodeStatus.Starting))
             {
                 if (await TryAttachAsync())

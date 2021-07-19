@@ -282,7 +282,7 @@ namespace BuildXL.Scheduler
         public int AvailableRemoteWorkersCount => Workers.Count(a => a.IsAvailable && a.IsRemote);
 
         /// <summary>
-        /// Contains the result of the set up processes (success or failure) 
+        /// Contains the result of the set up processes (success or failure)
         /// for remote workers in a distributed build. (see <see cref="RemoteWorkerBase.SetupCompletionTask"/>)
         /// </summary>
         private Task<bool[]> m_workersSetupResultsTask;
@@ -443,16 +443,16 @@ namespace BuildXL.Scheduler
 
             if (availableRemoteWorkersCount == 0)
             {
-                // If there are no available remote workers, treat the build as a single-machine build. 
+                // If there are no available remote workers, treat the build as a single-machine build.
                 // It means that OrchestratorCpuMultiplier and OrchestratorCacheLookupMultiplier will have no effect.
                 newProcessSlots = targetProcessSlots;
                 newCacheLookupSlots = targetCacheLookupSlots;
             }
             else
             {
-                // In the distributed builds, the burden on the orchestrator machine increases with the number of available 
+                // In the distributed builds, the burden on the orchestrator machine increases with the number of available
                 // remote workers. That's why, we reduce the max concurrency limits for both Cpu and CacheLookup dispatchers
-                // based on the number of available remote workers. 
+                // based on the number of available remote workers.
                 // If there is one available remote worker, the multiplier would be 0.9
                 // 2 -> 0.8, 3 -> 0.7, 4 -> 0.6, >10 -> 0.1
                 // This gives us the best perf based on the 3-worker and 5-worker Cosine builds.
@@ -1573,7 +1573,7 @@ namespace BuildXL.Scheduler
         {
             Contract.Assert(m_drainThread != null, "Scheduler has not been started");
 
-            if (IsDistributedOrchestrator) 
+            if (IsDistributedOrchestrator)
             {
                 await EnsureMinimumWorkersAsync(m_configuration.Distribution.MinimumWorkers, m_configuration.Distribution.LowWorkersWarningThreshold.Value);
             }
@@ -1584,7 +1584,7 @@ namespace BuildXL.Scheduler
             }
 
             Contract.Assert(!HasFailed || m_executePhaseLoggingContext.ErrorWasLogged, "Scheduler encountered errors during execution, but none were logged.");
-            
+
             // We want TimeToFirstPipExecuted to always have a value. Mark the end of the execute phase as when the first
             // pip was executed in case all pips were cache hits
             MarkPipStartExecuting();
@@ -2723,7 +2723,7 @@ namespace BuildXL.Scheduler
                 }
                 else if (isAvailableRamCritical && perfInfo.ModifiedPagelistPercentage > 50)
                 {
-                    // Ram >= 98% and ModifiedPageSet > 50%  
+                    // Ram >= 98% and ModifiedPageSet > 50%
                     // Thrashing is an issue - try to cancel suspended processes, if any,
                     // or even running processes to alleviate the pressure.
                     memoryResource |= MemoryResource.LowRam;
@@ -2872,7 +2872,7 @@ namespace BuildXL.Scheduler
 
             if (resourceManager.NumActive == 0 && resourceManager.NumSuspended > 0)
             {
-                // Maybe something changed with our previous actions (we refreshed this number before potentially resuming some processes). 
+                // Maybe something changed with our previous actions (we refreshed this number before potentially resuming some processes).
                 // Before taking drastic action, refresh the counters.
                 resourceManager.RefreshMemoryCounters();
 
@@ -3593,7 +3593,7 @@ namespace BuildXL.Scheduler
                 m_executePipFunc,
                 cpuUsageInPercent,
                 maxRetryLimit: m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0);
-            
+
             runnablePip.SetObserver(observer);
             if (IsDistributedWorker)
             {
@@ -3821,7 +3821,7 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            if (!EngineEnvironmentSettings.DoNotSkipIpcWhenMaterializingOutputs && 
+            if (!EngineEnvironmentSettings.DoNotSkipIpcWhenMaterializingOutputs &&
                 runnablePip.PipType == PipType.Ipc)
             {
                 // By default, we skip IPC pips when materializing outputs because the outputs of IPC pips are not important
@@ -4047,10 +4047,10 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    // For module affinity, we need to set the preferred worker id. 
-                    // This is intentionally put here after we hydrate the pip for the first time when accessing 
-                    // runnablePip.Pip above for hashing dependencies. 
-                    if (runnablePip.Pip.Provenance.ModuleId.IsValid && 
+                    // For module affinity, we need to set the preferred worker id.
+                    // This is intentionally put here after we hydrate the pip for the first time when accessing
+                    // runnablePip.Pip above for hashing dependencies.
+                    if (runnablePip.Pip.Provenance.ModuleId.IsValid &&
                         m_moduleWorkerMapping.TryGetValue(runnablePip.Pip.Provenance.ModuleId, out var tuple) &&
                         tuple.Workers.Count > 0)
                     {
@@ -5997,8 +5997,7 @@ namespace BuildXL.Scheduler
                             case SandboxKind.MacOsHybrid:
                             {
                                 sandboxConnection =
-                                    (ISandboxConnection)new SandboxConnection(m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind,
-                                        isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
+                                    (ISandboxConnection)new SandboxConnection(m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind, isInTestMode: false);
 
                                 break;
                             }

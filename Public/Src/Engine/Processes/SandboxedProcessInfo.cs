@@ -33,14 +33,14 @@ namespace BuildXL.Processes
         /// Windows:
         ///   http://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
         ///   The maximum length of this string is 32,768 characters, including the Unicode terminating null character.
-        /// 
+        ///
         /// MacOS:
         ///   256K (can be obtained by executing `getconf ARG_MAX`)
-        /// 
+        ///
         /// Linux:
         ///   typically 2M (can be obtained by executing `xargs --show-limits`)
         /// </remarks>
-        public static readonly int MaxCommandLineLength = 
+        public static readonly int MaxCommandLineLength =
             OperatingSystemHelper.IsLinuxOS ? 2 * 1024 * 1024 :
             OperatingSystemHelper.IsMacOS   ?      256 * 1024 : short.MaxValue;
 
@@ -89,7 +89,7 @@ namespace BuildXL.Processes
         public ISandboxFileSystemView FileSystemView { get; }
 
         /// <summary>
-        /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object 
+        /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object
         /// with limit <see cref="JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"/>
         /// </summary>
         /// <remarks>
@@ -100,6 +100,11 @@ namespace BuildXL.Processes
         /// used by external projects that use the sandbox as a library.
         /// </remarks>
         public bool CreateJobObjectForCurrentProcess { get; }
+
+        /// <summary>
+        /// Indicates whether resource usage of the sandboxed process tree should be measured and logged for later inspection.
+        /// </summary>
+        public SandboxedProcessResourceMonitoringConfig MonitoringConfig;
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
@@ -118,17 +123,19 @@ namespace BuildXL.Processes
              LoggingContext loggingContext = null,
              IDetoursEventListener detoursEventListener = null,
              ISandboxConnection sandboxConnection = null,
-             bool createJobObjectForCurrentProcess = true)
+             bool createJobObjectForCurrentProcess = true,
+             SandboxedProcessResourceMonitoringConfig monitoringConfig = null)
              : this(
-                   new PathTable(), 
-                   fileStorage, 
-                   fileName, 
-                   disableConHostSharing, 
+                   new PathTable(),
+                   fileStorage,
+                   fileName,
+                   disableConHostSharing,
                    loggingContext ?? new LoggingContext("ExternalComponent"),
                    testRetries,
-                   detoursEventListener, 
-                   sandboxConnection, 
-                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
+                   detoursEventListener,
+                   sandboxConnection,
+                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
+                   monitoringConfig: monitoringConfig)
         {
         }
 
@@ -148,7 +155,8 @@ namespace BuildXL.Processes
             ISandboxConnection sandboxConnection = null,
             SidebandWriter sidebandWriter = null,
             bool createJobObjectForCurrentProcess = true,
-            ISandboxFileSystemView fileSystemView = null)
+            ISandboxFileSystemView fileSystemView = null,
+            SandboxedProcessResourceMonitoringConfig monitoringConfig = null)
         {
             Contract.RequiresNotNull(pathTable);
             Contract.RequiresNotNull(fileName);
@@ -170,6 +178,7 @@ namespace BuildXL.Processes
             SidebandWriter = sidebandWriter;
             CreateJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
             FileSystemView = fileSystemView;
+            MonitoringConfig = monitoringConfig;
         }
 
         /// <summary>
@@ -186,7 +195,9 @@ namespace BuildXL.Processes
             ISandboxConnection sandboxConnection = null,
             ContainerConfiguration containerConfiguration = null,
             FileAccessManifest fileAccessManifest = null,
-            bool createJobObjectForCurrentProcess = true)
+            bool createJobObjectForCurrentProcess = true,
+            SandboxedProcessResourceMonitoringConfig monitoringConfig = null
+            )
             : this(
                   pathTable,
                   fileStorage,
@@ -198,7 +209,8 @@ namespace BuildXL.Processes
                   testRetries,
                   detoursEventListener,
                   sandboxConnection,
-                  createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
+                  createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
+                  monitoringConfig: monitoringConfig)
         {
             Contract.RequiresNotNull(pathTable);
             Contract.RequiresNotNull(fileName);
@@ -278,7 +290,7 @@ namespace BuildXL.Processes
         /// <remarks>
         /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
         /// </remarks>
-        public RootJailInfo? RootJailInfo { get; set; } 
+        public RootJailInfo? RootJailInfo { get; set; }
 
         /// <summary>
         /// Environment variables (can be null)

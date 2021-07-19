@@ -49,9 +49,6 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public bool MeasureCpuTimes { get; }
-
-        /// <inheritdoc />
         public ulong MinReportQueueEnqueueTime => Volatile.Read(ref m_reportQueueLastEnqueueTime);
 
         /// <inheritdoc />
@@ -112,7 +109,6 @@ Use the the following command to load/reload the sandbox kernel extension and fi
             m_kextConnectionInfo = new Sandbox.KextConnectionInfo() { Error = Sandbox.SandboxSuccess };
             m_sharedMemoryInfo = new Sandbox.KextSharedMemoryInfo() { Error = Sandbox.SandboxSuccess };
 
-            MeasureCpuTimes = config.MeasureCpuTimes;
             IsInTestMode = skipDisposingForTests;
 
             // initialize kext connection

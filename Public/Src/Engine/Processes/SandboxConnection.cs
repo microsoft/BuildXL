@@ -28,9 +28,6 @@ namespace BuildXL.Processes
         public SandboxKind Kind { get; }
 
         /// <inheritdoc />
-        public bool MeasureCpuTimes { get; }
-
-        /// <inheritdoc />
         public ulong MinReportQueueEnqueueTime => Volatile.Read(ref m_reportQueueLastEnqueueTime);
 
         /// <inheritdoc />
@@ -54,9 +51,9 @@ namespace BuildXL.Processes
         private long m_lastReportReceivedTimestampTicks = DateTime.UtcNow.Ticks;
 
         private long LastReportReceivedTimestampTicks => Volatile.Read(ref m_lastReportReceivedTimestampTicks);
-        
+
         private Sandbox.AccessReportCallback m_AccessReportCallback;
-        
+
         static private Sandbox.Configuration ConfigurationForSandboxKind(SandboxKind kind)
         {
             switch (kind)
@@ -80,20 +77,19 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initializes the ES sandbox
         /// </summary>
-        public SandboxConnection(SandboxKind kind, bool isInTestMode = false, bool measureCpuTimes = false)
+        public SandboxConnection(SandboxKind kind, bool isInTestMode = false)
         {
             Kind = kind;
             m_reportQueueLastEnqueueTime = 0;
-            m_sandboxConnectionInfo = new Sandbox.SandboxConnectionInfo() 
+            m_sandboxConnectionInfo = new Sandbox.SandboxConnectionInfo()
             {
-                Config = ConfigurationForSandboxKind(kind), 
-                Error = Sandbox.SandboxSuccess 
+                Config = ConfigurationForSandboxKind(kind),
+                Error = Sandbox.SandboxSuccess
             };
 
-            MeasureCpuTimes = measureCpuTimes;
             IsInTestMode = isInTestMode;
 
-            var process = System.Diagnostics.Process.GetCurrentProcess();        
+            var process = System.Diagnostics.Process.GetCurrentProcess();
             Sandbox.InitializeSandbox(ref m_sandboxConnectionInfo, process.Id);
             if (m_sandboxConnectionInfo.Error != Sandbox.SandboxSuccess)
             {
@@ -138,7 +134,7 @@ namespace BuildXL.Processes
                     }
                 }
             };
-            
+
             Sandbox.ObserverFileAccessReports(ref m_sandboxConnectionInfo, m_AccessReportCallback, Marshal.SizeOf<Sandbox.AccessReport>());
         }
 

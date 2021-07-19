@@ -150,7 +150,7 @@ namespace BuildXL.Interop.Unix
         internal static extern int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize);
 
         /// <summary>OSX specific implementation of <see cref="IO.StatFileDescriptor"/> </summary>
-        internal unsafe static int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf) 
+        internal unsafe static int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf)
             => StatFileDescriptor(fd, ref statBuf, sizeof(StatBuffer));
 
         /// <summary>OSX specific implementation of <see cref="IO.StatFile"/> </summary>
@@ -193,14 +193,14 @@ namespace BuildXL.Interop.Unix
         private static extern int GetRamUsageInfo(ref MacRamUsageInfo buffer, long bufferSize);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        internal static extern int GetPeakWorkingSetSize(int pid, ref ulong buffer);
+        internal static extern int GetPeakWorkingSetSize(int pid, ref ulong buffer, bool includeChildProcesses);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         internal static extern int GetMemoryPressureLevel(ref PressureLevel level);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         internal static extern int GetCpuLoadInfo(ref CpuLoadInfo buffer, long bufferSize);
-        
+
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         internal static extern int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
 

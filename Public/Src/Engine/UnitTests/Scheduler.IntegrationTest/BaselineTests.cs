@@ -36,8 +36,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
-        // Simulated memory conditions 
-        private static readonly PerformanceCollector.MachinePerfInfo s_highMemoryPressurePerf = 
+        // Simulated memory conditions
+        private static readonly PerformanceCollector.MachinePerfInfo s_highMemoryPressurePerf =
             new PerformanceCollector.MachinePerfInfo()
             {
                 AvailableRamMb = 100,
@@ -747,15 +747,15 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             if (disableTreatAbsentDirectoryAsExistentUnderOpaque)
             {
-                // Only set it in case of disableTreatAbsentDirectoryAsExistentUnderOpaque, 
+                // Only set it in case of disableTreatAbsentDirectoryAsExistentUnderOpaque,
                 // so that we can also test the default behavior.
                 Configuration.Schedule.TreatAbsentDirectoryAsExistentUnderOpaque = false;
             }
 
             // Pip1 probes a directory: "opaque/childDir".
             // Pip2 produces a file under a regular or shared opaque directory probe: "opaque/childDir/output".
-            // If Pip1 executes before Pip2, then Pip1 has an AbsentPathProbe for probing "opaque/childDir. 
-            // In the next run, if Pip2 executes before Pip1, Pip1 has an ExistingDirectoryProbe for "opaque/childDir", 
+            // If Pip1 executes before Pip2, then Pip1 has an AbsentPathProbe for probing "opaque/childDir.
+            // In the next run, if Pip2 executes before Pip1, Pip1 has an ExistingDirectoryProbe for "opaque/childDir",
             // so it will get a miss because the parent directories of outputs are added to Output / Graph file system after Pip2 is executed.
 
             // Incremental scheduling does not seem compatible with constraintExecutionOrder feature
@@ -1605,10 +1605,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipC.Process.PipId]);
         }
 
-        [Theory]
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // TODO(BUG): flaky on Unix systems
         [InlineData(true)]
         [InlineData(false)]
-        [Trait("Category", "SkipLinux")] // TODO(BUG): flaky
         public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
         {
             Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
@@ -1631,7 +1631,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                         // After the two processes are launched
                         if (highPressureCycles > 0)
                         {
-                            // Simulate high memory pressure for a while. 
+                            // Simulate high memory pressure for a while.
                             // This will kick off cancellation of one of the pips
                             --highPressureCycles;
                             return s_highMemoryPressurePerf;
@@ -1640,12 +1640,12 @@ namespace IntegrationTest.BuildXL.Scheduler
                         {
                             if (!released)
                             {
-                                // Ensure that the ongoing processes will now finish 
+                                // Ensure that the ongoing processes will now finish
                                 WriteSourceFile(waitFile);
                                 released = true;
                             }
 
-                            // Go back to normal so scheduler can indeed retry (and succeed), 
+                            // Go back to normal so scheduler can indeed retry (and succeed),
                             // or fail anyways if we don't allow retries
                             return s_normalPerf;
                         }

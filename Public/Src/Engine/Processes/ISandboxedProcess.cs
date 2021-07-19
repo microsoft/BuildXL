@@ -9,8 +9,8 @@ namespace BuildXL.Processes
 {
     /// <summary>
     /// Interface for <see cref="SandboxedProcessPipExecutor"/> to use to start/kill/manage processes.
-    /// 
-    /// To create an instance of this interface and start executing the created process use 
+    ///
+    /// To create an instance of this interface and start executing the created process use
     /// <see cref="SandboxedProcessFactory.StartAsync"/>.
     /// </summary>
     public interface ISandboxedProcess : IDisposable
@@ -27,7 +27,7 @@ namespace BuildXL.Processes
         string GetAccessedFileName(ReportedFileAccess reportedFileAccess);
 
         /// <summary>
-        /// Gets the peak working set while the process is active. If the process exits, the peak working set is considered null.
+        /// Gets the peak working set size for the executing process tree. If the root process exits, the peak working set is considered null.
         /// </summary>
         ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot();
 

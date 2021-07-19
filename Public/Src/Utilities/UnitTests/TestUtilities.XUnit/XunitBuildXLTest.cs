@@ -62,7 +62,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 }
                 else
                 {
-                    sandboxConnection = new SandboxConnection(kind, isInTestMode: isInTestMode, measureCpuTimes: true);
+                    sandboxConnection = new SandboxConnection(kind, isInTestMode: isInTestMode);
                 }
             }
             else

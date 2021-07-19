@@ -206,7 +206,7 @@ namespace BuildXL.SandboxExec
                 }
                 else
                 {
-                    m_sandboxConnection = new SandboxConnection(m_options.SandboxKindUsed, isInTestMode: false, measureCpuTimes: true);
+                    m_sandboxConnection = new SandboxConnection(m_options.SandboxKindUsed, isInTestMode: false);
                 }
             }
             else

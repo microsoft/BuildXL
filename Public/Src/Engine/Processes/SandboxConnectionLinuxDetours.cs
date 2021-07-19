@@ -28,7 +28,7 @@ namespace BuildXL.Processes
 {
     /// <summary>
     /// A connection that communicates with a sandbox via a FIFO (a.k.a., named pipe).
-    /// 
+    ///
     /// A separate FIFO is used for each pip.  The sandbox is injected into the pip
     /// by virtue of setting the LD_PRELOAD environment variable to point to a native
     /// dynamic library where all the system call interposing is implemented.
@@ -124,12 +124,12 @@ namespace BuildXL.Processes
                     [process.ProcessId] = 1
                 };
                 m_activeProcessesChecker = new CancellableTimedAction(
-                    CheckActiveProcesses, 
+                    CheckActiveProcesses,
                     intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)ActiveProcessesCheckerInterval.TotalMilliseconds));
 
-                // create a write handle (used to keep the fifo open, i.e., 
+                // create a write handle (used to keep the fifo open, i.e.,
                 // the 'read' syscall won't receive EOF until we close this writer
-                m_lazyWriteHandle = new Lazy<SafeFileHandle>(() => 
+                m_lazyWriteHandle = new Lazy<SafeFileHandle>(() =>
                 {
                     LogDebug($"Opening FIFO '{ReportsFifoPath}' for writing");
                     return IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0);
@@ -195,7 +195,7 @@ namespace BuildXL.Processes
 
             /// <summary>
             /// Request to stop receiving access reports.  This method returns immediately;
-            /// any currently pending reports will be processed asynchronously. 
+            /// any currently pending reports will be processed asynchronously.
             /// </summary>
             internal void RequestStop()
             {
@@ -243,7 +243,7 @@ namespace BuildXL.Processes
                 else if (removed && pid == Process.ProcessId)
                 {
                     // We just removed the root process and there are still active processes left
-                    //   => start periodically checking if they are still alive, because we don't 
+                    //   => start periodically checking if they are still alive, because we don't
                     //      have a reliable mechanism for receiving those events straight from the
                     //      child processes (e.g., if they crash, we might not hear about it)
                     //
@@ -259,7 +259,7 @@ namespace BuildXL.Processes
                 PathCacheRecord cacheRecord;
                 if (!m_pathCache.TryGetValue(path, out cacheRecord))
                 {
-                    cacheRecord = new PathCacheRecord() 
+                    cacheRecord = new PathCacheRecord()
                     {
                         RequestedAccess = RequestedAccess.None
                     };
@@ -293,7 +293,7 @@ namespace BuildXL.Processes
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, retryOnFailure: false));
                 if (m_isInTestMode)
                 {
-                    // The worker thread should complete in all but most extreme cases.  One such extreme case 
+                    // The worker thread should complete in all but most extreme cases.  One such extreme case
                     // is when the underlying filesystems crashes or shuts down completely (which is possible,
                     // especially if that's a custom-implemented filesystem running in user space).  When that
                     // happens, some write handled to the created FIFO may remain open, so the 'read' call in
@@ -452,10 +452,6 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public SandboxKind Kind => SandboxKind.LinuxDetours;
 
-        // TODO: remove this property from the interface
-        /// <inheritdoc />
-        public bool MeasureCpuTimes { get; } = false;
-
         /// <inheritdoc />
         /// <remarks>Unimportant</remarks>
         public ulong MinReportQueueEnqueueTime => (ulong)DateTime.UtcNow.Ticks;
@@ -478,8 +474,8 @@ namespace BuildXL.Processes
         /// <nodoc />
         public SandboxConnectionLinuxDetours(Sandbox.ManagedFailureCallback failureCallback = null, bool isInTestMode = false)
         {
-            IsInTestMode = isInTestMode;
             m_failureCallback = failureCallback;
+            IsInTestMode = isInTestMode;
 
 #if DEBUG
             BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(true);

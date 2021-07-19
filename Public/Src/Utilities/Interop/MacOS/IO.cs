@@ -166,10 +166,10 @@ namespace BuildXL.Interop.Unix
         internal static int ToInt(SafeFileHandle fd) => fd.DangerousGetHandle().ToInt32();
 
         /// <summary>
-        /// Implements the standard unix 'stat' command. 
+        /// Implements the standard unix 'stat' command.
         /// </summary>
         /// <returns>
-        /// Upon successful completion a value of 0 is returned and the result is stored in <paramref name="statBuf"/>; 
+        /// Upon successful completion a value of 0 is returned and the result is stored in <paramref name="statBuf"/>;
         /// otherwise, a value of -1 is returned and <see cref="Marshal.GetLastWin32Error"/> is set to indicate the error.
         /// </returns>
         public static int StatFile(string path, bool followSymlink, ref StatBuffer statBuf) => IsMacOS
@@ -283,7 +283,7 @@ namespace BuildXL.Interop.Unix
         /// <param name="offset">Index in <paramref name="bytes"/> at which to save read bytes</param>
         /// <param name="length">Max number of bytes to read</param>
         /// <returns>
-        /// 0 on EOF, -1 on error, or number of bytes read otherwise.  
+        /// 0 on EOF, -1 on error, or number of bytes read otherwise.
         /// Returning a positive number that is less than <paramref name="length"/> does not indicate error.
         /// </returns>
         public unsafe static int Read(SafeFileHandle handle, byte[] bytes, int offset, int length)
@@ -376,7 +376,7 @@ namespace BuildXL.Interop.Unix
         /// </remarks>
         /// </summary>
         public static long SendFile(SafeFileHandle fd_in, SafeFileHandle fd_out, IntPtr offset, long len) => IsMacOS
-            ? throw new NotImplementedException() 
+            ? throw new NotImplementedException()
             : Impl_Linux.sendfile(ToInt(fd_out), ToInt(fd_in), offset, len);
 
         public enum AdviceHint : int

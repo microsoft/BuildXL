@@ -39,7 +39,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initial length to get active processes.
         /// </summary>
-        public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB. 
+        public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB.
 
         /// <summary>
         /// Nested jobs are only supported on Win8/Server2012 or higher.
@@ -383,13 +383,28 @@ namespace BuildXL.Processes
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get basic accounting information.");
             }
 
+            var memory = default(JOBOBJECT_MEMORY_USAGE_INFORMATION_V2);
+            var memoryQuerySuccessful = Native.Processes.ProcessUtilities.QueryInformationJobObject(
+                handle,
+                JOBOBJECTINFOCLASS.JobObjectMemoryUsageInformation,
+                &memory,
+                (uint)Marshal.SizeOf(memory),
+                out _);
+
             return new AccountingInformation()
             {
                 IO = new IOCounters(info.IOCounters),
                 KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                 UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
-                NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses
-            };
+                NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
+                MemoryCounters = memoryQuerySuccessful
+                    ? ProcessMemoryCounters.CreateFromBytes(
+                        memory.BasicInfo.PeakJobMemoryUsed,
+                        memory.BasicInfo.JobMemory,
+                        memory.BasicInfo.PeakJobMemoryUsed + memory.JobSharedMemory,
+                        memory.JobSharedMemory)
+                    : default(ProcessMemoryCounters)
+        };
         }
 
         /// <summary>

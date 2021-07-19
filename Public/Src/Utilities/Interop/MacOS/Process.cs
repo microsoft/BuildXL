@@ -14,7 +14,9 @@ namespace BuildXL.Interop.Unix
     /// </summary>
     public static class Process
     {
-        /// <nodoc />
+        /// <summary>
+        /// Code sync with ProcessResourceUsage defined in 'process.h' for Unix
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public struct ProcessResourceUsage
         {
@@ -35,14 +37,39 @@ namespace BuildXL.Interop.Unix
             public ulong UserTimeNs;
 
             /// <summary>
+            /// Number of read operations performed.
+            /// </summary>
+            public ulong DiskReadOps;
+
+            /// <summary>
             /// Bytes read from disk
             /// </summary>
             public ulong DiskBytesRead;
 
             /// <summary>
+            /// Number of write operations performed.
+            /// </summary>
+            public ulong DiskWriteOps;
+
+            /// <summary>
             /// Bytes written to disk
             /// </summary>
             public ulong DiskBytesWritten;
+
+            /// <summary>
+            /// Value of the resident set size, representing the amount of physical memory used by a process right now.
+            /// </summary>
+            public ulong WorkingSetSize;
+
+            /// <summary>
+            /// Peak value of the resident set size, representing the maximum amount of physical memory used by a process at any time.
+            /// </summary>
+            public ulong PeakWorkingSetSize;
+
+            /// <summary>
+            /// The number of child processes spawned.
+            /// </summary>
+            public int NumberOfChildProcesses;
         }
 
         /// <remarks>
@@ -65,7 +92,7 @@ namespace BuildXL.Interop.Unix
         /// <param name="includeChildProcesses">Whether the result should include the execution times of all the child processes</param>
         public static int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, bool includeChildProcesses) => IsMacOS
             ? Impl_Mac.GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses)
-            : ERROR;
+            : Impl_Linux.GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses);
 
         /// <summary>
         /// Returns true if core dump file creation for abnormal process exits has been set up successfully, and passes out

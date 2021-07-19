@@ -362,8 +362,8 @@ namespace BuildXL.Processes
 
         private VisitJobObjectResult TryVisitJobObjectProcesses(Action<SafeProcessHandle, uint> actionForProcess)
         {
-            // Callers of this method check IsDetouredProcessUsable before calling, 
-            // but there is technically a chance that we are disposed (so m_detouredProcess is null) 
+            // Callers of this method check IsDetouredProcessUsable before calling,
+            // but there is technically a chance that we are disposed (so m_detouredProcess is null)
             // between that check and this call. In that case we just return TerminatedBeforeVisitation.
             return m_detouredProcess?.TryVisitJobObjectProcesses(actionForProcess) ?? VisitJobObjectResult.TerminatedBeforeVisitation;
         }
@@ -628,14 +628,22 @@ namespace BuildXL.Processes
             // We can get extended accounting information (peak memory, etc. rolled up for the entire process tree) if this process was wrapped in a job.
             JobObject.AccountingInformation? jobAccountingInformation = null;
             JobObject jobObject = m_detouredProcess.GetJobObject();
+
             if (jobObject != null)
             {
                 var accountingInfo = jobObject.GetAccountingInformation();
-                accountingInfo.MemoryCounters = Pips.ProcessMemoryCounters.CreateFromBytes(
-                    peakWorkingSet: Convert.ToUInt64(m_peakWorkingSet.Maximum),
-                    averageWorkingSet: Convert.ToUInt64(m_workingSet.Average),
-                    peakCommitSize: Convert.ToUInt64(m_peakCommitSize.Maximum),
-                    averageCommitSize: Convert.ToUInt64(m_commitSize.Average));
+
+                // Only overwrite memory counters if <see cref="GetMemoryCountersSnapshot"/> did get triggered previously. This isn't the case if the
+                // detours sandbox is used outside of BuildXL (currently only the scheduler calls this). The <see cref="JobObject.GetAccountingInformation"/>
+                // function does populate memory counters for the process tree if possible, so don't overwrite them with empty aggregator values.
+                if (m_peakWorkingSet.Count > 0 || m_workingSet.Count > 0 || m_peakCommitSize.Count > 0 || m_commitSize.Count > 0)
+                {
+                    accountingInfo.MemoryCounters = Pips.ProcessMemoryCounters.CreateFromBytes(
+                        peakWorkingSet: Convert.ToUInt64(m_peakWorkingSet.Maximum),
+                        averageWorkingSet: Convert.ToUInt64(m_workingSet.Average),
+                        peakCommitSize: Convert.ToUInt64(m_peakCommitSize.Maximum),
+                        averageCommitSize: Convert.ToUInt64(m_commitSize.Average));
+                }
 
                 jobAccountingInformation = accountingInfo;
             }

@@ -49,8 +49,6 @@ namespace Test.BuildXL.Processes
 
             public bool IsInTestMode => true;
 
-            public bool MeasureCpuTimes => true;
-
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
             public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
@@ -106,12 +104,12 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAndStuckRootProcessAsync()
         {
-            var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block());
+            var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block(), measureTimings: true);
             processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromMilliseconds(10);
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
-            using (var process = CreateAndStartSandboxedProcess(processInfo, measureTime: true))
+            using (var process = CreateAndStartSandboxedProcess(processInfo))
             {
                 // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
                 // has been reached, including the stuck root process
@@ -182,8 +180,8 @@ namespace Test.BuildXL.Processes
                     },
                 });
 
-                // SandboxedProcessMac should decide to kill the process because its child survived; 
-                // when it does that, it will call this callback.  When that happens, we must post 
+                // SandboxedProcessMac should decide to kill the process because its child survived;
+                // when it does that, it will call this callback.  When that happens, we must post
                 // OpProcessTreeCompleted because SandboxedProcessMac will keep waiting for it.
                 s_connection.ProcessTerminated += (pipId, pid) =>
                 {
@@ -217,14 +215,16 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        private SandboxedProcessInfo CreateProcessInfoWithSandboxConnection(Operation op)
+        private SandboxedProcessInfo CreateProcessInfoWithSandboxConnection(Operation op, bool measureTimings = false)
         {
-            return ToProcessInfo(ToProcess(op), sandboxConnection: s_connection);
+            var info = ToProcessInfo(ToProcess(op), sandboxConnection: s_connection);
+            info.MonitoringConfig = measureTimings ? new SandboxedProcessResourceMonitoringConfig(enabled: true, refreshInterval: TimeSpan.FromMilliseconds(10)) : null;
+            return info;
         }
 
-        private SandboxedProcessUnix CreateAndStartSandboxedProcess(SandboxedProcessInfo info, bool? measureTime = null)
+        private SandboxedProcessUnix CreateAndStartSandboxedProcess(SandboxedProcessInfo info)
         {
-            var process = new SandboxedProcessUnix(info, overrideMeasureTime: measureTime);
+            var process = new SandboxedProcessUnix(info);
             process.Start();
             return process;
         }

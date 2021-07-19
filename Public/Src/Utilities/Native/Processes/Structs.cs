@@ -6,6 +6,9 @@ using System.Runtime.InteropServices;
 
 namespace BuildXL.Native.Processes
 {
+
+#pragma warning disable CS1591 // Missing XML comment
+
     /// <nodoc />
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct PathMapping
@@ -50,14 +53,12 @@ namespace BuildXL.Native.Processes
     [StructLayout(LayoutKind.Sequential)]
     public struct IO_COUNTERS
     {
-#pragma warning disable CS1591 // Missing XML comment
         public ulong ReadOperationCount;
         public ulong WriteOperationCount;
         public ulong OtherOperationCount;
         public ulong ReadTransferCount;
         public ulong WriteTransferCount;
         public ulong OtherTransferCount;
-#pragma warning restore CS1591 // Missing XML comment
     }
 
     /// <summary>
@@ -67,7 +68,6 @@ namespace BuildXL.Native.Processes
     [StructLayout(LayoutKind.Sequential)]
     public struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
     {
-#pragma warning disable CS1591 // Missing XML comment
         public long PerProcessUserTimeLimit;
         public long PerJobUserTimeLimit;
         public JOBOBJECT_LIMIT_FLAGS LimitFlags;
@@ -82,7 +82,6 @@ namespace BuildXL.Native.Processes
         public UIntPtr JobMemoryLimit;
         public UIntPtr PeakProcessMemoryUsed;
         public UIntPtr PeakJobMemoryUsed;
-#pragma warning restore CS1591 // Missing XML comment
     }
 
     /// <summary>
@@ -118,7 +117,6 @@ namespace BuildXL.Native.Processes
     [StructLayout(LayoutKind.Sequential)]
     public struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
     {
-#pragma warning disable CS1591 // Missing XML comment
         public ulong TotalUserTime;
         public ulong TotalKernelTime;
         public ulong ThisPeriodTotalUserTime;
@@ -127,7 +125,6 @@ namespace BuildXL.Native.Processes
         public uint TotalProcesses;
         public uint ActiveProcesses;
         public uint TotalTerminatedProcesses;
-#pragma warning restore CS1591 // Missing XML comment
     }
 
     /// <summary>
@@ -139,9 +136,30 @@ namespace BuildXL.Native.Processes
     [StructLayout(LayoutKind.Sequential)]
     public struct JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION
     {
-#pragma warning disable CS1591 // Missing XML comment
         public JOBOBJECT_BASIC_ACCOUNTING_INFORMATION BasicAccountingInformation;
         public IO_COUNTERS IOCounters;
-#pragma warning restore CS1591 // Missing XML comment
     }
+
+    /// <summary>
+    /// Contains basic memory information for a job object.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct JOBOBJECT_MEMORY_USAGE_INFORMATION
+    {
+        public ulong JobMemory;
+        public ulong PeakJobMemoryUsed;
+    }
+
+    /// <summary>
+    /// Contains extended memory information for a job object.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct JOBOBJECT_MEMORY_USAGE_INFORMATION_V2
+    {
+        public JOBOBJECT_MEMORY_USAGE_INFORMATION BasicInfo;
+        public ulong JobSharedMemory;
+        private ulong Reserved;
+    }
+
+#pragma warning restore CS1591 // Missing XML comment
 }

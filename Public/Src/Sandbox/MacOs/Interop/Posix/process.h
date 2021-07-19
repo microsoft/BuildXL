@@ -11,8 +11,13 @@ typedef struct {
     double exitTime;
     unsigned long systemTime;
     unsigned long userTime;
+    unsigned long diskio_readops;
     unsigned long diskio_bytesRead;
+    unsigned long diskio_writeops;
     unsigned long diskio_bytesWritten;
+    unsigned long rss;
+    unsigned long peak_rss;
+    int child_count;
 } ProcessResourceUsage;
 
 int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses);

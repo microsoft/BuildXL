@@ -20,15 +20,6 @@ namespace BuildXL.Processes
         SandboxKind Kind { get; }
 
         /// <summary>
-        /// Whether to measure CPU times (user/system) of sandboxed processes.  Default: false.
-        /// </summary>
-        /// <remarks>
-        /// In principle thre should be no reason not to measure CPU times.  This amounts to wrapping every
-        /// process in '/usr/bin/time', which could (potentially) lead to some unexpected behavior.
-        /// </remarks>
-        bool MeasureCpuTimes { get; }
-
-        /// <summary>
         /// Reports the earliest (minimum) enqueue time received from all the sandbox report queues available
         /// </summary>
         ulong MinReportQueueEnqueueTime { get; }

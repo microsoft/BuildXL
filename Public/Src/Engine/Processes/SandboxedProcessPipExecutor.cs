@@ -846,7 +846,8 @@ namespace BuildXL.Processes
                         SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
-                        DetoursFailureFile = m_detoursFailuresFile
+                        DetoursFailureFile = m_detoursFailuresFile,
+                        MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: m_sandboxConfig.MeasureProcessCpuTimes, refreshInterval: TimeSpan.FromSeconds(2)),
                     };
 
                     var result = ShouldSandboxedProcessExecuteExternal

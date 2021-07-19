@@ -26,26 +26,28 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Implementation of <see cref="ISandboxedProcess"/> that relies on our kernel extension 
+    /// Implementation of <see cref="ISandboxedProcess"/> that relies on our kernel extension
     /// for Unix-based systems (including MacOS and Linux).
     /// </summary>
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
         private class PerfAggregator
         {
+            // Root process observations are used for GetCPUTimes() only
             internal PerformanceCollector.Aggregation KernelTimeMs { get; } = new PerformanceCollector.Aggregation();
             internal PerformanceCollector.Aggregation UserTimeMs { get; } = new PerformanceCollector.Aggregation();
+
+            // Process tree times
             internal PerformanceCollector.Aggregation JobKernelTimeMs { get; } = new PerformanceCollector.Aggregation();
             internal PerformanceCollector.Aggregation JobUserTimeMs { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation PeakMemoryBytes { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation DiskBytesRead { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation DiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobPeakMemoryBytes { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobMemoryBytes { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobDiskReadOps { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobDiskBytesRead { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobDiskWriteOps { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobDiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobNumberOfChildProcesses { get; } = new PerformanceCollector.Aggregation();
         }
-
-        /// <summary>
-        /// Interval at which the process is probed for its counters (e.g., CPU time, memory usage, etc.)
-        /// </summary>
-        public static readonly TimeSpan PerfProbeInternal = TimeSpan.FromSeconds(2);
 
         private readonly SandboxedProcessReports m_reports;
 
@@ -103,9 +105,6 @@ namespace BuildXL.Processes
 
         private bool IgnoreReportedAccesses { get; }
 
-        /// <see cref="ISandboxConnection.MeasureCpuTimes"/>
-        private bool MeasureCpuTime { get; }
-
         /// <summary>
         /// Absolute path to the executable file.
         /// </summary>
@@ -159,7 +158,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc />
-        public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
+        public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false)
             : base(info)
         {
             Contract.Requires(info.FileAccessManifest != null);
@@ -174,15 +173,14 @@ namespace BuildXL.Processes
             IgnoreReportedAccesses = ignoreReportedAccesses;
             RootJailInfo = info.RootJailInfo;
 
-            MeasureCpuTime = overrideMeasureTime.HasValue
-                ? overrideMeasureTime.Value
-                : info.SandboxConnection.MeasureCpuTimes;
-
             m_perfAggregator = new PerfAggregator();
 
-            m_perfCollector = new CancellableTimedAction(
-                callback: UpdatePerfCounters,
-                intervalMs: (int)PerfProbeInternal.TotalMilliseconds);
+            if (info.MonitoringConfig is not null && info.MonitoringConfig.MonitoringEnabled)
+            {
+                m_perfCollector = new CancellableTimedAction(
+                    callback: UpdatePerfCounters,
+                    intervalMs: (int)info.MonitoringConfig.RefreshInterval.TotalMilliseconds);
+            }
 
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
@@ -203,7 +201,7 @@ namespace BuildXL.Processes
                 BoundedCapacity = DataflowBlockOptions.Unbounded,
                 MaxDegreeOfParallelism = 1 // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
             };
-            
+
             m_pendingReports = new ActionBlock<AccessReport>(HandleAccessReport, executionOptions);
 
             // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
@@ -233,12 +231,14 @@ namespace BuildXL.Processes
             {
                 m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
                 m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
-                m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
-                m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
+                m_perfAggregator.JobPeakMemoryBytes.RegisterSample(buffer.PeakWorkingSetSize);
+                m_perfAggregator.JobMemoryBytes.RegisterSample(buffer.WorkingSetSize);
+                m_perfAggregator.JobDiskReadOps.RegisterSample(buffer.DiskReadOps);
+                m_perfAggregator.JobDiskBytesRead.RegisterSample(buffer.DiskBytesRead);
+                m_perfAggregator.JobDiskWriteOps.RegisterSample(buffer.DiskWriteOps);
+                m_perfAggregator.JobDiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
+                m_perfAggregator.JobNumberOfChildProcesses.RegisterSample(buffer.NumberOfChildProcesses);
             }
-
-            // get memory usage for the process tree
-            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakWorkingSet(default, ProcessId));
         }
 
         /// <inheritdoc />
@@ -286,10 +286,7 @@ namespace BuildXL.Processes
                     values: FileAccessPolicy.AllowReadAlways);
             }
 
-            if (MeasureCpuTime)
-            {
-                m_perfCollector.Start();
-            }
+            m_perfCollector?.Start();
 
             string processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
 
@@ -313,8 +310,8 @@ namespace BuildXL.Processes
             finally
             {
                 // release the FileAccessManifest memory
-                // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object 
-                //       unreachable and thus available for garbage collection.  We call Release() here explicitly 
+                // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object
+                //       unreachable and thus available for garbage collection.  We call Release() here explicitly
                 //       just to emphasize the importance of reclaiming this memory.
                 info.FileAccessManifest.Release();
             }
@@ -385,9 +382,10 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
-            m_perfCollector.Cancel();
-            m_perfCollector.Join();
-            m_perfCollector.Dispose();
+            m_perfCollector?.Cancel();
+            m_perfCollector?.Join();
+            m_perfCollector?.Dispose();
+
             m_timeoutTaskCancelationSource.Cancel();
 
             ulong reportCount = (ulong) Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
@@ -530,7 +528,7 @@ namespace BuildXL.Processes
         [NotNull]
         internal override CpuTimes GetCpuTimes()
         {
-            return !MeasureCpuTime
+            return m_perfCollector is null
                 ? base.GetCpuTimes()
                 : new CpuTimes(
                     user: TimeSpan.FromMilliseconds(m_perfAggregator.UserTimeMs.Latest),
@@ -540,7 +538,7 @@ namespace BuildXL.Processes
         // <inheritdoc />
         internal override JobObject.AccountingInformation GetJobAccountingInfo()
         {
-            if (!MeasureCpuTime)
+            if (m_perfCollector is null)
             {
                 return base.GetJobAccountingInfo();
             }
@@ -548,20 +546,26 @@ namespace BuildXL.Processes
             {
                 IOCounters ioCounters;
                 ProcessMemoryCounters memoryCounters;
+                uint childProcesses = 0;
 
                 try
                 {
                     ioCounters = new IOCounters(new IO_COUNTERS()
                     {
-                        ReadOperationCount = 1,
-                        WriteOperationCount = 1,
-                        ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
-                        WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
+                        ReadOperationCount = Convert.ToUInt64(m_perfAggregator.JobDiskReadOps.Latest),
+                        ReadTransferCount = Convert.ToUInt64(m_perfAggregator.JobDiskBytesRead.Latest),
+                        WriteOperationCount = Convert.ToUInt64(m_perfAggregator.JobDiskWriteOps.Latest),
+                        WriteTransferCount = Convert.ToUInt64(m_perfAggregator.JobDiskBytesWritten.Latest)
                     });
 
-                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Average), 0, 0);
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(
+                        Convert.ToUInt64(m_perfAggregator.JobPeakMemoryBytes.Maximum),
+                        Convert.ToUInt64(m_perfAggregator.JobMemoryBytes.Average),
+                        0, 0);
+
+                    childProcesses = Convert.ToUInt32(m_perfAggregator.JobNumberOfChildProcesses.Maximum);
                 }
-                catch(OverflowException ex)
+                catch (OverflowException ex)
                 {
                     LogProcessState($"Overflow exception caught while calculating AccountingInformation:{Environment.NewLine}{ex.ToString()}");
 
@@ -582,6 +586,7 @@ namespace BuildXL.Processes
                     MemoryCounters = memoryCounters,
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
+                    NumberOfProcesses = childProcesses,
                 };
             }
         }
@@ -898,7 +903,6 @@ namespace BuildXL.Processes
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
             var error           = report.Error;
             var path            = report.DecodePath();
-            
             ulong processTime   = (report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
             ulong queueTime     = (report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 

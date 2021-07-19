@@ -64,6 +64,7 @@ namespace BuildXL.Utilities
 
         // Used for calculating the network sample time
         private DateTime m_networkTimeLastCollectedAt = DateTime.MinValue;
+
         #endregion
 
         /// <summary>
@@ -72,7 +73,7 @@ namespace BuildXL.Utilities
         public IEnumerable<string> GetDrives()
         {
             return OperatingSystemHelper.IsUnixOS ? // Drive names are processed differently depending on OS
-                m_drives.Select(t => t.driveInfo.Name) : 
+                m_drives.Select(t => t.driveInfo.Name) :
                 m_drives.Where(t => !t.safeFileHandle.IsInvalid && !t.safeFileHandle.IsClosed).Select(t => t.driveInfo.Name.TrimStart('\\').TrimEnd('\\').TrimEnd(':'));
         }
 
@@ -134,11 +135,11 @@ namespace BuildXL.Utilities
 
             m_drives = drives.ToArray();
 
+            // Initialize network telemetry objects
+            InitializeNetworkMonitor();
+
             if (!OperatingSystemHelper.IsUnixOS)
             {
-                // Initialize network telemetry objects
-                InitializeNetworkMonitor();
-
                 InitializeWMIAsync().Forget(errorHandler);
             }
 
@@ -186,30 +187,29 @@ namespace BuildXL.Utilities
             }
 
             CollectOnce();
-
             ReschedulerTimer();
         }
 
         private void CollectOnce()
         {
+            // This must be reacquired for every collection and may not be cached because some of the fields like memory usage are only set in the Process() constructor
             lock (m_collectLock)
             {
-                // This must be reacquired for every collection and may not be cached because some of the fields like memory
-                // usage are only set in the Process() constructor
                 Process currentProcess = Process.GetCurrentProcess();
 
                 // Compute the performance data
                 double? machineCpu = 0.0;
+                double? machineAvailablePhysicalBytes = null;
+                double? machineTotalPhysicalBytes = null;
+                double? machineCommitUsedBytes = null;
+                double? machineCommitLimitBytes = null;
+
                 double? processCpu = GetProcessCpu(currentProcess);
                 double processThreads = currentProcess.Threads.Count;
                 double processPrivateBytes = currentProcess.PrivateMemorySize64;
                 double processWorkingSetBytes = currentProcess.WorkingSet64;
                 double processHeldBytes = m_collectHeldBytesFromGC ? GC.GetTotalMemory(forceFullCollection: true) : 0;
 
-                double? machineAvailablePhysicalBytes = null;
-                double? machineTotalPhysicalBytes = null;
-                double? commitUsedBytes = null;
-                double? commitLimitBytes = null;
                 double? jobObjectCpu = null;
                 double? jobObjectProcesses = null;
 
@@ -233,8 +233,8 @@ namespace BuildXL.Utilities
                     PERFORMANCE_INFORMATION performanceInfo = PERFORMANCE_INFORMATION.CreatePerfInfo();
                     if (GetPerformanceInfo(out performanceInfo, performanceInfo.cb))
                     {
-                        commitUsedBytes = performanceInfo.CommitUsed.ToInt64() * performanceInfo.PageSize.ToInt64();
-                        commitLimitBytes = performanceInfo.CommitLimit.ToInt64() * performanceInfo.PageSize.ToInt64();
+                        machineCommitUsedBytes = performanceInfo.CommitUsed.ToInt64() * performanceInfo.PageSize.ToInt64();
+                        machineCommitLimitBytes = performanceInfo.CommitLimit.ToInt64() * performanceInfo.PageSize.ToInt64();
                     }
 
                     diskStats = GetDiskCountersWindows();
@@ -244,14 +244,14 @@ namespace BuildXL.Utilities
                 }
                 else
                 {
-                    diskStats = GetDiskCounters();
-                    machineCpu = GetMachineCpuMacOS();
+                    diskStats = GetDiskCountersUnix();
+                    machineCpu = GetMachineCpuUnix();
 
                     RamUsageInfo ramUsageInfo = new RamUsageInfo();
                     if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
                     {
-                        machineTotalPhysicalBytes = ramUsageInfo.TotalBytes;
                         machineAvailablePhysicalBytes = ramUsageInfo.FreeBytes;
+                        machineTotalPhysicalBytes = ramUsageInfo.TotalBytes;
                     }
                 }
 
@@ -280,19 +280,19 @@ namespace BuildXL.Utilities
                             processCpu: processCpu,
                             processPrivateBytes: processPrivateBytes,
                             processWorkingSetBytes: processWorkingSetBytes,
-                            threads: processThreads,
+                            processThreads: processThreads,
+                            processGcHeldBytes: processHeldBytes,
                             machineCpu: machineCpu,
                             machineTotalPhysicalBytes: machineTotalPhysicalBytes,
                             machineAvailablePhysicalBytes: machineAvailablePhysicalBytes,
-                            commitUsedBytes: commitUsedBytes,
-                            commitLimitBytes: commitLimitBytes,
+                            machineCommitUsedBytes: machineCommitUsedBytes,
+                            machineCommitLimitBytes: machineCommitLimitBytes,
                             machineBandwidth: m_networkMonitor?.Bandwidth,
                             machineKbitsPerSecSent: machineKbitsPerSecSent,
                             machineKbitsPerSecReceived: machineKbitsPerSecReceived,
-                            diskStats: diskStats,
-                            gcHeldBytes: processHeldBytes,
-                            modifiedPagelistBytes: m_modifiedPagelistBytes,
+                            machineDiskStats: diskStats,
                             machineCpuWMI: m_machineCpuWMI,
+                            modifiedPagelistBytes: m_modifiedPagelistBytes,
                             jobObjectCpu: jobObjectCpu,
                             jobObjectProcesses: jobObjectProcesses);
                     }
@@ -519,7 +519,7 @@ namespace BuildXL.Utilities
             return diskStats;
         }
 
-        private DiskStats[] GetDiskCounters()
+        private DiskStats[] GetDiskCountersUnix()
         {
             DiskStats[] stats = new DiskStats[m_drives.Length];
             for (int i = 0; i < m_drives.Length; i++)
@@ -645,7 +645,7 @@ namespace BuildXL.Utilities
             return machineCpu;
         }
 
-        private double? GetMachineCpuMacOS()
+        private double? GetMachineCpuUnix()
         {
             double? machineCpu = null;
 
@@ -864,13 +864,13 @@ namespace BuildXL.Utilities
             /// <summary>
             /// The total megabytes of memory current committed by the system
             /// </summary>
-            public readonly Aggregation CommitUsedMB;
+            public readonly Aggregation MachineCommitUsedMB;
 
             /// <summary>
             /// The total megabytes of memory current that can be committed by the system without extending the page
             /// file. If the page file can be extended, this is a soft limit.
             /// </summary>
-            public readonly Aggregation CommitLimitMB;
+            public readonly Aggregation MachineCommitLimitMB;
 
             /// <summary>
             /// The total megabytes of memory held as reported by the GC
@@ -963,22 +963,25 @@ namespace BuildXL.Utilities
             public Aggregator(PerformanceCollector collector)
             {
                 m_parent = collector;
+
                 ProcessCpu = new Aggregation();
                 ProcessPrivateMB = new Aggregation();
                 ProcessWorkingSetMB = new Aggregation();
                 ProcessThreadCount = new Aggregation();
                 ProcessHeldMB = new Aggregation();
+
                 MachineCpu = new Aggregation();
                 MachineCpuWMI = new Aggregation();
                 MachineAvailablePhysicalMB = new Aggregation();
                 MachineTotalPhysicalMB = new Aggregation();
-                CommitLimitMB = new Aggregation();
-                CommitUsedMB = new Aggregation();
-
+                MachineCommitLimitMB = new Aggregation();
+                MachineCommitUsedMB = new Aggregation();
                 MachineBandwidth = new Aggregation();
                 MachineKbitsPerSecSent = new Aggregation();
                 MachineKbitsPerSecReceived = new Aggregation();
+
                 ModifiedPagelistMB = new Aggregation();
+
                 JobObjectCpu = new Aggregation();
                 JobObjectProcesses = new Aggregation();
 
@@ -1057,10 +1060,10 @@ namespace BuildXL.Utilities
                             perfInfo.EffectiveRamUsagePercentage = SafeConvert.ToInt32(100.0 * (perfInfo.TotalRamMb.Value - perfInfo.EffectiveAvailableRamMb.Value) / perfInfo.TotalRamMb.Value);
                         }
 
-                        if (CommitLimitMB.Latest > 0)
+                        if (MachineCommitLimitMB.Latest > 0)
                         {
-                            var commitUsed = SafeConvert.ToInt32(CommitUsedMB.Latest);
-                            var commitLimit = SafeConvert.ToInt32(CommitLimitMB.Latest);
+                            var commitUsed = SafeConvert.ToInt32(MachineCommitUsedMB.Latest);
+                            var commitLimit = SafeConvert.ToInt32(MachineCommitLimitMB.Latest);
                             var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitUsed) / commitLimit));
 
                             perfInfo.CommitUsagePercentage = commitUsagePercentage;
@@ -1154,17 +1157,17 @@ namespace BuildXL.Utilities
                 double? processCpu,
                 double? processPrivateBytes,
                 double? processWorkingSetBytes,
-                double? threads,
+                double? processThreads,
+                double? processGcHeldBytes,
                 double? machineCpu,
                 double? machineAvailablePhysicalBytes,
                 double? machineTotalPhysicalBytes,
-                double? commitUsedBytes,
-                double? commitLimitBytes,
+                double? machineCommitUsedBytes,
+                double? machineCommitLimitBytes,
                 long? machineBandwidth,
                 double? machineKbitsPerSecSent,
                 double? machineKbitsPerSecReceived,
-                DiskStats[] diskStats,
-                double? gcHeldBytes,
+                DiskStats[] machineDiskStats,
                 double? modifiedPagelistBytes,
                 double? machineCpuWMI,
                 double? jobObjectCpu,
@@ -1175,31 +1178,34 @@ namespace BuildXL.Utilities
                 ProcessCpu.RegisterSample(processCpu);
                 ProcessPrivateMB.RegisterSample(BytesToMB(processPrivateBytes));
                 ProcessWorkingSetMB.RegisterSample(BytesToMB(processWorkingSetBytes));
-                ProcessThreadCount.RegisterSample(threads);
+                ProcessThreadCount.RegisterSample(processThreads);
+                ProcessHeldMB.RegisterSample(BytesToMB(processGcHeldBytes));
+
                 MachineCpu.RegisterSample(machineCpu);
                 MachineCpuWMI.RegisterSample(machineCpuWMI);
                 MachineAvailablePhysicalMB.RegisterSample(BytesToMB(machineAvailablePhysicalBytes));
                 MachineTotalPhysicalMB.RegisterSample(BytesToMB(machineTotalPhysicalBytes));
-                CommitUsedMB.RegisterSample(BytesToMB(commitUsedBytes));
-                CommitLimitMB.RegisterSample(BytesToMB(commitLimitBytes));
-                ProcessHeldMB.RegisterSample(BytesToMB(gcHeldBytes));
+                MachineCommitUsedMB.RegisterSample(BytesToMB(machineCommitUsedBytes));
+                MachineCommitLimitMB.RegisterSample(BytesToMB(machineCommitLimitBytes));
                 MachineBandwidth.RegisterSample(machineBandwidth);
                 MachineKbitsPerSecSent.RegisterSample(machineKbitsPerSecSent);
                 MachineKbitsPerSecReceived.RegisterSample(machineKbitsPerSecReceived);
+
                 ModifiedPagelistMB.RegisterSample(BytesToMB(modifiedPagelistBytes));
+
                 JobObjectCpu.RegisterSample(jobObjectCpu);
                 JobObjectProcesses.RegisterSample(jobObjectProcesses);
 
-                Contract.Assert(m_diskStats.Length == diskStats.Length);
-                for (int i = 0; i < diskStats.Length; i++)
+                Contract.Assert(m_diskStats.Length == machineDiskStats.Length);
+                for (int i = 0; i < machineDiskStats.Length; i++)
                 {
-                    if (m_diskStats[i] != null && diskStats[i].IsValid)
+                    if (m_diskStats[i] != null && machineDiskStats[i].IsValid)
                     {
-                        m_diskStats[i].AvailableSpaceGb.RegisterSample(diskStats[i].AvailableSpaceGb);
-                        m_diskStats[i].ReadTime.RegisterSample(diskStats[i].DiskPerformance.ReadTime);
-                        m_diskStats[i].WriteTime.RegisterSample(diskStats[i].DiskPerformance.WriteTime);
-                        m_diskStats[i].IdleTime.RegisterSample(diskStats[i].DiskPerformance.IdleTime);
-                        m_diskStats[i].QueueDepth.RegisterSample(diskStats[i].DiskPerformance.QueueDepth);
+                        m_diskStats[i].AvailableSpaceGb.RegisterSample(machineDiskStats[i].AvailableSpaceGb);
+                        m_diskStats[i].ReadTime.RegisterSample(machineDiskStats[i].DiskPerformance.ReadTime);
+                        m_diskStats[i].WriteTime.RegisterSample(machineDiskStats[i].DiskPerformance.WriteTime);
+                        m_diskStats[i].IdleTime.RegisterSample(machineDiskStats[i].DiskPerformance.IdleTime);
+                        m_diskStats[i].QueueDepth.RegisterSample(machineDiskStats[i].DiskPerformance.QueueDepth);
                     }
                 }
             }

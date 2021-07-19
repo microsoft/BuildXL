@@ -232,7 +232,7 @@ namespace BuildXL.Processes
         ///     - else: creates an instance that supports sandboxing.
         /// </summary>
         // TODO: move this to BuildXL.Native.Processes
-        public static ISandboxedProcess Create(SandboxedProcessInfo sandboxedProcessInfo, bool forceSandboxing)
+        private static ISandboxedProcess Create(SandboxedProcessInfo sandboxedProcessInfo, bool forceSandboxing)
         {
             var sandboxKind = sandboxedProcessInfo.SandboxKind == SandboxKind.None && forceSandboxing
                 ? SandboxKind.Default

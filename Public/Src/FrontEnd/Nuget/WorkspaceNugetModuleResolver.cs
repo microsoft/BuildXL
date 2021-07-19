@@ -221,7 +221,7 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <summary>
         /// Returns all packages known by this resolver. This includes potentially embedded packages
-        /// 
+        ///
         /// The multi-value dictionary maps the original Nuget package name to (possibly multiple) generated DScript packages.
         /// </summary>
         public async Task<Possible<MultiValueDictionary<string, Package>>> GetAllKnownPackagesAsync()
@@ -516,7 +516,7 @@ namespace BuildXL.FrontEnd.Nuget
                         return new WorkspaceModuleResolverGenericInitializationFailure(Kind);
                     }
                 }
-                
+
                 var possiblePackages = GenerateSpecsForDownloadedPackages(restoredPackagesById);
 
                 // At this point we know which are all the packages that contain embedded specs, so we can initialize the embedded resolver properly
@@ -931,7 +931,7 @@ namespace BuildXL.FrontEnd.Nuget
         private bool CanReuseSpecFromDisk(NugetAnalyzedPackage analyzedPackage)
         {
             var packageDsc = GetPackageDscFile(analyzedPackage).ToString(PathTable);
-            
+
             // This file contains some state from the last time the spec file was generated. It includes
             // the fingerprint of the package (name, version, etc) and the version of the spec generator.
             // It is stored next to the primary generated spec file
@@ -1028,10 +1028,10 @@ namespace BuildXL.FrontEnd.Nuget
             {
                 var generateSpecFingerprint = CreateSpecGenFingerPrint(analyzedPackage.PackageOnDisk.Package);
                 WriteGeneratedSpecStateFile(
-                    possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, 
+                    possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix,
                     (
-                        NugetSpecGenerator.SpecGenerationFormatVersion, 
-                        analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, 
+                        NugetSpecGenerator.SpecGenerationFormatVersion,
+                        analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash,
                         generateSpecFingerprint
                     )
                 );
@@ -1447,8 +1447,6 @@ namespace BuildXL.FrontEnd.Nuget
 
             public bool IsInTestMode => true;
 
-            public bool MeasureCpuTimes => true;
-
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
             public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
@@ -1812,8 +1810,8 @@ namespace BuildXL.FrontEnd.Nuget
     internal struct NugetGenerationResult
     {
         public NugetGenerationResult(
-            Dictionary<ModuleDescriptor, AbsolutePath> generatedProjectsByModuleDescriptor, 
-            Dictionary<AbsolutePath, ModuleDescriptor> generatedProjectsByPath, 
+            Dictionary<ModuleDescriptor, AbsolutePath> generatedProjectsByModuleDescriptor,
+            Dictionary<AbsolutePath, ModuleDescriptor> generatedProjectsByPath,
             MultiValueDictionary<string, ModuleDescriptor> generatedProjectsByModuleName,
             Dictionary<string, NugetAnalyzedPackage> nugetPackagesByModuleName)
         {

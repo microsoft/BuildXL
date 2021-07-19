@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Runtime.InteropServices;
-
 using static BuildXL.Interop.Dispatch;
 
 namespace BuildXL.Interop.Unix
@@ -43,15 +42,6 @@ namespace BuildXL.Interop.Unix
         public static int GetRamUsageInfo(ref RamUsageInfo buffer) => IsMacOS
             ? Impl_Mac.GetRamUsageInfo(ref buffer)
             : Impl_Linux.GetRamUsageInfo(ref buffer);
-
-        /// <summary>
-        /// Returns a process peak working set size in bytes
-        /// </summary>
-        /// <param name="pid">The process id to check</param>
-        /// <param name="buffer">A long pointer to hold the process peak memory usage</param>
-        public static int GetPeakWorkingSetSize(int pid, ref ulong buffer) => IsMacOS
-            ? Impl_Mac.GetPeakWorkingSetSize(pid, ref buffer)
-            : Impl_Linux.GetPeakWorkingSetSize(pid, ref buffer);
 
         /// <summary>
         /// Returns the current memory pressure level of the VM

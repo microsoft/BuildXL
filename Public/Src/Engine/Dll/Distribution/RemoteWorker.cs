@@ -993,15 +993,17 @@ namespace BuildXL.Engine.Distribution
             {
                 var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
 
-                try
+                if (await Task.WhenAny(completionTask, Task.Delay(EngineEnvironmentSettings.RemotePipTimeout)) != completionTask)
                 {
-                    executionResult = await completionTask.WithTimeoutAsync(EngineEnvironmentSettings.RemotePipTimeout);
-                }
-                catch (TimeoutException)
-                {
+                    // Delay task completed first
+                    operationTimedOut = true;
                     Logger.Log.PipTimedOutRemotely(m_appLoggingContext, runnable.Pip.FormattedSemiStableHash, runnable.Step.AsString(), Name);
                     environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
-                    operationTimedOut = true;
+                }
+                else
+                {
+                    // Task already completed
+                    executionResult = await completionTask;
                 }
             }
 
@@ -1010,7 +1012,7 @@ namespace BuildXL.Engine.Distribution
             if (operationTimedOut
                 // For integration tests, simulate a timeout on the first try
                 || runnable.Pip is Process processPip && processPip.Priority == Process.IntegrationTestPriority &&
-                    runnable.Pip.Tags.Any(a => a.ToString(environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout) 
+                   runnable.Pip.Tags.Any(a => a.ToString(environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout) 
                     && runnable.Performance.RetryCountDueToStoppedWorker == 0)
             {
                 environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);

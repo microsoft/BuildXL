@@ -223,7 +223,7 @@ namespace BuildXL.Interop.Unix
                 return 0;
             }
             #pragma warning disable
-            catch (IOException)
+            catch (Exception)
             {
                 return ERROR;
             }
@@ -328,7 +328,7 @@ namespace BuildXL.Interop.Unix
                 return 0;
             }
 #pragma warning disable
-            catch (IOException)
+            catch (Exception)
             {
                 return ERROR;
             }
@@ -363,7 +363,7 @@ namespace BuildXL.Interop.Unix
                      : ERROR;
             }
             #pragma warning disable
-            catch (IOException)
+            catch (Exception)
             {
                 return ERROR;
             }

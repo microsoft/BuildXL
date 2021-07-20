@@ -89,7 +89,9 @@ namespace Cache.NugetPackages {
             // ContentStore.Vsts
             ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [
                 Nuget.createAssemblyLayout(net472ContentStore.Vsts.dll),
-                Nuget.createAssemblyLayout(netStandardContentStore.Vsts.dll)
+                Nuget.createAssemblyLayout(netStandardContentStore.Vsts.dll),
+                Nuget.createAssemblyLayoutWithSpecificRuntime(net5WinX64ContentStore.Vsts.dll, "win-x64", true),
+                Nuget.createAssemblyLayoutWithSpecificRuntime(net5OsxX64ContentStore.Vsts.dll, "osx-x64", false)
             ]),
 
             // ContentStore.VstsInterfaces
@@ -120,7 +122,9 @@ namespace Cache.NugetPackages {
             // MemoizationStore.Vsts
             ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [
                 Nuget.createAssemblyLayout(net472MemoizationStore.Vsts.dll),
-                Nuget.createAssemblyLayout(netStandardMemoizationStore.Vsts.dll)
+                Nuget.createAssemblyLayout(netStandardMemoizationStore.Vsts.dll),
+                Nuget.createAssemblyLayoutWithSpecificRuntime(net5WinX64MemoizationStore.Vsts.dll, "win-x64", true),
+                Nuget.createAssemblyLayoutWithSpecificRuntime(net5OsxX64MemoizationStore.Vsts.dll, "osx-x64", false),
             ]),
 
             // MemoizationStore.VstsInterfaces

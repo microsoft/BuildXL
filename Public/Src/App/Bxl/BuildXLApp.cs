@@ -2163,9 +2163,20 @@ namespace BuildXL
             // Ensure BuildXL terminates before CloudBuild Timeout
             if (EngineEnvironmentSettings.CbUtcTimeoutTicks.Value != null)
             {
-                long cbTimeoutTicks = EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value - DateTime.UtcNow.AddMinutes(EarlyCbTimeoutMins).Ticks;
-                int cbTimeoutMs = Convert.ToInt32(cbTimeoutTicks / TimeSpan.TicksPerMillisecond);
-                CbTimeoutCleanExitAsync(cbTimeoutMs);
+                try
+                {
+                    long cbTimeoutTicks = EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value - DateTime.UtcNow.AddMinutes(EarlyCbTimeoutMins).Ticks;
+                    int cbTimeoutMs = Convert.ToInt32(cbTimeoutTicks / TimeSpan.TicksPerMillisecond);
+                    CbTimeoutCleanExitAsync(cbTimeoutMs);
+                }
+                catch (OverflowException)
+                {
+                    // Log warning and ignore invalid timeout info
+                    Logger.Log.CbTimeoutInvalid(
+                        m_appLoggingContext,
+                        DateTime.UtcNow.Ticks.ToString(),
+                        EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value.ToString());
+                }
             }
 
             if (configuration.Export.SnapshotFile.IsValid && configuration.Export.SnapshotMode != SnapshotMode.None)

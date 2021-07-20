@@ -66,5 +66,6 @@ namespace BuildXL.App.Tracing
         PerformanceCollectorInitializationFailed = 15000,
         CbTimeoutReached = 15001,
         CbTimeoutTooLow = 15002,
+        CbTimeoutInvalid = 15003,
     }
 }

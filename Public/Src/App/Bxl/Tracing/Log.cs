@@ -508,6 +508,15 @@ namespace BuildXL.App.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             Message = "Build Terminated immediately since CB timeout is less than {mins} mins, please increase the CB timeout in your queue config")]
         public abstract void CbTimeoutTooLow(LoggingContext context, int mins);
+
+        [GeneratedEvent(
+            (int)LogEventId.CbTimeoutInvalid,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            Message = "BuildXL received invalid CB Timeout information. Current Time UTC ticks: {utcTicksNow}. Timeout UTC ticks received from CB: {utcTicksCbTimeout}.")]
+        public abstract void CbTimeoutInvalid(LoggingContext context, string utcTicksNow, string utcTicksCbTimeout);
     }
 
     /// <summary>

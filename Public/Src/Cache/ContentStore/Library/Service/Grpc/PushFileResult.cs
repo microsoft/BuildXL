@@ -110,7 +110,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Status.IsSuccess();
+        public override Error? Error
+        {
+            get
+            {
+                return Status.IsSuccess() ? null : (base.Error ?? Error.FromErrorMessage(Status.ToString()));
+            }
+        }
 
         /// <inheritdoc />
         public double? MinimumSpeedInMbPerSec { get; set; }

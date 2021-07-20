@@ -802,7 +802,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var serializeResult = manager.Serialize();
                 if (serializeResult)
                 {
-                    var bytes = serializeResult.Value!;
+                    var bytes = serializeResult.Value;
                     var serializedString = Convert.ToBase64String(bytes);
                     Database.SetGlobalEntry(BinManagerKey, serializedString);
                 }

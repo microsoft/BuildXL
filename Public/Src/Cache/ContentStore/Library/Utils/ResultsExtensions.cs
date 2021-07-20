@@ -52,11 +52,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         internal static void InitializeResultExceptionPreprocessing()
         {
-            if (ResultBase.ResultExceptionTextProcessor == null)
-            {
-                // Ensure exception strings have demystified stack tracks
-                ResultBase.ResultExceptionTextProcessor = ex => ex.ToStringDemystified();
-            }
+            // Ensure exception strings have demystified stack tracks
+            Error.ExceptionToTextConverter = static ex => ex.ToStringDemystified();
         }
 
         /// <nodoc />
@@ -68,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             if (result.Succeeded && handle.LockAcquisitionDuration != null)
             {
-                result.Diagnostics = $"LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms";
+                result.SetDiagnosticsForSuccess($"LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms");
             }
 
             return result;

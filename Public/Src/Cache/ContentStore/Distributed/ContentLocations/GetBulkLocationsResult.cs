@@ -33,8 +33,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         ///     Initializes a new instance of the <see cref="GetBulkLocationsResult"/> class.
         /// </summary>
         public GetBulkLocationsResult(IReadOnlyList<ContentHashWithSizeAndLocations> contentHashesInfo, GetBulkOrigin origin = GetBulkOrigin.Global)
-            : base(contentHashesInfo != null)
         {
+            Contract.Requires(contentHashesInfo != null);
+
             ContentHashesInfo = contentHashesInfo;
             Origin = origin;
         }

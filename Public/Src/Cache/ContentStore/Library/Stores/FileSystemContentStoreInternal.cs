@@ -345,7 +345,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (readConfigResult.Succeeded)
                 {
-                    return (readConfigResult.Value!, configFileExists: true);
+                    return (readConfigResult.Value, configFileExists: true);
                 }
                 else if (_configurationModel.InProcessConfiguration != null)
                 {
@@ -705,10 +705,9 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (placeLinkResult == CreateHardLinkResult.Success)
                     {
-                        return new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true)
-                        {
-                            Diagnostics = "FastPath"
-                        };
+                        var result = new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true);
+                        result.SetDiagnosticsForSuccess("FastPath");
+                        return result;
                     }
                 }
             }
@@ -1104,7 +1103,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var r = await PutStreamImplAsync(context, stream, contentHash.HashType, pinRequest);
 
                 return r.ContentHash != contentHash && r.Succeeded
-                    ? new PutResult(r, contentHash, $"Calculated hash={r.ContentHash} does not match caller's hash={contentHash}")
+                    ? new PutResult(contentHash, $"Calculated hash={r.ContentHash} does not match caller's hash={contentHash}")
                     : r;
             });
         }

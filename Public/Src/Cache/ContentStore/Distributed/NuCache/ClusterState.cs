@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -72,9 +73,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         private Result<ClusterStateInternal> Mutate<TState>(Func<ClusterStateInternal, TState, Result<ClusterStateInternal>> mutation, TState state)
         {
+            Contract.Assert(ClusterStateInternal.Succeeded);
+
             using var token = _lock.AcquireWriteLock();
 
-            var newClusterState = mutation(ClusterStateInternal.Value!, state);
+            var newClusterState = mutation(ClusterStateInternal.Value, state);
             if (!newClusterState.Succeeded)
             {
                 return newClusterState;
@@ -87,13 +90,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         private T Read<T>(Func<ClusterStateInternal, T> action)
         {
-            return action(ClusterStateInternal.Value!);
+            Contract.Assert(ClusterStateInternal.Succeeded);
+            return action(ClusterStateInternal.Value);
         }
 
         /// <nodoc />
         private TResult Read<TResult, TState>(Func<ClusterStateInternal, TState, TResult> action, TState state)
         {
-            return action(ClusterStateInternal.Value!, state);
+            Contract.Assert(ClusterStateInternal.Succeeded);
+            return action(ClusterStateInternal.Value, state);
         }
 
         /// <summary>

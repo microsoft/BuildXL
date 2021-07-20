@@ -1348,12 +1348,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (Settings.ProactiveCopyUsePreferredLocations && getLocationResult?.Succeeded != true)
                 {
                     var designatedLocationsResult = ContentLocationStore.GetDesignatedLocations(hash);
-                    if (designatedLocationsResult)
+                    if (designatedLocationsResult.Succeeded)
                     {
                         // A machine in the build may be a designated location for the hash,
                         // but we won't pushing to the same machine twice, because 'replicatedLocations' argument
                         // has a local machine that we're about to push for inside the ring copy.
-                        var candidates = designatedLocationsResult.Value!
+                        var candidates = designatedLocationsResult.Value
                             .Except(replicatedLocations).ToArray();
 
                         if (candidates.Length > 0)

@@ -539,12 +539,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             lock (_lockObject)
             {
                 var getBinsResult = GetBins();
-                if (!getBinsResult)
+                if (!getBinsResult.Succeeded)
                 {
                     return new Result<MachineId[]>(getBinsResult);
                 }
 
-                var result = getBinsResult.Value![binNumber];
+                var result = getBinsResult.Value[binNumber];
 
                 if (includeExpired)
                 {

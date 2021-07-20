@@ -59,7 +59,7 @@ namespace ContentStoreTest.Utils
                 await intervalTask;
             }
 
-            return new CopyFileResult();
+            return CopyFileResult.Success;
         }
 
         [Fact]

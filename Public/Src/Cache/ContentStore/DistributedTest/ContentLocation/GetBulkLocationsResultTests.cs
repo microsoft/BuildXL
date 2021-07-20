@@ -152,7 +152,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         public void EqualsFalseSuccessMismatch()
         {
             var o1 = new GetBulkLocationsResult(Locations1);
-            var o2 = new GetBulkLocationsResult((IReadOnlyList<ContentHashWithSizeAndLocations>)null);
+            var o2 = new GetBulkLocationsResult("error");
             Assert.False(o1.Equals(o2));
         }
 

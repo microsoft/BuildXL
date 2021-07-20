@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 
@@ -10,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// <summary>
     ///     Result of the OpenStream call.
     /// </summary>
-    public class OpenStreamResult : ResultBase, IEquatable<OpenStreamResult>
+    public class OpenStreamResult : ResultBase
     {
         /// <summary>
         ///     A code that helps caller to make decisions.
@@ -46,8 +47,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="OpenStreamResult"/> class.
         /// </summary>
         public OpenStreamResult(ResultCode code, string? errorMessage, string? diagnostics = null)
-            : base(errorMessage, diagnostics)
+            : base(errorMessage ?? code.ToString(), diagnostics)
         {
+            Contract.Requires(code != ResultCode.Success);
             Code = code;
         }
 
@@ -83,11 +85,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public OpenStreamResult(ResultBase other, ResultCode code, string? message = null)
             : base(other, message)
         {
+            Contract.Requires(code != ResultCode.Success);
             Code = code;
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Code == ResultCode.Success;
+        public override Error? Error
+        {
+            // Need to override this property to maintain the invariant: !Success => Error != null
+            get
+            {
+                return Code == ResultCode.Success ? null : (base.Error ?? Error.FromErrorMessage(Code.ToString()));
+            }
+        }
 
         /// <summary>
         ///     Gets the specific result code for the related call.
@@ -105,22 +115,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly StreamWithLength? StreamWithLength;
 
         /// <inheritdoc />
-        public bool Equals(OpenStreamResult? other)
-        {
-            return EqualsBase(other) && other != null && Code == other.Code;
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            return obj is OpenStreamResult other && Equals(other);
-        }
-
-        /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Code.GetHashCode() ^ (Stream == null).GetHashCode() ^ (ErrorMessage?.GetHashCode() ?? 0);
+            return (Code, Stream == null, base.GetHashCode()).GetHashCode();
         }
+
+        /// <inheritdoc />
+        protected override bool SuccessEquals(ResultBase other)
+        {
+            var rhs = (OpenStreamResult)other;
+            return Code == rhs.Code && Stream == rhs.Stream;
+        }
+
+        /// <inheritdoc />
+        protected override string GetSuccessString() => $"{Code} Size={Stream?.Length}{this.GetDiagnosticsMessageForTracing()}";
 
         /// <inheritdoc />
         public override string ToString()

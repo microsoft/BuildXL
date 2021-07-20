@@ -334,7 +334,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var calibrationResult = await CalibrateAsync(context, rule);
                 if (!calibrationResult)
                 {
-                    result &= calibrationResult;
+                    result &= new BoolResult(calibrationResult);
                 }
             }
 

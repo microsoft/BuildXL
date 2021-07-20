@@ -68,6 +68,8 @@ namespace ContentStoreTest.Sessions
         protected async Task RunStoreTestAsync(Func<Context, IContentStore, Task> funcAsync, LocalServerConfiguration localContentServerConfiguration = null, TimeSpan? heartbeatOverride = null)
         {
             var context = new Context(Logger);
+            // Using unique scenario to avoid flakiness when running the tests in parallel
+            Scenario += Guid.NewGuid();
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 var config = new ContentStoreConfiguration(new MaxSizeQuota($"{DefaultMaxSize}"));

@@ -2,47 +2,46 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
+using System.Runtime.ExceptionServices;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>
-    /// Represents the result of some possibly-successful function.
+    /// A base class that represents the result of an operation.
     /// </summary>
-    public class ResultBase
+    /// <remarks>
+    /// The result can have one of 3 states:
+    /// * Success + optional success diagnostics (when <see cref="Error"/> property is null and <see cref="IsCancelled"/> property is false).
+    /// * Failure (when the <see cref="Error"/> property is not null)
+    /// * Cancelled (whtn <see cref="IsCancelled"/> flag is true)
+    /// </remarks>
+    public abstract class ResultBase : IEquatable<ResultBase>
     {
-        /// <summary>
-        /// Global preprocessor for error text for result errors. This allows for the exception string demystification code
-        /// to be injected dynamically without requiring a dependency on BuildXL.Utilities. Generally adding new dependencies
-        /// to this assembly is an involved process so this is here as a workaround.
-        /// </summary>
-        internal static Func<Exception, string>? ResultExceptionTextProcessor { get; set; }
-
-        private bool _isCritical = false;
-
-        /// <summary>
-        /// Mark the result as critical for tracing purposes.
-        /// </summary>
-        public void MakeCritical() => _isCritical = true;
-
         /// <summary>
         /// Constructor for creating successful result instances.
         /// </summary>
-        protected ResultBase()
+        protected ResultBase(string? successDiagnostics = null)
+        {
+            _successDiagnostics = successDiagnostics;
+        }
+
+        /// <summary>
+        /// A legacy constructor that constructs a new instance of a failed result.
+        /// </summary>
+        protected ResultBase(string errorMessage, string? diagnostics)
+            : this(Error.FromErrorMessage(errorMessage, diagnostics))
         {
         }
 
         /// <summary>
-        /// Creates a new instance of a failed result if <paramref name="errorMessage"/> is not null or empty.
+        /// Creates a new instance of a failed result if <paramref name="error"/>.
         /// </summary>
-        protected ResultBase(string? errorMessage, string? diagnostics)
+        protected ResultBase(Error error)
         {
-            ErrorMessage = errorMessage;
-            Diagnostics = diagnostics;
+            Error = error;
         }
 
         /// <summary>
@@ -50,30 +49,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         protected ResultBase(Exception exception, string? message = null)
         {
-            Contract.RequiresNotNull(exception);
+            Contract.Requires(exception != null);
 
             if (exception is ResultPropagationException other)
             {
-                ErrorMessage = string.IsNullOrEmpty(message)
-                    ? other.Result.ErrorMessage
-                    : $"{message}: {other.Result.ErrorMessage}";
-                _hasLazyDiagnostics = other.Result._hasLazyDiagnostics;
-                _diagnostics = other.Result._diagnostics;
+                Error = other.Result.Error;
                 IsCancelled = other.Result.IsCancelled;
-                Exception = other.InnerException;
             }
             else
             {
-                // NOTE: The use of Exception.Message is intentional here as
-                // the full exception string is captured in the ResultBase.Diagnostics
-                // property
-                ErrorMessage = string.IsNullOrEmpty(message)
-                    ? $"{exception.GetType().Name}: {GetErrorMessageFromException(exception)}"
-                    : $"{message}: {exception.GetType().Name}: {GetErrorMessageFromException(exception)}";
-
-                // Indicate that diagnostics should lazily be computed from exception.
-                _hasLazyDiagnostics = true;
-                Exception = exception;
+                Error = Error.FromException(exception, message);
             }
         }
 
@@ -82,21 +67,93 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         protected ResultBase(ResultBase other, string? message)
         {
-            Contract.RequiresNotNull(other);
+            Contract.Requires(other != null);
+            Contract.Requires(!other.Succeeded, "Can't create a result from another successful result");
 
-            ErrorMessage = string.IsNullOrEmpty(message)
-                ? other.ErrorMessage
-                : $"{message}: {other.ErrorMessage}";
-            _diagnostics = other._diagnostics;
-            _hasLazyDiagnostics = other._hasLazyDiagnostics;
-            Exception = other.Exception;
+            Error = other.Error?.WithExtraMessage(message);
             IsCancelled = other.IsCancelled;
         }
 
         /// <summary>
+        /// True if the error is critical (only possible when the error has an exception).
+        /// </summary>
+        private bool _isCritical = false;
+        private TimeSpan _duration;
+        private string? _successDiagnostics;
+
+        /// <summary>
+        /// Optional verbose diagnostic information about the successful result or a diagnostics information about the error.
+        /// </summary>
+        public string? Diagnostics
+        {
+            get
+            {
+                return Succeeded ? _successDiagnostics : Error?.Diagnostics;
+            }
+        }
+
+        /// <nodoc />
+        public void SetDiagnosticsForSuccess(string diagnostics)
+        {
+            Contract.Requires(Succeeded, "Can't change a dianostics messge after a non-successful result was constructed.");
+            _successDiagnostics = diagnostics;
+        }
+
+        /// <summary>
+        /// Mark the result as critical for tracing purposes.
+        /// </summary>
+        public void MakeCritical()
+        {
+            // Only exceptions can be critical. So if the operation doesn't have it, do nothing.
+            if (Exception != null)
+            {
+                _isCritical = true;
+            }
+        }
+
+        /// <summary>
+        /// Mark the result as cancelled.
+        /// </summary>
+        internal void MarkCancelled() => IsCancelled = true;
+
+        /// <summary>
+        /// Sets the duration of the operation that this result instance represents for.
+        /// </summary>
+        public void SetDuration(TimeSpan duration) => _duration = duration;
+
+        /// <summary>
+        /// Returns an error if the underlying operation had failed.
+        /// </summary>
+        public virtual Error? Error { get; }
+
+        /// <summary>
+        /// Gets an optional exception that happen during the operation.
+        /// </summary>
+        public Exception? Exception => Error?.Exception;
+
+        /// <summary>
+        /// Re-throws the exception.
+        /// </summary>
+        public void ReThrow()
+        {
+            Contract.Requires(Exception != null);
+            ExceptionDispatchInfo.Capture(Exception).Throw();
+        }
+
+        /// <summary>
+        /// Gets an error message (non null if the result is unsuccessful).
+        /// </summary>
+        public string? ErrorMessage => Error?.ErrorMessage;
+
+        /// <summary>
         /// Indicates if this is a successful outcome or not.
         /// </summary>
-        public virtual bool Succeeded => ErrorMessage == null;
+        /// <remarks>
+        /// The property is virtual because a derived class may decide adding special attributes, like MemberNotNullAttribute
+        /// to mark that some other properties are not null.
+        /// The derived types should not change the semantics of this method.
+        /// </remarks>
+        public virtual bool Succeeded => Error == null && !IsCancelled;
 
         /// <summary>
         /// Returns true if the underlying operation was canceled.
@@ -106,60 +163,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if the error occurred and the error is a critical (i.e. not-recoverable) exception.
         /// </summary>
-        public bool IsCriticalFailure => (!Succeeded && _isCritical) || (IsCancelled ? !NonCriticalForCancellation(Exception) : IsCritical(Exception));
-
-        /// <summary>
-        /// Returns true if the error occurred because of an exception.
-        /// </summary>
-        public bool HasException => Exception != null;
-
-        /// <summary>
-        /// Returns an optional exception instance associated with the result.
-        /// </summary>
-        public Exception? Exception { get; protected set; }
-
-        /// <summary>
-        /// Description of the error that occurred.
-        /// </summary>
-        public readonly string? ErrorMessage;
-
-        /// <summary>
-        /// Indicates that diagnostics should lazily be computed from exception
-        /// </summary>
-        private bool _hasLazyDiagnostics;
-        private string? _diagnostics;
-
-        /// <summary>
-        /// Indicates whether diagnostics should be printed in success case
-        /// </summary>
-        public bool PrintDiagnosticsForSuccess { get; protected set; }
-
-        /// <summary>
-        /// Optional verbose diagnostic information about the result (either error or success).
-        /// </summary>
-        public string? Diagnostics
-        {
-            get
-            {
-                // Lazily initialize diagnostics (if specified)
-                if (_hasLazyDiagnostics && _diagnostics == null && Exception != null)
-                {
-                    _diagnostics = CreateDiagnostics(Exception);
-                }
-
-                return _diagnostics;
-            }
-            set
-            {
-                _hasLazyDiagnostics = false;
-                _diagnostics = value;
-            }
-        }
+        public bool IsCriticalFailure => _isCritical || Error?.IsCritical(IsCancelled) == true;
 
         /// <summary>
         /// Gets or sets elapsed time of corresponding call.
         /// </summary>
-        public TimeSpan Duration { get; set; }
+        public TimeSpan Duration => _duration;
 
         /// <summary>
         /// Gets elapsed time, in milliseconds, of corresponding call.
@@ -167,35 +176,82 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public long DurationMs => (long)Duration.TotalMilliseconds;
 
         /// <summary>
-        /// Check if equal to another.
+        /// Returns true if two successful instances are equal.
         /// </summary>
-        protected bool EqualsBase(ResultBase? other)
+        protected virtual bool SuccessEquals(ResultBase other)
         {
-            return !(other is null) && ErrorMessage == other.ErrorMessage;
+            return true;
         }
 
         /// <summary>
         /// Returns true if 'this' and 'other' are not succeeded and both have the same error text.
         /// </summary>
-        protected bool ErrorEquals(ResultBase? other)
+        protected bool ErrorEquals(ResultBase other)
+        {
+            Contract.Requires(!Succeeded);
+            Contract.Requires(!other.Succeeded);
+
+            if (IsCancelled != other.IsCancelled)
+            {
+                return false;
+            }
+
+            if (Error is null && other.Error is not null)
+            {
+                return false;
+            }
+
+            return Error?.Equals(other.Error) == true;
+        }
+
+        /// <inheritdoc />
+        public bool Equals(ResultBase? other)
         {
             if (other is null)
             {
                 return false;
             }
 
-            if (Succeeded != other.Succeeded)
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (GetType() != other.GetType())
             {
                 return false;
             }
 
-            return ErrorMessage == other.ErrorMessage && Diagnostics == other.Diagnostics;
+            if (Succeeded != other.Succeeded ||
+                IsCancelled != other.IsCancelled)
+            {
+                return false;
+            }
+
+            if (Succeeded && other.Succeeded)
+            {
+                return SuccessEquals(other);
+            }
+
+            return ErrorEquals(other);
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as ResultBase);
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            return (IsCancelled, Succeeded, Error).GetHashCode();
         }
 
         /// <nodoc />
         protected virtual string GetSuccessString()
         {
-            return PrintDiagnosticsForSuccess && Diagnostics != null ? $"Success Diagnostics=[{Diagnostics}]" : "Success";
+            return Diagnostics != null ? $"Success Diagnostics=[{Diagnostics}]" : "Success";
         }
 
         /// <inheritdoc />
@@ -208,15 +264,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (IsCancelled)
             {
-                return $"Error=[Canceled] Message=[{ErrorMessage}]";
+                var result = "Error=[Canceled]";
+                if (Error != null)
+                {
+                    result += " " + Error;
+                }
+
+                return result;
             }
 
-            if (string.IsNullOrEmpty(Diagnostics))
-            {
-                return $"Error=[{ErrorMessage}]";
-            }
-
-            return $"Error=[{ErrorMessage}] Diagnostics=[{Diagnostics}]";
+            Contract.Assert(Error != null);
+            return Error.ToString();
         }
 
         /// <summary>
@@ -272,7 +330,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Merges two strings.
         /// </summary>
-        protected static string Merge([NotNullIfNotNull("s1")]string? s1, [NotNullIfNotNull("s2")]string? s2, string separator)
+        protected internal static string Merge([NotNullIfNotNull("s1")] string? s1, [NotNullIfNotNull("s2")] string? s2, string separator)
         {
             if (s1 == null)
             {
@@ -288,60 +346,37 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
-        /// Gets full log event message including inner exceptions from the given exception
+        /// Merges two failures into one result instance.
         /// </summary>
-        private static string GetErrorMessageFromException(Exception exception)
+        protected static TResult MergeFailures<TResult>(TResult left, TResult right, Func<TResult> defaultResultCtor, Func<Error, TResult> fromError) where TResult : ResultBase
         {
-            return string.Join(": " + Environment.NewLine, getExceptionMessages());
+            Contract.Requires(!left.Succeeded && !right.Succeeded);
 
-            IEnumerable<string> getExceptionMessages()
+            // Its hard to tell which exact semantics here is the best when two operations failed
+            // but when only one operation was canceled.
+            // The current behavior is: the final result is considered cancelled only when
+            // all the operations were canceled.
+            bool isCanceled = left.IsCancelled && right.IsCancelled;
+
+            // left.Error and right.Error may be null because both results may be canceled.
+
+            var error = Error.Merge(left.Error, right.Error, ", ");
+
+            TResult result;
+
+            // The error maybe null if both operations were cancelled
+            if (error == null)
             {
-                for (Exception? currentException = exception; currentException != null; currentException = currentException.InnerException)
-                {
-                    yield return currentException.Message;
-                }
+                Contract.Assert(isCanceled);
+                result = defaultResultCtor();;
             }
-        }
-
-        /// <summary>
-        /// Gets a preprocessed equivalent of <see cref="Exception.ToString"/> if <see cref="ResultBase.ResultExceptionTextProcessor"/> is specified. Otherwise,
-        /// just returns <see cref="Exception.ToString"/>.
-        /// </summary>
-        internal static string GetExceptionString(Exception ex)
-        {
-            var processErrorText = ResultExceptionTextProcessor;
-            if (processErrorText != null)
+            else
             {
-                return processErrorText(ex);
-            }
-
-            return ex.ToString();
-        }
-
-        private static string CreateDiagnostics(Exception exception)
-        {
-            // Consider using Demystifier here.
-            if (exception is AggregateException aggregateException)
-            {
-                var sb = new StringBuilder();
-                var i = 0;
-
-                foreach (var e in aggregateException.Flatten().InnerExceptions)
-                {
-                    if (i > 0)
-                    {
-                        sb.AppendLine();
-                    }
-
-                    sb.AppendLine("Exception #" + i);
-                    sb.Append(GetExceptionString(e));
-                    i++;
-                }
-
-                return sb.ToString();
+                result = fromError(error);
             }
 
-            return GetExceptionString(exception);
+            result.IsCancelled = isCanceled;
+            return result;
         }
     }
 }

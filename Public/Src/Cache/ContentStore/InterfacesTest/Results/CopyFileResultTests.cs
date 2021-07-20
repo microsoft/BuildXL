@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         [Fact]
         public void SucceededTrue()
         {
-            Assert.True(new CopyFileResult().Succeeded);
+            Assert.True(CopyFileResult.Success.Succeeded);
         }
 
         [Fact]

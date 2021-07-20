@@ -339,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
                     else
                     {
-                        return schedulerResult.Value!;
+                        return schedulerResult.Value;
                     }
                 },
                 traceOperationStarted: false,
@@ -529,7 +529,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 }
                                 else
                                 {
-                                    return schedulerResult.Value!;
+                                    return schedulerResult.Value;
                                 }
                             },
                             traceOperationStarted: false,

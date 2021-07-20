@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -13,18 +13,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// For file copies, a error represents the source file being missing or unavailable. This is opaque to any file system
     /// and could be representing scenarios where the file is missing, or the machine is down or the network is unreachable etc.
     /// </remarks>
-    public class CopyFileResult : ResultBase, IEquatable<CopyFileResult>, ICopyResult
+    public class CopyFileResult : ResultBase, ICopyResult
     {
-        /// <summary>
-        ///     Success singleton.
-        /// </summary>
-        public static readonly CopyFileResult Success = new CopyFileResult();
-
         /// <summary>
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
-        /// <param name="code">Whether the exception came from a remote or local path.</param>
-        public CopyFileResult(CopyResultCode code = CopyResultCode.Success)
+        private CopyFileResult(CopyResultCode code)
         {
             Code = code;
         }
@@ -33,8 +27,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
         /// </summary>
         public CopyFileResult(CopyResultCode code, string message, string? diagnostics = null)
-            : base(message, diagnostics)
+            : base(Error.FromErrorMessage(message, diagnostics))
         {
+            Contract.Requires(code != CopyResultCode.Success);
+            Code = code;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CopyFileResult"/> class.
+        /// </summary>
+        public CopyFileResult(CopyResultCode code, Error error)
+            : base(error)
+        {
+            Contract.Requires(code != CopyResultCode.Success);
             Code = code;
         }
 
@@ -44,6 +49,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public CopyFileResult(CopyResultCode code, Exception innerException, string? message = null)
             : base(innerException, message)
         {
+            Contract.Requires(code != CopyResultCode.Success);
             Code = code;
         }
 
@@ -53,6 +59,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public CopyFileResult(CopyResultCode code, ResultBase other, string? message = null)
             : base(other, message)
         {
+            Contract.Requires(code != CopyResultCode.Success);
             Code = code;
         }
 
@@ -65,13 +72,33 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Code == CopyResultCode.Success;
+        public override Error? Error
+        {
+            get
+            {
+                return Code == CopyResultCode.Success
+                    ? null
+                    : (base.Error ?? Error.FromErrorMessage(Code.ToString()));
+            }
+        }
+
+        /// <summary>
+        ///     Success singleton.
+        /// </summary>
+        public static readonly CopyFileResult Success = new CopyFileResult(CopyResultCode.Success);
 
         /// <summary>
         /// Successful copy with the actual size of the copied file.
         /// </summary>
         /// <param name="size">Actual size of the copied file.</param>
         public static CopyFileResult SuccessWithSize(long size) => new CopyFileResult(CopyResultCode.Success) { Size = size };
+
+        /// <nodoc />
+        public static CopyFileResult FromResultCode(CopyResultCode code)
+        {
+            Contract.Requires(code != CopyResultCode.Success);
+            return new CopyFileResult(code);
+        }
 
         /// <summary>
         /// Optional size of the copied file.
@@ -111,34 +138,22 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public static implicit operator bool(CopyFileResult result) => result.Succeeded;
 
-        /// <inheritdoc />
-        public bool Equals([AllowNull]CopyFileResult other)
+        /// <nodoc />
+        protected override bool SuccessEquals(ResultBase other)
         {
-            return EqualsBase(other) && other != null && Code == other.Code;
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            return obj is CopyFileResult other && Equals(other);
+            return Code == ((CopyFileResult)other).Code;
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Code.GetHashCode() ^ (ErrorMessage?.GetHashCode() ?? 0);
+            return (base.GetHashCode(), Code).GetHashCode();
         }
 
         /// <inheritdoc />
-        public override string ToString()
-        {
-            switch (Code)
-            {
-                case CopyResultCode.Success:
-                    return $"{Code}";
-                default:
-                    return $"{Code} {GetErrorString()}";
-            }
-        }
+        protected override string GetSuccessString() => Code.ToString();
+
+        /// <inheritdoc />
+        protected override string GetErrorString() => $"{Code} {base.GetErrorString()}";
     }
 }

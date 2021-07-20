@@ -3,14 +3,13 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>
     ///     Result of the Place call.
     /// </summary>
-    public class PlaceFileResult : ResultBase, IEquatable<PlaceFileResult>
+    public class PlaceFileResult : ResultBase
     {
         /// <summary>
         ///     A code that informs the caller what happened.
@@ -58,6 +57,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public PlaceFileResult(ResultCode code, long fileSize = 0, DateTime? lastAccessTime = null)
         {
+            Contract.Requires(code != ResultCode.Error);
+
             Code = code;
             FileSize = fileSize;
             LastAccessTime = lastAccessTime ?? DateTime.MinValue;
@@ -69,6 +70,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public PlaceFileResult(ResultCode code, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
+            Contract.Requires(code >= ResultCode.Error);
             Contract.RequiresNotNullOrEmpty(errorMessage);
             Code = code;
         }
@@ -105,11 +107,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public PlaceFileResult(ResultBase other, ResultCode code, string? message = null)
             : base(other, message)
         {
+            Contract.Requires(code >= ResultCode.Error);
             Code = code;
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Code < ResultCode.Error; // TODO: why Code == ResultCode.Unknown is consider as success?
+        public override Error? Error
+        {
+            // Need to override this property to maintain the invariant: !Success => Error != null
+            get
+            {
+                // TODO: why Code == ResultCode.Unknown is consider as success?
+                return Code < ResultCode.Error ? null : (base.Error ?? Error.FromErrorMessage(Code.ToString()));
+            }
+        }
 
         /// <summary>
         ///     Gets the specific result code for the related call.
@@ -127,6 +138,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public DateTime LastAccessTime { get; set; }
 
         /// <summary>
+        /// An optional additional information associated with the result.
+        /// </summary>
+        internal ResultMetaData? Metadata { get; set; }
+
+        /// <summary>
         /// Implicit conversion operator from <see cref="PlaceFileResult"/> to <see cref="bool"/>.
         /// </summary>
         public static implicit operator bool(PlaceFileResult result) => result != null && result.Succeeded;
@@ -140,35 +156,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public bool Equals([AllowNull]PlaceFileResult other)
+        protected override bool SuccessEquals(ResultBase other)
         {
-            return EqualsBase(other) && other != null && Code == other.Code;
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            return obj is PlaceFileResult other && Equals(other);
+            return Code == ((PlaceFileResult)other).Code;
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Code.GetHashCode() ^ (ErrorMessage?.GetHashCode() ?? 0);
+            return (Code, base.GetHashCode()).GetHashCode();
         }
 
         /// <inheritdoc />
-        public override string ToString()
-        {
-            switch (Code)
-            {
-                case ResultCode.Error:
-                    return GetErrorString();
-                default:
-                    return $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
-            }
-        }
-
-        internal ResultMetaData? Metadata { get; set; }
+        protected override string GetSuccessString() => $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
     }
 }

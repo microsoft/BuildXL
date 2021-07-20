@@ -3,14 +3,13 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>
     ///     Result of the Pin call.
     /// </summary>
-    public class PinResult : ResultBase, IEquatable<PinResult>
+    public class PinResult : ResultBase
     {
         /// <summary>
         ///     A code that helps caller to make decisions.
@@ -57,7 +56,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
         public PinResult(long contentSize = -1, DateTime? lastAccessTime = null, ResultCode code = ResultCode.Success)
-            : base(code == ResultCode.Success ? null : code.ToString(), diagnostics: null)
         {
             ContentSize = contentSize;
             LastAccessTime = lastAccessTime ?? DateTime.MinValue;
@@ -68,8 +66,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
         public PinResult(ResultCode code = ResultCode.Success)
-            : base(code == ResultCode.Success ? null : code.ToString(), diagnostics: null)
         {
+            Code = code;
+        }
+
+        /// <nodoc />
+        public PinResult(ResultCode code, Error error)
+            : base(error)
+        {
+            Contract.Requires(code != ResultCode.Success, "This constructor should be used for error cases only.");
             Code = code;
         }
 
@@ -119,50 +124,44 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public ResultCode ErrorCode => Code;
 
         /// <inheritdoc />
-        public override bool Succeeded => Code == ResultCode.Success;
-
-        /// <inheritdoc />
-        public bool Equals([AllowNull]PinResult other)
+        public override Error? Error
         {
-            return EqualsBase(other) && other != null && Code == other.Code;
+            // Need to override this property to maintain the invariant: !Success => Error != null
+            get
+            {
+                return Code == ResultCode.Success ? null : (base.Error ?? Error.FromErrorMessage(Code.ToString()));
+            }
         }
 
         /// <inheritdoc />
-        public override bool Equals(object? obj)
+        protected override bool SuccessEquals(ResultBase other)
         {
-            return obj is PinResult other && Equals(other);
-        }
-
-        /// <summary>
-        /// Overloads &amp; operator to behave as AND operator.
-        /// </summary>
-        public static PinResult operator &(PinResult result1, PinResult result2)
-        {
-            return result1.Succeeded
-                ? result2
-                : new PinResult(
-                    Merge(result1.ErrorMessage, result2.ErrorMessage, ", "),
-                    Merge(result1.Diagnostics, result2.Diagnostics, ", "));
+            return Code == ((PinResult)other).Code;
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Code.GetHashCode() ^ (ErrorMessage?.GetHashCode() ?? 0);
+            return (Code, base.GetHashCode()).GetHashCode();
         }
 
-        /// <inheritdoc />
-        public override string ToString()
+        /// <summary>
+        /// Overloads &amp; operator to behave as AND operator.
+        /// </summary>
+        public static PinResult operator &(PinResult left, PinResult right)
         {
-            switch (Code)
+            if (left.Succeeded)
             {
-                case ResultCode.Error:
-                    return GetErrorString();
-                case ResultCode.Success:
-                    return GetSuccessString();
-                default:
-                    return (string.IsNullOrEmpty(GetErrorString()) ? $"{Code}" : GetErrorString());
+                return right;
             }
+
+            if (right.Succeeded)
+            {
+                return left;
+            }
+
+            // We can't merge the codes, so when both results are failures, we pick the code from the first result.
+            return MergeFailures(left, right, () => new PinResult(left.Code), error => new PinResult(left.Code, error));
         }
     }
 }

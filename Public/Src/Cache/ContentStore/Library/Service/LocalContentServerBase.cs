@@ -362,7 +362,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     var stats = await GetStatsAsync(context);
                     if (stats.Succeeded)
                     {
-                        var counters = stats.Value!.ToDictionaryIntegral();
+                        var counters = stats.Value.ToDictionaryIntegral();
                         FillTrackingStreamStatistics(counters);
                         foreach (var counter in counters)
                         {
@@ -771,7 +771,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 {
                     var tempDirectoryCreationResult = await CreateSessionTempDirectoryAsync(context, cacheName, sessionId);
 
-                    if (!tempDirectoryCreationResult)
+                    if (!tempDirectoryCreationResult.Succeeded)
                     {
                         return new Result<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(tempDirectoryCreationResult);
                     }
@@ -783,14 +783,14 @@ namespace BuildXL.Cache.ContentStore.Service
                         sessionId,
                         sessionExpirationUtcTicks);
 
-                    if (!sessionResult)
+                    if (!sessionResult.Succeeded)
                     {
                         RemoveSessionTempDirectory(sessionId);
                         return Result.FromError<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(sessionResult);
                     }
 
                     return Result.Success<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(
-                        (sessionResult.Value!, sessionId, tempDirectoryCreationResult.Value!));
+                        (sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
                 },
                 extraStartMessage: $"SessionId=[{sessionId}]",
                 extraEndMessage: r => $"SessionId=[{sessionId}]");
@@ -802,10 +802,7 @@ namespace BuildXL.Cache.ContentStore.Service
             TSessionData sessionData,
             string cacheName)
         {
-            if (cacheName == null)
-            {
-                cacheName = _tempFolderForStreamsByCacheName.Keys.First();
-            }
+            cacheName ??= _tempFolderForStreamsByCacheName.Keys.First();
 
             var result = await CreateTempDirectoryAndSessionAsync(
                 context,

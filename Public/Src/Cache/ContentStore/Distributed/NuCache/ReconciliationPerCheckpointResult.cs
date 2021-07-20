@@ -111,7 +111,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public ResultCode Code { get; }
         
         /// <nodoc />
-        public static ReconciliationPerCheckpointResult Error(ResultBase other, string? message = null) => new ReconciliationPerCheckpointResult(other, message);
+        public static new ReconciliationPerCheckpointResult Error(ResultBase other, string? message = null) => new ReconciliationPerCheckpointResult(other, message);
+
 
         /// <nodoc />
         public static ReconciliationPerCheckpointResult Skipped() => new ReconciliationPerCheckpointResult(ResultCode.Skipped, data: null);

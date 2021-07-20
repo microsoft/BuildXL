@@ -8,32 +8,9 @@ using System.Diagnostics.ContractsLight;
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>
-    /// Factory methods for constructing <see cref="Result{T}"/>.
-    /// </summary>
-    public static class Result
-    {
-        /// <nodoc />
-        public static Result<T> Success<T>(T result, bool isNullAllowed = false)
-            => new Result<T>(result, isNullAllowed: isNullAllowed);
-
-        /// <nodoc />
-        public static Result<T> FromError<T>(ResultBase other)
-        {
-            Contract.Requires(!other.Succeeded);
-            return new Result<T>(other);
-        }
-
-        /// <nodoc />
-        public static Result<T> FromException<T>(Exception e, string? message = null) => new Result<T>(e, message);
-
-        /// <nodoc />
-        public static Result<T> FromErrorMessage<T>(string message, string? diagnostics = null) => new Result<T>(message, diagnostics);
-    }
-
-    /// <summary>
     /// Represents result of an operation with extra data.
     /// </summary>
-    public class Result<T> : BoolResult, IEquatable<Result<T>>
+    public class Result<T> : BoolResult
     {
         [AllowNull]
         private readonly T _result;
@@ -46,9 +23,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Creates a failed outcome.
+        /// </summary>
+        public Result(Error error)
+            : base(error)
+        {
+            _result = default;
+        }
+
+        /// <summary>
         /// Creates a success outcome specifying if the value can be null.
         /// </summary>
         public Result(T result, bool isNullAllowed)
+            : base(successDiagnostics: null)
         {
             if (!isNullAllowed && result == null)
             {
@@ -60,14 +47,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
         /// <inheritdoc />
         public Result(string errorMessage, string? diagnostics = null)
-            : base(errorMessage, diagnostics)
+            : this(Error.FromErrorMessage(errorMessage, diagnostics))
         {
-            _result = default;
         }
 
         /// <inheritdoc />
         public Result(Exception exception, string? message = null)
-            : base(exception, message)
+            : this(Error.FromException(exception, message))
         {
             _result = default;
         }
@@ -84,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         // This is not technically correct, because the caller can specify 'isNullAllowed: true' in the constructor,
         // but this is a good enough behavior for us, because in vast majority of cases, isNullAllowed is false.
         [MemberNotNullWhen(true, nameof(Value))]
-        // WIP ST: this is not working with the 3.7 compiler!!
         public override bool Succeeded => base.Succeeded;
 
         /// <summary>
@@ -114,15 +99,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public bool Equals([AllowNull]Result<T> other)
+        protected override bool SuccessEquals(ResultBase other)
         {
-            return Succeeded && other?.Succeeded == true ? Value!.Equals(other.Value) : ErrorEquals(other);
+            Result<T> otherT = (Result<T>)other;
+
+            if (Value is null)
+            {
+                return otherT.Value is null;
+            }
+
+            return Value.Equals(otherT.Value);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Succeeded ? Value!.GetHashCode() : base.GetHashCode();
+            return (Succeeded, Succeeded ? (Value?.GetHashCode() ?? 0) : 0, base.GetHashCode()).GetHashCode();
         }
+
+        /// <summary>
+        /// Implicit conversion operator from <see cref="Result{T}"/> to <see cref="bool"/>.
+        /// </summary>
+        public static implicit operator bool(Result<T> result) => result.Succeeded;
     }
 }

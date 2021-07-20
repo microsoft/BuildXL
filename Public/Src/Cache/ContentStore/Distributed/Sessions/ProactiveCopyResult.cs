@@ -46,11 +46,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// </remarks>
     public class ProactiveCopyResult : ResultBase
     {
+        private readonly Error? _error;
+
         /// <nodoc />
         public ProactiveCopyStatus Status { get; }
 
         /// <inheritdoc />
-        public override bool Succeeded => Status == ProactiveCopyStatus.Success || Status == ProactiveCopyStatus.Skipped;
+        public override Error? Error
+        {
+            get
+            {
+                return IsSuccessfulStatus(Status) ? null : (base.Error ?? _error);
+            }
+        }
 
         /// <nodoc />
         public PushFileResult? RingCopyResult { get; }
@@ -74,7 +82,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         /// <nodoc />
         public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult, int retries, ContentLocationEntry? entry = null)
-            : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
             RingCopyResult = ringCopyResult;
             OutsideRingCopyResult = outsideRingCopyResult;
@@ -98,6 +105,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             else
             {
                 Status = ProactiveCopyStatus.Error;
+            }
+
+            if (!IsSuccessfulStatus(Status))
+            {
+                var error = GetErrorMessage(ringCopyResult, outsideRingCopyResult);
+                var diagnostics = GetDiagnostics(ringCopyResult, outsideRingCopyResult);
+                _error = Error.FromErrorMessage(error!, diagnostics);
             }
         }
 
@@ -172,5 +186,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             return $"{base.ToString()} Entry=[{Entry}]";
         }
+
+        private static bool IsSuccessfulStatus(ProactiveCopyStatus status) => status == ProactiveCopyStatus.Success || status == ProactiveCopyStatus.Skipped;
     }
 }

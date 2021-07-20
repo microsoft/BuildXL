@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="ObjectResult{T}"/> class.
         /// </summary>
         public ObjectResult()
-            : base(false)
+            : base(errorMessage: "The operation was unsuccessful")
         {
             Data = default;
         }
@@ -34,7 +34,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="ObjectResult{T}"/> class.
         /// </summary>
         public ObjectResult(T obj)
-            : base(true)
         {
             Contract.RequiresNotNull(obj);
             Data = obj;

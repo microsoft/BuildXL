@@ -40,7 +40,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             string? redisKey = null,
             SkipReason skipReason = SkipReason.NotSkipped,
             string? extraMsg = null)
-            : base(succeeded: true)
         {
             _hash = hash;
             _blobSize = blobSize;

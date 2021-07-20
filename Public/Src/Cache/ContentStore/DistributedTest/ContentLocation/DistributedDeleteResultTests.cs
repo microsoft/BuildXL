@@ -67,7 +67,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             distributedDeleteResult.ToString().Should().Contain($"{outerException.Message}");
             distributedDeleteResult.ToString().Should().Contain($"{innerException.GetType().Name}");
             distributedDeleteResult.ToString().Should().Contain($"{innerException.Message}");
-            distributedDeleteResult.ToString().Should().Contain("Diagnostics");
         }
 
         [Fact]

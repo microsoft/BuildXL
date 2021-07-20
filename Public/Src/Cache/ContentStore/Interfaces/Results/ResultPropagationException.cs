@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
         /// <nodoc />
         public ResultPropagationException(ResultBase result)
-            : base(result.ErrorMessage, result.Exception)
+            : base(GetErrorMessage(result), result.Exception)
         {
             Contract.RequiresNotNull(result);
             Contract.Requires(!result.Succeeded);
@@ -28,5 +28,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
         /// <inheritdoc />
         public override string ToString() => Result.ToString();
+
+        /// <nodoc />
+        private static string GetErrorMessage(ResultBase error)
+        {
+            Contract.Requires(!error.Succeeded);
+            Contract.Requires(error.Error != null);
+            return error.Error.ErrorMessage;
+        }
     }
 }

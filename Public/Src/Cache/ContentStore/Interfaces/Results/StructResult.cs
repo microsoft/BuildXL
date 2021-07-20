@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="StructResult{T}"/> class.
         /// </summary>
         public StructResult()
-            : base(false)
+            : base(errorMessage: "The operation was unsuccessful")
         {
         }
 
@@ -51,7 +51,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="StructResult{T}"/> class.
         /// </summary>
         public StructResult(T obj)
-            : base (true)
         {
             Data = obj;
         }

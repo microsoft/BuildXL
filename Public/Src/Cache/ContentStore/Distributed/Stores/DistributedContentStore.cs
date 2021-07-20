@@ -347,7 +347,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var sessionResult = await ProactiveCopySession.Value;
                 if (sessionResult.Succeeded)
                 {
-                    var proactiveCopySessionShutdownResult = await sessionResult.Value!.ShutdownAsync(context);
+                    var proactiveCopySessionShutdownResult = await sessionResult.Value.ShutdownAsync(context);
                     results.Add((nameof(ProactiveCopySession), proactiveCopySessionShutdownResult));
                 }
             }

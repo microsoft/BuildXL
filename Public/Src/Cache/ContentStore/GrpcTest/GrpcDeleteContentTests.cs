@@ -42,7 +42,6 @@ namespace ContentStoreTest.Grpc
         [InlineData(DeleteResult.ResultCode.Success, true)]
         [InlineData(DeleteResult.ResultCode.ContentNotDeleted, false)]
         [InlineData(DeleteResult.ResultCode.ServerError, false)]
-        [InlineData(DeleteResult.ResultCode.Error, false)]
         public void SuccessPerResult(DeleteResult.ResultCode code, bool succeeded)
         {
             var hash = ContentHash.Random(HashType.Vso0);

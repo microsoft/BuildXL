@@ -124,7 +124,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public Task<PlaceFileResult> PlaceFileAsync(Context context, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             FilePlacedParams.Add(new Tuple<ContentHash, AbsolutePath, FileAccessMode, FileReplacementMode, FileRealizationMode>(contentHash, path, accessMode, replacementMode, realizationMode));
-            return Task.FromResult(new PlaceFileResult(PinResult.Success));
+            return Task.FromResult(new PlaceFileResult("Error"));
         }
 
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)

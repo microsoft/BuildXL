@@ -244,12 +244,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             var cacheContext = new Context(Logger);
             var counters = await ContentSessionHandler.GetStatsAsync(new OperationContext(cacheContext, token));
-            if (!counters)
+            if (!counters.Succeeded)
             {
                 return GetStatsResponse.Failure();
             }
 
-            var result = counters.Value!;
+            var result = counters.Value;
             result.Merge(Counters.ToCounterSet(), "GrpcContentServer");
             return GetStatsResponse.Create(result.ToDictionaryIntegral());
         }

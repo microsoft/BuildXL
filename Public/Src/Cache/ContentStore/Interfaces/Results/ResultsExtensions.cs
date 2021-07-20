@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -103,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (result.Succeeded)
             {
-                return selector(result.Value!);
+                return selector(result.Value);
             }
 
             return new ErrorResult(result).AsResult<TResult>();
@@ -117,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (result.Succeeded)
             {
-                return selector(result.Value!, result.Duration);
+                return selector(result.Value, result.Duration);
             }
 
             return new ErrorResult(result).AsResult<TResult>();
@@ -126,9 +125,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <nodoc />
         public static void Match<T>(this Result<T> result, Action<T> successAction, Action<Result<T>> failureAction)
         {
-            if (result)
+            if (result.Succeeded)
             {
-                successAction(result.Value!);
+                successAction(result.Value);
             }
             else
             {
@@ -161,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             var result = await resultTask;
             if (result.Succeeded)
             {
-                return Result.Success(selector(result.Value!));
+                return Result.Success(selector(result.Value));
             }
             else
             {
@@ -192,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (result.Succeeded)
             {
-                return Result.Success(selector(result.Value!));
+                return Result.Success(selector(result.Value));
             }
             else
             {
@@ -210,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Value!;
+            return result.Value;
         }
 
         /// <summary>
@@ -329,12 +328,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </remarks>
         public static T GetValueOrThrow<T>(this Result<T> result)
         {
-            if (!result)
+            if (!result.Succeeded)
             {
                 throw new ResultPropagationException(result);
             }
 
-            return result.Value!;
+            return result.Value;
         }
 
         /// <summary>
@@ -352,12 +351,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public static string? ToStringWithValue<T>(this Result<T> result)
         {
-            if (!result)
+            if (!result.Succeeded)
             {
                 return result.ToString();
             }
 
-            return result.Value!.ToString();
+            return result.Value.ToString();
         }
 
         /// <summary>
@@ -365,12 +364,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public static string ToStringSelect<T>(this Result<T> result, Func<T, string> toStringProjection)
         {
-            if (!result)
+            if (!result.Succeeded)
             {
                 return result.ToString();
             }
 
-            return toStringProjection(result.Value!);
+            return toStringProjection(result.Value);
         }
     }
 }

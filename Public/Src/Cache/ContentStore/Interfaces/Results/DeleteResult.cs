@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
@@ -26,9 +27,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                     throw new ArgumentException($"{code} is an unrecognized value of {nameof(DeleteResult)}.{nameof(ResultCode)}");
             }
         }
-
-        /// <inheritdoc />
-        public override bool Succeeded => IsSuccessfulResult(Code);
 
         /// <summary>
         /// A code that helps caller to make decisions.
@@ -67,7 +65,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
         public DeleteResult(ResultCode resultCode, ContentHash contentHash, long contentSize)
-            : base(IsSuccessfulResult(resultCode))
         {
             Code = resultCode;
             ContentHash = contentHash;
@@ -80,6 +77,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public DeleteResult(ResultCode resultCode, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
+            Contract.Requires(!IsSuccessfulResult(resultCode));
             Code = resultCode;
         }
 
@@ -89,6 +87,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public DeleteResult(ResultCode resultCode, Exception exception, string? message = null)
             : base(exception, message)
         {
+            Contract.Requires(!IsSuccessfulResult(resultCode));
             Code = resultCode;
         }
 
@@ -128,6 +127,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             return Succeeded
                 ? $"Status={Code}"
                 : GetErrorString();
+        }
+
+        /// <inheritdoc />
+        public override Error? Error
+        {
+            get
+            {
+                return IsSuccessfulResult(Code) ? null : (base.Error ?? Error.FromErrorMessage(Code.ToString()));
+            }
         }
     }
 }

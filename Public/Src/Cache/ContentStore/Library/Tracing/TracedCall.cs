@@ -78,13 +78,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
                 if (_token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(exception))
                 {
-                    Result.IsCancelled = true;
+                    Result.MarkCancelled();
                 }
             }
             finally
             {
                 _stopwatch.Stop();
-                Result.Duration = _stopwatch.Elapsed;
+                Result.SetDuration(_stopwatch.Elapsed);
             }
 
             return Result;
@@ -106,13 +106,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
                 if (_token.IsCancellationRequested && ResultBase.NonCriticalForCancellation(exception))
                 {
-                    Result.IsCancelled = true;
+                    Result.MarkCancelled();
                 }
             }
             finally
             {
                 _stopwatch.Stop();
-                Result.Duration = _stopwatch.Elapsed;
+                Result.SetDuration(_stopwatch.Elapsed);
             }
 
             return Result;

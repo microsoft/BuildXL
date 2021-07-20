@@ -6,6 +6,8 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
 {
     /// <summary>
@@ -67,7 +69,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="AddOrGetContentHashListResult" /> class.
         /// </summary>
-        public AddOrGetContentHashListResult(string errorMessage, string diagnostics = null)
+        public AddOrGetContentHashListResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
             Contract.Requires(!string.IsNullOrEmpty(errorMessage));
@@ -86,14 +88,22 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="AddOrGetContentHashListResult" /> class.
         /// </summary>
-        public AddOrGetContentHashListResult(ResultBase other, string message = null)
+        public AddOrGetContentHashListResult(ResultBase other, string? message = null)
             : base(other, message)
         {
             Code = ResultCode.Error;
         }
 
         /// <inheritdoc />
-        public override bool Succeeded => Code == ResultCode.Success;
+        public override Error? Error
+        {
+            get
+            {
+                return Code == ResultCode.Success
+                    ? null
+                    : (base.Error ?? Error.FromErrorMessage(Code.ToString()));
+            }
+        }
 
         /// <summary>
         ///     Gets the specific result code for the related call.
@@ -110,7 +120,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         public readonly ContentHashListWithDeterminism ContentHashListWithDeterminism;
 
         /// <inheritdoc />
-        public bool Equals(AddOrGetContentHashListResult other)
+        public bool Equals(AddOrGetContentHashListResult? other)
         {
             if (other == null || Code != other.Code)
             {
@@ -121,7 +131,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is AddOrGetContentHashListResult other && Equals(other);
         }
@@ -129,7 +139,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Code.GetHashCode() ^ ContentHashListWithDeterminism.GetHashCode() ^ (ErrorMessage?.GetHashCode() ?? 0);
+            return (base.GetHashCode(), Code, ContentHashListWithDeterminism).GetHashCode();
         }
 
         /// <inheritdoc />

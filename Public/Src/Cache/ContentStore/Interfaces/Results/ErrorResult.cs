@@ -11,86 +11,25 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// <summary>
     ///     Result of a failed operation.
     /// </summary>
-    public class ErrorResult : ResultBase, IEquatable<ErrorResult>
+    public class ErrorResult : ResultBase
     {
-        /// <summary>
-        /// Original optional message provided via constructor.
-        /// </summary>
-        public string? Message { get; }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ErrorResult"/> class.
-        /// </summary>
+        /// <nodoc />
         public ErrorResult(string errorMessage, string? diagnostics = null)
-            : base(errorMessage, diagnostics)
+            : base(Error.FromErrorMessage(errorMessage, diagnostics))
         {
             Contract.RequiresNotNullOrEmpty(errorMessage);
-            Message = errorMessage;
         }
 
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ErrorResult" /> class.
-        /// </summary>
+        /// <nodoc />
         public ErrorResult(Exception exception, string? message = null)
-            : base(exception, message)
+            : base(Error.FromException(exception, message))
         {
-            Message = message;
         }
 
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ErrorResult" /> class.
-        /// </summary>
+        /// <nodoc />
         public ErrorResult(ResultBase other, string? message = null)
             : base(other, message)
         {
-            Message = message;
-        }
-
-        /// <inheritdoc />
-        public override bool Succeeded => false;
-
-        /// <inheritdoc />
-        public bool Equals([AllowNull]ErrorResult other)
-        {
-            return EqualsBase(other) && other != null;
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            return obj is ErrorResult other && Equals(other);
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return ErrorMessage?.GetHashCode() ?? 0;
-        }
-
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return GetErrorString();
-        }
-
-        /// <summary>
-        ///     Overloads &amp; operator to behave as AND operator.
-        /// </summary>
-        public static ErrorResult operator &(ErrorResult result1, ErrorResult result2)
-        {
-            return new ErrorResult(
-                    Merge(result1.ErrorMessage, result2.ErrorMessage, ", "),
-                    Merge(result1.Diagnostics, result2.Diagnostics, ", "));
-        }
-
-        /// <summary>
-        ///     Overloads | operator to behave as OR operator.
-        /// </summary>
-        public static ErrorResult operator |(ErrorResult result1, ErrorResult result2)
-        {
-            return new ErrorResult(
-                Merge(result1.ErrorMessage, result2.ErrorMessage, ", "),
-                Merge(result1.Diagnostics, result2.Diagnostics, ", "));
         }
 
         /// <summary>
@@ -140,8 +79,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 var constructorInfo = typeof(TResult).GetConstructor(new[] { typeof(ResultBase), typeof(string) });
                 if (constructorInfo == null)
                 {
+                    constructorInfo = typeof(TResult).GetConstructor(new[] { typeof(Result), typeof(string) });
+                }
+
+                if (constructorInfo == null)
+                {
                     result = null;
-                    errorMessage = $"Constructor '{type}(ResultBase, string)' is not defined for type '{type}'.";
+                    errorMessage = $"Constructor '{type}(ResultBase, string)' or '{type}(Result, string)' are not defined for type '{type}'.";
                     return false;
                 }
 

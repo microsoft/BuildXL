@@ -89,9 +89,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                         // Because we capture exceptions inside the PerformOperation, we need to make sure that they
                         // get propagated for the retry policy to kick in.
-                        if (!result.Succeeded && result.HasException)
+                        if (result.Exception != null)
                         {
-                            throw result.Exception;
+                            result.ReThrow();
                         }
 
                         return result;

@@ -24,7 +24,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         {
             var exception = new Exception("My message");
             var e = Assert.Throws<InvalidOperationException>(() => new ErrorResult(exception).AsResult<CustomError>());
-            Assert.Contains("Constructor 'CustomError(ResultBase, string)' is not defined for type", e.Message);
+            Assert.Contains("Constructor 'CustomError(ResultBase, string)'", e.Message);
+            Assert.Contains("not defined for type", e.Message);
         }
 
         [Fact]

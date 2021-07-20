@@ -239,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Result<SessionData> dataResult = await CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, serializedConfig, pat, isReconnect: false);
             if (dataResult.Succeeded)
             {
-                SessionData data = dataResult.Value!;
+                SessionData data = dataResult.Value;
                 SessionState = new SessionState(() => CreateSessionDataAsync(operationContext, name, cacheName, implicitPin, serializedConfig, pat, isReconnect: true), data);
 
                 int sessionId = data.SessionId;
@@ -258,7 +258,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             else
             {
-                return dataResult;
+                return new BoolResult(dataResult);
             }
         }
 
@@ -340,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 },
                 traceOperationStarted: true,
                 extraStartMessage: $"Reconnect={isReconnect}",
-                extraEndMessage: r => $"Reconnect={isReconnect}, SessionId={(r ? r.Value!.SessionId.ToString() : "Error")}"
+                extraEndMessage: r => $"Reconnect={isReconnect}, SessionId={(r.Succeeded ? r.Value.SessionId.ToString() : "Error")}"
                 );
         }
 
@@ -403,13 +403,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Contract.Assert(SessionState != null, "CreateSessionAsync method was not called, or the instance is shut down.");
 
             Result<SessionData> result = await SessionState.GetDataAsync(new OperationContext(context, token));
-            if (!result)
+            if (!result.Succeeded)
             {
                 return Result.FromError<SessionContext>(result);
             }
 
             var startTime = DateTime.UtcNow;
-            return new SessionContext(context, startTime, result.Value!, token);
+            return new SessionContext(context, startTime, result.Value, token);
         }
 
         /// <summary>

@@ -19,10 +19,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
         public void ValidateAsResult()
         {
             var resultBaseType = typeof(ResultBase);
-            IEnumerable<Type> resultTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => assembly.FullName.Contains("BuildXL"))
-                .SelectMany(assembly => assembly.GetTypes())
-                .Where(t => resultBaseType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract && !t.IsGenericType && t.FullName != resultBaseType.FullName && t.Name != "CustomError");
+            IEnumerable<Type> resultTypes = getResultTypes();
 
             var testError = new ErrorResult(new Exception(nameof(ValidateAsResult)));
 
@@ -32,6 +29,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
                 // testError.AsResult<resultType>();
                 asResultMethod.Invoke(testError, null);
+            }
+
+            IEnumerable<Type> getResultTypes()
+            {
+                try
+                {
+                    return AppDomain.CurrentDomain.GetAssemblies()
+                        .Where(assembly => assembly.FullName.Contains("BuildXL"))
+                        .SelectMany(assembly => assembly.GetTypes())
+                        .Where(t => resultBaseType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract && !t.IsGenericType && t.FullName != resultBaseType.FullName && t.Name != "CustomError")
+                        .ToList();
+                }
+                catch(ReflectionTypeLoadException e)
+                {
+                    throw new AggregateException("Failed getting error types", e.LoaderExceptions);
+                }
             }
         }
     }

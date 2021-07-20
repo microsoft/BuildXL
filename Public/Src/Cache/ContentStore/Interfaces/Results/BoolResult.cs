@@ -10,34 +10,30 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// <summary>
     /// Operation result the boolean operation.
     /// </summary>
-    public class BoolResult : ResultBase, IEquatable<BoolResult>
+    /// <remarks>
+    /// <see cref="Result"/> class should be used instead.
+    /// </remarks>
+    public class BoolResult : ResultBase
     {
-        private readonly bool _succeeded;
-
         /// <summary>
         /// Creates new result instance with a given status.
         /// </summary>
-        protected BoolResult(bool succeeded = true)
+        protected BoolResult(string? successDiagnostics = null)
+            : base(successDiagnostics)
         {
-            _succeeded = succeeded;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BoolResult"/> class.
-        /// </summary>
-        [Obsolete("Please use BoolResult(string, string) instead.")]
-        protected BoolResult(bool succeeded, string errorMessage, string? diagnostics = null)
-            : base(errorMessage, diagnostics)
+        /// <nodoc />
+        protected BoolResult(Error error)
+            : base(error)
         {
-            Contract.RequiresNotNullOrEmpty(errorMessage);
-            _succeeded = succeeded;
         }
 
         /// <summary>
         /// Creates a new instance of a failed result.
         /// </summary>
         public BoolResult(string errorMessage, string? diagnostics = null)
-            : base(errorMessage, diagnostics)
+            : base(Error.FromErrorMessage(errorMessage, diagnostics))
         {
             Contract.RequiresNotNullOrEmpty(errorMessage);
         }
@@ -58,9 +54,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
         }
 
-        /// <inheritdoc />
-        public override bool Succeeded => _succeeded;
-
         /// <summary>
         /// Success singleton.
         /// </summary>
@@ -69,103 +62,67 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Creates a successful result with the given diagnostic message as the success message
         /// </summary>
-        public static BoolResult WithSuccessMessage(string successDiagnostics) => new BoolResult() { Diagnostics = successDiagnostics, PrintDiagnosticsForSuccess = true };
+        public static BoolResult WithSuccessMessage(string successDiagnostics) => new BoolResult(successDiagnostics);
 
         /// <summary>
         /// Successful task singleton.
         /// </summary>
         public static readonly Task<BoolResult> SuccessTask = Task.FromResult(Success);
 
-        /// <inheritdoc />
-        public bool Equals(BoolResult? other)
-        {
-            return EqualsBase(other) && other != null && Succeeded == other.Succeeded;
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            return obj is BoolResult other && Equals(other);
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return Succeeded.GetHashCode() ^ (ErrorMessage?.GetHashCode() ?? 0);
-        }
-
         /// <summary>
         /// Overloads &amp; operator to behave as AND operator.
         /// </summary>
-        public static BoolResult operator &(BoolResult result1, BoolResult result2)
+        public static BoolResult operator &(BoolResult left, BoolResult right)
         {
-            if (result1.Succeeded)
+            if (left.Succeeded)
             {
-                return result2;
+                return right;
             }
 
-            if (result2.Succeeded)
+            if (right.Succeeded)
             {
-                return result1;
+                return left;
             }
 
             // We merge the errors the same way for '|' and '&' operators.
-            return MergeFailures(result1, result2);
+            return MergeFailures(left, right);
         }
 
         /// <summary>
         /// Overloads | operator to behave as OR operator.
         /// </summary>
-        public static BoolResult operator |(BoolResult? result1, BoolResult? result2)
+        public static BoolResult operator |(BoolResult? left, BoolResult? right)
         {
             // One of the arguments may be null but not both.
 
-            if (result1 == null)
+            if (left == null)
             {
-                Contract.AssertNotNull(result2);
-                return result2;
+                Contract.AssertNotNull(right);
+                return right;
             }
 
-            if (result2 == null)
+            if (right == null)
             {
-                Contract.AssertNotNull(result1);
-                return result1;
+                Contract.AssertNotNull(left);
+                return left;
             }
 
-            if (result1.Succeeded)
+            if (left.Succeeded)
             {
-                return result1;
+                return left;
             }
 
-            if (result2.Succeeded)
+            if (right.Succeeded)
             {
-                return result2;
+                return right;
             }
 
             // We merge the errors the same way for '|' and '&' operators.
-            return MergeFailures(result1, result2);
+            return MergeFailures(left, right, defaultResultCtor: () => new BoolResult(),  fromError: error => new BoolResult(error));
         }
 
         private static BoolResult MergeFailures(BoolResult left, BoolResult right)
-        {
-            Contract.Requires(!left.Succeeded || !right.Succeeded);
-
-            // Its hard to tell which exact semantics here is the best when two operations failed
-            // but when only one operation was canceled.
-            // The current behavior is: the final result is considered cancelled only when
-            // all the operations were canceled.
-            bool isCanceled = left.IsCancelled && right.IsCancelled;
-
-            return new BoolResult(
-                       Merge(left.ErrorMessage, right.ErrorMessage, ", "),
-                       Merge(left.Diagnostics, right.Diagnostics, ", "))
-                   {
-                       IsCancelled = isCanceled,
-                       // There is no simple way to "merge" exceptions, so we pick just one of them
-                       // instead of other options, like merging them into "AggregateException".
-                       Exception = left.Exception ?? right.Exception
-                   };
-        }
+            => MergeFailures(left, right, defaultResultCtor: () => new BoolResult(), fromError: error => new BoolResult(error));
 
         /// <summary>
         /// Implicit conversion operator from <see cref="BoolResult"/> to <see cref="bool"/>.

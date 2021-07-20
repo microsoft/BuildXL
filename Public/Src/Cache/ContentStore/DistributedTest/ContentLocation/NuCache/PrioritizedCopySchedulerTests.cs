@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             return RunTest(async (context, scheduler) =>
                {
                    // This only schedules the task, but it won't run until the cycle happens.
-                   var resultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, _ => Task.FromResult(new CopyFileResult())));
+                   var resultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, _ => Task.FromResult(CopyFileResult.Success)));
 
                    var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
                    var result = await resultTask;
@@ -57,13 +57,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                      firstTaskQueueTime = arguments.Summary.QueueWait;
 
                      arguments.Summary.PriorityQueueLength.Should().Be(1);
-                     return Task.FromResult(new CopyFileResult());
+                     return Task.FromResult(CopyFileResult.Success);
                  }));
 
                  var secondResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
                  {
                      secondTaskQueueTime = arguments.Summary.QueueWait;
-                     return Task.FromResult(new CopyFileResult());
+                     return Task.FromResult(CopyFileResult.Success);
                  }));
 
                  var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
@@ -96,13 +96,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                  var lowPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, arguments =>
                   {
                       lowPriorityTaskQueueTime = arguments.Summary.QueueWait;
-                      return Task.FromResult(new CopyFileResult());
+                      return Task.FromResult(CopyFileResult.Success);
                   }));
 
                  var highPriorityResultTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 0, arguments =>
                  {
                      highPriorityTaskQueueTime = arguments.Summary.QueueWait;
-                     return Task.FromResult(new CopyFileResult());
+                     return Task.FromResult(CopyFileResult.Success);
                  }));
 
                  var cycleResult = scheduler.SchedulerCycle(context, 1).ShouldBeSuccess();
@@ -132,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
              {
                  var brokenCopyTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => throw new NotImplementedException()));
 
-                 var workingCopyTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => Task.FromResult(new CopyFileResult())));
+                 var workingCopyTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => Task.FromResult(CopyFileResult.Success)));
 
                  // Allowing for 4 copies to ensure that quota allows both copies to run simultaneously. We'd need a new cycle otherwise
                  var cycleResult = scheduler.SchedulerCycle(context, 4).ShouldBeSuccess();
@@ -170,14 +170,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 var outboundPullTasks =
                     (from reason in reasons
                      from attempt in attempts
-                     select scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(reason, context, attempt, _ => Task.FromResult(new CopyFileResult()))))
+                     select scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(reason, context, attempt, _ => Task.FromResult(CopyFileResult.Success))))
                     .ToArray();
 
                 var outboundPushTasks =
                     (from reason in reasons
                      from attempt in attempts
                      from source in sources
-                     select scheduler.ScheduleOutboundPushAsync(new OutboundPushCopy<CopyFileResult>(reason, context, source, attempt, _ => Task.FromResult(new CopyFileResult()))))
+                     select scheduler.ScheduleOutboundPushAsync(new OutboundPushCopy<CopyFileResult>(reason, context, source, attempt, _ => Task.FromResult(CopyFileResult.Success))))
                     .ToArray();
 
                 // High cycle quota, so we can schedule from all priority classes
@@ -203,10 +203,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 var slowCopyFactoryTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, async _ =>
                 {
                     await blocker.WaitAsync();
-                    return new CopyFileResult();
+                    return CopyFileResult.Success;
                 }));
 
-                var fastCopyFactoryTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => Task.FromResult(new CopyFileResult())));
+                var fastCopyFactoryTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => Task.FromResult(CopyFileResult.Success)));
 
                 // Allowing for 4 copies to ensure that quota allows both copies to run simultaneously. We'd need a new cycle otherwise
                 var cycleResult = scheduler.SchedulerCycle(context, 4).ShouldBeSuccess();
@@ -233,10 +233,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 var slowCopyFactoryTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ =>
                 {
                     blocker.Wait();
-                    return Task.FromResult(new CopyFileResult());
+                    return Task.FromResult(CopyFileResult.Success);
                 }));
 
-                var fastCopyFactoryTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => Task.FromResult(new CopyFileResult())));
+                var fastCopyFactoryTask = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ => Task.FromResult(CopyFileResult.Success)));
 
                 // Allowing for 4 copies to ensure that quota allows both copies to run simultaneously. We'd need a new cycle otherwise
                 var cycleResult = scheduler.SchedulerCycle(context, 4).ShouldBeSuccess();
@@ -261,7 +261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             {
                 var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ =>
                 {
-                    return Task.FromResult(new CopyFileResult());
+                    return Task.FromResult(CopyFileResult.Success);
                 }));
                 result.Reason.Should().Be(SchedulerFailureCode.Timeout);
             }, new PrioritizedCopySchedulerConfiguration()
@@ -278,7 +278,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             {
                 var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, _ =>
                 {
-                    return Task.FromResult(new CopyFileResult());
+                    return Task.FromResult(CopyFileResult.Success);
                 }));
 
                 result.Reason.Should().Be(SchedulerFailureCode.Timeout);
@@ -301,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, async args =>
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), args.Context.Token);
-                return new CopyFileResult();
+                return CopyFileResult.Success;
             })).ShouldBeSuccess();
 
             await scheduler.ShutdownAsync(context).ShouldBeSuccess();
@@ -323,7 +323,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                     releaseShutdown.Release();
                     await releaseCopy.WaitAsync();
                     args.Context.Token.ThrowIfCancellationRequested();
-                    return new CopyFileResult();
+                    return CopyFileResult.Success;
                 }));
 
                 result.Reason.Should().Be(SchedulerFailureCode.Shutdown);
@@ -347,7 +347,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
             var result = await scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, args =>
             {
-                return Task.FromResult(new CopyFileResult());
+                return Task.FromResult(CopyFileResult.Success);
             }));
 
             result.Reason.Should().Be(SchedulerFailureCode.Shutdown);
@@ -360,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
             var result = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, args =>
             {
-                return Task.FromResult(new CopyFileResult());
+                return Task.FromResult(CopyFileResult.Success);
             }));
 
             await scheduler.ShutdownAsync(context).ShouldBeSuccess();
@@ -380,7 +380,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 
             var result = scheduler.ScheduleOutboundPullAsync(new OutboundPullCopy(CopyReason.Pin, context, 1, args =>
             {
-                return Task.FromResult(new CopyFileResult());
+                return Task.FromResult(CopyFileResult.Success);
             }));
 
             using var cancelledCts = new CancellationTokenSource();

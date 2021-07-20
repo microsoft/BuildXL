@@ -19,7 +19,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public GetBlobResult(ShortHash? hash, byte[]? blob)
-            : base(succeeded: true)
         {
             _hash = hash;
             Blob = blob;

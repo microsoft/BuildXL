@@ -165,12 +165,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var locationsResult = BinManager.GetDesignatedLocations(hash, includeExpired);
-            if (!locationsResult)
+            if (!locationsResult.Succeeded)
             {
                 return new Result<MachineLocation[]>(locationsResult);
             }
 
-            return locationsResult.Value!
+            return locationsResult.Value
                 .Where(machineId => !_inactiveMachinesSet[machineId] && !_closedMachinesSet[machineId])
                 .Select(id => _locationByIdMap[id.Index])
                 .ToArray();
@@ -187,12 +187,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
-            if (!locations)
+            if (!locations.Succeeded)
             {
                 return false;
             }
 
-            return locations.Value!.Contains(machineId);
+            return locations.Value.Contains(machineId);
         }
 
         /// <nodoc />

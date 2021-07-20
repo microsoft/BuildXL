@@ -36,16 +36,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PutResult"/> class.
         /// </summary>
-        [Obsolete]
-        public PutResult(bool succeeded, ContentHash contentHash, string errorMessage, string? diagnostics = null)
-            : base(succeeded, errorMessage, diagnostics)
-        {
-            ContentHash = contentHash;
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="PutResult"/> class.
-        /// </summary>
         public PutResult(ContentHash contentHash, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {

@@ -187,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Logging
                 messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
             }
 
-            var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, ResultBase.GetExceptionString(exception));
+            var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, Interfaces.Results.Error.GetExceptionString(exception));
             LogString(Severity.Error, message);
             Flush();
         }

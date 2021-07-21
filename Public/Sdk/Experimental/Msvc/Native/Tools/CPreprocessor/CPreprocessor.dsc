@@ -105,7 +105,9 @@ export function evaluate(args: Arguments): File {
         workingDirectory: Context.getSpecFileDirectory(),
         dependencies: includes,
         arguments: cmdArgs,
-        allowedSurvivingChildProcessNames: importFrom("VisualCpp").clToolSurvivingChildProcesses,
+        unsafe: {
+            childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").clToolBreakawayProcesses,
+        }
     });
 
     return outputs.getOutputFile(outFile);

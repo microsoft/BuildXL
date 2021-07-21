@@ -265,7 +265,9 @@ function evaluateOneSourceFile(
             "telemetry:cl", 
             ...(args.tags || [])
         ],
-        allowedSurvivingChildProcessNames: importFrom("VisualCpp").clToolSurvivingChildProcesses,
+        unsafe: {
+            childProcessesToBreakawayFromSandbox: importFrom("VisualCpp").clToolBreakawayProcesses,
+        }
     });
 
     let compOutput = <CompilationOutput> {

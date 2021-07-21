@@ -45,7 +45,7 @@ export const lib = pkgContents.ensureContents({subFolder: r`${rootFolder}/lib/${
  * VCTIP.EXE - "VC++ Technology Improvement Program" uploader used for telemetry.
  */
 @@public
-export const clToolSurvivingChildProcesses : PathAtom[] = [a`VCTIP.EXE`];
+export const clToolBreakawayProcesses : PathAtom[] = [a`VCTIP.EXE`];
 
 // narrowed down sealed directory with just the tools folder
 const toolContents = pkgContents.ensureContents({subFolder: r`${rootFolder}/bin/${"Host" + qualifier.platform}/${qualifier.platform}`});

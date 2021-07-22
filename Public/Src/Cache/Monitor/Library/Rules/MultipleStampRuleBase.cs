@@ -4,6 +4,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.Monitor.App;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using BuildXL.Cache.Monitor.App.Scheduling;
@@ -63,6 +64,12 @@ namespace BuildXL.Cache.Monitor.Library.Rules
             DateTime? eventTimeUtc = null,
             TimeSpan? cacheTimeToLive = null)
         {
+            // Do not create Sev2 or higher incidents for non-production environments
+            if (!_configuration.Environment.IsProduction())
+            {
+                severity = Math.Max(severity, 3);
+            }
+
             var incident = new IcmIncident(stamp, _configuration.Environment.ToString(), machines, correlationIds, severity, description ?? title, title, eventTimeUtc, cacheTimeToLive);
             return _configuration.IcmClient.EmitIncidentAsync(incident);
         }

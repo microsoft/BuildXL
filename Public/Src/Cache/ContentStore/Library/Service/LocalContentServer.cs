@@ -200,8 +200,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 }
                 catch (Exception exception)
                 {
-                    tracer.Warning(context, $"Failed to write hibernated sessions root=[{config.DataRootPath}]: {exception}");
-                    tracer.Error(context, exception);
+                    tracer.Error(context, exception, $"Failed to write hibernated sessions root=[{config.DataRootPath}]");
                 }
             }
         }

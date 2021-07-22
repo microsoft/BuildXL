@@ -555,8 +555,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     }
                     catch (Exception exception)
                     {
-                        Tracer.Warning(context, $"Failed to read hibernated sessions root=[{Config.DataRootPath}]: {exception}");
-                        Tracer.Error(context, exception);
+                        Tracer.Error(context, exception, $"Failed to read hibernated sessions root=[{Config.DataRootPath}]");
                     }
                     finally
                     {

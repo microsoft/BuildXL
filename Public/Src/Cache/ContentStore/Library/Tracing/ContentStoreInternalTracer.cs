@@ -432,10 +432,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             _reconstructCallExceptionCounter.Increment();
 
-            if (context.IsEnabled)
-            {
-                Error(context, exception, $"{Name}.ReconstructDirectory() failed");
-            }
+            Error(context, exception, $"{nameof(ReconstructDirectory)} failed");
         }
 
         public void EvictStart(ContentHash contentHash)

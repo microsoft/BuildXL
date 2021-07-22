@@ -130,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             var sessionId = Guid.NewGuid().ToString();
 
-            var operationContext = OperationContext(context.CreateNested(sessionId, nameof(DistributedContentStore)));
+            var operationContext = OperationContext(context.CreateNested(componentName: nameof(DistributedContentStore)));
             return operationContext.PerformOperationAsync(_tracer,
                 async () =>
                 {

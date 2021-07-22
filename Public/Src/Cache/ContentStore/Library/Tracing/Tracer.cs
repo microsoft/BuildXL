@@ -88,11 +88,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(Severity.Error, context, message, operation);
         }
 
-        public void Error(Context context, Exception exception, [CallerMemberName] string? operation = null)
-        {
-            Trace(Severity.Error, context, exception.ToString(), operation, exception);
-        }
-
         public void Error(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Error, context, message, operation, exception);

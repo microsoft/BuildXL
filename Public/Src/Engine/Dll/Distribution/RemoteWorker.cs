@@ -991,20 +991,23 @@ namespace BuildXL.Engine.Distribution
 
             using (operationContext.StartOperation(PipExecutorCounter.AwaitRemoteResultDuration))
             {
-                var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
+                executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
 
-                if (await Task.WhenAny(completionTask, Task.Delay(EngineEnvironmentSettings.RemotePipTimeout)) != completionTask)
-                {
-                    // Delay task completed first
-                    operationTimedOut = true;
-                    Logger.Log.PipTimedOutRemotely(m_appLoggingContext, runnable.Pip.FormattedSemiStableHash, runnable.Step.AsString(), Name);
-                    environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
-                }
-                else
-                {
-                    // Task already completed
-                    executionResult = await completionTask;
-                }
+                // Remote Pip Timeout logic: disable until we fix bug #1860596
+                //
+                //var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
+                //if (await Task.WhenAny(completionTask, Task.Delay(EngineEnvironmentSettings.RemotePipTimeout)) != completionTask)
+                //{
+                //    // Delay task completed first
+                //    operationTimedOut = true;
+                //    Logger.Log.PipTimedOutRemotely(m_appLoggingContext, runnable.Pip.FormattedSemiStableHash, runnable.Step.AsString(), Name);
+                //    environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
+                //}
+                //else
+                //{
+                //    // Task already completed
+                //    executionResult = await completionTask;
+                //}
             }
 
             m_pipCompletionTasks.TryRemove(runnable.PipId, out var pipCompletionTask);

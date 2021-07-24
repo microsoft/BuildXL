@@ -2,110 +2,45 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
-using Grpc.Core;
-using Grpc.Core.Interceptors;
+#if NETCOREAPP3_1
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+#endif
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
     /// <summary>
-    /// Orchestrator service impl
+    /// Orchestrator server 
     /// </summary>
-    public sealed class GrpcOrchestratorServer : Orchestrator.OrchestratorBase, IServer
+    public sealed class GrpcOrchestratorServer : GrpcServer
     {
-        private readonly IOrchestratorService m_orchestratorService;
-        private readonly LoggingContext m_loggingContext;
-        private readonly DistributedInvocationId m_invocationId;
-
-        private Server m_server;
-       
-        // Expose the port to unit tests
-        internal int? Port => m_server?.Ports.FirstOrDefault()?.BoundPort;
-
-        /// <summary>
-        /// Class constructor
-        /// </summary>
-        public GrpcOrchestratorServer(LoggingContext loggingContext, OrchestratorService orchestratorService, DistributedInvocationId invocationId) : this(loggingContext, (IOrchestratorService)orchestratorService, invocationId)
-        {
-        }
-
-        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedInvocationId invocationId)
-        {
-            m_loggingContext = loggingContext;
-            m_orchestratorService = orchestratorService;
-            m_invocationId = invocationId;
-        }
+        private readonly GrpcOrchestrator m_grpcOrchestrator;
 
         /// <nodoc/>
-        public void Start(int port)
+        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedInvocationId invocationId) 
+            : base(loggingContext, invocationId)
         {
-            var interceptor = new ServerInterceptor(m_loggingContext, m_invocationId);
-            m_server = new Server(ClientConnectionManager.ServerChannelOptions)
-            {
-                Services = { Orchestrator.BindService(this).Intercept(interceptor) },
-                Ports = { new ServerPort(IPAddress.Any.ToString(), port, ServerCredentials.Insecure) },
-            };
-            m_server.Start();
-        }
-
-        /// <nodoc/>
-        public async Task ShutdownAsync()
-        {
-            if (m_server != null)
-            {
-                try
-                {
-                    await m_server.ShutdownAsync();
-                }
-                catch (InvalidOperationException)
-                {
-                    // Shutdown was already requested
-                }
-            }
-        }
-
-        /// <inheritdoc />
-        public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
-
-        /// <inheritdoc />
-        public Task DisposeAsync() => ShutdownAsync();
-
-        #region Service Methods
-
-        /// <inheritdoc/>
-        public override Task<RpcResponse> AttachCompleted(AttachCompletionInfo message, ServerCallContext context)
-        {
-            var bondMessage = message.ToOpenBond();
-
-            m_orchestratorService.AttachCompleted(bondMessage);
-
-            return Task.FromResult(new RpcResponse());
+            m_grpcOrchestrator = new GrpcOrchestrator(orchestratorService);
         }
 
         /// <inheritdoc/>
-        public override async Task<RpcResponse> Notify(WorkerNotificationArgs message, ServerCallContext context)
+        public override void Start(int port)
         {
-            var bondMessage = message.ToOpenBond();
-
-            var notifyTask = m_orchestratorService.ReceivedWorkerNotificationAsync(bondMessage);
-            if (EngineEnvironmentSettings.InlineWorkerXLGHandling)
+            if (EngineEnvironmentSettings.GrpcKestrelServerEnabled)
             {
-                await notifyTask;
+#if NETCOREAPP3_1
+                Action<object> configure = (endpoints) => ((IEndpointRouteBuilder)endpoints).MapGrpcService<GrpcOrchestrator>();
+                _ = StartKestrel(port, configure);
+#endif
             }
             else
             {
-                notifyTask.Forget();
+                var serviceDefinition = Orchestrator.BindService(m_grpcOrchestrator);
+                Start(port, serviceDefinition);
             }
-
-            return new RpcResponse();
         }
-
-        #endregion Service Methods
     }
 }

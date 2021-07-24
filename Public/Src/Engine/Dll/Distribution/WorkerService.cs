@@ -117,7 +117,7 @@ namespace BuildXL.Engine.Distribution
             m_pipExecutionService = new WorkerPipExecutionService(this);
             m_notificationManager = new WorkerNotificationManager(this, m_pipExecutionService, appLoggingContext);
             m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId);
-            m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, invocationId);
+            m_workerServer = new Grpc.GrpcWorkerServer(appLoggingContext, this, invocationId);
         }
 
         internal static WorkerService CreateForTesting(

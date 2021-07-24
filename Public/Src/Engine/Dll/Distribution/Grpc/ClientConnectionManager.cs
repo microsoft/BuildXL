@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -14,8 +16,10 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
-using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager.ConnectionFailureEventArgs;
 using static BuildXL.Engine.Distribution.RemoteWorker;
+#if NETCOREAPP3_1
+using Grpc.Net.Client;
+#endif
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -64,12 +68,13 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Default channel options for clients/servers to send/receive unlimited messages.
         /// </summary>
-        private static readonly ChannelOption[] s_defaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) };
+        private static readonly ChannelOption[] s_defaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, int.MaxValue), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, int.MaxValue) };
 
         public static readonly IEnumerable<ChannelOption> ClientChannelOptions = GetClientChannelOptions();
         public static readonly IEnumerable<ChannelOption> ServerChannelOptions = GetServerChannelOptions();
 
-        internal readonly Channel Channel;
+        internal readonly ChannelBase Channel;
+
         private readonly LoggingContext m_loggingContext;
         private readonly DistributedInvocationId m_invocationId;
         private readonly Task m_monitorConnectionTask;
@@ -78,6 +83,18 @@ namespace BuildXL.Engine.Distribution.Grpc
         private volatile bool m_isExitCalledForServer;
         private volatile bool m_attached;
         
+        private readonly bool m_dotNetClientEnabled;
+
+        /// <summary>
+        /// Channel State 
+        /// </summary>
+        /// <remarks>
+        /// Channel state has not been implemented for .NET Grpc Client yet.
+        /// </remarks>
+        private ChannelState? State => m_dotNetClientEnabled ? null : ((Channel)Channel).State;
+
+        private string StateStr => State?.ToString() ?? "N/A";
+
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
             // example: [SELF -> MW1AAP45DD9145A::89] e709c667-ef88-464c-8557-232b02463976 Call#1. Description 
@@ -86,22 +103,113 @@ namespace BuildXL.Engine.Distribution.Grpc
             return string.Format("[SELF -> {0}] {1} {2}#{3}. {4}", Channel.Target, traceId, status, numTry, description);
         }
 
-        private string GenerateFailLog(string traceId, uint numTry, long duration, string failureMessage)
+        private string GenerateFailLog(string traceId, uint numTry, long duration, string failure)
         {
-            return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failureMessage}. ChannelState: {Channel.State}");
+            return GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {duration}ms. Failure: {failure}. ChannelState: {StateStr}");
         }
 
         public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId)
         {
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
-            Channel = new Channel(
+            m_dotNetClientEnabled = EngineEnvironmentSettings.GrpcDotNetClientEnabled;
+
+            if (!m_dotNetClientEnabled)
+            {
+                // Grpc.Core package will be deprecated in May 2022.
+                Channel = new Channel(
                     ipAddress,
                     port,
                     ChannelCredentials.Insecure,
                     ClientChannelOptions);
-            m_monitorConnectionTask = MonitorConnectionAsync();
+                m_monitorConnectionTask = MonitorConnectionAsync();
+                return;
+            }
+
+#if NETCOREAPP3_1
+            var channelOptions = new GrpcChannelOptions
+            {
+                MaxSendMessageSize = int.MaxValue,
+                MaxReceiveMessageSize = int.MaxValue,
+            };
+
+            string address;
+
+            if (GrpcSettings.EncryptionEnabled)
+            {
+                SetupChannelOptionsForEncryption(channelOptions);
+                address = $"https://{ipAddress}:{port}";
+            }
+            else
+            {
+                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+                address = $"http://{ipAddress}:{port}";
+            }
+
+            Channel = GrpcChannel.ForAddress(address, channelOptions);
+#endif
         }
+
+#if NETCOREAPP3_1
+        private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions)
+        {
+            var handler = new SocketsHttpHandler
+            {
+                UseCookies = false,
+                ConnectTimeout = EngineEnvironmentSettings.WorkerAttachTimeout,
+                Expect100ContinueTimeout = TimeSpan.Zero,
+            };
+
+            string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
+
+            X509Certificate2 certificate = null;
+
+            try
+            {
+                certificate = GrpcEncryptionUtil.TryGetBuildUserCertificate(certSubjectName);
+            }
+            catch (Exception e)
+            {
+                Logger.Log.GrpcAuthTrace(m_loggingContext, $"An exception occurred when finding a certificate: '{e}'.");
+                return;
+            }
+
+            if (certificate == null)
+            {
+                Logger.Log.GrpcAuthTrace(m_loggingContext, $"No certificate found that matches subject name: '{certSubjectName}'.");
+                return;
+            }
+
+            handler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
+
+            handler.SslOptions.RemoteCertificateValidationCallback =
+                (requestMessage, certificate, chain, errors) => GrpcEncryptionUtil.ValidateBuildUserCertificate(requestMessage, certificate, chain, errors);
+
+            channelOptions.HttpHandler = handler;
+
+            string buildIdentityTokenLocation = EngineEnvironmentSettings.CBBuildIdentityTokenPath;
+
+            string token = GrpcEncryptionUtil.TryGetTokenBuildIdentityToken(buildIdentityTokenLocation);
+
+            if (token == null)
+            {
+                Logger.Log.GrpcAuthTrace(m_loggingContext, $"No token found in the following location: {buildIdentityTokenLocation}.");
+                return;
+            }
+
+            var credentials = CallCredentials.FromInterceptor((context, metadata) =>
+            {
+                if (!string.IsNullOrEmpty(token))
+                {
+                    metadata.Add("Authorization", token);
+                }
+
+                return Task.CompletedTask;
+            });
+
+            channelOptions.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
+        }
+#endif
 
         public static IEnumerable<ChannelOption> GetClientChannelOptions()
         {
@@ -136,6 +244,10 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public async Task MonitorConnectionAsync()
         {
+            Contract.Requires(!m_dotNetClientEnabled);
+
+            var grpcCoreChannel = (Channel)Channel;
+
             await Task.Yield();
 
             ChannelState state = ChannelState.Idle;
@@ -154,8 +266,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                 try
                 {
                     lastState = state;
-                    await Channel.TryWaitForStateChangedAsync(state);
-                    state = Channel.State;  // Pick up the new state as soon as possible as it may change
+                    await grpcCoreChannel.TryWaitForStateChangedAsync(state);
+                    state = grpcCoreChannel.State;  // Pick up the new state as soon as possible as it may change
                 }
                 catch (ObjectDisposedException)
                 {
@@ -214,6 +326,8 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private async Task<bool> TryReconnectAsync()
         {
+            Contract.Requires(!m_dotNetClientEnabled);
+
             int numRetries = 0;
             bool connectionSucceeded = false;
 
@@ -222,12 +336,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 numRetries++;
 
                 // Try connecting with timeout
-                connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, nameof(TryReconnectAsync));
+                connectionSucceeded = await TryConnectGrpcCoreChannelAsync(GrpcSettings.CallTimeout, nameof(TryReconnectAsync));
                 if (connectionSucceeded)
                 {
                     return true;
                 }
-                else if (IsNonRecoverableState(Channel.State))
+                else if (IsNonRecoverableState(State.Value))
                 {
                     // If the end state is a non-recovarable state, there is no hope for the reconnection.
                     return false;
@@ -246,7 +360,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 await Channel.ShutdownAsync();
             }
 
-            await m_monitorConnectionTask;
+            if (m_monitorConnectionTask != null)
+            {
+                await m_monitorConnectionTask;
+            }
         }
 
         public void OnAttachmentCompleted()
@@ -265,9 +382,11 @@ namespace BuildXL.Engine.Distribution.Grpc
             TimeSpan waitForConnectionDuration = TimeSpan.Zero;
             TimeSpan totalCallDuration = TimeSpan.Zero;
 
-            if (waitForConnection)
+            if (waitForConnection && !m_dotNetClientEnabled)
             {
-                bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch);
+                // Manual connection is not available for Grpc .NET client.
+
+                bool connectionSucceeded = await TryConnectGrpcCoreChannelAsync(GrpcSettings.WorkerAttachTimeout, operation, watch);
                 waitForConnectionDuration = watch.Elapsed;
 
                 if (!connectionSucceeded)
@@ -310,7 +429,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 catch (RpcException e)
                 {
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
-                    state = e.Status.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
+                    state = e.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
 
                     if (e.Status.StatusCode == StatusCode.DeadlineExceeded)
@@ -381,20 +500,23 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
 
-        private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, Stopwatch watch = null)
+        private async Task<bool> TryConnectGrpcCoreChannelAsync(TimeSpan timeout, string operation, Stopwatch watch = null)
         {
+            Contract.Requires(!m_dotNetClientEnabled);
+
+            var grpcCoreChannel = (Channel)Channel;
             watch = watch ?? Stopwatch.StartNew();
 
             try
             {
-                Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {Channel.State}. Operation {operation}");
-                await Channel.ConnectAsync(DateTime.UtcNow.Add(timeout));
-                Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {Channel.State}. Duration {watch.ElapsedMilliseconds}ms");
+                Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {StateStr}. Operation {operation}");
+                await grpcCoreChannel.ConnectAsync(DateTime.UtcNow.Add(timeout));
+                Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {StateStr}. Duration {watch.ElapsedMilliseconds}ms");
             }
             catch (Exception e)
             {
 #pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
-                Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {Channel.State}. Failure {e.Message}");
+                Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {StateStr}. Failure {e.Message}");
 #pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
 
                 return false;

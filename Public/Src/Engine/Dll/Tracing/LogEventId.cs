@@ -343,6 +343,7 @@ namespace BuildXL.Engine.Tracing
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
         DistributionWorkerTimeoutFailure = 7040,
 
+        GrpcAuthTrace = 7041,
         // Deprecated = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,

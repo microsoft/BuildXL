@@ -24,7 +24,6 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
             importFrom("Microsoft.Win32.Registry").pkg,
-            importFrom("System.Security.Cryptography.ProtectedData").pkg,
             SysMng.pkg.override<Shared.ManagedNugetPackage>({
                     runtime: Context.getCurrentHost().os === "win" ? [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))

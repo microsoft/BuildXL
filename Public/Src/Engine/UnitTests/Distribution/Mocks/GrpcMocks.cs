@@ -14,7 +14,6 @@ using WorkerNotificationArgs = BuildXL.Engine.Distribution.OpenBond.WorkerNotifi
 using PipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
 using SinglePipBuildRequest = BuildXL.Distribution.Grpc.SinglePipBuildRequest;
 using GrpcPipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
-using GrpcAttachCompletionInfo = BuildXL.Distribution.Grpc.AttachCompletionInfo;
 using FileArtifactKeyedHash = BuildXL.Distribution.Grpc.FileArtifactKeyedHash;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Distribution.Grpc;
@@ -114,12 +113,18 @@ namespace Test.BuildXL.Distribution
             StartCallCount++;
         }
 
+        Task IServer.StartKestrel(int port, Action<object> configure)
+        {
+            StartCallCount++;
+            return Task.CompletedTask;
+        }
+
         Task IServer.DisposeAsync() => Task.CompletedTask;
 
         public void Dispose() { }
 
         // Server methods to better emulate the scenarios.
-        // These should emulate what the homonymous methods do in GrpcWorkerServer 
+        // These should emulate what the homonymous methods do in GrpcWorker
         public void Attach(BuildStartData message)
         {
             var bondMessage = message.ToOpenBond();

@@ -22,7 +22,7 @@ namespace Library {
             ),
 
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
-                importFrom("System.Security.Cryptography.ProtectedData").pkg
+                BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`)
             ),
 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,

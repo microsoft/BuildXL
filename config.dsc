@@ -64,13 +64,11 @@ config({
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
                     "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
-                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
+                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json"
                   },
 
             packages: [
-
                 { id: "NLog", version: "4.7.7" },
-
                 { id: "Bond.Core.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp.osx-x64", version: "8.0.0" },
@@ -205,7 +203,6 @@ config({
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors" ] },
                 { id: "System.Memory.Data", version: "1.0.2" },
 
-
                 // Package sets
                 ...importFile(f`config.nuget.vssdk.dsc`).pkgs,
                 ...importFile(f`config.nuget.aspNetCore.dsc`).pkgs,
@@ -263,7 +260,7 @@ config({
                     : [ "win", "macOS", "unix" ] },
 
                 // Testing
-                { id: "System.Security.Cryptography.ProtectedData", version: "4.4.0"},
+                { id: "System.Security.Cryptography.ProtectedData", version: "5.0.0"},
                 { id: "System.Configuration.ConfigurationManager", version: "4.4.0"},
                 { id: "FluentAssertions", version: "5.3.0",
                     dependentPackageIdsToSkip: ["System.Reflection.Emit", "System.Reflection.Emit.Lightweight"] },

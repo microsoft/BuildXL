@@ -19,6 +19,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public const string RelatedActivityIdKey = "relatedactivityid";
         public const string EnvironmentKey = "environment";
         public const string SenderKey = "sender";
+        public const string AuthKey = "authorization";
 
         // Values
         public const string True = "1";

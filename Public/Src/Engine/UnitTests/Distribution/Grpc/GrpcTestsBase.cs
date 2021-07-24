@@ -104,7 +104,7 @@ namespace Test.BuildXL.Distribution
             /// <returns>The port the server is bound</returns>
             public int StartServer()
             {
-                Server = new GrpcWorkerServer(this, LoggingContext, InvocationId);
+                Server = new GrpcWorkerServer(LoggingContext, this, InvocationId);
                 Server.Start(PickUnused);
                 var port = Server.Port;
                 Assert.True(port.HasValue);

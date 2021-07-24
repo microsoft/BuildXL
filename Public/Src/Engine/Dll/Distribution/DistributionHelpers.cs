@@ -52,7 +52,8 @@ namespace BuildXL.Engine.Distribution
                 (int)LogEventId.DistributionHostLog,
                 (int)LogEventId.DistributionDebugMessage,
                 (int)LogEventId.DistributionServiceInitializationError,
-                (int)LogEventId.GrpcTrace);
+                (int)LogEventId.GrpcTrace,
+                (int)LogEventId.GrpcAuthTrace);
 
         /// <summary>
         /// Set of event ids for distribution messages of all levels

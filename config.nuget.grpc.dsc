@@ -9,8 +9,14 @@ const grpcVersion = "2.32.0";
 
 export const pkgs = [
     // grpc
-    { id: "Grpc.Net.Client", version: grpcVersion },
-    { id: "Grpc.Net.Common", version: grpcVersion },
+    { id: "Grpc.Net.Client", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource", "Microsoft.Extensions.Logging.Abstractions"]}, 
+    { id: "Grpc.Net.Client.Web", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource", "Microsoft.Extensions.Logging.Abstractions"]},  
+    { id: "Grpc.Net.ClientFactory", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource", "Microsoft.Extensions.Http"]},  
+    { id: "Grpc.Net.Common", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
+    { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
+    { id: "Grpc.AspNetCore.Server", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
+    { id: "Grpc.AspNetCore", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},  
+    
     { id: "Grpc.Core", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Grpc.Core.Api", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Grpc.Tools", version: grpcVersion },
@@ -33,4 +39,6 @@ export const pkgs = [
     { id: "System.ServiceModel.Primitives", version: "4.7.0" },
     { id: "System.Private.ServiceModel", version: "4.7.0" },
 
+    { id: "Microsoft.Extensions.Hosting.Abstractions", version: "3.0.3" },
+    { id: "Microsoft.Extensions.FileProviders.Abstractions", version: "3.0.3" },
 ];

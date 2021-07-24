@@ -185,6 +185,32 @@ namespace BuildXL.Utilities.Configuration
         TimeSpan.FromHours(5.25));
 
         /// <summary>
+        /// Whether new .Net client is enabled for grpc. 
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => value == "1");
+
+        /// <summary>
+        /// Whether new kestrel server is enabled for grpc.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcKestrelServerEnabled = CreateSetting("BuildXLGrpcKestrelServerEnabled", value => value == "1");
+
+        /// <summary>
+        /// Authorization token location in AutoPilot machines at CloudBuild 
+        /// </summary>
+        public static readonly Setting<string> CBBuildIdentityTokenPath = CreateSetting("CB_BUILDIDENTITYTOKEN_PATH", value => value);
+
+        /// <summary>
+        /// Authorization token location in AutoPilot machines at CloudBuild 
+        /// </summary>
+        public static readonly Setting<string> CBBuildUserCertificateName = CreateSetting("CB_BUILDUSERCERTIFICATE_NAME", value => value);
+
+        /// <summary>
         /// The amount of concurrency to allow for input/output materialization
         /// </summary>
         public static readonly Setting<int> MaterializationConcurrency = CreateSetting(

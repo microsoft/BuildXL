@@ -31,7 +31,15 @@ namespace ContentStoreTest.Service
         }
 
         [Fact]
-        public async Task Roundtrip()
+        [Trait("Category", "WindowsOSOnly")]
+        public Task RoundtripProtected()
+        {
+            return Roundtrip(true);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        public async Task Roundtrip(bool useProtected)
         {
             var fileName = $"{Guid.NewGuid()}.json";
             using (var directory = new DisposableDirectory(FileSystem))
@@ -41,13 +49,23 @@ namespace ContentStoreTest.Service
                 var expirationTicks = DateTime.UtcNow.Ticks;
                 var sessionInfo = new HibernatedContentSessionInfo(1, SessionName, ImplicitPin.None, CacheName, pins, expirationTicks, capabilities);
                 var sessions1 = new HibernatedSessions<HibernatedContentSessionInfo>(new List<HibernatedContentSessionInfo> {sessionInfo});
-                sessions1.Write(FileSystem, directory.Path, fileName);
+                if (useProtected)
+                {
+                    await sessions1.WriteProtectedAsync(FileSystem, directory.Path, fileName);
+                }
+                else
+                {
+                    sessions1.Write(FileSystem, directory.Path, fileName);
+                }
+
                 FileSystem.HibernatedSessionsExists(directory.Path, fileName).Should().BeTrue();
 
                 var fileSize = FileSystem.GetFileSize(directory.Path / fileName);
                 fileSize.Should().BeGreaterThan(0);
 
-                var sessions2 = await FileSystem.ReadHibernatedSessionsAsync<HibernatedContentSessionInfo>(directory.Path, fileName);
+                var sessions2 = useProtected
+                    ? await FileSystem.ReadProtectedHibernatedSessionsAsync<HibernatedContentSessionInfo>(directory.Path, fileName)
+                    : await FileSystem.ReadHibernatedSessionsAsync<HibernatedContentSessionInfo>(directory.Path, fileName);
                 sessions2.Sessions.Count.Should().Be(1);
                 sessions2.Sessions[0].Pins.Count.Should().Be(ContentHashCount);
                 sessions2.Sessions[0].ExpirationUtcTicks.Should().Be(expirationTicks);

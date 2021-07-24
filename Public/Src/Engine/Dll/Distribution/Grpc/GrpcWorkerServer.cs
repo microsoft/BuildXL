@@ -2,110 +2,45 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
-using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using Grpc.Core;
-using Grpc.Core.Interceptors;
+#if NETCOREAPP3_1
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+#endif
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
     /// <summary>
-    /// GrpcWorker service impl
+    /// Worker server 
     /// </summary>
-    public class GrpcWorkerServer : Worker.WorkerBase, IServer
+    public class GrpcWorkerServer : GrpcServer
     {
-        private readonly IWorkerService m_workerService;
-        private readonly LoggingContext m_loggingContext;
-        private readonly DistributedInvocationId m_invocationId;
-
-        private Server m_server;
-
-        // Expose the port to unit tests
-        internal int? Port => m_server?.Ports.FirstOrDefault()?.BoundPort;
-
-        /// <summary>
-        /// Class constructor
-        /// </summary>
-        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, DistributedInvocationId invocationId) : this((IWorkerService)workerService, loggingContext, invocationId)
-        {
-        }
-
-        internal GrpcWorkerServer(IWorkerService workerService, LoggingContext loggingContext, DistributedInvocationId invocationId)
-        {
-            m_workerService = workerService;
-            m_loggingContext = loggingContext;
-            m_invocationId = invocationId;
-        }
+        private readonly GrpcWorker m_grpcWorker;
 
         /// <nodoc/>
-        public void Start(int port)
+        internal GrpcWorkerServer(LoggingContext loggingContext, IWorkerService workerService, DistributedInvocationId invocationId)
+            : base(loggingContext, invocationId)
         {
-            var interceptor = new ServerInterceptor(m_loggingContext, m_invocationId);
-            m_server = new Server(ClientConnectionManager.ServerChannelOptions)
-            {
-                Services = { Worker.BindService(this).Intercept(interceptor) },
-                Ports = { new ServerPort(IPAddress.Any.ToString(), port, ServerCredentials.Insecure) },
-            };
-            m_server.Start();
+            m_grpcWorker = new GrpcWorker(workerService);
         }
 
-        /// <inheritdoc />
-        public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
-
-        /// <inheritdoc />
-        public Task DisposeAsync() => ShutdownAsync();
-
-        /// <nodoc />
-        public async Task ShutdownAsync()
+        /// <inheritdoc/>
+        public override void Start(int port)
         {
-            if (m_server != null)
+            if (EngineEnvironmentSettings.GrpcKestrelServerEnabled)
             {
-                try
-                {
-                    await m_server.ShutdownAsync();
-                }
-                catch (InvalidOperationException)
-                {
-                    // Shutdown was already requested
-                }
+#if NETCOREAPP3_1
+                Action<object> configure = (endpoints) => ((IEndpointRouteBuilder)endpoints).MapGrpcService<GrpcWorker>();
+                _ = StartKestrel(port, configure);
+#endif
+            }
+            else
+            {
+                var serviceDefinition = Worker.BindService(m_grpcWorker);
+                Start(port, serviceDefinition);
             }
         }
-
-        #region Service Methods
-        /// Note: The logic of service methods should be replicated in Test.BuildXL.Distribution.WorkerServerMock
-        /// <inheritdoc/>
-        public override Task<RpcResponse> Attach(BuildStartData message, ServerCallContext context)
-        {
-            var bondMessage = message.ToOpenBond();
-
-            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var _, out var _);
-            
-            m_workerService.Attach(bondMessage, sender);
-
-            return Task.FromResult(new RpcResponse());
-        }
-
-        /// <inheritdoc/>
-        public override Task<RpcResponse> ExecutePips(PipBuildRequest message, ServerCallContext context)
-        {
-            var bondMessage = message.ToOpenBond();
-
-            m_workerService.ExecutePips(bondMessage);
-            return Task.FromResult(new RpcResponse());
-        }
-
-        /// <inheritdoc/>
-        public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)
-        {
-            var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
-            m_workerService.ExitRequested(failure);
-            return Task.FromResult(new RpcResponse());
-        }
-
-        #endregion Service Methods
     }
 }

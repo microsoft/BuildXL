@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
@@ -29,7 +30,7 @@ namespace BuildXL.Engine.Distribution
         {
             string method = context.Method;
 
-            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var senderInvocationId, out string traceId);
+            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var senderInvocationId, out string traceId, out string _);
 
             if (m_invocationId != senderInvocationId)
             {

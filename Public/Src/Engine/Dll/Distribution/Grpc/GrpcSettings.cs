@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Engine.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
@@ -20,6 +22,13 @@ namespace BuildXL.Engine.Distribution.Grpc
         public static TimeSpan CallTimeout => EngineEnvironmentSettings.DistributionConnectTimeout;
 
         /// <summary>
+        /// Whether we should use encryption in the grpc calls.
+        /// </summary>
+        public static bool EncryptionEnabled => EngineEnvironmentSettings.GrpcDotNetClientEnabled &&
+                EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null &&
+                EngineEnvironmentSettings.CBBuildUserCertificateName.Value != null;
+
+        /// <summary>
         /// Maximum time to wait for the orchestrator to connect to a worker.
         /// </summary>
         /// <remarks>
@@ -27,13 +36,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </remarks>
         public static TimeSpan WorkerAttachTimeout => EngineEnvironmentSettings.WorkerAttachTimeout;
 
-        public static void ParseHeader(Metadata header, out string sender, out DistributedInvocationId senderInvocationId, out string traceId)
+        public static void ParseHeader(Metadata header, out string sender, out DistributedInvocationId senderInvocationId, out string traceId, out string token)
         {
             sender = string.Empty;
             string relatedActivityId = string.Empty;
             string environment = string.Empty;
-
+           
             traceId = string.Empty;
+            token = string.Empty;
 
             foreach (var kvp in header)
             {
@@ -52,6 +62,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 else if (kvp.Key == GrpcMetadata.SenderKey)
                 {
                     sender = kvp.Value;
+                }
+                else if (kvp.Key == GrpcMetadata.AuthKey)
+                {
+                    token = kvp.Value;
                 }
             }
 

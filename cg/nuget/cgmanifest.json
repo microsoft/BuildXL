@@ -311,6 +311,33 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Grpc.AspNetCore",
+          "Version": "2.32.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.AspNetCore.Server",
+          "Version": "2.32.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.AspNetCore.Server.ClientFactory",
+          "Version": "2.32.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Grpc.Core",
           "Version": "2.32.0"
         }
@@ -330,6 +357,24 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client",
+          "Version": "2.32.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Net.Client.Web",
+          "Version": "2.32.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Net.ClientFactory",
           "Version": "2.32.0"
         }
       }
@@ -1292,8 +1337,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Extensions.FileProviders.Abstractions",
+          "Version": "3.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.Globalization.CultureInfoCache",
           "Version": "1.0.0-rc1-final"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Hosting.Abstractions",
+          "Version": "3.0.3"
         }
       }
     },
@@ -3651,7 +3714,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.ProtectedData",
-          "Version": "4.4.0"
+          "Version": "5.0.0"
         }
       }
     },

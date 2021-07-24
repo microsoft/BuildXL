@@ -276,6 +276,19 @@ export function library(args: Arguments): Managed.Assembly {
     return Managed.library(args);
 }
 
+/**
+ * Gets runtime dependencies for a given nuget package.
+ */
+@@public
+export function withWinRuntime(pkg: Shared.ManagedNugetPackage, rootDir: RelativePath): Shared.ManagedNugetPackage {
+    if (qualifier.targetRuntime !== "win-x64")
+    {
+        return pkg;
+    }
+
+    return Managed.Factory.addRuntimeSpecificBinariesFromRootDir(pkg, rootDir);
+}
+
 @@public
 export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
         importFrom("System.Threading.Tasks.Extensions").pkg,

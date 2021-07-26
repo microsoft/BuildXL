@@ -521,6 +521,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             // At this point, we have added the copy task to its appropriate priority queue and we need to wait for it
             // to be dispatched and completed.
             var resultTask = copy.TaskSource.Task;
+
+            // The copy task can be abandoned in case of cancellation. Observing the error to avoid unobserved task errors.
+            resultTask.Forget();
             using (var schedulerTimeoutAwaiter = schedulingTimeoutCts.Token.ToAwaitable())
             using (var cancelCopyAwaiter = cancelCopyCts.Token.ToAwaitable())
             {

@@ -243,14 +243,20 @@ namespace BuildXL.Cache.ContentStore.Utils
         private async Task ReleaseWrapperAsync(Context context, ResourceWrapperV2<TObject> wrapper)
         {
             Contract.Requires(wrapper.ShutdownToken.IsCancellationRequested);
-
+            bool initializationCompleted = false;
             try
             {
-                var lazyValueTask = wrapper.LazyValue;
-
                 // When running GC on Dispose, it is possible for this method to be called with an uninitialized or
                 // faulted.
-                if (!wrapper.IsValueCreated || lazyValueTask.IsFaulted)
+                if (!wrapper.IsValueCreated)
+                {
+                    // We will still dispose in the finally block
+                    return;
+                }
+
+                var lazyValueTask = wrapper.LazyValue;
+
+                if (lazyValueTask.IsFaulted)
                 {
                     // We will still dispose in the finally block
                     return;
@@ -258,6 +264,8 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 Counter[ResourcePoolV2Counters.ShutdownAttempts].Increment();
                 var instance = await lazyValueTask;
+                initializationCompleted = true;
+
                 var result = await instance.ShutdownAsync(context);
                 if (result)
                 {
@@ -271,7 +279,17 @@ namespace BuildXL.Cache.ContentStore.Utils
             catch (Exception exception)
             {
                 Counter[ResourcePoolV2Counters.ShutdownExceptions].Increment();
-                _tracer.Error(context, $"Unexpected exception during `{nameof(ResourcePoolV2<TKey, TObject>)}` shutdown: {exception}");
+
+                if (initializationCompleted)
+                {
+                    _tracer.Error(context, $"Unexpected exception during `{nameof(ResourcePoolV2<TKey, TObject>)}` shutdown: {exception}");
+                }
+                else
+                {
+                    // Its possible for the value to fail during the startup and in this case
+                    // obtaining the instance itself may fail. This is not an unexpected case.
+                    _tracer.Info(context, $"Error obtaining an instance for `{nameof(ResourcePoolV2<TKey, TObject>)}`: {exception}");
+                }
             }
             finally
             {

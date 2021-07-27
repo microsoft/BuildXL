@@ -375,12 +375,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private BoolResult GarbageCollectContentCore(OperationContext context)
         {
             // Counters for work done.
-            int removedEntries = 0;
-            int totalEntries = 0;
+            long removedEntries = 0;
+            long totalEntries = 0;
             long uniqueContentSize = 0;
             long totalContentCount = 0;
             long totalContentSize = 0;
-            int uniqueContentCount = 0;
+            long uniqueContentCount = 0;
 
             // Tracking the difference between sequence of hashes for diagnostic purposes. We need to know how good short hashes are and how close are we to collisions. 
             ShortHash? lastHash = null;

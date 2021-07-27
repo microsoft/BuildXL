@@ -48,7 +48,7 @@ cluster('cbuild').database('Domino').dominoinvocation
             ""),
     Codebase = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
     Infra = case(
-        UserName startswith "_qcloud" or UserName startswith "CBA" , "CB",
+        UserName == "CmdAgent" or UserName startswith "_qcloud" or UserName startswith "CBA-" , "CB",
         UserName == "y-arnold" or UserName == "tcptext", "Lab",
         "Dev")
 | join kind=leftouter (scheduleconstructedwithconfiguration | where EventInfo_Time between (startDate .. endDate) | project SessionId, FrontendKinds) on SessionId 

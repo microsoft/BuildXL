@@ -3,8 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -170,7 +168,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             using var sessionReference = _cacheSessionHandler.GetSession(sessionId);
             if (sessionReference is null)
             {
-                return failure($"Could not find session for session ID {sessionId}");
+                string message = $"Could not find session for {sessionId.AsTraceableSessionId()}";
+                Logger.Info(message);
+                return failure(message);
             }
 
             await Task.Yield();

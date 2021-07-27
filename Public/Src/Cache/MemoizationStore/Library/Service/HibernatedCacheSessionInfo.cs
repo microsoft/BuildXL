@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
+#nullable enable
 namespace BuildXL.Cache.MemoizationStore.Service
 {
     /// <summary>
@@ -20,9 +21,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// </summary>
         public HibernatedCacheSessionInfo(
             int id,
-            string serializedSessionConfig,
-            string pat,
-            IList<PublishingOperation> pendingPublishingOperations)
+            string? serializedSessionConfig,
+            string? pat,
+            IList<PublishingOperation>? pendingPublishingOperations)
         {
             Id = id;
             SerializedSessionConfiguration = serializedSessionConfig;
@@ -47,18 +48,18 @@ namespace BuildXL.Cache.MemoizationStore.Service
         ///     Gets a value indicating the configuration of the session through a serialized <see cref="ContentStore.Utils.DynamicJson"/>.
         /// </summary>
         [DataMember]
-        public string SerializedSessionConfiguration { get; set; }
+        public string? SerializedSessionConfiguration { get; set; }
 
         /// <summary>
         ///     Gets a value indicating the PAT the the session will use.
         /// </summary>
         [DataMember]
-        public string Pat { get; set; }
+        public string? Pat { get; set; }
 
         /// <summary>
         ///     Gets set of strong fingerprints that are pending publishing.
         /// </summary>
         [DataMember]
-        public IList<PublishingOperation> PendingPublishingOperations { get; set; }
+        public IList<PublishingOperation>? PendingPublishingOperations { get; set; }
     }
 }

@@ -2,8 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -26,7 +30,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <nodoc />
-        public static string Serialize<T>(T value) => Serialize(value!, value!.GetType());
+        public static string Serialize<T>(T value) where T : notnull
+        {
+            Contract.Requires(value is not null);
+            return Serialize(value, value.GetType());
+        }
 
         /// <nodoc />
         public static (object?, Type) Deserialize(string serialized)

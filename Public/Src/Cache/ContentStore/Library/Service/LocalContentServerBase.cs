@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -33,6 +32,8 @@ using BuildXL.Cache.Host.Service;
 using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Utilities.Tasks;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -67,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private readonly IDisposable? _portDisposer; // Null if port should not be exposed.
         private Server? _grpcServer;
-        private IGrpcServiceEndpoint[] _additionalEndpoints;
+        private readonly IGrpcServiceEndpoint[] _additionalEndpoints;
 
         private readonly ServiceReadinessChecker _serviceReadinessChecker;
 
@@ -239,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Service
             }
             else
             {
-                Tracer.Debug(context, $"{Name} creating temporary directory for session {sessionId}.");
+                Tracer.Debug(context, $"{Name} creating temporary directory for session {sessionId.AsTraceableSessionId()}.");
                 var disposableDirectory = _tempDirectoryForStreamsBySessionId.GetOrAdd(
                     sessionId,
                     (_) => new DisposableDirectory(FileSystem, tempDirectoryRoot / sessionId.ToString()));
@@ -445,14 +446,14 @@ namespace BuildXL.Cache.ContentStore.Service
                         {
                             Tracer.Debug(
                                 context,
-                                $"Bump the expiry for session {DescribeSession(sessionId, sessionHandle)} because its being used.");
+                                $"Bump the expiry for session because its being used. {DescribeSession(sessionId, sessionHandle)}");
                             sessionHandle.BumpExpiration();
                         }
                         else
                         {
                             Tracer.Debug(
                                 context,
-                                $"Releasing session {DescribeSession(sessionId, sessionHandle)} because of expiry.");
+                                $"Releasing session because of expiry. {DescribeSession(sessionId, sessionHandle)}");
                             await ReleaseSessionInternalAsync(context, sessionId);
                         }
                     }
@@ -548,7 +549,7 @@ namespace BuildXL.Cache.ContentStore.Service
                                 }
                                 else
                                 {
-                                    Tracer.Warning(context, $"Failed to restore hibernated session, error=[{sessionResult.ErrorMessage}]");
+                                    Tracer.Warning(context, $"Failed to restore hibernated session, error=[{sessionResult.ErrorMessage}]. {DescribeHibernatedSessionInfo(sessionInfo)}");
                                 }
                             }
                         }
@@ -569,7 +570,7 @@ namespace BuildXL.Cache.ContentStore.Service
             }
             catch (Exception exception)
             {
-                Tracer.Error(context, exception, "Failed to load hibernated sessions");
+                Tracer.Error(context, exception, "Failed to load hibernated sessions", operation: nameof(LoadHibernatedSessionsAsync));
             }
         }
 
@@ -616,19 +617,25 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private async Task HandleShutdownDanglingSessionsAsync(Context context)
         {
-            try
-            {
-                if (_sessionHandles.Any())
-                {
-                    await HibernateSessionsAsync(context, _sessionHandles);
+            int sessionCount = 0;
+            // Using PerformOperationAsync to trace errors in a consistent manner.
+            (await new OperationContext(context)
+                .PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        sessionCount = _sessionHandles.Count;
+                        if (sessionCount != 0)
+                        {
+                            await HibernateSessionsAsync(context, _sessionHandles);
 
-                    _sessionHandles.Clear();
-                }
-            }
-            catch (Exception exception)
-            {
-                Tracer.Error(context, exception, "Failed to store hibernated sessions");
-            }
+                            _sessionHandles.Clear();
+                        }
+
+                        return BoolResult.Success;
+                    },
+                    extraEndMessage: _ => $"Processed {sessionCount} sessions"))
+                .IgnoreFailure(); // Can ignore failures because the error (if occurred) is already traced.
         }
 
         private async Task<BoolResult> ShutdownStoresAsync(Context context)
@@ -791,8 +798,8 @@ namespace BuildXL.Cache.ContentStore.Service
                     return Result.Success<(TSession session, int sessionId, AbsolutePath? tempDirectory)>(
                         (sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
                 },
-                extraStartMessage: $"SessionId=[{sessionId}]",
-                extraEndMessage: r => $"SessionId=[{sessionId}]");
+                extraStartMessage: sessionId.AsTraceableSessionId(),
+                extraEndMessage: r => sessionId.AsTraceableSessionId());
         }
 
         /// <inheritdoc />
@@ -841,25 +848,25 @@ namespace BuildXL.Cache.ContentStore.Service
 
             if (!_sessionHandles.TryGetValue(sessionId, out var sessionHandle))
             {
-                Tracer.Warning(context, $"{method} failed to lookup session id={sessionId}");
+                Tracer.Warning(context, $"{method} failed to lookup session by Id. {sessionId.AsTraceableSessionId()}");
                 return;
             }
 
             if (!_sessionHandles.TryRemove(sessionId, out _))
             {
-                Tracer.Warning(context, $"{method} failed to remove entry for session id={sessionId}");
+                Tracer.Warning(context, $"{method} failed to remove entry for session by Id. {sessionId.AsTraceableSessionId()}");
                 return;
             }
 
             if (sessionHandle.Session is IAsyncShutdown blockingSession)
             {
                 // We need to make sure that we don't block the client from shutting down.
-                Tracer.Debug(context, $"{method} closing session {DescribeSession(sessionId, sessionHandle)} by requesting an async shutdown.");
+                Tracer.Debug(context, $"{method} closing session by requesting an async shutdown. {DescribeSession(sessionId, sessionHandle)}.");
                 requestAsyncShutdown().FireAndForget(context);
                 return;
             }
 
-            Tracer.Debug(context, $"{method} closing session {DescribeSession(sessionId, sessionHandle)}");
+            Tracer.Debug(context, $"{method} closing session. {DescribeSession(sessionId, sessionHandle)}");
             await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
             disposeSessionHandle();
 
@@ -893,7 +900,7 @@ namespace BuildXL.Cache.ContentStore.Service
         private string DescribeHibernatedSessionInfo(HibernatedSessionInfo info)
         {
             var expirationDateTime = new DateTime(info.ExpirationUtcTicks).ToLocalTime();
-            return $"id=[{info.Id}] name=[{info.SessionData.Name}] expiration=[{expirationDateTime}] capabilities=[{info.SessionData.Capabilities}] pins=[{info.PinCount}]";
+            return $"{info.Id.AsTraceableSessionId()} Name=[{info.SessionData.Name}] Expiration=[{expirationDateTime}] Capabilities=[{info.SessionData.Capabilities}] Pins=[{info.PinCount}]";
         }
 
         /// <inheritdoc />

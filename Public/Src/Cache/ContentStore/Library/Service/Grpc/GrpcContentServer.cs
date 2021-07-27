@@ -947,7 +947,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ISessionReference<IContentSession>? sessionOwner = null;
             if (obtainSession && !ContentSessionHandler.TryGetSession(sessionId, out sessionOwner))
             {
-                string message = $"Could not find session for session ID {sessionId}";
+                string message = $"Could not find session by Id. {sessionId.AsTraceableSessionId()}";
                 Logger.Info(message);
                 return failFunc(context, message);
             }
@@ -990,7 +990,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (enabled)
             {
-                Tracer.OperationStarted(tracingContext, operation, enabled: true, additionalInfo: $"SessionId={sessionId}");
+                Tracer.OperationStarted(tracingContext, operation, enabled: true, additionalInfo: sessionId.AsTraceableSessionId());
             }
         }
 
@@ -999,14 +999,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (enabled)
             {
-                Tracer.OperationFinished(tracingContext, BoolResult.Success, duration, $"SessionId={sessionId}", operation, traceErrorsOnly: false);
+                Tracer.OperationFinished(tracingContext, BoolResult.Success, duration, sessionId.AsTraceableSessionId(), operation, traceErrorsOnly: false);
             }
         }
 
         /// <summary>
         /// Gets the log message for tracing purposes.
         /// </summary>
-        protected static string GetLogMessage(Exception e, string operation, int sessionId) => $"The GRPC server operation {operation} {(IsCancelled(e) ? "was cancelled" : "failed")}. SessionId=[{sessionId}]";
+        protected static string GetLogMessage(Exception e, string operation, int sessionId) => $"The GRPC server operation {operation} {(IsCancelled(e) ? "was cancelled" : "failed")}. {sessionId.AsTraceableSessionId()}";
 
         /// <nodoc />
         protected static BoolResult FromException(Exception e)

@@ -108,6 +108,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(Severity.Debug, context, message, operation);
         }
 
+        public void Debug(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
+        {
+            Trace(Severity.Debug, context, message, operation, exception);
+        }
+
         public void Diagnostic(Context context, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Diagnostic, context, message, operation);

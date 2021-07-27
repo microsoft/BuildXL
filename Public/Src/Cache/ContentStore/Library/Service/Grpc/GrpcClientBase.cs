@@ -117,11 +117,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new BoolResult(sessionContext);
                 }
 
-                Tracer.Info(context, $"Shutting down session with SessionId={sessionContext.Value.SessionId}");
+                Tracer.Info(context, $"Shutting down session. {sessionContext.Value.SessionId.AsTraceableSessionId()}");
 
                 if (_serviceUnavailable)
                 {
-                    Tracer.Debug(context, "Skipping session shutdown because service is unavailable.");
+                    Tracer.Debug(context, $"Skipping session shutdown because service is unavailable. {sessionContext.Value.SessionId.AsTraceableSessionId()}");
                 }
                 else
                 {
@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             if (!sessionContext)
             {
                 // We do not even attempt to send a heartbeat if we can't get a session ID.
-                Tracer.Warning(context, $"Skipping heartbeat. Can't find session context for SessionId={originalSessionId}.");
+                Tracer.Warning(context, $"Skipping heartbeat. Can't find session context for {originalSessionId.AsTraceableSessionId()}.");
                 return;
             }
 
@@ -165,13 +165,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var operationContext = new OperationContext(context);
 
             // Can't use original session id, because it may have changed due to reconnect.
-            var sessionId= sessionContext.Value.SessionId;
+            var sessionId = sessionContext.Value.SessionId;
             await operationContext.PerformOperationWithTimeoutAsync(
                     Tracer,
                     nestedContext => sendHeartbeatAsync(nestedContext, sessionContext.Value),
                     timeout: Configuration.HardHeartbeatTimeout,
-                    extraStartMessage: $"SessionId={sessionId}",
-                    extraEndMessage: r => $"SessionId={sessionId}")
+                    extraStartMessage: sessionId.AsTraceableSessionId(),
+                    extraEndMessage: r => sessionId.AsTraceableSessionId())
                 .IgnoreFailure(); // The error was already traced.
 
             async Task<BoolResult> sendHeartbeatAsync(OperationContext context, SessionContext localSessionContext)
@@ -250,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     _heartbeatTimer = new IntervalTimer(() => HeartbeatAsync(context, sessionId), Configuration.HeartbeatInterval, message =>
                     {
-                        Tracer.Debug(context, $"[{HeartbeatName}] {message}. OriginalSessionId={sessionId}");
+                        Tracer.Debug(context, $"[{HeartbeatName}] {message}. Original {sessionId.AsTraceableSessionId()}");
                     });
                 }
 
@@ -340,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 },
                 traceOperationStarted: true,
                 extraStartMessage: $"Reconnect={isReconnect}",
-                extraEndMessage: r => $"Reconnect={isReconnect}, SessionId={(r.Succeeded ? r.Value.SessionId.ToString() : "Error")}"
+                extraEndMessage: r => $"Reconnect={isReconnect}, {(r.Succeeded ? r.Value.SessionId.AsTraceableSessionId() : "SessionId=[Error]")}"
                 );
         }
 
@@ -607,11 +607,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 Contract.Assert(SessionState != null, "CreateSessionAsync method was not called, or the instance is shut down.");
 
-                Tracer.Warning(context, $"Could not find session id {sessionId}. Resetting session state.");
+                Tracer.Warning(context, $"Could not find session by id. Resetting session state. {sessionId.AsTraceableSessionId()}");
                 await SessionState.ResetAsync(new OperationContext(context), sessionId);
                 if (throwFailures)
                 {
-                    throw new ClientCanRetryException(context, $"Could not find session id {sessionId}");
+                    throw new ClientCanRetryException(context, $"Could not find session by id {sessionId.AsTraceableSessionId()}");
                 }
             }
         }

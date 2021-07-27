@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
@@ -136,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public string ToString(int sessionId)
         {
-            return $"id=[{sessionId}] name=[{SessionData.Name}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionData.Capabilities}] usageCount=[{CurrentUsageCount}]";
+            return $"{sessionId.AsTraceableSessionId()} Name=[{SessionData.Name}] Expiration=[{SessionExpirationDateTime}] Capabilities=[{SessionData.Capabilities}] UsageCount=[{CurrentUsageCount}]";
         }
     }
 }

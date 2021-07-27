@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -23,6 +22,8 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Sessions.Grpc;
 using Grpc.Core;
+
+#nullable enable
 
 namespace BuildXL.Cache.MemoizationStore.Service
 {
@@ -52,7 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
             Capabilities capabilities,
-            IGrpcServiceEndpoint[] additionalEndpoints = null)
+            IGrpcServiceEndpoint[]? additionalEndpoints = null)
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration, additionalEndpoints)
         {
             // This must agree with the base class' StoresByName to avoid "missing content store" errors from Grpc, and
@@ -150,9 +151,8 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
             return contentSessionDatas.Select(contentData =>
             {
-                if (infoDictionary.ContainsKey(contentData.Id))
+                if (infoDictionary.TryGetValue(contentData.Id, out var cacheData) && cacheData.SerializedSessionConfiguration is not null)
                 {
-                    var cacheData = infoDictionary[contentData.Id];
                     var (obj, type) = DynamicJson.Deserialize(cacheData.SerializedSessionConfiguration);
                     if (obj is not PublishingCacheConfiguration config)
                     {
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                             cacheData.Pat,
                             config,
                             cacheData.PendingPublishingOperations),
-                        contentData.SessionData.Pins.Count);
+                        contentData.SessionData.Pins?.Count ?? 0);
                 }
                 else
                 {
@@ -180,7 +180,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                         contentData.CacheName,
                         contentData.ExpirationUtcTicks,
                         new LocalCacheServerSessionData(contentData.SessionData),
-                        contentData.SessionData.Pins.Count);
+                        contentData.SessionData.Pins?.Count ?? 0);
                 }
             }).ToList();
         }
@@ -214,9 +214,13 @@ namespace BuildXL.Cache.MemoizationStore.Service
             {
                 if (handle.Session is IHibernateCacheSession hibernateSession)
                 {
-                    var pending = hibernateSession.GetPendingPublishingOperations();
-
-                    var serializedConfig = DynamicJson.Serialize(handle.SessionData.PublishingConfig);
+                    IList<PublishingOperation>? pending = null;
+                    string? serializedConfig = null;
+                    if (handle.SessionData.PublishingConfig is not null)
+                    {
+                        pending = hibernateSession.GetPendingPublishingOperations();
+                        serializedConfig = DynamicJson.Serialize(handle.SessionData.PublishingConfig);
+                    }
 
                     var info = new HibernatedCacheSessionInfo(
                         id,
@@ -233,10 +237,10 @@ namespace BuildXL.Cache.MemoizationStore.Service
             {
                 await hibernatedSessions.WriteProtectedAsync(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
             }
-            catch (Exception e) when (e is NotSupportedException || e is PlatformNotSupportedException)
+            catch (Exception e) when (e is NotSupportedException)
             {
-                Tracer.Debug(context, $"Failed to protect hibernated sessions because it is not supported by the current OS. " +
-                    $"Attempting to hibernate while unprotected. Excepiton: {e}");
+                Tracer.Debug(context, e, "Failed to protect hibernated sessions because it is not supported by the current OS. " +
+                    $"Attempting to hibernate while unprotected.");
                 hibernatedSessions.Write(FileSystem, Config.DataRootPath, HibernatedSessionsFileName);
             }
 

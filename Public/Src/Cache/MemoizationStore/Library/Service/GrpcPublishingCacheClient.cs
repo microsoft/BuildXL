@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -31,6 +32,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             string pat)
             : base(tracer, fileSystem, configuration, scenario, Capabilities.All)
         {
+            Contract.Requires(publishingConfig is not null);
             _serializedPublishingConfig = DynamicJson.Serialize(publishingConfig);
             _pat = pat;
         }

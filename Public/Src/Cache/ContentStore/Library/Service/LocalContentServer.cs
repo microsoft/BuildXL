@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 }
                 else
                 {
-                    tracer.Warning(context, $"Shutdown of non-hibernating dangling session id={sessionId}");
+                    tracer.Warning(context, $"Shutdown of non-hibernating dangling session. {sessionId.AsTraceableSessionId()}");
                 }
 
                 await session.ShutdownAsync(context).ThrowIfFailure();

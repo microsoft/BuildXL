@@ -7,29 +7,31 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
+#nullable enable
+
 namespace BuildXL.Cache.MemoizationStore.Service
 {
     /// <nodoc />
     public class LocalCacheServerSessionData : LocalContentServerSessionData
     {
         /// <nodoc />
-        public string Pat { get; set; }
+        public string? Pat { get; set; }
 
         /// <nodoc />
-        public PublishingCacheConfiguration PublishingConfig { get; set; }
+        public PublishingCacheConfiguration? PublishingConfig { get; set; }
 
         /// <nodoc />
-        public IList<PublishingOperation> PendingPublishingOperations { get; set; }
+        public IList<PublishingOperation>? PendingPublishingOperations { get; set; }
 
         /// <nodoc />
         public LocalCacheServerSessionData(
             string name,
             Capabilities capabilities,
             ImplicitPin implicitPin,
-            IList<string> pins,
-            string pat,
-            PublishingCacheConfiguration publishingConfig,
-            IList<PublishingOperation> pendingPublishingOperations)
+            IList<string>? pins,
+            string? pat,
+            PublishingCacheConfiguration? publishingConfig,
+            IList<PublishingOperation>? pendingPublishingOperations)
             : base(name, capabilities, implicitPin, pins)
         {
             Pat = pat;

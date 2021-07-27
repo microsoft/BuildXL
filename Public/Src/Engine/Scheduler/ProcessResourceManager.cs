@@ -176,7 +176,7 @@ namespace BuildXL.Scheduler
                 switch (mode)
                 {
                     case ManageMemoryMode.CancelSuspendedFirst:
-                        isEligible = (scope) => scope.IsSuspended;
+                        isEligible = (scope) => scope.CanCancel;
                         // Cancel by largest commit size, prioritizing suspended processes
                         comparer = s_largestCommitSuspendedFirstComparer;
                         break;

@@ -42,13 +42,13 @@ function addGuardianPerDirectoryForRepository(rootDirectory : Directory, guardia
         a`.git`,
         a`.cloudbuild`,
         a`.corext`,
-        a`Out`,
+        a`out`,
         a`node_modules`,
         // User specified
         ...addIfLazy(Environment.hasVariable(directoriesNamesToIgnore), () => {
             const directoryList = Environment.getStringValue(directoriesNamesToIgnore).split(",");
 
-            return directoryList.map(dir => a`${dir}`);
+            return directoryList.map(dir => Context.getCurrentHost().os === "win" ? a`${dir.toLowerCase()}` : a`${dir}`);
         })
     );
     const directoryPathsToIgnore = Set.create<Directory>(
@@ -58,7 +58,8 @@ function addGuardianPerDirectoryForRepository(rootDirectory : Directory, guardia
     const minFilesPerCall = Environment.hasVariable(filesPerCredScanCall) ? Environment.getNumberValue(filesPerCredScanCall) : 500;
 
     while (directoryIndex < directories.length) {
-        if (directoryAtomsToIgnore.contains(directories[directoryIndex].name) || directoryPathsToIgnore.contains(directories[directoryIndex])) {
+        const directoryAtom = Context.getCurrentHost().os === "win" ? a`${directories[directoryIndex].name.toString().toLowerCase()}` : directories[directoryIndex].name;
+        if (directoryAtomsToIgnore.contains(directoryAtom) || directoryPathsToIgnore.contains(directories[directoryIndex])) {
             directoryIndex++;
             continue;
         }

@@ -47,7 +47,7 @@ namespace BuildXL.Ipc.Common.Connectivity
         /// <inheritdoc />
         public Task<Socket> AcceptClientAsync(CancellationToken token)
         {
-            // unfortunatelly AcceptSocketAsync does not support cancellation token
+            // unfortunately AcceptSocketAsync does not support cancellation token
             return m_lazyTcpListener.Value.AcceptSocketAsync();
         }
 

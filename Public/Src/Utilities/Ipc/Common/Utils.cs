@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -16,17 +17,39 @@ namespace BuildXL.Ipc.Common
 {
     internal static class Utils
     {
+        private static readonly ConcurrentDictionary<int, bool> s_acquiredPorts = new();
+
         /// <summary>
         /// Returns a currently unused port number.
+        /// 
+        /// The function ensures that a unique port is returned throughout the program execution 
+        /// by using global state to keep track of previously used ports.
         /// </summary>
-        // TODO: Double check this function ensures unique ports throughout the program execution.
-        internal static int GetUnusedPortNumber()
+        /// <returns>
+        /// Returns a free port number. If no port is available, returns -1.
+        /// </returns>
+        internal static int GetUnusedPortNumber(int retryCount = 10)
         {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            retryCount += s_acquiredPorts.Count;
+            while (retryCount-- > 0)
+            {
+                var endPoint = new IPEndPoint(IPAddress.Loopback, 0);
+                using (var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
+                {
+                    socket.Bind(endPoint);
+                    int port = ((IPEndPoint)socket.LocalEndPoint).Port;
+                    // This port is currently free (i.e., no service is using it); however, we need to check
+                    // that we have not returned it previously (otherwise, there might be a port collision).
+                    if (s_acquiredPorts.TryAdd(port, true))
+                    {
+                        return port;
+                    }
+                }
+            }
+
+            // We could not get a free port that is not on a list of ports that we've already acquired.
+            // Return an invalid port number, let the caller deal with this.
+            return -1;
         }
 
         /// <summary>

@@ -1162,7 +1162,7 @@ namespace BuildXL.Scheduler
         /// <param name="environment">The pip environment</param>
         /// <param name="pip">The pip to execute</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
-        /// <returns>A task that returns the execution restult when done</returns>
+        /// <returns>A task that returns the execution result when done</returns>
         internal static async Task<ExecutionResult> ExecuteServiceStartOrShutdownAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,

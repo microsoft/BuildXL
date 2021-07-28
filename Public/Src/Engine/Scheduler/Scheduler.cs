@@ -400,7 +400,8 @@ namespace BuildXL.Scheduler
             // We check here whether the scheduler is busy only with materializeOutputs.
             // Because retrieving pip states is expensive, we first calculate how many pips there are in non-materialize queues.
             // If it is 0, then we get the pip states. If there is no ready, waiting, and running pips; it means that the scheduler is done with all work
-            // or it is only busy with materializeOutput step. As we mark the pips as completed if materializeOutputsInBackground is enabled, they have "Done" state.
+            // or it is only busy with materializeOutput step.
+            // As we mark the pips as completed if materializeOutputsInBackground/fireForgetMaterializeOutput is enabled, they have "Done" state.
 
             long numRunningOrQueued = m_pipQueue.NumRunningOrQueued;
             long numRunningOrQueuedExceptMaterialize = numRunningOrQueued - m_pipQueue.GetNumRunningByKind(DispatcherKind.Materialize) - m_pipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
@@ -2508,6 +2509,13 @@ namespace BuildXL.Scheduler
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
+
+                if (m_configuration.Distribution.FireForgetMaterializeOutput && m_materializeOutputsQueued && !AnyPendingPipsExceptMaterializeOutputs())
+                {
+                    // There is no pips running anything except materializeOutputs.
+                    m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
+                }
+
             }
         }
 
@@ -4105,12 +4113,7 @@ namespace BuildXL.Scheduler
 
                 case PipExecutionStep.MaterializeOutputs:
                 {
-                    if (m_configuration.Distribution.FireForgetMaterializeOutput && !AnyPendingPipsExceptMaterializeOutputs())
-                    {
-                        // There is no pips running anything except materializeOutputs.
-                        m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
-                    }
-
+                    m_materializeOutputsQueued = true;
                     PipResultStatus materializationResult = await worker.MaterializeOutputsAsync(runnablePip);
 
                     var nextStep = processRunnable?.ExecutionResult != null
@@ -7500,6 +7503,8 @@ namespace BuildXL.Scheduler
         public ReparsePointResolver ReparsePointAccessResolver { get; }
 
         private long m_maxExternalProcessesRan;
+
+        private bool m_materializeOutputsQueued;
 
         /// <inheritdoc/>
         public void SetMaxExternalProcessRan()

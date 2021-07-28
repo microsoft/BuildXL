@@ -72,9 +72,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Queue for input/output materialization
         /// </summary>
-        /// <remarks>
-        /// WARNING: NoLimit must be the last member of the enum.
-        /// </remarks>
         Materialize,
     }
 }

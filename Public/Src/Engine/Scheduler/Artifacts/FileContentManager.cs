@@ -3383,8 +3383,12 @@ namespace BuildXL.Scheduler.Artifacts
                                 Interlocked.Increment(ref m_stats.OutputFilesHashed);
                             }
 
-                            Logger.Log.StorageHashedSourceFile(operationContext, artifactFullPath, fileTrackedHash.Hash.ToHex());
-                            break;
+                            if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                            {
+                                Logger.Log.StorageHashedSourceFile(operationContext, artifactFullPath, fileTrackedHash.Hash.ToHex());
+                            }
+
+                             break;
                         case DiscoveredContentHashOrigin.Cached:
                             if (fileArtifact.IsSourceFile)
                             {
@@ -3395,7 +3399,11 @@ namespace BuildXL.Scheduler.Artifacts
                                 Interlocked.Increment(ref m_stats.OutputFilesUnchanged);
                             }
 
-                            Logger.Log.StorageUsingKnownHashForSourceFile(operationContext, artifactFullPath, fileTrackedHash.Hash.ToHex());
+                            if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                            {
+                                Logger.Log.StorageUsingKnownHashForSourceFile(operationContext, artifactFullPath, fileTrackedHash.Hash.ToHex());
+                            }
+
                             break;
                         default:
                             throw Contract.AssertFailure("Unhandled DiscoveredContentHashOrigin");

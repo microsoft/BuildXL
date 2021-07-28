@@ -281,28 +281,36 @@ namespace BuildXL.Storage
 
                 if (staleUsn)
                 {
-                    Tracing.Logger.Log.StorageUnknownUsnMiss(
-                        m_loggingContext,
-                        path,
-                        identity.FileId.High,
-                        identity.FileId.Low,
-                        identity.VolumeSerialNumber,
-                        readUsn: identity.Usn.Value,
-                        knownUsn: knownEntry.Usn.Value,
-                        knownContentHash: knownEntry.Hash.ToHex());
+                    if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                    {
+                        Tracing.Logger.Log.StorageUnknownUsnMiss(
+                            m_loggingContext,
+                            path,
+                            identity.FileId.High,
+                            identity.FileId.Low,
+                            identity.VolumeSerialNumber,
+                            readUsn: identity.Usn.Value,
+                            knownUsn: knownEntry.Usn.Value,
+                            knownContentHash: knownEntry.Hash.ToHex());
+                    }
+
                     return null;
                 }
 
                 MarkEntryAccessed(fileIdInfo, knownEntry);
                 Counters.IncrementCounter(FileContentTableCounters.NumHit);
-                Tracing.Logger.Log.StorageKnownUsnHit(
-                    m_loggingContext,
-                    path,
-                    identity.FileId.High,
-                    identity.FileId.Low,
-                    identity.VolumeSerialNumber,
-                    usn: knownEntry.Usn.Value,
-                    contentHash: knownEntry.Hash.ToHex());
+
+                if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                {
+                    Tracing.Logger.Log.StorageKnownUsnHit(
+                        m_loggingContext,
+                        path,
+                        identity.FileId.High,
+                        identity.FileId.Low,
+                        identity.VolumeSerialNumber,
+                        usn: knownEntry.Usn.Value,
+                        contentHash: knownEntry.Hash.ToHex());
+                }
 
                 // Note that we return a 'strong' version of the weak identity; since we matched an entry in the table, we know that the USN
                 // actually corresponds to a strong identity (see RecordContentHashAsync).
@@ -451,12 +459,16 @@ namespace BuildXL.Storage
                         if (newEntry.Hash == existingEntry.Hash)
                         {
                             Counters.IncrementCounter(FileContentTableCounters.NumUsnMismatch);
-                            Tracing.Logger.Log.StorageUsnMismatchButContentMatch(
-                                        m_loggingContext,
-                                        path,
-                                        existingEntry.Usn.Value,
-                                        newEntry.Usn.Value,
-                                        existingEntry.Hash.ToHex());
+
+                            if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                            {
+                                Tracing.Logger.Log.StorageUsnMismatchButContentMatch(
+                                    m_loggingContext,
+                                    path,
+                                    existingEntry.Usn.Value,
+                                    newEntry.Usn.Value,
+                                    existingEntry.Hash.ToHex());
+                            }
                         }
                         else
                         {
@@ -467,14 +479,17 @@ namespace BuildXL.Storage
                         return newEntry;
                     });
 
-                Tracing.Logger.Log.StorageRecordNewKnownUsn(
-                    m_loggingContext,
-                    path,
-                    identity.FileId.High,
-                    identity.FileId.Low,
-                    identity.VolumeSerialNumber,
-                    identity.Usn.Value,
-                    hash.ToHex());
+                if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                {
+                    Tracing.Logger.Log.StorageRecordNewKnownUsn(
+                        m_loggingContext,
+                        path,
+                        identity.FileId.High,
+                        identity.FileId.Low,
+                        identity.VolumeSerialNumber,
+                        identity.Usn.Value,
+                        hash.ToHex());
+                }
 
                 return identity;
             }
@@ -553,26 +568,32 @@ namespace BuildXL.Storage
                             VersionedFileIdentity actualIdentity = possibleActualIdentity.Result;
                             if (actualIdentity.Usn != entry.Value.Usn)
                             {
-                                Tracing.Logger.Log.StorageUnknownUsnMiss(
-                                    m_loggingContext,
-                                    path,
-                                    entry.Key.FileId.High,
-                                    entry.Key.FileId.Low,
-                                    entry.Key.VolumeSerialNumber,
-                                    readUsn: actualIdentity.Usn.Value,
-                                    knownUsn: entry.Value.Usn.Value,
-                                    knownContentHash: entry.Value.Hash.ToHex());
+                                if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                                {
+                                    Tracing.Logger.Log.StorageUnknownUsnMiss(
+                                        m_loggingContext,
+                                        path,
+                                        entry.Key.FileId.High,
+                                        entry.Key.FileId.Low,
+                                        entry.Key.VolumeSerialNumber,
+                                        readUsn: actualIdentity.Usn.Value,
+                                        knownUsn: entry.Value.Usn.Value,
+                                        knownContentHash: entry.Value.Hash.ToHex());
+                                }
                             }
                             else
                             {
-                                Tracing.Logger.Log.StorageKnownUsnHit(
-                                    m_loggingContext,
-                                    path,
-                                    entry.Key.FileId.High,
-                                    entry.Key.FileId.Low,
-                                    entry.Key.VolumeSerialNumber,
-                                    usn: entry.Value.Usn.Value,
-                                    contentHash: entry.Value.Hash.ToHex());
+                                if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                                {
+                                    Tracing.Logger.Log.StorageKnownUsnHit(
+                                        m_loggingContext,
+                                        path,
+                                        entry.Key.FileId.High,
+                                        entry.Key.FileId.Low,
+                                        entry.Key.VolumeSerialNumber,
+                                        usn: entry.Value.Usn.Value,
+                                        contentHash: entry.Value.Hash.ToHex());
+                                }
 
                                 bool shouldContinue = visitor(entry.Key, handle, path, entry.Value.Usn, entry.Value.Hash);
 

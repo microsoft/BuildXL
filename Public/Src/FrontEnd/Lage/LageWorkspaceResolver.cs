@@ -68,11 +68,13 @@ namespace BuildXL.FrontEnd.Lage
         /// </summary>
         protected override string GetGraphConstructionToolArguments(AbsolutePath outputFile, AbsolutePath toolLocation, AbsolutePath bxlGraphConstructionToolPath, string nodeExeLocation)
         {
-            string pathToRepoRoot = m_resolverSettings.Root.ToString(m_context.PathTable);
+            // Node.exe sometimes misinterprets backslashes (e.g. "C:\" is interpreted such that \ is escaping quotes)
+            // Use forward slashes for all node.exe arguments to avoid this.
+            string pathToRepoRoot = m_resolverSettings.Root.ToString(m_context.PathTable, PathFormat.Script);
 
             IEnumerable<string> commands = m_resolverSettings.Execute.Select(command => command.GetCommandName());
 
-            return $@"/C """"{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable)}"" ""{toolLocation.ToString(m_context.PathTable)} "" ""{string.Join(" ", commands)}""";
+            return $@"/C """"{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)} "" ""{string.Join(" ", commands)}""";
         }
     }
 }

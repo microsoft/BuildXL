@@ -90,9 +90,11 @@ namespace BuildXL.FrontEnd.Rush
         /// </summary>
         protected override string GetGraphConstructionToolArguments(AbsolutePath outputFile, AbsolutePath toolLocation, AbsolutePath bxlGraphConstructionToolPath, string nodeExeLocation)
         {
-            string pathToRushJson = m_resolverSettings.Root.Combine(m_context.PathTable, "rush.json").ToString(m_context.PathTable);
+            // Node.exe sometimes misinterprets backslashes (e.g. "C:\" is interpreted such that \ is escaping quotes)
+            // Use forward slashes for all node.exe arguments to avoid this.
+            string pathToRushJson = m_resolverSettings.Root.Combine(m_context.PathTable, "rush.json").ToString(m_context.PathTable, PathFormat.Script);
 
-            return $@"/C """"{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable)}"" ""{pathToRushJson}"" ""{outputFile.ToString(m_context.PathTable)}"" ""{toolLocation.ToString(m_context.PathTable)}""";
+            return $@"/C """"{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRushJson}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)}""";
         }
     }
 }

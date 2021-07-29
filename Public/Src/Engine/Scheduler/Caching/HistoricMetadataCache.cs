@@ -738,10 +738,14 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override ContentHash TryGetBuildManifestHash(ContentHash contentHash)
         {
+            Contract.Assert(contentHash.IsValid, "ContentHash was invalid");
+            Contract.Assert(m_activeBuildManifestHashColumnIndex >= 0, $"m_activeBuildManifestHashColumnIndex < 0");
+            
             ContentHash foundHash = default;
             StoreAccessor?.Use(database =>
             {
                 using var key = contentHash.ToPooledByteArray();
+                Contract.Assert(key.Value != null, $"ByteArray was null for ContentHash");
 
                 // First, check the active column. If the hash is not there, check the other column.
                 if (database.TryGetValue(key.Value, out var value, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]))
@@ -757,7 +761,7 @@ namespace BuildXL.Scheduler.Cache
             });
 
             Contract.Assert(!foundHash.IsValid || foundHash.HashType == ContentHashingUtilities.BuildManifestHashType);
-            
+
             return foundHash;
         }
 

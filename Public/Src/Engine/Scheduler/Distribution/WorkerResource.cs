@@ -47,7 +47,7 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableCommitMb = new WorkerResource(nameof(AvailableCommitMb), Precedence.AvailableCommitMb);
 
         /// <summary>
-        /// See <see cref="Worker.MemoryResourceAvailable"/>
+        /// See <see cref="LocalWorker.MemoryResourceAvailable"/>
         /// </summary>
         public static readonly WorkerResource MemoryResourceAvailable = new WorkerResource(nameof(MemoryResourceAvailable), Precedence.MemoryResourceAvailable);
 

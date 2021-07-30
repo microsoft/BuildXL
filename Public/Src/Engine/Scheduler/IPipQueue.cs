@@ -12,7 +12,6 @@ namespace BuildXL.Scheduler
     /// <summary>
     /// A dispatcher queue which processes work items from several priority queues inside.
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public interface IPipQueue : IDisposable
     {
         /// <summary>
@@ -45,11 +44,6 @@ namespace BuildXL.Scheduler
         int NumSemaphoreQueued { get; }
 
         /// <summary>
-        /// The total number of pips waited for semaphore resources so far
-        /// </summary>
-        int TotalNumSemaphoreQueued { get; }
-
-        /// <summary>
         /// How many work items there are in the dispatcher as pending or actively running.
         /// </summary>
         long NumRunningOrQueued { get; }
@@ -57,7 +51,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets the number of running pips in the given queue
         /// </summary>
-        int GetNumRunningByKind(DispatcherKind queueKind);
+        int GetNumRunningPipsByKind(DispatcherKind queueKind);
+
+        /// <summary>
+        /// Gets the number of acquired slots in the given queue
+        /// </summary>
+        int GetNumAcquiredSlotsByKind(DispatcherKind queueKind);
 
         /// <summary>
         /// Gets the number of queued (pending) pips in the given queue
@@ -68,6 +67,11 @@ namespace BuildXL.Scheduler
         /// Gets the number of running pips in the given queue
         /// </summary>
         int GetMaxParallelDegreeByKind(DispatcherKind queueKind);
+
+        /// <summary>
+        /// Check whether the given dispatcher kind uses the weight when acquiring slots
+        /// </summary>
+        bool IsUseWeightByKind(DispatcherKind kind);
 
         /// <summary>
         /// Sets the number of running pips in the given queue

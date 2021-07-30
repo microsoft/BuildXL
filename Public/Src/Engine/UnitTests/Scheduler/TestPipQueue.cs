@@ -250,7 +250,7 @@ namespace Test.BuildXL.Scheduler
                 long total = 0;
                 foreach (DispatcherKind kind in Enum.GetValues(typeof(DispatcherKind)))
                 {
-                    total += GetNumRunningByKind(kind) + GetNumQueuedByKind(kind);
+                    total += GetNumRunningPipsByKind(kind) + GetNumQueuedByKind(kind);
                 }
 
                 return total;
@@ -258,10 +258,16 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
-        public int GetNumRunningByKind(DispatcherKind queueKind) => m_innerQueue.GetNumRunningByKind(queueKind);
+        public int GetNumAcquiredSlotsByKind(DispatcherKind queueKind) => m_innerQueue.GetNumAcquiredSlotsByKind(queueKind);
+
+        /// <inheritdoc/>
+        public int GetNumRunningPipsByKind(DispatcherKind queueKind) => m_innerQueue.GetNumRunningPipsByKind(queueKind);
 
         /// <inheritdoc/>
         public int GetNumQueuedByKind(DispatcherKind queueKind) => m_innerQueue.GetNumQueuedByKind(queueKind);
+
+        /// <inheritdoc/>
+        public bool IsUseWeightByKind(DispatcherKind queueKind) => m_innerQueue.IsUseWeightByKind(queueKind);
 
         /// <inheritdoc/>
         public void SetMaxParallelDegreeByKind(DispatcherKind queueKind, int maxParallelDegree) => m_innerQueue.SetMaxParallelDegreeByKind(queueKind, maxParallelDegree);
@@ -298,8 +304,5 @@ namespace Test.BuildXL.Scheduler
 
         /// <inheritdoc/>
         public int NumSemaphoreQueued => m_innerQueue.NumSemaphoreQueued;
-
-        /// <inheritdoc/>
-        public int TotalNumSemaphoreQueued => m_innerQueue.TotalNumSemaphoreQueued;
     }
 }

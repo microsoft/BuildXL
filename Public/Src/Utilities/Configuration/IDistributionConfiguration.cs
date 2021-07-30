@@ -40,11 +40,6 @@ namespace BuildXL.Utilities.Configuration
         bool? ReplicateOutputsToWorkers { get; }
 
         /// <summary>
-        /// Perform cache look-ups on workers
-        /// </summary>
-        bool DistributeCacheLookups { get; }
-
-        /// <summary>
         /// Minimum number of workers that BuildXL needs to connect within a fixed time; otherwise BuildXL will fail.
         /// </summary>
         int MinimumWorkers { get; }

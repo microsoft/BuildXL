@@ -235,6 +235,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         {
             switch (step)
             {
+                case PipExecutionStep.ExecuteNonProcessPip:
                 case PipExecutionStep.ExecuteProcess:
                 case PipExecutionStep.MaterializeInputs:
                 case PipExecutionStep.CacheLookup:

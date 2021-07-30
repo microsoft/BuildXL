@@ -33,7 +33,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ValidateDistribution = template.ValidateDistribution;
             ReplicateOutputsToWorkers = template.ReplicateOutputsToWorkers;
             BuildWorkers = new List<IDistributionServiceLocation>(template.BuildWorkers.Select(location => new DistributionServiceLocation(location)));
-            DistributeCacheLookups = template.DistributeCacheLookups;
             MinimumWorkers = template.MinimumWorkers;
             LowWorkersWarningThreshold = template.LowWorkersWarningThreshold;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
@@ -61,9 +60,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inhertidoc />
         IReadOnlyList<IDistributionServiceLocation> IDistributionConfiguration.BuildWorkers => BuildWorkers;
-
-        /// <inhertidoc />
-        public bool DistributeCacheLookups { get; set; }
 
         /// <inhertidoc />
         public int MinimumWorkers { get; set; }

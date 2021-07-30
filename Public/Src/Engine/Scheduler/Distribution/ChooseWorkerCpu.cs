@@ -221,12 +221,12 @@ namespace BuildXL.Scheduler.Distribution
 
             ResetStatus();
 
-            var pendingWorkerSelectionPipCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumRunningByKind(DispatcherKind.ChooseWorkerCpu);
+            var pendingWorkerSelectionSlotCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.ChooseWorkerCpu);
 
             bool loadBalanceWorkers = false;
             if (runnablePip.PipType == PipType.Process)
             {
-                if (pendingWorkerSelectionPipCount + m_totalAcquiredProcessSlots < (m_totalProcessSlots / 2))
+                if (pendingWorkerSelectionSlotCount + m_totalAcquiredProcessSlots < (m_totalProcessSlots / 2))
                 {
                     // When there is a limited amount of work (less than half the total capacity of
                     // the all the workers). We load balance so that each worker gets

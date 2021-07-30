@@ -24,14 +24,14 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <remarks>
         /// Not thread safe 
         /// </remarks>
-        public bool Release()
+        public bool Release(int weight)
         {
             if (m_queue == null)
             {
                 return false;
             }
 
-            m_queue.ReleaseResource();
+            m_queue.ReleaseResource(weight);
             m_queue = null;
             return true;
         }

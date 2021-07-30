@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.WorkDispatcher;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -19,38 +20,38 @@ namespace BuildXL.Scheduler.Distribution
     {
         private long m_cacheLookupWorkerRoundRobinCounter;
 
-        private readonly bool m_distributeCacheLookups;
+        private readonly ReadOnlyArray<double> m_workerBalancedLoadFactors;
 
         public ChooseWorkerCacheLookup(
             LoggingContext loggingContext,
             IScheduleConfiguration scheduleConfig,
-            bool distributeCacheLookups,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCacheLookup, scheduleConfig.MaxChooseWorkerCacheLookup, scheduleConfig.ModuleAffinityEnabled())
         {
-            m_distributeCacheLookups = distributeCacheLookups;
-
+            m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(0.5, 1, 2, 3);
         }
 
         /// <summary>
-        /// Choose a worker based on setup cost
+        /// Choose a worker
         /// </summary>
         protected override Task<Worker> ChooseWorkerCore(RunnablePip runnablePip)
         {
             Contract.Requires(runnablePip.PipType == PipType.Process);
 
             var processRunnable = (ProcessRunnablePip)runnablePip;
-            if (m_distributeCacheLookups && AnyRemoteWorkers)
+            if (AnyRemoteWorkers)
             {
                 var startWorkerOffset = Interlocked.Increment(ref m_cacheLookupWorkerRoundRobinCounter);
-
-                for (int i = 0; i < Workers.Count; i++)
+                foreach (var loadFactor in m_workerBalancedLoadFactors)
                 {
-                    var workerId = (i + startWorkerOffset) % Workers.Count;
-                    var worker = Workers[(int)workerId];
-                    if (worker.TryAcquireCacheLookup(processRunnable, force: false))
+                    for (int i = 0; i < Workers.Count; i++)
                     {
-                        return Task.FromResult(worker);
+                        var workerId = (i + startWorkerOffset) % Workers.Count;
+                        var worker = Workers[(int)workerId];
+                        if (worker.TryAcquireCacheLookup(processRunnable, force: false, loadFactor: loadFactor))
+                        {
+                            return Task.FromResult(worker);
+                        }
                     }
                 }
 

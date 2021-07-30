@@ -874,9 +874,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_VerifyCacheLookupPin" xml:space="preserve">
     <value>Verifies pins for cache lookup output content by attempting to materialize the content. Defaults to off.</value>
   </data>
-  <data name="HelpText_DisplayHelp_DistributeCacheLookups" xml:space="preserve">
-    <value>Perform cache look-ups on workers in the distributed build. Default to on.</value>
-  </data>
   <data name="HelpText_DisplayHelp_CanonicalizeFilterOutputs" xml:space="preserve">
     <value>Canonicalize filter for output filtering. Defaults to on.</value>
   </data>

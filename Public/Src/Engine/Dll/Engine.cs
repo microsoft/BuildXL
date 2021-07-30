@@ -919,12 +919,6 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.MaxChooseWorkerCacheLookup = 1;
             }
 
-            if (mutableConfig.Distribution.BuildRole == DistributedBuildRoles.Worker)
-            {
-                // No reason for the worker to interact with HistoricPerformanceInfo. Scheduling decisions are handled by the orchestrator
-                mutableConfig.Schedule.UseHistoricalPerformanceInfo = false;
-            }
-
             // Caching overrides
             if (mutableConfig.Cache.CachedGraphLastBuildLoad)
             {
@@ -1166,10 +1160,8 @@ namespace BuildXL.Engine
                 // Ensure that historic perf data is retrieved from cache because engine cache
                 // can be reused for multiple locations
                 mutableConfig.Schedule.ForceUseEngineInfoFromCache = true;
-                mutableConfig.Distribution.DistributeCacheLookups = true;
                 mutableConfig.Cache.HistoricMetadataCache = initialCommandLineConfiguration.Cache.HistoricMetadataCache ?? true;
-                // The default outside CB is false, so make sure we flip that when in CB
-                mutableConfig.Schedule.UseHistoricalCpuUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalCpuUsageInfo ?? true;
+
                 // In CB we don't actually want this to become a parameter that is actively used, so make it large enough
                 mutableConfig.Schedule.MinimumTotalAvailableRamMb = initialCommandLineConfiguration.Schedule.MinimumTotalAvailableRamMb ?? 100000000;
                 mutableConfig.Schedule.ScheduleMetaPips = false;

@@ -23,6 +23,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 AvailableCommitMb = message.AvailableCommitMb ?? 0,
                 MaxProcesses = message.MaxProcesses,
                 MaxMaterialize = message.MaxMaterialize,
+                MaxCacheLookup = message.MaxCacheLookup,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.Data.ToByteString(),
             };
         }
@@ -37,6 +38,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 AvailableCommitMb = message.AvailableCommitMb,
                 MaxProcesses = message.MaxProcesses,
                 MaxMaterialize = message.MaxMaterialize,
+                MaxCacheLookup = message.MaxCacheLookup,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
             };
         }

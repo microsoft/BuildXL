@@ -1157,6 +1157,7 @@ namespace BuildXL.Engine.Distribution
 
             m_cacheValidationContentHash = attachCompletionInfo.WorkerCacheValidationContentHash;
             TotalProcessSlots = attachCompletionInfo.MaxProcesses;
+            TotalCacheLookupSlots = attachCompletionInfo.MaxCacheLookup;
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;
             TotalRamMb = attachCompletionInfo.AvailableRamMb;
             TotalCommitMb = attachCompletionInfo.AvailableCommitMb;

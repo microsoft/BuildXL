@@ -359,7 +359,6 @@ namespace BuildXL
                         (int)SchedulerLogEventId.PipDetailedStats,
                         (int)SchedulerLogEventId.ProcessesCacheHitStats,
                         (int)SchedulerLogEventId.ProcessesCacheMissStats,
-                        (int)SchedulerLogEventId.ProcessesSemaphoreQueuedStats,
                         (int)SchedulerLogEventId.CacheTransferStats,
                         (int)SchedulerLogEventId.OutputFileStats,
                         (int)SchedulerLogEventId.SourceFileHashingStats,

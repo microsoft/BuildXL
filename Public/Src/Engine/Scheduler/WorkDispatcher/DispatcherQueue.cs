@@ -5,7 +5,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
@@ -15,14 +14,15 @@ namespace BuildXL.Scheduler.WorkDispatcher
     /// <summary>
     /// Dispatcher queue which fires tasks and is managed by <see cref="PipQueue"/>.
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public class DispatcherQueue : IDisposable
     {
         private PriorityQueue<RunnablePip> m_queue = new PriorityQueue<RunnablePip>();
         private readonly PipQueue m_pipQueue;
 
-        private int m_numRunning;
-        private int m_processesQueued;
+        private int m_numAcquiredSlots;
+        private int m_numRunningPips;
+        private int m_numQueuedPips;
+        private int m_numQueuedProcessPips;
         private readonly object m_startTasksLock = new object();
 
         /// <summary>
@@ -31,19 +31,31 @@ namespace BuildXL.Scheduler.WorkDispatcher
         public int MaxParallelDegree { get; private set; }
 
         /// <summary>
-        /// Number of tasks running now
+        /// Number of acquired slots
         /// </summary>
-        public virtual int NumRunning => Volatile.Read(ref m_numRunning);
+        public virtual int NumAcquiredSlots => Volatile.Read(ref m_numAcquiredSlots);
+
+        /// <summary>
+        /// Number of pips running
+        /// </summary>
+        /// <remarks>
+        /// One pip can acquire more than one slot, so
+        /// we have two counters: NumRunningSlots and NumRunningPips
+        /// </remarks>
+        public virtual int NumRunningPips => Volatile.Read(ref m_numRunningPips);
 
         /// <summary>
         /// Number of items waiting in the queue
         /// </summary>
-        public virtual int NumQueued => m_queue.Count;
+        /// <remarks>
+        /// PriorityQueue.Count is not performant, so we do not use it here.
+        /// </remarks>
+        public virtual int NumQueued => Volatile.Read(ref m_numQueuedPips);
 
         /// <summary>
         /// Number of process pips queued
         /// </summary>
-        public int NumProcessesQueued => Volatile.Read(ref m_processesQueued);
+        public int NumProcessesQueued => Volatile.Read(ref m_numQueuedProcessPips);
 
         /// <summary>
         /// Maximum number of tasks run at the same since the queue has been started
@@ -55,15 +67,18 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// </summary>
         public bool IsDisposed { get; private set; }
 
+        internal readonly bool UseWeight;
+
         /// <summary>
         /// Constructor
         /// </summary>
-        public DispatcherQueue(PipQueue pipQueue, int maxParallelDegree)
+        public DispatcherQueue(PipQueue pipQueue, int maxParallelDegree, bool useWeight = false)
         {
             m_pipQueue = pipQueue;
             MaxParallelDegree = maxParallelDegree;
-            m_numRunning = 0;
-            m_processesQueued = 0;
+            m_numAcquiredSlots = 0;
+            m_numQueuedProcessPips = 0;
+            UseWeight = useWeight;
             m_stack = new ConcurrentStack<int>();
             for (int i = MaxParallelDegree - 1; i >= 0; i--)
             {
@@ -81,9 +96,11 @@ namespace BuildXL.Scheduler.WorkDispatcher
             Contract.Requires(!IsDisposed);
 
             m_queue.Enqueue(runnablePip.Priority, runnablePip);
-            if (runnablePip.PipType == Pips.Operations.PipType.Process)
+            Interlocked.Increment(ref m_numQueuedPips);
+
+            if (runnablePip.PipType == PipType.Process)
             {
-                Interlocked.Increment(ref m_processesQueued);
+                Interlocked.Increment(ref m_numQueuedProcessPips);
             }
         }
 
@@ -100,9 +117,22 @@ namespace BuildXL.Scheduler.WorkDispatcher
             {
                 RunnablePip runnablePip;
                 int maxParallelDegree = MaxParallelDegree;
-                while (maxParallelDegree > NumRunning && Dequeue(out runnablePip))
+                while (maxParallelDegree > NumAcquiredSlots && Dequeue(out runnablePip))
                 {
-                    StartTask(runnablePip);
+                    int slots = UseWeight ? runnablePip.Weight : 1;
+
+                    // If a pip needs slots higher than the total number of slots, still allow it to run as long as there are no other
+                    // pips running (the number of acquired slots is 0)
+                    if (NumAcquiredSlots != 0 && NumAcquiredSlots + slots > maxParallelDegree)
+                    {
+                        Enqueue(runnablePip);
+                        break;
+                    }
+
+                    Interlocked.Increment(ref m_numRunningPips);
+                    MaxRunning = Math.Max(MaxRunning, Interlocked.Add(ref m_numAcquiredSlots, slots));
+
+                    StartRunTaskAsync(runnablePip);
                 }
             }
         }
@@ -112,28 +142,26 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// </summary>
         private bool Dequeue(out RunnablePip runnablePip)
         {
-            if (m_queue.Count != 0)
+            if (NumQueued != 0)
             {
+                Interlocked.Decrement(ref m_numQueuedPips);
                 runnablePip = m_queue.Dequeue();
-                if (runnablePip.PipType == Pips.Operations.PipType.Process)
+
+                // A race is still possible in rare cases, so we check
+                // whether the returned item is not null.
+                if (runnablePip != null)
                 {
-                    Interlocked.Decrement(ref m_processesQueued);
+                    if (runnablePip.PipType == PipType.Process)
+                    {
+                        Interlocked.Decrement(ref m_numQueuedProcessPips);
+                    }
+
+                    return true;
                 }
-                return true;
             }
 
             runnablePip = null;
             return false;
-        }
-
-        /// <summary>
-        /// Starts single task from the given runnable pip on the given dispatcher
-        /// </summary>
-        private void StartTask(RunnablePip runnablePip)
-        {
-            IncrementNumRunning();
-
-            StartRunTaskAsync(runnablePip);
         }
         
         /// <summary>
@@ -173,7 +201,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
                     m_stack.Push(tid);
                 }
                
-                releaser.Release();
+                releaser.Release(runnablePip.Weight);
                 m_pipQueue.DecrementRunningOrQueuedPips(); // Trigger dispatching loop in the PipQueue
             }
         }
@@ -181,9 +209,11 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Release resource for a pip
         /// </summary>
-        public void ReleaseResource()
+        public void ReleaseResource(int weight)
         {
-            Interlocked.Decrement(ref m_numRunning); // Decrease the number of running tasks in the current queue.
+            int slots = UseWeight ? weight : 1;
+            Interlocked.Add(ref m_numAcquiredSlots, -slots); // Decrease the number of running slots in the current queue.
+            Interlocked.Decrement(ref m_numRunningPips);
             m_pipQueue.TriggerDispatcher();
         }
 
@@ -194,11 +224,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
         {
             m_queue = null;
             IsDisposed = true;
-        }
-
-        private void IncrementNumRunning()
-        {
-            MaxRunning = Math.Max(MaxRunning, Interlocked.Increment(ref m_numRunning));
         }
 
         /// <summary>

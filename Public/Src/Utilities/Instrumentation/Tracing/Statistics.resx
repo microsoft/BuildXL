@@ -198,9 +198,6 @@
   <data name="PipsSucceeded" xml:space="preserve">
     <value>PipsSucceeded</value>
   </data>
-  <data name="ProcessDelayedBySemaphore" xml:space="preserve">
-    <value>ProcessDelayedBySemaphore</value>
-  </data>
   <data name="ProcessPipCacheHits" xml:space="preserve">
     <value>ProcessPipCacheHits</value>
   </data>

@@ -9,6 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
@@ -32,21 +33,77 @@ namespace BuildXL.Scheduler.Distribution
 
         private int m_currentlyRunningPipCount = 0;
         private readonly IDetoursEventListener m_detoursListener;
-        
-        /// <inheritdoc/>
-        public override int EffectiveTotalProcessSlots => MemoryResourceAvailable ? TotalProcessSlots : 1;
+        private readonly IPipQueue m_pipQueue;
+
+        /// <inheritdoc />
+        public override int TotalProcessSlots
+        {
+            get
+            {
+                return MemoryResourceAvailable ? base.TotalProcessSlots : 1;
+            }
+        }
+
+        /// <summary>
+        /// The state of the memory resource availability.
+        /// </summary>
+        public MemoryResource MemoryResource
+        {
+            get
+            {
+                return m_memoryResource;
+            }
+
+            set
+            {
+                var oldValue = m_memoryResource;
+                m_memoryResource = value;
+                OnWorkerResourcesChanged(WorkerResource.MemoryResourceAvailable, increased: value == MemoryResource.Available && oldValue != MemoryResource.Available);
+            }
+        }
+
+        private MemoryResource m_memoryResource = MemoryResource.Available;
+
+        /// <summary>
+        /// Gets or sets whether sufficient resources are available.
+        /// </summary>
+        public bool MemoryResourceAvailable => MemoryResource == MemoryResource.Available;
 
         /// <summary>
         /// Constructor
         /// </summary>
-        public LocalWorker(IScheduleConfiguration scheduleConfig, IDetoursEventListener detoursListener)
+        public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener)
             : base(workerId: 0, name: "#0 (Local)")
         {
             TotalProcessSlots = scheduleConfig.MaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;
             TotalMaterializeInputSlots = scheduleConfig.MaxMaterialize;
-            Start();
             m_detoursListener = detoursListener;
+            m_pipQueue = pipQueue;
+            Start();
+        }
+
+        /// <summary>
+        /// Adjusts the total process slots
+        /// </summary>
+        public void AdjustTotalProcessSlots(int newTotalSlots)
+        {
+            // Slots in worker control how many pips should be assigned to the workers for the corresponding PipExecutionStep. 
+            // When a pip is assigned to a worker, it does not mean that the pip will start running.
+            // Whether the pip will run or not depends on the limits of the corresponding dispatcher. 
+            // That's why, when we update slots of the worker, we also update the dispatcher limit to sync.
+
+            TotalProcessSlots = newTotalSlots;
+            m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.CPU, newTotalSlots);
+        }
+
+        /// <summary>
+        /// Adjusts the total cache lookup slots
+        /// </summary>
+        public void AdjustTotalCacheLookupSlots(int newTotalSlots)
+        {
+            TotalCacheLookupSlots = newTotalSlots;
+            m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.CacheLookup, newTotalSlots);
         }
 
         /// <inheritdoc />

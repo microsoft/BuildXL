@@ -1275,11 +1275,6 @@ namespace BuildXL.Scheduler.Tracing
         public int CommitFreeMb;
 
         /// <summary>
-        /// Effective total process slots
-        /// </summary>
-        public int EffectiveTotalProcessSlots;
-
-        /// <summary>
         /// CPU utilization of the current process
         /// </summary>
         public int ProcessCpuPercent;
@@ -1298,6 +1293,11 @@ namespace BuildXL.Scheduler.Tracing
         /// Number of running items in the CPU dispatcher
         /// </summary>
         public int CpuRunning;
+
+        /// <summary>
+        /// Number of running pips in the CPU dispatcher
+        /// </summary>
+        public int CpuRunningPips;
 
         /// <summary>
         /// Concurrency limit in the IP dispatcher
@@ -1380,6 +1380,7 @@ namespace BuildXL.Scheduler.Tracing
 
             writer.Write(CpuWaiting);
             writer.Write(CpuRunning);
+            writer.Write(CpuRunningPips);
 
             writer.Write(IoCurrentMax);
             writer.Write(IoWaiting);
@@ -1402,7 +1403,6 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(CommitPercent);
             writer.Write(CommitUsedMb);
             writer.Write(CommitFreeMb);
-            writer.Write(EffectiveTotalProcessSlots);
         }
 
         /// <inheritdoc />
@@ -1422,6 +1422,7 @@ namespace BuildXL.Scheduler.Tracing
 
             CpuWaiting = reader.ReadInt32();
             CpuRunning = reader.ReadInt32();
+            CpuRunningPips = reader.ReadInt32();
 
             IoCurrentMax = reader.ReadInt32();
             IoWaiting = reader.ReadInt32();
@@ -1445,7 +1446,6 @@ namespace BuildXL.Scheduler.Tracing
             CommitPercent = reader.ReadInt32();
             CommitUsedMb = reader.ReadInt32();
             CommitFreeMb = reader.ReadInt32();
-            EffectiveTotalProcessSlots = reader.ReadInt32();
         }
     }
 

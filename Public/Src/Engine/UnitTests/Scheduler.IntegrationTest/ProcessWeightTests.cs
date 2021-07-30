@@ -2,12 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Scheduler;
+using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Scheduler.Distribution;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -111,6 +114,56 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
             AssertProcessConcurrencyWeightLimited(true);
+        }
+
+        [Fact]
+        public void WeightTestInDispatcher()
+        {
+            Configuration.Schedule.MaxProcesses = 4;
+            var waitFile = ScheduleWaitingForFilePips(numberOfPips: 2, weight: 2);
+
+            bool correctSlotsAndPips = false;
+
+            var testHook = new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (scheduler.MaxExternalProcessesRan == 2)
+                    {
+                        if (scheduler.PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.CPU) == 4 &&
+                            scheduler.PipQueue.GetNumRunningPipsByKind(DispatcherKind.CPU) == 2)
+                        {
+                            correctSlotsAndPips = true;
+                        }
+
+                        // Ensure that the ongoing processes will now finish
+                        WriteSourceFile(waitFile);
+                    }
+
+                    return default(PerformanceCollector.MachinePerfInfo);
+                }
+            };
+
+            var schedulerResult = RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true);
+
+            schedulerResult.AssertSuccess();
+            AssertTrue(correctSlotsAndPips, "The number of running pips and slots is not correct.");
+        }
+
+        [Fact]
+        public void WeightTestInDispatcherOverLimit()
+        {
+            Configuration.Schedule.MaxProcesses = 3;
+           
+            CreateAndScheduleProcessWithWeight(numProcesses: 2, weight: 2);
+
+            var schedulerResult = RunScheduler(
+                verifySchedulerPostRun: ts =>
+                {
+                    XAssert.AreEqual(1, ts.MaxExternalProcessesRan);
+                });
+
+            schedulerResult.AssertSuccess();
         }
 
         private void CreateAndScheduleProcessWithWeight(int weight, int numProcesses = 1)

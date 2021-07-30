@@ -2,10 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -83,7 +80,6 @@ namespace BuildXL.Scheduler.Tracing
             if (worker.IsRemote)
             {
                 worker.TotalCommitMb = data.CommitUsedMb + data.CommitFreeMb;
-                ((RemoteWorkerBase)worker).SetEffectiveTotalProcessSlots(data.EffectiveTotalProcessSlots);
             }
 
             if (m_tracerEnabled && DateTime.UtcNow > m_tracerLastUpdated.AddSeconds(EngineEnvironmentSettings.MinStepDurationSecForTracer))

@@ -382,13 +382,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "disableIsObsoleteCheckDuringConversion",
                             sign => frontEndConfiguration.DisableIsObsoleteCheckDuringConversion = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "distributeCacheLookups",
-                            sign => distributionConfiguration.DistributeCacheLookups = sign),
                         OptionHandlerFactory.CreateOption2(
                             "distributedBuildRole",
                             "dbr",
-
                             opt =>
                             {
                                 // TODO: Ideally we'd automatically turn on distributionConfiguration.ValidateDistribution whenever

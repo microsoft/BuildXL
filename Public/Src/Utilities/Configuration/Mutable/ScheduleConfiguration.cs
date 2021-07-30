@@ -168,6 +168,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PluginLocations = pathRemapper.Remap(template.PluginLocations);
             TreatAbsentDirectoryAsExistentUnderOpaque = template.TreatAbsentDirectoryAsExistentUnderOpaque;
             MaxWorkersPerModule = template.MaxWorkersPerModule;
+            UseHistoricalCpuUsageInfo = template.UseHistoricalCpuUsageInfo;
         }
 
         /// <inheritdoc />

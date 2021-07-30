@@ -861,11 +861,6 @@ namespace BuildXL
             #region DistributedBuild
 
             hw.WriteOption(
-                "/distributeCacheLookups[+|-]",
-                Strings.HelpText_DisplayHelp_DistributeCacheLookups,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/distributedBuildRole:<distributed build role>",
                 Strings.HelpText_DisplayHelp_DistributedBuildRole,
                 HelpLevel.Verbose);

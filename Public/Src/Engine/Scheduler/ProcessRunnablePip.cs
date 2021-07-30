@@ -28,7 +28,7 @@ namespace BuildXL.Scheduler
         /// If process weight is defined as greater than the minimum weight in the specs, use it. 
         /// Otherwise, use the weight based on historic cpu usage.
         /// </remarks>
-        public int Weight => Math.Max(Process.Weight, m_weightBasedOnHistoricCpuUsage);
+        public override int Weight => Math.Max(Process.Weight, m_weightBasedOnHistoricCpuUsage);
 
         /// <nodoc/>
         public RunnableFromCacheResult CacheResult { get; private set; }
@@ -81,7 +81,7 @@ namespace BuildXL.Scheduler
         {
             if (cpuUsageInPercents > 100)
             {
-                m_weightBasedOnHistoricCpuUsage = (int)Math.Ceiling(cpuUsageInPercents / 100.0);
+                m_weightBasedOnHistoricCpuUsage = (int)Math.Round(cpuUsageInPercents / 100.0);
             }
             else
             {

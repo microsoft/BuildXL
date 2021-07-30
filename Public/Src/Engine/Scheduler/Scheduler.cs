@@ -383,7 +383,6 @@ namespace BuildXL.Scheduler
 
                 worker.TrackStatusOperation(m_workersStatusOperation);
                 worker.Initialize(PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
-                worker.AdjustTotalCacheLookupSlots(m_scheduleConfiguration.MaxCacheLookup * (worker.IsLocal ? 1 : 5)); // Oversubscribe the cachelookup step for remote workers
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
             }
@@ -403,8 +402,8 @@ namespace BuildXL.Scheduler
             // or it is only busy with materializeOutput step.
             // As we mark the pips as completed if materializeOutputsInBackground/fireForgetMaterializeOutput is enabled, they have "Done" state.
 
-            long numRunningOrQueued = m_pipQueue.NumRunningOrQueued;
-            long numRunningOrQueuedExceptMaterialize = numRunningOrQueued - m_pipQueue.GetNumRunningByKind(DispatcherKind.Materialize) - m_pipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
+            long numRunningOrQueued = PipQueue.NumRunningOrQueued;
+            long numRunningOrQueuedExceptMaterialize = numRunningOrQueued - PipQueue.GetNumRunningPipsByKind(DispatcherKind.Materialize) - PipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
 
             if (numRunningOrQueuedExceptMaterialize == 0)
             {
@@ -457,28 +456,23 @@ namespace BuildXL.Scheduler
                 // If there is one available remote worker, the multiplier would be 0.9
                 // 2 -> 0.8, 3 -> 0.7, 4 -> 0.6, >10 -> 0.1
                 // This gives us the best perf based on the 3-worker and 5-worker Cosine builds.
-                double defaultMultiplier = Math.Max(0.1, 1 - availableRemoteWorkersCount / 10);
+                double defaultMultiplier = Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
 
                 // If the user does not pass orchestratorCpuMultiplier or CacheLookupMultiplier, then the local worker slots are configured
                 // based on the calculation above.
-                newProcessSlots = (int)(targetProcessSlots * m_scheduleConfiguration.OrchestratorCpuMultiplier ?? defaultMultiplier);
-                newCacheLookupSlots = (int)(targetCacheLookupSlots * m_scheduleConfiguration.OrchestratorCacheLookupMultiplier ?? defaultMultiplier);
+                newProcessSlots = (int)(targetProcessSlots * (m_scheduleConfiguration.OrchestratorCpuMultiplier ?? defaultMultiplier));
+                newCacheLookupSlots = (int)(targetCacheLookupSlots * (m_scheduleConfiguration.OrchestratorCacheLookupMultiplier ?? defaultMultiplier));
             }
 
             LocalWorker.AdjustTotalProcessSlots(newProcessSlots);
             LocalWorker.AdjustTotalCacheLookupSlots(newCacheLookupSlots);
 
             int totalProcessSlots = Workers.Where(w => w.IsAvailable).Sum(w => w.TotalProcessSlots);
-            m_pipQueue.SetTotalProcessSlots(totalProcessSlots);
-        }
-
-        private void SetQueueMaxParallelDegreeByKind(DispatcherKind kind, int maxConcurrency)
-        {
-            m_pipQueue.SetMaxParallelDegreeByKind(kind, maxConcurrency);
+            PipQueue.SetTotalProcessSlots(totalProcessSlots);
         }
 
         /// <summary>
-        /// The pip runtime information
+        /// The pip runtime information 
         /// </summary>
         private PipRuntimeInfo[] m_pipRuntimeInfos;
 
@@ -918,9 +912,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Ready queue of executable pips.
         /// </summary>
-        private readonly IPipQueue m_pipQueue;
+        /// <remarks>
+        /// This is internal as we need to access it from unit tests.
+        /// </remarks>
+        internal readonly IPipQueue PipQueue;
 
-        private PipQueue OptionalPipQueueImpl => m_pipQueue as PipQueue;
+        private PipQueue OptionalPipQueueImpl => PipQueue as PipQueue;
 
         #endregion
 
@@ -980,11 +977,6 @@ namespace BuildXL.Scheduler
         /// This is the count of processes that were skipped due to failed dependencies.
         /// </summary>
         private long m_numProcessPipsSkipped;
-
-        /// <summary>
-        /// This is the number of process pips that were delayed due to semaphore constraints.
-        /// </summary>
-        private long m_numProcessPipsSemaphoreQueued;
 
         /// <summary>
         /// This is the total number of IPC pips that were run through the scheduler. They may be pass, fail, skip, etc.
@@ -1190,7 +1182,7 @@ namespace BuildXL.Scheduler
             m_performanceAggregator = performanceCollector?.CreateAggregator();
             ExecutionSampler = new ExecutionSampler(IsDistributedBuild, pipQueue.MaxProcesses);
 
-            m_pipQueue = pipQueue;
+            PipQueue = pipQueue;
             Context = context;
 
             m_pipContentFingerprinter = new PipContentFingerprinter(
@@ -1287,7 +1279,7 @@ namespace BuildXL.Scheduler
             }
 
             m_testHooks = testHooks;
-            LocalWorker = new LocalWorker(m_scheduleConfiguration, m_testHooks?.DetoursListener);
+            LocalWorker = new LocalWorker(m_scheduleConfiguration, pipQueue, m_testHooks?.DetoursListener);
             m_workers = new List<Worker> { LocalWorker };
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
@@ -1523,7 +1515,7 @@ namespace BuildXL.Scheduler
                 loggingContext,
                 m_configuration.Schedule,
                 m_workers,
-                m_pipQueue,
+                PipQueue,
                 PipGraph,
                 m_fileContentManager,
                 Context.PathTable,
@@ -1532,13 +1524,12 @@ namespace BuildXL.Scheduler
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
                 loggingContext,
                 m_configuration.Schedule,
-                m_configuration.Distribution.DistributeCacheLookups,
                 m_workers,
-                m_pipQueue);
+                PipQueue);
 
             ExecutionLog?.BxlInvocation(new BxlInvocationEventData(m_configuration));
 
-            m_drainThread = new Thread(m_pipQueue.DrainQueues);
+            m_drainThread = new Thread(PipQueue.DrainQueues);
 
             if (!m_scheduleTerminating)
             {
@@ -1872,10 +1863,6 @@ namespace BuildXL.Scheduler
                 {
                     BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"Total process pips != (pip cache hits + pip cache misses + service start/shutdown pips). Total: { m_numProcessPipsCompleted }, Sum: { processPipsSum }");
                 }
-
-                m_numProcessPipsSemaphoreQueued = m_pipQueue.TotalNumSemaphoreQueued;
-                Logger.Log.ProcessesSemaphoreQueuedStats(loggingContext, m_numProcessPipsSemaphoreQueued);
-                statistics.Add(Statistics.ProcessDelayedBySemaphore, m_numProcessPipsSemaphoreQueued);
             }
 
             if (m_criticalPathStats != null)
@@ -2182,9 +2169,15 @@ namespace BuildXL.Scheduler
                     {
                         if (kind != DispatcherKind.None)
                         {
-                            rows.Add(I($"{kind} Queued"), _ => m_pipQueue.GetNumQueuedByKind(kind));
-                            rows.Add(I($"{kind} Running"), _ => m_pipQueue.GetNumRunningByKind(kind));
-                            rows.Add(I($"{kind} CurrentMax"), _ => m_pipQueue.GetMaxParallelDegreeByKind(kind));
+                            rows.Add(I($"{kind} Queued"), _ => PipQueue.GetNumQueuedByKind(kind));
+                            rows.Add(I($"{kind} Running"), _ => PipQueue.GetNumAcquiredSlotsByKind(kind));
+                            rows.Add(I($"{kind} CurrentMax"), _ => PipQueue.GetMaxParallelDegreeByKind(kind));
+
+                            if (PipQueue.IsUseWeightByKind(kind))
+                            {
+                                // For CPU dispatcher, the number of running pips and slots might not be the same due to the weight.
+                                rows.Add(I($"{kind} RunningPips"), _ => PipQueue.GetNumRunningPipsByKind(kind));
+                            }
                         }
                     }
                 },
@@ -2239,7 +2232,6 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total MaterializeInput Slots"), _ => worker.TotalMaterializeInputSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used MaterializeInput Slots"), _ => worker.AcquiredMaterializeInputSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Effective Process Slots"), _ => worker.EffectiveTotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used PostProcess Slots"), _ => worker.AcquiredPostProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Light Slots"), _ => worker.AcquiredLightSlots, includeInSnapshot: false);
@@ -2308,7 +2300,7 @@ namespace BuildXL.Scheduler
 
                 var pipsWaiting = m_pipTypesToLogCountersSnapshot[PipState.Waiting];
                 var pipsReady = m_pipTypesToLogCountersSnapshot[PipState.Ready];
-                long semaphoreQueued = m_pipQueue.NumSemaphoreQueued;
+                long semaphoreQueued = PipQueue.NumSemaphoreQueued;
 
                 // The PipQueue might concurrently start to run queued items, so we match the numbers we get back with
                 // the current scheduler state to avoid confusing our user looking at the status log message.
@@ -2351,9 +2343,7 @@ namespace BuildXL.Scheduler
                 // resource constraints
                 int pipsWaitingOnResources = Math.Min(
                     m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ChooseWorkerCpu],
-                    Math.Min(
-                        LocalWorker.TotalProcessSlots - LocalWorker.EffectiveTotalProcessSlots,
-                        LocalWorker.TotalProcessSlots - LocalWorker.AcquiredProcessSlots));
+                    LocalWorker.TotalProcessSlots - LocalWorker.AcquiredProcessSlots);
 
                 // Log pip statistics to CloudBuild.
                 if (isLoggingEnabled && m_configuration.InCloudBuild())
@@ -2463,21 +2453,21 @@ namespace BuildXL.Scheduler
                     CommitPercent = m_perfInfo.CommitUsagePercentage ?? 0,
                     CommitUsedMb = m_perfInfo.CommitUsedMb ?? 0,
                     CommitFreeMb = (m_perfInfo.CommitLimitMb.HasValue && m_perfInfo.CommitUsedMb.HasValue) ? m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value : 0,
-                    CpuWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CPU),
-                    CpuRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CPU),
-                    IoCurrentMax = m_pipQueue.GetMaxParallelDegreeByKind(DispatcherKind.IO),
-                    IoWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.IO),
-                    IoRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.IO),
-                    LookupWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CacheLookup),
-                    LookupRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CacheLookup),
+                    CpuWaiting = PipQueue.GetNumQueuedByKind(DispatcherKind.CPU),
+                    CpuRunning = PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.CPU),
+                    CpuRunningPips = PipQueue.GetNumRunningPipsByKind(DispatcherKind.CPU),
+                    IoCurrentMax = PipQueue.GetMaxParallelDegreeByKind(DispatcherKind.IO),
+                    IoWaiting = PipQueue.GetNumQueuedByKind(DispatcherKind.IO),
+                    IoRunning = PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.IO),
+                    LookupWaiting = PipQueue.GetNumQueuedByKind(DispatcherKind.CacheLookup),
+                    LookupRunning = PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.CacheLookup),
                     LimitingResource = limitingResource,
                     RunningPipExecutorProcesses = LocalWorker.RunningPipExecutorProcesses.Count,
                     RunningProcesses = LocalWorker.RunningProcesses,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
                     ProcessPipsPending = numProcessPipsPending,
-                    ProcessPipsAllocatedSlots = numProcessPipsAllocatedSlots,
-                    EffectiveTotalProcessSlots = LocalWorker.EffectiveTotalProcessSlots,
+                    ProcessPipsAllocatedSlots = numProcessPipsAllocatedSlots
                 };
 
                 // Send resource usage to the execution log
@@ -2502,7 +2492,7 @@ namespace BuildXL.Scheduler
                 if (m_scheduleConfiguration.AdaptiveIO)
                 {
                     Contract.Assert(m_performanceAggregator != null, "Adaptive IO requires non-null performanceAggregator");
-                    m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
+                    PipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
                 if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedOrchestrator)
@@ -2918,12 +2908,6 @@ namespace BuildXL.Scheduler
 
                 LocalWorker.MemoryResource = memoryResource;
 
-                // For distributed workers, the local worker total processes does not control
-                // concurrency. It must be set on the CPU queue
-                if (IsDistributedWorker)
-                {
-                    SetQueueMaxParallelDegreeByKind(DispatcherKind.CPU, LocalWorker.EffectiveTotalProcessSlots);
-                }
             }
 
             if (memoryResource != MemoryResource.Available && LocalWorker.MemoryResourceAvailable)
@@ -2940,14 +2924,10 @@ namespace BuildXL.Scheduler
                     maximumCommitUtilization: m_configuration.Schedule.MaximumCommitUtilizationPercentage);
 
                 LocalWorker.MemoryResource = memoryResource;
-
-                // For distributed workers, the local worker total processes does not control
-                // concurrency. It must be set on the CPU queue
-                if (IsDistributedWorker)
-                {
-                    SetQueueMaxParallelDegreeByKind(DispatcherKind.CPU, LocalWorker.EffectiveTotalProcessSlots);
-                }
             }
+
+            PipQueue.SetMaxParallelDegreeByKind(DispatcherKind.CPU, LocalWorker.TotalProcessSlots);
+
         }
 
         /// <summary>
@@ -3590,7 +3570,9 @@ namespace BuildXL.Scheduler
             // If it is a meta or SealDirectory pip and the PipQueue has started draining, then the execution will be inlined here!
             // Because it is not worth to enqueue the fast operations such as the execution of meta and SealDirectory pips.
 
-            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo() ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
+            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo()
+                ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents
+                : (ushort) 0;
 
             var runnablePip = RunnablePip.Create(
                 m_executePhaseLoggingContext,
@@ -3709,7 +3691,7 @@ namespace BuildXL.Scheduler
 
                 using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.PipQueueEnqueueDuration))
                 {
-                    m_pipQueue.Enqueue(runnablePip);
+                    PipQueue.Enqueue(runnablePip);
                 }
             }
         }
@@ -3892,7 +3874,7 @@ namespace BuildXL.Scheduler
                             // However, if the queue has not been started draining, we should add them to the queue.
                             // SchedulePip is called as a part of 'schedule' phase.
                             // That's why, we should not inline executions of fast pips when the queue is not draining.
-                            return m_pipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
+                            return PipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
 
                         case PipType.SealDirectory:
                             return DispatcherKind.SealDirs;
@@ -3907,7 +3889,7 @@ namespace BuildXL.Scheduler
                             if (state.IsStartOrShutdown)
                             {
                                 // service start and shutdown pips are noop, so they will be inlined if the queue is draining.
-                                return m_pipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
+                                return PipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
                             }
 
                             return DispatcherKind.IO;
@@ -6508,7 +6490,7 @@ namespace BuildXL.Scheduler
                     (node) => SchedulePip(node, node.ToPipId()).GetAwaiter().GetResult());
 
                 // From this point, only pips that are already scheduled can enqueue new work items
-                m_pipQueue.SetAsFinalized();
+                PipQueue.SetAsFinalized();
             }
         }
 
@@ -7760,7 +7742,7 @@ namespace BuildXL.Scheduler
             if (cancelQueue)
             {
                 // We cancel the queue for more aggressive but still graceful cancellation.
-                m_pipQueue.Cancel();
+                PipQueue.Cancel();
             }
         }
 

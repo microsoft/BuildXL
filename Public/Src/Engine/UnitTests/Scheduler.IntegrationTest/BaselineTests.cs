@@ -1807,30 +1807,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
         }
 
-        /// <summary>
-        /// Builds and schedules a number of pips that are waiting for the same file to be written
-        /// before finishing execution.
-        /// </summary>
-        /// <returns>The FileArtifact corresponding to the file that the pips will wait on</returns>
-        private FileArtifact ScheduleWaitingForFilePips(int numberOfPips)
-        {
-            var waitFile = CreateOutputFileArtifact(prefix: "wait");
-
-            for (var i = 0; i < numberOfPips; i++)
-            {
-                var builder = CreatePipBuilder(new Operation[]
-                {
-                Operation.WaitUntilFileExists(waitFile, doNotInfer: true),
-                Operation.WriteFile(CreateOutputFileArtifact()),
-                });
-
-                builder.AddUntrackedFile(waitFile);
-                SchedulePipBuilder(builder);
-            }
-
-            return waitFile;
-        }
-
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

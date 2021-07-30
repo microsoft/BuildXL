@@ -69,6 +69,14 @@ namespace BuildXL.Scheduler
         public readonly int MaxRetryLimitForStoppedWorker;
 
         /// <summary>
+        /// Weight which specifies the number of slots to acquire in the workers and dispatchers.
+        /// </summary>
+        /// <remarks>
+        /// It is always one for non-process pips.
+        /// </remarks>
+        public virtual int Weight => 1;
+
+        /// <summary>
         /// The underlying pip
         /// </summary>
         public Pip Pip
@@ -267,7 +275,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public bool IncludeInTracer => Environment.Configuration.Logging.LogTracer
             && Step.IncludeInTracer()
-            && PipType == PipType.Process
+            && (PipType == PipType.Process || PipType == PipType.Ipc)
             && Worker != null;
 
         /// <summary>
@@ -447,7 +455,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void ReleaseDispatcher()
         {
-            m_dispatcherReleaser?.Release();
+            m_dispatcherReleaser?.Release(Weight);
         }
 
         /// <summary>

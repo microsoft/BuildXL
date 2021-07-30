@@ -44,7 +44,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
         }
 
         /// <nodoc/>
-        public override int NumRunning => m_chooseWorkerQueues.Sum(a => a.NumRunning);
+        public override int NumAcquiredSlots => m_chooseWorkerQueues.Sum(a => a.NumAcquiredSlots);
+
+        /// <nodoc/>
+        public override int NumRunningPips => m_chooseWorkerQueues.Sum(a => a.NumRunningPips);
 
         /// <nodoc/>
         public override int NumQueued => m_chooseWorkerQueues.Sum(a => a.NumQueued);

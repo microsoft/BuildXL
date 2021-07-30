@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
@@ -19,7 +18,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
     /// This dispatcher queue is used to choose workers for pips. As it is on the hot path, 
     /// it runs on a dedicated task scheduler.
     /// </remarks>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public class ChooseWorkerQueue : DispatcherQueue
     {
         private readonly DedicatedThreadsTaskScheduler m_taskScheduler;
@@ -71,7 +69,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
 
                     Interlocked.Add(ref m_runTimeTicks, (TimestampUtilities.Timestamp - startTime).Ticks);
 
-                    if (NumRunning < MaxRunning)
+                    if (NumAcquiredSlots < MaxRunning)
                     {
                         Interlocked.Increment(ref m_fastChooseNextCount);
 

@@ -94,50 +94,15 @@ namespace BuildXL.Scheduler.Distribution
             .ToReadOnlyArray();
 
         /// <summary>
-        /// The state of the memory resource availability.
-        /// </summary>
-        public MemoryResource MemoryResource
-        {
-            get
-            {
-                return m_memoryResource;
-            }
-
-            set
-            {
-                var oldValue = m_memoryResource;
-                m_memoryResource = value;
-                OnWorkerResourcesChanged(WorkerResource.MemoryResourceAvailable, increased: value == MemoryResource.Available && oldValue != MemoryResource.Available);
-            }
-        }
-
-        private MemoryResource m_memoryResource = MemoryResource.Available;
-
-        /// <summary>
-        /// Gets or sets whether sufficient resources are available. When set to false, <see cref="EffectiveTotalProcessSlots"/> are throttled to 1 to
-        /// prevent further resource exhaustion by scheduling more pips
-        /// </summary>
-        public bool MemoryResourceAvailable => MemoryResource == MemoryResource.Available;
-
-        /// <summary>
         /// The identifier for the worker.
         /// The local worker always has WorkerId=0
         /// </summary>
         public uint WorkerId { get; }
 
         /// <summary>
-        /// The total amount of slots for process execution (i.e., max degree of pip parallelism). This can
-        /// be adjusted due to resource availability. Namely, it will be one if <see cref="MemoryResourceAvailable"/> is false.
-        /// </summary>
-        public abstract int EffectiveTotalProcessSlots
-        {
-            get;
-        }
-
-        /// <summary>
         /// The total amount of slots for process execution (i.e., max degree of pip parallelism).
         /// </summary>
-        public int TotalProcessSlots
+        public virtual int TotalProcessSlots
         {
             get
             {
@@ -146,7 +111,7 @@ namespace BuildXL.Scheduler.Distribution
 
             protected set
             {
-                var oldValue = TotalProcessSlots;
+                var oldValue = Volatile.Read(ref m_totalProcessSlots);
                 Volatile.Write(ref m_totalProcessSlots, value);
                 OnWorkerResourcesChanged(WorkerResource.TotalProcessSlots, value > oldValue);
             }
@@ -504,7 +469,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Raises <see cref="ResourcesChanged"/> event.
         /// </summary>
-        private void OnWorkerResourcesChanged(WorkerResource kind, bool increased)
+        internal void OnWorkerResourcesChanged(WorkerResource kind, bool increased)
         {
             ResourcesChanged?.Invoke(this, kind, increased);
         }
@@ -514,9 +479,9 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         /// <param name="runnablePip">the pip</param>
         /// <param name="force">true to force acquisition of the slot</param>
+        /// <param name="loadFactor">load factor to specify the oversubscription rate</param>
         /// <returns>true if the slot was acquired. False, otherwise.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
-        public bool TryAcquireCacheLookup(ProcessRunnablePip runnablePip, bool force)
+        public bool TryAcquireCacheLookup(ProcessRunnablePip runnablePip, bool force, double loadFactor = 1)
         {
             using (EarlyReleaseLock.AcquireReadLock())
             {
@@ -532,28 +497,15 @@ namespace BuildXL.Scheduler.Distribution
                     return true;
                 }
 
-                // Atomically acquire a cache lookup slot, being sure to not increase above the limit
-                while (true)
+                if (AcquiredCacheLookupSlots < TotalCacheLookupSlots * loadFactor)
                 {
-                    int acquiredCacheLookupSlots = AcquiredCacheLookupSlots;
-                    if (acquiredCacheLookupSlots < TotalCacheLookupSlots)
-                    {
-                        if (Interlocked.CompareExchange(ref m_acquiredCacheLookupSlots, acquiredCacheLookupSlots + 1, acquiredCacheLookupSlots) == acquiredCacheLookupSlots)
-                        {
-                            OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: false);
-                            runnablePip.AcquiredResourceWorker = this;
-                            return true;
-                        }
-                        else
-                        {
-                            // Failed to update value. Retry.
-                        }
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    Interlocked.Increment(ref m_acquiredCacheLookupSlots);
+                    OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: false);
+                    runnablePip.AcquiredResourceWorker = this;
+                    return true;
                 }
+
+                return false;
             }
         }
 
@@ -596,9 +548,9 @@ namespace BuildXL.Scheduler.Distribution
                 // Light processes do not acquire process slots as they are not CPU-bound.
                 if (!processRunnablePip.Process.IsLight)
                 {
-                    if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
+                    if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (TotalProcessSlots * loadFactor))
                     {
-                        limitingResource = MemoryResourceAvailable ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
+                        limitingResource = (!IsLocal || ((LocalWorker)this).MemoryResourceAvailable) ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
                         return false;
                     }
                 }
@@ -848,22 +800,6 @@ namespace BuildXL.Scheduler.Distribution
                 runnablePip.SetWorker(null);
                 runnablePip.AcquiredResourceWorker = null;
             }
-        }
-
-        /// <summary>
-        /// Adjusts the total process slots
-        /// </summary>
-        public void AdjustTotalProcessSlots(int newTotalSlots)
-        {
-            TotalProcessSlots = newTotalSlots;
-        }
-
-        /// <summary>
-        /// Adjusts the total cache lookup slots
-        /// </summary>
-        public void AdjustTotalCacheLookupSlots(int newTotalSlots)
-        {
-            TotalCacheLookupSlots = newTotalSlots;
         }
 
         #region Pip Operations

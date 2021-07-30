@@ -158,6 +158,7 @@ namespace BuildXL.Engine.Distribution
                     WorkerId = WorkerId,
                     MaxProcesses = Config.Schedule.MaxProcesses,
                     MaxMaterialize = Config.Schedule.MaxMaterialize,
+                    MaxCacheLookup = Config.Schedule.MaxCacheLookup,
                     AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb,
                     AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb,
                     WorkerCacheValidationContentHash = cacheValidationContentHash.ToBondContentHash(),

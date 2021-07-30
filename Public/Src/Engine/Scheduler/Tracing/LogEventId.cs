@@ -85,7 +85,7 @@ namespace BuildXL.Scheduler.Tracing
         StorageCacheIngressFallbackContentToMakePrivateError = 726,
         ProcessNotStoredToCachedDueToItsInherentUncacheability = 286,
 
-        ProcessesSemaphoreQueuedStats = 290,
+        // DELETED: ProcessesSemaphoreQueuedStats = 290,
         ScheduleArtificialCacheMiss = 293,
         FileAccessCheckProbeFailed = 297,
         PipQueueConcurrency = 298,

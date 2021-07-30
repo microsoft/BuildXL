@@ -19,7 +19,6 @@ namespace BuildXL.Scheduler
     /// <summary>
     /// A dispatcher queue which processes work items from several priority queues inside.
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix", Justification = "But it is a queue...")]
     public sealed class PipQueue : IPipQueue
     {
         /// <summary>
@@ -36,7 +35,7 @@ namespace BuildXL.Scheduler
         private readonly ManualResetEventSlim m_hasAnyChange;
 
         /// <summary>
-        /// Task completion source that completes if the cancellation is requested and there are no running tasks.
+        /// Task completion source that completes if the cancellation is requested and there are no running pips.
         /// </summary>
         private TaskCompletionSource<bool> m_hasAnyRunning;
 
@@ -87,10 +86,7 @@ namespace BuildXL.Scheduler
         public int MaxProcesses => m_queuesByKind[DispatcherKind.CPU].MaxParallelDegree;
 
         /// <inheritdoc/>
-        public int NumSemaphoreQueued => m_queuesByKind[DispatcherKind.ChooseWorkerCpu].NumRunning + m_queuesByKind[DispatcherKind.ChooseWorkerCpu].NumQueued;
-
-        /// <inheritdoc/>
-        public int TotalNumSemaphoreQueued => m_queuesByKind[DispatcherKind.ChooseWorkerCpu].NumRunning + m_queuesByKind[DispatcherKind.ChooseWorkerCpu].NumQueued;
+        public int NumSemaphoreQueued => m_queuesByKind[DispatcherKind.ChooseWorkerCpu].NumRunningPips + m_queuesByKind[DispatcherKind.ChooseWorkerCpu].NumQueued;
 
         /// <inheritdoc/>
         public bool IsDraining { get; private set; }
@@ -180,7 +176,7 @@ namespace BuildXL.Scheduler
                                  {DispatcherKind.ChooseWorkerCacheLookup, m_chooseWorkerCacheLookupQueue},
                                  {DispatcherKind.CacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxCacheLookup)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
-                                 {DispatcherKind.CPU, new DispatcherQueue(this, m_scheduleConfig.MaxProcesses)},
+                                 {DispatcherKind.CPU, new DispatcherQueue(this, m_scheduleConfig.MaxProcesses, useWeight: true)},
                                  {DispatcherKind.Materialize, new DispatcherQueue(this, m_scheduleConfig.MaxMaterialize)},
                                  {DispatcherKind.Light, new DispatcherQueue(this, m_scheduleConfig.MaxLightProcesses)},
                                  {DispatcherKind.SealDirs, new DispatcherQueue(this, m_scheduleConfig.MaxSealDirs)},
@@ -202,10 +198,16 @@ namespace BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
-        public int GetNumRunningByKind(DispatcherKind kind) => m_queuesByKind[kind].NumRunning;
+        public int GetNumRunningPipsByKind(DispatcherKind kind) => m_queuesByKind[kind].NumRunningPips;
+
+        /// <inheritdoc/>
+        public int GetNumAcquiredSlotsByKind(DispatcherKind kind) => m_queuesByKind[kind].NumAcquiredSlots;
 
         /// <inheritdoc/>
         public int GetNumQueuedByKind(DispatcherKind kind) => m_queuesByKind[kind].NumQueued;
+
+        /// <inheritdoc/>
+        public bool IsUseWeightByKind(DispatcherKind kind) => m_queuesByKind[kind].UseWeight;
 
         /// <inheritdoc/>
         public int GetMaxParallelDegreeByKind(DispatcherKind kind) => m_queuesByKind[kind].MaxParallelDegree;
@@ -215,6 +217,16 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void SetMaxParallelDegreeByKind(DispatcherKind kind, int maxParallelDegree)
         {
+            if (maxParallelDegree == 0)
+            {
+                // We only allow 0 for ChooseWorkerCpu and ChooseWorkerCacheLookup dispatchers.
+                // For all other dispatchers, 0 is not allowed for potential deadlocks.
+                if (kind != DispatcherKind.ChooseWorkerCacheLookup && kind != DispatcherKind.ChooseWorkerCpu)
+                {
+                    maxParallelDegree = 1;
+                }
+            }
+
             if (m_queuesByKind[kind].AdjustParallelDegree(maxParallelDegree) && maxParallelDegree > 0)
             {
                 TriggerDispatcher();
@@ -284,7 +296,7 @@ namespace BuildXL.Scheduler
             {
                 Contract.Assert(m_hasAnyRunning != null, "If cancellation is requested, the taskcompletionsource to keep track of running items cannot be null");
 
-                if (m_queuesByKind.Sum(a => a.Value.NumRunning) != 0)
+                if (m_queuesByKind.Sum(a => a.Value.NumRunningPips) != 0)
                 {
                     // Make sure that all running tasks are completed.
                     m_hasAnyRunning.Task.Wait();
@@ -351,7 +363,7 @@ namespace BuildXL.Scheduler
             bool hasLowGlobalUsage = machinePerfInfo.CpuUsagePercentage < 90 &&
                                      machinePerfInfo.RamUsagePercentage < 90 &&
                                      machinePerfInfo.DiskUsagePercentages.All(a => a < 90);
-            bool numRunningIsNearMax = ioDispatcher.NumRunning > currentMax * 0.8;
+            bool numRunningIsNearMax = ioDispatcher.NumAcquiredSlots > currentMax * 0.8;
 
             if (numRunningIsNearMax && (currentMax < m_scheduleConfig.MaxIO) && hasLowGlobalUsage)
             {
@@ -401,8 +413,8 @@ namespace BuildXL.Scheduler
         {
             Interlocked.Decrement(ref m_numRunningOrQueued);
 
-            // if cancellation is requested, check the number of running tasks.
-            if (m_hasAnyRunning != null && m_queuesByKind.Sum(a => a.Value.NumRunning) == 0)
+            // if cancellation is requested, check the number of running pips.
+            if (m_hasAnyRunning != null && m_queuesByKind.Sum(a => a.Value.NumRunningPips) == 0)
             {
                 m_hasAnyRunning.TrySetResult(true);
             }

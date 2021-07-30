@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler.Distribution
         private readonly Worker[] m_workers;
 
         /// <inheritdoc/>
-        public override int EffectiveTotalProcessSlots => m_workers.Sum(a => a.EffectiveTotalProcessSlots);
+        public override int TotalProcessSlots => m_workers.Sum(a => a.TotalProcessSlots);
 
         /// <nodoc />
         public AllWorker(Worker[] workers)

@@ -816,5 +816,31 @@ namespace Test.BuildXL.Scheduler
 
             base.Dispose(disposing);
         }
+
+        /// <summary>
+        /// Builds and schedules a number of pips that are waiting for the same file to be written
+        /// before finishing execution.
+        /// </summary>
+        /// <returns>The FileArtifact corresponding to the file that the pips will wait on</returns>
+        protected FileArtifact ScheduleWaitingForFilePips(int numberOfPips, int weight = 1)
+        {
+            var waitFile = CreateOutputFileArtifact(prefix: "wait");
+
+            for (var i = 0; i < numberOfPips; i++)
+            {
+                var builder = CreatePipBuilder(new Operation[]
+                {
+                    Operation.WaitUntilFileExists(waitFile, doNotInfer: true),
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                });
+
+                builder.Weight = weight;
+                builder.AddUntrackedFile(waitFile);
+                SchedulePipBuilder(builder);
+            }
+
+            return waitFile;
+        }
+
     }
 }

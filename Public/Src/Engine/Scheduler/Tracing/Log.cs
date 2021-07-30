@@ -1138,15 +1138,6 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessesCacheHitStats(LoggingContext loggingContext, long numberOfProcesses);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ProcessesSemaphoreQueuedStats,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "  Processes that got delayed because of semaphore constraints: {numberOfProcesses}")]
-        internal abstract void ProcessesSemaphoreQueuedStats(LoggingContext loggingContext, long numberOfProcesses);
-
-        [GeneratedEvent(
             (ushort)LogEventId.SourceFileHashingStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

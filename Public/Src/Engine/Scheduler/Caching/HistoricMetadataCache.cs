@@ -723,6 +723,8 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override void TryStoreBuildManifestHash(ContentHash contentHash, ContentHash buildManifestContentHash)
         {
+            EnsureLoadedAsync().GetAwaiter().GetResult();
+
             StoreAccessor?.Use(database =>
             {
                 using var key = contentHash.ToPooledByteArray();
@@ -738,9 +740,11 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override ContentHash TryGetBuildManifestHash(ContentHash contentHash)
         {
-            Contract.Assert(contentHash.IsValid, "ContentHash was invalid");
-            Contract.Assert(m_activeBuildManifestHashColumnIndex >= 0, $"m_activeBuildManifestHashColumnIndex < 0");
-            
+            EnsureLoadedAsync().GetAwaiter().GetResult();
+
+            Contract.Assert(contentHash.IsValid, "ContentHash must be valid");
+            Contract.Assert(m_activeBuildManifestHashColumnIndex >= 0, "Build manifest column is not initialized");
+
             ContentHash foundHash = default;
             StoreAccessor?.Use(database =>
             {

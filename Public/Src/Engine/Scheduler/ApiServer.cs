@@ -141,6 +141,8 @@ namespace BuildXL.Scheduler
                 // The cache is vital to the perf of build manifest, so we need to emit a warning if it cannot be used.
                 // CompareExchange ensures that we do this check at most one time.
                 var hmc = m_pipTwoPhaseCache as HistoricMetadataCache;
+                // Need to make sure the loading task is complete before checking whether the cache is valid.
+                hmc?.StartLoading(waitForCompletion: true);
                 if (hmc == null || !hmc.Valid)
                 {
                     Tracing.Logger.Log.ApiServerReceivedWarningMessage(m_loggingContext, "Build manifest requires historic metadata cache; however, it is not available in this build. This will negatively affect build performance.");

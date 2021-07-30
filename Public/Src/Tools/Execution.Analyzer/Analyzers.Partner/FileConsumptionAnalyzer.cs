@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -68,7 +69,7 @@ namespace BuildXL.Execution.Analyzer
         private StreamWriter m_writerSummary;
 
         /// <summary>
-        /// Information about produced files (path, size, producer/consumer)
+        /// Information about produced files (path, size, producer/consumer, hash)
         /// </summary>
         private StreamWriter m_writerFiles;
 
@@ -139,10 +140,11 @@ namespace BuildXL.Execution.Analyzer
 
                 m_producedFiles.AddOrUpdate(
                     data.FileArtifact.Path,
-                    new OutputFile() { FileArtifact = data.FileArtifact },
+                    new OutputFile() { FileArtifact = data.FileArtifact, Hash = data.FileContentInfo.Hash },
                     (_, file) =>
                     {
                         file.FileArtifact = data.FileArtifact;
+                        file.Hash = data.FileContentInfo.Hash;
                         return file;
                     });
             }
@@ -315,22 +317,23 @@ namespace BuildXL.Execution.Analyzer
             }
 
             const int MaxConsumers = 10;
-            m_writerFiles.WriteLine($"PathId,Path,Size,Producer,Consumers");
+            m_writerFiles.WriteLine($"PathId,Path,Size,Producer,Consumers,Hash");
             foreach (var path in m_producedFiles.Keys.ToListSorted(PathTable.ExpandedPathComparer))
             {
-                if (!m_producedFiles[path].Producer.IsValid)
+                var outputFile = m_producedFiles[path];
+                if (!outputFile.Producer.IsValid)
                 {
                     continue;
                 }
 
                 m_fileSizes.TryGetValue(path, out var size);
-
-                m_writerFiles.WriteLine("{0},\"{1}\",{2},{3},{4}",
+                m_writerFiles.WriteLine("{0},\"{1}\",{2},{3},{4},{5}",
                     path.Value,
                     path.ToString(PathTable).ToCanonicalizedPath(),
                     size,
-                    PipTable.GetFormattedSemiStableHash(m_producedFiles[path].Producer),
-                    string.Join(";", m_producedFiles[path].Consumers.Take(MaxConsumers).Select(pipId => PipTable.GetFormattedSemiStableHash(pipId))));
+                    PipTable.GetFormattedSemiStableHash(outputFile.Producer),
+                    string.Join(";", outputFile.Consumers.Take(MaxConsumers).Select(pipId => PipTable.GetFormattedSemiStableHash(pipId))),
+                    outputFile.Hash.ToString());
             }
 
             m_writerPips.WriteLine("Pip,Description,ConsumedFileCount,ConsumedBytes,TotalInputSize");
@@ -418,6 +421,7 @@ namespace BuildXL.Execution.Analyzer
         private class OutputFile
         {
             public FileArtifact FileArtifact;
+            public ContentHash Hash;
             public PipId Producer;
             public ConcurrentQueue<PipId> Consumers = new ConcurrentQueue<PipId>();
         }

@@ -70,7 +70,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             if (File.Exists(buildIdentityTokenLocation))
             {
-#if NETCOREAPP3_1
+#if NET_COREAPP_31
                 var bytes = File.ReadAllBytes(buildIdentityTokenLocation);
                 byte[] clearText = ProtectedData.Unprotect(bytes, null, DataProtectionScope.LocalMachine);
                 return Encoding.UTF8.GetString(clearText);
@@ -108,7 +108,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
 
             byte[] loadedPrivateKey = null;
-#if NETCOREAPP3_1
+#if NET_COREAPP_31
             loadedPrivateKey = loadedRsa.ExportPkcs8PrivateKey();
 #endif
 

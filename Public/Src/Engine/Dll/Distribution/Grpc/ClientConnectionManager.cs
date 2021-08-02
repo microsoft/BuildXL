@@ -17,7 +17,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.RemoteWorker;
-#if NETCOREAPP3_1
+#if NET_COREAPP_31
 using Grpc.Net.Client;
 #endif
 
@@ -126,7 +126,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 return;
             }
 
-#if NETCOREAPP3_1
+#if NET_COREAPP_31
             var channelOptions = new GrpcChannelOptions
             {
                 MaxSendMessageSize = int.MaxValue,
@@ -139,6 +139,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 SetupChannelOptionsForEncryption(channelOptions);
                 address = $"https://{ipAddress}:{port}";
+                Logger.Log.GrpcAuthTrace(m_loggingContext, $"Encryption and authentication is enabled: '{address}'.");
             }
             else
             {
@@ -150,7 +151,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 #endif
         }
 
-#if NETCOREAPP3_1
+#if NET_COREAPP_31
         private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions)
         {
             var handler = new SocketsHttpHandler

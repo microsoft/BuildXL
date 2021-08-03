@@ -35,7 +35,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Creates a success outcome specifying if the value can be null.
         /// </summary>
         public Result(T result, bool isNullAllowed)
-            : base(successDiagnostics: null)
         {
             if (!isNullAllowed && result == null)
             {

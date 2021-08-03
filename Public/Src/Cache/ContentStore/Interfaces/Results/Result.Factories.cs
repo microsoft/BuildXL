@@ -14,13 +14,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public partial class Result
     {
-        private static readonly Result _successResult = new Result(successDiagnostics: null);
+        private static readonly Result _successResult = new Result();
         private static readonly Task<Result> _successTask = Task.FromResult(_successResult);
 
         /// <summary>
         /// Creates a successful result with the given diagnostic message as the success message
         /// </summary>
-        public static Result WithMessage(string successDiagnostics) => new Result(successDiagnostics);
+        public static Result WithMessage(string successDiagnostics)
+        {
+            var result = new Result(successDiagnostics);
+            result.SetDiagnosticsForSuccess(successDiagnostics);
+            return result;
+        }
 
         /// <nodoc />
         public static Result<T> Success<T>(T result, bool isNullAllowed = false) => new Result<T>(result, isNullAllowed);

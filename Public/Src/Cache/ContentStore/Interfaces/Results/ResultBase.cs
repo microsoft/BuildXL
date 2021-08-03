@@ -16,16 +16,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// The result can have one of 3 states:
     /// * Success + optional success diagnostics (when <see cref="Error"/> property is null and <see cref="IsCancelled"/> property is false).
     /// * Failure (when the <see cref="Error"/> property is not null)
-    /// * Cancelled (whtn <see cref="IsCancelled"/> flag is true)
+    /// * Cancelled (when <see cref="IsCancelled"/> flag is true)
     /// </remarks>
     public abstract class ResultBase : IEquatable<ResultBase>
     {
         /// <summary>
         /// Constructor for creating successful result instances.
         /// </summary>
-        protected ResultBase(string? successDiagnostics = null)
-        {
-            _successDiagnostics = successDiagnostics;
+        protected ResultBase()
+        {   
         }
 
         /// <summary>
@@ -95,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <nodoc />
         public void SetDiagnosticsForSuccess(string diagnostics)
         {
-            Contract.Requires(Succeeded, "Can't change a dianostics messge after a non-successful result was constructed.");
+            Contract.Requires(Succeeded, "Can't change a diagnostics message after a non-successful result was constructed.");
             _successDiagnostics = diagnostics;
         }
 

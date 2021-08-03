@@ -12,8 +12,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     public partial class Result : ResultBase
     {
         /// <nodoc />
-        protected Result(string? successDiagnostics)
-            : base(successDiagnostics)
+        protected Result()
         {
         }
 
@@ -101,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         private static Result MergeFailures(Result left, Result right)
-            => MergeFailures(left, right, () => new Result(successDiagnostics: null), error => new Result(error));
+            => MergeFailures(left, right, () => new Result(), error => new Result(error));
 
         /// <summary>
         /// Implicit conversion operator from <see cref="Result"/> to <see cref="bool"/>.

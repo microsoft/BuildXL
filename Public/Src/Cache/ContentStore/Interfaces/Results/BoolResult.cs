@@ -16,10 +16,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     public class BoolResult : ResultBase
     {
         /// <summary>
-        /// Creates new result instance with a given status.
+        /// Constructor for creating successful result instances.
         /// </summary>
-        protected BoolResult(string? successDiagnostics = null)
-            : base(successDiagnostics)
+        protected BoolResult()
         {
         }
 
@@ -62,7 +61,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Creates a successful result with the given diagnostic message as the success message
         /// </summary>
-        public static BoolResult WithSuccessMessage(string successDiagnostics) => new BoolResult(successDiagnostics);
+        public static BoolResult WithSuccessMessage(string successDiagnostics)
+        {
+            var result = new BoolResult();
+            result.SetDiagnosticsForSuccess(successDiagnostics);
+            return result;
+        }
 
         /// <summary>
         /// Successful task singleton.

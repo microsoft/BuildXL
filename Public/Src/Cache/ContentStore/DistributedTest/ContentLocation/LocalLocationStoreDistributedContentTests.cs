@@ -3000,7 +3000,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var lls = context.GetLocalLocationStore(0);
 
-                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(Role.Worker, new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow, producerMachineLocation, producerMachineLocation))
+                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow, producerMachineLocation))
                         .ShouldBeSuccess();
 
                     // Uncomment this line to create a checkpoint to keep alive the content in storage

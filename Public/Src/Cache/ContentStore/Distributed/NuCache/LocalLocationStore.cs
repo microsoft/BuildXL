@@ -100,6 +100,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // The (optional) distributed central storage which wraps the inner central storage
         internal DistributedCentralStorage DistributedCentralStorage { get; }
 
+        private readonly ICheckpointRegistry _checkpointRegistry;
+
         // Fields that are initialized in StartupCoreAsync method.
         private Timer _heartbeatTimer;
 
@@ -203,6 +205,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 CentralStorage = _innerCentralStorage;
+            }
+
+            if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration is not null)
+            {
+                var storageRegistry = new AzureBlobStorageCheckpointRegistry(configuration.AzureBlobStorageCheckpointRegistryConfiguration, () =>
+                {
+                    var machineId = ClusterState.PrimaryMachineId;
+                    if (!ClusterState.TryResolve(machineId, out var location))
+                    {
+                        throw new InvalidOperationException($"Could not resolve primary machine id {machineId} to location");
+                    }
+
+                    return location;
+                }, _clock);
+
+                if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration.Standalone)
+                {
+                    _checkpointRegistry = storageRegistry;
+                }
+                else
+                {
+                    _checkpointRegistry = new TransitioningCheckpointRegistry(primary: storageRegistry, fallback: GlobalStore);
+                }
+            }
+            else
+            {
+                _checkpointRegistry = GlobalStore;
             }
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
@@ -311,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 await DistributedCentralStorage.StartupAsync(context).ThrowIfFailure();
             }
 
-            CheckpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, Configuration.Checkpoint, Counters);
+            CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters);
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
 
@@ -458,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restore checkpoint.
         /// </summary>
-        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, MasterElectionState masterElectionState, bool inline, bool forceRestore = false)
         {
             var operationResult = await RunOutOfBandAsync(
                 Configuration.InlinePostInitialization || inline,
@@ -473,7 +502,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     var oldRole = CurrentRole;
-                    var newRole = checkpointState.Role;
+                    var newRole = masterElectionState.Role;
                     var switchedRoles = oldRole != newRole;
 
                     if (switchedRoles)
@@ -670,18 +699,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return true;
                         }
 
-                        var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+                        var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context);
                         if (!checkpointState)
                         {
                             // The error is already logged. We need to specify cast because of the implicit bool cast.
                             return new Result<bool>((ResultBase)checkpointState);
                         }
 
-                        ClusterState.SetMasterMachine(checkpointState.Value.Master);
+                        var leadershipState = await GlobalStore.GetRoleAsync(context);
+                        if (!leadershipState)
+                        {
+                            return new Result<bool>((ResultBase)leadershipState);
+                        }
 
-                        HeartbeatObserver?.OnSuccessfulHeartbeatAsync(context, checkpointState.Value.Role).FireAndForget(context);
+                        ClusterState.SetMasterMachine(leadershipState.Value.Master);
+                        HeartbeatObserver?.OnSuccessfulHeartbeatAsync(context, leadershipState.Value.Role).FireAndForget(context);
 
-                        var processStateResult = await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
+                        var processStateResult = await ProcessStateAsync(context, checkpointState.Value, leadershipState.Value, inline, forceRestore);
                         if (!processStateResult)
                         {
                             // The error is already logged. We need to specify cast because of the implicit bool cast.
@@ -1064,7 +1098,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private async Task<GetBulkLocationsResult> ResolveLocationsAsync(OperationContext context, IReadOnlyList<ContentLocationEntry> entries, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
         {
             Contract.Requires(entries.Count == contentHashes.Count);
-            
+
             var results = new List<ContentHashWithSizeAndLocations>(entries.Count);
             bool hasUnknownLocations = false;
 

@@ -253,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     // Remove the suffix to get the real checkpoint id used with central storage
                     // NOTE: We allow null checkpoint id to restore 'empty' checkpoint
-                    checkpointId = checkpointId == null
+                    checkpointId = string.IsNullOrEmpty(checkpointId)
                         ? null
                         : checkpointId.Substring(0, checkpointId.Length - IncrementalCheckpointIdSuffix.Length);
 

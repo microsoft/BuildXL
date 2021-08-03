@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var machineIdAndIsAdded = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
                 context,
                 Configuration.RetryWindow,
-                RedisOperation.StartupGetOrAddLocalMachine, 
+                RedisOperation.StartupGetOrAddLocalMachine,
                 (batch, key) => batch.GetOrAddMachineAsync(key, machineLocation.ToString(), _clock.UtcNow),
                 timeout: Configuration.ClusterRedisOperationTimeout)
                 .ThrowIfFailureAsync();
@@ -463,6 +463,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Counters[GlobalStoreCounters.UpdateRole]);
         }
 
+        public Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var role = await UpdateRoleAsync(context, release: false)
+                    .ThrowIfFailureAsync();
+                _role = role;
+
+                var masterName = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(
+                    context,
+                    Configuration.RetryWindow,
+                    RedisOperation.GetCheckpoint,
+                    (batch, key) => batch.AddOperation("GetRole", b => b.HashGetAsync(key, "M#1.MachineName")),
+                    timeout: Configuration.ClusterRedisOperationTimeout)
+                    .ThrowIfFailureAsync();
+
+                var master = masterName.IsNull ? default(MachineLocation) : new MachineLocation((string)masterName);
+
+                return Result.Success(new MasterElectionState(master, role));
+            });
+        }
+
         #endregion Role Management
 
         /// <inheritdoc />
@@ -589,24 +611,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         timeout: Configuration.ClusterRedisOperationTimeout)
                     .ThrowIfFailureAsync();
 
-                    var roleResult = await UpdateRoleAsync(context, release: false);
-                    if (!roleResult.Succeeded)
-                    {
-                        return new ErrorResult(roleResult).AsResult<Result<CheckpointState>>();
-                    }
-
-                    _role = roleResult.Value;
-
-                    var masterName = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(
-                        context,
-                        Configuration.RetryWindow,
-                        RedisOperation.GetCheckpoint,
-                        (batch, key) => batch.AddOperation("GetRole", b => b.HashGetAsync(key, "M#1.MachineName")),
-                        timeout: Configuration.ClusterRedisOperationTimeout)
-                    .ThrowIfFailureAsync();
-
-                    var masterLocation = masterName.IsNull ? default(MachineLocation) : new MachineLocation((string)masterName);
-
                     var maxCheckpoint = checkpoints.MaxByOrDefault(c => c.CheckpointCreationTime);
                     if (maxCheckpoint == null)
                     {
@@ -614,12 +618,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         // Add slack for start cursor to account for clock skew between event hub and redis
                         var epochStartCursor = startCursor - Configuration.EventStore.NewEpochEventStartCursorDelay;
-                        return CheckpointState.CreateUnavailable(_role.Value, epochStartCursor, masterLocation);
+                        return CheckpointState.CreateUnavailable(epochStartCursor);
                     }
 
                     Tracer.Debug(context, $"Getting checkpoint state: Found checkpoint '{maxCheckpoint}'");
 
-                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName), masterLocation));
+                    return Result.Success(new CheckpointState(new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName)));
                 },
                 Counters[GlobalStoreCounters.GetCheckpointState]);
         }

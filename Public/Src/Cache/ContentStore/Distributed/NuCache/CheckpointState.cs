@@ -2,70 +2,126 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
     /// <summary>
     /// Checkpoint state obtained from the central store.
     /// </summary>
-    public readonly struct CheckpointState
+    /// <remarks>
+    /// This is not a record because .NET Core 3.1 does not support specifying constructors.
+    /// 
+    /// See: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-immutability?pivots=dotnet-5-0
+    /// </remarks>
+    public class CheckpointState : IEquatable<CheckpointState>
     {
         /// <nodoc />
-        public Role Role { get; }
+        public EventSequencePoint StartSequencePoint { get; set; }
 
         /// <nodoc />
-        public EventSequencePoint StartSequencePoint { get; }
+        public string CheckpointId { get; set; }
 
         /// <nodoc />
-        public string CheckpointId { get; }
-
-        /// <nodoc />
-        public DateTime CheckpointTime { get; }
-
-        /// <nodoc />
+        [JsonIgnore]
         public bool CheckpointAvailable => !string.IsNullOrEmpty(CheckpointId);
 
         /// <nodoc />
-        public MachineLocation Producer { get; }
+        public DateTime CheckpointTime { get; set; }
 
         /// <nodoc />
-        public MachineLocation Master { get; }
+        public MachineLocation Producer { get; set; }
 
-        /// <nodoc />
-        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime, MachineLocation producer, MachineLocation master)
+        public CheckpointState()
+            : this(EventSequencePoint.Invalid)
         {
-            Contract.Requires(!string.IsNullOrEmpty(checkpointId));
 
-            Role = role;
+        }
+
+        /// <nodoc />
+        public CheckpointState(
+            EventSequencePoint startSequencePoint,
+            string? checkpointId = null,
+            DateTime? checkpointTime = null,
+            MachineLocation producer = default)
+        {
             StartSequencePoint = startSequencePoint;
-            CheckpointId = checkpointId;
-            CheckpointTime = checkpointTime;
+            CheckpointId = checkpointId ?? string.Empty;
+            CheckpointTime = checkpointTime ?? DateTime.MinValue;
             Producer = producer;
-            Master = master;
         }
 
-        /// <nodoc />
-        private CheckpointState(Role role, DateTime epochStartCursorTime, MachineLocation master)
-            : this()
+        public static CheckpointState CreateUnavailable(DateTime epochStartCursorTime)
         {
-            Role = role;
-            StartSequencePoint = new EventSequencePoint(epochStartCursorTime);
-            Master = master;
+            return new CheckpointState(new EventSequencePoint(epochStartCursorTime));
         }
 
-        /// <nodoc />
-        public static CheckpointState CreateUnavailable(Role role, DateTime epochStartCursorTime, MachineLocation master)
+        public bool Equals([AllowNull] CheckpointState other)
         {
-            return new CheckpointState(role, epochStartCursorTime, master);
+            if (other is null)
+            {
+                return false;
+            }
+
+            return StartSequencePoint.Equals(other.StartSequencePoint) &&
+                CheckpointId.Equals(other.CheckpointId) &&
+                CheckpointTime.Equals(other.CheckpointTime) &&
+                Producer.Equals(other.Producer);
         }
 
         /// <inheritdoc />
-        public override string ToString()
+        public override int GetHashCode()
         {
-            return CheckpointAvailable ? $"Id={CheckpointId}, Time={CheckpointTime}, StartSeqPt={StartSequencePoint}" : "Unavailable";
+            return (StartSequencePoint, CheckpointId, CheckpointTime, Producer).GetHashCode();
+        }
 
+        /// <inheritdoc />
+        public override bool Equals(object? obj)
+        {
+            if (obj is null || obj is not CheckpointState)
+            {
+                return false;
+            }
+
+            return EqualityComparer<CheckpointState>.Default.Equals(this, (obj as CheckpointState)!);
+        }
+
+        public Result<string> ToJson(JsonSerializerOptions? options = null)
+        {
+            try
+            {
+                return Result.Success(JsonSerializer.Serialize(this, options));
+            }
+            catch (Exception e)
+            {
+                return Result.FromException<string>(e);
+            }
+        }
+
+        public static async Task<Result<CheckpointState>> FromJsonStreamAsync(Stream stream, CancellationToken token = default)
+        {
+            try
+            {
+                var checkpointState = await JsonSerializer.DeserializeAsync<CheckpointState>(
+                    stream,
+                    cancellationToken: token);
+
+                return Result.Success(checkpointState!);
+            }
+            catch (Exception e)
+            {
+                return Result.FromException<CheckpointState>(e);
+            }
         }
     }
 }

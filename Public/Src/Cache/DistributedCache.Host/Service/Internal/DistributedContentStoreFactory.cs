@@ -196,7 +196,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies,
                 TouchContentHashLists = _distributedSettings.TouchContentHashLists,
-                UseMemoizationContentMetadataStore= _distributedSettings.UseMemoizationContentMetadataStore,
+                UseMemoizationContentMetadataStore = _distributedSettings.UseMemoizationContentMetadataStore,
             };
 
             ApplyIfNotNull(_distributedSettings.BlobContentMetadataStoreModeOverride, v => redisConfig.BlobContentMetadataStoreModeOverride = v.Value);
@@ -303,7 +303,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var store = new RocksDbContentMetadataStore(
                 _arguments.Overrides.Clock,
-                new RocksDbContentMetadataStoreConfiguration() {
+                new RocksDbContentMetadataStoreConfiguration()
+                {
                     MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
                     Database = dbConfig,
                 });
@@ -447,7 +448,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 var distributedStore =
                     CreateDistributedContentStore(OrderedResolvedCacheSettings[0], dls =>
                         CreateMultiplexedStore(settings =>
-                            CreateFileSystemContentStore(settings, dls)));;
+                            CreateFileSystemContentStore(settings, dls))); ;
                 result.topLevelStore = distributedStore;
                 result.primaryDistributedStore = distributedStore;
             }
@@ -583,7 +584,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 var result = new BandwidthConfiguration()
                 {
-                    Interval = TimeSpan.FromSeconds(configuration.IntervalInSeconds), RequiredBytes = configuration.RequiredBytes,
+                    Interval = TimeSpan.FromSeconds(configuration.IntervalInSeconds),
+                    RequiredBytes = configuration.RequiredBytes,
                     FailFastIfServerIsBusy = configuration.FailFastIfServerIsBusy,
                 };
 
@@ -837,6 +839,27 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.EventProcessingMaxQueueSize,
                 value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
+
+            if (_distributedSettings.UseBlobCheckpointRegistry)
+            {
+                var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
+                {
+                    Credentials = storageCredentials[0],
+                    ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                    FolderName = "checkpointRegistry",
+                    KeySpacePrefix = epoch,
+                };
+
+                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);
+                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
+                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GetCheckpointStateTimeout = v);
+                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryStandalone, v => azureBlobStorageCheckpointRegistryConfiguration.Standalone = v);
+
+                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
+                azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;
+
+                configuration.AzureBlobStorageCheckpointRegistryConfiguration = azureBlobStorageCheckpointRegistryConfiguration;
+            }
         }
 
         private AzureBlobStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)

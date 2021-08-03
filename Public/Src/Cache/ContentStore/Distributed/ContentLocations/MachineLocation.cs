@@ -4,8 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
@@ -16,22 +18,23 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public readonly struct MachineLocation : IEquatable<MachineLocation>
     {
-        public  const string GrpcUriSchemePrefix = "grpc://";
+        public const string GrpcUriSchemePrefix = "grpc://";
 
         /// <summary>
         /// Binary representation of a machine location.
         /// </summary>
-        public byte[] Data { get; }
+        public byte[] Data { get; init; }
 
         /// <summary>
         /// Gets whether the current machine location represents valid data
         /// </summary>
+        [JsonIgnore]
         public bool IsValid => Data != null;
 
         /// <summary>
         /// Gets the path representation of the machine location
         /// </summary>
-        public string Path { get; }
+        public string Path { get; init; }
 
         /// <nodoc />
         public MachineLocation(byte[] data)
@@ -114,6 +117,32 @@ namespace BuildXL.Cache.ContentStore.Distributed
             {
                 // Linux always uses the first segment as the host name.
                 return segments.First();
+            }
+        }
+
+        public void Serialize(BinaryWriter writer)
+        {
+            var hasData = Data is not null;
+            writer.Write(hasData);
+            if (hasData)
+            {
+                writer.Write(Data.Length);
+                writer.Write(Data);
+            }
+        }
+
+        public static MachineLocation Deserialize(BinaryReader reader)
+        {
+            var hasData = reader.ReadBoolean();
+            if (hasData)
+            {
+                var length = reader.ReadInt32();
+                var data = reader.ReadBytes(length);
+                return new MachineLocation(data);
+            }
+            else
+            {
+                return new MachineLocation();
             }
         }
     }

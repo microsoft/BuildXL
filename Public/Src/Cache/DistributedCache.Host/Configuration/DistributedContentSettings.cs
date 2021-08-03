@@ -1167,6 +1167,28 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpanSetting? AsyncSessionShutdownTimeout { get; set; }
+
+        #region Azure Blob Storage-based Checkpoint Registry
+
+        [DataMember]
+        public bool UseBlobCheckpointRegistry { get; set; }
+
+        [DataMember]
+        public bool? BlobCheckpointRegistryStandalone { get; set; }
+
+        [DataMember]
+        public int? BlobCheckpointRegistryCheckpointLimit { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobCheckpointRegistryGarbageCollectionTimeout { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobCheckpointRegistryRegisterCheckpointTimeout { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobCheckpointRegistryGetCheckpointStateTimeout { get; set; }
+
+        #endregion
     }
 
     /// <summary>

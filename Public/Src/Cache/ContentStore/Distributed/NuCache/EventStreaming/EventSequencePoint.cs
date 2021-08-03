@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json.Serialization;
 using Microsoft.Azure.EventHubs;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
@@ -10,20 +12,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     /// <summary>
     /// Represents event sequence number or a date time used to create an event position in event hub.
     /// </summary>
+    /// <remarks>
+    /// This is not a record because .NET Core 3.1 does not support specifying constructors.
+    /// 
+    /// See: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-immutability?pivots=dotnet-5-0
+    /// </remarks>
     public class EventSequencePoint : IEquatable<EventSequencePoint>
     {
+        public static EventSequencePoint Invalid { get; } = new EventSequencePoint();
+
         /// <summary>
         /// Sequence number for processing events starting from a given point.
         /// </summary>
-        public long? SequenceNumber { get; }
+        public long? SequenceNumber { get; set; }
 
         /// <nodoc />
-        public DateTime? EventStartCursorTimeUtc { get; }
+        public DateTime? EventStartCursorTimeUtc { get; set; }
 
         /// <nodoc />
+        [JsonIgnore]
         public EventPosition EventPosition => SequenceNumber != null
             ? EventPosition.FromSequenceNumber(SequenceNumber.Value)
             : EventPosition.FromEnqueuedTime(EventStartCursorTimeUtc.Value);
+
+        /// <nodoc />
+        public EventSequencePoint()
+            : this(eventStartCursorTimeUtc: DateTime.MinValue)
+        {
+        }
 
         /// <nodoc />
         public EventSequencePoint(long sequenceNumber)
@@ -80,9 +96,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             {
                 return SequenceNumber.ToString();
             }
-            else
+            else if (EventStartCursorTimeUtc != null)
             {
                 return EventStartCursorTimeUtc.ToString();
+            }
+            else
+            {
+                return "Invalid";
             }
         }
     }

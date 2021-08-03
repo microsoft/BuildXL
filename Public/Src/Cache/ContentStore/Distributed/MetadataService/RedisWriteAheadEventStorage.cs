@@ -18,6 +18,8 @@ using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public record RedisVolatileEventStorageConfiguration
@@ -26,29 +28,47 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public TimeSpan MaximumKeyLifetime { get; init; } = TimeSpan.FromDays(2);
 
-        public string ConnectionString { get; init; }
+        /// <summary>
+        /// Connection string for the Redis instance
+        /// </summary>
+        /// <remarks>
+        /// This is used only for testing
+        /// </remarks>
+        public string? ConnectionString { get; init; }
     }
 
     /// <summary>
     /// Structure of data in Redis is laid out as follows:
     /// 
-    /// - All keys relevant to the current log are prefixed with the KeyPrefix in the configuration.
+    /// - All keys relevant to the current log are prefixed with the
+    ///   <see cref="RedisVolatileEventStorageConfiguration.KeyPrefix"/> in the configuration.
     ///   - This is meant to aid epoch changes, multiple instances sharing the same Redis, etc.
-    /// - All keys have an expiry of MaximumKeyLifetime.
+    /// - All keys have an expiry of <see cref="RedisVolatileEventStorageConfiguration.MaximumKeyLifetime"/>.
     ///   - This is meant to prevent bloat in case the feature stops being used, epoch changes, etc.
     ///   
     /// - Appending does an append to the key PREFIX:LogId:LogBlockId, and sets a hash key in PREFIX:LogEntryList
     /// - Reading reads directly from PREFIX:LogId:LogBlockId
     /// - Garbage collection reads from PREFIX:LogEntryList and removes all mentioned entries
     /// </summary>
+    /// <remarks>
+    /// This class implements both <see cref="IWriteAheadEventStorage"/> and <see cref="ICheckpointRegistry"/> because
+    /// it is used as the checkpoint registry for the metadata service.
+    /// </remarks>
     internal class RedisWriteAheadEventStorage : StartupShutdownSlimBase, IWriteAheadEventStorage, ICheckpointRegistry
     {
+        private static readonly Regex GcListHashKeyRegex = new Regex(@"(?<logId>[0-9]+):(?<logBlockId>[0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         protected override Tracer Tracer { get; } = new Tracer(nameof(RedisWriteAheadEventStorage));
 
+        /// <summary>
+        /// Ownership of this class is shared between two different components, and so we need to allow multiple
+        /// startups and shutdowns.
+        /// </summary>
         public override bool AllowMultipleStartupAndShutdowns => true;
 
-        private readonly IRedisDatabaseFactory _redisDatabaseFactory;
-        private RedisDatabaseAdapter _redisDatabaseAdapter;
+        private readonly IRedisDatabaseFactory? _redisDatabaseFactory;
+        private RedisDatabaseAdapter? _redisDatabaseAdapter;
+
         private readonly RedisVolatileEventStorageConfiguration _configuration;
         private readonly IClock _clock;
 
@@ -56,19 +76,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private readonly string _checkpointRegistryKey;
 
-        public RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, IRedisDatabaseFactory redisDatabaseFactory, IClock clock = null)
+        public RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, IRedisDatabaseFactory redisDatabaseFactory, IClock? clock = null)
             : this(configuration, clock)
         {
             _redisDatabaseFactory = redisDatabaseFactory;
         }
 
-        public RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, RedisDatabaseAdapter redisDatabaseAdapter, IClock clock = null)
+        /// <remarks>
+        /// This is used only for testing
+        /// </remarks>
+        public RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, RedisDatabaseAdapter redisDatabaseAdapter, IClock? clock = null)
             : this(configuration, clock)
         {
             _redisDatabaseAdapter = redisDatabaseAdapter;
         }
 
-        private RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, IClock clock = null)
+        private RedisWriteAheadEventStorage(RedisVolatileEventStorageConfiguration configuration, IClock? clock)
         {
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
@@ -78,11 +101,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            // NOTE: _redisDatabaseFactory is only provided when running outside of tests.
             if (_redisDatabaseFactory != null)
             {
                 await _redisDatabaseFactory.StartupAsync(context).ThrowIfFailureAsync();
 
-                _redisDatabaseAdapter = await _redisDatabaseFactory.CreateAsync(context, Tracer.Name, _configuration.ConnectionString);
+                _redisDatabaseAdapter = await _redisDatabaseFactory.CreateAsync(context, Tracer.Name, _configuration.ConnectionString!);
             }
 
             return BoolResult.Success;
@@ -90,6 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            // NOTE: _redisDatabaseFactory is only provided when running outside of tests.
             if (_redisDatabaseFactory != null)
             {
                 return _redisDatabaseFactory.ShutdownAsync(context);
@@ -102,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var msg = $"Cursor=[{cursor}] Length=[{piece.Length}]";
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var batch = _redisDatabaseAdapter.CreateBatch(RedisOperation.All);
+                var batch = _redisDatabaseAdapter!.CreateBatch(RedisOperation.All);
 
                 var cursorKey = CreateCursorKey(cursor);
                 _ = batch.AddOperation(string.Empty, async batch =>
@@ -115,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                 _ = batch.AddOperation(string.Empty, batch => batch.KeyExpireAsync(cursorKey, _configuration.MaximumKeyLifetime));
 
-                await _redisDatabaseAdapter.ExecuteBatchOperationAsync(context, batch, context.Token).ThrowIfFailure();
+                await _redisDatabaseAdapter!.ExecuteBatchOperationAsync(context, batch, context.Token).ThrowIfFailure();
 
                 return BoolResult.Success;
             },
@@ -129,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var msg = $"Cursor=[{cursor}]";
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                return await _redisDatabaseAdapter.ExecuteBatchAsync(context, async batch =>
+                return await _redisDatabaseAdapter!.ExecuteBatchAsync(context, async batch =>
                 {
                     var cursorKey = CreateCursorKey(cursor);
 
@@ -155,17 +180,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public Task<BoolResult> GarbageCollectAsync(OperationContext context, BlockReference acknowledgedCursor)
         {
             var msg = $"Cursor=[{acknowledgedCursor}]";
+            var numPendingKeys = -1;
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var pendingKeys = await _redisDatabaseAdapter.ExecuteBatchAsync(
+                var pendingKeys = await _redisDatabaseAdapter!.ExecuteBatchAsync(
                     context,
                     batch => batch.AddOperation(string.Empty, batch => batch.HashKeysAsync(_gcRedisKey)),
                     RedisOperation.All);
+                numPendingKeys = pendingKeys.Length;
 
-                await _redisDatabaseAdapter.ExecuteBatchAsync(context, batch =>
+                await _redisDatabaseAdapter!.ExecuteBatchAsync(context, batch =>
                 {
                     return batch.AddOperation(string.Empty, async batch =>
                     {
+                        // NOTE: pendingKeys is always going to be small, because this method is called very
+                        // frequently, so there are never too many entries in the hash table.
                         var tasks = new List<Task>(capacity: 2 * pendingKeys.Length);
 
                         foreach (var key in pendingKeys)
@@ -196,18 +225,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             },
             traceOperationStarted: false,
             extraStartMessage: msg,
-            extraEndMessage: _ => msg);
+            extraEndMessage: _ => $"{msg} NumKeys=[{numPendingKeys}]");
         }
 
         private string CreateCursorKey(BlockReference cursor)
         {
-            // TODO: Prefix is typically done at the db level
+            // NOTE: the adapter will prepend the key prefix to every operation anyways, but that key prefix is
+            // controlled at the adapter level rather than in this component.
             return $"{_configuration.KeyPrefix}:{CreateGcListHashKey(cursor)}";
         }
 
-        private static readonly Regex GcListHashKeyRegex = new Regex(@"(?<logId>[0-9]+):(?<logBlockId>[0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        private bool TryParseGcListHashKey(string key, out BlockReference cursor)
+        internal static bool TryParseGcListHashKey(string key, out BlockReference cursor)
         {
             var match = GcListHashKeyRegex.Match(key);
             if (!match.Success)
@@ -216,10 +244,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return false;
             }
 
-            Contract.Assert(match.Groups["logId"].Success);
+            Contract.Assert(match.Groups["logId"].Success, $"Could not match logId when parsing GC List Hash Key `{key}`");
             var logId = int.Parse(match.Groups["logId"].Value);
 
-            Contract.Assert(match.Groups["logBlockId"].Success);
+            Contract.Assert(match.Groups["logBlockId"].Success, $"Could not match logBlockId when parsing GC List Hash Key `{key}`");
             var logBlockId = int.Parse(match.Groups["logBlockId"].Value);
 
             cursor = new BlockReference()
@@ -231,15 +259,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return true;
         }
 
-        private string CreateGcListHashKey(BlockReference cursor)
+        internal static string CreateGcListHashKey(BlockReference cursor)
         {
             return $"{cursor.LogId}:{cursor.LogBlockId}";
         }
 
+        /// <remarks>
+        /// This is not a record because .NET Core 3.1 does not support specifying constructors.
+        /// 
+        /// See: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-immutability?pivots=dotnet-5-0
+        /// </remarks>
         private class CheckpointRegistry
         {
-            public string CheckpointId { get; set; }
+            public string CheckpointId { get; set; } = string.Empty;
+
             public DateTime CreationTimeUtc { get; set; }
+
+            public Result<string> ToJson()
+            {
+                try
+                {
+                    return Result.Success(JsonSerializer.Serialize(this));
+                }
+                catch (Exception e)
+                {
+                    return Result.FromException<string>(e);
+                }
+            }
+
+            public static Result<CheckpointRegistry> FromJson(string json)
+            {
+                try
+                {
+                    var registry = JsonSerializer.Deserialize<CheckpointRegistry>(json);
+                    return Result.Success(registry!);
+                }
+                catch (Exception e)
+                {
+                    return Result.FromException<CheckpointRegistry>(e, $"Failed to deserialize {nameof(CheckpointRegistry)} from json string `{json}`");
+                }
+            }
         }
 
         public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
@@ -253,9 +312,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     CheckpointId = checkpointId,
                     CreationTimeUtc = _clock.UtcNow
                 };
-                var serializedRegistry = JsonSerializer.Serialize(registry);
 
-                await _redisDatabaseAdapter.ExecuteBatchAsync(
+                var serializedRegistry = registry.ToJson().ThrowIfFailure();
+
+                await _redisDatabaseAdapter!.ExecuteBatchAsync(
                     context,
                     batch => batch.AddOperation(string.Empty, batch => batch.StringSetAsync(_checkpointRegistryKey, serializedRegistry)),
                     RedisOperation.All);
@@ -270,25 +330,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var serializedRegistry = await _redisDatabaseAdapter.ExecuteBatchAsync(
+                var serializedRegistry = await _redisDatabaseAdapter!.ExecuteBatchAsync(
                     context,
                     batch => batch.AddOperation(string.Empty, batch => batch.StringGetAsync(_checkpointRegistryKey)),
                     RedisOperation.All);
 
                 if (serializedRegistry.IsNullOrEmpty)
                 {
-                    return CheckpointState.CreateUnavailable(Role.Worker, default, default);
+                    return CheckpointState.CreateUnavailable(default);
                 }
 
-                var registry = JsonSerializer.Deserialize<CheckpointRegistry>(serializedRegistry);
+                var registry = CheckpointRegistry.FromJson(serializedRegistry).ThrowIfFailure();
 
                 var checkpointState = new CheckpointState(
-                    Role.Worker,
-                    default,
+                    startSequencePoint: EventSequencePoint.Invalid,
                     registry.CheckpointId,
                     registry.CreationTimeUtc,
-                    new MachineLocation(),
-                    new MachineLocation());
+                    producer: default);
 
                 return Result.Success(checkpointState);
             });

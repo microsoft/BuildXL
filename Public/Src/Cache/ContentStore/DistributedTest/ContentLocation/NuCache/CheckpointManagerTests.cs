@@ -2,10 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.IO;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Utilities;
 using FluentAssertions;
+using System.Text.Json;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
@@ -75,6 +78,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             match.Success.Should().BeTrue();
             name.Success.Should().BeTrue();
             name.Value.Should().Be(expectedName);
+        }
+
+        [Fact]
+        public void CanJsonSerializeCheckpointState()
+        {
+            var test1 = new CheckpointState(new EventSequencePoint(42));
+            TestJsonRoundtrip(test1);
+
+            var test2 = new CheckpointState(new EventSequencePoint(42), checkpointId: "TestCheckpointId");
+            TestJsonRoundtrip(test2);
+
+            var test3 = new CheckpointState(new EventSequencePoint(42), checkpointId: "TestCheckpointId", producer: new MachineLocation("This is a machine loc"));
+            TestJsonRoundtrip(test3);
+        }
+
+        private void TestJsonRoundtrip<T>(T expected)
+        {
+            var serialized = JsonSerializer.Serialize(expected);
+            var deserialized = JsonSerializer.Deserialize(serialized, typeof(T));
+            Assert.Equal(expected, deserialized);
         }
     }
 }

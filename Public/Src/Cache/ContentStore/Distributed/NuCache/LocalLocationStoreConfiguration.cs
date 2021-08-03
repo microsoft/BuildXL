@@ -123,6 +123,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public DistributedCentralStoreConfiguration? DistributedCentralStore { get; set; } = null;
 
+        /// <nodoc />
+        public AzureBlobStorageCheckpointRegistryConfiguration? AzureBlobStorageCheckpointRegistryConfiguration { get; set; } = null;
+
         /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>

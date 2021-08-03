@@ -185,7 +185,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
 
-                if (_isCritical)
+                // Marking the operation as critical failure only when it was not a cancellation.
+                if (_isCritical && !traceableResult.IsCancelled && !traceableResult.Succeeded)
                 {
                     traceableResult.MakeCritical();
                 }
@@ -312,12 +313,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 {
                     var resultBase = new BoolResult(e);
 
-                    if (_isCritical)
+                    MarkResultIsCancelledIfNeeded(resultBase, e);
+
+                    // Marking the operation as critical failure only when it was not a cancellation.
+                    if (_isCritical && !resultBase.IsCancelled)
                     {
                         resultBase.MakeCritical();
                     }
-
-                    MarkResultIsCancelledIfNeeded(resultBase, e);
 
                     TraceResultOperationFinished(resultBase, stopwatch.Elapsed, caller!);
 
@@ -488,7 +490,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 var stopwatch = StopwatchSlim.Start();
 
                 var result = RunOperationAndConvertExceptionToError(_operation);
-
+                
                 TraceOperationFinished(result, stopwatch.Elapsed, caller!);
                 return result;
             }

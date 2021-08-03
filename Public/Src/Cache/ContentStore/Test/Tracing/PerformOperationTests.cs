@@ -274,6 +274,28 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public void FailureIsNotCriticalIfCanceled()
+        {
+            var tracer = new Tracer("MyTracer");
+            var cts = new CancellationTokenSource();
+            var context = new OperationContext(new Context(TestGlobal.Logger), cts.Token);
+            cts.Cancel();
+
+            var result = context.CreateOperation(
+                    tracer,
+                    () =>
+                    {
+                        context.Token.ThrowIfCancellationRequested();
+                        return BoolResult.Success;
+                    })
+                .WithOptions(traceOperationFinished: true, isCritical: true)
+                .Run();
+
+            result.IsCancelled.Should().BeTrue();
+            result.IsCriticalFailure.Should().BeFalse();
+        }
+
+        [Fact]
         public void TestCriticalErrorsDiagnosticTracedOnlyOnce()
         {
             var tracer = new Tracer("MyTracer");

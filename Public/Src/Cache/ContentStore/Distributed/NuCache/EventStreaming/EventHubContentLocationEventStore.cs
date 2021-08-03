@@ -211,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                         throw;
                     }
-                }, CancellationToken.None);
+                }, context.Token);
             }
 
             return BoolResult.Success;
@@ -305,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return sender?.ToString();
         }
 
-        /// <inheritdoc />
+        /// <nodoc />
         protected virtual async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
         {
             // When shutdown begins, we won't be creating any more checkpoints. This means that all processing that

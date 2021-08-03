@@ -265,13 +265,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected virtual void Publish(OperationContext context, ContentLocationEventData eventData)
         {
-            EventNagleQueue?.Enqueue((context, eventData));
+            if (!ShutdownStarted)
+            {
+                // Not sending the messages to the queue if the shutdown operation was initiated.
+                EventNagleQueue?.Enqueue((context, eventData));
+            }
         }
 
         /// <nodoc />
         protected Task<BoolResult> SendEventsAsync(OperationContext context, ContentLocationEventData[] events)
         {
             Tracer.Info(context, $"{Tracer.Name}: Sending {events.Length} event(s) to event hub.");
+            using var operationContext = TrackShutdown(context, context.Token);
+            context = operationContext.Context;
 
             var counters = new CounterCollection<ContentLocationEventStoreCounters>();
 
@@ -307,7 +313,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                     return BoolResult.Success;
                 },
-                counter: counters[SendEvents]);
+                counter: counters[SendEvents],
+                isCritical: true);
 
             static void updateCountersWith(CounterCollection<ContentLocationEventStoreCounters> localCounters, ContentLocationEventData[] sentEvents)
             {

@@ -125,9 +125,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <inheritdoc />
-        public Task SendAsync(OperationContext context, EventData eventData)
+        public async Task SendAsync(OperationContext context, EventData eventData)
         {
-            return _partitionSender.SendAsync(eventData);
+            context.Token.ThrowIfCancellationRequested();
+            try
+            {
+                await _partitionSender.SendAsync(eventData);
+            }
+            catch (InvalidOperationException) when(context.Token.IsCancellationRequested || ShutdownStarted)
+            {
+                // We started shutting down the instance. The operation may fail in this case.
+                // Don't re-throw any errors. All the state changes that were not delivered would be resent during reconciliation process.
+            }
         }
 
         private EventPosition GetInitialOffset(OperationContext context, EventSequencePoint sequencePoint)

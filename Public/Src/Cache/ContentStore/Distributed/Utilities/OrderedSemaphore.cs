@@ -70,7 +70,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         {
             if (_order == SemaphoreOrder.NonDeterministic)
             {
-                return await _semaphore.WaitAsync(timeout, token);
+                // Forcing the same exception to be propagated for non-deterministic case as well.
+                // SemaphoreSlim.WaitAsync throws OperationCanceledException but this method
+                // should throw TaskCanceledException instead.
+                try
+                {
+                    return await _semaphore.WaitAsync(timeout, token);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw new TaskCanceledException();
+                }
             }
 
             var item = TaskSourceSlim.Create<bool>();

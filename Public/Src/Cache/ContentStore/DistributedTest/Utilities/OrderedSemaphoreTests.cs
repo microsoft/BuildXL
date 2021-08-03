@@ -181,14 +181,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Utilities
 
             // Queue tasks which should be blocked by other running tasks
             var cts = new CancellationTokenSource(delay: TimeSpan.FromMilliseconds(100));
-            var blockedTasks = Enumerable.Range(0, concurrencyLimit).Select(async num => await semaphore.WaitAsync(Timeout.InfiniteTimeSpan, cts.Token));
+            var blockedTasks = Enumerable.Range(0, concurrencyLimit).Select(async num => await semaphore.WaitAsync(Timeout.InfiniteTimeSpan, cts.Token)).ToArray();
 
             await Task.Delay(TimeSpan.FromMilliseconds(1));
 
             // Should all be blocked
             blockedTasks.Select(t => t.IsCompleted.Should().BeFalse()).ToArray();
 
-            blockedTasks.Select(t => Assert.ThrowsAsync<TaskCanceledException>(() => t)).ToArray();
+            await Task.WhenAll(blockedTasks.Select(t => Assert.ThrowsAsync<TaskCanceledException>(() => t)).ToArray());
         }
     }
 }

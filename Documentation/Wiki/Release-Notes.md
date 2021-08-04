@@ -1,6 +1,21 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210723.4  (Release [113559](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113559)) Released 7/28/2021
+-	Address race condition around remote pip timeout
+-	Improvements for resource tracking for linux and macOS sandboxes
+-	BuildXL support for honoring externally configured build session timeout
+-	Support for building BuildXL repo with updated MSVC
+-	Fix bug that caused suboptimal distribution/parallelization of IPC pips
+-	Engine side changes to support encrypting RPC traffic in distributed builds
+
+# 0.1.0-20210716.3.3  (Release [113341](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113341)) Released 7/21/2021
+-	Performance improvements around logging.
+-	Fix failure when building BuildXL with missing VisualCppTools NuGet package
+-	Allow accessing mount information during config evaluation 
+-	Store the hash->buildManifestHash mapping in historic metadata cache
+-	Disable remote pip timeouts
+
 # 0.1.0-20210709.1 (Release [112441](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=112441)) Released 7/14/2021
 - [LinuxSandbox] Compile libDetours against glibc 2.17
 - [Guardian] Add updates for compliance build

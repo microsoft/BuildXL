@@ -133,7 +133,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash) => _local.StreamContentAsync(context, contentHash);
 
         /// <inheritdoc />
-        public Task<Result<long>> RemoveFromTrackerAsync(Context context) => _local.RemoveFromTrackerAsync(context);
+        public Task<BoolResult> RemoveFromTrackerAsync(Context context) => _local.RemoveFromTrackerAsync(context);
 
         /// <inheritdoc />
         public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token)

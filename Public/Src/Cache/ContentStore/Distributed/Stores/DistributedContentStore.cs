@@ -445,19 +445,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Remove local location from the content tracker.
         /// </summary>
-        public async Task<Result<long>> RemoveFromTrackerAsync(Context context)
+        public async Task<BoolResult> RemoveFromTrackerAsync(Context context)
         {
             if (_settings.EnableRepairHandling)
             {
                 var result = await ContentLocationStore.InvalidateLocalMachineAsync(context, CancellationToken.None);
                 if (!result)
                 {
-                    return new Result<long>(result);
+                    return result;
                 }
             }
 
-            // New logic doesn't have the content removed count
-            return Result.Success((long)0);
+            return BoolResult.Success;
         }
 
         /// <summary>

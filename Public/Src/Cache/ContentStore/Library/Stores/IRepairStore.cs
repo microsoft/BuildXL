@@ -14,6 +14,9 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     ///     Interface for repair handling.
     /// </summary>
+    /// <remarks>
+    /// The delegate is not used and still in the code for backward compatibility reasons.
+    /// </remarks>
     public delegate Task<Result<long>> TrimBulkAsync(Context context, IEnumerable<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
 
     /// <summary>
@@ -22,8 +25,8 @@ namespace BuildXL.Cache.ContentStore.Stores
     public interface IRepairStore
     {
         /// <summary>
-        ///     Removes local content location for a set of content hashes. Returns number of hashes removed.
+        ///     Invalidates all content for the machine in the content location store
         /// </summary>
-        Task<Result<long>> RemoveFromTrackerAsync(Context context);
+        Task<BoolResult> RemoveFromTrackerAsync(Context context);
     }
 }

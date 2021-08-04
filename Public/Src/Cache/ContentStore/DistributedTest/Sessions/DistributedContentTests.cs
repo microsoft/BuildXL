@@ -525,43 +525,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 placeResult.Code.Should().Be(PlaceFileResult.ResultCode.Error, placeResult.ToString());
             });
         }
-
-        [Fact(Skip = "Fails without old redis")]
-        public async Task RemoveFromTrackerWipesLocalLocation()
-        {
-            var contentHash = ContentHash.Random();
-            var loggingContext = new Context(Logger);
-
-            await RunTestAsync(
-                1,
-                async context =>
-                {
-                    var session = context.GetSession(0);
-                    var store = (IRepairStore)context.Stores[0];
-
-                    // Add random file to empty cache and update the content tracker
-                    var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, 0x40, Token).ShouldBeSuccess();
-                    contentHash = putResult.ContentHash;
-
-                    // Wipe all hashes registered at the local machine from the content tracker
-                    var removeFromTrackerResult = await store.RemoveFromTrackerAsync(context);
-                    removeFromTrackerResult.ShouldBeSuccess();
-                });
-
-            await RunTestAsync(
-                1,
-                async context =>
-                {
-                    var session = context.GetSession(0);
-                    var contentLocationStore = context.GetLocationStore(0);
-
-                    // Because the file is unique, trimming should remove the hash from the content tracker
-                    var getResult = await contentLocationStore.GetBulkAsync(context, new[] { contentHash }, CancellationToken.None, UrgencyHint.Nominal);
-                    getResult.ShouldBeSuccess();
-                    Assert.Null(getResult.ContentHashesInfo.First().Locations);
-                });
-        }
-
+        
         [Fact]
         public Task SomeLocalContentStoresCorrupt()
         {

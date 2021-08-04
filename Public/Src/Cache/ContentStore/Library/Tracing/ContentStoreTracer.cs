@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _removeFromTrackerCallCounter.Started();
         }
 
-        public void RemoveFromTrackerStop(Context context, Result<long> result)
+        public void RemoveFromTrackerStop(Context context, BoolResult result)
         {
             if (context.IsEnabled)
             {

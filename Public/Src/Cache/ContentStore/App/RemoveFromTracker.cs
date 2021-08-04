@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.App
                 }
                 else
                 {
-                    _logger.Debug($"Repair handling succeeded. Removed {removeFromTrackerResult.Value} hashes from the content tracker.");
+                    _logger.Debug($"Repair handling succeeded.");
                 }
 
                 var shutdownResult = rpcClient.ShutdownAsync(context).Result;

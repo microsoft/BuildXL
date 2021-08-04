@@ -184,7 +184,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public async Task<Result<long>> RemoveFromTrackerAsync(Context context)
+        public async Task<BoolResult> RemoveFromTrackerAsync(Context context)
         {
             using (var operationContext = TrackShutdown(context, CancellationToken.None))
             {
@@ -192,7 +192,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     Tracer,
                     async () =>
                     {
-                        var removeTaskByStore = new Dictionary<string, Task<Result<long>>>();
+                        var removeTaskByStore = new Dictionary<string, Task<BoolResult>>();
 
                         foreach (var kvp in DrivesWithContentStore)
                         {
@@ -205,15 +205,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                         await Task.WhenAll(removeTaskByStore.Values);
 
                         var sb = new StringBuilder();
-                        long filesTrimmed = 0;
                         foreach (var kvp in removeTaskByStore)
                         {
                             var removeFromTrackerResult = await kvp.Value;
-                            if (removeFromTrackerResult.Succeeded)
-                            {
-                                filesTrimmed += removeFromTrackerResult.Value;
-                            }
-                            else
+                            if (!removeFromTrackerResult.Succeeded)
                             {
                                 sb.Concat($"{kvp.Key} repair handling failed, error=[{removeFromTrackerResult}]", "; ");
                             }
@@ -221,11 +216,11 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                         if (sb.Length > 0)
                         {
-                            return new Result<long>(sb.ToString());
+                            return new BoolResult(sb.ToString());
                         }
                         else
                         {
-                            return new Result<long>(filesTrimmed);
+                            return BoolResult.Success;
                         }
                     });
             }

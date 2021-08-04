@@ -184,7 +184,7 @@ message RemoveFromTrackerRequest {
 
 message RemoveFromTrackerResponse {
     ResponseHeader Header = 1;
-    int64 FilesEvicted = 2;
+    int64 FilesEvicted = 2; // Not used anymore. Left for backward compat reasons.
 }
 
 // CopyFile

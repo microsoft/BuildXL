@@ -235,14 +235,13 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<Result<long>> RemoveFromTrackerAsync(Context context)
+        public Task<BoolResult> RemoveFromTrackerAsync(Context context)
         {
             return RemoveFromTrackerCall<ContentStoreTracer>.RunAsync(Tracer, new OperationContext(context), async () =>
             {
-                var removeTaskByStore = new Dictionary<string, Task<Result<long>>>();
+                var removeTaskByStore = new Dictionary<string, Task<BoolResult>>();
 
-                var store1 = ContentStore1 as IRepairStore;
-                if (store1 != null)
+                if (ContentStore1 is IRepairStore store1)
                 {
                     removeTaskByStore.Add(NameOfContentStore1, store1.RemoveFromTrackerAsync(context));
                 }
@@ -251,8 +250,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     Tracer.Debug(context, $"Repair handling not enabled for {NameOfContentStore1}.");
                 }
 
-                var store2 = ContentStore2 as IRepairStore;
-                if (store2 != null)
+                if (ContentStore2 is IRepairStore store2)
                 {
                     removeTaskByStore.Add(NameOfContentStore2, store2.RemoveFromTrackerAsync(context));
                 }
@@ -264,15 +262,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await Task.WhenAll(removeTaskByStore.Values);
 
                 var sb = new StringBuilder();
-                long filesTrimmed = 0;
                 foreach (var kvp in removeTaskByStore)
                 {
                     var removeTrackerResult = await kvp.Value;
-                    if (removeTrackerResult.Succeeded)
-                    {
-                        filesTrimmed += removeTrackerResult.Value;
-                    }
-                    else
+                    if (!removeTrackerResult.Succeeded)
                     {
                         sb.Concat($"{kvp.Key} repair handling failed, error=[{removeTrackerResult}]", "; ");
                     }
@@ -280,11 +273,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (sb.Length > 0)
                 {
-                    return new Result<long>(sb.ToString());
+                    return new BoolResult(sb.ToString());
                 }
                 else
                 {
-                    return new Result<long>(filesTrimmed);
+                    return BoolResult.Success;
                 }
             });
         }

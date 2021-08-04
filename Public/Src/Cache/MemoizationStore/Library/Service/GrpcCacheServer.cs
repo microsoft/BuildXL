@@ -54,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             public ISessionReference<ICacheSession>? GetSession(int sessionId) => _inner.GetSession(sessionId);
             public Task<Result<CounterSet>> GetStatsAsync(OperationContext context) => _inner.GetStatsAsync(context);
             public Task ReleaseSessionAsync(OperationContext context, int sessionId) => _inner.ReleaseSessionAsync(context, sessionId);
-            public Task<Result<long>> RemoveFromTrackerAsync(OperationContext context) => _inner.RemoveFromTrackerAsync(context);
+            public Task<BoolResult> RemoveFromTrackerAsync(OperationContext context) => _inner.RemoveFromTrackerAsync(context);
         }
 
         /// <inheritdoc />

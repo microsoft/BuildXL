@@ -76,9 +76,9 @@ namespace BuildXL.Cache.ContentStore.Service
         Task<Result<CounterSet>> GetStatsAsync(OperationContext context);
 
         /// <summary>
-        /// Removes local content locations and returns the number of hashes removed.
+        /// Invalidates all content for the machine in the content location store.
         /// </summary>
-        Task<Result<long>> RemoveFromTrackerAsync(OperationContext context);
+        Task<BoolResult> RemoveFromTrackerAsync(OperationContext context);
     }
 
     /// <nodoc />

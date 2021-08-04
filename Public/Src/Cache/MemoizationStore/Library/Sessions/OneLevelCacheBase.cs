@@ -308,14 +308,14 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task<Result<long>> RemoveFromTrackerAsync(Context context)
+        public async Task<BoolResult> RemoveFromTrackerAsync(Context context)
         {
             if (ContentStore is IRepairStore innerRepairStore)
             {
                 return await innerRepairStore.RemoveFromTrackerAsync(context);
             }
 
-            return new Result<long>($"{ContentStore} does not implement {nameof(IRepairStore)} in {nameof(OneLevelCache)}.");
+            return new BoolResult($"{ContentStore} does not implement {nameof(IRepairStore)} in {nameof(OneLevelCache)}.");
         }
 
         /// <inheritdoc />

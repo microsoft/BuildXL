@@ -177,21 +177,19 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <nodoc />
         protected abstract CreateSessionResult<TSession> CreateSession(TStore store, OperationContext context, TSessionData sessionData);
 
-        private async Task<Result<long>> RemoveFromTrackerAsync(TStore store, OperationContext context, string storeName)
+        private async Task<BoolResult> RemoveFromTrackerAsync(TStore store, OperationContext context, string storeName)
         {
             if (store is IRepairStore repairStore)
             {
                 var result = await repairStore.RemoveFromTrackerAsync(context);
                 if (!result)
                 {
-                    return Result.FromError<long>(result);
+                    return result;
                 }
-
-                return Result.Success(result.Value);
             }
 
             Logger.Debug($"Repair handling not enabled for {storeName}'s content store.");
-            return Result.Success(0L);
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />
@@ -214,21 +212,18 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        async Task<Result<long>> ISessionHandler<TSession, TSessionData>.RemoveFromTrackerAsync(OperationContext context)
+        public async Task<BoolResult> RemoveFromTrackerAsync(OperationContext context)
         {
-            long filesEvicted = 0;
             foreach (var (name, store) in StoresByName)
             {
-                var evictedResult = await RemoveFromTrackerAsync(store, context, name);
-                if (!evictedResult)
+                var result = await RemoveFromTrackerAsync(store, context, name);
+                if (!result)
                 {
-                    return evictedResult;
+                    return result;
                 }
-
-                filesEvicted += evictedResult.Value;
             }
 
-            return Result.Success(filesEvicted);
+            return BoolResult.Success;
         }
 
         private async Task<Result<AbsolutePath>> CreateSessionTempDirectoryAsync(OperationContext context, string cacheName, int sessionId)

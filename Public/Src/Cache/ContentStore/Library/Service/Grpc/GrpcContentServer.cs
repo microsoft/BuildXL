@@ -275,12 +275,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 };
             }
 
-            long filesEvicted = removeFromTrackerResult.Value;
-
             return new RemoveFromTrackerResponse
             {
                 Header = ResponseHeader.Success(startTime),
-                FilesEvicted = filesEvicted
+                FilesEvicted = 0
             };
         }
 

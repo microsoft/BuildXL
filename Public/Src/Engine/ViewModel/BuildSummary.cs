@@ -15,14 +15,16 @@ namespace BuildXL.ViewModel
     /// </summary>
     /// <remarks>
     /// This class is only expected to be instantiated when the users passes /ado on the commandline
-    /// to enable Azure DevOps optimized UI
+    /// to enable Azure DevOps optimized UI.
     /// </remarks>
     public class BuildSummary
     {
         /// <summary>
         /// The path where to store the summary
         /// </summary>
-        private string m_filePath;
+        private readonly string m_filePath;
+        private readonly List<BuildSummaryPipDiagnostic> m_pipErrors = new();
+        private bool m_isPipErrorsTruncated;
 
         /// <summary>
         /// This is a model of the tree rendering of the perf regions
@@ -36,7 +38,7 @@ namespace BuildXL.ViewModel
         public CacheSummary CacheSummary { get; } = new CacheSummary();
 
         /// <nodoc />
-        public List<BuildSummaryPipDiagnostic> PipErrors { get; } = new List<BuildSummaryPipDiagnostic>();
+        public IReadOnlyCollection<BuildSummaryPipDiagnostic> PipErrors => m_pipErrors;
 
         /// <nodoc />
         public BuildSummary(string filePath)
@@ -75,23 +77,48 @@ namespace BuildXL.ViewModel
 
                 writer.EndTable();
 
-                if (PipErrors.Count >0)
+                if (PipErrors.Count > 0)
                 {
                     writer.WriteHeader("Pip Errors");
+
+                    if (m_isPipErrorsTruncated)
+                    {
+                        writer.StartDetails($"Note: The list is collapsed for UI performance reasons. Displaying the first {m_pipErrors.Count} errors.");
+                    }
+                    else
+                    {
+                        writer.StartDetails("Note: The list is collapsed for UI performance reasons.");
+                    }
+
                     foreach (var error in PipErrors)
                     {
                         writer.WriteLineRaw("");
                         error.RenderMarkDown(writer);
                     }
+
+                    writer.EndDetails();
                 }
             }
 
             return m_filePath;
         }
-        
-        private string ExtractDuration(TimeSpan timespan)
+
+        /// <summary>
+        /// Adds a pip error to the build summary if it contains fewer than specified number of errors.
+        /// </summary>
+        /// <remarks>
+        /// The method is not thread-safe.
+        /// </remarks>
+        public void AddPipError(BuildSummaryPipDiagnostic pipError, int maxErrorsToInclude)
         {
-            return timespan.TotalMilliseconds.ToString(CultureInfo.InvariantCulture) + "ms";
+            if (m_pipErrors.Count <= maxErrorsToInclude)
+            {
+                m_pipErrors.Add(pipError);
+            }
+            else
+            {
+                m_isPipErrorsTruncated = true;
+            }
         }
     }
 }

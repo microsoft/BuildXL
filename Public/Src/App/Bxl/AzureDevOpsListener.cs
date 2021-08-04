@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Tracing;
@@ -20,8 +19,8 @@ using JetBrains.Annotations;
 namespace BuildXL
 {
     /// <summary>
-    /// This event listener should only be hooked up when AzureDevOps optimzied UI is requested by
-    /// the user via the /ado commandline flag.
+    /// This event listener should only be hooked up when AzureDevOps optimized UI is requested by
+    /// the user via the /ado command-line flag.
     /// </summary>
     /// <remarks>
     /// Capturing the information for the build summary in azure devops is best done in the code
@@ -32,21 +31,20 @@ namespace BuildXL
     /// </remarks>
     public sealed class AzureDevOpsListener : FormattingEventListener
     {
+        /// <nodoc />
+        public const int MaxErrorsToIncludeInSummary = 50;
 
         /// <summary>
         /// The maximum number of AzureDevOps issues to log. Builds with too many issues can cause the UI to bog down.
         /// </summary>
-        public int MaxIssuesToLog = 500;
-
+        private readonly int m_maxIssuesToLog;
         private readonly IConsole m_console;
+        private readonly BuildViewModel m_buildViewModel;
 
         /// <summary>
         /// The last reported percentage. To avoid double reporting the same percentage over and over
         /// </summary>
         private int m_lastReportedProgress = -1;
-
-        private readonly BuildViewModel m_buildViewModel;
-
         private int m_warningCount;
         private int m_errorCount;
 
@@ -57,7 +55,8 @@ namespace BuildXL
             DateTime baseTime,
             BuildViewModel buildViewModel,
             bool useCustomPipDescription,
-            [CanBeNull] WarningMapper warningMapper)
+            [CanBeNull] WarningMapper warningMapper,
+            int maxIssuesToLog = 100)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.RequiresNotNull(console);
@@ -65,8 +64,8 @@ namespace BuildXL
 
             m_console = console;
             m_buildViewModel = buildViewModel;
+            m_maxIssuesToLog = maxIssuesToLog;
         }
-
 
         /// <inheritdoc />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly")]
@@ -83,30 +82,30 @@ namespace BuildXL
             {
                 case (int)SharedLogEventId.PipStatus:
                 case (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable:
+                {
+                    var payload = eventData.Payload;
+
+                    var executing = (long)payload[10];
+                    var succeeded = (long)payload[11];
+                    var failed = (long)payload[12];
+                    var skipped = (long)payload[13];
+                    var pending = (long)payload[14];
+                    var waiting = (long)payload[15];
+
+                    var done = succeeded + failed + skipped;
+                    var total = done + pending + waiting + executing;
+
+                    var processPercent = (100.0 * done) / (total * 1.0);
+                    var currentProgress = Convert.ToInt32(Math.Floor(processPercent));
+
+                    if (currentProgress > m_lastReportedProgress)
                     {
-                        var payload = eventData.Payload;
-
-                        var executing = (long)payload[10];
-                        var succeeded = (long)payload[11];
-                        var failed = (long)payload[12];
-                        var skipped = (long)payload[13];
-                        var pending = (long)payload[14];
-                        var waiting = (long)payload[15];
-
-                        var done = succeeded + failed + skipped;
-                        var total = done + pending + waiting + executing;
-
-                        var processPercent = (100.0 * done) / (total * 1.0);
-                        var currentProgress = Convert.ToInt32(Math.Floor(processPercent));
-
-                        if (currentProgress > m_lastReportedProgress)
-                        {
-                            m_lastReportedProgress = currentProgress;
-                            m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
-                        }
-
-                        break;
+                        m_lastReportedProgress = currentProgress;
+                        m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
                     }
+
+                    break;
+                }
             }
         }
 
@@ -121,19 +120,19 @@ namespace BuildXL
             switch (eventData.EventId)
             {
                 case (int)SharedLogEventId.CacheMissAnalysis:
-                    {
-                        var payload = eventData.Payload;
+                {
+                    var payload = eventData.Payload;
 
-                        m_buildViewModel.BuildSummary.CacheSummary.Entries.Add(
-                            new CacheMissSummaryEntry
-                            {
-                                PipDescription = (string)payload[0],
-                                Reason = (string)payload[1],
-                                FromCacheLookup = (bool)payload[2],
-                            }
-                        );
-                    }
-                    break;
+                    m_buildViewModel.BuildSummary.CacheSummary.Entries.Add(
+                        new CacheMissSummaryEntry
+                        {
+                            PipDescription = (string)payload[0],
+                            Reason = (string)payload[1],
+                            FromCacheLookup = (bool)payload[2],
+                        }
+                    );
+                }
+                break;
                 case (int)SharedLogEventId.CacheMissAnalysisBatchResults:
                 {
                     m_buildViewModel.BuildSummary.CacheSummary.BatchEntries.Add((string)eventData.Payload[0]);
@@ -173,18 +172,18 @@ namespace BuildXL
 
             void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields)
             {
-                m_buildViewModel.BuildSummary.PipErrors.Add(new BuildSummaryPipDiagnostic
+                m_buildViewModel.BuildSummary.AddPipError(new BuildSummaryPipDiagnostic
                 {
-                    SemiStablePipId = $"Pip{(pipProcessErrorEventFields.PipSemiStableHash):X16}",
+                    SemiStablePipId = Pip.FormatSemiStableHash(pipProcessErrorEventFields.PipSemiStableHash),
                     PipDescription = pipProcessErrorEventFields.PipDescription,
                     SpecPath = pipProcessErrorEventFields.PipSpecPath,
                     ToolName = pipProcessErrorEventFields.PipExe,
                     ExitCode = pipProcessErrorEventFields.ExitCode,
                     Output = pipProcessErrorEventFields.OutputToLog,
-                });
+                },
+                MaxErrorsToIncludeInSummary);
             }
         }
-
 
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
@@ -267,12 +266,12 @@ namespace BuildXL
 
         private void LogIssueWithLimit(ref int counter, EventWrittenEventArgs eventData, string level)
         {
-            int errorCount = Interlocked.Increment(ref m_errorCount);
-            if (errorCount < MaxIssuesToLog + 1)
+            int errorCount = Interlocked.Increment(ref counter);
+            if (errorCount < m_maxIssuesToLog + 1)
             {
                 LogAzureDevOpsIssue(eventData, level);
             }
-            else if (errorCount == MaxIssuesToLog + 1)
+            else if (errorCount == m_maxIssuesToLog + 1)
             {
                 m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.logIssue type={level};] Future messages of this level are truncated");
             }

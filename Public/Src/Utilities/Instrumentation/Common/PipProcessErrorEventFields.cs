@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 
 #nullable disable
 
@@ -13,59 +12,37 @@ namespace BuildXL.Utilities.Instrumentation.Common
     /// </summary>
     public struct PipProcessErrorEventFields
     {
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public long PipSemiStableHash { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string PipDescription { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string PipSpecPath { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string PipWorkingDirectory { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string PipExe { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string OutputToLog { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string MessageAboutPathsToLog { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string PathsToLog { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public int ExitCode { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string OptionalMessage { get; }
 
-        /// <summary>
-        /// No doc
-        /// </summary>
+        /// <nodoc />
         public string ShortPipDescription { get; }
 
         /// <summary>
@@ -73,7 +50,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// </summary>
         public PipProcessErrorEventFields(ReadOnlyCollection<object> eventPayload, bool forwardedPayload)
         {
-            // When the PipProcessErrorEvent is forwarded from worker it is ecapsulated in a WorkerForwardedEvent, which has 4 other fields in front of the real pipProcessEvent.
+            // When the PipProcessErrorEvent is forwarded from worker it is encapsulated in a WorkerForwardedEvent, which has 4 other fields in front of the real pipProcessEvent.
             // So the actual event starts at index 4.
 
             var startIndex = forwardedPayload ? 4 : 0;
@@ -102,12 +79,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// Construct PipProcessErrorEventFields
         /// </summary>
         public PipProcessErrorEventFields(
-            long pipSemiStableHash, 
-            string pipDescription, 
-            string pipSpecPath, 
-            string pipWorkingDirectory, 
-            string pipExe, 
-            string outputToLog, 
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipSpecPath,
+            string pipWorkingDirectory,
+            string pipExe,
+            string outputToLog,
             string messageAboutPathsToLog,
             string pathsToLog,
             int exitCode,

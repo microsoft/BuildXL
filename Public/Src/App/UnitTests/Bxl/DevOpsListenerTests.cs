@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using BuildXL;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -51,10 +52,9 @@ namespace Test.BuildXL
             };
 
             using (var testElements = PipProcessErrorTestElement.Create(this))
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null, maxIssuesToLog: 1))
             {
                 listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
-                listener.MaxIssuesToLog = 1;
 
                 // First log should go through as normal
                 testElements.LogPipProcessError();
@@ -99,7 +99,7 @@ namespace Test.BuildXL
                     PipProcessErrorEvent = testElements.PipProcessError,
                 });
                 testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
-                XAssert.IsTrue(testElements.ViewModel.BuildSummary.PipErrors.Exists(e => e.SemiStablePipId == $"Pip{(pipSemiStableHash):X16}"));
+                XAssert.IsTrue(testElements.ViewModel.BuildSummary.PipErrors.Any(e => e.SemiStablePipId == $"Pip{(pipSemiStableHash):X16}"));
                 XAssert.AreEqual(m_eventFields, testElements.PipProcessError, "You may edit the PipProcessError and/or WorkerForwardedEvent fields, and/or struct PipProcessErrorEventFields.");
                 AssertErrorEventLogged(SharedLogEventId.DistributionWorkerForwardedError);
             }

@@ -46,7 +46,9 @@ namespace BuildXL.ViewModel
 
             if (!string.IsNullOrEmpty(Output))
             {
+                writer.StartDetails("Pip Output");
                 writer.WritePre(Output);
+                writer.EndDetails();
             }
         }
 

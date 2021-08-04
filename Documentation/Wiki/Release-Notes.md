@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210730.1.1  (Release [114273](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114273)) Released 8/4/2021
+- [Guardian] Case insensitive directory name comparisons on Windows
+- [IPC/Service pips] Keep track of assigned ports (to avoid collisions)
+- [JavaScript] Use forwards slashes when passing paths to node.exe
+- [Build Manifest] Additional checks and guards against expected exceptions
+- [FileConsumptionAnalyzer] Include file hashes
+- A few other scheduler fixes/optimizations
+
 # 0.1.0-20210723.4  (Release [113559](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=113559)) Released 7/28/2021
 -	Address race condition around remote pip timeout
 -	Improvements for resource tracking for linux and macOS sandboxes

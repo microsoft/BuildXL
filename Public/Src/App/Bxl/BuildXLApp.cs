@@ -50,6 +50,7 @@ using BuildXL.Utilities.CrashReporting;
 
 using static BuildXL.Utilities.FormattableStringEx;
 using System.Runtime.InteropServices;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL
 {
@@ -159,7 +160,9 @@ namespace BuildXL
         // Cancellation request handling.
         private readonly CancellationTokenSource m_cancellationSource = new CancellationTokenSource();
         private int m_cancellationAlreadyAttempted = 0;
-        private const int EarlyCbTimeoutMins = 5; // Start Termination 5 mins before CB timeout gets triggered
+        private const int MinEarlyCbTimeoutMins = 5; // Start Termination 5 mins before CB timeout gets triggered
+        private const int MaxEarlyCbTimeoutMins = 30; // The Maximum time allowed for Early timeout
+        private const int EarlyCbTimeoutPercentage = 2; // Early Termination set to 2% of remaining time before CB timeout gets triggered
         private LoggingContext m_appLoggingContext;
 
         private BuildViewModel m_buildViewModel;
@@ -2160,23 +2163,7 @@ namespace BuildXL
             }
 
             // Ensure BuildXL terminates before CloudBuild Timeout
-            if (EngineEnvironmentSettings.CbUtcTimeoutTicks.Value != null)
-            {
-                try
-                {
-                    long cbTimeoutTicks = EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value - DateTime.UtcNow.AddMinutes(EarlyCbTimeoutMins).Ticks;
-                    int cbTimeoutMs = Convert.ToInt32(cbTimeoutTicks / TimeSpan.TicksPerMillisecond);
-                    CbTimeoutCleanExitAsync(cbTimeoutMs);
-                }
-                catch (OverflowException)
-                {
-                    // Log warning and ignore invalid timeout info
-                    Logger.Log.CbTimeoutInvalid(
-                        m_appLoggingContext,
-                        DateTime.UtcNow.Ticks.ToString(),
-                        EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value.ToString());
-                }
-            }
+            SetCbTimeoutCleanExit();
 
             if (configuration.Export.SnapshotFile.IsValid && configuration.Export.SnapshotMode != SnapshotMode.None)
             {
@@ -2576,21 +2563,49 @@ namespace BuildXL
             m_console.WriteOutputLine(MessageLevel.ErrorNoColor, string.Format(CultureInfo.InvariantCulture, format, args));
         }
 
-#pragma warning disable AsyncFixer03 // Fire-and-forget async-void methods or delegates
-        private async void CbTimeoutCleanExitAsync(int msUntilTimeout)
-#pragma warning restore AsyncFixer03 // Fire-and-forget async-void methods or delegates
+        private void SetCbTimeoutCleanExit()
         {
-            if (msUntilTimeout <= 0)
+            if (EngineEnvironmentSettings.CbUtcTimeoutTicks.Value != null)
             {
-                Logger.Log.CbTimeoutTooLow(m_appLoggingContext, EarlyCbTimeoutMins);
+                TimeSpan timeRemaining = new TimeSpan(EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value).Subtract(new TimeSpan(DateTime.UtcNow.Ticks));
+                int calculatedEarlyTimeout = (int)Math.Ceiling(timeRemaining.TotalMinutes * EarlyCbTimeoutPercentage / 100.0);
+                int earlyTimeoutMins = Math.Clamp(calculatedEarlyTimeout, MinEarlyCbTimeoutMins, MaxEarlyCbTimeoutMins);
+
+                Logger.Log.CbTimeoutInfo(m_appLoggingContext, earlyTimeoutMins);
+
+                CbTimeoutCleanExitAsync(earlyTimeoutMins).Forget();
+            }
+        }
+
+        private async Task CbTimeoutCleanExitAsync(int earlyCbTimeoutMins)
+        {
+            if (EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value <= DateTime.UtcNow.Ticks)
+            {
+                // Timeout time specified by CB has already passed
+                Logger.Log.CbTimeoutTooLow(m_appLoggingContext, earlyCbTimeoutMins);
                 m_cancellationSource.Cancel();
                 return;
             }
 
-            await Task.Delay(msUntilTimeout);
-            Logger.Log.CbTimeoutReached(m_appLoggingContext, EarlyCbTimeoutMins, 
-                Convert.ToInt32(TimeSpan.FromMilliseconds(msUntilTimeout).TotalMinutes));
-            m_cancellationSource.Cancel();
+            try
+            {
+                long cbTimeoutTicks = EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value - DateTime.UtcNow.AddMinutes(earlyCbTimeoutMins).Ticks;
+                int msUntilTimeout = Convert.ToInt32(cbTimeoutTicks / TimeSpan.TicksPerMillisecond);
+                await Task.Delay(msUntilTimeout);
+                Logger.Log.CbTimeoutReached(
+                    m_appLoggingContext,
+                    earlyCbTimeoutMins,
+                    Convert.ToInt32(TimeSpan.FromMilliseconds(msUntilTimeout).TotalMinutes));
+                m_cancellationSource.Cancel();
+            }
+            catch (OverflowException)
+            {
+                // Log warning and ignore invalid timeout info
+                Logger.Log.CbTimeoutInvalid(
+                    m_appLoggingContext,
+                    DateTime.UtcNow.Ticks.ToString(),
+                    EngineEnvironmentSettings.CbUtcTimeoutTicks.Value.Value.ToString());
+            }
         }
     }
 

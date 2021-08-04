@@ -67,5 +67,6 @@ namespace BuildXL.App.Tracing
         CbTimeoutReached = 15001,
         CbTimeoutTooLow = 15002,
         CbTimeoutInvalid = 15003,
+        CbTimeoutInfo = 15004,
     }
 }

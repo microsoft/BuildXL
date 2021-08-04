@@ -96,10 +96,18 @@ namespace ContentStoreTest.Service
 
             var interruptorTask = manager.RunInterrupterServiceAsync(context, InterrupterServiceId, InterruptableServiceId, async token =>
             {
-                interruptableServiceTask.IsCompleted.Should().BeTrue();
-                var interruptableServiceResult = await interruptableServiceTask;
-                interruptableServiceResult.Should().Be(ServiceResult.Cancelled, "Service should be completed due to cancellation caused by interrupter");
-                interruptorStart.SetResult(Unit.Void);
+                try
+                {
+                    // It is possible that 'interruptableServiceTask' is not done yet just because of a race condition.
+                    var interruptableServiceResult = await interruptableServiceTask.WithTimeoutAsync(TimeSpan.FromSeconds(10));
+                    interruptableServiceResult.Should().Be(ServiceResult.Cancelled, "Service should be completed due to cancellation caused by interrupter");
+                    interruptorStart.SetResult(Unit.Void);
+                }
+                catch (Exception e)
+                {
+                    // If one of the assertions in the try block will fail, we should fail the task as well to avoid the test hang.
+                    interruptorStart.SetException(e);
+                }
 
                 try
                 {
@@ -115,7 +123,6 @@ namespace ContentStoreTest.Service
                     return ServiceResult.Cancelled;
                 }
             });
-
 
             // Wait for start of interruptor before launching second interruptable. This ensure the first interruptable
             // has shutdown and that logic to prevent startup of interruptable has already been activated

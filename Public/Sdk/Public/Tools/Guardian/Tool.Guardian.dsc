@@ -413,7 +413,9 @@ function runGuardianInternal(args : GuardianArguments, guardianTool : Transforme
         successExitCodes: getSuccessExitCodes(),
         warningRegex: getWarningRegex(),
         description: "Guardian Run",
-        environmentVariables: getEnvironmentVariables(args)
+        environmentVariables: getEnvironmentVariables(args),
+        retryExitCodes: args.retryExitCodes,
+        processRetries: args.processRetries,
     });
 
     return result;
@@ -545,6 +547,10 @@ export interface GuardianArguments extends Transformer.RunnerArguments {
     baselineFileName?: PathAtom;
     /** Name for automatically generated suppression file */
     suppressionFileName?: PathAtom;
+    /** Exit codes to retry if a Guardian tool fails */
+    retryExitCodes?: number[];
+    /** Maximum number of times to retry if a process fails with any of the codes in retryExitCodes. Can only be used if retryExitCodes is specified. */
+    processRetries?: number;
 }
 
 /**

@@ -2,15 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Transformer} from "Sdk.Transformers";
-
-const autoGenerateBaselines = Environment.getFlag(guardianGenerateBaselines);
-const autoGenerateSuppressions = !autoGenerateBaselines && Environment.getFlag(guardianGenerateSuppressions);
-const complianceBaselineSuppressionLocation = Environment.hasVariable("BUILDXL_ENLISTMENT_ROOT") ? d`${Environment.getPathValue("BUILDXL_ENLISTMENT_ROOT")}/.config/buildxl/compliance` : undefined;
-const guardianConfigFile = f`${Context.getMount("SourceRoot").path}/guardianBuildConfig.gdnconfig`;
+import * as Json from "Sdk.Json";
 
 // Compliance build specific Environment variables
 const directoriesNamesToIgnore = "[Tool.Guardian]complianceIgnoreDirectories";
 const filesPerCredScanCall = "[Tool.Guardian]complianceFilesPerCredScanCall";
+const logLevel = "[Tool.Guardian]complianceLogLevel";
+
+const autoGenerateBaselines = Environment.getFlag(guardianGenerateBaselines);
+const autoGenerateSuppressions = !autoGenerateBaselines && Environment.getFlag(guardianGenerateSuppressions);
+const complianceBaselineSuppressionLocation = d`${Context.getMount("SourceRoot").path}/.config/buildxl/compliance`;
+const guardianConfigFile = createConfigurationFile();
+const complianceLogLevel : GuardianLogLevel = Environment.hasVariable(logLevel) ? Environment.getStringValue(logLevel) as GuardianLogLevel : "Warning";
 
 /**
  * Calling this function will create Guardian pips with CredScan only on the entire repository from the guardianBuildRoot directory.
@@ -31,11 +34,6 @@ export function runCredScanOnEntireRepository(guardianToolRoot : StaticDirectory
  * Goes through each directory under the given root directory and creates CredScan calls per ~500 files.
  */
 function addGuardianPerDirectoryForRepository(rootDirectory : Directory, guardianToolRoot : StaticDirectory, guardianDrop : Directory) : Transformer.ExecuteResult[] {
-    let results : Transformer.ExecuteResult[] = [];
-    let files : File[] = glob(rootDirectory, "*");
-    let directories = globFolders(rootDirectory, "*", /*recursive*/false);
-    let directoryIndex = 0;
-
     // These are directories that are local to a given repository that are not checked in remotely
     const directoryAtomsToIgnore = Set.create<PathAtom>(
         // Defaults
@@ -52,8 +50,17 @@ function addGuardianPerDirectoryForRepository(rootDirectory : Directory, guardia
         })
     );
     const directoryPathsToIgnore = Set.create<Directory>(
-        d`${Environment.getPathValue("BUILDXL_ENLISTMENT_ROOT")}/common/temp` // well known path for rush install (not part of initially checked out sources)
+        d`${Context.getMount("SourceRoot").path}/common/temp` // well known path for rush install (not part of initially checked out sources)
     );
+
+    const filesToIgnore = Set.create<File>(
+        f`${Context.getMount("SourceRoot").path}/.SubstLock`
+    );
+
+    let results : Transformer.ExecuteResult[] = [];
+    let files : File[] = glob(rootDirectory).filter(f => !filesToIgnore.contains(f));
+    let directories = globFolders(rootDirectory, "*", /*recursive*/false);
+    let directoryIndex = 0;
 
     const minFilesPerCall = Environment.hasVariable(filesPerCredScanCall) ? Environment.getNumberValue(filesPerCredScanCall) : 500;
 
@@ -64,7 +71,7 @@ function addGuardianPerDirectoryForRepository(rootDirectory : Directory, guardia
             continue;
         }
 
-        files = files.concat(glob(directories[directoryIndex], "*"));
+        files = files.concat(glob(directories[directoryIndex], "*")); // Filter is currently not applied here because it's not necessary past the top level directory
         directories = directories.concat(globFolders(directories[directoryIndex], "*", /*recursive*/false));
 
         if (files.length >= minFilesPerCall || (directoryIndex === directories.length - 1 && files.length > 0)) {
@@ -76,6 +83,55 @@ function addGuardianPerDirectoryForRepository(rootDirectory : Directory, guardia
     }
 
     return results;
+}
+
+/**
+ * Writes a JSON configuration file for this Guardian run.
+ * Extend this configuration file to add more Guardian tools to the compliance build.
+ */
+function createConfigurationFile() : File {
+    const options : Json.AdditionalJsonOptions = {
+        pathRenderingOption: Context.getCurrentHost().os !== "win" ? "escapedBackSlashes" : "forwardSlashes"
+    };
+    const configDirectory = Context.getNewOutputDirectory("configuration");
+    const config = {
+        "fileVersion": "1.4",
+        "tools": [
+            {
+                "fileVersion": "1.4",
+                "tool": {
+                    "name": "CredScan",
+                    "version": "latest"
+                },
+                "arguments": {
+                    "TargetDirectory": "$(WorkingDirectory)/guardian.TSV",
+                    "OutputType": "pre",
+                    "SuppressAsError": true,
+                    "Verbose": complianceLogLevel === "Trace"
+                },
+                "outputExtension": "xml",
+                "successfulExitCodes": [
+                    0,
+                    2,
+                    4,
+                    6
+                ],
+                "errorExitCodes": {
+                    "1": "Partial scan completed with warnings.",
+                    "3": "Partial scan completed with credential matches and warnings.",
+                    "5": "Partial scan completed with application warnings and credential matches",
+                    "7": "Partial scan completed with application warnings, suppressed warnings, and credential matches",
+                    "-1000": "Argument Exception.",
+                    "-1100": "Invalid configuration.",
+                    "-1500": "Configuration Exception.",
+                    "-1600": "IO Exception.",
+                    "-9000": "Unexpected Exception."
+                }
+            }
+        ]
+    };
+
+    return Json.write(p`${configDirectory.path}/credScanConfiguration.gdnconfig`, config, "\"", [guardianTag], "Generate Configuration File for Compliance Build", options);
 }
 
 /**
@@ -99,7 +155,7 @@ function createGuardianCall(guardianToolRoot : StaticDirectory, guardianDrop : D
         guardianToolWorkingDirectory: exportDir, // Set this to pick up the newly generated tsv file automatically
         filesToBeScanned: files,
         additionalDependencies: [tsvFile],
-        logLevel: "Warning", // Display only warnings and errors only to simplify debugging and reduce log file size
+        logLevel: complianceLogLevel, // Display only warnings and errors only to simplify debugging and reduce log file size
         baselineFiles: baselines.length > 0 ? baselines : undefined,
         suppressionFiles: suppressions.length > 0 ? suppressions : undefined,
         autoGeneratedBaselineSuppressionLocation: autoGenerateBaselines || autoGenerateSuppressions
@@ -107,6 +163,8 @@ function createGuardianCall(guardianToolRoot : StaticDirectory, guardianDrop : D
             : undefined,
         baselineFileName: autoGenerateBaselines ? a`${directoryIndex.toString()}.gdnbaselines` : undefined,
         suppressionFileName: autoGenerateSuppressions ? a`${directoryIndex.toString()}.gdnsuppressions` : undefined,
+        retryExitCodes: [-9000], //Credscan may fail with -9000 when running concurrent instances due to a bug with credscan (fixed in preview versions), these can be retried
+        processRetries: 3,
     };
 
     return runGuardian(guardianArgs, /*skipInstall*/true);

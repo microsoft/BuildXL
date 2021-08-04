@@ -7,4 +7,4 @@ const guardianDirectory : Directory = d`${Environment.getPathValue("TOOLPATH_GUA
 const guardianTool : StaticDirectory = Transformer.sealPartialDirectory(guardianDirectory, globR(guardianDirectory, "*"));
 
 // Guardian arguments will be automatically set by the SDK
-export const guardianCredScanResult = Guardian.runCredScanOnEntireRepository(guardianTool, d`${Context.getMount("EnlistmentRoot").path}`);
+export const guardianCredScanResult = Guardian.runCredScanOnEntireRepository(guardianTool, d`${Context.getMount("SourceRoot").path}`);

@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "suppressionSets": {
+    "default": {
+      "name": "default",
+      "createdDate": "2021-07-27 20:58:16Z",
+      "lastUpdatedDate": "2021-07-27 20:58:16Z"
+    }
+  },
+  "results": {
+    "cf64d1c83cec0d8a518b16816a4d4dde5c0c5d00561c7a621ce847f903ee1118": {
+      "signature": "cf64d1c83cec0d8a518b16816a4d4dde5c0c5d00561c7a621ce847f903ee1118",
+      "target": "RunCheckInTestsWithPAT.ps1",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0060",
+      "justification": null,
+      "createdDate": "2021-07-27 20:58:16Z",
+      "expirationDate": null,
+      "type": null
+    },
+    "303c3ff0be3d16992c73ced2c43aa19b7c8acfc1eedd235cda63c57ceb0d4f56": {
+      "signature": "303c3ff0be3d16992c73ced2c43aa19b7c8acfc1eedd235cda63c57ceb0d4f56",
+      "target": "Private/macOS/notarize.sh",
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0060",
+      "justification": null,
+      "createdDate": "2021-07-27 20:58:16Z",
+      "expirationDate": null,
+      "type": null
+    }
+  }
+}

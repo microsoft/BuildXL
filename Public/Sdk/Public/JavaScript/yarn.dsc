@@ -42,6 +42,7 @@ namespace Yarn {
         frozenLockfile?: boolean,
         userNpmrcLocation?: NpmrcLocation,
         globalNpmrcLocation?: NpmrcLocation,
+        verbose?: boolean,
     }
 
     /**
@@ -116,7 +117,8 @@ namespace Yarn {
             environmentVariables: environment,
             arguments:[
                 Cmd.rawArgument("install"),
-                Cmd.flag("--frozen-lockfile", arguments.frozenLockfile || false)
+                Cmd.flag("--frozen-lockfile", arguments.frozenLockfile || false),
+                Cmd.flag("--verbose", arguments.verbose)
             ],
             outputs: [
                 {kind: "shared", directory: d`${arguments.repoRoot}`},

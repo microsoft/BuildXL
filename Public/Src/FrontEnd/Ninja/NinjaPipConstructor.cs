@@ -78,7 +78,12 @@ namespace BuildXL.FrontEnd.Ninja
 
             // Lazy initialization of environment variables and passthroughs
             var allEnvironmentVariables = Lazy.Create(GetAllEnvironmentVariables);
-            m_environmentVariables = Lazy.Create(() => allEnvironmentVariables.Value.Where(kvp => SpecialEnvironmentVariables.PassThroughPrefixes.All(prefix => !kvp.Key.StartsWith(prefix))));
+            
+            // Exclude passthroughs from the environment exposed to the pip
+            m_environmentVariables = Lazy.Create(() => allEnvironmentVariables.Value
+                .Where(kvp => !SpecialEnvironmentVariables.PassThroughPrefixes.Any(prefix => kvp.Key.StartsWith(prefix)))
+                .Where(kvp => !m_frontEndHost.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Contains(kvp.Key)));
+            
             m_passThroughEnvironmentVariables = Lazy.Create(() => allEnvironmentVariables.Value.Where(kvp => SpecialEnvironmentVariables.PassThroughPrefixes.Any(prefix => kvp.Key.StartsWith(prefix))));
         }
 
@@ -286,6 +291,7 @@ namespace BuildXL.FrontEnd.Ninja
 
 
             processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+            processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             processBuilder.RewritePolicy = RewritePolicy.DefaultSafe;
             processBuilder.EnableTempDirectory();
 

@@ -694,11 +694,15 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             // If there is no historic perf data, use the defaults for the worker.
+            // Regarding light process pips, we should use 0 as the default memory usage.
+            // Otherwise, we cannot utilize the high concurrency limit of IPC dispatcher. 
+            // When there is a historical data for light process pips, we will use the real 
+            // memory usage from previous runs, but we still expect low memory for those.
             return ProcessMemoryCounters.CreateFromMb(
-                peakWorkingSetMb: DefaultWorkingSetMbPerProcess,
-                averageWorkingSetMb: DefaultWorkingSetMbPerProcess,
-                peakCommitSizeMb: DefaultCommitSizeMbPerProcess,
-                averageCommitSizeMb: DefaultCommitSizeMbPerProcess);
+                peakWorkingSetMb: runnableProcess.Process.IsLight ? 0 : DefaultWorkingSetMbPerProcess,
+                averageWorkingSetMb: runnableProcess.Process.IsLight ? 0 : DefaultWorkingSetMbPerProcess,
+                peakCommitSizeMb: runnableProcess.Process.IsLight ? 0 : DefaultCommitSizeMbPerProcess,
+                averageCommitSizeMb: runnableProcess.Process.IsLight ? 0 : DefaultCommitSizeMbPerProcess);
         }
 
         /// <summary>

@@ -1241,6 +1241,8 @@ namespace BuildXL.Scheduler
             // internal cancellation process.
             m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination());
 
+            m_schedulerCancellationTokenSource = new CancellationTokenSource();
+
             m_servicePipTracker = new ServicePipTracker(Context);
             m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
@@ -2432,7 +2434,7 @@ namespace BuildXL.Scheduler
                                 (int)m_scheduleConfiguration.MinimumDiskSpaceForPipsGb,
                                 (int)disk.AvailableSpaceGb.Latest);
 
-                            RequestTermination(cancelQueue: true);
+                            RequestTermination(cancelQueue: true, cancelRunningPips: true);
                             break;
                         }
                     }
@@ -5140,6 +5142,10 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        CancellationToken IPipExecutionEnvironment.SchedulerCancellationToken => m_schedulerCancellationTokenSource.Token;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IPipExecutionEnvironment.InputsLazilyMaterialized => InputsLazilyMaterialized;
 
         /// <inheritdoc />
@@ -7023,7 +7029,8 @@ namespace BuildXL.Scheduler
 
         private PipProvenance m_dummyProvenance;
 
-        private CancellationTokenRegistration m_cancellationTokenRegistration;
+        private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
+        private readonly CancellationTokenSource m_schedulerCancellationTokenSource;
 
         private PipProvenance GetDummyProvenance()
         {
@@ -7724,7 +7731,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Inform the scheduler that we want to terminate ASAP (but with clean shutdown as needed).
         /// </summary>
-        private void RequestTermination(bool cancelQueue = true)
+        private void RequestTermination(bool cancelQueue = true, bool cancelRunningPips = false)
         {
             if (m_scheduleTerminating)
             {
@@ -7742,7 +7749,14 @@ namespace BuildXL.Scheduler
             if (cancelQueue)
             {
                 // We cancel the queue for more aggressive but still graceful cancellation.
+                // This will stop pips to make transition between PipExecutionSteps.
                 PipQueue.Cancel();
+            }
+
+            if (cancelRunningPips)
+            {
+                // Cancel actively running external processes.
+                m_schedulerCancellationTokenSource.Cancel();
             }
         }
 
@@ -7768,6 +7782,7 @@ namespace BuildXL.Scheduler
             m_ipcProvider.Dispose();
             m_apiServer?.Dispose();
             m_pluginManager?.Dispose();
+            m_schedulerCancellationTokenSource.Dispose();
 
             m_pipTwoPhaseCache?.CloseAsync().GetAwaiter().GetResult();
         }

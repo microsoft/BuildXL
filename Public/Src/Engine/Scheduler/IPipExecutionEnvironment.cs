@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Threading;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Ipc.Common;
@@ -115,6 +116,11 @@ namespace BuildXL.Scheduler
         /// Returns a Boolean indicating if the scheduler has received a request for cancellation.
         /// </summary>
         bool IsTerminating { get; }
+
+        /// <summary>
+        /// CancellationToken which is set when scheduler has received a request for quick termination.
+        /// </summary>
+        CancellationToken SchedulerCancellationToken { get; }
 
         /// <summary>
         /// Returns whether the directory artifact represents a source sealed directory. If that's the case, returns the patterns and type of

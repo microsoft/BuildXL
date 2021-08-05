@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
@@ -428,6 +429,9 @@ namespace Test.BuildXL.Scheduler
 
             /// <inheritdoc />
             public bool IsTerminating => false;
+
+            /// <inheritdoc />
+            public CancellationToken SchedulerCancellationToken => default(CancellationToken);
 
             /// <inheritdoc />
             public bool InputsLazilyMaterialized => false;

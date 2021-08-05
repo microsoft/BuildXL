@@ -393,6 +393,9 @@ namespace Test.BuildXL.Scheduler.Utils
         public bool IsTerminating => false;
 
         /// <inheritdoc />
+        public CancellationToken SchedulerCancellationToken => default(CancellationToken);
+
+        /// <inheritdoc />
         public bool InputsLazilyMaterialized => false;
 
         /// <inheritdoc />

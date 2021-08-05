@@ -1701,6 +1701,7 @@ namespace BuildXL.Scheduler
 
             // Inner cancellation token source for tracking cancellation time
             using (var innerResourceLimitCancellationTokenSource = new CancellationTokenSource())
+            using (var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(innerResourceLimitCancellationTokenSource.Token, environment.SchedulerCancellationToken))
             using (var counter = operationContext.StartOperation(PipExecutorCounter.ProcessPossibleRetryWallClockDuration))
             {
                 ProcessMemoryCountersSnapshot lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
@@ -1825,7 +1826,7 @@ namespace BuildXL.Scheduler
                         staleDynamicOutputs = null;
                         start = DateTime.UtcNow;
                         result = await executor.RunAsync(
-                            innerResourceLimitCancellationTokenSource.Token, 
+                            linkedCancellationTokenSource.Token, 
                             sandboxConnection: environment.SandboxConnection, 
                             sidebandWriter: sidebandWriter, 
                             fileSystemView: pip.AllowUndeclaredSourceReads ? environment.State.FileSystemView : null);

@@ -33,6 +33,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Always(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -40,6 +41,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Fatal(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -47,6 +49,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Error(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -55,6 +58,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <param name="exception">Captured exception to be logged</param>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Error(Exception exception, string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -63,6 +67,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <param name="exception">Captured exception to be logged</param>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -70,6 +75,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Warning(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -77,6 +83,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Info(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -84,6 +91,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Debug(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -97,6 +105,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// </summary>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void Diagnostic(string messageFormat, params object[] messageArgs);
 
         /// <summary>
@@ -112,6 +121,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <param name="severity">Severity to attach to this log message.</param>
         /// <param name="messageFormat">Format string</param>
         /// <param name="messageArgs">Zero or more objects to format</param>
+        [JetBrains.Annotations.StringFormatMethod("messageFormat")]
         void LogFormat(Severity severity, string messageFormat, params object[] messageArgs);
     }
 }

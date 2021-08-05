@@ -117,11 +117,47 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (!m_dotNetClientEnabled)
             {
                 // Grpc.Core package will be deprecated in May 2022.
+
+                var channelCreds = ChannelCredentials.Insecure;
+                List<ChannelOption> options = new List<ChannelOption>(ClientChannelOptions);
+
+                if (GrpcSettings.EncryptionEnabled)
+                {
+                    string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
+
+                    if (GrpcEncryptionUtil.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out string hostName) &&
+                        publicCertificate != null &&
+                        privateKey != null &&
+                        hostName != null)
+                    {
+                        channelCreds = new SslCredentials(
+                            publicCertificate,
+                            new KeyCertificatePair(publicCertificate, privateKey));
+
+                        var callCredentials = GetCallCredentialsWithToken();
+                        if (callCredentials != null)
+                        {
+                            channelCreds = ChannelCredentials.Create(channelCreds, callCredentials);
+                        }
+
+                        // This is needed to make SSL hostname verification successful.
+                        // Otherwise we see this sort of error:
+                        // GrpcCore: 0 T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\ext\filters\client_channel\subchannel.cc:1073:
+                        // Connect failed: {"created":"@1628096484.767000000","description":"Peer name MW1SCH103352403 is not in peer certificate",
+                        // "file":"T:\src\github\grpc\workspace_csharp_ext_windows_x64\src\core\lib\security\security_connector\ssl\ssl_security_connector.cc","file_line":59}
+                        // Even though this is advertised as 'test environment' only, this is a common practice for distributed services running in a closed network.
+                        options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));
+
+                        Logger.Log.GrpcAuthTrace(m_loggingContext, $"Encryption and authentication is enabled: '{ipAddress}'.");
+                    }
+                }
+
                 Channel = new Channel(
                     ipAddress,
                     port,
-                    ChannelCredentials.Insecure,
-                    ClientChannelOptions);
+                    channelCreds,
+                    options);
+
                 m_monitorConnectionTask = MonitorConnectionAsync();
                 return;
             }
@@ -188,6 +224,14 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             channelOptions.HttpHandler = handler;
 
+            var credentials = GetCallCredentialsWithToken();
+
+            channelOptions.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
+        }
+#endif
+
+        private CallCredentials GetCallCredentialsWithToken()
+        {
             string buildIdentityTokenLocation = EngineEnvironmentSettings.CBBuildIdentityTokenPath;
 
             string token = GrpcEncryptionUtil.TryGetTokenBuildIdentityToken(buildIdentityTokenLocation);
@@ -195,10 +239,10 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (token == null)
             {
                 Logger.Log.GrpcAuthTrace(m_loggingContext, $"No token found in the following location: {buildIdentityTokenLocation}.");
-                return;
+                return null;
             }
 
-            var credentials = CallCredentials.FromInterceptor((context, metadata) =>
+            return CallCredentials.FromInterceptor((context, metadata) =>
             {
                 if (!string.IsNullOrEmpty(token))
                 {
@@ -207,10 +251,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 return Task.CompletedTask;
             });
-
-            channelOptions.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
         }
-#endif
 
         public static IEnumerable<ChannelOption> GetClientChannelOptions()
         {

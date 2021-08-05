@@ -17,6 +17,7 @@ using System.Runtime;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
@@ -272,7 +273,18 @@ namespace BuildXL.Engine
             Contract.Requires(configuration != null);
             Contract.Requires(initialConfig != null);
 
-            GrpcEnvironment.Initialize();
+            BuildXL.Cache.ContentStore.Logging.Logger logger = null;
+            GrpcEnvironmentOptions.GrpcVerbosity grpcVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Disabled;
+            if (EngineEnvironmentSettings.GrpcVerbosityEnabled)
+            {
+                var fileLogger = new BuildXL.Cache.ContentStore.Logging.FileLog(configuration.Logging.RpcLog.ToString(context.PathTable) + ".grpc");
+                logger = new BuildXL.Cache.ContentStore.Logging.Logger(true, fileLogger);
+                grpcVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Debug;
+            }
+
+            GrpcEnvironment.Initialize(logger: logger, options: new GrpcEnvironmentOptions { 
+                LoggingVerbosity = grpcVerbosity,
+            });
 
             Logger.Log.GrpcSettings(
                 loggingContext,
@@ -2000,7 +2012,7 @@ namespace BuildXL.Engine
                                 {
                                     BuildXL.Tracing.Logger.Log.Statistic(
                                         engineLoggingContext,
-                                        new Statistic
+                                        new BuildXL.Tracing.Statistic
                                         {
                                             Name = Statistics.TimeToFirstPipSyntheticMs,
                                             Value = (int)(DateTime.UtcNow - m_processStartTimeUtc).TotalMilliseconds,
@@ -2986,7 +2998,7 @@ namespace BuildXL.Engine
                         {
                             BuildXL.Tracing.Logger.Log.Statistic(
                                 loggingContext,
-                                new Statistic
+                                new BuildXL.Tracing.Statistic
                                 {
                                     Name = "GraphConstruction.DurationMs",
                                     Value = m_enginePerformanceInfo.GraphConstructionDurationMs

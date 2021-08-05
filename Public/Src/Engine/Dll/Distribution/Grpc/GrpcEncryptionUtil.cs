@@ -73,7 +73,9 @@ namespace BuildXL.Engine.Distribution.Grpc
 #if NET_COREAPP_31
                 var bytes = File.ReadAllBytes(buildIdentityTokenLocation);
                 byte[] clearText = ProtectedData.Unprotect(bytes, null, DataProtectionScope.LocalMachine);
-                return Encoding.UTF8.GetString(clearText);
+                var fullToken = Encoding.UTF8.GetString(clearText);
+                // Only the first part of the token matches between machines in the same build.
+                return fullToken.Split('.')[0];
 #endif
             }
 
@@ -86,17 +88,20 @@ namespace BuildXL.Engine.Distribution.Grpc
         public static bool TryGetPublicAndPrivateKeys(
             string certSubjectName,
             out string publicCertificate,
-            out string privateKey)
+            out string privateKey,
+            out string hostName)
         {
             publicCertificate = null;
             privateKey = null;
+            hostName = null;
 
             X509Certificate2 serverCert = TryGetBuildUserCertificate(certSubjectName);
-
             if (serverCert == null)
             {
                 return false;
             }
+
+            hostName = serverCert.GetNameInfo(X509NameType.DnsName, false);
 
             publicCertificate = CertToPem(serverCert.RawData);
 

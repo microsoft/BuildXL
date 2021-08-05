@@ -193,12 +193,28 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcDotNetClientEnabled = CreateSetting("BuildXLGrpcDotNetClientEnabled", value => value == "1");
 
         /// <summary>
+        /// Whether grpc encryption is enabled.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcEncryptionEnabled = CreateSetting("BuildXLGrpcEncryptionEnabled", value => value == "1");
+
+        /// <summary>
         /// Whether new kestrel server is enabled for grpc.
         /// </summary>
         /// <remarks>
         /// Default disabled
         /// </remarks>
         public static readonly Setting<bool> GrpcKestrelServerEnabled = CreateSetting("BuildXLGrpcKestrelServerEnabled", value => value == "1");
+
+        /// <summary>
+        /// Whether logging verbosity is enabled for grpc service.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcVerbosityEnabled = CreateSetting("BuildXLGrpcVerbosityEnabled", value => value == "1");
 
         /// <summary>
         /// Authorization token location in AutoPilot machines at CloudBuild 

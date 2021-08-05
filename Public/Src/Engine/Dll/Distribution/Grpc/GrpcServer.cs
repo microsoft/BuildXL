@@ -64,7 +64,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (GrpcSettings.EncryptionEnabled)
             {
                 string certSubjectName = EngineEnvironmentSettings.CBBuildUserCertificateName;
-                if (GrpcEncryptionUtil.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey) &&
+                if (GrpcEncryptionUtil.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out var _) &&
                     publicCertificate != null &&
                     privateKey != null)
                 {
@@ -72,6 +72,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                         new List<KeyCertificatePair> { new KeyCertificatePair(publicCertificate, privateKey) },
                         null,
                         SslClientCertificateRequestType.RequestAndRequireButDontVerify);
+
+                    Logger.Log.GrpcAuthTrace(m_loggingContext, $"Server-side SSL credentials is enabled.");
                 }
                 else
                 {

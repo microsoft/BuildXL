@@ -24,7 +24,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Whether we should use encryption in the grpc calls.
         /// </summary>
-        public static bool EncryptionEnabled => EngineEnvironmentSettings.GrpcDotNetClientEnabled &&
+        public static bool EncryptionEnabled => EngineEnvironmentSettings.GrpcEncryptionEnabled &&
                 EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null &&
                 EngineEnvironmentSettings.CBBuildUserCertificateName.Value != null;
 

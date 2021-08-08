@@ -85,7 +85,17 @@ namespace BuildXL.Utilities
             /// <summary>
             /// Return a specific AvailableDiskSpace
             /// </summary>
-            public int AvailableDiskSpace;
+            public int? AvailableDiskSpace;
+
+            /// <summary>
+            /// Return a specific AvailableDiskSpace after <see cref="DelayAvailableDiskSpaceUtcTime"/>
+            /// </summary>
+            public int? DelayedAvailableDiskSpace;
+
+            /// <summary>
+            /// <see cref="DelayedAvailableDiskSpace"/> will be set after set Utc Time
+            /// </summary>
+            public DateTime DelayAvailableDiskSpaceUtcTime;
         }
 
         // Used for calculating the BuildXL CPU time
@@ -476,8 +486,18 @@ namespace BuildXL.Utilities
                 if (m_testHooks != null)
                 {
                     // Various tests may need to inject artificial results for validation of scenarios
-                    diskStats[i] = new DiskStats(availableDiskSpace: m_testHooks.AvailableDiskSpace);
-                    continue;
+                    if (m_testHooks.DelayAvailableDiskSpaceUtcTime != null &&
+                        m_testHooks.DelayedAvailableDiskSpace != null &&
+                        m_testHooks.DelayAvailableDiskSpaceUtcTime <= DateTime.UtcNow)
+                    {
+                        diskStats[i] = new DiskStats(availableDiskSpace: m_testHooks.DelayedAvailableDiskSpace.Value);
+                        continue;
+                    }
+                    else if (m_testHooks.AvailableDiskSpace != null)
+                    {
+                        diskStats[i] = new DiskStats(availableDiskSpace: m_testHooks.AvailableDiskSpace.Value);
+                        continue;
+                    }
                 }
 
                 var drive = m_drives[i];

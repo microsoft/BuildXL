@@ -56,6 +56,14 @@ namespace BuildXL.Pips
         }
 
         /// <summary>
+        /// Retrieves all roots that are System Drives
+        /// </summary>
+        public virtual IEnumerable<AbsolutePath> GetSystemRoots()
+        {
+            return Enumerable.Empty<AbsolutePath>();
+        }
+
+        /// <summary>
         /// Returns all paths where directories are allowed to be created
         /// </summary>
         public virtual IEnumerable<AbsolutePath> GetPathsWithAllowedCreateDirectory()

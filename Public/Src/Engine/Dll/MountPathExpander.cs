@@ -362,6 +362,12 @@ namespace BuildXL.Engine
             return GetRoots(info => info.IsWritable);
         }
 
+        /// <inheritdoc/>
+        public override IEnumerable<AbsolutePath> GetSystemRoots()
+        {
+            return GetRoots(info => info.IsSystem);
+        }
+
         /// <inheritdoc />
         public override IEnumerable<AbsolutePath> GetPathsWithAllowedCreateDirectory()
         {

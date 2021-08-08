@@ -48,6 +48,12 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <inheritdoc />
+        public override IEnumerable<AbsolutePath> GetSystemRoots()
+        {
+            return m_innerExpander.GetSystemRoots();
+        }
+
+        /// <inheritdoc />
         public override IEnumerable<AbsolutePath> GetPathsWithAllowedCreateDirectory()
         {
             return m_innerExpander.GetPathsWithAllowedCreateDirectory();

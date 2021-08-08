@@ -260,6 +260,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var operations = new List<Operation>()
             {
                 Operation.WriteFile(CreateOutputFileArtifact(output)),
+                Operation.Block(),
             };
 
             var builder = CreatePipBuilder(operations);
@@ -267,7 +268,39 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10), testHooks: new PerformanceCollector.TestHooks(){ AvailableDiskSpace = 0 }))
             {
-                RunScheduler(performanceCollector: performanceCollector).AssertFailure();
+                RunScheduler(performanceCollector: performanceCollector, updateStatusTimerEnabled: true).AssertFailure();
+                IgnoreWarnings();
+                AssertErrorEventLogged(LogEventId.WorkerFailedDueToLowDiskSpace);
+            }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void VerifyGracefulTeardownWhenAvailableDiskSpaceReducesBelowMinimumDiskSpaceForPipGb()
+        {
+            Configuration.Schedule.MinimumDiskSpaceForPipsGb = 3;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+                Operation.Block(),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            DateTime delayedTime = DateTime.UtcNow.AddSeconds(5);
+
+            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10),
+                testHooks: new PerformanceCollector.TestHooks()
+                {
+                    AvailableDiskSpace = 10,
+                    DelayedAvailableDiskSpace = 2,
+                    DelayAvailableDiskSpaceUtcTime = delayedTime
+                }))
+            {
+                RunScheduler(performanceCollector: performanceCollector, updateStatusTimerEnabled: true).AssertFailure();
                 IgnoreWarnings();
                 AssertErrorEventLogged(LogEventId.WorkerFailedDueToLowDiskSpace);
             }

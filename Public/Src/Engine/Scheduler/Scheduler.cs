@@ -334,7 +334,7 @@ namespace BuildXL.Scheduler
         private readonly PipRetryInfo m_pipRetryInfo = new PipRetryInfo();
         private readonly PipPropertyInfo m_pipPropertyInfo = new PipPropertyInfo();
 
-        private readonly HashSet<string> m_writableDrives;
+        private readonly HashSet<string> m_diskSpaceMonitoredDrives;
 
         private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
 
@@ -1256,17 +1256,20 @@ namespace BuildXL.Scheduler
             m_apiServer = null;
             m_pluginManager = null;
 
-            m_writableDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            m_diskSpaceMonitoredDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var reverseDirectoryTranslator = directoryTranslator?.GetReverseTranslator();
-            foreach (AbsolutePath path in m_semanticPathExpander.GetWritableRoots())
+
+            var pathsToMonitor = m_semanticPathExpander.GetWritableRoots().Concat(m_semanticPathExpander.GetSystemRoots());
+            foreach (AbsolutePath path in pathsToMonitor)
             {
+                // GetSystemRoots adds Windows OS installation drives (Generally C Drive)
                 var driveName = !OperatingSystemHelper.IsUnixOS
                     ? GetRootDriveForPath(path, reverseDirectoryTranslator, context)
                     : IO.GetMountNameForPath(path.ToString(Context.PathTable));
                 if (driveName != null)
                 {
-                    m_writableDrives.Add(driveName);
+                    m_diskSpaceMonitoredDrives.Add(driveName);
                 }
             }
 
@@ -2417,14 +2420,14 @@ namespace BuildXL.Scheduler
                 long numProcessPipsAllocatedSlots = Workers.Sum(a => a.AcquiredSlotsForProcessPips);
 
                 // Verify available disk space is greater than the minimum available space specified in /minimumDiskSpaceForPipsGb:<int>
-                if (m_writableDrives != null &&
+                if (m_diskSpaceMonitoredDrives != null &&
                     !m_scheduleTerminating &&
                     m_performanceAggregator != null &&
                     (m_scheduleConfiguration.MinimumDiskSpaceForPipsGb ?? 0) > 0)
                 {
                     foreach (var disk in m_performanceAggregator.DiskStats)
                     {
-                        if (m_writableDrives.Contains(disk.Drive)
+                        if (m_diskSpaceMonitoredDrives.Contains(disk.Drive)
                             && disk.AvailableSpaceGb.Count != 0 // If we ever have a successful collection of the disk space
                             && disk.AvailableSpaceGb.Latest < (double)m_scheduleConfiguration.MinimumDiskSpaceForPipsGb)
                         {

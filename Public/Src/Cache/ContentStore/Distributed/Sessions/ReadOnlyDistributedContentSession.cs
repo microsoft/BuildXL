@@ -668,7 +668,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
                                     trace: false,
                                     // Using in-ring locations as well if the feature is on.
-                                    useInRingMachineLocationos: useInRingMachineLocations);
+                                    useInRingMachineLocations: useInRingMachineLocations);
 
                                 if (!copyResult)
                                 {
@@ -715,7 +715,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             useInRingMachineLocations = isGlobal && Settings.UseInRingMachinesForCopies;
             if (!isLocationsAvailable(out message))
             {
-                if (useInRingMachineLocations && _buildRingMachines.Length != 0)
+                if (useInRingMachineLocations && GetInRingActiveMachines().Length != 0)
                 {
                     string useInRingLocationsMessage = $", but {nameof(Settings.UseInRingMachinesForCopies)} is true. Trying to copy the content from in-ring machines.";
                     Tracer.Debug(context, message + useInRingLocationsMessage);
@@ -754,7 +754,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private async Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashInfo, UrgencyHint urgencyHint, CopyReason reason, bool trace, bool useInRingMachineLocationos = false)
+        private async Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashInfo, UrgencyHint urgencyHint, CopyReason reason, bool trace, bool useInRingMachineLocations = false)
         {
             Context context = operationContext;
             CancellationToken cts = operationContext.Token;
@@ -857,9 +857,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 },
                 copyCompression);
 
-            if (useInRingMachineLocationos)
+            if (useInRingMachineLocations)
             {
-                copyRequest = copyRequest with { InRingMachines = _buildRingMachines };
+                copyRequest = copyRequest with { InRingMachines = GetInRingActiveMachines() };
             }
 
             var putResult = await DistributedCopier.TryCopyAndPutAsync(operationContext, copyRequest);
@@ -1391,6 +1391,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
+        /// <summary>
+        /// Gets all the active in-ring machines (excluding the current one).
+        /// </summary>
+        private MachineLocation[] GetInRingActiveMachines()
+        {
+            return _buildRingMachines
+                .Where(m => !m.Equals(LocalCacheRootMachineLocation))
+                .Where(m => ContentLocationStore.IsMachineActive(m))
+                .ToArray();
+        }
+
         private (MachineLocation? candidate, Task<PushFileResult> pushFileTask) ProactiveCopyInsideBuildRing(
             OperationContext context,
             ContentHashWithSize hash,
@@ -1406,9 +1417,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 if (_buildIdHash != null)
                 {
-                    var candidates = _buildRingMachines
-                        .Where(m => !m.Equals(LocalCacheRootMachineLocation))
-                        .Where(m => ContentLocationStore.IsMachineActive(m)).ToArray();
+                    var candidates = GetInRingActiveMachines();
 
                     if (candidates.Length > 0)
                     {

@@ -99,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 ContainerName = "checkpoints",
                 FolderName = "checkpointRegistry",
             };
-            var registry = new AzureBlobStorageCheckpointRegistry(configuration, () => M1, clock);
+            var registry = new AzureBlobStorageCheckpointRegistry(configuration, M1, clock);
 
             await registry.StartupAsync(context).ThrowIfFailureAsync();
             await registry.GarbageCollectAsync(context, limit: 0).ThrowIfFailureAsync();

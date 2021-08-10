@@ -724,7 +724,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool? ContentLocationDatabaseUseReadOptionsWithSetTotalOrderSeekInGarbageCollection { get; set; }
-        
+
         [DataMember]
         public bool? ContentLocationDatabaseMetadataGarbageCollectionLogEnabled { get; set; }
 
@@ -1096,7 +1096,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpan TrackingReportPeriod { get; set; } = TimeSpan.FromSeconds(30);
-        
+
         [DataMember]
         public bool? UseSeparateConnectionForRedisBlobs { get; set; }
 
@@ -1193,6 +1193,31 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpanSetting? BlobCheckpointRegistryGetCheckpointStateTimeout { get; set; }
+
+        #endregion
+
+        #region Azure Blob Storage-based Master Election
+
+        [DataMember]
+        public bool UseBlobMasterElection { get; set; }
+
+        [DataMember]
+        public string BlobMasterElectionFileName { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobMasterElectionLeaseExpiryTime { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobMasterElectionFetchCurrentMasterTimeout { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobMasterElectionUpdateMasterLeaseTimeout { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobMasterElectionReleaseRoleIfNecessaryTimeout { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobMasterElectionStorageInteractionTimeout { get; set; }
 
         #endregion
     }

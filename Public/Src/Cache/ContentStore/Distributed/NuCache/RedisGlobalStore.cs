@@ -77,6 +77,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         Tracer ReplicatedRedisHashKey.IReplicatedKeyHost.Tracer => Tracer;
 
+        // TODO: figure out how to deal with this in new master-leader election
         /// <inheritdoc />
         bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => _role == Role.Master && Configuration.MirrorClusterState;
 
@@ -159,13 +160,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Tracer.Debug(context, $"Assigned machine id={machineIdAndIsAdded.machineId}, location={machineLocation}, isAdded={machineIdAndIsAdded.isAdded}.");
 
             return new MachineMapping(machineLocation, new MachineId(machineIdAndIsAdded.machineId));
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            await ReleaseRoleIfNecessaryAsync(context);
-            return BoolResult.Success;
         }
 
         #region Operations
@@ -379,24 +373,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         #region Role Management
 
         /// <inheritdoc />
-        public async Task<Role?> ReleaseRoleIfNecessaryAsync(OperationContext context)
+        public async Task<Result<Role?>> ReleaseRoleIfNecessaryAsync(OperationContext context)
         {
             if (Configuration.DistributedContentConsumerOnly)
             {
-                return Role.Worker;
+                return Result.Success<Role?>(Role.Worker);
             }
 
-            if (_role == Role.Master)
+            if (_role != Role.Master)
             {
-                await context.PerformOperationAsync(
-                    Tracer,
-                    () => UpdateRoleAsync(context, release: true),
-                    Counters[GlobalStoreCounters.ReleaseRole]).IgnoreFailure(); // Error is already observed.
-
-                _role = null;
+                return Result.Success(_role);
             }
 
-            return _role;
+            var result = await context.PerformOperationAsync(
+                Tracer,
+                () => UpdateRoleAsync(context, release: true),
+                Counters[GlobalStoreCounters.ReleaseRole]);
+
+            _role = null;
+
+            return result.Select(r => (Role?)r);
         }
 
         private async Task<Result<Role>> UpdateRoleAsync(OperationContext context, bool release)

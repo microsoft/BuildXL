@@ -100,24 +100,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
 
-        private readonly Func<MachineLocation> _getMachineLocation;
+        private readonly MachineLocation _primaryMachineLocation;
 
         private readonly IRetryPolicy _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(e => e is StorageException);
 
         public AzureBlobStorageCheckpointRegistry(
             AzureBlobStorageCheckpointRegistryConfiguration configuration,
-            Func<MachineLocation> getMachineLocation,
+            MachineLocation primaryMachineLocation,
             IClock? clock = null)
         {
             _configuration = configuration;
-            _getMachineLocation = getMachineLocation;
+            _primaryMachineLocation = primaryMachineLocation;
             _clock = clock ?? SystemClock.Instance;
 
             _client = _configuration.Credentials!.CreateCloudBlobClient();
             _container = _client.GetContainerReference(_configuration.ContainerName);
             _directory = _container.GetDirectoryReference(_configuration.FolderName);
 
-            _blobNameRegex = new Regex(@$"{_configuration.KeySpacePrefix}_(?<timestampUtc>[0-9]+)\.json", RegexOptions.Compiled);
+            _blobNameRegex = new Regex(@$"{Regex.Escape(_configuration.KeySpacePrefix)}_(?<timestampUtc>[0-9]+)\.json", RegexOptions.Compiled);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -201,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var blobName = GenerateBlobName();
             var blob = _directory.GetBlockBlobReference(blobName);
 
-            var checkpointState = new CheckpointState(sequencePoint, checkpointId, _clock.UtcNow, _getMachineLocation());
+            var checkpointState = new CheckpointState(sequencePoint, checkpointId, _clock.UtcNow, _primaryMachineLocation);
 
             await blob.UploadTextAsync(
                 checkpointState.ToJson(_jsonSerializerOptions).ThrowIfFailure(),

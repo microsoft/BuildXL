@@ -24,6 +24,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Release master role, if the current machine has it
         /// </summary>
-        public Task<Role?> ReleaseRoleIfNecessaryAsync(OperationContext context);
+        public Task<Result<Role?>> ReleaseRoleIfNecessaryAsync(OperationContext context);
     }
 }

@@ -9,6 +9,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -27,18 +29,12 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Options used when deserializing deployment configuration
         /// </summary>
-        public static JsonSerializerOptions ConfigurationSerializationOptions { get; } = new JsonSerializerOptions()
+        public static JsonSerializerOptions ConfigurationSerializationOptions => JsonUtilities.DefaultSerializationOptions;
+
+        private static MachineId ReadMachineId(ref Utf8JsonReader reader)
         {
-            AllowTrailingCommas = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            Converters =
-            {
-                new TimeSpanJsonConverter(),
-                new StringConvertibleSettingJsonConverterFactory(),
-                new BoolJsonConverter(),
-                new JsonStringEnumConverter()
-            }
-        };
+            return new MachineId(reader.GetInt32());
+        }
 
         /// <summary>
         /// Special synthesized drop url for config files added by DeploymentRunner
@@ -48,11 +44,7 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Options used when reading deployment configuration
         /// </summary>
-        public static JsonDocumentOptions ConfigurationDocumentOptions { get; } = new JsonDocumentOptions()
-        {
-            AllowTrailingCommas = true,
-            CommentHandling = JsonCommentHandling.Skip
-        };
+        public static JsonDocumentOptions ConfigurationDocumentOptions => JsonUtilities.DefaultDocumentOptions;
 
         /// <summary>
         /// Relative path to root of CAS for deployment files
@@ -229,78 +221,6 @@ namespace BuildXL.Cache.Host.Service
                     }
                 .Where(e => !string.IsNullOrEmpty(e.Value))
                 .ToDictionary(e => e.Key, e => e.Value));
-        }
-
-        private class BoolJsonConverter : JsonConverter<bool>
-        {
-            public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            {
-                switch (reader.TokenType)
-                {
-                    case JsonTokenType.String:
-                        return bool.Parse(reader.GetString());
-                    case JsonTokenType.True:
-                        return true;
-                    case JsonTokenType.False:
-                        return false;
-                }
-
-                throw new JsonException();
-            }
-
-            public override void Write(Utf8JsonWriter writer, bool value, JsonSerializerOptions options)
-            {
-                writer.WriteBooleanValue(value);
-            }
-        }
-
-        private class TimeSpanJsonConverter : JsonConverter<TimeSpan>
-        {
-            public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            {
-                var timeSpanString = reader.GetString();
-                if (TimeSpanSetting.TryParseReadableTimeSpan(timeSpanString, out var result))
-                {
-                    return result;
-                }
-
-                return TimeSpan.Parse(timeSpanString);
-            }
-
-            public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
-            {
-                writer.WriteStringValue(value.ToString());
-            }
-        }
-
-        private class StringConvertibleSettingJsonConverterFactory : JsonConverterFactory
-        {
-            public override bool CanConvert(Type typeToConvert)
-            {
-                return typeToConvert.IsValueType && typeof(IStringConvertibleSetting).IsAssignableFrom(typeToConvert);
-            }
-
-            public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
-            {
-                return (JsonConverter)Activator.CreateInstance(typeof(Converter<>).MakeGenericType(typeToConvert));
-            }
-
-            private class Converter<T> : JsonConverter<T>
-                where T : struct, IStringConvertibleSetting
-            {
-                private readonly T _defaultValue = default;
-
-                public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-                {
-                    var stringValue = reader.GetString();
-                    return (T)_defaultValue.ConvertFromString(stringValue);
-                }
-
-                public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
-                {
-                    writer.WriteStringValue(value.ConvertToString());
-                }
-            }
         }
     }
 }

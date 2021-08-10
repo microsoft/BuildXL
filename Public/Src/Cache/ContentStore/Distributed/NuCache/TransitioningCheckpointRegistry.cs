@@ -52,10 +52,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public async Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
         {
-            var primaryResult = _primary.RegisterCheckpointAsync(context, checkpointId, sequencePoint);
-            var fallbackResult = _fallback.GetCheckpointStateAsync(context);
-            await Task.WhenAll(primaryResult, fallbackResult);
-            return (await primaryResult) & (await fallbackResult);
+            var primaryTask = _primary.RegisterCheckpointAsync(context, checkpointId, sequencePoint);
+            var fallbackTask = _fallback.RegisterCheckpointAsync(context, checkpointId, sequencePoint);
+            await Task.WhenAll(primaryTask, fallbackTask);
+
+            var primaryResult = await primaryTask;
+            var fallbackResult = await fallbackTask;
+            if (primaryResult.Succeeded)
+            {
+                return BoolResult.Success;
+            }
+
+            return new BoolResult(primaryResult & fallbackResult, $"Failed to register checkpoint `{checkpointId}` at squence point `{sequencePoint}` to both primary and fallback");
         }
     }
 }

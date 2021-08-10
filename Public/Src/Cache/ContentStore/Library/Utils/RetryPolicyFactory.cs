@@ -80,6 +80,25 @@ namespace BuildXL.Cache.ContentStore.Utils
         Task ExecuteAsync(Func<Task> func, CancellationToken token);
     }
 
+    internal class NonRetryingRetryPolicy : IRetryPolicy
+    {
+        public static NonRetryingRetryPolicy Instance { get; } = new NonRetryingRetryPolicy();
+
+        protected NonRetryingRetryPolicy()
+        {
+        }
+
+        public Task<T> ExecuteAsync<T>(Func<Task<T>> func, CancellationToken token)
+        {
+            return func();
+        }
+
+        public Task ExecuteAsync(Func<Task> func, CancellationToken token)
+        {
+            return func();
+        }
+    }
+
     /// <nodoc />
     internal class PollyRetryPolicy : IRetryPolicy
     {

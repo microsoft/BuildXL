@@ -102,6 +102,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly ICheckpointRegistry _checkpointRegistry;
 
+        private readonly IMasterElectionMechanism _masterElectionMechanism;
+
         // Fields that are initialized in StartupCoreAsync method.
         private Timer _heartbeatTimer;
 
@@ -209,16 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration is not null)
             {
-                var storageRegistry = new AzureBlobStorageCheckpointRegistry(configuration.AzureBlobStorageCheckpointRegistryConfiguration, () =>
-                {
-                    var machineId = ClusterState.PrimaryMachineId;
-                    if (!ClusterState.TryResolve(machineId, out var location))
-                    {
-                        throw new InvalidOperationException($"Could not resolve primary machine id {machineId} to location");
-                    }
-
-                    return location;
-                }, _clock);
+                var storageRegistry = new AzureBlobStorageCheckpointRegistry(configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, _clock);
 
                 if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration.Standalone)
                 {
@@ -232,6 +225,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 _checkpointRegistry = GlobalStore;
+            }
+
+            if (Configuration.AzureBlobStorageMasterElectionMechanismConfiguration is not null)
+            {
+                var storageElectionMechanism = new AzureBlobStorageMasterElectionMechanism(configuration.AzureBlobStorageMasterElectionMechanismConfiguration, Configuration.PrimaryMachineLocation, _clock);
+
+                _masterElectionMechanism = storageElectionMechanism;
+            }
+            else
+            {
+                _masterElectionMechanism = GlobalStore;
             }
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
@@ -461,6 +465,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             result &= await Database.ShutdownAsync(context);
 
+            result &= await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(context);
             CurrentRole = null;
 
             result &= await GlobalStore.ShutdownAsync(context);
@@ -481,7 +486,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal async Task ReleaseRoleIfNecessaryAsync(OperationContext operationContext)
         {
-            CurrentRole = await GlobalStore.ReleaseRoleIfNecessaryAsync(operationContext);
+            CurrentRole = await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext).ThrowIfFailureAsync();
         }
 
         /// <summary>
@@ -706,7 +711,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return new Result<bool>((ResultBase)checkpointState);
                         }
 
-                        var leadershipState = await GlobalStore.GetRoleAsync(context);
+                        var leadershipState = await _masterElectionMechanism.GetRoleAsync(context);
                         if (!leadershipState)
                         {
                             return new Result<bool>((ResultBase)leadershipState);

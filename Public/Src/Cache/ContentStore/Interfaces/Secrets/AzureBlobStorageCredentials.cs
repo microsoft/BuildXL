@@ -14,6 +14,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
     /// </summary>
     public class AzureBlobStorageCredentials
     {
+        /// <summary>
+        /// Credentials for local storage emulator.
+        ///
+        /// Used for tests only.
+        /// </summary>
+        public static AzureBlobStorageCredentials StorageEmulator = new AzureBlobStorageCredentials(connectionString: "UseDevelopmentStorage=true");
+
         /// <nodoc />
         private string? ConnectionString { get; }
 

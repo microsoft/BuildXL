@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 
 namespace BuildXL.Cache.ContentStore.UtilitiesCore
@@ -46,6 +47,16 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
             var bytes = new byte[count];
             Generator.NextBytes(bytes);
             return bytes;
+        }
+
+        /// <summary>
+        /// Create a random string of the desired length in a thread-safe manner.
+        /// </summary>
+        public static string RandomAlphanumeric(int length)
+        {
+            const string Characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            return new string(Enumerable.Repeat(Characters, length)
+              .Select(s => s[Generator.Next(s.Length)]).ToArray());
         }
 
         /// <summary>

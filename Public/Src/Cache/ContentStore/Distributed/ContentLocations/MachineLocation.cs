@@ -119,31 +119,5 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return segments.First();
             }
         }
-
-        public void Serialize(BinaryWriter writer)
-        {
-            var hasData = Data is not null;
-            writer.Write(hasData);
-            if (hasData)
-            {
-                writer.Write(Data.Length);
-                writer.Write(Data);
-            }
-        }
-
-        public static MachineLocation Deserialize(BinaryReader reader)
-        {
-            var hasData = reader.ReadBoolean();
-            if (hasData)
-            {
-                var length = reader.ReadInt32();
-                var data = reader.ReadBytes(length);
-                return new MachineLocation(data);
-            }
-            else
-            {
-                return new MachineLocation();
-            }
-        }
     }
 }

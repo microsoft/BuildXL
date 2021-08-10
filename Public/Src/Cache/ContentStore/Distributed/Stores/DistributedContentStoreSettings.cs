@@ -236,5 +236,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// If true, then the in-ring machines are used as the candidates for file copies.
         /// </summary>
         public bool UseInRingMachinesForCopies { get; set; }
+
+        /// <summary>
+        /// If true, the build id will be put into the cache as the file to prevent the removal of this information during reconciliation.
+        /// </summary>
+        public bool StoreBuildIdInCache { get; set; }
     }
 }

@@ -455,6 +455,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? UseInRingMachinesForCopies { get; set; }
 
+        [DataMember]
+        public bool? StoreBuildIdInCache { get; set; }
+
         #endregion
 
         #region Grpc File Copier

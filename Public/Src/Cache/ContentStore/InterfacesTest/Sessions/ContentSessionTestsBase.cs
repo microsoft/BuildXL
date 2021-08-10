@@ -2,25 +2,16 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
-using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
-using BuildXL.Cache.ContentStore.InterfacesTest;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -28,7 +19,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
 {
     public abstract class ContentSessionTestsBase : TestWithOutput
     {
-        protected const string Name = "name";
+        protected virtual string Name { get; set; } =  "name";
+
         protected const int ContentByteCount = 100;
         protected const HashType ContentHashType = HashType.Vso0;
         protected const long DefaultMaxSize = 1 * 1024 * 1024;

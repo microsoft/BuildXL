@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IContentSession inner,
             IContentLocationStore contentLocationStore,
             DistributedContentCopier contentCopier,
-            IDistributedContentCopierHost copierHost,
+            DistributedContentStore distributedStore,
             MachineLocation localMachineLocation,
             ColdStorage coldStorage,
             DistributedContentStoreSettings settings = default)
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 inner,
                 contentLocationStore,
                 contentCopier,
-                copierHost,
+                distributedStore,
                 localMachineLocation,
                 coldStorage,
                 settings)

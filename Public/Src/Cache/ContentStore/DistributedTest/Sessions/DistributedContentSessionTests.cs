@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -18,6 +19,9 @@ using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -40,6 +44,13 @@ namespace ContentStoreTest.Distributed.Sessions
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, canHibernate: true, output)
         {
             _redis = redis;
+        }
+
+        [Fact]
+        public Task OpenStreamWithBuildIdBasedSession()
+        {
+            Name = $"{Constants.BuildIdPrefix}{Guid.NewGuid()}";
+            return OpenStreamExisting();
         }
 
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)

@@ -20,6 +20,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -95,8 +96,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <nodoc />
         protected readonly DistributedContentCopier DistributedCopier;
 
-        private readonly IDistributedContentCopierHost _copierHost;
-
         /// <summary>
         /// Settings for the session.
         /// </summary>
@@ -112,13 +111,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         protected readonly SemaphoreSlim PutAndPlaceFileGate;
 
+        private readonly DistributedContentStore _contentStore;
+
         /// <nodoc />
         public ReadOnlyDistributedContentSession(
             string name,
             IContentSession inner,
             IContentLocationStore contentLocationStore,
             DistributedContentCopier contentCopier,
-            IDistributedContentCopierHost copierHost,
+            DistributedContentStore distributedContentStore,
             MachineLocation localMachineLocation,
             ColdStorage? coldStorage,
             DistributedContentStoreSettings? settings = default)
@@ -134,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentLocationStore = contentLocationStore;
             LocalCacheRootMachineLocation = localMachineLocation;
             Settings = settings ?? DistributedContentStoreSettings.DefaultSettings;
-            _copierHost = copierHost;
+            _contentStore = distributedContentStore;
             _remotePinner = PinFromMultiLevelContentLocationStore;
             DistributedCopier = contentCopier;
             PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
@@ -167,13 +168,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 // Generate a fake hash for the build and register a content entry in the location store to represent
                 // machines in the build ring
-                _buildIdHash = new ContentHash(HashType.MD5, buildIdGuid.ToByteArray());
+                var buildIdContent = buildIdGuid.ToByteArray();
+                
+                var buildIdHash = GetBuildIdHash(buildIdContent);
 
-                var arguments = $"Build={_buildId}, BuildIdHash={_buildIdHash.Value.ToShortString()}";
+                var arguments = $"Build={_buildId}, BuildIdHash={buildIdHash.ToShortString()}, StoreBuildIdInCache={Settings.StoreBuildIdInCache}";
 
                 context.PerformOperationAsync(Tracer, async () =>
                 {
-                    await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
+                    // Storing the build id in the cache to prevent this data to be removed during reconciliation.
+                    if (Settings.StoreBuildIdInCache)
+                    {
+                        using var stream = new MemoryStream(buildIdContent);
+                        var result = await Inner.PutStreamAsync(context, buildIdHash, stream, CancellationToken.None, UrgencyHint.Nominal);
+                        result.ThrowIfFailure();
+                    }
+
+                    // Even if 'StoreBuildIdInCache' is true we need to register the content manually,
+                    // because Inner.PutStreamAsync will just add the content to the cache but won't send a registration message.
+                    await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(buildIdHash, buildIdContent.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
+
+                    // Updating the build id field only if the registration or the put operation succeeded.
+                    _buildIdHash = buildIdHash;
 
                     return BoolResult.Success;
                 },
@@ -181,6 +197,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 extraEndMessage: r => arguments).FireAndForget(context);
             }
         }
+
+        private static ContentHash GetBuildIdHash(byte[] buildId) => buildId.CalculateHash(HashType.MD5);
 
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
@@ -191,8 +209,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Unregister from build machine location set
             if (_buildIdHash.HasValue)
             {
-                await ContentLocationStore.TrimBulkAsync(context, new[] { _buildIdHash.Value }, context.Token, UrgencyHint.Nominal)
-                    .IgnoreErrorsAndReturnCompletion();
+                if (Settings.StoreBuildIdInCache)
+                {
+                    Guid.TryParse(_buildId, out var buildIdGuid);
+                    var buildIdHash = GetBuildIdHash(buildIdGuid.ToByteArray());
+                    Tracer.Debug(context, $"Deleting in-ring mapping from cache: Build={_buildId}, BuildIdHash={buildIdHash.ToShortString()}, StoreBuildIdInCache={Settings.StoreBuildIdInCache}.");
+
+                    // DeleteAsync will unregister the content as well. No need for calling 'TrimBulkAsync'.
+                    await _contentStore.DeleteAsync(context, _buildIdHash.Value, new DeleteContentOptions() {DeleteLocalOnly = true})
+                        .IgnoreErrorsAndReturnCompletion();
+                }
+                else
+                {
+                    await ContentLocationStore.TrimBulkAsync(context, new[] { _buildIdHash.Value }, context.Token, UrgencyHint.Nominal)
+                        .IgnoreErrorsAndReturnCompletion();
+                }
             }
 
             await Inner.ShutdownAsync(context).ThrowIfFailure();
@@ -811,7 +842,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
             
             var copyRequest = new DistributedContentCopier.CopyRequest(
-                _copierHost,
+                _contentStore,
                 hashInfo,
                 reason,
                 HandleCopyAsync: async args =>

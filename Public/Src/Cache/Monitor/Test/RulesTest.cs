@@ -83,8 +83,8 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
 
             mockIcm.Incidents.Count.Should().Be(3);
             mockIcm.Incidents[0].Severity.Should().Be(4);
-            mockIcm.Incidents[1].Severity.Should().Be(3);
-            mockIcm.Incidents[2].Severity.Should().Be(3);
+            mockIcm.Incidents[1].Severity.Should().Be(4);
+            mockIcm.Incidents[2].Severity.Should().Be(4);
         }
 
         [Fact]

@@ -1437,7 +1437,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.16.1"
+          "Version": "4.30.1"
         }
       }
     },

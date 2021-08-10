@@ -197,7 +197,7 @@ config({
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.0.3" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.0.3" },
                 { id: "Azure.Identity", version: "1.4.0" },
-                { id: "Microsoft.Identity.Client", version: "4.16.1" },
+                { id: "Microsoft.Identity.Client", version: "4.30.1" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "2.18.4" },
                 { id: "Azure.Core", version: "1.14.0", 
                     dependentPackageIdsToSkip: ["System.Buffers", "System.Text.Encodings.Web", "System.Text.Json", "System.Memory", "System.Memory.Data", "System.Numerics.Vectors" ] },

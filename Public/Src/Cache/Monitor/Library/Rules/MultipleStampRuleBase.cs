@@ -64,11 +64,13 @@ namespace BuildXL.Cache.Monitor.Library.Rules
             DateTime? eventTimeUtc = null,
             TimeSpan? cacheTimeToLive = null)
         {
-            // Do not create Sev2 or higher incidents for non-production environments
+            // Do not create Sev3 or higher incidents for non-production environments
             if (!_configuration.Environment.IsProduction())
             {
-                severity = Math.Max(severity, 3);
+                severity = Math.Max(severity, 4);
             }
+
+            title = string.Concat($"[{_configuration.Environment}/{stamp}] ", title);
 
             var incident = new IcmIncident(stamp, _configuration.Environment.ToString(), machines, correlationIds, severity, description ?? title, title, eventTimeUtc, cacheTimeToLive);
             return _configuration.IcmClient.EmitIncidentAsync(incident);

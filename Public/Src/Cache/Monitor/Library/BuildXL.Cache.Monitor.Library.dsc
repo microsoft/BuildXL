@@ -32,6 +32,7 @@ namespace Library {
             importFrom("System.ServiceModel.Primitives").pkg,
             importFrom("System.Private.ServiceModel").pkg,
             importFrom("System.ServiceModel.Http").pkg,
+            importFrom("Microsoft.Identity.Client").pkg,
 
             importFrom("Azure.Identity").pkg,
             importFrom("Azure.Core").pkg,

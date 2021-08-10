@@ -175,7 +175,7 @@ namespace BuildXL.FrontEnd.Sdk
                 return TryGetMountResult.NameNullOrEmpty;
             }
 
-            if (m_customMountsTable.TryGetValue(name, out mount) == true)
+            if (m_customMountsTable?.TryGetValue(name, out mount) == true)
             {
                 return TryGetMountResult.Success;
             }
@@ -291,7 +291,7 @@ namespace BuildXL.FrontEnd.Sdk
                 throw new InvalidOperationException("Mount has invalid name");
             }
 
-            m_customMountsTable.Add(mount.Name.ToString(m_pathTable.StringTable), mount);
+            m_customMountsTable?.Add(mount.Name.ToString(m_pathTable.StringTable), mount);
         }
     }
 }

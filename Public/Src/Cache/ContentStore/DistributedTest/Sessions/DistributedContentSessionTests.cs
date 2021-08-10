@@ -65,9 +65,11 @@ namespace ContentStoreTest.Distributed.Sessions
                         rootPath,
                         configurationModel,
                         settings: ContentStoreSettings.DefaultSettings,
-                        distributedStore: distributedStore),
+                        distributedStore: distributedStore,
+                        coldStorage: null),
                 storeFactory,
                 settings: settings,
+                coldStorage: null,
                 distributedCopier: storeFactory.GetCopier());
         }
 

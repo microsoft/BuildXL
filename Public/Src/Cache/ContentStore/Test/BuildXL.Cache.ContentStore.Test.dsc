@@ -27,6 +27,7 @@ namespace Test {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Google.Protobuf").pkg,
             
             UtilitiesCore.dll,

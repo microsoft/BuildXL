@@ -439,6 +439,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseUnsafeByteStringConstruction { get; set; } = false;
 
+        [DataMember]
+        public ColdStorageSettings ColdStorageSettings { get; set; }
+
         #region DistributedContentCopier
 
         [DataMember]

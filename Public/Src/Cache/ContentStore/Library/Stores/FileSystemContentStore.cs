@@ -77,8 +77,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             NagleQueue<ContentHash>? nagleQueue = null,
             DistributedEvictionSettings? distributedEvictionSettings = null,
             TrimBulkAsync? trimBulkAsync = null,
-            ContentStoreSettings? settings = null)
-        : this(fileSystem, clock, rootPath, configurationModel, distributedEvictionSettings?.DistributedStore, settings)
+            ContentStoreSettings? settings = null,
+            ColdStorage? coldStorage = null)
+        : this(fileSystem, clock, rootPath, configurationModel, distributedEvictionSettings?.DistributedStore, settings, coldStorage)
         {
         }
 
@@ -91,7 +92,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             AbsolutePath rootPath,
             ConfigurationModel? configurationModel,
             IDistributedLocationStore? distributedStore,
-            ContentStoreSettings? settings)
+            ContentStoreSettings? settings,
+            ColdStorage? coldStorage)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
@@ -114,7 +116,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 rootPath,
                 configurationModel,
                 settings,
-                distributedStore);
+                distributedStore,
+                coldStorage);
         }
 
         /// <inheritdoc />

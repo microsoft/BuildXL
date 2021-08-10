@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -76,6 +77,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         internal readonly IContentLocationStore ContentLocationStore;
 
+        private ColdStorage? _coldStorage;
+
         /// <summary>
         /// The machine location for the current cache.
         /// </summary>
@@ -117,6 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             DistributedContentCopier contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
+            ColdStorage? coldStorage,
             DistributedContentStoreSettings? settings = default)
             : base(name)
         {
@@ -134,6 +138,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             _remotePinner = PinFromMultiLevelContentLocationStore;
             DistributedCopier = contentCopier;
             PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
+
+            _coldStorage = coldStorage;
 
             _proactiveCopyGetBulkNagleQueue = new ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations>(
                 maxDegreeOfParallelism: 1,
@@ -543,7 +549,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     fetchedContentInfo,
                     runFirstLevelAsync: args => FetchFromMultiLevelContentLocationStoreThenPutAsync(operationContext, args, urgencyHint, CopyReason.Place),
                     runSecondLevelAsync: args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
-                    // NOTE: We just use the first level result if the the fetch using content location store fails because the place cannot succeed since the
+                    // NOTE: We just use the first level result if the fetch using content location store fails because the place cannot succeed since the
                     // content will not have been put into the local CAS
                     useFirstLevelResult: result => !IsPlaceFileSuccess(result));
             }
@@ -600,25 +606,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             CopyReason reason)
         {
             // First try to place file by fetching files based on locally stored locations for the hash
-            // Then fallback to fetching file based on global locations  (i.e. Redis) minus the locally stored locations which were already checked
+            // Then fallback to fetching file based on global locations (i.e. Redis) minus the locally stored locations which were already checked
 
             var localGetBulkResult = new BuildXL.Utilities.AsyncOut<GetBulkLocationsResult>();
 
+            GetIndexedResults<ContentHashWithPath, PlaceFileResult> initialFunc = async args =>
+            {
+                var contentHashes = args.Select(p => p.Hash).ToList();
+                localGetBulkResult.Value = await ContentLocationStore.GetBulkAsync(context, contentHashes, context.Token, urgencyHint, GetBulkOrigin.Local);
+                return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: true, urgencyHint, localGetBulkResult.Value, reason);
+            };
+
+            GetIndexedResults<ContentHashWithPath, PlaceFileResult> fallbackFunc = async args =>
+            {
+                var contentHashes = args.Select(p => p.Hash).ToList();
+                var globalGetBulkResult = await ContentLocationStore.GetBulkAsync(context, contentHashes, context.Token, urgencyHint, GetBulkOrigin.Global);
+                globalGetBulkResult = globalGetBulkResult.Subtract(localGetBulkResult.Value);
+                return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: false, urgencyHint, globalGetBulkResult, reason);
+            };
+
+            // If ColdStorage is ON try to place files from it before use remote locations
+            if (_coldStorage != null)
+            {
+                return Workflows.RunWithFallback(
+                    hashesWithPaths,
+                    initialFunc: async args =>
+                    {
+                        return await _coldStorage.FetchThenPutBulkAsync(context, args, Inner);
+                    },
+                    fallbackFunc: initialFunc,
+                    secondFallbackFunc: fallbackFunc,
+                    isSuccessFunc: result => IsPlaceFileSuccess(result));
+            }
+
             return Workflows.RunWithFallback(
                 hashesWithPaths,
-                initialFunc: async args =>
-                {
-                    var contentHashes = args.Select(p => p.Hash).ToList();
-                    localGetBulkResult.Value = await ContentLocationStore.GetBulkAsync(context, contentHashes, context.Token, urgencyHint, GetBulkOrigin.Local);
-                    return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: true, urgencyHint, localGetBulkResult.Value, reason);
-                },
-                fallbackFunc: async args =>
-                {
-                    var contentHashes = args.Select(p => p.Hash).ToList();
-                    var globalGetBulkResult = await ContentLocationStore.GetBulkAsync(context, contentHashes, context.Token, urgencyHint, GetBulkOrigin.Global);
-                    globalGetBulkResult = globalGetBulkResult.Subtract(localGetBulkResult.Value);
-                    return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: false, urgencyHint, globalGetBulkResult, reason);
-                },
+                initialFunc: initialFunc,
+                fallbackFunc: fallbackFunc,
                 isSuccessFunc: result => IsPlaceFileSuccess(result));
         }
 

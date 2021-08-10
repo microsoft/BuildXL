@@ -73,6 +73,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private IContentLocationStore? _contentLocationStore;
 
+        private readonly ColdStorage? _coldStorage;
+
         private IContentLocationStore ContentLocationStore => NotNull(_contentLocationStore, nameof(_contentLocationStore));
 
         private readonly DistributedContentStoreSettings _settings;
@@ -97,6 +99,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IContentLocationStoreFactory contentLocationStoreFactory,
             DistributedContentStoreSettings settings,
             DistributedContentCopier distributedCopier,
+            ColdStorage coldStorage,
             IClock? clock = null)
         {
             Contract.Requires(settings != null);
@@ -108,6 +111,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _copierWorkingDirectory = new DisposableDirectory(distributedCopier.FileSystem, localCacheRoot / "Temp");
 
             _settings = settings;
+
+            _coldStorage = coldStorage;
 
             InnerContentStore = innerContentStoreFunc(this);
         }
@@ -388,6 +393,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             _distributedCopier,
                             this,
                             LocalMachineLocation,
+                            _coldStorage,
                             settings: _settings);
                     return new CreateSessionResult<IReadOnlyContentSession>(session);
                 }
@@ -412,6 +418,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             _distributedCopier,
                             this,
                             LocalMachineLocation,
+                            _coldStorage,
                             settings: _settings);
                     return new CreateSessionResult<IContentSession>(session);
                 }

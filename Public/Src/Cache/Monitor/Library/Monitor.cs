@@ -309,25 +309,26 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
-            OncePerEnvironment(arguments =>
-            {
-                var configuration = new BuildFailuresRule.Configuration(arguments.BaseConfiguration);
-                return Analysis.Utilities.Yield(new Instantiation()
-                {
-                    Rule = new BuildFailuresRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(45),
-                });
-            }, watchlist);
+            // Disabled as per David's request, since Arsh's monitor for build failures supersedes these.
+            //OncePerEnvironment(arguments =>
+            //{
+            //    var configuration = new BuildFailuresRule.Configuration(arguments.BaseConfiguration);
+            //    return Analysis.Utilities.Yield(new Instantiation()
+            //    {
+            //        Rule = new BuildFailuresRule(configuration),
+            //        PollingPeriod = TimeSpan.FromMinutes(45),
+            //    });
+            //}, watchlist);
 
-            OncePerEnvironment(arguments =>
-            {
-                var configuration = new MostRecentBuildsFailureRateRule.Configuration(arguments.BaseConfiguration);
-                return Analysis.Utilities.Yield(new Instantiation()
-                {
-                    Rule = new MostRecentBuildsFailureRateRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(45),
-                });
-            }, watchlist);
+            //OncePerEnvironment(arguments =>
+            //{
+            //    var configuration = new MostRecentBuildsFailureRateRule.Configuration(arguments.BaseConfiguration);
+            //    return Analysis.Utilities.Yield(new Instantiation()
+            //    {
+            //        Rule = new MostRecentBuildsFailureRateRule(configuration),
+            //        PollingPeriod = TimeSpan.FromMinutes(45),
+            //    });
+            //}, watchlist);
 
             // TODO: fire-and-forget exceptions are now being reported on the dashboards. We should see if this can be recycled.
             //OncePerStamp(arguments =>

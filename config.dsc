@@ -511,20 +511,20 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-win-x64.zip",
-                    hash: "VSO0:89495668CD87C565889C9439275D232DF4456E1A4AA1F6F587D3674A1BCE3CAD00",
+                    url: "https://nodejs.org/dist/v16.6.1/node-v16.6.1-win-x64.zip",
+                    hash: "VSO0:A0703A6A1B0D579B59BCF27F0013FD49631607C669274DCCD4EFAB16F36772D400",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-darwin-x64.tar.gz",
-                    hash: "VSO0:E5019A97DF2947725E17A6CEB9E2F92EAA490902A51A46A91F4EC37ECFF18A7F00",
+                    url: "https://nodejs.org/dist/v16.6.1/node-v16.6.1-darwin-x64.tar.gz",
+                    hash: "VSO0:9FCA500CD68FCD90BB8DA8261E1186B0F20B32334F5B25B546BC58B1809FF43900",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v15.2.1/node-v15.2.1-linux-x64.tar.gz",
-                    hash: "VSO0:038EB56ECF4C3FEC397E149A91F32DDD0E91E9FB61E7BA064FB9E5E5C0A3779800",
+                    url: "https://nodejs.org/dist/v16.6.1/node-v16.6.1-linux-x64.tar.gz",
+                    hash: "VSO0:D8C910B8E0D12BA97C5A70C8ED3C37E44E18F20E4C2486A24D3E4650F6968BDD00",
                     archiveType: "tgz",
                 }
             ],

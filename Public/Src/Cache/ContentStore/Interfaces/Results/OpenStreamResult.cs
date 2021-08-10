@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -88,6 +89,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             Contract.Requires(code != ResultCode.Success);
             Code = code;
         }
+
+        /// <inheritdoc />
+        [MemberNotNullWhen(true, nameof(Stream))]
+        public override bool Succeeded => base.Succeeded;
 
         /// <inheritdoc />
         public override Error? Error

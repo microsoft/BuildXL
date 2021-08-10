@@ -200,6 +200,7 @@ message CopyFileRequest {
 message CopyFileResponse {
     bytes content = 1;
     int64 index = 2;
+    ResponseHeader Header = 3;
 }
 
 enum CopyCompression {

@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             Assert.NotNull(result.ErrorMessage);
             if (expectedMessageFragment != null)
             {
-                Assert.Contains(expectedMessageFragment, result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains(expectedMessageFragment, result.ToString(), StringComparison.OrdinalIgnoreCase);
             }
 
             Assert.False(result.Succeeded, $"The operation should fail but was successful.");

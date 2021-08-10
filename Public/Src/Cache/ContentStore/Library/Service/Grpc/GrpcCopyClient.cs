@@ -336,16 +336,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // Copy the content to the target stream.
                 try
                 {
-                    switch (compression)
+                    BoolResult streamResult = compression switch
                     {
-                        case CopyCompression.None:
-                            await StreamContentAsync(response.ResponseStream, targetStream, options, token);
-                            break;
-                        case CopyCompression.Gzip:
-                            await StreamContentWithCompressionAsync(response.ResponseStream, targetStream, options, token);
-                            break;
-                        default:
-                            throw new NotSupportedException($"Server is compressing stream with algorithm '{compression}', which is not supported client-side");
+                        CopyCompression.None => await StreamContentAsync(response.ResponseStream, targetStream, options, token),
+                        CopyCompression.Gzip => await StreamContentWithCompressionAsync(response.ResponseStream, targetStream, options, token),
+                        _ => throw new NotSupportedException(
+                            $"Server is compressing stream with algorithm '{compression}', which is not supported client-side")
+                    };
+
+                    if (!streamResult.Succeeded)
+                    {
+                        return new CopyFileResult(streamResult);
                     }
                 }
                 finally
@@ -529,7 +530,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 return response.Header.Succeeded
                     ? PushFileResult.PushSucceeded(size)
-                    : new PushFileResult(response.Header.ErrorMessage);
+                    : new PushFileResult(response.Header.ErrorMessage, response.Header.Diagnostics);
             }
         }
 
@@ -556,45 +557,76 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 cancellationToken);
         }
 
-        private Task<(long Chunks, long Bytes)> StreamContentAsync(IAsyncStreamReader<CopyFileResponse> input, Stream output, CopyOptions? options, CancellationToken cancellationToken)
+        private async Task<BoolResult> StreamContentAsync(IAsyncStreamReader<CopyFileResponse> input, Stream output, CopyOptions? options, CancellationToken cancellationToken)
         {
-            return GrpcExtensions.CopyChunksToStreamAsync(
-                input,
-                output,
-                response => response.Content,
-                totalBytes => options?.UpdateTotalBytesCopied(totalBytes),
-                cancellationToken);
+            try
+            {
+                await GrpcExtensions.CopyChunksToStreamAsync(
+                    input,
+                    output,
+                    response =>
+                    {
+                        if (response.Header != null)
+                        {
+                            var error = new ErrorResult(response.Header.ErrorMessage ?? "Unknown error", response.Header.Diagnostics);
+                            error.ThrowIfFailure();
+                        }
+                        return response.Content;
+                    },
+                    totalBytes => options?.UpdateTotalBytesCopied(totalBytes),
+                    cancellationToken);
+
+                return BoolResult.Success;
+            }
+            catch (ResultPropagationException e)
+            {
+                return new BoolResult(e.Result);
+            }
         }
 
-        private async Task<(long chunks, long bytes)> StreamContentWithCompressionAsync(IAsyncStreamReader<CopyFileResponse> input, Stream output, CopyOptions? options, CancellationToken cancellationToken)
+        private async Task<BoolResult> StreamContentWithCompressionAsync(IAsyncStreamReader<CopyFileResponse> input, Stream output, CopyOptions? options, CancellationToken cancellationToken)
         {
-            long chunks = 0L;
-            long bytes = 0L;
-
-            using (var grpcStream = new BufferedReadStream(async () =>
+            try
             {
-                if (await input.MoveNext(cancellationToken))
-                {
-                    chunks++;
-                    bytes += input.Current.Content.Length;
+                long chunks = 0L;
+                long bytes = 0L;
 
-                    options?.UpdateTotalBytesCopied(bytes);
+                using (var grpcStream = new BufferedReadStream(
+                    async () =>
+                    {
+                        if (await input.MoveNext(cancellationToken))
+                        {
+                            if (input.Current.Header is { } header)
+                            {
+                                var error = new ErrorResult(header.ErrorMessage ?? "Unknown error", header.Diagnostics);
+                                error.ThrowIfFailure();
+                            }
 
-                    return input.Current.Content;
-                }
-                else
+                            chunks++;
+                            bytes += input.Current.Content.Length;
+
+                            options?.UpdateTotalBytesCopied(bytes);
+
+                            return input.Current.Content;
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }))
                 {
-                    return null;
+                    using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
+                    {
+                        await decompressedStream.CopyToAsync(output, _configuration.ClientBufferSizeBytes, cancellationToken);
+                    }
                 }
-            }))
-            {
-                using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
-                {
-                    await decompressedStream.CopyToAsync(output, _configuration.ClientBufferSizeBytes, cancellationToken);
-                }
+
+                return BoolResult.Success;
             }
-
-            return (chunks, bytes);
+            catch (ResultPropagationException e)
+            {
+                return new BoolResult(e.Result);
+            }
         }
 
         /// <nodoc />

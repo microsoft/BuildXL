@@ -23,14 +23,15 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
-using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.Host.Service;
+
+using static BuildXL.Utilities.ConfigurationHelper;
+using CompressionLevel = System.IO.Compression.CompressionLevel;
 
 #nullable enable
 
@@ -59,6 +60,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         HandlePushFile,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        HandleCopyFile,
 
         /// <nodoc />
         PushFileRejectNotSupported,
@@ -114,13 +119,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected virtual ISessionHandler<IContentSession, LocalContentServerSessionData> ContentSessionHandler { get; }
 
         /// <inheritdoc />
-        public IPushFileHandler PushFileHandler { get; }
+        public IPushFileHandler? PushFileHandler { get; }
 
-        /// <inheritdoc />
-        public ICopyRequestHandler CopyRequestHandler { get; }
+        /// <nodoc />
+        public ICopyRequestHandler? CopyRequestHandler { get; }
 
         /// <inheritdoc />
         public IDistributedStreamStore StreamStore => this;
+
+        /// <summary>
+        /// [Used for testing only]: an exception that will be thrown during copy files or handling push files.
+        /// </summary>
+        internal Exception? HandleRequestFailure { get; set; }
 
         private readonly ConcurrencyLimiter<Guid> _copyFromConcurrencyLimiter;
 
@@ -139,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             IReadOnlyDictionary<string, IContentStore> storesByName,
             LocalServerConfiguration? localServerConfiguration = null)
         {
-            Contract.RequiresNotNull(storesByName);
+            Contract.Requires(storesByName != null);
 
             _serviceCapabilities = serviceCapabilities;
             _contentStoreByCacheName = storesByName;
@@ -154,8 +164,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _workingDirectory = (localServerConfiguration?.DataRootPath ?? _fileSystem.GetTempPath()) / "GrpcContentServer";
 
             GrpcAdapter = new ContentServerAdapter(this);
-            PushFileHandler = storesByName.Values.OfType<IPushFileHandler>().FirstOrDefault()!;
-            CopyRequestHandler = _contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault()!;
+            PushFileHandler = storesByName.Values.OfType<IPushFileHandler>().FirstOrDefault();
+            CopyRequestHandler = _contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault();
 
             Logger = logger;
         }
@@ -328,6 +338,28 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new CopyLimiter(_copyFromConcurrencyLimiter, operationId, overTheLimit);
         }
 
+        private Task SendErrorResponseAsync(ServerCallContext callContext, ResultBase result)
+        {
+            Contract.Requires(!result.Succeeded);
+
+            if (callContext.CancellationToken.IsCancellationRequested)
+            {
+                // Nothing we can do: the connection is closed by the caller.
+                return BoolResult.SuccessTask;
+            }
+
+            string errorType = result.GetType().Name;
+            string errorMessage = result.ErrorMessage!;
+
+            if (result.Exception != null)
+            {
+                errorType = result.Exception.GetType().Name;
+                errorMessage = result.Exception.Message;
+            }
+
+            return SendErrorResponseAsync(callContext, errorType, errorMessage);
+        }
+
         private Task SendErrorResponseAsync(ServerCallContext context, string errorType, string errorMessage)
         {
             Metadata headers = new Metadata();
@@ -336,64 +368,54 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return context.WriteResponseHeadersAsync(headers);
         }
 
-        private async Task HandleCopyRequestAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
+        private Task HandleCopyRequestAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
         {
-            var cacheContext = new Context(request.TraceId, Logger);
-            var operationContext = new OperationContext(cacheContext);
-
-            var result = await operationContext
-                .PerformOperationAsync(
-                    Tracer,
-                    async () =>
-                    {
-                        await HandleCopyRequestCoreAsync(cacheContext, request, responseStream, callContext);
-                        return BoolResult.Success;
-                    },
-                    traceErrorsOnly: true);
-
-            if (!result.Succeeded)
-            {
-                var exception = result.Exception!;
-                await SendErrorResponseAsync(callContext, exception.GetType().Name, exception.Message);
-            }
+            var cacheContext = new OperationContext(new Context(request.TraceId, Logger));
+            return HandleRequestAsync(
+                cacheContext,
+                request.GetContentHash(),
+                callContext,
+                func: async operationContext => await HandleCopyRequestCoreAsync(operationContext, request, responseStream, callContext),
+                sendErrorResponseFunc: header => TryWriteAsync(cacheContext, callContext, responseStream, new CopyFileResponse() { Header = header }),
+                counter: GrpcContentServerCounters.HandleCopyFile);
         }
 
-        private async Task HandleCopyRequestCoreAsync(Context cacheContext, CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
+        private async Task<BoolResult> HandleCopyRequestCoreAsync(OperationContext operationContext, CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext callContext)
         {
             using var limiter = CanHandleCopyRequest(request.FailFastIfBusy);
-
+            string message;
             if (limiter.OverTheLimit)
             {
                 Counters[GrpcContentServerCounters.CopyRequestRejected].Increment();
+                message = $"Copy limit of '{limiter.Limit}' reached. Current number of pending copies: {limiter.CurrentCount}";
                 await SendErrorResponseAsync(
                     callContext,
                     errorType: "ConcurrencyLimitReached",
-                    errorMessage: $"Copy limit of '{limiter.Limit}' reached. Current number of pending copies: {limiter.CurrentCount}");
-                return;
+                    errorMessage: message);
+                return new BoolResult(message);
             }
 
             ContentHash hash = request.GetContentHash();
-            OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
+            OpenStreamResult result = await GetFileStreamAsync(operationContext, hash);
             switch (result.Code)
             {
                 case OpenStreamResult.ResultCode.ContentNotFound:
                     Counters[GrpcContentServerCounters.CopyContentNotFound].Increment();
+                    message = $"Requested content with hash={hash.ToShortString()} not found.";
                     await SendErrorResponseAsync(
                         callContext,
                         errorType: "ContentNotFound",
-                        errorMessage: $"Requested content with hash={hash.ToShortString()} not found.");
-                    break;
+                        errorMessage: message);
+                    return new BoolResult(message);
                 case OpenStreamResult.ResultCode.Error:
-                    Contract.Assert(result.Exception != null);
+                    Contract.Assert(!result.Succeeded);
                     Counters[GrpcContentServerCounters.CopyError].Increment();
-                    await SendErrorResponseAsync(
-                        callContext,
-                        errorType: result.Exception.GetType().Name,
-                        errorMessage: result.Exception.Message);
-                    break;
+                    await SendErrorResponseAsync(callContext, result);
+
+                    return new BoolResult(result);
                 case OpenStreamResult.ResultCode.Success:
                 {
-                    Contract.AssertNotNull(result.Stream);
+                    Contract.Assert(result.Succeeded);
                     using var _ = result.Stream;
                     long size = result.Stream.Length;
 
@@ -408,7 +430,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             streamContent = StreamContentWithGzipCompressionAsync;
                             break;
                         default:
-                            Tracer.Error(cacheContext, $"Requested compression algorithm '{compression}' is unknown by the server. Transfer will be uncompressed.");
+                            Tracer.Error(operationContext, $"Requested compression algorithm '{compression}' is unknown by the server. Transfer will be uncompressed.");
                             compression = CopyCompression.None;
                             streamContent = StreamContentAsync;
                             break;
@@ -419,23 +441,36 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     headers.Add("Compression", compression.ToString());
                     headers.Add("ChunkSize", _bufferSize.ToString());
 
-                    // Send the response headers.
+                    // Sending the response headers.
                     await callContext.WriteResponseHeadersAsync(headers);
 
-                    // Need to cancel the operation when the instance is shut down.
-                    using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
-                    var operationContext = shutdownTracker.Context;
+                    // Cancelling the operation if requested.
+                    operationContext.Token.ThrowIfCancellationRequested();
 
                     using var bufferHandle = _pool.Get();
                     using var secondaryBufferHandle = _pool.Get();
-                    (await operationContext.PerformOperationAsync(
+
+                    // Checking an error potentially injected by tests.
+                    if (HandleRequestFailure != null)
+                    {
+                        streamContent = (input, buffer, secondaryBuffer, stream, ct) => throw HandleRequestFailure;
+                    }
+
+                    var streamResult = await operationContext.PerformOperationAsync(
                             _tracer,
-                            () => streamContent(result.Stream!, bufferHandle.Value, secondaryBufferHandle.Value, responseStream, operationContext.Token),
+                            () => streamContent(result.Stream, bufferHandle.Value, secondaryBufferHandle.Value, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
                             extraEndMessage: r => $"Hash=[{hash.ToShortString()}] Compression=[{compression}] Size=[{size}] Sender=[{GetSender(callContext)}] ReadTime=[{getFileIoDurationAsString()}]",
-                            counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration])
-                        ).Then((r, duration) => trackMetrics(r.totalChunksCount, r.totalBytes, duration))
+                            counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration]);
+                    
+                    streamResult
+                        .Then((r, duration) => trackMetrics(r.totalChunksCount, r.totalBytes, duration))
                         .IgnoreFailure(); // The error was already logged.
+
+                    // The caller will catch the error and will send the response to the caller appropriately.
+                    streamResult.ThrowIfFailure();
+
+                    return BoolResult.Success;
 
                     BoolResult trackMetrics(long totalChunksCount, long totalBytes, TimeSpan duration)
                     {
@@ -453,8 +488,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         var duration = GetFileIODuration(result.Stream);
                         return duration != null ? $"{(long)duration.Value.TotalMilliseconds}ms" : string.Empty;
                     }
-
-                    break;
                 }
                 default:
                     throw new NotImplementedException($"Unknown result.Code '{result.Code}'.");
@@ -491,7 +524,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             return RunFuncNoSessionAsync(
                 request.TraceId,
-                async (context) =>
+                async context =>
                 {
                     // Iterate through all known stores, looking for content in each.
                     // In most of our configurations there is just one store anyway,
@@ -520,43 +553,36 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Handles a request to copy content to this machine.
         /// </summary>
-        public async Task HandlePushFileAsync(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext callContext)
+        private Task HandlePushFileAsync(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext callContext)
         {
-            // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
-            await Task.Yield();
-
             var pushRequest = PushRequest.FromMetadata(callContext.RequestHeaders);
             var cacheContext = new OperationContext(new Context(pushRequest.TraceId, Logger));
+            var hash = pushRequest.Hash;
 
-            // Using PerformOperation to return the information about any potential errors happen in this code.
-            var result = await cacheContext.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    await HandlePushFileCoreAsync(cacheContext, pushRequest, requestStream, responseStream, callContext);
-                    return BoolResult.Success;
-                },
-                traceErrorsOnly: true);
-
-            if (!result)
-            {
-                var exception = result.Exception!;
-                await SendErrorResponseAsync(callContext, exception.GetType().Name, exception.ToString());
-            }
+            return HandleRequestAsync(
+                cacheContext,
+                hash,
+                callContext,
+                operationContext => HandlePushFileCoreAsync(operationContext, pushRequest, requestStream, responseStream, callContext),
+                sendErrorResponseFunc: header => TryWriteAsync(cacheContext, callContext, responseStream, new PushFileResponse {Header = header}),
+                GrpcContentServerCounters.HandlePushFile);
         }
 
-        private async Task HandlePushFileCoreAsync(Context cacheContext, PushRequest pushRequest, IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext callContext)
+        private async Task<BoolResult> HandlePushFileCoreAsync(
+            OperationContext operationContext,
+            PushRequest pushRequest,
+            IAsyncStreamReader<PushFileRequest> requestStream,
+            IServerStreamWriter<PushFileResponse> responseStream,
+            ServerCallContext callContext)
         {
             var startTime = DateTime.UtcNow;
             var hash = pushRequest.Hash;
 
-            // Cancelling the operation when the instance is shut down.
-            using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
-            var token = shutdownTracker.Context.Token;
+            var token = operationContext.Token;
 
             var store = PushFileHandler;
 
-            using var limiter = PushCopyLimiter.Create(cacheContext, _ongoingPushesConcurrencyLimiter, hash, store);
+            using var limiter = PushCopyLimiter.Create(operationContext, _ongoingPushesConcurrencyLimiter, hash, store);
             if (limiter.RejectionReason != RejectionReason.Accepted)
             {
                 var rejectCounter = limiter.RejectCounter;
@@ -565,79 +591,158 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Counters[rejectCounter.Value].Increment();
                 }
 
-                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileCoreAsync)}: Copy is skipped. Hash={hash.ToShortString()}, Reason={limiter.RejectionReason}, Limit={limiter.Limit}, CurrentCount={limiter.CurrentCount}.");
                 await callContext.WriteResponseHeadersAsync(PushResponse.DoNotCopy(limiter.RejectionReason).Metadata);
-                return;
+                return new BoolResult($"Copy is skipped. Hash={hash.ToShortString()}, Reason={limiter.RejectionReason}, Limit={limiter.Limit}, CurrentCount={limiter.CurrentCount}.");
             }
 
-            var operationContext = new OperationContext(cacheContext, token);
-            await operationContext.PerformNonResultOperationAsync(
-                Tracer,
-                async () =>
+            await callContext.WriteResponseHeadersAsync(PushResponse.Copy.Metadata);
+
+            // Checking an error potentially injected by tests.
+            if (HandleRequestFailure != null)
+            {
+                throw HandleRequestFailure;
+            }
+
+            using (var disposableFile = new DisposableFile(operationContext, _fileSystem, _temporaryDirectory!.CreateRandomFileName()))
+            {
+                // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
+                // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
+                // that needs to be tested on a case by case basis. Since we don't know what the underlying store
+                // plans to do with the file, it is more robust to just use the DisposableFile construct.
+                using (var tempFile = _fileSystem.OpenForWrite(disposableFile.Path, expectingLength: null, FileMode.CreateNew, FileShare.None))
                 {
-                    await callContext.WriteResponseHeadersAsync(PushResponse.Copy.Metadata);
+                    // From the docs: On the server side, MoveNext() does not throw exceptions.
+                    // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
+                    // and the CancellationToken associated with the call will be cancelled to signal the failure.
 
-                    PutResult? result = null;
-                    using (var disposableFile = new DisposableFile(cacheContext, _fileSystem, _temporaryDirectory!.CreateRandomFileName()))
+                    // It means that if the token is canceled the following method won't throw but will return early.
+                    await GrpcExtensions.CopyChunksToStreamAsync(requestStream, tempFile.Stream, request => request.Content, cancellationToken: token);
+                }
+
+                token.ThrowIfCancellationRequested();
+
+                Contract.Assert(store != null);
+                var result = await store.HandlePushFileAsync(operationContext, hash, new FileSource(disposableFile.Path, FileRealizationMode.Move), token);
+
+                var response = result
+                    ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
+                    : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage, result.Diagnostics) };
+
+                await responseStream.WriteAsync(response);
+                return BoolResult.Success;
+            }
+        }
+
+        private async Task HandleRequestAsync(
+            OperationContext cacheContext,
+            ContentHash contentHash,
+            ServerCallContext callContext,
+            Func<OperationContext, Task<BoolResult>> func,
+            Func<ResponseHeader, Task> sendErrorResponseFunc,
+            GrpcContentServerCounters counter,
+            [CallerMemberName]string caller = null!)
+        {
+            // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
+            await Task.Yield();
+            var startTime = DateTime.UtcNow;
+
+            // Cancelling the operation if the instance is shutting down.
+            using var shutdownTracker = TrackShutdown(cacheContext, callContext.CancellationToken);
+            var operationContext = shutdownTracker.Context;
+
+            string extraErrorMessage = string.Empty;
+
+            // Using PerformOperation to return the information about any potential errors happen in this code.
+            await operationContext
+                .PerformOperationAsync(
+                    Tracer,
+                    async () =>
                     {
-                        // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
-                        // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
-                        // that needs to be tested on a case by case basis. Since we don't know what the underlying store
-                        // plans to do with the file, it is more robust to just use the DisposableFile construct.
-                        using (var tempFile = _fileSystem.OpenForWrite(disposableFile.Path, expectingLength: null, FileMode.CreateNew, FileShare.None))
+                        try
                         {
-                            // From the docs: On the server side, MoveNext() does not throw exceptions.
-                            // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
-                            // and the CancellationToken associated with the call will be cancelled to signal the failure.
-                            await GrpcExtensions.CopyChunksToStreamAsync(requestStream, tempFile.Stream, request => request.Content, cancellationToken: token);
+                            return await func(operationContext);
                         }
-
-                        if (token.IsCancellationRequested)
+                        catch (Exception e)
                         {
-                            if (!callContext.CancellationToken.IsCancellationRequested)
+                            // The callback may fail with 'InvalidOperationException' if the other side will close the connection
+                            // during the call.
+                            if (operationContext.Token.IsCancellationRequested)
                             {
-                                await responseStream.WriteAsync(new PushFileResponse()
+                                if (!callContext.CancellationToken.IsCancellationRequested)
                                 {
-                                    Header = ResponseHeader.Failure(startTime, "Operation cancelled by handler.")
-                                });
+                                    extraErrorMessage = ", Cancelled by handler";
+                                    // The operation is canceled by the handler, not by the caller.
+                                    // Sending the response back to notify the caller about the cancellation.
+
+                                    // TODO: consider passing a special error code for cancellation.
+                                    await sendErrorResponseFunc(ResponseHeader.Failure(startTime, "Operation cancelled by handler."));
+                                }
+                                else
+                                {
+                                    extraErrorMessage = ", Cancelled by caller";
+                                }
+
+                                // The operation is cancelled by the caller. Nothing we can do except to trace the error.
+                                return new BoolResult(e) {IsCancelled = true};
                             }
 
-                            var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
+                            // Unknown error occurred.
+                            // Sending reply back to the caller.
+                            string errorDetails = e is ResultPropagationException rpe ? rpe.Result.ToString() : e.ToString();
+                            await sendErrorResponseFunc(
+                                ResponseHeader.Failure(
+                                    startTime,
+                                    $"Unknown error occurred processing hash {contentHash.ToShortString()}",
+                                    diagnostics: errorDetails));
 
-                            _tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
-                            return Unit.Void;
+                            return new BoolResult(e);
                         }
+                    },
+                    counter: Counters[counter],
+                    traceErrorsOnly: true,
+                    extraEndMessage: _ => $"Hash=[{contentHash}]{extraErrorMessage}",
+                    caller: caller)
+                .IgnoreFailure(); // The error was already traced.
+        }
 
-                        Contract.Assert(store != null);
-                        result = await store.HandlePushFileAsync(cacheContext, hash, new FileSource(disposableFile.Path, FileRealizationMode.Move), token);
-                    }
-
-                    var response = result
-                        ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
-                        : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
-
-                    await responseStream.WriteAsync(response);
-                    return Unit.Void;
-                },
-                traceErrorsOnly: true,
-                counter: Counters[GrpcContentServerCounters.HandlePushFile]);
+        private async Task TryWriteAsync<TResponse>(OperationContext operationContext, ServerCallContext callContext, IServerStreamWriter<TResponse> writer, TResponse response)
+        {
+            try
+            {
+                await writer.WriteAsync(response);
+            }
+            catch (Exception e)
+            {
+                if (e is InvalidOperationException && callContext.CancellationToken.IsCancellationRequested)
+                {
+                    // This is an expected race condition when the connection can be closed when we send the response back.
+                    Tracer.Debug(operationContext, "The connection was closed when sending the response back to the caller.");
+                }
+                else
+                {
+                    Tracer.Warning(operationContext, e, "Failure sending error response back.");
+                }
+            }
         }
 
         private delegate Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentDelegate(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
 
         private async Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
-            return await GrpcExtensions.CopyStreamToChunksAsync(input, responseStream, (content, chunks) => new CopyFileResponse()
-            {
-                Content = content,
-                Index = chunks,
-            }, buffer, secondaryBuffer, cancellationToken: ct);
+            return await GrpcExtensions.CopyStreamToChunksAsync(
+                input,
+                responseStream,
+                (content, chunks) => new CopyFileResponse() { Content = content, Index = chunks},
+                buffer,
+                secondaryBuffer,
+                cancellationToken: ct);
         }
 
         private async Task<Result<(long totalChunksCount, long totalBytes)>> StreamContentWithGzipCompressionAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
             long bytes = 0L;
             long chunks = 0L;
+
             using (Stream grpcStream = new BufferedWriteStream(
                 buffer,
                 async (byte[] bf, int offset, int count) =>
@@ -650,11 +755,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             ))
             {
-                using (Stream compressionStream = new GZipStream(grpcStream, System.IO.Compression.CompressionLevel.Fastest, true))
+                using (Stream compressionStream = new GZipStream(grpcStream, CompressionLevel.Fastest, true))
                 {
                     await input.CopyToAsync(compressionStream, buffer.Length, ct);
                     await compressionStream.FlushAsync(ct);
                 }
+
                 await grpcStream.FlushAsync(ct);
             }
 

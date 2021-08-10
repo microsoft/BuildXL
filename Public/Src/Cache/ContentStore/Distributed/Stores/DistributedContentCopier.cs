@@ -285,7 +285,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHashWithSize hash, MachineLocation targetLocation, bool isInsideRing, int attempt)
         {
-            var options = GetCopyOptions(attempt);
             return PerformProactiveCopyAsync(
                 context,
                 innerContext => CommunicationManager.RequestCopyFileAsync(innerContext, hash, targetLocation),

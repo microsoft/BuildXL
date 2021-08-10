@@ -93,6 +93,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(Severity.Error, context, message, operation, exception);
         }
 
+        public void Warning(Context context, Exception exception, string message, [CallerMemberName] string? operation = null)
+        {
+            Trace(Severity.Warning, context, message, operation, exception: exception);
+        }
+
         public void Warning(Context context, string message, [CallerMemberName] string? operation = null)
         {
             Trace(Severity.Warning, context, message, operation);
@@ -118,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             Trace(Severity.Diagnostic, context, message, operation);
         }
 
-        private void Trace(Severity severity, Context context, string message, string? operation = null, Exception? exception = null)
+        public void Trace(Severity severity, Context context, string message, string? operation = null, Exception? exception = null)
         {
             context.TraceMessage(severity, message, exception, component: Name, operation: operation);
         }

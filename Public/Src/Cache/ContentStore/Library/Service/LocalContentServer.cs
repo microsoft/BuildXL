@@ -33,13 +33,13 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public const string HibernatedSessionsFileName = "sessions.json";
 
-        private readonly GrpcContentServer _grpcContentServer;
-
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalContentServer));
 
         /// <inheritdoc />
-        protected override ICacheServerServices Services => _grpcContentServer;
+        protected override ICacheServerServices Services => GrpcContentServer;
+
+        internal GrpcContentServer GrpcContentServer { get; }
 
         /// <nodoc />
         public LocalContentServer(
@@ -51,11 +51,11 @@ namespace BuildXL.Cache.ContentStore.Service
             IGrpcServiceEndpoint[]? additionalEndpoints = null)
         : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration, additionalEndpoints)
         {
-            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration);
+            GrpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration);
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => _grpcContentServer.Bind();
+        protected override ServerServiceDefinition[] BindServices() => GrpcContentServer.Bind();
 
         /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(IContentStore store, OperationContext context) => store.GetStatsAsync(context);
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await _grpcContentServer.StartupAsync(context).ThrowIfFailure();
+            await GrpcContentServer.StartupAsync(context).ThrowIfFailure();
 
             return await base.StartupCoreAsync(context);
         }
@@ -86,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var result = await base.ShutdownCoreAsync(context);
 
-            result &= await _grpcContentServer.ShutdownAsync(context);
+            result &= await GrpcContentServer.ShutdownAsync(context);
 
             return result;
         }

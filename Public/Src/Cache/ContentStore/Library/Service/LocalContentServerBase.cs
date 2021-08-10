@@ -301,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     _sessionExpirationCheckTimer = new IntervalTimer(
                         () => CheckForExpiredSessionsAsync(context),
                         MinTimeSpan(Config.UnusedSessionHeartbeatTimeout, TimeSpan.FromMinutes(CheckForExpiredSessionsPeriodMinutes)),
-                        message => Tracer.Debug(context, $"[{CheckForExpiredSessionsName}] message"));
+                        logAction: message => Tracer.Debug(context, $"{CheckForExpiredSessionsName}: {message}"));
 
                     _logIncrementalStatsTimer = new IntervalTimer(
                         () => LogIncrementalStatsAsync(context, logAtShutdown: false),

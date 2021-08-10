@@ -23,7 +23,6 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
@@ -83,6 +82,52 @@ namespace ContentStoreTest.Distributed.Stores
             });
 
             await CopyExistingFile();
+        }
+
+
+        [Fact]
+        public Task CopyFailWithUnknownError()
+        {
+            return RunTestCase(async (server, rootPath, session, client) =>
+                               {
+                                   // Write a random file
+                                   var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                                   var content = ThreadSafeRandom.GetBytes(FileSize);
+                                   FileSystem.WriteAllBytes(sourcePath, content);
+
+                                   // Put the random file
+                                   PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
+                                   putResult.ShouldBeSuccess();
+
+                                   // Copy the file out via GRPC
+                                   var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+
+                                   // Injecting failure.
+                                   server.GrpcContentServer.HandleRequestFailure = new Exception("Custom exception");
+                                   var copyFileResult = await client.CopyFileAsync(new OperationContext(_context), putResult.ContentHash, destinationPath, new CopyOptions(bandwidthConfiguration: null));
+                                   copyFileResult.ShouldBeError("Custom exception");
+                               });
+        }
+
+        [Fact]
+        public Task PushFileFailsWithUnknownError()
+        {
+            return RunTestCase(async (server, rootPath, session, client) =>
+                               {
+                                   var data = ThreadSafeRandom.GetBytes(1 + 42);
+                                   using var stream = new MemoryStream(data);
+                                   var hash = HashInfoLookup.GetContentHasher(HashType.Vso0).GetContentHash(data);
+
+                                   // Injecting failure.
+                                   server.GrpcContentServer.HandleRequestFailure = new Exception("Custom exception");
+
+                                   var pushResult = await client.PushFileAsync(
+                                       new OperationContext(_context),
+                                       hash,
+                                       stream,
+                                       new CopyOptions(bandwidthConfiguration: null));
+                                   pushResult.ShouldBeError("Custom exception");
+                               });
         }
 
         [Fact]
@@ -328,7 +373,12 @@ namespace ContentStoreTest.Distributed.Stores
              });
         }
 
-        private async Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName] string testName = null)
+        private Task RunTestCase(Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName] string testName = null)
+        {
+            return RunTestCase((_, absolutePath, contentSession, grpcCopyClient) => testAct(absolutePath, contentSession, grpcCopyClient), testName);
+        }
+
+        private async Task RunTestCase(Func<LocalContentServer, AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct, [CallerMemberName] string testName = null)
         {
             var cacheName = testName + "_cache";
             testName += Guid.NewGuid(); // Using a guid to disambiguate scenario name.
@@ -365,12 +415,12 @@ namespace ContentStoreTest.Distributed.Stores
                 (int sessionId, _) = createSessionResult.Value;
                 using var sessionReference = server.GetSession(sessionId);
                 var session = sessionReference.Session;
-
+                
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
                 await _clientCache.UseAsync(new OperationContext(_context), LocalHost, port, async (nestedContext, grpcCopyClient) =>
                 {
-                    await testAct(rootPath, session, grpcCopyClient);
+                    await testAct(server, rootPath, session, grpcCopyClient);
                     return Unit.Void;
                 });
 

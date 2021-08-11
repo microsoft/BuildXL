@@ -1,8 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.Tracing;
-
 namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
@@ -11,20 +9,39 @@ namespace BuildXL.Cache.ContentStore.Utils
     public enum ResourcePoolCounters
     {
         /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        Cleanup,
+        CreatedResources,
 
         /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        CreationTime,
+        ResourceInitializationAttempts,
 
         /// <nodoc />
-        Created,
+        ResourceInitializationSuccesses,
 
         /// <nodoc />
-        Cleaned,
+        ResourceInitializationFailures,
 
         /// <nodoc />
-        Reused,
+        ReleasedResources,
+
+        /// <nodoc />
+        ShutdownAttempts,
+
+        /// <nodoc />
+        ShutdownSuccesses,
+
+        /// <nodoc />
+        ShutdownFailures,
+
+        /// <nodoc />
+        ShutdownExceptions,
+
+        /// <nodoc />
+        GarbageCollectionAttempts,
+
+        /// <nodoc />
+        GarbageCollectionSuccesses,
+
+        /// <nodoc />
+        BackgroundGarbageCollectionFailures,
     }
 }

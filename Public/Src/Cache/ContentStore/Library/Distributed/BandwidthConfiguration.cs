@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Whether to invalidate Grpc Copy Client in case of an error.
         /// </summary>
         /// <remarks>
-        /// When ResourcePoolV2 is used and the connection is happening at startup the semantic of this option changes from
+        /// When ResourcePool is used and the connection is happening at startup the semantic of this option changes from
         /// being a connection timeout to be a timeout for getting the first bytes from the other side.
         /// </remarks>
         public bool InvalidateOnTimeoutError { get; set; } = true;

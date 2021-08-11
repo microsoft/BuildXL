@@ -8,7 +8,7 @@ using static BuildXL.Utilities.ConfigurationHelper;
 namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
-    /// Configuration for <see cref="ResourcePoolV2{TKey, TObject}"/>
+    /// Configuration for <see cref="ResourcePool{TKey, TObject}"/>
     /// </summary>
     public class ResourcePoolConfiguration
     {
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         /// <nodoc />
         /// <remarks>
-        /// Used only in <see cref="ResourcePoolV2{TKey, TObject}"/>
+        /// Used only in <see cref="ResourcePool{TKey, TObject}"/>
         /// </remarks>
         public TimeSpan GarbageCollectionPeriod { get; set; } = TimeSpan.FromMinutes(5);
 

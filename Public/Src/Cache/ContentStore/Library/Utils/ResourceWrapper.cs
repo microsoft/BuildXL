@@ -2,12 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -15,117 +15,123 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// Wrapper for a resource within a <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
     /// <typeparam name="TObject">The wrapped type.</typeparam>
-    public sealed class ResourceWrapper<TObject> : IDisposable
-        where TObject: IStartupShutdownSlim
+    public sealed class ResourceWrapper<TObject>
+        where TObject : IStartupShutdownSlim
     {
-        private readonly bool _shutdownOnDispose;
-        private readonly Context _context;
+        private static Tracer Tracer { get; } = new Tracer(nameof(ResourceWrapper<TObject>));
 
-        internal DateTime LastUseTime;
-        private int _uses;
-        internal readonly Lazy<TObject> Resource;
+        private readonly object _syncRoot = new object();
 
-        /// <summary>
-        /// Count of ongoing uses of this resource.
-        /// </summary>
-        public int Uses => _uses;
+        private readonly Guid _id;
 
-        /// <summary>
-        /// Whether the resource's underlying lazy wrapper has been evaluated yet.
-        /// </summary>
-        internal bool IsValueCreated => Resource.IsValueCreated;
+        private readonly AsyncLazy<TObject> _lazy;
 
-        /// <summary>
-        /// The contained resource.
-        /// </summary>
-        public TObject Value => Resource.Value;
+        private DateTime _lastAccessTime;
+
+        private readonly CancellationTokenSource _shutdownCancellationTokenSource;
+
+        private bool _invalidated;
+
+        private int _referenceCount;
 
         /// <nodoc />
-        public bool Invalid { get; private set; }
+        internal int ReferenceCount => _referenceCount;
+
+        /// <nodoc />
+        internal bool Invalid => _invalidated || (_lazy.IsValueCreated && _lazy.GetValueAsync().IsFaulted);
+
+        internal bool IsValueCreated => _lazy.IsValueCreated;
+
+        /// <nodoc />
+        public Task<TObject> LazyValue => _lazy.GetValueAsync();
+
+        /// <nodoc />
+        public TObject Value => _lazy.Value;
+
+        /// <nodoc />
+        public CancellationToken ShutdownToken => _shutdownCancellationTokenSource.Token;
 
         /// <summary>
         /// Constructor.
         /// </summary>
-        public ResourceWrapper(Func<TObject> resourceFactory, Context context, bool shutdownOnDispose = false)
+        internal ResourceWrapper(Guid id, AsyncLazy<TObject> resource, DateTime now, CancellationToken cancellationToken)
         {
-            LastUseTime = DateTime.MinValue;
-            Resource = new Lazy<TObject>(() => {
-                var resource = resourceFactory();
-                var result = resource.StartupAsync(context).ThrowIfFailure().GetAwaiter().GetResult();
-                return resource;
-            });
-
-            _shutdownOnDispose = shutdownOnDispose;
-            _context = context;
-        }
-
-        /// <summary>
-        /// Attempt to reserve the resource. Fails if marked for shutdown.
-        /// </summary>
-        /// <param name="reused">Whether the resource has been used previously.</param>
-        /// <param name="clock">Clock to use</param>
-        /// <returns>Whether the resource is approved for use.</returns>
-        public bool TryAcquire(out bool reused, IClock clock)
-        {
-            lock (this)
-            {
-                if (Resource.IsValueCreated && Resource.Value.ShutdownStarted)
-                {
-                    throw Contract.AssertFailure($"Found resource which has already begun shutdown");
-                }
-
-                _uses++;
-
-                reused = LastUseTime != DateTime.MinValue;
-                if (_uses > 0)
-                {
-                    LastUseTime = clock.UtcNow;
-                    return true;
-                }
-            }
-
-            reused = false;
-            return false;
+            _id = id;
+            _lastAccessTime = now;
+            _lazy = resource;
+            _shutdownCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         }
 
         /// <nodoc />
-        public void Invalidate()
+        internal int Acquire(DateTime now)
         {
-            Invalid = true;
+            lock (_syncRoot)
+            {
+                _lastAccessTime = now;
+                return Interlocked.Increment(ref _referenceCount);
+            }
+        }
+
+        /// <nodoc />
+        internal int Release(DateTime now)
+        {
+            lock (_syncRoot)
+            {
+                _lastAccessTime = now;
+                return Interlocked.Decrement(ref _referenceCount);
+            }
+        }
+
+        /// <nodoc />
+        internal bool IsAlive(DateTime now, TimeSpan maximumAge)
+        {
+            lock (_syncRoot)
+            {
+                return !Invalid && now - _lastAccessTime < maximumAge;
+            }
         }
 
         /// <summary>
-        /// Attempt to prepare the resource for shutdown, based on current uses and last use time.
+        /// Invalidates the resource, forcing it to be regenerated on next usage
         /// </summary>
-        /// <param name="force">Whether last use time should be ignored.</param>
-        /// <param name="earliestLastUseTime">If the resource has been used since this time, then it is available for shutdown.</param>
-        /// <returns>Whether the resource can be marked for shutdown.</returns>
-        public bool TryMarkForShutdown(bool force, DateTime earliestLastUseTime)
+        public void Invalidate(Context context)
         {
-            lock (this)
+            lock (_syncRoot)
             {
-                if (_uses == 0 && (force || LastUseTime <= earliestLastUseTime))
-                {
-                    _uses = int.MinValue;
-                    return true;
-                }
+                Tracer.Debug(context, $"Invalidating `{nameof(ResourceWrapper<TObject>)}` ({_id}). Previous value is `{_invalidated}`");
+                _invalidated = true;
             }
-
-            return false;
         }
 
-        /// <inheritdoc />
-        public void Dispose()
+        /// <nodoc />
+        internal void CancelOngoingOperations(Context context)
         {
-            lock (this)
+            Tracer.Debug(context, $"Cancelling ongoing operations for `{nameof(ResourceWrapper<TObject>)}` ({_id})");
+            _shutdownCancellationTokenSource.Cancel();
+        }
+
+        /// <nodoc />
+        internal void Dispose(Context context)
+        {
+            if (_referenceCount != 0)
             {
-                _uses--;
+                // This can only ever happen if an usage of the resource doesn't respect cancellation tokens. In this
+                // case, a Dispose of the pool will force a Dispose of the wrapper. We shouldn't fail in this case,
+                // because not obeying cancellation is external to the pool.
+                Tracer.Warning(context, $"Disposing `{nameof(ResourceWrapper<TObject>)}` ({_id}) which has a reference count of `{_referenceCount}`");
             }
 
-            if (_shutdownOnDispose && Resource.IsValueCreated)
+            if (!_shutdownCancellationTokenSource.IsCancellationRequested)
             {
-                _ = Value.ShutdownAsync(_context).GetAwaiter().GetResult();
+                // This should never happen, and hence signals that a bug occurred. However, it is a bug that we can
+                // live with: we just cancel the operations and move on to dispose. Since no other usage of the
+                // resource can possibly happen, this is safe.
+                Tracer.Error(context, $"Disposing `{nameof(ResourceWrapper<TObject>)}` ({_id}) which hasn't been cancelled");
+                _shutdownCancellationTokenSource.Cancel();
             }
+
+            _shutdownCancellationTokenSource.Dispose();
+            Tracer.Debug(context, $"Disposed `{nameof(ResourceWrapper<TObject>)}` ({_id})");
         }
     }
 }

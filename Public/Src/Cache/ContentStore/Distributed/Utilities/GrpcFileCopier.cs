@@ -107,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Contact hard-coded port on source
             try
             {
-                // ResourcePoolV2 may throw TimeoutException if the connection fails.
+                // ResourcePool may throw TimeoutException if the connection fails.
                 // Wrapping this error and converting it to an "error code".
 
                 return await _clientCache.UseWithInvalidationAsync(context, host, port, async (nestedContext, clientWrapper) =>

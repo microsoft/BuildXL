@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     }
 
     /// <nodoc />
-    public class ResourceWrapperV1Adapter<T> : IResourceWrapperAdapter<T>
+    public class ResourceWrapperAdapter<T> : IResourceWrapperAdapter<T>
         where T : IStartupShutdownSlim
     {
         private readonly ResourceWrapper<T> _wrapper;
@@ -54,29 +54,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public T Value => _wrapper.Value;
 
         /// <nodoc />
-        public void Invalidate(Context context) => _wrapper.Invalidate();
-
-        /// <nodoc />
-        public ResourceWrapperV1Adapter(ResourceWrapper<T> wrapper)
-        {
-            _wrapper = wrapper;
-        }
-    }
-
-    /// <nodoc />
-    public class ResourceWrapperV2Adapter<T> : IResourceWrapperAdapter<T>
-        where T : IStartupShutdownSlim
-    {
-        private readonly ResourceWrapperV2<T> _wrapper;
-
-        /// <nodoc />
-        public T Value => _wrapper.Value;
-
-        /// <nodoc />
         public void Invalidate(Context context) => _wrapper.Invalidate(context);
 
         /// <nodoc />
-        public ResourceWrapperV2Adapter(ResourceWrapperV2<T> wrapper)
+        public ResourceWrapperAdapter(ResourceWrapper<T> wrapper)
         {
             _wrapper = wrapper;
         }
@@ -90,9 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly GrpcCopyClientCacheConfiguration _configuration;
         private readonly ByteArrayPool _grpcCopyClientBufferPool;
 
-        // NOTE: Unifying interfaces here is pain for no gain. Just dispatch manually and remove when obsolete later.
         private readonly ResourcePool<GrpcCopyClientKey, GrpcCopyClient>? _resourcePool;
-        private readonly ResourcePoolV2<GrpcCopyClientKey, GrpcCopyClient>? _resourcePoolV2;
 
         /// <summary>
         /// Cache for <see cref="GrpcCopyClient"/>.
@@ -109,14 +88,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 case GrpcCopyClientCacheConfiguration.PoolVersion.Disabled:
                     break;
                 case GrpcCopyClientCacheConfiguration.PoolVersion.V1:
-                    _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
-                        context,
-                        _configuration.ResourcePoolConfiguration,
-                        (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
-                        clock);
-                    break;
                 case GrpcCopyClientCacheConfiguration.PoolVersion.V2:
-                    _resourcePoolV2 = new ResourcePoolV2<GrpcCopyClientKey, GrpcCopyClient>(
+                    _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
                         context,
                         _configuration.ResourcePoolConfiguration,
                         (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
@@ -143,23 +116,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return result;
                 }
                 case GrpcCopyClientCacheConfiguration.PoolVersion.V1:
-                {
-                    Contract.AssertNotNull(_resourcePool);
-                    using var resourceWrapper = await _resourcePool.CreateAsync(key);
-                    return await operation(context, new ResourceWrapperV1Adapter<GrpcCopyClient>(resourceWrapper));
-                }
                 case GrpcCopyClientCacheConfiguration.PoolVersion.V2:
                 {
-                    Contract.AssertNotNull(_resourcePoolV2);
+                    Contract.AssertNotNull(_resourcePool);
 
-                    return await _resourcePoolV2.UseAsync(context, key, async resourceWrapper =>
+                    return await _resourcePool.UseAsync(context, key, async resourceWrapper =>
                     {
                         // This ensures that the operation we want to perform conforms to the cancellation. When the
                         // resource needs to be removed, the token will be cancelled. Once the operation completes, we
                         // will be able to proceed with shutdown.
                         using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token, resourceWrapper.ShutdownToken);
                         var nestedContext = new OperationContext(context, cancellationTokenSource.Token);
-                        return await operation(nestedContext, new ResourceWrapperV2Adapter<GrpcCopyClient>(resourceWrapper));
+                        return await operation(nestedContext, new ResourceWrapperAdapter<GrpcCopyClient>(resourceWrapper));
                     });
                 }
             }
@@ -179,7 +147,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public void Dispose()
         {
             _resourcePool?.Dispose();
-            _resourcePoolV2?.Dispose();
         }
     }
 }

@@ -2,15 +2,26 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Test.Utils
 {
@@ -21,233 +32,593 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             protected override Tracer Tracer => new Tracer("Dummy");
         }
 
+        private class SlowResource : StartupShutdownSlimBase
+        {
+            protected override Tracer Tracer => new Tracer("Dummy");
+
+            private readonly TimeSpan _startupDelay;
+
+            private readonly TimeSpan _shutdownDelay;
+
+            public SlowResource(TimeSpan? startupDelay = null, TimeSpan? shutdownDelay = null)
+            {
+                _startupDelay = startupDelay ?? TimeSpan.Zero;
+                _shutdownDelay = shutdownDelay ?? TimeSpan.Zero;
+                Contract.Requires(_startupDelay >= TimeSpan.Zero);
+                Contract.Requires(_shutdownDelay >= TimeSpan.Zero);
+            }
+
+            protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+            {
+                if (_startupDelay > TimeSpan.Zero)
+                {
+                    await Task.Delay(_startupDelay, context.Token);
+                }
+                
+                return BoolResult.Success;
+            }
+
+            protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+            {
+                if (_shutdownDelay > TimeSpan.Zero)
+                {
+                    await Task.Delay(_shutdownDelay, context.Token);
+                }
+                
+                return BoolResult.Success;
+            }
+        }
+
+        private class FailingResource : StartupShutdownSlimBase
+        {
+            protected override Tracer Tracer => new Tracer("Dummy");
+
+            private readonly bool _startupFailure;
+            private readonly bool _shutdownFailure;
+
+            public FailingResource(bool startupFailure = false, bool shutdownFailure = false)
+            {
+                _startupFailure = startupFailure;
+                _shutdownFailure = shutdownFailure;
+            }
+
+            protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+            {
+                if (_startupFailure)
+                {
+                    throw new Exception("Ceci n'est pas un erreur");
+                }
+
+                return BoolResult.SuccessTask;
+            }
+
+            protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+            {
+                if (_shutdownFailure)
+                {
+                    throw new Exception("Ceci n'est pas un erreur");
+                }
+
+                return BoolResult.SuccessTask;
+            }
+        }
+
         private struct Key
         {
             public int Number;
             public Key(int number) => Number = number;
         }
 
-        [Fact]
-        public async Task NoContractExceptionsWhenCleaning()
+        private static async Task RunTest<TKey, TObject>(Func<OperationContext, ResourcePool<TKey, TObject>, Task> func, Func<TKey, TObject> factory, ResourcePoolConfiguration? configuration = null, IClock? clock = null)
+            where TKey : notnull
+            where TObject : IStartupShutdownSlim
         {
-            var capacity = 2;
-            var context = new Context(TestGlobal.Logger);
+            configuration ??= new ResourcePoolConfiguration();
 
-            for (var i = 0; i < 10_000; i++)
+            var tracingContext = new Context(TestGlobal.Logger);
+            var context = new OperationContext(tracingContext);
+            var pool = new ResourcePool<TKey, TObject>(tracingContext, configuration, factory, clock);
+
+            try
             {
-                var pool = new ResourcePool<Key, Resource>(context, new ResourcePoolConfiguration()
+                await func(context, pool);
+            }
+            finally
+            {
+                pool.Dispose();
+                ValidateCounters(pool.Counter);
+            }
+        }
+
+        private static Task RunTest<TKey, TObject>(Func<OperationContext, ResourcePool<TKey, TObject>, Task> func, ResourcePoolConfiguration? configuration = null, IClock? clock = null)
+            where TKey : notnull
+            where TObject : IStartupShutdownSlim, new()
+        {
+            return RunTest(func, _ => new TObject(), configuration, clock);
+        }
+
+        private static void ValidateCounters(CounterCollection<ResourcePoolCounters> counters)
+        {
+            counters[ResourcePoolCounters.CreatedResources].Value.Should().BeGreaterOrEqualTo(counters[ResourcePoolCounters.ResourceInitializationAttempts].Value);
+            counters[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().BeGreaterOrEqualTo(counters[ResourcePoolCounters.ReleasedResources].Value);
+            counters[ResourcePoolCounters.ReleasedResources].Value.Should().BeGreaterOrEqualTo(counters[ResourcePoolCounters.ShutdownAttempts].Value);
+
+            counters[ResourcePoolCounters.ResourceInitializationSuccesses].Value.Should().Be(counters[ResourcePoolCounters.ShutdownAttempts].Value);
+
+            counters[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(counters[ResourcePoolCounters.ReleasedResources].Value);
+
+            counters[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(counters[ResourcePoolCounters.ResourceInitializationSuccesses].Value + counters[ResourcePoolCounters.ResourceInitializationFailures].Value);
+
+            counters[ResourcePoolCounters.ShutdownAttempts].Value.Should().Be(counters[ResourcePoolCounters.ShutdownSuccesses].Value + counters[ResourcePoolCounters.ShutdownFailures].Value);
+
+            counters[ResourcePoolCounters.ReleasedResources].Value.Should().Be(counters[ResourcePoolCounters.ShutdownAttempts].Value + counters[ResourcePoolCounters.ResourceInitializationFailures].Value);
+            counters[ResourcePoolCounters.GarbageCollectionAttempts].Value.Should().BeGreaterOrEqualTo(1);
+            counters[ResourcePoolCounters.GarbageCollectionSuccesses].Value.Should().BeGreaterOrEqualTo(1);
+        }
+
+        [Fact]
+        public Task ResourceAcquisitionImpliesInitialization()
+        {
+            return RunTest<Key, Resource>(async (context, pool) =>
+            {
+                var key = new Key(0);
+
+                await pool.UseAsync(context, key, async wrapper =>
                 {
-                    MaximumResourceCount = capacity,
-                    MaximumAge = TimeSpan.FromMinutes(1),
-                }, resourceFactory: _ => new Resource());
+                    wrapper.Invalid.Should().BeFalse();
+                    wrapper.ReferenceCount.Should().Be(1);
 
-                for (var j = 0; j < capacity; j++)
+                    var resource = await wrapper.LazyValue;
+                    resource.StartupCompleted.Should().BeTrue();
+                    resource.ShutdownStarted.Should().BeFalse();
+                    return BoolResult.Success;
+                }).ShouldBeSuccess();
+            });
+        }
+
+        [Fact]
+        public Task ResourceInvalidationRegeneratesInstance()
+        {
+            return RunTest<Key, Resource>(async (context, pool) =>
+            {
+                var key = new Key(0);
+
+                await pool.UseAsync(context, key, wrapper =>
                 {
-                    using var wrapper = await pool.CreateAsync(new Key(j));
-                    var value = wrapper.Value;
-                }
+                    pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(1);
+                    pool.Counter[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(1);
+                    wrapper.Invalidate(context);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
 
-                var createTask = pool.CreateAsync(new Key(capacity));
-                var accessTask = pool.CreateAsync(new Key(0));
-
-                var results = await Task.WhenAll(createTask, accessTask);
-                results[0].Dispose();
-                results[1].Dispose();
-            }
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+                    pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(2);
+                    pool.Counter[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(2);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+            });
         }
 
         [Fact]
-        public async Task DuplicateClientsAreTheSameObject()
+        public async Task ResourceInvalidationShutsDownOutstandingOperations()
         {
-            var capacity = 2;
-            var context = new Context(TestGlobal.Logger);
-            var pool = new ResourcePool<Key, Resource>(context, new ResourcePoolConfiguration()
+            var stopLatch = TaskUtilities.CreateMutex(taken: true);
+            Task? witnessTask = null;
+            var witnessedCancellation = false;
+
+            await RunTest<Key, Resource>(async (context, pool) =>
             {
-                MaximumResourceCount = capacity,
-                MaximumAge = TimeSpan.FromMinutes(1),
-            }, resourceFactory: _ => new Resource());
+                var key = new Key(0);
 
-            using var obj0 = await pool.CreateAsync(new Key(0));
-            using var obj1 = await pool.CreateAsync(new Key(0));
-            Assert.Same(obj0.Value, obj1.Value);
+                await pool.UseAsync(context, key, async wrapper =>
+                {
+                    await Task.Yield();
+
+                    witnessTask = Task.Run(async () =>
+                    {
+                        // Ensuring it doesn't run on the UseAsync call
+                        await Task.Yield();
+
+                        // Allow the UseAsync call to invalidate
+                        stopLatch.Release();
+
+                        // Ensure we get cancelled
+                        try
+                        {
+                            await Task.Delay(Timeout.InfiniteTimeSpan, wrapper.ShutdownToken);
+                        }
+                        catch (TaskCanceledException) { }
+
+                        witnessedCancellation = true;
+                    }).FireAndForgetErrorsAsync(context);
+
+                    using var token = await stopLatch.AcquireAsync();
+                    wrapper.Invalidate(context);
+                    return BoolResult.Success;
+                }).ShouldBeSuccess();
+            });
+
+            Contract.AssertNotNull(witnessTask);
+            await witnessTask;
+            witnessedCancellation.Should().Be(true);
         }
 
         [Fact]
-        public async Task ValidateCleanupOfExpired()
+        public async Task ResourceInvalidationRespectsReferenceCountBeforeShutdown()
         {
-            var resourceCount = 10;
+            var stopLatch = TaskUtilities.CreateMutex(taken: true);
+            Task? outstandingTask = null;
+
+            CounterCollection<ResourcePoolCounters>? counters = null;
+
+            await RunTest<Key, Resource>(async (context, pool) =>
+            {
+                counters = pool.Counter;
+
+                var key = new Key(0);
+                await pool.UseAsync(context, key, async wrapper =>
+                {
+                    outstandingTask = pool.UseAsync(context, key, async wrapper2 =>
+                    {
+                        wrapper2.ReferenceCount.Should().Be(2);
+                        stopLatch.Release();
+
+                        try
+                        {
+                            await Task.Delay(Timeout.InfiniteTimeSpan, wrapper2.ShutdownToken);
+                        }
+                        catch (TaskCanceledException) { }
+
+                        wrapper2.ReferenceCount.Should().Be(1);
+
+                        counters[ResourcePoolCounters.CreatedResources].Value.Should().Be(1);
+                        counters[ResourcePoolCounters.ReleasedResources].Value.Should().Be(0);
+                        counters[ResourcePoolCounters.ShutdownAttempts].Value.Should().Be(0);
+
+                        return BoolResult.Success;
+                    }).ShouldBeSuccess();
+
+                    using var token = await stopLatch.AcquireAsync();
+                    wrapper.Invalidate(context);
+
+                    return BoolResult.Success;
+                }).ShouldBeSuccess();
+            });
+
+            Contract.AssertNotNull(counters);
+            Contract.AssertNotNull(outstandingTask);
+
+            // This should throw any exceptions that haven't been caught
+            await outstandingTask;
+        }
+
+        [Fact]
+        public Task DuplicateClientsAreTheSameObject()
+        {
+            return RunTest<Key, Resource>(async (context, pool) =>
+            {
+                var key = new Key(0);
+
+                await pool.UseAsync(context, key, async wrapper =>
+                {
+                    return await pool.UseAsync(context, key, wrapper2 =>
+                    {
+                        wrapper.ReferenceCount.Should().Be(2);
+                        wrapper.Should().Be(wrapper2);
+                        return BoolResult.SuccessTask;
+                    });
+                }).ShouldBeSuccess();
+
+                Resource? cachedResource = null;
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    cachedResource = wrapper.Value;
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    Assert.Same(cachedResource, wrapper.Value);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+            });
+        }
+
+        [Fact]
+        public Task ExpiredInstancesGetReleasedOnReuse()
+        {
             var clock = new MemoryClock();
-            var maxAgeMinutes = 1;
-            var pool = new ResourcePool<Key, Resource>(new Context(TestGlobal.Logger), new ResourcePoolConfiguration()
+            var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
+
+            return RunTest<Key, Resource>(async (context, pool) =>
             {
-                MaximumResourceCount = resourceCount,
-                MaximumAge = TimeSpan.FromMinutes(maxAgeMinutes),
-            }, resourceFactory: _ => new Resource(), clock);
+                var key = new Key(0);
 
-            var wrappers = new List<ResourceWrapper<Resource>>();
-            for (var i = 0; i < resourceCount; i++)
-            {
-                using var wrapper = await pool.CreateAsync(new Key(i));
-                Assert.True(wrapper.Value.StartupStarted);
-                wrappers.Add(wrapper);
-            }
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
 
-            // Expire the resources
-            clock.UtcNow += TimeSpan.FromMinutes(maxAgeMinutes);
+                clock.Increment(TimeSpan.FromMinutes(1));
 
-            ResourceWrapper<Resource> wrapper2;
-            using (wrapper2 = await pool.CreateAsync(new Key(-1)))
-            {
-
-            }
-
-            Assert.Equal(resourceCount, pool.Counter[ResourcePoolCounters.Cleaned].Value);
-
-            for (var i = 0; i < resourceCount; i++)
-            {
-                using var wrapper = await pool.CreateAsync(new Key(i));
-                Assert.NotSame(wrapper.Value, wrappers[i].Value);
-                Assert.Equal(1, wrapper.Uses);
-                Assert.True(wrappers[i].Value.ShutdownCompleted);
-            }
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(2);
+                    pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+            },
+            configuration,
+            clock);
         }
 
         [Fact]
-        public async Task ValidateSingleCleanup()
-        {
-            var maxCapacity = 10;
-            var clock = new MemoryClock();
-            var maxAgeMinutes = maxCapacity + 10; // No resources should expire.
-            var pool = new ResourcePool<Key, Resource>(new Context(TestGlobal.Logger), new ResourcePoolConfiguration()
-            {
-                MaximumResourceCount = maxCapacity,
-                MaximumAge = TimeSpan.FromMinutes(maxAgeMinutes),
-            }, resourceFactory: _ => new Resource(), clock);
-
-            var resources = new List<Resource>();
-            foreach (var num in Enumerable.Range(1, maxCapacity))
-            {
-                var key = new Key(num);
-                using var wrapper = await pool.CreateAsync(key);
-                resources.Add((wrapper.Value));
-                clock.UtcNow += TimeSpan.FromMinutes(1); // First resource will be the oldest.
-            }
-
-            Assert.Equal(0, pool.Counter[ResourcePoolCounters.Cleaned].Value);
-            Assert.Equal(maxCapacity, pool.Counter[ResourcePoolCounters.Created].Value);
-
-            using (var wrapper = await pool.CreateAsync(new Key(maxCapacity + 1)))
-            {
-                resources.Add((wrapper.Value));
-            }
-
-            // We actually do the cleanup during the next operation
-            using (var wrapper = await pool.CreateAsync(new Key(maxCapacity)))
-            {
-            }
-
-            Assert.Equal(1, pool.Counter[ResourcePoolCounters.Cleaned].Value);
-            Assert.Equal(maxCapacity + 1, pool.Counter[ResourcePoolCounters.Created].Value);
-
-            foreach (var client in resources.Skip(1))
-            {
-                Assert.False(client.ShutdownStarted);
-            }
-
-            Assert.True(resources.First().ShutdownCompleted);
-        }
-
-        [Fact]
-        public async Task ValidateInvalidation()
-        {
-            var maxCapacity = 10;
-            var clock = new MemoryClock();
-            var maxAgeMinutes = maxCapacity + 10; // No resources should expire.
-            var pool = new ResourcePool<Key, Resource>(new Context(TestGlobal.Logger), new ResourcePoolConfiguration()
-            {
-                MaximumAge = TimeSpan.FromMinutes(maxAgeMinutes),
-                MaximumResourceCount = maxCapacity,
-                EnableInstanceInvalidation = true,
-            }, resourceFactory: _ => new Resource(), clock);
-
-            using (var wrapper = await pool.CreateAsync(new Key(1)))
-            {
-                wrapper.Invalidate();
-            }
-
-            // We actually do the cleanup during the next operation
-            using (var wrapper = await pool.CreateAsync(new Key(2)))
-            {
-            }
-
-            Assert.Equal(1, pool.Counter[ResourcePoolCounters.Cleaned].Value);
-            Assert.Equal(2, pool.Counter[ResourcePoolCounters.Created].Value);
-        }
-
-        [Fact]
-        public async Task IssueSameClientManyTimes()
+        public Task ExpiredInstancesGetReleasedOnUnrelatedUse()
         {
             var clock = new MemoryClock();
-            var pool = new ResourcePool<Key, Resource>(new Context(TestGlobal.Logger), new ResourcePoolConfiguration()
-            {
-                MaximumResourceCount = 1,
-                MaximumAge = TimeSpan.FromMinutes(1),
-            }, resourceFactory: _ => new Resource(), clock);
-            var key = new Key(1);
+            var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
 
-            using var originalWrapper = await pool.CreateAsync(key);
-            var originalResource = originalWrapper.Value;
-
-            for (var i = 0; i < 1000; i++)
+            return RunTest<Key, Resource>(async (context, pool) =>
             {
-                using var newWrapper = await pool.CreateAsync(key);
-                Assert.Same(newWrapper.Value, originalResource);
-            }
+                var key = new Key(0);
+                var key1 = new Key(1);
+
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+
+                clock.Increment(TimeSpan.FromMinutes(1));
+
+                await pool.UseAsync(context, key1, wrapper =>
+                {
+                    pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(2);
+                    pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+            },
+            configuration,
+            clock);
         }
 
         [Fact]
-        public async Task FillCacheWithoutRemovingClients()
+        public Task ExpiredInstancesGetGarbageCollected()
         {
-            var maxCapacity = 10;
             var clock = new MemoryClock();
-            var pool = new ResourcePool<Key, Resource>(new Context(TestGlobal.Logger), new ResourcePoolConfiguration()
+            var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
+
+            return RunTest<Key, Resource>(async (context, pool) =>
             {
-                MaximumResourceCount = maxCapacity,
-                MaximumAge = TimeSpan.FromMinutes(1),
-            }, resourceFactory: _ => new Resource(), clock);
+                var key = new Key(0);
 
-            for (var i = 0; i < maxCapacity; i++)
-            {
-                using var wrapper = await pool.CreateAsync(new Key(i));
-            }
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
 
-            // Created all resources
-            Assert.Equal(maxCapacity, pool.Counter.GetCounterValue(ResourcePoolCounters.Created));
+                clock.Increment(TimeSpan.FromMinutes(1));
 
-            // Zero resources were cleaned
-            Assert.Equal(0, pool.Counter.GetCounterValue(ResourcePoolCounters.Cleaned));
+                await pool.GarbageCollectAsync(context).IgnoreFailure();
 
-            // Zero resources were reused
-            Assert.Equal(0, pool.Counter.GetCounterValue(ResourcePoolCounters.Reused));
+                pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(1);
+                pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+                pool.Counter[ResourcePoolCounters.ShutdownSuccesses].Value.Should().Be(1);
+                pool.Counter[ResourcePoolCounters.GarbageCollectionSuccesses].Value.Should().Be(1);
+            },
+            configuration,
+            clock);
         }
 
         [Fact]
-        public Task CreateFailsAfterDispose()
+        public Task ReleasedInstancesArentRemovedIfTheyHaveAliveReferences()
         {
-            var capacity = 2;
-            var context = new Context(TestGlobal.Logger);
-            var pool = new ResourcePool<Key, Resource>(context, new ResourcePoolConfiguration()
+            var clock = new MemoryClock();
+            var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
+
+            return RunTest<Key, Resource>(async (context, pool) =>
             {
-                MaximumResourceCount = capacity,
-                MaximumAge = TimeSpan.FromMinutes(1),
-            }, resourceFactory: _ => new Resource());
+                var key = new Key(0);
 
-            pool.Dispose();
+                await pool.UseAsync(context, key, async wrapper =>
+                {
+                    // Invalidate resource. This will force GC to release it. Notice time doesn't change, so this isn't
+                    // removed due to TTL
+                    await pool.UseAsync(context, key, wrapper =>
+                    {
+                        wrapper.Invalidate(context);
+                        return BoolResult.SuccessTask;
+                    }).ShouldBeSuccess();
 
-            return Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await pool.GarbageCollectAsync(context).IgnoreFailure();
+
+                    wrapper.ShutdownToken.IsCancellationRequested.Should().BeTrue();
+                    pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+                    pool.Counter[ResourcePoolCounters.ShutdownAttempts].Value.Should().Be(0);
+
+                    return BoolResult.Success;
+                }).ShouldBeSuccess();
+            },
+            configuration,
+            clock);
+        }
+
+        [Fact]
+        public Task GarbageCollectionRunsInTheBackground()
+        {
+            var configuration = new ResourcePoolConfiguration() {
+                MaximumAge = TimeSpan.FromSeconds(1),
+                GarbageCollectionPeriod = TimeSpan.FromSeconds(0.3),
+            };
+
+            return RunTest<Key, Resource>(async (context, pool) =>
+            {
+                var key = new Key(0);
+                var key1 = new Key(1);
+
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    wrapper.Invalidate(context);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+
+                pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+                pool.Counter[ResourcePoolCounters.ShutdownSuccesses].Value.Should().Be(1);
+                pool.Counter[ResourcePoolCounters.GarbageCollectionAttempts].Value.Should().BeGreaterOrEqualTo(1);
+            },
+            configuration);
+        }
+
+        [Fact]
+        public Task SlowStartupBlocksUseThread()
+        {
+            var configuration = new ResourcePoolConfiguration()
+            {
+                MaximumAge = TimeSpan.FromSeconds(1),
+                GarbageCollectionPeriod = Timeout.InfiniteTimeSpan,
+            };
+
+            return RunTest<Key, SlowResource>(async (context, pool) =>
+            {
+                var key = new Key(0);
+
+                var timeToStartup = StopwatchSlim.Start();
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    // Don't use 5s, because we may wake up slightly earlier than that
+                    timeToStartup.Elapsed.TotalSeconds.Should().BeGreaterOrEqualTo(4.9);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+            },
+            _ => new SlowResource(startupDelay: TimeSpan.FromSeconds(5)),
+            configuration);
+        }
+
+        [Fact]
+        public async Task SlowShutdownDoesntBlockUse()
+        {
+            var configuration = new ResourcePoolConfiguration()
+            {
+                MaximumAge = TimeSpan.FromSeconds(1),
+                GarbageCollectionPeriod = Timeout.InfiniteTimeSpan,
+            };
+
+            var testTime = StopwatchSlim.Start();
+            await RunTest<Key, SlowResource>(async (context, pool) =>
+            {
+                var key = new Key(0);
+
+                var timeToStartup = StopwatchSlim.Start();
+                await pool.UseAsync(context, key, wrapper =>
+                {
+                    timeToStartup.Elapsed.TotalSeconds.Should().BeLessThan(1);
+                    return BoolResult.SuccessTask;
+                }).ShouldBeSuccess();
+            },
+            _ => new SlowResource(shutdownDelay: TimeSpan.FromSeconds(5)),
+            configuration);
+
+            // We should bear with shutdown slowness as we dispose the instance
+            testTime.Elapsed.TotalSeconds.Should().BeGreaterOrEqualTo(4.9);
+        }
+
+        [Fact]
+        public async Task FailingStartupThrowsOnThreadAndDoesntCache()
+        {
+            CounterCollection<ResourcePoolCounters>? counters = null;
+
+            var configuration = new ResourcePoolConfiguration()
+            {
+                MaximumAge = TimeSpan.FromSeconds(1),
+                GarbageCollectionPeriod = Timeout.InfiniteTimeSpan,
+            };
+
+            await RunTest<Key, FailingResource>(async (context, pool) =>
+            {
+                counters = pool.Counter;
+
+                var key = new Key(0);
+
+                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                {
+                    return pool.UseAsync<BoolResult>(context, key, wrapper =>
+                    {
+                        throw new NotImplementedException("This should not happen!");
+                    });
+                });
+
+                // This is just to ensure that retrying effectively does a retry
+                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                {
+                    return pool.UseAsync<BoolResult>(context, key, wrapper =>
+                    {
+                        throw new NotImplementedException("This should not happen!");
+                    });
+                });
+            },
+            _ => new FailingResource(startupFailure: true),
+            configuration);
+
+            Contract.AssertNotNull(counters);
+
+            // We do 2 attempts to create a failing resource, so 4 total
+            counters[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(2);
+            counters[ResourcePoolCounters.ResourceInitializationFailures].Value.Should().Be(2);
+            counters[ResourcePoolCounters.CreatedResources].Value.Should().Be(2);
+            counters[ResourcePoolCounters.ReleasedResources].Value.Should().Be(2);
+        }
+
+        [Fact]
+        public Task FailingStartupThrowsResultPropagationException()
+        {
+            var configuration = new ResourcePoolConfiguration();
+
+            return RunTest<Key, FailingResource>(async (context, pool) =>
              {
-                 using var obj1 = await pool.CreateAsync(new Key(0));
-             });
+                 _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                 {
+                     return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
+                 });
+             },
+            _ => new FailingResource(startupFailure: true),
+            configuration);
+        }
+
+        [Fact]
+        public async Task FailingShutdownDoesNotThrow()
+        {
+            CounterCollection<ResourcePoolCounters>? counters = null;
+
+            var configuration = new ResourcePoolConfiguration()
+            {
+                MaximumAge = TimeSpan.FromSeconds(1),
+                GarbageCollectionPeriod = Timeout.InfiniteTimeSpan,
+            };
+
+            await RunTest<Key, FailingResource>((context, pool) =>
+            {
+                counters = pool.Counter;
+
+                var key = new Key(0);
+                return pool.UseAsync(context, key, wrapper =>
+                {
+                    return BoolResult.SuccessTask;
+                });
+            },
+            _ => new FailingResource(shutdownFailure: true),
+            configuration);
+
+            Contract.AssertNotNull(counters);
+
+            counters[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(1);
+            counters[ResourcePoolCounters.ResourceInitializationFailures].Value.Should().Be(0);
+            counters[ResourcePoolCounters.CreatedResources].Value.Should().Be(1);
+            counters[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
+            counters[ResourcePoolCounters.ShutdownSuccesses].Value.Should().Be(0);
+            counters[ResourcePoolCounters.ShutdownFailures].Value.Should().Be(1);
         }
     }
 }

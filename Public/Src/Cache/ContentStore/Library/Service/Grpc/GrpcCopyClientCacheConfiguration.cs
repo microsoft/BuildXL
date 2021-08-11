@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             /// </summary>
             V1,
             /// <summary>
-            /// Use <see cref="ResourcePoolV2{TKey, TObject}"/>
+            /// Use <see cref="ResourcePool{TKey, TObject}"/>
             /// </summary>
             V2
         }

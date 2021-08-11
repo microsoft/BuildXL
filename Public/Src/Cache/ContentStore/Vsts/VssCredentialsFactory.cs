@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Cache.ContentStore.Exceptions;
 using JetBrains.Annotations;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Common;
@@ -14,8 +15,6 @@ using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #if NET_CORE
 using Microsoft.VisualStudio.Services.Client;
 #endif
-#else
-using BuildXL.Cache.ContentStore.Exceptions;
 #endif
 
 namespace BuildXL.Cache.ContentStore.Vsts
@@ -159,9 +158,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 return CreateVssCredentialsForUserName(baseUri);
             }
+
+            throw new CacheException(".NET Core version does not support credential helper-based authentication.");
+#else // NET_CORE
+            // We need to exclude the call for GetCredentialsAsync for not .NET Core case
+            // because if we leave it here even in an unreachable branch, the CLR will
+            // fail to call this method with 'Missing method' exception because
+            // it checks that the IL of the method is correct before calling it.
+            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null).ConfigureAwait(false);
 #endif // NET_CORE
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null)
-                .ConfigureAwait(false);
         }
 #else
         /// <summary>

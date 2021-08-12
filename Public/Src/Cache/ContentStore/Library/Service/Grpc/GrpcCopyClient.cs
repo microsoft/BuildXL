@@ -165,7 +165,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 else
                 {
-                    return new CopyFileResult(CopyResultCode.Unknown, e);
+                    return new CopyFileResult(CopyResultCode.RpcError, e);
+                    
                 }
             }
 
@@ -482,11 +483,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     getErrorResult: diagnostics => PushFileResult.BandwidthTimeout(diagnostics));
                 return result;
             }
-            catch (RpcException r)
-            {
-                result = new PushFileResult(r);
-                return result;
-            }
             catch (Exception)
             {
                 exceptionThrown = true;
@@ -505,17 +501,45 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             async Task<PushFileResult> pushFileImplementation(Stream stream, CopyOptions options, long startingPosition, IClientStreamWriter<PushFileRequest> requestStream, IAsyncStreamReader<PushFileResponse> responseStream, Task<bool> responseMoveNext, Task responseCompletedTask, CancellationToken token)
             {
-                using (var primaryBufferHandle = _pool.Get())
-                using (var secondaryBufferHandle = _pool.Get())
+                try
                 {
-                    await StreamContentAsync(stream, primaryBufferHandle.Value, secondaryBufferHandle.Value, requestStream, options, token);
+                    using (var primaryBufferHandle = _pool.Get())
+                    using (var secondaryBufferHandle = _pool.Get())
+                    {
+                        await StreamContentAsync(stream, primaryBufferHandle.Value, secondaryBufferHandle.Value, requestStream, options, token);
+                    }
+
+                    token.ThrowIfCancellationRequested();
+
+                    await requestStream.CompleteAsync();
+                    await responseCompletedTask;
                 }
+                catch (Exception e) when (e is TaskCanceledException or RpcException or OperationCanceledException)
+                {
+                    // It is possible that the streaming will fail with one of these exceptions, but the response from the backend is already available.
+                    if (await responseMoveNext)
+                    {
+                        // If the response is available we can return it back with extra information from the backend.
+                        var currentResponse = responseStream.Current;
+                        if (!currentResponse.Header.Succeeded)
+                        {
+                            return new PushFileResult(currentResponse.Header.ErrorMessage, currentResponse.Header.Diagnostics);
+                        }
+                    }
 
-                token.ThrowIfCancellationRequested();
+                    if (token.IsCancellationRequested)
+                    {
+                        // The operation was canceled (by the bandwidth checker or by some other reasons)
+                        return new PushFileResult("The operation was canceled") { IsCancelled = true };
+                    }
 
-                await requestStream.CompleteAsync();
+                    if (e is RpcException)
+                    {
+                        return PushFileResult.RpcError(e);
+                    }
 
-                await responseCompletedTask;
+                    return new PushFileResult(e);
+                }
 
                 // Make sure that we only attempt to read response when it is available.
                 var responseIsAvailable = await responseMoveNext;

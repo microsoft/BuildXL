@@ -59,6 +59,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ServerUnavailable,
 
         /// <summary>
+        /// gRPC error occurred.
+        /// </summary>
+        RpcError,
+
+        /// <summary>
         /// The server already has the content.
         /// </summary>
         Rejected_ContentAvailableLocally,

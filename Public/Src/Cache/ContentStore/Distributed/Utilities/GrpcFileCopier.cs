@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -29,7 +28,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     {
         private static readonly Tracer Tracer = new Tracer(nameof(GrpcFileCopier));
 
-        private readonly Context _context;
         private readonly GrpcFileCopierConfiguration _configuration;
 
         private readonly GrpcCopyClientCache _clientCache;
@@ -46,7 +44,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// </summary>
         public GrpcFileCopier(Context context, GrpcFileCopierConfiguration configuration)
         {
-            _context = context;
             _configuration = configuration;
             _clientCache = new GrpcCopyClientCache(context, _configuration.GrpcCopyClientCacheConfiguration);
 
@@ -128,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
             catch (Exception e)
             {
-                return new CopyFileResult(CopyResultCode.Unknown, e);
+                return GrpcCopyClient.CreateResultFromException(e);
             }
         }
 

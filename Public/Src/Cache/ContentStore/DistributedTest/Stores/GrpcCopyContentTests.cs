@@ -85,7 +85,7 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
 
-        [Fact(Skip = "Flaky")]
+        [Fact]
         public Task CopyFailWithUnknownError()
         {
             return RunTestCase(async (server, rootPath, session, client) =>

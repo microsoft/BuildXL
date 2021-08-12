@@ -609,6 +609,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             case CopyResultCode.InvalidHash:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
                                 break;
+                            case CopyResultCode.RpcError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to communication error: {copyFileResult}";
+                                request.Host.ReportReputation(location, MachineReputation.Bad);
+                                break;
                             case CopyResultCode.Unknown:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
                                 request.Host.ReportReputation(location, MachineReputation.Bad);

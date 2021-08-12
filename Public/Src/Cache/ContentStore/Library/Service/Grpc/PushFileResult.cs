@@ -40,8 +40,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             };
 
         /// <nodoc />
-        public static PushFileResult TimedOut()
-            => new PushFileResult(CopyResultCode.CopyTimeoutError);
+        public static PushFileResult TimedOut(string? message = null)
+            => message == null ? new PushFileResult(CopyResultCode.CopyTimeoutError) : new PushFileResult(CopyResultCode.CopyTimeoutError, message);
+
+        /// <nodoc />
+        public static PushFileResult RpcError(Exception e)
+            => e.Message.Contains("StatusCode=\"DeadlineExceeded\"") ? PushFileResult.TimedOut("Deadline exceeded") : new PushFileResult(CopyResultCode.RpcError, e);
 
         /// <nodoc />
         internal static PushFileResult Rejected(RejectionReason rejectionReason)

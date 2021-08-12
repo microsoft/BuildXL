@@ -31,30 +31,13 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
-        private class PerfAggregator
-        {
-            // Root process observations are used for GetCPUTimes() only
-            internal PerformanceCollector.Aggregation KernelTimeMs { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation UserTimeMs { get; } = new PerformanceCollector.Aggregation();
-
-            // Process tree times
-            internal PerformanceCollector.Aggregation JobKernelTimeMs { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobUserTimeMs { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobPeakMemoryBytes { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobMemoryBytes { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobDiskReadOps { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobDiskBytesRead { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobDiskWriteOps { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobDiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation JobNumberOfChildProcesses { get; } = new PerformanceCollector.Aggregation();
-        }
-
         private readonly SandboxedProcessReports m_reports;
 
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
         private readonly CancellableTimedAction m_perfCollector;
-        private readonly PerfAggregator m_perfAggregator;
+
+        private readonly Dictionary<string, Process.ProcessResourceUsage> m_processResourceUsage = null;
 
         private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
 
@@ -131,6 +114,8 @@ namespace BuildXL.Processes
         /// </summary>
         internal string RootJail => RootJailInfo?.RootJail;
 
+        private const double NanosecondsToMillisecondsFactor = 1000000d;
+
         /// <summary>
         /// If <see cref="RootJail"/> is set:
         ///    if <paramref name="path"/> is relative to <see cref="RootJail"/> returns an absolute path which
@@ -173,10 +158,10 @@ namespace BuildXL.Processes
             IgnoreReportedAccesses = ignoreReportedAccesses;
             RootJailInfo = info.RootJailInfo;
 
-            m_perfAggregator = new PerfAggregator();
-
             if (info.MonitoringConfig is not null && info.MonitoringConfig.MonitoringEnabled)
             {
+                m_processResourceUsage = new(capacity: 20);
+
                 m_perfCollector = new CancellableTimedAction(
                     callback: UpdatePerfCounters,
                     intervalMs: (int)info.MonitoringConfig.RefreshInterval.TotalMilliseconds);
@@ -210,34 +195,27 @@ namespace BuildXL.Processes
 
         private void UpdatePerfCounters()
         {
-            if (Process.HasExited)
+            // TODO: Full process tree observation is currently only supported on Linux based systems. macOS support will be added later.
+            if (Process.HasExited || !OperatingSystemHelper.IsLinuxOS)
             {
                 return;
             }
 
-            var buffer = new Process.ProcessResourceUsage();
-
-            // get processor times for the root process itself
-            int errCode = Interop.Unix.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: false);
-            if (errCode == 0)
+            var snapshots = Interop.Unix.Process.GetResourceUsageForProcessTree(ProcessId);
+            foreach (var snapshot in snapshots)
             {
-                m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
-                m_perfAggregator.UserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
-            }
+                if (snapshot.HasValue)
+                {
+                    // We use a combination of pid and process name as lookup key, this allows to have resource tracking
+                    // working when a process image gets substituted (exec) or when pids get reused (unlikely). If reuse
+                    // should happen, the only loophole would be if the process would have the same name as the intially
+                    // tracked one, in which case the code below would overwrite the resource usage data.
+                    var update = snapshot.Value;
+                    var key = $"{update.ProcessId}-{update.Name}";
 
-            // get processor times for the process tree
-            errCode = Interop.Unix.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: true);
-            if (errCode == 0)
-            {
-                m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
-                m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
-                m_perfAggregator.JobPeakMemoryBytes.RegisterSample(buffer.PeakWorkingSetSize);
-                m_perfAggregator.JobMemoryBytes.RegisterSample(buffer.WorkingSetSize);
-                m_perfAggregator.JobDiskReadOps.RegisterSample(buffer.DiskReadOps);
-                m_perfAggregator.JobDiskBytesRead.RegisterSample(buffer.DiskBytesRead);
-                m_perfAggregator.JobDiskWriteOps.RegisterSample(buffer.DiskWriteOps);
-                m_perfAggregator.JobDiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
-                m_perfAggregator.JobNumberOfChildProcesses.RegisterSample(buffer.NumberOfChildProcesses);
+                    // Remove and replace the snapshot value to reflect changes of processes that are potentially being snapshotted several times
+                    m_processResourceUsage[key] = update;
+                }
             }
         }
 
@@ -286,7 +264,10 @@ namespace BuildXL.Processes
                     values: FileAccessPolicy.AllowReadAlways);
             }
 
-            m_perfCollector?.Start();
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                m_perfCollector?.Start();
+            }
 
             string processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
 
@@ -528,17 +509,17 @@ namespace BuildXL.Processes
         [NotNull]
         internal override CpuTimes GetCpuTimes()
         {
-            return m_perfCollector is null
+            return m_processResourceUsage is null
                 ? base.GetCpuTimes()
                 : new CpuTimes(
-                    user: TimeSpan.FromMilliseconds(m_perfAggregator.UserTimeMs.Latest),
-                    system: TimeSpan.FromMilliseconds(m_perfAggregator.KernelTimeMs.Latest));
+                    user: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.UserTimeNs) / NanosecondsToMillisecondsFactor),
+                    system: TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0d, (acc, usage) => acc + usage.Value.SystemTimeNs) / NanosecondsToMillisecondsFactor));
         }
 
         // <inheritdoc />
         internal override JobObject.AccountingInformation GetJobAccountingInfo()
         {
-            if (m_perfCollector is null)
+            if (m_processResourceUsage is null)
             {
                 return base.GetJobAccountingInfo();
             }
@@ -552,18 +533,18 @@ namespace BuildXL.Processes
                 {
                     ioCounters = new IOCounters(new IO_COUNTERS()
                     {
-                        ReadOperationCount = Convert.ToUInt64(m_perfAggregator.JobDiskReadOps.Latest),
-                        ReadTransferCount = Convert.ToUInt64(m_perfAggregator.JobDiskBytesRead.Latest),
-                        WriteOperationCount = Convert.ToUInt64(m_perfAggregator.JobDiskWriteOps.Latest),
-                        WriteTransferCount = Convert.ToUInt64(m_perfAggregator.JobDiskBytesWritten.Latest)
+                        ReadOperationCount = m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.DiskReadOps),
+                        ReadTransferCount = m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.DiskBytesRead),
+                        WriteOperationCount = m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.DiskWriteOps),
+                        WriteTransferCount = m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.DiskBytesWritten),
                     });
 
                     memoryCounters = ProcessMemoryCounters.CreateFromBytes(
-                        Convert.ToUInt64(m_perfAggregator.JobPeakMemoryBytes.Maximum),
-                        Convert.ToUInt64(m_perfAggregator.JobMemoryBytes.Average),
+                        m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.PeakWorkingSetSize),
+                        m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.WorkingSetSize),
                         0, 0);
 
-                    childProcesses = Convert.ToUInt32(m_perfAggregator.JobNumberOfChildProcesses.Maximum);
+                    childProcesses = m_processResourceUsage.Keys.Count > 0 ? (uint)(m_processResourceUsage.Keys.Count - 1) : 0; // Exclude the root process from the child count
                 }
                 catch (OverflowException ex)
                 {
@@ -584,8 +565,8 @@ namespace BuildXL.Processes
                 {
                     IO = ioCounters,
                     MemoryCounters = memoryCounters,
-                    KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
-                    UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
+                    KernelTime = TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0.0, (acc, usage) => acc + usage.Value.SystemTimeNs) / NanosecondsToMillisecondsFactor),
+                    UserTime = TimeSpan.FromMilliseconds(m_processResourceUsage.Aggregate(0.0, (acc, usage) => acc + usage.Value.UserTimeNs) / NanosecondsToMillisecondsFactor),
                     NumberOfProcesses = childProcesses,
                 };
             }

@@ -14,7 +14,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "3.5.99" },
+    { id: "runtime.osx-x64.BuildXL", version: "3.6.99" },
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.6" },
     { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS", "unix" ] },
 
@@ -62,7 +62,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
 
     // Internal version of Redis
-    { id: "Microsoft.Caching.Redis", version: "3.0.57", 
+    { id: "Microsoft.Caching.Redis", version: "3.0.57",
         dependentPackageIdsToSkip: [ "System.Runtime.CompilerServices.Unsafe", "System.IO.Pipelines", "System.Threading.Channels", "Pipelines.Sockets.Unofficial" ] },
 
     // Cpp Sdk

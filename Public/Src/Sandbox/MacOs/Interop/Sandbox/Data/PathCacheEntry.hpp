@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <libproc.h>
 
-typedef struct {
+typedef struct _buf {
     char data[PATH_MAX] = { '\0' };
     size_t length;
 } Buffer;

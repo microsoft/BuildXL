@@ -41,7 +41,7 @@ int setup_xpc()
         xpc_type_t type = xpc_get_type(message);
         if (type == XPC_TYPE_ERROR)
         {
-            log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", message);
+            log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", (char *)message);
             abort();
         }
     });
@@ -67,7 +67,7 @@ int setup_xpc()
                 xpc_type_t type = xpc_get_type(message);
                 if (type == XPC_TYPE_ERROR)
                 {
-                    log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", message);
+                    log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", (char *)message);
                     abort();
                 }
             });

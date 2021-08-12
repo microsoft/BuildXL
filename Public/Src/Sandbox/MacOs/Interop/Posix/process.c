@@ -12,7 +12,41 @@
 
 #include "process.h"
 
-int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses)
+void DumpThreadState(void);
+
+static int ProcessTreeResourceUsage(pid_t pid, const rlim_t max_proc_count, ProcessResourceUsage *buffer, bool includeChildren)
+{
+    rusage_info_current rusage;
+    if (proc_pid_rusage(pid, RUSAGE_INFO_CURRENT, (void **)&rusage) != 0)
+    {
+        return GET_RUSAGE_ERROR;
+    }
+    
+    buffer->systemTime += rusage.ri_system_time;
+    buffer->userTime += rusage.ri_user_time;
+    
+    buffer->diskio_bytesRead += rusage.ri_diskio_bytesread;
+    buffer->diskio_bytesWritten += rusage.ri_diskio_byteswritten;
+    
+    buffer->rss += rusage.ri_resident_size;
+    
+    bool success = true;
+    if (includeChildren)
+    {
+        pid_t child_pids[max_proc_count];
+        int child_count = proc_listchildpids(pid, child_pids, (int) max_proc_count);
+        
+        for (int i = 0; i < child_count; i++)
+        {
+            int child_pid = child_pids[i];
+            success &= (ProcessTreeResourceUsage(child_pid, max_proc_count, buffer, includeChildren) == 0);
+        }
+    }
+    
+    return success ? KERN_SUCCESS : GET_RUSAGE_ERROR;
+}
+
+int GetProcessResourceUsageSnapshot(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses)
 {
     if (sizeof(ProcessResourceUsage) != bufferSize)
     {
@@ -20,6 +54,12 @@ int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long buffer
         return GET_RUSAGE_ERROR;
     }
 
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_NPROC, &rl) != 0)
+    {
+        return GET_RUSAGE_ERROR;
+    }
+    
     mach_timebase_info_data_t timebase;
     kern_return_t ret = mach_timebase_info(&timebase);
     uint32_t numer = 1, denom = 1;
@@ -40,23 +80,13 @@ int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long buffer
     double factor = (((double) numer) / denom) / NSEC_PER_SEC;
 
     buffer->startTime = ((long)rusage.ri_proc_start_abstime - (long)absoluteTime) * factor;
-
-    buffer->exitTime = rusage.ri_proc_exit_abstime != 0 ?
-        (((long)rusage.ri_proc_exit_abstime - (long)absoluteTime) * factor) : 0;
-
-    buffer->systemTime = rusage.ri_system_time;
-    buffer->userTime = rusage.ri_user_time;
-
-    buffer->diskio_bytesRead = rusage.ri_diskio_bytesread;
-    buffer->diskio_bytesWritten = rusage.ri_diskio_byteswritten;
-
-    if (includeChildProcesses)
-    {
-        buffer->systemTime += rusage.ri_child_system_time;
-        buffer->userTime += rusage.ri_child_user_time;
-    }
-
-    return KERN_SUCCESS;
+    buffer->exitTime = rusage.ri_proc_exit_abstime != 0
+        ? (((long)rusage.ri_proc_exit_abstime - (long)absoluteTime) * factor)
+        : 0;
+    
+    buffer->peak_rss = 0; // Not supported on macOS
+    
+    return ProcessTreeResourceUsage(pid, rl.rlim_cur, buffer, includeChildProcesses);
 }
 
 static CoreDumpConfiguration *dump_config = NULL;

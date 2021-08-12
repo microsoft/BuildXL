@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using static BuildXL.Interop.Dispatch;
@@ -67,9 +69,14 @@ namespace BuildXL.Interop.Unix
             public ulong PeakWorkingSetSize;
 
             /// <summary>
-            /// The number of child processes spawned.
+            /// The process name.
             /// </summary>
-            public int NumberOfChildProcesses;
+            public string Name;
+
+            /// <summary>
+            /// The process id this usage information belongs to.
+            /// </summary>
+            public int ProcessId;
         }
 
         /// <remarks>
@@ -85,14 +92,22 @@ namespace BuildXL.Interop.Unix
         public static bool ForceQuit(int pid) => Impl_Common.kill(pid, 9) == 0;
 
         /// <summary>
-        /// Returns process resource usage information to the caller
+        /// Populates a process resource usage information buffer with memory usage information only.
         /// </summary>
         /// <param name="pid">The process id to check</param>
-        /// <param name="buffer">A ProcessResourceUsage struct to hold the process resource information</param>
-        /// <param name="includeChildProcesses">Whether the result should include the execution times of all the child processes</param>
-        public static int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, bool includeChildProcesses) => IsMacOS
-            ? Impl_Mac.GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses)
-            : Impl_Linux.GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses);
+        /// <param name="buffer">A ProcessResourceUsage struct to hold the memory usage information</param>
+        /// <param name="includeChildProcesses">Whether the result should include the usage numbers of all the child processes</param>
+        public static int GetProcessMemoryUsage(int pid, ref ProcessResourceUsage buffer, bool includeChildProcesses) => IsMacOS
+            ? Impl_Mac.GetProcessResourceUsageSnapshot(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses)
+            : Impl_Linux.GetProcessMemoryUsageSnapshot(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses);
+
+        /// <summary>
+        /// Returns a collection of process resource usage information for a process tree rooted at the given process id, snapshotting the complete process tree at the time of the call.
+        /// </summary>
+        /// <param name="pid">The process id of the root of the tree</param>
+        public static IEnumerable<ProcessResourceUsage?> GetResourceUsageForProcessTree(int pid) => IsMacOS
+            ? throw new NotImplementedException()
+            : Impl_Linux.GetResourceUsageForProcessTree(pid, includeChildren: true);
 
         /// <summary>
         /// Returns true if core dump file creation for abnormal process exits has been set up successfully, and passes out

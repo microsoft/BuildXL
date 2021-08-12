@@ -81,24 +81,6 @@ namespace BuildXL.Interop
         public static void ForceQuit() => ForceQuit(System.Diagnostics.Process.GetCurrentProcess().Id);
 
         /// <summary>
-        /// Returns total processor time for a given process.  The process must be running or else an exception is thrown.
-        /// </summary>
-        public static TimeSpan TotalProcessorTime(System.Diagnostics.Process proc)
-        {
-            switch (s_currentOS)
-            {
-                case OperatingSystem.Win:
-                    return proc.TotalProcessorTime;
-
-                default:
-                    var buffer = new Unix.Process.ProcessResourceUsage();
-                    Unix.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
-                    long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
-                    return new TimeSpan(ticks);
-            }
-        }
-
-        /// <summary>
         /// Returns the memory counters of a specific process only when running on Windows,
         /// otherwise counters for a whole processes tree rooted at the given process id.
         /// </summary>
@@ -126,7 +108,7 @@ namespace BuildXL.Interop
                 default:
                     {
                         var usage = new ProcessResourceUsage();
-                        if (Unix.Process.GetProcessResourceUsage(pid, ref usage, includeChildProcesses: true) == MACOS_INTEROP_SUCCESS)
+                        if (Unix.Process.GetProcessMemoryUsage(pid, ref usage, includeChildProcesses: true) == MACOS_INTEROP_SUCCESS)
                         {
                             return ProcessMemoryCountersSnapshot.CreateFromBytes(
                                 usage.PeakWorkingSetSize,

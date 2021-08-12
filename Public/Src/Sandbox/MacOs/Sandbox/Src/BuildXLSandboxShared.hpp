@@ -189,7 +189,7 @@ typedef struct {
     Counter numCacheMisses;
 } AllCounters;
 
-typedef struct {
+typedef struct _rth {
     percent cpuUsageBlock;
     percent cpuUsageWakeup;
     uint minAvailableRamMB;

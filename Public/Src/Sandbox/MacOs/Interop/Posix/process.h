@@ -6,6 +6,7 @@
 
 #include "Dependencies.h"
 
+// Codesync with Process.cs
 typedef struct {
     double startTime;
     double exitTime;
@@ -17,10 +18,11 @@ typedef struct {
     unsigned long diskio_bytesWritten;
     unsigned long rss;
     unsigned long peak_rss;
-    int child_count;
+    char *name;
+    int pid;
 } ProcessResourceUsage;
 
-int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses);
+int GetProcessResourceUsageSnapshot(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses);
 
 typedef struct {
     char *outputPath;

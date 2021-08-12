@@ -193,16 +193,13 @@ namespace BuildXL.Interop.Unix
         private static extern int GetRamUsageInfo(ref MacRamUsageInfo buffer, long bufferSize);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        internal static extern int GetPeakWorkingSetSize(int pid, ref ulong buffer, bool includeChildProcesses);
+        internal static extern int GetProcessResourceUsageSnapshot(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         internal static extern int GetMemoryPressureLevel(ref PressureLevel level);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         internal static extern int GetCpuLoadInfo(ref CpuLoadInfo buffer, long bufferSize);
-
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        internal static extern int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
 
         #region Sandbox
         [DllImport(Libraries.BuildXLInteropLibMacOS)]

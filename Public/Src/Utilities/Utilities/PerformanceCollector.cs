@@ -564,7 +564,7 @@ namespace BuildXL.Utilities
         private double? GetProcessCpu(Process currentProcess)
         {
             // Processor time consumed by this process
-            TimeSpan processTimeCurrentValue = Dispatch.TotalProcessorTime(currentProcess);
+            TimeSpan processTimeCurrentValue = currentProcess.TotalProcessorTime;
             DateTime processTimeCurrentCollectedAt = DateTime.UtcNow;
 
             if (m_processTimeLastCollectedAt == DateTime.MinValue)

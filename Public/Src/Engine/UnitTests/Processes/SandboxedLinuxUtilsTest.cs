@@ -160,6 +160,5 @@ namespace Test.BuildXL.Processes
             var newEnvp = buffer.ToString().Split(EnvSeparator);
             XAssert.IsTrue(newEnvp.SequenceEqual(expected));
         }
-
     }
 }

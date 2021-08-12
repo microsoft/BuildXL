@@ -24,7 +24,6 @@ typedef struct {
 } RamUsageInfo;
 
 int GetRamUsageInfo(RamUsageInfo *buffer, long bufferSize);
-int GetPeakWorkingSetSize(pid_t pid, uint64_t *buffer, bool includeChildren);
 int GetMemoryPressureLevel(int *level);
 
 #endif /* memory_h */

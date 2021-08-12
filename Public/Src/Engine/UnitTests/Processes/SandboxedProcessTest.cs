@@ -29,7 +29,7 @@ namespace Test.BuildXL.Processes
 
         public SandboxedProcessTest(ITestOutputHelper output)
             : base(output)
-        { 
+        {
             TestOutput = output;
         }
 
@@ -237,23 +237,23 @@ namespace Test.BuildXL.Processes
 
             var info = GetInfiniteWaitProcessInfo();
 
-            using (ISandboxedProcess process = await TryStartProcessAndSuspendImmediately(info, 100, multiplier: 2, retries: 5)) 
+            using (ISandboxedProcess process = await TryStartProcessAndSuspendImmediately(info, 100, multiplier: 2, retries: 5))
             {
                 // If this fails a lot, consider changing the knobs above
-                XAssert.IsNotNull(process, "Unable to start sandboxed process and suspend it immediately"); 
+                XAssert.IsNotNull(process, "Unable to start sandboxed process and suspend it immediately");
 
                 // The process will time out next, but we will grant it more time while suspended
                 await Task.Delay((int)(info.Timeout.Value.TotalMilliseconds * 4));
 
                 // Kill it while suspended
                 await process.KillAsync();
- 
+
                 SandboxedProcessResult result = await process.GetResultAsync();
                 XAssert.IsTrue(result.Killed);
                 XAssert.IsFalse(result.TimedOut, "Process claims it was timed out, but instead it was killed.");
             }
         }
-        
+
         [Fact]
         public async Task SuspendResumeTimeout()
         {
@@ -267,7 +267,7 @@ namespace Test.BuildXL.Processes
             using (ISandboxedProcess process = await TryStartProcessAndSuspendImmediately(info, 100, multiplier: 2, retries: 5))
             {
                 // If this fails a lot, consider changing the knobs above
-                XAssert.IsNotNull(process, "Unable to start sandboxed process and suspend it immediately"); 
+                XAssert.IsNotNull(process, "Unable to start sandboxed process and suspend it immediately");
 
                 // The process will definitely time out next, but we will grant it more time
                 await Task.Delay((int)(info.Timeout.Value.TotalMilliseconds * 4));
@@ -284,7 +284,7 @@ namespace Test.BuildXL.Processes
 
         private async Task<ISandboxedProcess> TryStartProcessAndSuspendImmediately(SandboxedProcessInfo info, double timeout, double multiplier = 2, int retries = 5)
         {
-            // When starting the process with a timeout, there's a chance that we won't be able to suspend it before 
+            // When starting the process with a timeout, there's a chance that we won't be able to suspend it before
             // the time is consumed and the process is killed. We try to do it a few times and return the "suspended"
             // process, or null if we failed every time.
             for (var i = 0; i < retries; i++)
@@ -1211,7 +1211,7 @@ namespace Test.BuildXL.Processes
                 XAssert.AreEqual(0, result.ExitCode);
                 XAssert.IsNotNull(result.FileAccesses);
 
-                // Restrict reports to those of type 'Process' and 'ProcessExit', then 
+                // Restrict reports to those of type 'Process' and 'ProcessExit', then
                 // create a mapping from operation type to reported paths for that operation
                 var ProcessOperations = new[] { ReportedFileOperation.Process, ReportedFileOperation.ProcessExit };
                 Dictionary<ReportedFileOperation, HashSet<string>> op2paths = result
@@ -1333,14 +1333,14 @@ namespace Test.BuildXL.Processes
             var outFile = CreateOutputFileArtifact();
             var info = ToProcessInfo(ToProcess(
                 Operation.WriteFile(outFile),
-                Operation.Spawn(Context.PathTable, waitToFinish: waitForChildToFinish, 
+                Operation.Spawn(Context.PathTable, waitToFinish: waitForChildToFinish,
                     shouldChildCrash ? Operation.CrashHardNative() : Operation.Echo("Child :: not crashing")),
                 shouldParentCrash
                     ? Operation.CrashHardNative()
                     : Operation.Echo("Parent :: not crashing")));
 
             var result = await RunProcess(info);
-            var msg = 
+            var msg =
                 $"Code: {result.ExitCode}, Killed: {result.Killed}, Num Survivors: {result.SurvivingChildProcesses?.Count()}, Stdout:{Environment.NewLine}" +
                 await result.StandardOutput.ReadValueAsync();
             TestOutput.WriteLine(msg);
@@ -1377,14 +1377,14 @@ namespace Test.BuildXL.Processes
             var grandChildInput = CreateSourceFile();
 
             var info = ToProcessInfo(ToProcess(
-                new Operation[] 
+                new Operation[]
                 {
                     Operation.ReadFile(parentInput),
                     Operation.SpawnWithEnvs(
                         Context.PathTable,
                         true,
-                        new Operation[] 
-                        { 
+                        new Operation[]
+                        {
                             Operation.ReadFile(childInput),
                             Operation.Spawn(
                                 Context.PathTable,
@@ -1394,12 +1394,12 @@ namespace Test.BuildXL.Processes
                                     Operation.ReadFile(grandChildInput)
                                 })
                         },
-                        envVarToReset) 
+                        envVarToReset)
                 }));
             info.FileAccessManifest.ReportFileAccesses = true;
 
             var result = await RunProcess(info);
-            
+
             XAssert.AreEqual(0, result.ExitCode);
 
             var observedAccesses = result.FileAccesses
@@ -1445,6 +1445,62 @@ namespace Test.BuildXL.Processes
                 var arguments = $"/d /c mkdir {directoryToBeCreated} & rmdir {directoryToBeDeleted}";
 
                 await ExecuteAndAssertOpenedFileOrDirectoryAttributeTest(isDirectory: true, tempRootDir, arguments, pathTable, tempFiles);
+            }
+        }
+
+        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        public async Task SandboxedProcessJobAccountingInformationAsync()
+        {
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                return;
+            }
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true))
+            {
+                string tempFileName = tempFiles.GetUniqueFileName();
+                var pt = new PathTable();
+                var info = new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, loggingContext: LoggingContext)
+                {
+                    PipSemiStableHash = 0,
+                    PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                    Arguments = $"/bin/sh -c \"sleep 1; openssl rand -out {tempFileName} 100000000; sleep 1;\"",
+                };
+
+                info.FileAccessManifest.PipId = GetNextPipId();
+                info.FileAccessManifest.ReportFileAccesses = true;
+                info.FileAccessManifest.FailUnexpectedFileAccesses = false;
+                info.MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: true, refreshInterval: TimeSpan.FromTicks(1));
+                info.SandboxConnection = GetSandboxConnection();
+
+                var result = await RunProcess(info);
+
+                XAssert.AreEqual(0, result.ExitCode);
+                XAssert.IsNotNull(result.FileAccesses);
+                XAssert.IsTrue(result.JobAccountingInformation.HasValue);
+
+                /*
+                    With /usr/bin/time being the root process and not tracked, we expect the following child processes to be tracked (t):
+
+                    /usr/bin/time
+                    t    /bin/sh
+                    t        sleep 1
+                    t        openssl
+                    t        sleep 1
+
+                    The processes can be wrappend in id/sudo invocations depending on the environemt, so we relax the
+                    assertion and make sure we tracked at least four processes.
+                */
+                XAssert.IsTrue(result.JobAccountingInformation.Value.NumberOfProcesses >= 4);
+
+                XAssert.IsTrue(result.JobAccountingInformation.Value.MemoryCounters.PeakWorkingSetMb > 0);
+                XAssert.IsTrue(result.JobAccountingInformation.Value.MemoryCounters.AverageWorkingSetMb > 0);
+
+                XAssert.IsTrue(result.JobAccountingInformation.Value.UserTime.Ticks > 0);
+                XAssert.IsTrue(result.JobAccountingInformation.Value.KernelTime.Ticks > 0);
+
+                XAssert.IsTrue(result.JobAccountingInformation.Value.IO.ReadCounters.OperationCount > 0);
+                XAssert.IsTrue(result.JobAccountingInformation.Value.IO.WriteCounters.OperationCount > 0);
             }
         }
 

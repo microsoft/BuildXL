@@ -253,38 +253,49 @@ namespace BuildXL.Interop.Unix
         /// <summary>
         /// Gets resource consumption data for a specific process, throws if the underlying ProcFS structures are not present or malformed.
         /// </summary>
-        private static ProcessResourceUsage CreateProcessResourceUsageForPid(int pid)
+        private static ProcessResourceUsage? CreateProcessResourceUsageForPid(int pid)
         {
-            var firstLine = File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatPath}").FirstOrDefault();
-            var splits = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
-            var utime = ((ulong)TicksToTimeSpan(double.Parse(splits[13])).Ticks) * 100UL;
-            var stime = ((ulong)TicksToTimeSpan(double.Parse(splits[14])).Ticks) * 100UL;
-
-            string[] lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcIoPath}");
-            string readOps = lines.FirstOrDefault(line => line.StartsWith("syscr:"));
-            string bytesRead = lines.FirstOrDefault(line => line.StartsWith("read_bytes:"));
-            string writeOps = lines.FirstOrDefault(line => line.StartsWith("syscw:"));
-            string bytesWritten = lines.FirstOrDefault(line => line.StartsWith("write_bytes:"));
-
-            lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatusPath}");
-            string workingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmRSS:"));
-            string peakWorkingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmHWM:"));
-
-            return new ProcessResourceUsage()
+            try
             {
-                UserTimeNs = utime,
-                SystemTimeNs = stime,
-                DiskReadOps = ExtractValueFromProcLine(readOps),
-                DiskBytesRead = ExtractValueFromProcLine(bytesRead),
-                DiskWriteOps = ExtractValueFromProcLine(writeOps),
-                DiskBytesWritten = ExtractValueFromProcLine(bytesWritten),
-                WorkingSetSize = ExtractValueFromProcLine(workingSetSize) * 1024,
-                PeakWorkingSetSize = ExtractValueFromProcLine(peakWorkingSetSize) * 1024,
-                NumberOfChildProcesses = 0,
-            };
+                var firstLine = File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatPath}").FirstOrDefault();
+                var splits = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
+                var utime = ((ulong)TicksToTimeSpan(double.Parse(splits[13])).Ticks) * 100UL;
+                var stime = ((ulong)TicksToTimeSpan(double.Parse(splits[14])).Ticks) * 100UL;
+
+                string[] lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcIoPath}");
+                string readOps = lines.FirstOrDefault(line => line.StartsWith("syscr:"));
+                string bytesRead = lines.FirstOrDefault(line => line.StartsWith("read_bytes:"));
+                string writeOps = lines.FirstOrDefault(line => line.StartsWith("syscw:"));
+                string bytesWritten = lines.FirstOrDefault(line => line.StartsWith("write_bytes:"));
+
+                lines = System.IO.File.ReadAllLines($"{ProcPath}/{pid}/{ProcStatusPath}");
+                string workingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmRSS:"));
+                string peakWorkingSetSize = lines.FirstOrDefault(line => line.StartsWith("VmHWM:"));
+                string name = lines.FirstOrDefault(line => line.StartsWith("Name:"));
+
+                return new ProcessResourceUsage()
+                {
+                    UserTimeNs = utime,
+                    SystemTimeNs = stime,
+                    DiskReadOps = ExtractValueFromProcLine(readOps),
+                    DiskBytesRead = ExtractValueFromProcLine(bytesRead),
+                    DiskWriteOps = ExtractValueFromProcLine(writeOps),
+                    DiskBytesWritten = ExtractValueFromProcLine(bytesWritten),
+                    WorkingSetSize = ExtractValueFromProcLine(workingSetSize) * 1024,
+                    PeakWorkingSetSize = ExtractValueFromProcLine(peakWorkingSetSize) * 1024,
+                    ProcessId = pid,
+                    Name = name.Split(new[] { '\t' }, StringSplitOptions.RemoveEmptyEntries)[1],
+                };
+            }
+#pragma warning disable
+            catch (Exception)
+            {
+                return null;
+            }
+#pragma warning restore
         }
 
-        private static IEnumerable<ProcessResourceUsage> GetResourceUsagesForProcessTree(int processId, bool includeChildren)
+        internal static IEnumerable<ProcessResourceUsage?> GetResourceUsageForProcessTree(int processId, bool includeChildren)
         {
             var stack = new Stack<int>();
             stack.Push(processId);
@@ -297,7 +308,6 @@ namespace BuildXL.Interop.Unix
                 if (includeChildren)
                 {
                     var children = GetChildren(next);
-                    resourceUsage.NumberOfChildProcesses = children.Count();
                     foreach (var child in children)
                     {
                         stack.Push(child);
@@ -310,29 +320,13 @@ namespace BuildXL.Interop.Unix
             yield break;
         }
 
-        internal static int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses)
+        internal static int GetProcessMemoryUsageSnapshot(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses)
         {
-            try
-            {
-                var resourceUsage = GetResourceUsagesForProcessTree(pid, includeChildProcesses);
-                buffer.UserTimeNs = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.UserTimeNs);
-                buffer.SystemTimeNs = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.SystemTimeNs);
-                buffer.WorkingSetSize = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.WorkingSetSize);
-                buffer.PeakWorkingSetSize = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.PeakWorkingSetSize);
-                buffer.DiskReadOps = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.DiskReadOps);
-                buffer.DiskBytesRead = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.DiskBytesRead);
-                buffer.DiskWriteOps = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.DiskWriteOps);
-                buffer.DiskBytesWritten = resourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.DiskBytesWritten);
-                buffer.NumberOfChildProcesses = resourceUsage.Aggregate(0, (acc, usage) => acc + usage.NumberOfChildProcesses);
+            var resourceUsage = GetResourceUsageForProcessTree(pid, includeChildProcesses);
+            buffer.WorkingSetSize = resourceUsage.Where(u => u.HasValue).Aggregate(0UL, (acc, usage) => acc + usage.Value.WorkingSetSize);
+            buffer.PeakWorkingSetSize = resourceUsage.Where(u => u.HasValue).Aggregate(0UL, (acc, usage) => acc + usage.Value.PeakWorkingSetSize);
 
-                return 0;
-            }
-#pragma warning disable
-            catch (Exception)
-            {
-                return ERROR;
-            }
-#pragma warning restore
+            return 0;
         }
 
         /// <summary>

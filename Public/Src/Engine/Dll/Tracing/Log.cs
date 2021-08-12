@@ -859,6 +859,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void GrpcAuthTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
+            (ushort)LogEventId.GrpcAuthWarningTrace,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "AuthWarning: {message}.",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void GrpcAuthWarningTrace(LoggingContext context, string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerFinishedPipRequest,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[Pip{pipSemiStableHash:X16}] Finished distributed pip build request of step {step}.",

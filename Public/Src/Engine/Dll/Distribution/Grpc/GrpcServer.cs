@@ -77,7 +77,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 }
                 else
                 {
-                    Logger.Log.GrpcAuthTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl.");
+                    Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl.");
                 }
             }
 

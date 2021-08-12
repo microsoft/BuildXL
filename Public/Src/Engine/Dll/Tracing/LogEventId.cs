@@ -344,7 +344,6 @@ namespace BuildXL.Engine.Tracing
         DistributionWorkerTimeoutFailure = 7040,
 
         GrpcAuthTrace = 7041,
-        // Deprecated = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
         WorkerTotalRamMb = 7044,
@@ -405,6 +404,7 @@ namespace BuildXL.Engine.Tracing
         ExitOnNewGraph = 7128,
 
         EngineLoadedFileContentTable = 7150,
+        GrpcAuthWarningTrace = 7151,
 
         LogAndRemoveEngineStateOnBuildFailure = 10011,
         CacheIsStillBeingInitialized = 13200,

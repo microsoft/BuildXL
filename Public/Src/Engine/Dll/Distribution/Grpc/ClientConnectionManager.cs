@@ -150,6 +150,10 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                         Logger.Log.GrpcAuthTrace(m_loggingContext, $"Encryption and authentication is enabled: '{ipAddress}'.");
                     }
+                    else
+                    {
+                        Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"Could not extract public certificate and private key from '{certSubjectName}'. Server will be started without ssl.");
+                    }
                 }
 
                 Channel = new Channel(
@@ -207,13 +211,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
             catch (Exception e)
             {
-                Logger.Log.GrpcAuthTrace(m_loggingContext, $"An exception occurred when finding a certificate: '{e}'.");
+                Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"An exception occurred when finding a certificate: '{e}'.");
                 return;
             }
 
             if (certificate == null)
             {
-                Logger.Log.GrpcAuthTrace(m_loggingContext, $"No certificate found that matches subject name: '{certSubjectName}'.");
+                Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"No certificate found that matches subject name: '{certSubjectName}'.");
                 return;
             }
 
@@ -238,7 +242,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (token == null)
             {
-                Logger.Log.GrpcAuthTrace(m_loggingContext, $"No token found in the following location: {buildIdentityTokenLocation}.");
+                Logger.Log.GrpcAuthWarningTrace(m_loggingContext, $"No token found in the following location: {buildIdentityTokenLocation}.");
                 return null;
             }
 

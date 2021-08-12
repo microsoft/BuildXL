@@ -51,6 +51,19 @@ export const r = `x is ${{x}}`;", m_absolutePath);
         }
 
         [Fact]
+        public void InterpolatedPathWithStringVarAsHead()
+        {
+            string code = String.Format(
+@"const pathAsString : string = '{0}';
+const x = p`${{pathAsString}}`;
+export const r = `x is ${{x}}`;", m_absolutePath);
+
+            var result = EvaluateExpressionWithNoErrors(code, "r");
+
+            Assert.Equal(String.Format("x is p`{0}`", m_absolutePath), (string)result, ignoreCase: true);
+        }
+
+        [Fact]
         public void InterpolatedStringWithCapturedDirectory()
         {
             string code = String.Format(

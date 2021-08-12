@@ -182,6 +182,26 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
+        /// Converts object to an absolute path, including the case of a string that is succesfully interpreted as a path
+        /// </summary>
+        public static AbsolutePath ExpectPathOrStringAsPath(EvaluationResult value, PathTable pathTable, in ConversionContext context = default(ConversionContext))
+        {
+            Contract.RequiresNotNull(pathTable);
+
+            if (value.Value is string stringAsPath)
+            {
+                if (AbsolutePath.TryCreate(pathTable, stringAsPath, out AbsolutePath result))
+                {
+                    return result;
+                }
+
+                throw CreateException<AbsolutePath>(value, context);
+            }
+
+            return ExpectPath(value, strict: false, context);
+        }
+
+        /// <summary>
         /// Converts an object to a string.
         /// </summary>
         public static string ExpectString(EvaluationResult value, in ConversionContext context = default(ConversionContext))

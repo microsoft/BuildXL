@@ -130,7 +130,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var strTable = context.FrontEndContext.StringTable;
 
             // Root must have a characteristic as an absolute path.
-            var result = Converter.ExpectPath(root, strict: false, context: new ConversionContext(pos: 1));
+            var result = Converter.ExpectPathOrStringAsPath(root, pathTable, context: new ConversionContext(pos: 1));
 
             // Non-root expressions must be path fragments
             for (int i = 0; i < pathFragments.Count; i++)

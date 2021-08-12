@@ -143,28 +143,40 @@ INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)(
     return result.restore();
 })
 
+static es_event_type_t get_event_from_open_mode(const char *mode) {
+    const char *pMode = mode;
+    while (pMode && *pMode) {
+        if (*pMode == 'a' || *pMode == 'w' || *pMode == '+') {
+            return ES_EVENT_TYPE_NOTIFY_WRITE;
+        }
+        ++pMode;
+    }
+    return ES_EVENT_TYPE_NOTIFY_OPEN;
+}
+
 INTERPOSE(FILE*, fdopen, int fd, const char *mode)({
-    auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, fd);
+    auto check = bxl->report_access_fd(__func__, get_event_from_open_mode(mode), fd);
     return bxl->check_and_fwd_fdopen(check, (FILE*)NULL, fd, mode);
 })
 
 INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+
+    auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
     return bxl->check_and_fwd_fopen(check, (FILE*)NULL, pathname, mode);
 })
 
 INTERPOSE(FILE*, fopen64, const char *pathname, const char *mode)({
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
     return bxl->check_and_fwd_fopen64(check, (FILE*)NULL, pathname, mode);
 })
 
 INTERPOSE(FILE*, freopen, const char *pathname, const char *mode, FILE *stream)({
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
     return bxl->check_and_fwd_freopen(check, (FILE*)NULL, pathname, mode, stream);
 })
 
 INTERPOSE(FILE*, freopen64, const char *pathname, const char *mode, FILE *stream)({
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    auto check = bxl->report_access(__func__, get_event_from_open_mode(mode), pathname);
     return bxl->check_and_fwd_freopen64(check, (FILE*)NULL, pathname, mode, stream);
 })
 

@@ -427,11 +427,11 @@ static char* find_prev_slash(char *pStr)
 }
 
 // resolve any intermediate directory symlinks
-//   - TODO: cache this
-//   - TODO: break symlink cycles
 void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 {
     assert(fullpath[0] == '/');
+
+    unordered_set<string> visited;
 
     char readlinkBuf[PATH_MAX];
     char *pFullpath = fullpath + 1;
@@ -496,6 +496,8 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink)
 
         // report readlink for the current path
         *pFullpath = '\0';
+        // break if the same symlink has already been visited (breaks symlink loops)
+        if (!visited.insert(fullpath).second) break;
         report_access("_readlink", ES_EVENT_TYPE_NOTIFY_READLINK, std::string(fullpath), empty_str_);
         *pFullpath = ch;
 

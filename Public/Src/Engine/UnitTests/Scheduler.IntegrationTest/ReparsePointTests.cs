@@ -1138,6 +1138,35 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(File.ReadAllText(ArtifactToString(targetFile)), File.ReadAllText(ArtifactToString(output)));
         }
 
+        [Fact]
+        public void DeleteSelfLoopSymlink()
+        {
+            // TODO: enable on other platforms
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return;
+            }
+
+            // Symlink chain:
+            // symlinkFile1 -> symlinkFile1
+            FileArtifact symlinkFile1 = CreateOutputFileArtifact();
+
+            CreateAndSchedulePipBuilder(new Operation[]
+            {
+                // create a self-looping symlink
+                Operation.CreateSymlink(symlinkFile1, symlinkFile1, Operation.SymbolicLinkFlag.FILE, doNotInfer: true),
+
+                // delete that symlink (this used to not terminate before handling symlink loops in the Linux sandbox was implemented)
+                Operation.DeleteFile(symlinkFile1.CreateNextWrittenVersion(), doNotInfer: true),
+
+                // write a dummy output at "symlinkFile1" location (just to avoid DFA's)
+                Operation.WriteFile(symlinkFile1)
+            });
+
+            RunScheduler().AssertSuccess();
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(symlinkFile1)));
+        }
+
         [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]

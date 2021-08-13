@@ -30,6 +30,9 @@ namespace BuildXL.Scheduler
         /// </remarks>
         public override int Weight => Math.Max(Process.Weight, m_weightBasedOnHistoricCpuUsage);
 
+        /// <inheritdoc/>
+        public override bool IsLight => Process.IsLight;
+
         /// <nodoc/>
         public RunnableFromCacheResult CacheResult { get; private set; }
 

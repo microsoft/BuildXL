@@ -103,13 +103,6 @@ namespace BuildXL.Scheduler
         private const int MaxInitialPipPriority = (1 << CriticalPathPriorityBitCount) - 1;
 
         /// <summary>
-        /// The priority of light (light process or IPC) pips when entering the ChooseWorker queue. This is greater than
-        /// <see cref="MaxInitialPipPriority"/> to ensure they take priority over processes in the
-        /// ChooseWorker queue and are not blocked waiting for highest priority process to acquire a worker
-        /// </summary>
-        private const int LightPipChooseWorkerPriority = int.MaxValue;
-
-        /// <summary>
         /// The piptypes we want to report stats for.
         /// </summary>
         private static readonly PipType[] s_pipTypesToLogStats =
@@ -3666,7 +3659,7 @@ namespace BuildXL.Scheduler
                 inline = true;
             }
 
-            if (previousQueue == nextQueue && nextQueue != DispatcherKind.ChooseWorkerCpu && nextQueue != DispatcherKind.ChooseWorkerCacheLookup)
+            if (previousQueue == nextQueue && !nextQueue.IsChooseWorker())
             {
                 // If the dispatcher kind is the same and we start a new pip, our new setting should decide to inline or not.
                 if (runnablePip.Step == PipExecutionStep.Start)
@@ -3917,7 +3910,7 @@ namespace BuildXL.Scheduler
                     return DispatcherKind.CacheLookup;
 
                 case PipExecutionStep.ChooseWorkerCpu:
-                    return DispatcherKind.ChooseWorkerCpu;
+                    return runnablePip.IsLight ? DispatcherKind.ChooseWorkerLight : DispatcherKind.ChooseWorkerCpu;
 
                 case PipExecutionStep.MaterializeInputs:
                     if (runnablePip.PipType == PipType.Ipc)
@@ -4062,20 +4055,8 @@ namespace BuildXL.Scheduler
                                 return runnablePip.SetPipResult(PipResult.CreateWithPointPerformanceInfo(PipResultStatus.Succeeded));
                             }
 
-                            if (processRunnable.Process.IsLight)
-                            {
-                                // Ensure light process pips take priority over process pips when choosing worker
-                                // NOTE: Since they don't require process slots they would not be able to block
-                                // processes from acquiring a worker
-                                runnablePip.ChangePriority(LightPipChooseWorkerPriority);
-                            }
-
                             break;
                         case PipType.Ipc:
-                            // Ensure IPC pips take priority over process pips when choosing worker
-                            // NOTE: Since they don't require process slots they would not be able to block
-                            // processes from acquiring a worker
-                            runnablePip.ChangePriority(LightPipChooseWorkerPriority);
 
                             // IPC pips go to ChooseWorker before checking the incremental state
                             return PipExecutionStep.ChooseWorkerCpu;

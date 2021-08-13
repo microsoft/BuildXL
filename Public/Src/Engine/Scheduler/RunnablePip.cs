@@ -77,6 +77,11 @@ namespace BuildXL.Scheduler
         public virtual int Weight => 1;
 
         /// <summary>
+        /// Whether the pip is an IPC pips or light process pip.
+        /// </summary>
+        public virtual bool IsLight => PipType == PipType.Ipc;
+
+        /// <summary>
         /// The underlying pip
         /// </summary>
         public Pip Pip

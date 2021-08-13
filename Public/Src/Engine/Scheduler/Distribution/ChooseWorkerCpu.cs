@@ -172,7 +172,7 @@ namespace BuildXL.Scheduler.Distribution
                 }
                 else
                 {
-                    pipSetupCost.InitializeWorkerSetupCost(runnablePip.Pip);
+                    pipSetupCost.InitializeWorkerSetupCost(runnablePip);
                 }
 
                 using (await m_chooseWorkerMutex.AcquireAsync())
@@ -221,11 +221,11 @@ namespace BuildXL.Scheduler.Distribution
 
             ResetStatus();
 
-            var pendingWorkerSelectionSlotCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.ChooseWorkerCpu);
-
             bool loadBalanceWorkers = false;
-            if (runnablePip.PipType == PipType.Process)
+            if (runnablePip.PipType == PipType.Process && !runnablePip.IsLight)
             {
+                var pendingWorkerSelectionSlotCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumAcquiredSlotsByKind(DispatcherKind.ChooseWorkerCpu);
+
                 if (pendingWorkerSelectionSlotCount + m_totalAcquiredProcessSlots < (m_totalProcessSlots / 2))
                 {
                     // When there is a limited amount of work (less than half the total capacity of
@@ -406,7 +406,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 var pip = runnablePip.Pip;
 
-                InitializeWorkerSetupCost(pip);
+                InitializeWorkerSetupCost(runnablePip);
 
                 // The block below collects process input file artifacts and hashes
                 // Currently there is no logic to keep from sending the same hashes twice
@@ -459,13 +459,13 @@ namespace BuildXL.Scheduler.Distribution
                 Array.Sort(WorkerSetupCosts);
             }
 
-            public void InitializeWorkerSetupCost(Pip pip)
+            public void InitializeWorkerSetupCost(RunnablePip runnable)
             {
                 for (int i = 0; i < m_context.Workers.Count; i++)
                 {
                     var worker = m_context.Workers[i];
                     int acquiredSlots = worker.AcquiredProcessSlots;
-                    if (pip.PipType == PipType.Ipc || (pip as Process)?.IsLight == true)
+                    if (runnable.IsLight)
                     {
                         // For light process and IPC pips, use Light slots to order the workers.
                         acquiredSlots = worker.AcquiredLightSlots;

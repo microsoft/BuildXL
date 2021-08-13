@@ -546,7 +546,7 @@ namespace BuildXL.Scheduler.Distribution
                 // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
                 // processes running (the number of acquired slots is 0)
                 // Light processes do not acquire process slots as they are not CPU-bound.
-                if (!processRunnablePip.Process.IsLight)
+                if (!processRunnablePip.IsLight)
                 {
                     if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (TotalProcessSlots * loadFactor))
                     {
@@ -565,7 +565,7 @@ namespace BuildXL.Scheduler.Distribution
                 var expectedMemoryCounters = GetExpectedMemoryCounters(processRunnablePip);
                 if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip, expectedMemoryCounters), out limitingResourceName))
                 {
-                    if (processRunnablePip.Process.IsLight)
+                    if (processRunnablePip.IsLight)
                     {
                         Interlocked.Increment(ref m_acquiredLightSlots);
                     }

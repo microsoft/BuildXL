@@ -56,6 +56,11 @@ namespace BuildXL.Scheduler.WorkDispatcher
         ChooseWorkerCacheLookup,
 
         /// <summary>
+        /// Choose worker queue to find a worker to execute light process pips and IPC pips
+        /// </summary>
+        ChooseWorkerLight,
+
+        /// <summary>
         /// The queue where sealdirectory pips are processed.
         /// </summary>
         SealDirs,
@@ -73,5 +78,20 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// Queue for input/output materialization
         /// </summary>
         Materialize,
+    }
+
+    /// <summary>
+    /// Extension methods for <see cref="DispatcherKind"/>
+    /// </summary>
+    public static class DispatcherKindHelpers
+    {
+        /// <summary>
+        /// Whether this dispatcher represents a logic for choosing a worker.
+        /// </summary>
+        public static bool IsChooseWorker(this DispatcherKind kind)
+        {
+            return kind == DispatcherKind.ChooseWorkerLight || kind == DispatcherKind.ChooseWorkerCacheLookup || kind == DispatcherKind.ChooseWorkerCpu;
+        }
+    
     }
 }

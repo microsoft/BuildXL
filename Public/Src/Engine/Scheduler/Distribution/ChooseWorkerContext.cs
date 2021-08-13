@@ -127,6 +127,12 @@ namespace BuildXL.Scheduler.Distribution
 
             if (pause)
             {
+                if (blockedPip.IsLight)
+                {
+                    // Light pips do not block the chooseworker queue.
+                    return;
+                }
+
                 using (m_chooseWorkerTogglePauseLock.AcquireWriteLock())
                 {
                     // Compare with the captured sequence number before the pip re-entered the queue

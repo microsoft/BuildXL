@@ -28,6 +28,7 @@ namespace BuildXL.Scheduler
 
         private readonly ChooseWorkerQueue m_chooseWorkerCpuQueue;
         private readonly ChooseWorkerQueue m_chooseWorkerCacheLookupQueue;
+        private readonly ChooseWorkerQueue m_chooseWorkerLightQueue;
 
         /// <summary>
         /// Task completion source that completes whenever there are applicable changes which require another dispatching iteration.
@@ -164,6 +165,7 @@ namespace BuildXL.Scheduler
             // If adaptive IO is enabled, then start with the half of the maxIO.
             var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
+            m_chooseWorkerLightQueue = new ChooseWorkerQueue(this, 1);
             m_chooseWorkerCacheLookupQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCacheLookup);
             m_chooseWorkerCpuQueue = m_scheduleConfig.ModuleAffinityEnabled() ?
                 new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.BuildWorkers.Count + 1) :
@@ -174,6 +176,7 @@ namespace BuildXL.Scheduler
                                  {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
                                  {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, maxParallelDegree: 1)},
                                  {DispatcherKind.ChooseWorkerCacheLookup, m_chooseWorkerCacheLookupQueue},
+                                 {DispatcherKind.ChooseWorkerLight, m_chooseWorkerLightQueue },
                                  {DispatcherKind.CacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxCacheLookup)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
                                  {DispatcherKind.CPU, new DispatcherQueue(this, m_scheduleConfig.MaxProcesses, useWeight: true)},
@@ -221,7 +224,7 @@ namespace BuildXL.Scheduler
             {
                 // We only allow 0 for ChooseWorkerCpu and ChooseWorkerCacheLookup dispatchers.
                 // For all other dispatchers, 0 is not allowed for potential deadlocks.
-                if (kind != DispatcherKind.ChooseWorkerCacheLookup && kind != DispatcherKind.ChooseWorkerCpu)
+                if (!kind.IsChooseWorker())
                 {
                     maxParallelDegree = 1;
                 }

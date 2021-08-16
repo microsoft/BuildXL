@@ -135,6 +135,7 @@ namespace BuildXL.Utilities
         public string Translate(string path)
         {
             Contract.Assert(Sealed);
+            string originalPath = path;
 
             if (m_translations.Count == 0)
             {
@@ -159,6 +160,11 @@ namespace BuildXL.Utilities
             {
                 hasNtPrefix = true;
                 path = path.Substring(NtPrefix.Length);
+            }
+
+            if (path.Length == 0)
+            {
+                return originalPath;
             }
 
             string priorPath = null;

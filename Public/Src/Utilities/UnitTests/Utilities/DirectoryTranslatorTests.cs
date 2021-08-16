@@ -114,6 +114,37 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
+        public void TestMalformedPaths()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            var translations = new[]
+            {
+                CreateInputTranslation(pathTable, new string[] { "K","dbs","sh","dtb","b" }, new string[] { "d","dbs","sh","dtb","0629_120346" }),
+            };
+
+            var translator = new DirectoryTranslator();
+            translator.AddTranslations(translations, pathTable);
+            translator.Seal();
+
+            // None of these paths should be mutated by DirectoryTranslator
+            foreach(string pathToTest in new string[] {
+                @"\??\",
+                @"\\?\",
+                @":",
+                @"d",
+                @"k",
+                @"",
+                })
+            {
+                // Test edge cases for various paths. Note these explicitly don't go through path generation utilities because they can
+                // massage away malformed paths that we explicitly want to test.
+                AssertAreEqual(pathToTest, translator.Translate(pathToTest));
+            }
+        }
+
+        [Fact]
         public void TestDirectoryTranslatorEnvironmentInjection()
         {
             var context = BuildXLContext.CreateInstanceForTesting();

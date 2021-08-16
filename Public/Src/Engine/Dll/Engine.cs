@@ -1156,8 +1156,10 @@ namespace BuildXL.Engine
                 // Disable viewer
                 mutableConfig.Viewer = ViewerMode.Disable;
 
-                // Enable historic ram based throttling in CloudBuild by default if it is not explicitly disabled.
+                // Enable historic ram and CPU based throttling in CloudBuild by default if it is not explicitly disabled.
                 mutableConfig.Schedule.UseHistoricalRamUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalRamUsageInfo ?? true;
+
+                mutableConfig.Schedule.UseHistoricalCpuUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalCpuUsageInfo ?? true;
 
                 mutableConfig.Cache.FileContentTableEntryTimeToLive = mutableConfig.Cache.FileContentTableEntryTimeToLive ?? 100;
 

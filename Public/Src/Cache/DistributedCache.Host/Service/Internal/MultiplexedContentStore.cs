@@ -93,7 +93,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     var result = await store.ShutdownAsync(context).ConfigureAwait(false);
                     if (!result)
                     {
-                        finalResult = new BoolResult(finalResult, result.ErrorMessage);
+                        finalResult &= result;
                     }
                 }
             }

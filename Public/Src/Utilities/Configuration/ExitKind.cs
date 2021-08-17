@@ -109,5 +109,10 @@ namespace BuildXL.Utilities.Configuration
         /// A general user error
         /// </summary>
         UserError,
+
+        /// <summary>
+        /// Build Timeout via CB queue config
+        /// </summary>
+        BuildTimeout,
     }
 }

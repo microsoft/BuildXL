@@ -884,6 +884,8 @@ namespace BuildXL
                             return ExitKind.BuildCancelled;
                         case (int)BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter:
                             return ExitKind.NoPipsMatchFilter;
+                        case (int)BuildXL.App.Tracing.LogEventId.CbTimeoutReached:
+                            return ExitKind.BuildTimeout;
                     }
                 }
             }

@@ -45,6 +45,8 @@ namespace BuildXL.Utilities.Configuration
                     return 4;
                 case ExitKind.BuildFailedTelemetryShutdownException:
                     return 5;
+                case ExitKind.BuildTimeout:
+                    return 6;
                 case ExitKind.InternalError:
                     return -1;
                 default:

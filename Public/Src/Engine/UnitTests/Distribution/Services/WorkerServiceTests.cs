@@ -125,6 +125,26 @@ namespace Test.BuildXL.Distribution
             AssertCorrectShutdown(testRun);
         }
 
+        [Fact]
+        public async Task EarlyReleaseWhileAttachingDoesntCauseFailure()
+        {
+
+            var testRun = CreateTestRun();
+
+            // Attach and exit before triggering the start of the service, which will make
+            // the WorkerService finally call AttachCompletedAsync (that we intentionally fail). 
+            // This simulates the worker being early-released in the middle of attachment
+            // We don't want to fail the build in that case even though the call failed.
+            testRun.AttachOrchestrator();
+            testRun.ReceiveExitCallFromOrchestator();
+            testRun.OrchestratorClient.StartFailing();
+
+            await testRun.StartServiceAsync();
+            await testRun.EndRunAsync(expectSuccess: true);
+            AssertCorrectShutdown(testRun);
+            AssertVerboseEventLogged(LogEventId.AttachmentFailureAfterOrchestratorExit);
+        }
+
         private async Task<WorkerServiceTestRun> CreateRunAttachAndStart()
         {
             var testRun = CreateTestRun();

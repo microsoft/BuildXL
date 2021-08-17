@@ -167,7 +167,7 @@ namespace BuildXL.Engine.Distribution
         {
             Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "ProcessBuildRequests called before finishing attach on worker");
 
-            bool success = await SendAttachCompletedAfterProcessBuildRequestStartedAsync();
+            bool success = await CompleteAttachmentAfterProcessBuildRequestStartedAsync();
 
             // Wait until the build finishes or we discovered that the orchestrator is dead
             success &= await ExitCompletion; 
@@ -281,7 +281,7 @@ namespace BuildXL.Engine.Distribution
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-        private async Task<bool> SendAttachCompletedAfterProcessBuildRequestStartedAsync()
+        private async Task<bool> CompleteAttachmentAfterProcessBuildRequestStartedAsync()
         {
             var possiblyAttachCompletionInfo = await m_pipExecutionService.ConstructAttachCompletionInfo();
 
@@ -295,8 +295,24 @@ namespace BuildXL.Engine.Distribution
 
             if (!attachCompletionResult.Succeeded)
             {
-                Exit($"Failed to attach to orchestrator. Duration: {(int)attachCompletionResult.Duration.TotalMinutes}", isUnexpected: true);
-                return false;
+                var callDurationMin = (int)attachCompletionResult.Duration.TotalMinutes;
+
+                if (m_isOrchestratorExited)
+                {
+                    // We failed to attach after receiving an exit call from the orchestrator.
+                    // Don't treat this as a failure: it is a part of the normal early-release process,
+                    // where the orchestrator shuts down the connection after releasing this worker.
+                    // Log the ocurrence and exit gracefully.
+                    Logger.Log.AttachmentFailureAfterOrchestratorExit(m_appLoggingContext, callDurationMin);
+
+                    Exit();
+                    return true;
+                }
+                else
+                {
+                    Exit($"Failed to attach to orchestrator. Duration: {callDurationMin}", isUnexpected: true);
+                    return false;
+                }
             }
 
             return true;

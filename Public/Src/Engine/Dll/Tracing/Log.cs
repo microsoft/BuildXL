@@ -607,6 +607,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerAttachTooSlow(LoggingContext context, string name, string time);
 
         [GeneratedEvent(
+            (ushort)LogEventId.AttachmentFailureAfterOrchestratorExit,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Attaching to the orchestrator failed after we received an exit request from the orchestrator. This probably means that the worker was released before completing the attachment process. Call timeout: {minutes} min")]
+        public abstract void AttachmentFailureAfterOrchestratorExit(LoggingContext context, int minutes);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionFailedToCallOrchestrator,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

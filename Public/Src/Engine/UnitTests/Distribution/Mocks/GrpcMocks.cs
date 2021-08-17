@@ -147,12 +147,21 @@ namespace Test.BuildXL.Distribution
     public sealed class OrchestratorClientMock : IOrchestratorClient
     {
         private static RpcCallResult<Unit> SuccessResult => new RpcCallResult<Unit>(Unit.Void, 1, TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
+        private static RpcCallResult<Unit> Failure => new RpcCallResult<Unit>(RpcCallResultState.Failed, 1, TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
 
         private readonly TaskCompletionSource<bool> m_attachmentCompletedSource = new TaskCompletionSource<bool>();
         public Task<bool> AttachmentCompleted => m_attachmentCompletedSource.Task;
+
+        // If true, calls will fail
+        private bool m_fail = false;
         
         Task<RpcCallResult<Unit>> IOrchestratorClient.AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo)
         {
+            if (m_fail)
+            {
+                return Task.FromResult(Failure);
+            }
+
             m_attachmentCompletedSource.TrySetResult(true);            
             return Task.FromResult(SuccessResult);
         }
@@ -165,12 +174,17 @@ namespace Test.BuildXL.Distribution
 
         Task<RpcCallResult<Unit>> IOrchestratorClient.NotifyAsync(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes, CancellationToken cancellationToken)
         {
-            return Task.FromResult(SuccessResult);
+            return Task.FromResult(m_fail ? Failure : SuccessResult);
         }
 
         void IOrchestratorClient.Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionTimeOutAsync)
         {
 
+        }
+
+        public void StartFailing()
+        {
+            m_fail = true;
         }
     }
 }

@@ -41,6 +41,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public static MachineIdCollection Create(IReadOnlyList<MachineId> machineIds) => new MachineIdCollection(machineIds);
 
         /// <summary>
+        /// Create a collection of machine ids with a single location.
+        /// </summary>
+        public static implicit operator MachineIdCollection(MachineId machineId) => Create(machineId);
+
+        /// <summary>
         /// Gets a first machine id.
         /// </summary>
         /// <returns></returns>

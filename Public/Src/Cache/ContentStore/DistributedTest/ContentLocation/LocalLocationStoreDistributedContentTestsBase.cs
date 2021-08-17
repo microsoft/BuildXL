@@ -230,6 +230,9 @@ namespace ContentStoreTest.Distributed.Sessions
                                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
                                ProactiveCopyMaxRetries = ProactiveCopyRetries,
 
+                               // Use very low to delay to keep tests with proactive replication from running a very long time
+                               ProactiveReplicationDelaySeconds = 0.001,
+
                                ContentLocationDatabaseOpenReadOnly = true,
                                EnablePublishingCache = EnablePublishingCache,
                            };

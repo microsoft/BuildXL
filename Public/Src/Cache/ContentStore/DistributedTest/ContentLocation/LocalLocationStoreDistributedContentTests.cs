@@ -454,12 +454,12 @@ namespace ContentStoreTest.Distributed.Sessions
      var path = context.Directories[0].CreateRandomFileName();
      FileSystem.WriteAllBytes(path, content);
 
-                    // Insert random file in session 1
-                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+     // Insert random file in session 1
+     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
-                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+     // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+     var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
      var counters = session0.GetCounters().ToDictionaryIntegral();
      counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
 
@@ -501,61 +501,61 @@ namespace ContentStoreTest.Distributed.Sessions
      var path = context.Directories[0].CreateRandomFileName();
      FileSystem.WriteAllBytes(path, content);
 
-                    //------------------------------------------------
-                    // Insert random file in session 1
-                    //------------------------------------------------
-                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+     //------------------------------------------------
+     // Insert random file in session 1
+     //------------------------------------------------
+     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-                    // The number of locations is less than PinMinUnverifiedCount, therefore counter will not be incremented
-                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-                    await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+     // The number of locations is less than PinMinUnverifiedCount, therefore counter will not be incremented
+     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+     await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
      var counters = session0.GetCounters().ToDictionaryIntegral();
      counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
      var remoteFileCopies = counters["RemoteFilesCopied.Count"];
 
      await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
-                    // Establishing the base line for number of locations.
-                    int preAsyncPinLocationsCount = 2;
+     // Establishing the base line for number of locations.
+     int preAsyncPinLocationsCount = 2;
      (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount);
 
-                    //------------------------------------------------
-                    // Calling PinAsync that should be an async pin
-                    //------------------------------------------------
+     //------------------------------------------------
+     // Calling PinAsync that should be an async pin
+     //------------------------------------------------
 
-                    // This pin should be satisfied based on the number of locations and trigger an async copy.
-                    // Introducing the copy delay to check that asynchronous copy indeed asynchronous and works as expected.
-                    context.TestFileCopier.CopyDelay = TimeSpan.FromSeconds(1);
+     // This pin should be satisfied based on the number of locations and trigger an async copy.
+     // Introducing the copy delay to check that asynchronous copy indeed asynchronous and works as expected.
+     context.TestFileCopier.CopyDelay = TimeSpan.FromSeconds(1);
      await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
 
-                    //------------------------------------------------
-                    // Analyzing the results
-                    //------------------------------------------------
+     //------------------------------------------------
+     // Analyzing the results
+     //------------------------------------------------
 
-                    var session2Counters = session2.GetCounters().ToDictionaryIntegral();
+     var session2Counters = session2.GetCounters().ToDictionaryIntegral();
      session2Counters["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
 
-                    // We do initiate the async copy on pin only when configured.
-                    bool asyncCopyShouldBeInitiated = threshold > 0;
+     // We do initiate the async copy on pin only when configured.
+     bool asyncCopyShouldBeInitiated = threshold > 0;
      int expectedStartCopies = asyncCopyShouldBeInitiated ? 1 : 0;
 
      session2Counters["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(expectedStartCopies);
 
-                    // Now the copy is happening asynchronously, so we can wait for it.
-                    (await context.TestFileCopier.CopyToAsyncTask).ShouldBeSuccess();
-                    // We need to give the chance for the asynchronous operation to complete.
-                    await Task.Delay(TimeSpan.FromSeconds(1));
+     // Now the copy is happening asynchronously, so we can wait for it.
+     (await context.TestFileCopier.CopyToAsyncTask).ShouldBeSuccess();
+     // We need to give the chance for the asynchronous operation to complete.
+     await Task.Delay(TimeSpan.FromSeconds(1));
 
-                    // Making sure that we did a copy.
-                    session2Counters = session2.GetCounters().ToDictionaryIntegral();
+     // Making sure that we did a copy.
+     session2Counters = session2.GetCounters().ToDictionaryIntegral();
 
-                    // Making sure that the location was registered.
-                    (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount + expectedStartCopies);
+     // Making sure that the location was registered.
+     (await GetGlobalLocationsCount(context, putResult0.ContentHash)).Should().Be(preAsyncPinLocationsCount + expectedStartCopies);
 
-                    // And now we can call another pin on the same session and this time the pin should be satisfied by a local pin.
-                    var result = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+     // And now we can call another pin on the same session and this time the pin should be satisfied by a local pin.
+     var result = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
 
-                    // If the pin is satisfied by local store we're getting a simple 'PinResult' instance, otherwise the type is DistributedPinResult.
-                    var expectedType = asyncCopyShouldBeInitiated ? typeof(PinResult) : typeof(DistributedPinResult);
+     // If the pin is satisfied by local store we're getting a simple 'PinResult' instance, otherwise the type is DistributedPinResult.
+     var expectedType = asyncCopyShouldBeInitiated ? typeof(PinResult) : typeof(DistributedPinResult);
      result.Should().BeOfType(expectedType);
  });
         }
@@ -594,12 +594,12 @@ namespace ContentStoreTest.Distributed.Sessions
      var path = context.Directories[0].CreateRandomFileName();
      FileSystem.WriteAllBytes(path, content);
 
-                    // Insert random file in session 1
-                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+     // Insert random file in session 1
+     var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
 
-                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
-                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
-                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+     // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+     // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+     var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
      var counters = session0.GetCounters().ToDictionaryIntegral();
      counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
      var remoteFileCopies = counters["RemoteFilesCopied.Count"];
@@ -946,42 +946,42 @@ namespace ContentStoreTest.Distributed.Sessions
      putResults.Add(await workerSession.PutRandomFileAsync(context, FileSystem, putPath, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess());
      var getBulkResult = await master.GetBulkAsync(context, putResults[0].ContentHash, GetBulkOrigin.Local);
 
-                    // Verify that all content is still registered with the correct stores
-                    for (int i = 0; i <= context.Iteration; i++)
+     // Verify that all content is still registered with the correct stores
+     for (int i = 0; i <= context.Iteration; i++)
      {
          workerPrimaryFileStore.Contains(putResults[i].ContentHash).Should().BeFalse();
          workerSecondaryFileStore.Contains(putResults[i].ContentHash).Should().BeTrue();
 
-                        // Verify the stream can be retrieved for the purposes of remote copies
-                        var openStreamResult = await workerStreamStore.StreamContentAsync(context, putResults[i].ContentHash).ShouldBeSuccess();
+         // Verify the stream can be retrieved for the purposes of remote copies
+         var openStreamResult = await workerStreamStore.StreamContentAsync(context, putResults[i].ContentHash).ShouldBeSuccess();
          using (openStreamResult.Stream)
          {
-                            // Just dispose.
-                        }
+             // Just dispose.
+         }
      }
 
      if (context.Iteration == 0)
      {
-                        // Legacy: Primary and secondary machine locations registered
-                        mappings.Count.Should().Be(2);
+         // Legacy: Primary and secondary machine locations registered
+         mappings.Count.Should().Be(2);
          getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Location should only be registered with secondary store");
          getBulkResult.ContentHashesInfo[0].Locations[0].Should().Be(mappings[1].Location);
      }
      else if (context.Iteration == 1)
      {
-                        // Transitional: Primary and secondary machine locations registered
-                        // * Primary registered with both drives aggregated under that location
-                        mappings.Count.Should().Be(2);
+         // Transitional: Primary and secondary machine locations registered
+         // * Primary registered with both drives aggregated under that location
+         mappings.Count.Should().Be(2);
          getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2, "Location should be registered with primary (unified) AND secondary store");
      }
      else
      {
-                        // Unified: Only primary registered with both drives aggregated under that location
-                        mappings.Count.Should().Be(1);
+         // Unified: Only primary registered with both drives aggregated under that location
+         mappings.Count.Should().Be(1);
          getBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(2, "Location should be registered with primary (unified) AND secondary store");
 
-                        // Go forward in time, to test worker invalidation and clean up of associated content
-                        TestClock.UtcNow += TimeSpan.FromDays(1);
+         // Go forward in time, to test worker invalidation and clean up of associated content
+         TestClock.UtcNow += TimeSpan.FromDays(1);
          await worker.LocalLocationStore.HeartbeatAsync(context, inline: true).ShouldBeSuccess();
          await master.LocalLocationStore.HeartbeatAsync(context, inline: true).ShouldBeSuccess();
 
@@ -1005,25 +1005,25 @@ namespace ContentStoreTest.Distributed.Sessions
                 storeCount: 2,
                 testFunc: async context =>
  {
-                    // Put file
-                    var putFileHashes = await PutRandomInBothStoresAsync(context);
+     // Put file
+     var putFileHashes = await PutRandomInBothStoresAsync(context);
 
      var session = context.Sessions[0];
 
-                    // Verify hashes exist in respective stores
-                    IsHashInStore(putFileHashes.primaryHash, context, primary: true).Should().BeTrue();
+     // Verify hashes exist in respective stores
+     IsHashInStore(putFileHashes.primaryHash, context, primary: true).Should().BeTrue();
      IsHashInStore(putFileHashes.primaryHash, context, primary: false).Should().BeFalse();
      IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeFalse();
      IsHashInStore(putFileHashes.secondaryHash, context, primary: false).Should().BeTrue();
 
-                    // Put stream goes to primary
-                    var putStreamInPrimaryResult = await session.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+     // Put stream goes to primary
+     var putStreamInPrimaryResult = await session.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
      IsHashInStore(putStreamInPrimaryResult.ContentHash, context, primary: true).Should().BeTrue();
      IsHashInStore(putStreamInPrimaryResult.ContentHash, context, primary: false).Should().BeFalse();
 
-                    // Place file
-                    // Try placing from stores which owns the paths respectively and verify no copy was performed
-                    var placeFromSelfHashes = await PutRandomInBothStoresAsync(context);
+     // Place file
+     // Try placing from stores which owns the paths respectively and verify no copy was performed
+     var placeFromSelfHashes = await PutRandomInBothStoresAsync(context);
      await session.PlaceFileAsync(
          context,
          placeFromSelfHashes.primaryHash,
@@ -1046,37 +1046,37 @@ namespace ContentStoreTest.Distributed.Sessions
      IsHashInStore(placeFromSelfHashes.secondaryHash, context, primary: true).Should().BeFalse();
      IsHashInStore(placeFromSelfHashes.secondaryHash, context, primary: false).Should().BeTrue();
 
-                    // Try placing from stores which DO NOT own the paths respectively and verify copy was performed
-                    var placeFromOtherHashes = await PutRandomInBothStoresAsync(context);
+     // Try placing from stores which DO NOT own the paths respectively and verify copy was performed
+     var placeFromOtherHashes = await PutRandomInBothStoresAsync(context);
 
-                    // Place from secondary and verify copied from primary
-                    await session.PlaceFileAsync(
-         context,
-         placeFromOtherHashes.primaryHash,
-         GetRandomSecondaryPath(),
-         FileAccessMode.ReadOnly,
-         FileReplacementMode.ReplaceExisting,
-         FileRealizationMode.Any,
-         Token).ShouldBeSuccess();
+     // Place from secondary and verify copied from primary
+     await session.PlaceFileAsync(
+context,
+placeFromOtherHashes.primaryHash,
+GetRandomSecondaryPath(),
+FileAccessMode.ReadOnly,
+FileReplacementMode.ReplaceExisting,
+FileRealizationMode.Any,
+Token).ShouldBeSuccess();
      IsHashInStore(placeFromOtherHashes.primaryHash, context, primary: false).Should().BeTrue();
 
-                    // Place from primary and verify copied from secondary
-                    await session.PlaceFileAsync(
-         context,
-         placeFromOtherHashes.secondaryHash,
-         GetRandomPrimaryPath(),
-         FileAccessMode.ReadOnly,
-         FileReplacementMode.ReplaceExisting,
-         FileRealizationMode.Any,
-         Token).ShouldBeSuccess();
+     // Place from primary and verify copied from secondary
+     await session.PlaceFileAsync(
+context,
+placeFromOtherHashes.secondaryHash,
+GetRandomPrimaryPath(),
+FileAccessMode.ReadOnly,
+FileReplacementMode.ReplaceExisting,
+FileRealizationMode.Any,
+Token).ShouldBeSuccess();
      IsHashInStore(placeFromOtherHashes.secondaryHash, context, primary: true).Should().BeTrue();
 
-                    // Verify no copy performed between stores when opening stream from primary
-                    await OpenStreamAndDisposeAsync(session, context, putFileHashes.primaryHash);
+     // Verify no copy performed between stores when opening stream from primary
+     await OpenStreamAndDisposeAsync(session, context, putFileHashes.primaryHash);
      IsHashInStore(putFileHashes.primaryHash, context, primary: false).Should().BeFalse();
 
-                    // Verify copy performed between stores when opening stream present in secondary
-                    await OpenStreamAndDisposeAsync(session, context, putFileHashes.secondaryHash);
+     // Verify copy performed between stores when opening stream present in secondary
+     await OpenStreamAndDisposeAsync(session, context, putFileHashes.secondaryHash);
      IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeTrue();
  });
         }
@@ -1096,81 +1096,81 @@ namespace ContentStoreTest.Distributed.Sessions
             return RunTestAsync(
                 storeCount: 2,
                 testFunc: async context =>
- {
+                {
                     // Put file
                     var putFileHashes = await PutRandomInBothStoresAsync(context);
 
-     var session = context.Sessions[0];
+                    var session = context.Sessions[0];
 
                     // Verify hashes exist in respective stores
                     IsHashInStore(putFileHashes.primaryHash, context, primary: true).Should().BeTrue();
-     IsHashInStore(putFileHashes.primaryHash, context, primary: false).Should().BeFalse();
-     IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeFalse();
-     IsHashInStore(putFileHashes.secondaryHash, context, primary: false).Should().BeTrue();
+                    IsHashInStore(putFileHashes.primaryHash, context, primary: false).Should().BeFalse();
+                    IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeFalse();
+                    IsHashInStore(putFileHashes.secondaryHash, context, primary: false).Should().BeTrue();
 
                     // Put stream goes to primary
                     var putStreamInPrimaryResult = await session.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-     IsHashInStore(putStreamInPrimaryResult.ContentHash, context, primary: true).Should().BeTrue();
-     IsHashInStore(putStreamInPrimaryResult.ContentHash, context, primary: false).Should().BeFalse();
+                    IsHashInStore(putStreamInPrimaryResult.ContentHash, context, primary: true).Should().BeTrue();
+                    IsHashInStore(putStreamInPrimaryResult.ContentHash, context, primary: false).Should().BeFalse();
 
                     // Place file
                     // Try placing from stores which owns the paths respectively and verify no copy was performed
                     var placeFromSelfHashes = await PutRandomInBothStoresAsync(context);
-     await session.PlaceFileAsync(
-         context,
-         placeFromSelfHashes.primaryHash,
-         GetRandomPrimaryPath(),
-         FileAccessMode.ReadOnly,
-         FileReplacementMode.ReplaceExisting,
-         FileRealizationMode.Any,
-         Token).ShouldBeSuccess();
-     IsHashInStore(placeFromSelfHashes.primaryHash, context, primary: true).Should().BeTrue();
-     IsHashInStore(placeFromSelfHashes.primaryHash, context, primary: false).Should().BeFalse();
+                    await session.PlaceFileAsync(
+                        context,
+                        placeFromSelfHashes.primaryHash,
+                        GetRandomPrimaryPath(),
+                        FileAccessMode.ReadOnly,
+                        FileReplacementMode.ReplaceExisting,
+                        FileRealizationMode.Any,
+                        Token).ShouldBeSuccess();
+                    IsHashInStore(placeFromSelfHashes.primaryHash, context, primary: true).Should().BeTrue();
+                    IsHashInStore(placeFromSelfHashes.primaryHash, context, primary: false).Should().BeFalse();
 
-     await session.PlaceFileAsync(
-         context,
-         placeFromSelfHashes.secondaryHash,
-         GetRandomSecondaryPath(),
-         FileAccessMode.ReadOnly,
-         FileReplacementMode.ReplaceExisting,
-         FileRealizationMode.Any,
-         Token).ShouldBeSuccess();
-     IsHashInStore(placeFromSelfHashes.secondaryHash, context, primary: true).Should().BeFalse();
-     IsHashInStore(placeFromSelfHashes.secondaryHash, context, primary: false).Should().BeTrue();
+                    await session.PlaceFileAsync(
+                        context,
+                        placeFromSelfHashes.secondaryHash,
+                        GetRandomSecondaryPath(),
+                        FileAccessMode.ReadOnly,
+                        FileReplacementMode.ReplaceExisting,
+                        FileRealizationMode.Any,
+                        Token).ShouldBeSuccess();
+                    IsHashInStore(placeFromSelfHashes.secondaryHash, context, primary: true).Should().BeFalse();
+                    IsHashInStore(placeFromSelfHashes.secondaryHash, context, primary: false).Should().BeTrue();
 
                     // Try placing from stores which DO NOT own the paths respectively and verify copy was NOT performed
                     var placeFromOtherHashes = await PutRandomInBothStoresAsync(context);
 
                     // Place from secondary path and verify NOT copied from primary to secondary
                     await session.PlaceFileAsync(
-         context,
-         placeFromOtherHashes.primaryHash,
-         GetRandomSecondaryPath(),
-         FileAccessMode.ReadOnly,
-         FileReplacementMode.ReplaceExisting,
-         FileRealizationMode.Any,
-         Token).ShouldBeSuccess();
-     IsHashInStore(placeFromOtherHashes.primaryHash, context, primary: false).Should().BeFalse();
+                       context,
+                       placeFromOtherHashes.primaryHash,
+                       GetRandomSecondaryPath(),
+                       FileAccessMode.ReadOnly,
+                       FileReplacementMode.ReplaceExisting,
+                       FileRealizationMode.Any,
+                       Token).ShouldBeSuccess();
+                    IsHashInStore(placeFromOtherHashes.primaryHash, context, primary: false).Should().BeFalse();
 
                     // Place from primary path and verify NOT copied from secondary to primary
                     await session.PlaceFileAsync(
-         context,
-         placeFromOtherHashes.secondaryHash,
-         GetRandomPrimaryPath(),
-         FileAccessMode.ReadOnly,
-         FileReplacementMode.ReplaceExisting,
-         FileRealizationMode.Any,
-         Token).ShouldBeSuccess();
-     IsHashInStore(placeFromOtherHashes.secondaryHash, context, primary: true).Should().BeFalse();
+                       context,
+                       placeFromOtherHashes.secondaryHash,
+                       GetRandomPrimaryPath(),
+                       FileAccessMode.ReadOnly,
+                       FileReplacementMode.ReplaceExisting,
+                       FileRealizationMode.Any,
+                       Token).ShouldBeSuccess();
+                    IsHashInStore(placeFromOtherHashes.secondaryHash, context, primary: true).Should().BeFalse();
 
                     // Verify NO copy performed between stores when opening stream present in primary
                     await OpenStreamAndDisposeAsync(session, context, putFileHashes.primaryHash);
-     IsHashInStore(putFileHashes.primaryHash, context, primary: false).Should().BeFalse();
+                    IsHashInStore(putFileHashes.primaryHash, context, primary: false).Should().BeFalse();
 
                     // Verify NO copy performed between stores when opening stream present in secondary
                     await OpenStreamAndDisposeAsync(session, context, putFileHashes.secondaryHash);
-     IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeFalse();
- });
+                    IsHashInStore(putFileHashes.secondaryHash, context, primary: true).Should().BeFalse();
+                });
         }
 
         private AbsolutePath GetRandomPrimaryPath() => TestRootDirectoryPath / Path.GetRandomFileName();
@@ -1265,7 +1265,7 @@ namespace ContentStoreTest.Distributed.Sessions
             try
             {
                 Context.UseHierarchicalIds = true;
-                
+
                 // A small (normal) reconciliation that must be done in one cycle.
                 ConfigureReconciliation(
                     reconciliationMaxCycleSize: 100_000,
@@ -1372,7 +1372,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             // Each cycle we can add/remove up to the add/remove limits, so we need 3 cycles for 300 removes.
             // We finish the adds in the first 2 cycles.
-            cycles.Should().Be(3); 
+            cycles.Should().Be(3);
         }
 
         [Fact]
@@ -1922,43 +1922,42 @@ namespace ContentStoreTest.Distributed.Sessions
             return RunTestAsync(
                 storeCount: storeCount,
                 testFunc: async context =>
- {
-     var master = context.GetMaster();
-     var masterSession = context.GetDistributedSession(context.GetMasterIndex());
+                {
+                    var master = context.GetMaster();
+                    var masterSession = context.GetDistributedSession(context.GetMasterIndex());
 
-     var consumer = context.GetLocationStore(consumerIndex);
-     var consumerSession = context.GetDistributedSession(consumerIndex);
+                    var consumer = context.GetLocationStore(consumerIndex);
+                    var consumerSession = context.GetDistributedSession(consumerIndex);
 
                     // Ensure cluster states up to date
                     await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
-     await consumer.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+                    await consumer.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
 
-     var masterPut = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-     var consumerPut = await consumerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                    var masterPut = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                    var consumerPut = await consumerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
-     foreach (var store in new[] { consumer, master })
-     {
-         var clusterState = store.LocalLocationStore.ClusterState;
+                    foreach (var store in new[] { consumer, master })
+                    {
+                        var clusterState = store.LocalLocationStore.ClusterState;
 
                         // Verify number of registered machines (consumer machine is not registered so number of machines should be 1 less than store count)
                         clusterState.MaxMachineId.Should().Be(storeCount - 1);
 
                         // Verify that none of the consumer machine locations are in the cluster state
-                        clusterState.Locations
-             .Any(location =>
-                 consumer.LocalLocationStore.ClusterState.LocalMachineMappings.Any(mapping => mapping.Location.Equals(location)))
-             .Should().BeFalse();
-     }
+                        clusterState.Locations.Any(location =>
+                            consumer.LocalLocationStore.ClusterState.LocalMachineMappings.Any(mapping => mapping.Location.Equals(location)))
+                        .Should().BeFalse();
+                    }
 
-     consumer.LocalLocationStore.ClusterState.MaxMachineId.Should().Be(storeCount - 1);
-     master.LocalLocationStore.ClusterState.MaxMachineId.Should().Be(storeCount - 1);
+                    consumer.LocalLocationStore.ClusterState.MaxMachineId.Should().Be(storeCount - 1);
+                    master.LocalLocationStore.ClusterState.MaxMachineId.Should().Be(storeCount - 1);
 
                     // Verify content in consumer NOT visible from distributed mesh (i.e. master)
                     await masterSession.OpenStreamAsync(context, consumerPut.ContentHash, Token).ShouldBeNotFound();
 
                     // Verify content in distributed mesh visible from consumer
                     await OpenStreamAndDisposeAsync(consumerSession, context, masterPut.ContentHash);
- });
+                });
         }
 
         [Fact]
@@ -2621,7 +2620,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterClusterState = master.LocalLocationStore.ClusterState;
 
                     var clusterState = ClusterState.CreateForTest();
-                    await worker.LocalLocationStore.GlobalStore.UpdateClusterStateAsync(context, clusterState).ShouldBeSuccess();
+                    await worker.LocalLocationStore.UpdateClusterStateAsync(context, clusterState: clusterState).ShouldBeSuccess();
 
                     clusterState.MaxMachineId.Should().Be(machineCount);
 
@@ -3349,25 +3348,25 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var ctx = new OperationContext(context);
 
-                    var globalStore = worker.LocalLocationStore.GlobalStore;
-                    var state = (await globalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    var lls = worker.LocalLocationStore;
+                    var state = (await lls.UpdateClusterStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.Open);
 
                     // Once the worker finishes reconciliation and heartbeats, the machine should be open
                     await worker.ReconcileAsync(ctx, force: false).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
-                    state = (await globalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    state = (await lls.UpdateClusterStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.Open);
 
                     // Invalidate leads to unavailable
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
                     await worker.LocalLocationStore.InvalidateLocalMachineAsync(ctx, workerPrimaryMachineId).ShouldBeSuccess();
-                    state = (await globalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    state = (await lls.UpdateClusterStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.DeadUnavailable);
 
                     // Keep the same state after heartbeat!
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
-                    state = (await globalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
+                    state = (await lls.UpdateClusterStateAsync(ctx, MachineState.Unknown).ShouldBeSuccess()).Value;
                     state.Should().Be(MachineState.DeadUnavailable);
                 });
         }
@@ -3452,18 +3451,17 @@ namespace ContentStoreTest.Distributed.Sessions
                     await worker.ReconcileAsync(ctx, force: true).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
-                    var workerState = (await worker.LocalLocationStore.GlobalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    var workerState = (await worker.LocalLocationStore.UpdateClusterStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Open);
 
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
                     TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.GlobalStore.UpdateClusterStateAsync(
+                    await master.LocalLocationStore.UpdateClusterStateAsync(
                         ctx,
-                        master.LocalLocationStore.ClusterState,
                         MachineState.Unknown).ShouldBeSuccess();
 
-                    workerState = (await worker.LocalLocationStore.GlobalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    workerState = (await worker.LocalLocationStore.UpdateClusterStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.DeadExpired);
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
                     master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
@@ -3500,19 +3498,18 @@ namespace ContentStoreTest.Distributed.Sessions
                     await worker.ReconcileAsync(ctx, force: true).ShouldBeSuccess();
                     await worker.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();
 
-                    var workerState = (await worker.LocalLocationStore.GlobalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    var workerState = (await worker.LocalLocationStore.UpdateClusterStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Open);
 
                     var workerPrimaryMachineId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
                     // Move time forward and check that this machine transitions to closed when the master does heartbeat
                     TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToClosedInterval + TimeSpan.FromSeconds(1);
-                    await master.LocalLocationStore.GlobalStore.UpdateClusterStateAsync(
+                    await master.LocalLocationStore.UpdateClusterStateAsync(
                         ctx,
-                        master.LocalLocationStore.ClusterState,
                         MachineState.Unknown).ShouldBeSuccess();
 
-                    workerState = (await worker.LocalLocationStore.GlobalStore.SetLocalMachineStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
+                    workerState = (await worker.LocalLocationStore.UpdateClusterStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Closed);
                     master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
                     master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeFalse();

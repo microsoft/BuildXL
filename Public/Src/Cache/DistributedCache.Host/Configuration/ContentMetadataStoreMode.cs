@@ -70,14 +70,19 @@ namespace BuildXL.Cache.Host.Configuration
 
     public static class ContentMetadataStoreModeExtensions
     {
-        public static bool CheckFlag(this ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags flags)
+        public static bool HasAllFlags(this ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags flags)
         {
-            return mode.Flags().CheckFlag(flags);
+            return mode.Flags().HasAllFlags(flags);
         }
 
-        public static bool CheckFlag(this ContentMetadataStoreModeFlags mode, ContentMetadataStoreModeFlags flags)
+        public static bool HasAllFlags(this ContentMetadataStoreModeFlags mode, ContentMetadataStoreModeFlags flags)
         {
             return (mode & flags) == flags;
+        }
+
+        public static bool HasAnyFlag(this ContentMetadataStoreModeFlags mode, ContentMetadataStoreModeFlags flags)
+        {
+            return (mode & flags) != 0;
         }
 
         public static ContentMetadataStoreMode Mask(this ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags? mask)
@@ -99,6 +104,11 @@ namespace BuildXL.Cache.Host.Configuration
         public static ContentMetadataStoreModeFlags Flags(this ContentMetadataStoreMode mode)
         {
             return (ContentMetadataStoreModeFlags)mode;
+        }
+
+        public static ContentMetadataStoreModeFlags Flags(this ContentMetadataStoreMode? mode)
+        {
+            return mode.HasValue ? mode.Value.Flags() : default;
         }
     }
 }

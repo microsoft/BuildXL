@@ -9,12 +9,16 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using System.IO;
+using System;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
-    public class MockCentralStorage : CentralStorage
+    public class MockCentralStorage : CentralStreamStorage
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(MockCentralStorage));
+
+        public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly Dictionary<string, byte[]> _storage = new Dictionary<string, byte[]>();
 
@@ -44,6 +48,37 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
             
             return Task.FromResult(Result.Success(name));
+        }
+
+        protected override Task<TResult> ReadCoreAsync<TResult>(OperationContext context, string storageId, Func<StreamWithLength, Task<TResult>> readStreamAsync)
+        {
+            var stream = GetStream(storageId);
+
+            return readStreamAsync(stream.WithLength());
+        }
+
+        public MemoryStream GetStream(string storageId)
+        {
+            MemoryStream stream;
+            lock (_storage)
+            {
+                stream = new MemoryStream(_storage[storageId], writable: false);
+            }
+
+            return stream;
+        }
+
+        protected override async Task<BoolResult> StoreCoreAsync(OperationContext context, string storageId, Stream stream)
+        {
+            using var memoryStream = new MemoryStream();
+
+            await stream.CopyToAsync(memoryStream);
+            lock (_storage)
+            {
+                _storage[storageId] = memoryStream.ToArray();
+            }
+
+            return BoolResult.Success;
         }
     }
 }

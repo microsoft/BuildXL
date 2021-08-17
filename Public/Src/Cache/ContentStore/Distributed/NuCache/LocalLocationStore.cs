@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public IGlobalLocationStore GlobalStore { get; }
 
         /// <nodoc />
-        public IContentMetadataStore ContentMetadataStore { get; }
+        public IGlobalCacheStore GlobalCacheStore { get; }
 
         /// <nodoc />
         public LocalLocationStoreConfiguration Configuration { get; }
@@ -164,16 +164,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly MachineList.Settings _machineListSettings;
 
-        public IHeartbeatObserver? HeartbeatObserver { get; }
-
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
             IGlobalLocationStore globalStore,
-            IContentMetadataStore contentMetadataStore,
+            IGlobalCacheStore globalCacheStore,
             LocalLocationStoreConfiguration configuration,
             DistributedContentCopier copier,
-            IHeartbeatObserver? observer = null)
+            IMasterElectionMechanism masterElectionMechanism)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(globalStore);
@@ -182,8 +180,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clock = clock;
             Configuration = configuration;
             GlobalStore = globalStore;
-            ContentMetadataStore = contentMetadataStore;
-            HeartbeatObserver = observer;
+            GlobalCacheStore = globalCacheStore;
+            _masterElectionMechanism = masterElectionMechanism;
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ShortHash>(clock);
@@ -225,17 +223,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 _checkpointRegistry = GlobalStore;
-            }
-
-            if (Configuration.AzureBlobStorageMasterElectionMechanismConfiguration is not null)
-            {
-                var storageElectionMechanism = new AzureBlobStorageMasterElectionMechanism(configuration.AzureBlobStorageMasterElectionMechanismConfiguration, Configuration.PrimaryMachineLocation, _clock);
-
-                _masterElectionMechanism = storageElectionMechanism;
-            }
-            else
-            {
-                _masterElectionMechanism = GlobalStore;
             }
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
@@ -303,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a value indicating whether the store supports storing and retrieving blobs.
         /// </summary>
-        public bool AreBlobsSupported => ContentMetadataStore.AreBlobsSupported;
+        public bool AreBlobsSupported => GlobalCacheStore.AreBlobsSupported;
 
         private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration, string subfolder)
         {
@@ -348,7 +335,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
 
-            await ContentMetadataStore.StartupAsync(context).ThrowIfFailure();
+            await _masterElectionMechanism.StartupAsync(context).ThrowIfFailureAsync();
+
+            await GlobalCacheStore.StartupAsync(context).ThrowIfFailure();
 
             EventStore = CreateEventStore(Configuration, subfolder: "main");
 
@@ -357,9 +346,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             await EventStore.StartupAsync(context).ThrowIfFailure();
 
             MachineReputationTracker = new MachineReputationTracker(context, _clock, Configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
-
+            
             // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
-            var fetchLastMachineStateResult = await GlobalStore.SetLocalMachineStateAsync(context, MachineState.Unknown);
+            var fetchLastMachineStateResult = await UpdateClusterStateAsync(context, MachineState.Unknown);
             var lastMachineState = MachineState.Unknown;
             if (fetchLastMachineStateResult.Succeeded)
             {
@@ -456,7 +445,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _heartbeatTimer?.Dispose();
 
-            await GlobalStore.SetLocalMachineStateAsync(context, _heartbeatMachineState).IgnoreFailure();
+            await UpdateClusterStateAsync(context, _heartbeatMachineState).IgnoreFailure();
 
             if (EventStore != null)
             {
@@ -465,10 +454,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             result &= await Database.ShutdownAsync(context);
 
-            result &= await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(context);
+            result &= await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(context, shuttingDown: true);
             CurrentRole = null;
 
+            result &= await _masterElectionMechanism.ShutdownAsync(context);
+
             result &= await GlobalStore.ShutdownAsync(context);
+
+            result &= await GlobalCacheStore.ShutdownAsync(context);
 
             if (DistributedCentralStorage != null)
             {
@@ -486,7 +479,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal async Task ReleaseRoleIfNecessaryAsync(OperationContext operationContext)
         {
-            CurrentRole = await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext).ThrowIfFailureAsync();
+            CurrentRole = await _masterElectionMechanism.ReleaseRoleIfNecessaryAsync(operationContext, shuttingDown: false).ThrowIfFailureAsync();
         }
 
         /// <summary>
@@ -704,28 +697,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return true;
                         }
 
-                        var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context);
-                        if (!checkpointState)
-                        {
-                            // The error is already logged. We need to specify cast because of the implicit bool cast.
-                            return new Result<bool>((ResultBase)checkpointState);
-                        }
+                        var checkpointState = await _checkpointRegistry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                        var leadershipState = await _masterElectionMechanism.GetRoleAsync(context);
-                        if (!leadershipState)
-                        {
-                            return new Result<bool>((ResultBase)leadershipState);
-                        }
+                        var leadershipState = await _masterElectionMechanism.GetRoleAsync(context).ThrowIfFailureAsync();
 
-                        ClusterState.SetMasterMachine(leadershipState.Value.Master);
-                        HeartbeatObserver?.OnSuccessfulHeartbeatAsync(context, leadershipState.Value.Role).FireAndForget(context);
+                        ClusterState.SetMasterMachine(leadershipState.Master);
 
-                        var processStateResult = await ProcessStateAsync(context, checkpointState.Value, leadershipState.Value, inline, forceRestore);
-                        if (!processStateResult)
-                        {
-                            // The error is already logged. We need to specify cast because of the implicit bool cast.
-                            return new Result<bool>((ResultBase)processStateResult);
-                        }
+                        await ProcessStateAsync(context, checkpointState, leadershipState, inline, forceRestore).ThrowIfFailureAsync();
 
                         return false;
                     }
@@ -741,9 +719,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private Task<BoolResult> UpdateClusterStateAsync(OperationContext context, MachineState machineState)
+        public Task<Result<MachineState>> UpdateClusterStateAsync(OperationContext context, MachineState machineState = MachineState.Unknown, ClusterState clusterState = null)
         {
-            var startMaxMachineId = ClusterState.MaxMachineId;
+            clusterState ??= ClusterState;
+            var startMaxMachineId = clusterState.MaxMachineId;
 
             int postDbMaxMachineId = startMaxMachineId;
             int postGlobalMaxMachineId = startMaxMachineId;
@@ -752,12 +731,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState, machineState);
-                    postGlobalMaxMachineId = ClusterState.MaxMachineId;
+                    var updateResult = await UpdateClusterStateCoreAsync(context, clusterState, machineState);
+                    postGlobalMaxMachineId = clusterState.MaxMachineId;
 
                     if (CurrentRole == Role.Master && Configuration.UseBinManager)
                     {
-                        ClusterState.InitializeBinManagerIfNeeded(locationsPerBin: Configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: Configuration.PreferredLocationsExpiryTime);
+                        clusterState.InitializeBinManagerIfNeeded(locationsPerBin: Configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: Configuration.PreferredLocationsExpiryTime);
                     }
 
                     _lastClusterStateUpdate = _clock.UtcNow;
@@ -765,6 +744,105 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return updateResult;
                 },
                 extraEndMessage: result => $"[MaxMachineId=({startMaxMachineId} -> (Db={postDbMaxMachineId}, Global={postGlobalMaxMachineId}))]");
+        }
+
+        private async Task<Result<MachineState>> UpdateClusterStateCoreAsync(OperationContext context, ClusterState clusterState, MachineState machineState)
+        {
+            var heartbeatResponse = await CallHeartbeatAsync(context, clusterState, machineState);
+
+            var updates = await GlobalCacheStore.GetClusterUpdatesAsync(context, new GetClusterUpdatesRequest()
+            {
+                MaxMachineId = clusterState.MaxMachineId
+            }).ThrowIfFailureAsync();
+
+            BitMachineIdSet inactiveMachineIdSet = heartbeatResponse.InactiveMachines;
+            BitMachineIdSet closedMachineIdSet = heartbeatResponse.ClosedMachines;
+
+            Contract.Assert(inactiveMachineIdSet != null, "inactiveMachineIdSet != null");
+            Contract.Assert(closedMachineIdSet != null, "closedMachineIdSet != null");
+
+            if (updates.MaxMachineId != clusterState.MaxMachineId)
+            {
+                Tracer.Debug(context, $"Retrieved unknown machines from ({clusterState.MaxMachineId}, {updates.MaxMachineId}]");
+                if (updates.UnknownMachines != null)
+                {
+                    foreach (var item in updates.UnknownMachines)
+                    {
+                        context.LogMachineMapping(Tracer, item.Key, item.Value);
+                    }
+                }
+            }
+
+            if (updates.UnknownMachines != null)
+            {
+                clusterState.AddUnknownMachines(updates.MaxMachineId, updates.UnknownMachines);
+            }
+
+            clusterState.SetMachineStates(inactiveMachineIdSet, closedMachineIdSet).ThrowIfFailure();
+
+            Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
+            Tracer.TrackMetric(context, "InactiveMachineCount", inactiveMachineIdSet.Count);
+
+            if (!Configuration.DistributedContentConsumerOnly)
+            {
+                foreach (var machineMapping in clusterState.LocalMachineMappings)
+                {
+                    if (!clusterState.TryResolveMachineId(machineMapping.Location, out var machineId))
+                    {
+                        return Result.FromErrorMessage<MachineState>($"Invalid redis cluster state on machine {machineMapping}. (Missing location {machineMapping.Location})");
+                    }
+                    else if (machineId != machineMapping.Id)
+                    {
+                        Tracer.Warning(context, $"Machine id mismatch for location {machineMapping.Location}. Registered id: {machineMapping.Id}. Cluster state id: {machineId}. Updating registered id with cluster state id.");
+                        machineMapping.Id = machineId;
+                    }
+
+                    if (updates.MaxMachineId < machineMapping.Id.Index)
+                    {
+                        return Result.FromErrorMessage<MachineState>($"Invalid redis cluster state on machine {machineMapping} (redis max machine id={updates.MaxMachineId})");
+                    }
+                }
+            }
+
+            return heartbeatResponse.PriorState;
+        }
+
+        private async Task<HeartbeatMachineResponse> CallHeartbeatAsync(
+            OperationContext context,
+            ClusterState clusterState,
+            MachineState machineState)
+        {
+            var responses = await TaskUtilities.SafeWhenAll(clusterState.LocalMachineMappings.Select(async m =>
+            {
+                var response = await GlobalCacheStore.HeartbeatAsync(context, new HeartbeatMachineRequest()
+                {
+                    MachineId = m.Id,
+                    Location = m.Location,
+                    Name = Environment.MachineName,
+                    DeclaredMachineState = machineState
+                }).ThrowIfFailureAsync();
+
+                var priorState = response.PriorState;
+
+                if (priorState != machineState)
+                {
+                    Tracer.Debug(context, $"Machine {m} state changed from {priorState} to {machineState}");
+                }
+
+                if (priorState == MachineState.DeadUnavailable || priorState == MachineState.DeadExpired)
+                {
+                    clusterState.LastInactiveTime = _clock.UtcNow;
+                }
+
+                return response;
+            }));
+
+            return responses.FirstOrDefault() ?? new HeartbeatMachineResponse()
+            {
+                PriorState = MachineState.Unknown,
+                InactiveMachines = BitMachineIdSet.EmptyInstance,
+                ClosedMachines = BitMachineIdSet.EmptyInstance
+            };
         }
 
         private bool ShouldSchedule(TimeSpan interval, DateTime lastTime, DateTime? now = null)
@@ -1044,7 +1122,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    var entries = await ContentMetadataStore.GetBulkAsync(context, contentHashes.SelectList(c => new ShortHash(c)));
+                    var entries = await GlobalCacheStore.GetBulkAsync(context, contentHashes.SelectList(c => new ShortHash(c)));
                     if (!entries)
                     {
                         return new GetBulkLocationsResult(entries);
@@ -1398,7 +1476,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        await ContentMetadataStore.RegisterLocationAsync(context, machineId, eagerContentHashes, touch).ThrowIfFailure();
+                        await GlobalCacheStore.RegisterLocationAsync(context, machineId, eagerContentHashes, touch).ThrowIfFailure();
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
@@ -2278,25 +2356,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<BoolResult> InvalidateLocalMachineAsync(OperationContext operationContext, MachineId machineId)
+        public Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context, MachineId machineId)
         {
-            // Unmark reconcile since the machine is invalidated
-            MarkReconciled(machineId, reconciled: false);
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    // Unmark reconcile since the machine is invalidated
+                    MarkReconciled(machineId, reconciled: false);
 
-            SetHeartbeatMachineStateIfAllowed(MachineState.DeadUnavailable);
-            return await GlobalStore.SetLocalMachineStateAsync(operationContext, _heartbeatMachineState);
+                    // TODO: Setting machine state to DeadUnavailable is too aggressive as the machine may not shutdown immediately.
+                    // Instead we need to mark the machine as untrusted.
+                    SetHeartbeatMachineStateIfAllowed(MachineState.DeadUnavailable);
+
+                    await CallHeartbeatAsync(context, ClusterState, _heartbeatMachineState);
+
+                    return BoolResult.Success;
+                });
         }
 
         /// <nodoc />
         public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
-            return await ContentMetadataStore.PutBlobAsync(context, hash, blob);
+            return await GlobalCacheStore.PutBlobAsync(context, hash, blob);
         }
 
         /// <nodoc />
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
-            return ContentMetadataStore.GetBlobAsync(context, hash);
+            return GlobalCacheStore.GetBlobAsync(context, hash);
         }
 
         private void OnContentLocationDatabaseInvalidation(OperationContext context, Failure<Exception> failure)
@@ -2350,7 +2438,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
             {
-                return _store.ContentMetadataStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
+                return _store.GlobalCacheStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
             }
         }
 

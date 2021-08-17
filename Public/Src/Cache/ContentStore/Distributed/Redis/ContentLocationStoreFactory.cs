@@ -53,7 +53,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         protected ContentLocationStoreFactoryArguments Arguments { get; }
 
-        public IHeartbeatObserver Observer { get; set; } = new NullHeartbeatObserver();
+        public IRoleObserver? Observer { get; set; }
+
+        public IGlobalCacheService? LocalGlobalCacheService { get; set; }
 
         /// <nodoc />
         public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStore;
@@ -110,28 +112,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Creates an instance of <see cref="LocalLocationStore"/>.
         /// </summary>
-        protected virtual LocalLocationStore CreateLocalLocationStore()
+        private LocalLocationStore CreateLocalLocationStore()
         {
             Contract.Assert(RedisDatabaseFactoryForRedisGlobalStore != null);
 
-            var globalStore = CreateRedisGlobalStore();
-            var contentMetadataStore = CreateContentMetadataStore(globalStore);
-            var localLocationStore = new LocalLocationStore(Clock, globalStore, contentMetadataStore, Configuration, Copier, Observer);
+            var redisStore = CreateRedisGlobalStore();
+            var masterElectionMechanism = CreateMasterElectionMechanism(redisStore);
+            var globalStore = CreateGlobalCacheStore(redisStore, masterElectionMechanism);
+            var localLocationStore = new LocalLocationStore(Clock, redisStore, globalStore, Configuration, Copier, masterElectionMechanism);
             return localLocationStore;
         }
 
-        protected virtual IContentMetadataStore CreateContentMetadataStore(RedisGlobalStore redisStore)
+        private IGlobalCacheStore CreateGlobalCacheStore(RedisGlobalStore redisStore, IMasterElectionMechanism masterElectionMechanism)
         {
-            if (Configuration.ContentMetadataStoreMode.MaskFlags(ContentMetadataStoreModeFlags.Distributed) != 0)
+            if (Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
             {
-                var distributedStore = CreateDistributedContentMetadataStore(redisStore);
+                var distributedStore = CreateDistributedContentMetadataStore(redisStore, masterElectionMechanism);
 
-                if (Configuration.ContentMetadataStoreMode.MaskFlags(ContentMetadataStoreModeFlags.Redis) == 0)
+                if (!Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Redis))
                 {
                     return distributedStore;
                 }
 
-                return new TransitioningContentMetadataStore(Configuration, redisStore, distributedStore);
+                return new TransitioningGlobalCacheStore(Configuration, redisStore, distributedStore);
             }
             else
             {
@@ -139,7 +142,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
         }
 
-        protected virtual IContentMetadataStore CreateDistributedContentMetadataStore(RedisGlobalStore redisStore)
+        private IMasterElectionMechanism CreateMasterElectionMechanism(RedisGlobalStore redisStore)
+        {
+            IMasterElectionMechanism createInner()
+            {
+                if (Configuration.AzureBlobStorageMasterElectionMechanismConfiguration is not null)
+                {
+                    var storageElectionMechanism = new AzureBlobStorageMasterElectionMechanism(Configuration.AzureBlobStorageMasterElectionMechanismConfiguration, Configuration.PrimaryMachineLocation, Clock);
+
+                    return storageElectionMechanism;
+                }
+                else
+                {
+                    return redisStore;
+                }
+            }
+
+            var inner = createInner();
+            if (Observer != null)
+            {
+                return new ObservableMasterElectionMechanism(inner, Observer);
+            }
+            else
+            {
+                return inner;
+            }
+        }
+
+        private IGlobalCacheStore CreateDistributedContentMetadataStore(RedisGlobalStore redisStore, IMasterElectionMechanism masterElectionMechanism)
         {
             if (Configuration.MetadataStore is MemoryContentMetadataStoreConfiguration memoryConfig)
             {
@@ -147,9 +177,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
             else if (Configuration.MetadataStore is ClientContentMetadataStoreConfiguration clientConfig)
             {
-                return new ClientContentMetadataStore(
+                var localClient = LocalGlobalCacheService == null
+                    ? null
+                    : new LocalClient<IGlobalCacheService>(Configuration.PrimaryMachineLocation, LocalGlobalCacheService);
+
+                return new ClientGlobalCacheStore(
                     redisStore,
-                    new GrpcMasterClientFactory<IContentMetadataService>(redisStore, clientConfig),
+                    new GrpcMasterClientFactory<IGlobalCacheService>(redisStore, clientConfig, masterElectionMechanism, localClient),
                     clientConfig);
             }
             else

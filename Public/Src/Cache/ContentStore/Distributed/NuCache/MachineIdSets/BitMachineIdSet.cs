@@ -78,6 +78,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Returns a new instance of <see cref="BitMachineIdSet"/> based on the given <paramref name="machine"/> and <paramref name="exists"/>.
+        /// </summary>
+        public BitMachineIdSet SetExistenceBit(MachineId machine, bool exists)
+        {
+            if (this[machine] == exists)
+            {
+                return this;
+            }
+            else
+            {
+                return SetExistenceBits(machine, exists);
+            }
+        }
+
+        /// <summary>
         /// Returns a new instance of <see cref="BitMachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.
         /// </summary>
         public BitMachineIdSet SetExistenceBits(in MachineIdCollection machines, bool exists)

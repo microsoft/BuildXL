@@ -20,10 +20,10 @@ using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
-    public class TransitioningContentMetadataStore : StartupShutdownSlimBase, IContentMetadataStore
+    public class TransitioningGlobalCacheStore : StartupShutdownSlimBase, IGlobalCacheStore
     {
-        private readonly IContentMetadataStore _redisStore;
-        private readonly IContentMetadataStore _distributedStore;
+        private readonly IGlobalCacheStore _redisStore;
+        private readonly IGlobalCacheStore _distributedStore;
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
         public bool AreBlobsSupported { get; }
@@ -33,26 +33,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private ContentMetadataStoreMode BlobMode => (_configuration.BlobContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode).Mask(_blobSupportedMask);
         private ContentMetadataStoreMode LocationMode => _configuration.LocationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
         private ContentMetadataStoreMode MemoizationMode => _configuration.MemoizationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
+        private ContentMetadataStoreMode ClusterMode => _configuration.ClusterGlobalStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
 
         private readonly ContentMetadataStoreModeFlags _blobSupportedMask;
 
-        protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningContentMetadataStore));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningGlobalCacheStore));
 
-        public TransitioningContentMetadataStore(RedisContentLocationStoreConfiguration configuration, IContentMetadataStore redisStore, IContentMetadataStore distributedStore)
+        public TransitioningGlobalCacheStore(RedisContentLocationStoreConfiguration configuration, IGlobalCacheStore redisStore, IGlobalCacheStore distributedStore)
         {
-            Contract.Requires(configuration.ContentMetadataStoreMode != ContentMetadataStoreMode.Redis
-                && configuration.ContentMetadataStoreMode != ContentMetadataStoreMode.Distributed,
+            Contract.Requires(configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Redis)
+                && configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed),
                 "Transitioning store should not used for cases where one store or the other is used exclusively");
 
             _configuration = configuration;
             _redisStore = redisStore;
             _distributedStore = distributedStore;
             
-            if (BlobMode.CheckFlag(ContentMetadataStoreModeFlags.PreferRedis) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Distributed) == 0)
+            if (BlobMode.HasAllFlags(ContentMetadataStoreModeFlags.PreferRedis) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Distributed) == 0)
             {
                 AreBlobsSupported = _redisStore.AreBlobsSupported;
             }
-            else if (BlobMode.CheckFlag(ContentMetadataStoreModeFlags.PreferDistributed) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Redis) == 0)
+            else if (BlobMode.HasAllFlags(ContentMetadataStoreModeFlags.PreferDistributed) || BlobMode.MaskFlags(ContentMetadataStoreModeFlags.Redis) == 0)
             {
                 AreBlobsSupported = _distributedStore.AreBlobsSupported;
             }
@@ -83,6 +84,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             result &= await _distributedStore.ShutdownAsync(context);
 
             return result;
+        }
+
+        public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
+        {
+            return WriteAsync(context, ClusterMode, store => store.HeartbeatAsync(context, request));
+        }
+
+        public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
+        {
+            return ReadAsync(context, ClusterMode, store => store.GetClusterUpdatesAsync(context, request));
         }
 
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
@@ -120,13 +131,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ReadAsync(context, MemoizationMode, store => store.GetContentHashListAsync(context, strongFingerprint));
         }
 
-        public Task<TResult> ReadAsync<TResult>(OperationContext context, ContentMetadataStoreMode mode, Func<IContentMetadataStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
+        public Task<TResult> ReadAsync<TResult>(OperationContext context, ContentMetadataStoreMode mode, Func<IGlobalCacheStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
             where TResult : ResultBase
         {
             return ExecuteAsync(context, mode, ContentMetadataStoreModeFlags.ReadBoth, executeAsync, caller);
         }
 
-        public Task<TResult> WriteAsync<TResult>(OperationContext context, ContentMetadataStoreMode mode, Func<IContentMetadataStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
+        public Task<TResult> WriteAsync<TResult>(OperationContext context, ContentMetadataStoreMode mode, Func<IGlobalCacheStore, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
             where TResult : ResultBase
         {
             return ExecuteAsync(context, mode, ContentMetadataStoreModeFlags.WriteBoth, executeAsync, caller);
@@ -136,19 +147,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             OperationContext context,
             ContentMetadataStoreMode mode,
             ContentMetadataStoreModeFlags modeMask,
-            Func<IContentMetadataStore, Task<TResult>> executeAsync,
+            Func<IGlobalCacheStore, Task<TResult>> executeAsync,
             string caller)
             where TResult : ResultBase
         {
-            var modeFlags = mode.MaskFlags(modeMask);
-            var preference = mode.MaskFlags(ContentMetadataStoreModeFlags.PreferenceMask);
-            var redisFlags = modeFlags & ContentMetadataStoreModeFlags.Redis;
-            var redisTask = MeasuredExecuteAsync(_redisStore, redisFlags, executeAsync);
-            var distributedFlags = modeFlags & ContentMetadataStoreModeFlags.Distributed;
-            var distributedTask = MeasuredExecuteAsync(_distributedStore, distributedFlags, executeAsync);
+            ContentMetadataStoreModeFlags redisFlags, distributedFlags;
+            bool preferRedis, preferDistributed;
+            GetFlagsAndPreferences(mode, modeMask, out redisFlags, out distributedFlags, out preferRedis, out preferDistributed);
 
-            bool preferRedis = preference.CheckFlag(ContentMetadataStoreModeFlags.PreferRedis) || distributedFlags == 0;
-            bool preferDistributed = preference.CheckFlag(ContentMetadataStoreModeFlags.PreferDistributed) || redisFlags == 0;
+            var redisTask = MeasuredExecuteAsync(_redisStore, redisFlags, executeAsync);
+            var distributedTask = MeasuredExecuteAsync(_distributedStore, distributedFlags, executeAsync);
 
             string extraEndMessage = null;
             var combinedResultTask = context.PerformOperationAsync(
@@ -179,10 +187,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
+        private static void GetFlagsAndPreferences(ContentMetadataStoreMode mode, ContentMetadataStoreModeFlags modeMask, out ContentMetadataStoreModeFlags redisFlags, out ContentMetadataStoreModeFlags distributedFlags, out bool preferRedis, out bool preferDistributed)
+        {
+            var modeFlags = mode.MaskFlags(modeMask);
+            redisFlags = modeFlags & ContentMetadataStoreModeFlags.Redis;
+            distributedFlags = modeFlags & ContentMetadataStoreModeFlags.Distributed;
+            var preference = mode.MaskFlags(ContentMetadataStoreModeFlags.PreferenceMask);
+            preferRedis = preference.HasAllFlags(ContentMetadataStoreModeFlags.PreferRedis) || distributedFlags == 0;
+            preferDistributed = preference.HasAllFlags(ContentMetadataStoreModeFlags.PreferDistributed) || redisFlags == 0;
+        }
+
         private async ValueTask<(TResult result, string message)> MeasuredExecuteAsync<TResult>(
-            IContentMetadataStore store,
+            IGlobalCacheStore store,
             ContentMetadataStoreModeFlags flags,
-            Func<IContentMetadataStore, Task<TResult>> executeAsync)
+            Func<IGlobalCacheStore, Task<TResult>> executeAsync)
             where TResult : ResultBase
         {
             if (flags == 0)

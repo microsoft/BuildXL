@@ -25,16 +25,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         ClusterState ClusterState { get; }
 
-        /// <summary>
-        /// Calls a central store and updates <paramref name="clusterState"/> based on the result.
-        /// </summary>
-        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState, MachineState machineState = MachineState.Open);
-
-        /// <summary>
-        /// Notifies a central store that the current machine (and all associated machine ids) is about to be repaired and will be inactive.
-        /// </summary>
-        Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state);
-
         /// <nodoc />
         CounterSet GetCounters(OperationContext context);
 

@@ -18,13 +18,13 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     {
         private readonly SerializationPool _serializationPool = new SerializationPool();
 
-        private readonly IContentMetadataStore _store;
+        private readonly IGlobalCacheStore _store;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(MetadataStoreMemoizationDatabase));
 
         /// <nodoc />
-        public MetadataStoreMemoizationDatabase(IContentMetadataStore store)
+        public MetadataStoreMemoizationDatabase(IGlobalCacheStore store)
         {
             _store = store;
             LinkLifetime(store);

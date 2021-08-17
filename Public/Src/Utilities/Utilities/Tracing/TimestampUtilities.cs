@@ -21,5 +21,15 @@ namespace BuildXL.Utilities.Tracing
         /// The current timestamp as a timespan
         /// </summary>
         public static TimeSpan Timestamp => s_stopwatch.Elapsed;
+
+        /// <summary>
+        /// Gets the elapsed time and resets the stopwatch
+        /// </summary>
+        public static TimeSpan ElapsedAndReset(ref this StopwatchSlim stopwatch)
+        {
+            var elapsed = stopwatch.Elapsed;
+            stopwatch = StopwatchSlim.Start();
+            return elapsed;
+        }
     }
 }

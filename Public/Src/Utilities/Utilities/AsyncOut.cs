@@ -12,5 +12,11 @@ namespace BuildXL.Utilities
         /// The value
         /// </summary>
         public T Value;
+
+        /// <nodoc />
+        public static implicit operator T(AsyncOut<T> value)
+        {
+            return value.Value;
+        }
     }
 }

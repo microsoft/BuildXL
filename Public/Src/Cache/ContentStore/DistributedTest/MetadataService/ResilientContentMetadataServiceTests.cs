@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             return RunTest(async (context, service) =>
             {
                 // First heartbeat lets the service know its master, so it's willing to process requests
-                await service.OnSuccessfulHeartbeatAsync(context, Role.Master);
+                await service.OnRoleUpdatedAsync(context, Role.Master);
 
                 var machineId = new MachineId(0);
                 var contentHash = ContentHash.Random();
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             return RunTest(async (context, service) =>
             {
                 // First heartbeat lets the service know its master, so it's willing to process requests
-                await service.OnSuccessfulHeartbeatAsync(context, Role.Master);
+                await service.OnRoleUpdatedAsync(context, Role.Master);
 
                 var machineId = new MachineId(0);
                 var data = ThreadSafeRandom.GetBytes((int)100);
@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         }
 
         private async Task RunTest(
-            Func<OperationContext, ResilientContentMetadataService, Task> runTestAsync,
+            Func<OperationContext, ResilientGlobalCacheService, Task> runTestAsync,
             bool persistentStorageFailure = false,
             bool volatileStorageFailure = false,
             IClock clock = null)
@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
             clock ??= SystemClock.Instance;
 
-            var contentMetadataServiceConfiguration = new ContentMetadataServiceConfiguration()
+            var contentMetadataServiceConfiguration = new GlobalCacheServiceConfiguration()
             {
                 Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager"),
                 EventStream = new ContentMetadataEventStreamConfiguration(),
@@ -159,23 +159,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 volatileEventStorage,
                 persistentEventStorage);
 
-
             var rocksDbContentLocationDatabaseConfiguration = new RocksDbContentLocationDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
             var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, new RocksDbContentMetadataStoreConfiguration() {
                 Database = rocksDbContentLocationDatabaseConfiguration,
             });
 
+            var storage = new MockCentralStorage();
             var checkpointManager = new CheckpointManager(
                 rocksDbContentMetadataStore.Database,
                 redisVolatileEventStorage,
-                new MockCentralStorage(),
+                storage,
                 contentMetadataServiceConfiguration.Checkpoint,
                 new CounterCollection<ContentLocationStoreCounters>());
-            var resilientContentMetadataService = new ResilientContentMetadataService(
+            var resilientContentMetadataService = new ResilientGlobalCacheService(
                 contentMetadataServiceConfiguration,
                 checkpointManager,
                 rocksDbContentMetadataStore,
                 contentMetadataEventStream,
+                storage,
                 clock);
 
             await resilientContentMetadataService.StartupAsync(operationContext).ThrowIfFailure();

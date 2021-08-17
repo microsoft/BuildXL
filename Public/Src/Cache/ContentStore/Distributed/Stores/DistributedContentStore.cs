@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public MachineLocation LocalMachineLocation { get; }
 
-        private readonly IContentLocationStoreFactory _contentLocationStoreFactory;
+        internal IContentLocationStoreFactory ContentLocationStoreFactory { get; }
         private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(DistributedContentStore));
         private readonly IClock _clock;
 
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly ColdStorage? _coldStorage;
 
-        private IContentLocationStore ContentLocationStore => NotNull(_contentLocationStore, nameof(_contentLocationStore));
+        internal IContentLocationStore ContentLocationStore => NotNull(_contentLocationStore, nameof(_contentLocationStore));
 
         private readonly DistributedContentStoreSettings _settings;
 
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             Contract.Requires(settings != null);
 
             LocalMachineLocation = localMachineLocation;
-            _contentLocationStoreFactory = contentLocationStoreFactory;
+            ContentLocationStoreFactory = contentLocationStoreFactory;
             _clock = clock ?? SystemClock.Instance;
             _distributedCopier = distributedCopier;
             _copierWorkingDirectory = new DisposableDirectory(distributedCopier.FileSystem, localCacheRoot / "Temp");
@@ -179,9 +179,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             // NOTE: We create and start the content location store before the inner content store just in case the
             // inner content store starts background eviction after startup. We need the content store to be initialized
             // so that it can be queried and used to unregister content.
-            await _contentLocationStoreFactory.StartupAsync(context).ThrowIfFailure();
+            await ContentLocationStoreFactory.StartupAsync(context).ThrowIfFailure();
 
-            _contentLocationStore = await _contentLocationStoreFactory.CreateAsync(LocalMachineLocation, InnerContentStore as ILocalContentStore);
+            _contentLocationStore = await ContentLocationStoreFactory.CreateAsync(LocalMachineLocation, InnerContentStore as ILocalContentStore);
 
             // Initializing inner store before initializing LocalLocationStore because
             // LocalLocationStore may use inner store for reconciliation purposes
@@ -366,8 +366,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 results.Add((nameof(_contentLocationStore), locationStoreResult));
             }
 
-            var factoryResult = await _contentLocationStoreFactory.ShutdownAsync(context);
-            results.Add((nameof(_contentLocationStoreFactory), factoryResult));
+            var factoryResult = await ContentLocationStoreFactory.ShutdownAsync(context);
+            results.Add((nameof(ContentLocationStoreFactory), factoryResult));
 
             _copierWorkingDirectory.Dispose();
 
@@ -491,7 +491,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             if (DisposeContentLocationStoreFactory)
             {
-                _contentLocationStoreFactory.Dispose();
+                ContentLocationStoreFactory.Dispose();
             }
         }
 

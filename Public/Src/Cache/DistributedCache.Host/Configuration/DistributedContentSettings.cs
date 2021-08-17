@@ -1167,6 +1167,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public EnumSetting<ContentMetadataStoreMode>? MemoizationContentMetadataStoreModeOverride { get; set; }
 
+        [DataMember]
+        public EnumSetting<ContentMetadataStoreMode>? ClusterGlobalStoreModeOverride { get; set; }
+
 
         [DataMember]
         public bool ContentMetadataBlobsEnabled { get; set; } = true;

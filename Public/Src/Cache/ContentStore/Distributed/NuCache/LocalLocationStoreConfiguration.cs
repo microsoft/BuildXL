@@ -403,9 +403,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Base class for a central store configuration.
     /// </summary>
-    public record CentralStoreConfiguration(string CentralStateKeyBase, string ContainerName)
+    public abstract record CentralStoreConfiguration(string CentralStateKeyBase, string ContainerName)
     {
-        public CentralStorage CreateCentralStorage()
+        public CentralStreamStorage CreateCentralStorage()
         {
             // TODO: Validate configuration before construction (bug 1365340)
             switch (this)

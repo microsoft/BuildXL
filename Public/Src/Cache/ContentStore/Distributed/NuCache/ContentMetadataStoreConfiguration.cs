@@ -8,7 +8,7 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// Configuration type for <see cref="IContentMetadataStore"/> family of types.
+    /// Configuration type for <see cref="IGlobalCacheStore"/> family of types.
     /// </summary>
     public record ContentMetadataStoreConfiguration
     {
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public record MemoryContentMetadataStoreConfiguration : ContentMetadataStoreConfiguration
     {
         /// <nodoc />
-        public MemoryContentMetadataStoreConfiguration(IContentMetadataStore store)
+        public MemoryContentMetadataStoreConfiguration(IGlobalCacheStore store)
         {
             Store = store;
         }
@@ -50,6 +50,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// In-memory shared content metadata store
         /// </summary>
-        public IContentMetadataStore Store { get; }
+        public IGlobalCacheStore Store { get; }
     }
 }

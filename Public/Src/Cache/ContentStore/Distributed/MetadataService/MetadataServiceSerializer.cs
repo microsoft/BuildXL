@@ -37,8 +37,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             model.SetSurrogate<ShortHashWithSize, (ShortHash hash, long size)>(ShortHashWithSizeToSurrogate, SurrogateToShortHashWithSize);
             model.SetSurrogate<ContentLocationEntry, (IReadOnlyCollection<MachineId> locations, long size)>(ContentLocationEntryToSurrogate, SurrogateToContentLocationEntry);
 
-            model.SetSurrogate<Fixed<uint>, uint>(dataFormat: DataFormat.FixedSize);
-            model.SetSurrogate<Fixed<ulong>, ulong>(dataFormat: DataFormat.FixedSize);
+            model.SetSurrogate<Format<uint>, uint>(dataFormat: DataFormat.FixedSize);
+            model.SetSurrogate<Format<ulong>, ulong>(dataFormat: DataFormat.FixedSize);
 
             model.SetSurrogate<ContentHash, HashSurrogate>();
             model.SetSurrogate<Fingerprint, HashSurrogate>();
@@ -46,7 +46,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             model.SetSurrogate<StrongFingerprint, (Fingerprint, Selector)>(Convert, Convert);
             model.SetSurrogate<Selector, (ContentHash, byte[])>(Convert, Convert);
 
+            model.SetSurrogate<MachineLocation, string>(Convert, Convert);
+            model.SetSurrogate<Format<BitMachineIdSet>, (byte[] data, int offset)>(Convert, Convert);
+
             return model;
+        }
+
+        private static Format<BitMachineIdSet> Convert((byte[] data, int offset) value)
+        {
+            if (value.data == null)
+            {
+                return null;
+            }
+
+            return new BitMachineIdSet(value.data, value.offset);
+        }
+
+        private static (byte[] data, int offset) Convert(Format<BitMachineIdSet> value)
+        {
+            return (value.Value?.Data, value.Value?.Offset ?? 0);
+        }
+
+        private static MachineLocation Convert(string value)
+        {
+            return new MachineLocation(value);
+        }
+
+        private static string Convert(MachineLocation value)
+        {
+            return value.Path;
         }
 
         private static ContentLocationEntry SurrogateToContentLocationEntry((IReadOnlyCollection<MachineId> locations, long size) t)
@@ -144,19 +172,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
             [ProtoMember(2)]
             [FieldOffset(1)]
-            public Fixed<ulong> BytesPart0;
+            public Format<ulong> BytesPart0;
 
             [ProtoMember(3)]
             [FieldOffset(1 + 8 * 1)]
-            public Fixed<ulong> BytesPart1;
+            public Format<ulong> BytesPart1;
 
             [ProtoMember(4)]
             [FieldOffset(1 + 8 * 2)]
-            public Fixed<ulong> BytesPart2;
+            public Format<ulong> BytesPart2;
 
             [ProtoMember(5)]
             [FieldOffset(1 + 8 * 3)]
-            public Fixed<ulong> BytesPart3;
+            public Format<ulong> BytesPart3;
 
             [ProtoMember(6)]
             [FieldOffset(1 + 8 * 4)]
@@ -196,20 +224,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
 
         }
+    }
 
-        private struct Fixed<T>
+    /// <summary>
+    /// Defines wrapper which allows custom defined serialization/surrogate to work around implicit behavior
+    /// for protobuf-net for a given type.
+    /// </summary>
+    /// <typeparam name="T">the wrapped type</typeparam>
+    public struct Format<T>
+    {
+        public T Value;
+
+        public static implicit operator T(Format<T> value)
         {
-            public T Value;
+            return value.Value;
+        }
 
-            public static implicit operator T(Fixed<T> value)
-            {
-                return value.Value;
-            }
+        public static implicit operator Format<T>(T value)
+        {
+            return new Format<T>() { Value = value };
+        }
 
-            public static implicit operator Fixed<T>(T value)
-            {
-                return new Fixed<T>() { Value = value };
-            }
+        public override string ToString()
+        {
+            return Value?.ToString();
         }
     }
 }

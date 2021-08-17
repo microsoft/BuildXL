@@ -26,12 +26,12 @@ namespace Distributed {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore.Distributed",
         sources: globR(d`.`,"*.cs"),
+        allowUnsafeBlocks: true,
         embeddedResources: [
             {
                 linkedContent: glob(d`Redis/Scripts`,"*.lua"),
             },
         ],
-        allowUnsafeBlocks: true,
         references: [
             ...eventHubPackages,
             // Intentionally using different Azure storage package
@@ -52,6 +52,7 @@ namespace Distributed {
                 NetFx.System.IO.Compression.dll,
                 NetFx.System.IO.Compression.FileSystem.dll,
                 NetFx.System.Net.Http.dll,
+                NetFx.System.Numerics.dll,
                 NetFx.System.Web.dll
             ),
             importFrom("BuildXL.Utilities").dll,

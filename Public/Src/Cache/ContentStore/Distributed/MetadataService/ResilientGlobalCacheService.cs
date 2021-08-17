@@ -21,7 +21,7 @@ using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
-    public record ContentMetadataServiceConfiguration
+    public record GlobalCacheServiceConfiguration
     {
         public CheckpointManagerConfiguration Checkpoint { get; init; }
 
@@ -36,17 +36,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public RedisVolatileEventStorageConfiguration VolatileEventStorage { get; init; }
 
         public BlobEventStorageConfiguration PersistentEventStorage { get; init; }
+
+        public ClusterManagementConfiguration ClusterManagement { get; init; }
+    }
+
+    public record ClusterManagementConfiguration
+    {
+        public TimeSpan MachineExpiryInterval { get; init; } = TimeSpan.FromDays(1);
     }
 
     /// <summary>
-    /// Interface that represents a content metadata service backed by a <see cref="IContentMetadataStore"/>
+    /// Interface that represents a content metadata service backed by a <see cref="IGlobalCacheStore"/>
     /// </summary>
-    public class ResilientContentMetadataService : ContentMetadataService, IHeartbeatObserver
+    public partial class ResilientGlobalCacheService : GlobalCacheService, IRoleObserver
     {
         private const string LogCursorKey = "ResilientContentMetadataService.LogCursor";
 
         private readonly ContentMetadataEventStream _eventStream;
-        private readonly ContentMetadataServiceConfiguration _configuration;
+        private readonly GlobalCacheServiceConfiguration _configuration;
         private readonly CheckpointManager _checkpointManager;
         private readonly RocksDbContentMetadataStore _store;
 
@@ -54,9 +61,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly SemaphoreSlim _createCheckpointGate = TaskUtilities.CreateMutex();
 
         private readonly IClock _clock;
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientContentMetadataService));
-
-        private readonly TaskSourceSlim<bool> _startupCompletion = TaskSourceSlim.Create<bool>();
+        protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
 
         public bool ForceClientRetries
         {
@@ -73,13 +78,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private bool _hasRestoredCheckpoint;
         private Task _createCheckpointLoopTask = Task.CompletedTask;
 
-        public ResilientContentMetadataService(
-            ContentMetadataServiceConfiguration configuration,
+        public ResilientGlobalCacheService(
+            GlobalCacheServiceConfiguration configuration,
             CheckpointManager checkpointManager,
             RocksDbContentMetadataStore store,
             ContentMetadataEventStream eventStream,
+            IStreamStorage streamStorage,
             IClock clock = null)
-            : base(store)
+            : base(store, new ClusterManagementStore(configuration.ClusterManagement, streamStorage, clock))
         {
             _configuration = configuration;
             _store = store;
@@ -87,6 +93,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             _eventStream = eventStream;
             _clock = clock ?? SystemClock.Instance;
 
+            LinkLifetime(streamStorage);
             LinkLifetime(_eventStream);
             LinkLifetime(_checkpointManager.Storage);
         }
@@ -97,8 +104,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
             _createCheckpointLoopTask = CreateCheckpointLoopAsync(context)
                 .FireAndForgetErrorsAsync(context, operation: nameof(CreateCheckpointLoopAsync));
-
-            _startupCompletion.SetResult(true);
 
             return BoolResult.Success;
         }
@@ -119,9 +124,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return await base.ShutdownCoreAsync(context);
         }
 
-        public async Task OnSuccessfulHeartbeatAsync(OperationContext context, Role role)
+        public async Task OnRoleUpdatedAsync(OperationContext context, Role role)
         {
-            if (!StartupCompleted)
+            if (!StartupCompleted || ShutdownStarted)
             {
                 return;
             }
@@ -214,6 +219,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     {
                         await _checkpointManager.RestoreCheckpointAsync(context, checkpointState).ThrowIfFailureAsync();
                     }
+
+                    await ClusterManagementStore.RestoreClusterCheckpointAsync(context).ThrowIfFailureAsync();
 
                     logId = CheckpointLogId.InitialLogId;
                     var startReadLogId = logId;
@@ -312,6 +319,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     var typedRequest = (GetLevelSelectorsRequest)request;
                     return await GetLevelSelectorsAsync(typedRequest);
                 }
+                case RpcMethodId.Heartbeat:
+                {
+                    var typedRequest = (HeartbeatMachineRequest)request;
+                    return await HeartbeatAsync(typedRequest);
+                }
                 default:
                     throw Contract.AssertFailure($"Unhandled method id: {request.MethodId}");
             }
@@ -353,6 +365,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         var logId = await _eventStream.BeforeCheckpointAsync(context).ThrowIfFailureAsync();
 
                         _store.Database.SetGlobalEntry(LogCursorKey, logId.Serialize());
+
+                        await ClusterManagementStore.CreateClusterCheckpointAsync(context).ThrowIfFailureAsync();
 
                         await _checkpointManager.CreateCheckpointAsync(context, new EventSequencePoint(logId.Value)).ThrowIfFailureAsync();
 

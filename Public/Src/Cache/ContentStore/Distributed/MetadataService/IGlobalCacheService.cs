@@ -11,14 +11,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// Public interface provided via gRPC by the content metadata service.
     /// </summary>
     [ServiceContract]
-    public interface IContentMetadataService
+    public interface IGlobalCacheService
     {
+        /// <nodoc />
         Task<GetContentLocationsResponse> GetContentLocationsAsync(GetContentLocationsRequest request, CallContext callContext = default);
 
+        /// <nodoc />
         Task<RegisterContentLocationsResponse> RegisterContentLocationsAsync(RegisterContentLocationsRequest request, CallContext callContext = default);
 
+        /// <nodoc />
         Task<PutBlobResponse> PutBlobAsync(PutBlobRequest request, CallContext callContext = default);
 
+        /// <nodoc />
         Task<GetBlobResponse> GetBlobAsync(GetBlobRequest request, CallContext callContext = default);
 
         /// <nodoc />
@@ -30,5 +34,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <nodoc />
         Task<GetContentHashListResponse> GetContentHashListAsync(GetContentHashListRequest request, CallContext callContext = default);
 
+        /// <nodoc />
+        Task<HeartbeatMachineResponse> HeartbeatAsync(HeartbeatMachineRequest request, CallContext callContext = default);
+
+        /// <nodoc />
+        Task<GetClusterUpdatesResponse> GetClusterUpdatesAsync(GetClusterUpdatesRequest request, CallContext callContext = default);
     }
 }

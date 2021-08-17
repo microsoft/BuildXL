@@ -189,8 +189,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     {
                         // Test restore of content hash list
                         var cms = context.GetContentMetadataService();
-                        await cms.OnSuccessfulHeartbeatAsync(context, Role.Worker);
-                        await cms.OnSuccessfulHeartbeatAsync(context, Role.Master);
+                        await cms.OnRoleUpdatedAsync(context, Role.Worker);
+                        await cms.OnRoleUpdatedAsync(context, Role.Master);
                     }
 
                     TraceLine("Try replace CHL");

@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -15,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// <see cref="CentralStorage"/> implementation that uses file system for storing the checkpoints and other data.
     /// </summary>
-    internal sealed class LocalDiskCentralStorage : CentralStorage
+    internal sealed class LocalDiskCentralStorage : CentralStreamStorage
     {
         private readonly AbsolutePath _workingDirectory;
 
@@ -68,6 +70,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             else
             {
                 return Task.FromResult(new BoolResult($"File `{file}` with blob name `{blobName}` does not exist and hence can't be touched"));
+            }
+        }
+
+        /// <inheritdoc />
+        protected override async Task<TResult> ReadCoreAsync<TResult>(OperationContext context, string storageId, Func<StreamWithLength, Task<TResult>> readStreamAsync)
+        {
+            using (var fs = File.OpenRead((_workingDirectory / storageId).Path))
+            {
+                return await readStreamAsync(fs);
+            }
+        }
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> StoreCoreAsync(OperationContext context, string storageId, Stream stream)
+        {
+            var path = _workingDirectory / storageId;
+            Directory.CreateDirectory(path.Parent.Path);
+            using (var fs = File.Open(path.Path, FileMode.Create))
+            {
+                await stream.CopyToAsync(fs);
+                return BoolResult.Success;
             }
         }
     }

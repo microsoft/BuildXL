@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public RocksDbContentLocationDatabaseConfiguration Database { get; init; }
     }
 
-    public class RocksDbContentMetadataStore : StartupShutdownSlimBase, IContentMetadataStore
+    public class RocksDbContentMetadataStore : StartupShutdownComponentBase, IContentMetadataStore
     {
         public RocksDbContentMetadataDatabase Database { get; }
 
@@ -44,16 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             _configuration = configuration;
             Database = new RocksDbContentMetadataDatabase(clock, configuration.Database);
-        }
-
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            return Database.StartupAsync(context);
-        }
-
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            return Database.ShutdownAsync(context);
+            LinkLifetime(Database);
         }
 
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)

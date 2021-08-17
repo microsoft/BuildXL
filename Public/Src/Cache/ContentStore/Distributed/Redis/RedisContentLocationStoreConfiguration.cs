@@ -169,6 +169,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public ContentMetadataStoreMode? BlobContentMetadataStoreModeOverride { get; set; }
 
         /// <summary>
+        /// Controls which content location operation implementation is used for content metadata store
+        /// </summary>
+        public ContentMetadataStoreMode? ClusterGlobalStoreModeOverride { get; set; } = ContentMetadataStoreMode.Redis;
+
+        /// <summary>
+        /// Gets all specified flags (including from feature-specific overrides) for controlling content metadata store mode.
+        /// </summary>
+        public ContentMetadataStoreModeFlags AllContentMetadataStoreModeFlags =>
+            ContentMetadataStoreMode.Flags()
+            | MemoizationContentMetadataStoreModeOverride.Flags()
+            | LocationContentMetadataStoreModeOverride.Flags()
+            | BlobContentMetadataStoreModeOverride.Flags()
+            | ClusterGlobalStoreModeOverride.Flags();
+
+        /// <summary>
         /// Indicates whether IContentMetadataStore implementation should be used instead of RedisGlobalStore implementation
         /// for global metadata tracking. NOTE: IContentMetadataStore supports Redis operations as well.
         /// </summary>

@@ -31,45 +31,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public Task TestPutAndRetrieveOnDifferentMachinesNoRpc()
-        {
-            var config = new MemoryContentMetadataStoreConfiguration(new RocksDbContentMetadataStore(
-                TestClock,
-                new RocksDbContentMetadataStoreConfiguration() {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(TestRootDirectoryPath / "rdbcms")
-                    {
-                    },
-                }));
-
-            ConfigureWithOneMaster(
-                overrideDistributed: d =>
-                {
-                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                },
-                overrideRedis: r =>
-                {
-                    r.MetadataStore = config;
-                });
-
-            return RunTestAsync(
-                3,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-                    var master = context.GetMasterIndex();
-                    var worker0 = context.EnumerateWorkersIndices().ElementAt(0);
-                    var worker1 = context.EnumerateWorkersIndices().ElementAt(1);
-
-                    var workerSession0 = sessions[worker0];
-                    var workerSession1 = sessions[worker1];
-
-                    var putResult = await workerSession0.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-
-                    await OpenStreamAndDisposeAsync(workerSession1, context, putResult.ContentHash);
-                });
-        }
-
-        [Fact]
         public Task TestPutAndRetrieveOnDifferentMachines()
         {
             UseGrpcServer = true;
@@ -114,6 +75,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
+                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                 },
                 overrideRedis: r =>
@@ -153,6 +115,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
+                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -199,6 +162,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.IsMasterEligible = d.TestIteration >= d.TestMachineIndex;
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
+                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -219,7 +183,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         await lls0.CreateCheckpointAsync(context.StoreContexts[0]).ShouldBeSuccess();
 
                         // Disable the service
-                        await cms0.OnSuccessfulHeartbeatAsync(context, Role.Worker);
+                        await cms0.OnRoleUpdatedAsync(context, Role.Worker);
 
                         // Heartbeat to start restore checkpoint
                         var restoreTask = lls1.HeartbeatAsync(context.StoreContexts[1], forceRestore: true);
@@ -232,10 +196,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         await restoreTask.ShouldBeSuccess();
 
-                        for (int i = 0; i < context.Stores.Count; i++)
-                        {
-                            await context.GetLocalLocationStore(i).HeartbeatAsync(context).ShouldBeSuccess();
-                        }
+                        await HeartbeatAllMachinesAsync(context);
                     }
 
                     var sessions = context.Sessions;
@@ -251,13 +212,26 @@ namespace ContentStoreTest.Distributed.Sessions
                     if (context.Iteration == 0)
                     {
                         putResult = await workerSession0.PutRandomAsync(context.StoreContexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                        context.Context.Always("Heartbeating all stores.", "Test");
+
+                        await HeartbeatAllMachinesAsync(context);
                     }
                     else if (context.Iteration == 1)
                     {
+                        await HeartbeatAllMachinesAsync(context);
                         await OpenStreamAndDisposeAsync(workerSession1, context.StoreContexts[worker1], putResult.ContentHash);
                     }
                 },
                 iterations: 2);
+        }
+
+        private static async Task HeartbeatAllMachinesAsync(TestContext context)
+        {
+            for (int i = 0; i < context.Stores.Count; i++)
+            {
+                await context.GetLocalLocationStore(i).HeartbeatAsync(context.StoreContexts[i]).ShouldBeSuccess();
+            }
         }
 
         [Fact]
@@ -271,6 +245,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
+                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -296,9 +271,12 @@ namespace ContentStoreTest.Distributed.Sessions
                         putResult = await workerSession0.PutRandomAsync(context.StoreContexts[worker0], ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
                         await context.GetContentMetadataService().CreateCheckpointAsync(context).ShouldBeSuccess();
+
+                        await HeartbeatAllMachinesAsync(context);
                     }
                     else if (context.Iteration == 1)
                     {
+                        await HeartbeatAllMachinesAsync(context);
                         await OpenStreamAndDisposeAsync(workerSession1, context.StoreContexts[worker1], putResult.ContentHash);
                     }
                 },

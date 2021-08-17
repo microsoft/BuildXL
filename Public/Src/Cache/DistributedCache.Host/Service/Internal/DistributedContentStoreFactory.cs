@@ -64,8 +64,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// </summary>
         private readonly Lazy<RedisMemoizationStoreFactory> _redisMemoizationStoreFactory;
 
-        private readonly Lazy<IGrpcServiceEndpoint> _contentMetadataService;
-
         private readonly DistributedContentStoreSettings _distributedContentStoreSettings;
 
         public IReadOnlyList<ResolvedNamedCacheSettings> OrderedResolvedCacheSettings => _orderedResolvedCacheSettings;
@@ -108,8 +106,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             );
 
             _redisMemoizationStoreFactory = new Lazy<RedisMemoizationStoreFactory>(() => CreateRedisCacheFactory());
-
-            _contentMetadataService = new Lazy<IGrpcServiceEndpoint>(() => CreateContentMetadataService());
         }
 
         internal static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)
@@ -202,6 +198,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobContentMetadataStoreModeOverride, v => redisConfig.BlobContentMetadataStoreModeOverride = v.Value);
             ApplyIfNotNull(_distributedSettings.LocationContentMetadataStoreModeOverride, v => redisConfig.LocationContentMetadataStoreModeOverride = v.Value);
             ApplyIfNotNull(_distributedSettings.MemoizationContentMetadataStoreModeOverride, v => redisConfig.MemoizationContentMetadataStoreModeOverride = v.Value);
+            ApplyIfNotNull(_distributedSettings.ClusterGlobalStoreModeOverride, v => redisConfig.ClusterGlobalStoreModeOverride = v.Value);
 
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisConfig.BlobOperationLimitCount = v);
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisConfig.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
@@ -267,8 +264,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplySecretSettingsForLls(redisConfig, primaryCacheRoot, dbConfig);
             }
 
-            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode.Value;
-            if ((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) != 0)
+            if (redisConfig.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
             {
                 redisConfig.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort)
                 {
@@ -284,37 +280,16 @@ namespace BuildXL.Cache.Host.Service.Internal
             return redisConfig;
         }
 
-        public IGrpcServiceEndpoint CreateContentMetadataService()
+        public IEnumerable<IGrpcServiceEndpoint> CreateMetadataServices()
         {
-            var contentMetadataFlags = (ContentMetadataStoreModeFlags)_distributedSettings.ContentMetadataStoreMode.Value;
-            if (((contentMetadataFlags & ContentMetadataStoreModeFlags.Distributed) == 0) || !_distributedSettings.IsMasterEligible)
+            if (!RedisContentLocationStoreConfiguration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
             {
-                return null;
+                yield break;
             }
 
             var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
-            var dbConfig = new RocksDbContentLocationDatabaseConfiguration(primaryCacheRoot / "cms")
-            {
-                // Setting to false, until we have persistence for the db
-                CleanOnInitialize = false
-            };
 
-            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
-
-            var store = new RocksDbContentMetadataStore(
-                _arguments.Overrides.Clock,
-                new RocksDbContentMetadataStoreConfiguration()
-                {
-                    MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
-                    Database = dbConfig,
-                });
-
-            if (!_distributedSettings.ContentMetadataEnableResilience)
-            {
-                return new ContentMetadataService(store);
-            }
-
-            var configuration = new ContentMetadataServiceConfiguration()
+            var configuration = new GlobalCacheServiceConfiguration()
             {
                 MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
                 MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
@@ -343,84 +318,114 @@ namespace BuildXL.Cache.Host.Service.Internal
                 Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
                 {
                     WorkingDirectory = primaryCacheRoot / "cmschkpt"
+                },
+                ClusterManagement = new ClusterManagementConfiguration()
+                {
+                    MachineExpiryInterval = RedisContentLocationStoreConfiguration.MachineActiveToExpiredInterval,
                 }
             };
 
-            var redisStorage = new RedisWriteAheadEventStorage(
-                configuration.VolatileEventStorage,
-                _redisMemoizationStoreFactory.Value,
-                _arguments.Overrides.Clock);
+            CentralStreamStorage centralStreamStorage = configuration.CentralStorage.CreateCentralStorage();
 
-            IWriteAheadEventStorage volatileEventStorage = redisStorage;
-
-            if (_distributedSettings.UseBlobVolatileStorage)
+            if (_distributedSettings.IsMasterEligible)
             {
-                var volatileConfig = configuration.PersistentEventStorage with
-                {
-                    ContainerName = "volatileeventstorage"
-                };
-
-                volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
+                var service = CreateGlobalCacheService(primaryCacheRoot, configuration, centralStreamStorage);
+                _redisMemoizationStoreFactory.Value.LocalGlobalCacheService = service;
+                yield return new ProtobufNetGrpcServiceEndpoint<IGlobalCacheService, GlobalCacheService>(nameof(GlobalCacheService), service);
             }
+        }
 
-            var persistentEventStorage = _arguments.Overrides.PersistentEventStorage ?? new BlobWriteBehindEventStorage(configuration.PersistentEventStorage);
-
-            var checkpointRegistry = redisStorage;
-            var centralStorage = configuration.CentralStorage.CreateCentralStorage();
-
-            if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
+        private GlobalCacheService CreateGlobalCacheService(AbsolutePath primaryCacheRoot, GlobalCacheServiceConfiguration configuration, CentralStreamStorage centralStreamStorage)
+        {
+            var dbConfig = new RocksDbContentLocationDatabaseConfiguration(primaryCacheRoot / "cms")
             {
-                var metadataConfig = RedisContentLocationStoreConfiguration.DistributedCentralStore with
+                // Setting to false, until we have persistence for the db
+                CleanOnInitialize = false
+            };
+
+            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
+
+            var store = new RocksDbContentMetadataStore(
+                _arguments.Overrides.Clock,
+                new RocksDbContentMetadataStoreConfiguration()
                 {
-                    CacheRoot = configuration.Checkpoint.WorkingDirectory
-                };
+                    MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
+                    Database = dbConfig,
+                });
 
-                var cachingCentralStorage = new CachingCentralStorage(
-                    metadataConfig,
-                    centralStorage,
-                    new PassThroughFileSystem());
-
-                centralStorage = cachingCentralStorage;
+            if (!_distributedSettings.ContentMetadataEnableResilience)
+            {
+                return new GlobalCacheService(store, new ClusterManagementStore(configuration.ClusterManagement, new NullStreamStorage(), _arguments.Overrides.Clock));
             }
+            else
+            {
+                var redisStorage = new RedisWriteAheadEventStorage(
+                    configuration.VolatileEventStorage,
+                    _redisMemoizationStoreFactory.Value,
+                    _arguments.Overrides.Clock);
 
-            var checkpointManager = new CheckpointManager(store.Database, checkpointRegistry, centralStorage, configuration.Checkpoint, new CounterCollection<ContentLocationStoreCounters>());
+                IWriteAheadEventStorage volatileEventStorage = redisStorage;
 
-            // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
-            // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to
-            // mean "LLS' checkpoint"
-            checkpointManager.Tracer = new Tracer($"MetadataServiceCheckpointManager");
+                if (_distributedSettings.UseBlobVolatileStorage)
+                {
+                    var volatileConfig = configuration.PersistentEventStorage with
+                    {
+                        ContainerName = "volatileeventstorage"
+                    };
 
-            var eventStream = new ContentMetadataEventStream(
-                configuration.EventStream,
-                _arguments.Overrides.Override(volatileEventStorage),
-                persistentEventStorage);
+                    volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
+                }
 
-            var service = new ResilientContentMetadataService(
-                configuration,
-                checkpointManager,
-                store,
-                eventStream,
-                _arguments.Overrides.Clock);
+                var checkpointRegistry = redisStorage;
+                CentralStorage centralStorage = centralStreamStorage;
 
-            service.LinkLifetime(redisStorage);
+                if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
+                {
+                    var metadataConfig = RedisContentLocationStoreConfiguration.DistributedCentralStore with
+                    {
+                        CacheRoot = configuration.Checkpoint.WorkingDirectory
+                    };
 
-            _redisMemoizationStoreFactory.Value.Observer = service;
+                    var cachingCentralStorage = new CachingCentralStorage(
+                        metadataConfig,
+                        centralStorage,
+                        new PassThroughFileSystem());
 
-            return service;
+                    centralStorage = cachingCentralStorage;
+                }
+
+                var persistentEventStorage = _arguments.Overrides.PersistentEventStorage ?? new BlobWriteBehindEventStorage(configuration.PersistentEventStorage);
+
+                var checkpointManager = new CheckpointManager(store.Database, checkpointRegistry, centralStorage, configuration.Checkpoint, new CounterCollection<ContentLocationStoreCounters>());
+
+                // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
+                // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to
+                // mean "LLS' checkpoint"
+                checkpointManager.Tracer = new Tracer($"MetadataServiceCheckpointManager");
+
+                var eventStream = new ContentMetadataEventStream(
+                    configuration.EventStream,
+                    _arguments.Overrides.Override(volatileEventStorage),
+                    persistentEventStorage);
+
+                var service = new ResilientGlobalCacheService(
+                    configuration,
+                    checkpointManager,
+                    store,
+                    eventStream,
+                    centralStreamStorage,
+                    _arguments.Overrides.Clock);
+
+                service.LinkLifetime(redisStorage);
+
+                _redisMemoizationStoreFactory.Value.Observer = service;
+                return service;
+            }
         }
 
         public IGrpcServiceEndpoint[] GetAdditionalEndpoints()
         {
-            var service = _contentMetadataService.Value;
-            if (service == null)
-            {
-                return null;
-            }
-
-            return new IGrpcServiceEndpoint[]
-            {
-                service
-            };
+            return CreateMetadataServices().ToArray();
         }
 
         public async Task<IMemoizationStore> CreateMemoizationStoreAsync()
@@ -455,7 +460,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 var distributedStore =
                     CreateDistributedContentStore(OrderedResolvedCacheSettings[0], coldStorage, dls =>
                         CreateMultiplexedStore(settings =>
-                            CreateFileSystemContentStore(settings, dls, coldStorage)));;
+                            CreateFileSystemContentStore(settings, dls, coldStorage)));
                 result.topLevelStore = distributedStore;
                 result.primaryDistributedStore = distributedStore;
             }

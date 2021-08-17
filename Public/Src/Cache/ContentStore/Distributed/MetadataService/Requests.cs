@@ -3,33 +3,52 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public enum RpcMethodId
     {
-        GetContentLocations = 0,
-        RegisterContentLocations = 1,
-        PutBlob = 2,
-        GetBlob = 3,
-        CompareExchange = 4,
-        GetLevelSelectors = 5,
-        GetContentHashList = 6,
+        None,
+        GetContentLocations,
+        RegisterContentLocations,
+        PutBlob,
+        GetBlob,
+        CompareExchange,
+        GetLevelSelectors,
+        GetContentHashList,
+        Heartbeat,
+        GetClusterUpdates,
     }
 
     public static class ServiceRequestExtensions
     {
-        public static TResult ToResult<TResponse, TResult>(this TResponse response, Func<TResponse, TResult> select)
+        public static Result<TResult> ToResult<TResponse, TResult>(this TResponse response, Func<TResponse, TResult> select, bool isNullAllowed = false)
+            where TResponse : ServiceResponseBase
+        {
+            return ToCustomResult(response, r => Result.Success(select(r), isNullAllowed));
+        }
+
+        public static TResult ToCustomResult<TResponse, TResult>(this TResponse response, Func<TResponse, TResult> select)
             where TResponse : ServiceResponseBase
             where TResult : ResultBase
         {
-            if (response.Succeeded)
+            if (response.ShouldRetry)
+            {
+                throw new ClientCanRetryException("Target machine indicated that retry is needed.");
+            }
+            else if (response.Succeeded)
             {
                 return select(response);
             }
@@ -37,6 +56,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 return new ErrorResult(response.ErrorMessage, response.Diagnostics).AsResult<TResult>();
             }
+        }
+
+        public static BoolResult ToBoolResult(this ServiceResponseBase response)
+        {
+            return ToCustomResult(response, r => BoolResult.Success);
         }
     }
 
@@ -48,9 +72,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(14, typeof(GetContentHashListRequest))]
     [ProtoInclude(15, typeof(CompareExchangeRequest))]
     [ProtoInclude(16, typeof(GetLevelSelectorsRequest))]
+    [ProtoInclude(17, typeof(HeartbeatMachineRequest))]
+    [ProtoInclude(18, typeof(GetClusterUpdatesRequest))]
     public abstract record ServiceRequestBase
     {
-        public abstract RpcMethodId MethodId { get; }
+        public virtual RpcMethodId MethodId => RpcMethodId.None;
 
         [ProtoMember(1)]
         public string ContextId { get; set; }
@@ -68,22 +94,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     [ProtoInclude(14, typeof(GetContentHashListResponse))]
     [ProtoInclude(15, typeof(CompareExchangeResponse))]
     [ProtoInclude(16, typeof(GetLevelSelectorsResponse))]
-    public abstract record ServiceResponseBase
+    [ProtoInclude(17, typeof(HeartbeatMachineResponse))]
+    [ProtoInclude(18, typeof(GetClusterUpdatesResponse))]
+    public record ServiceResponseBase
     {
-        public abstract RpcMethodId MethodId { get; }
+        public virtual RpcMethodId MethodId => RpcMethodId.None;
 
-        public bool Succeeded
-        {
-            get
-            {
-                if (ShouldRetry)
-                {
-                    throw new ClientCanRetryException("Target machine indicated that retry is needed.");
-                }
-
-                return ErrorMessage == null;
-            }
-        }
+        public bool Succeeded => ErrorMessage == null;
 
         [ProtoMember(1)]
         public string ErrorMessage { get; set; }
@@ -206,6 +223,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         [ProtoMember(3)]
         public string ExpectedReplacementToken { get; init; }
+
+        public override string ToString()
+        {
+            return $"{StrongFingerprint} Replacement=[{Replacement}] ExpectedReplacementToken=[{ExpectedReplacementToken}]";
+        }
     }
 
     [ProtoContract]
@@ -215,6 +237,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         [ProtoMember(1)]
         public bool Exchanged { get; init; }
+
+        public override string ToString()
+        {
+            return $"Exchanged=[{Exchanged}]";
+        }
     }
 
     [ProtoContract]
@@ -263,12 +290,100 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     public class SerializedMetadataEntry
     {
         [ProtoMember(1)]
-        public byte[] Data { get; init;  }
+        public byte[] Data { get; init; }
 
         [ProtoMember(2)]
         public string ReplacementToken { get; set; }
 
         [ProtoMember(3)]
         public long? SequenceNumber { get; set; }
+
+        public override string ToString()
+        {
+            return $"ReplacementToken=[{ReplacementToken}] SequenceNumber=[{SequenceNumber}]";
+        }
+    }
+
+    [ProtoContract]
+    public class ClusterMachineInfo
+    {
+        [ProtoMember(1)]
+        public MachineId MachineId { get; set; }
+
+        [ProtoMember(2)]
+        public MachineLocation Location { get; init; }
+
+        [ProtoMember(4)]
+        public string Name { get; set; }
+
+        public override string ToString()
+        {
+            return $"Id=[{MachineId}] Name=[{Name}] Location=[{Location}]";
+        }
+    }
+
+    [ProtoContract]
+    public record HeartbeatMachineRequest : ServiceRequestBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.Heartbeat;
+
+        [ProtoMember(1)]
+        public MachineId MachineId { get; set; }
+
+        [ProtoMember(2)]
+        public MachineLocation Location { get; init; }
+
+        [ProtoMember(3)]
+        public string Name { get; set; }
+
+        [ProtoMember(4)]
+        public DateTime? HeartbeatTime { get; set; }
+
+        [ProtoMember(5)]
+        public MachineState DeclaredMachineState { get; init; }
+    }
+
+    [ProtoContract]
+    public record HeartbeatMachineResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.Heartbeat;
+
+        [ProtoMember(1)]
+        public bool Added { get; init; }
+
+        [ProtoMember(2)]
+        public MachineState PriorState { get; init; }
+
+        [ProtoMember(3)]
+        public Format<BitMachineIdSet> InactiveMachines { get; init; }
+
+        [ProtoMember(4)]
+        public Format<BitMachineIdSet> ClosedMachines { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetClusterUpdatesRequest : ServiceRequestBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetClusterUpdates;
+
+        [ProtoMember(1)]
+        public int MaxMachineId { get; init; }
+    }
+
+    [ProtoContract]
+    public record GetClusterUpdatesResponse : ServiceResponseBase
+    {
+        public override RpcMethodId MethodId => RpcMethodId.GetClusterUpdates;
+
+        [ProtoMember(1)]
+        public Dictionary<MachineId, MachineLocation> UnknownMachines { get; init; }
+
+        [ProtoMember(2)]
+        public int MaxMachineId { get; init; }
+
+        public override string ToString()
+        {
+            return $"MaxMachineId=[{MaxMachineId}] UnknownMachines=[{UnknownMachines?.Count}]";
+        }
     }
 }

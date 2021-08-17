@@ -94,6 +94,16 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Is power of 2
+        /// </summary>
+        /// <param name="x"></param>
+        /// <returns></returns>
+        public static bool IsPowerOfTwo(long x)
+        {
+            return (x > 0) && ((x & (x - 1)) == 0);
+        }
+
+        /// <summary>
         /// Finds the lowest numbered bit (starting at 0) which is 1 within the supplied value. A negative return value
         /// indicates that the value is zero.
         /// </summary>
@@ -172,6 +182,23 @@ namespace BuildXL.Utilities
                 n |= n >> 4;
                 n |= n >> 8;
                 n |= n >> 16;
+                return n - (n >> 1);
+            }
+        }
+
+        /// <summary>
+        /// Returns an integer with only the highest bit set
+        /// </summary>
+        public static ulong HighestBitSet(ulong n)
+        {
+            unchecked
+            {
+                n |= n >> 1;
+                n |= n >> 2;
+                n |= n >> 4;
+                n |= n >> 8;
+                n |= n >> 16;
+                n |= n >> 32;
                 return n - (n >> 1);
             }
         }

@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -301,11 +302,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 return session;
             }
 
-            public ResilientContentMetadataService GetContentMetadataService(int? idx = null) =>
-                (ResilientContentMetadataService)GetLocalLocationStore(idx ?? GetMasterIndex()).HeartbeatObserver;
+            public ResilientGlobalCacheService GetContentMetadataService(int? idx = null) =>
+                (ResilientGlobalCacheService)(GetDistributedStore(idx ?? GetMasterIndex()).ContentLocationStoreFactory as ContentLocationStoreFactory)?.LocalGlobalCacheService;
 
             public LocalLocationStore GetLocalLocationStore(int idx) =>
-                ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).LocalLocationStore;
+                ((TransitioningContentLocationStore)GetDistributedStore(idx).ContentLocationStore).LocalLocationStore;
 
             internal RedisGlobalStore GetRedisGlobalStore(int idx) =>
                 (RedisGlobalStore)GetLocalLocationStore(idx).GlobalStore;
@@ -922,8 +923,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         {
                             var localStore = testContext.GetLocationStore(i);
 
-                            var globalStore = localStore.LocalLocationStore.GlobalStore;
-                            var state = (await globalStore.SetLocalMachineStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
+                            var state = (await localStore.LocalLocationStore.UpdateClusterStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
                             if (state == MachineState.Closed)
                             {
                                 await localStore.ReconcileAsync(testContext, force: true).ShouldBeSuccess();

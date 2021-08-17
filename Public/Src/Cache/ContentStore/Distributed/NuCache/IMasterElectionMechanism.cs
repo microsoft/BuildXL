@@ -3,6 +3,7 @@
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -14,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         Role Role);
 
     /// <nodoc />
-    public interface IMasterElectionMechanism
+    public interface IMasterElectionMechanism : IStartupShutdownSlim
     {
         /// <summary>
         /// Obtain role for the current machine
@@ -24,6 +25,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Release master role, if the current machine has it
         /// </summary>
-        public Task<Result<Role?>> ReleaseRoleIfNecessaryAsync(OperationContext context);
+        public Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown);
     }
 }

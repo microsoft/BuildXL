@@ -192,14 +192,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return UpdateRoleAsync(context, tryUpdateLease: TryCreateOrExtendLease);
         }
 
-        public Task<Result<Role?>> ReleaseRoleIfNecessaryAsync(OperationContext context)
+        public Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown = false)
         {
             if (!_configuration.IsMasterEligible)
             {
-                return Task.FromResult(Result.Success<Role?>(Role.Worker));
+                return Task.FromResult(Result.Success<Role>(Role.Worker));
             }
 
-            return UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).SelectAsync(s => (Role?)s.Role);
+            return UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).SelectAsync(s => s.Role);
         }
 
         private Task<Result<MasterElectionState>> UpdateRoleAsync(OperationContext context, TryUpdateLease tryUpdateLease)

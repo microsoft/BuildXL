@@ -20,51 +20,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// Interface that represents a global content metadata store which routes requests to a remote machine
     /// </summary>
-    public class ClientContentMetadataStore : StartupShutdownSlimBase, IContentMetadataStore
+    public class ClientGlobalCacheStore : StartupShutdownComponentBase, IGlobalCacheStore
     {
         public bool AreBlobsSupported => _configuration.AreBlobsSupported;
 
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ClientContentMetadataStore));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(ClientGlobalCacheStore));
 
-        private readonly IClientFactory<IContentMetadataService> _metadataServiceClientFactory;
+        private readonly IClientFactory<IGlobalCacheService> _metadataServiceClientFactory;
 
-        private readonly IGlobalLocationStore _globalStore;
+        private readonly IClusterManagementStore _globalStore;
 
         private readonly IRetryPolicy _retryPolicy;
+        private readonly IRetryPolicy _noRetryPolicy;
 
         private readonly ClientContentMetadataStoreConfiguration _configuration;
 
-        public ClientContentMetadataStore(IGlobalLocationStore globalStore, IClientFactory<IContentMetadataService> metadataServiceClientFactory, ClientContentMetadataStoreConfiguration configuration)
+        public ClientGlobalCacheStore(
+            IClusterManagementStore globalStore,
+            IClientFactory<IGlobalCacheService> metadataServiceClientFactory,
+            ClientContentMetadataStoreConfiguration configuration)
         {
             _globalStore = globalStore;
             _metadataServiceClientFactory = metadataServiceClientFactory;
             _configuration = configuration;
-
+            _noRetryPolicy = RetryPolicyFactory.GetLinearPolicy(_ => false, 0, TimeSpan.Zero);
             _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(
                 _ => true,
                 // We use an absurdly high retry count because the actual operation timeout is controlled through
                 // PerformOperationAsync in ExecuteAsync.
                 1_000_000,
-                TimeSpan.FromSeconds(1),
-                TimeSpan.FromSeconds(30),
-                TimeSpan.FromSeconds(30));
-        }
+                TimeSpan.FromMilliseconds(5),
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromMilliseconds(5));
 
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            return _metadataServiceClientFactory.StartupAsync(context);
-        }
-
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            return _metadataServiceClientFactory.ShutdownAsync(context);
+            LinkLifetime(_metadataServiceClientFactory);
         }
 
         private Task<TResult> ExecuteAsync<TResult>(
             OperationContext context,
-            Func<IContentMetadataService, Task<TResult>> executeAsync,
+            Func<IGlobalCacheService, Task<TResult>> executeAsync,
             string extraStartMessage = null,
             Func<TResult, string> extraEndMessage = null,
+            bool shouldRetry = true,
             [CallerMemberName] string caller = null)
             where TResult : ResultBase
         {
@@ -73,7 +70,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 Tracer,
                 context =>
                 {
-                    return _retryPolicy.ExecuteAsync(async () =>
+                    var policy = shouldRetry ? _retryPolicy : _noRetryPolicy;
+                    return policy.ExecuteAsync(async () =>
                     {
                         attempt++;
 
@@ -104,6 +102,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 timeout: _configuration.OperationTimeout);
         }
 
+        public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
+        {
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.GetClusterUpdatesAsync(request with
+                {
+                    ContextId = context.TracingContext.TraceId,
+                }, context.Token);
+
+                return response.ToResult(r => r);
+            },
+            extraEndMessage: r => $"Request=[{request}] Response=[{r.GetValueOrDefault()}]",
+            shouldRetry: false);
+        }
+
+        public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
+        {
+            return ExecuteAsync(context, async service =>
+            {
+                var response = await service.HeartbeatAsync(request with
+                {
+                    ContextId = context.TracingContext.TraceId,
+                }, context.Token);
+
+                return response.ToResult(r => r);
+            },
+            extraEndMessage: r => $"Request=[{request}] Response=[{r.GetValueOrDefault()}]",
+            shouldRetry: false);
+        }
+
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
         {
             return ExecuteAsync(context, async service =>
@@ -114,14 +142,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     Hashes = contentHashes,
                 }, context.Token);
 
-                if (response.Succeeded)
-                {
-                    return Result.Success(response.Entries);
-                }
-                else
-                {
-                    return new Result<IReadOnlyList<ContentLocationEntry>>(response.ErrorMessage, response.Diagnostics);
-                }
+                return response.ToResult(r => response.Entries);
             },
             extraEndMessage: r => {
                 if (!r.Succeeded)
@@ -149,14 +170,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     MachineId = machineId,
                 }, context.Token);
 
-                if (response.Succeeded)
-                {
-                    return BoolResult.Success;
-                }
-                else
-                {
-                    return new BoolResult(response.ErrorMessage, response.Diagnostics);
-                }
+                return response.ToBoolResult();
             },
             extraEndMessage: _ => {
                 var csv = string.Join(",", contentHashes.Select(s => s.Hash));
@@ -211,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     ExpectedReplacementToken = expectedReplacementToken
                 }, context.Token);
 
-                return response.ToResult(r => Result.Success(r.Exchanged));
+                return response.ToResult(r => r.Exchanged);
             },
             extraEndMessage: r => $"Exchanged=[{r.GetValueOrDefault()}]");
         }
@@ -227,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     Level = level,
                 }, context.Token);
 
-                return response.ToResult(r => Result.Success(new LevelSelectors(r.Selectors, r.HasMore)));
+                return response.ToResult(r => new LevelSelectors(r.Selectors, r.HasMore));
             },
             extraEndMessage: r => $"Count=[{r.GetValueOrDefault()?.Selectors.Count}] HasMore=[{r.GetValueOrDefault()?.HasMore ?? false}]");
         }
@@ -242,10 +256,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     StrongFingerprint = strongFingerprint,
                 }, context.Token);
 
-                return response.ToResult(r => Result.Success(r.MetadataEntry, isNullAllowed: true));
+                return response.ToResult(r => r.MetadataEntry, isNullAllowed: true);
             },
             // TODO: What to log here?
-            extraEndMessage: r => $"Exchanged=[{r.GetValueOrDefault()}]");
+            extraEndMessage: r => r.GetValueOrDefault()?.ToString());
         }
     }
 }

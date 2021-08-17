@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -21,19 +22,24 @@ using static Grpc.Core.Server;
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
-    /// Interface that represents a content metadata service backed by a <see cref="IContentMetadataStore"/>
+    /// Interface that represents a global cache service backed by a <see cref="IContentMetadataStore"/> and <see cref="IClusterManagementStore"/>
     /// </summary>
-    public class ContentMetadataService : StartupShutdownComponentBase, IContentMetadataService, IGrpcServiceEndpoint
+    public class GlobalCacheService : StartupShutdownComponentBase, IGlobalCacheService
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ContentMetadataService));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(GlobalCacheService));
+
+        public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly IContentMetadataStore _store;
         private Context _startupContext;
+        protected readonly ClusterManagementStore ClusterManagementStore;
 
-        public ContentMetadataService(IContentMetadataStore store)
+        public GlobalCacheService(IContentMetadataStore store, ClusterManagementStore clusterManagementStore)
         {
             _store = store;
+            ClusterManagementStore = clusterManagementStore;
             LinkLifetime(store);
+            LinkLifetime(clusterManagementStore);
         }
 
         /// <inheritdoc />
@@ -41,6 +47,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             _startupContext = context;
             return base.StartupAsync(context);
+        }
+
+        /// <inheritdoc />
+        public virtual Task<HeartbeatMachineResponse> HeartbeatAsync(HeartbeatMachineRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return ClusterManagementStore.HeartbeatAsync(context, request);
+            },
+            extraEndMessage: r => string.Join(" ", request, $"Result=[{r.GetValueOrDefault()?.ToString() ?? "Error"}]"));
+        }
+
+        /// <inheritdoc />
+        public virtual Task<GetClusterUpdatesResponse> GetClusterUpdatesAsync(GetClusterUpdatesRequest request, CallContext callContext = default)
+        {
+            return ExecuteAsync(request, callContext, context =>
+            {
+                return ClusterManagementStore.GetClusterUpdatesAsync(context, request);
+            },
+            extraEndMessage: r => string.Join(" ", request, $"Result=[{r.GetValueOrDefault()?.ToString() ?? "Error"}]"));
         }
 
         /// <inheritdoc />
@@ -207,17 +233,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                             return response;
                         }
                 });
-        }
-
-        /// <inheritdoc />
-        public void BindServices(ServiceDefinitionCollection services)
-        {
-            var textWriterAdapter = new TextWriterAdapter(
-                _startupContext,
-                Interfaces.Logging.Severity.Info,
-                component: nameof(ContentMetadataService),
-                operation: "Grpc");
-            services.AddCodeFirst<IContentMetadataService>(this, MetadataServiceSerializer.BinderConfiguration, textWriterAdapter);
         }
     }
 }

@@ -56,13 +56,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             return new OperationContext(new Context(TracingContext, id, componentName, caller), Token);
         }
 
-        /// <nodoc />
-        public OperationContext CreateNested(CancellationToken linkedCancellationToken, [CallerMemberName] string? caller = null)
-        {
-            var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
-            return new OperationContext(new Context(TracingContext, caller!), token);
-        }
-
         /// <summary>
         /// Creates new instance with a given <see cref="CancellationToken"/> without creating nested tracing context.
         /// </summary>

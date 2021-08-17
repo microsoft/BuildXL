@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Security;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
@@ -159,14 +160,27 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return CreateVssCredentialsForUserName(baseUri);
             }
 
-            throw new CacheException(".NET Core version does not support credential helper-based authentication.");
-#else // NET_CORE
-            // We need to exclude the call for GetCredentialsAsync for not .NET Core case
-            // because if we leave it here even in an unreachable branch, the CLR will
+#endif // NET_CORE
+            // We need to move the call to GetCredentialsAsync into a separate method
+            // because if we leave it here even in the unreachable branch, the CLR will
             // fail to call this method with 'Missing method' exception because
             // it checks that the IL of the method is correct before calling it.
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null).ConfigureAwait(false);
-#endif // NET_CORE
+            return await GetCredentialsAsync(baseUri, useAad).ConfigureAwait(false);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private async Task<VssCredentials> GetCredentialsAsync(Uri baseUri, bool useAad)
+        {
+            try
+            {
+                // We potentially can be running this code for the full framework when the code is compiled for .net standard.
+                // Trying to call the method and fail with a better error message if the method doesn't exist.
+                return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null).ConfigureAwait(false);
+            }
+            catch (MissingMethodException e)
+            {
+                throw new CacheException("Can't use credentials helper because its not supported by the current platform.", e);
+            }
         }
 #else
         /// <summary>

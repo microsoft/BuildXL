@@ -153,10 +153,6 @@ namespace Tool.DropDaemon
         public static bool DefaultEnableChunkDedup { get; } = false;
 
         /// <nodoc/>
-        // TODO: Remove after CB side changes have been merged: https://dev.azure.com/mseng/Domino/_git/CloudBuild/pullrequest/615034
-        public static bool DefaultGenerateSignedManifest { get; } = false;
-
-        /// <nodoc/>
         public static bool DefaultGenerateBuildManifest { get; } = false;
 
         /// <nodoc/>

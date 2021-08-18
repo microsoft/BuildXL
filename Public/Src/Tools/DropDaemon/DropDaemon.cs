@@ -157,15 +157,6 @@ namespace Tool.DropDaemon
             DefaultValue = null,
         });
 
-        internal static readonly BoolOption GenerateSignedManifest = RegisterDropConfigOption(new BoolOption("generateSignedManifest")
-        {
-            // TODO: Remove after CB side changes merged.
-            ShortName = "gsbm",
-            HelpText = "Generate signed Build Manifest",
-            IsRequired = false,
-            DefaultValue = DropConfig.DefaultGenerateSignedManifest,
-        });
-
         internal static readonly BoolOption GenerateBuildManifest = RegisterDropConfigOption(new BoolOption("generateBuildManifest")
         {
             ShortName = "gbm",
@@ -913,8 +904,8 @@ namespace Tool.DropDaemon
                 artifactLogName: conf.Get(ArtifactLogName),
                 batchSize: conf.Get(BatchSize),
                 dropDomainId: domainId,
-                generateBuildManifest: conf.Get(GenerateBuildManifest) || conf.Get(GenerateSignedManifest),
-                signBuildManifest: conf.Get(SignBuildManifest) || conf.Get(GenerateSignedManifest),
+                generateBuildManifest: conf.Get(GenerateBuildManifest),
+                signBuildManifest: conf.Get(SignBuildManifest),
                 repo: conf.Get(Repo),
                 branch: conf.Get(Branch),
                 commitId: conf.Get(CommitId),

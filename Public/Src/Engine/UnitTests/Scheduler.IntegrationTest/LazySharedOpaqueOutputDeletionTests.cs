@@ -396,6 +396,47 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void MissingSidebandForDependencyOfFilteredPip()
+        {
+            // Setup: PipA -> PipB => sharedOpaqueDir, use a filter that selects only PipB
+            var sharedOpaqueDirA = Path.Combine(ObjectRoot, $"sod-{nameof(TestFiltering)}--PipA");
+            var explicitOutputA = CreateOutputFileArtifact();
+            var sharedOpaqueDirB = Path.Combine(ObjectRoot, $"sod-{nameof(TestFiltering)}--PipB");
+            var sourceA = CreateSourceFile();
+            var pipBuilderA = CreateSharedOpaqueProducer(sharedOpaqueDirA, explicitOutputA, sourceA, filesToProduceDynamically: CreateOutputFileArtifact(sharedOpaqueDirA, prefix: "PipA"));
+            var pipBuilderB = CreateSharedOpaqueProducer(sharedOpaqueDirB, FileArtifact.Invalid, explicitOutputA, filesToProduceDynamically: CreateOutputFileArtifact(sharedOpaqueDirB, prefix: "PipB"));
+
+            pipBuilderA.AddTags(Context.StringTable, PipATag);
+            pipBuilderB.AddTags(Context.StringTable, PipBTag);
+
+            var tagFilter = new TagFilter(StringId.Create(Context.StringTable, PipBTag));
+            var rootFilter = new RootFilter(tagFilter);
+
+            var pipA = SchedulePipBuilder(pipBuilderA);
+            var pipB = SchedulePipBuilder(pipBuilderB);
+
+            // Both pips should be cache misses
+            RunScheduler(filter: rootFilter)
+                .AssertCacheMiss(pipA.Process.PipId)
+                .AssertCacheMiss(pipB.Process.PipId);
+            AssertSharedOpaqueOutputDeletionNotPostponed();
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
+
+            // Run again and assert both are hits with deletions postponed
+            var result = RunScheduler(filter: rootFilter)
+                .AssertCacheHit(pipA.Process.PipId)
+                .AssertCacheHit(pipB.Process.PipId);
+            AssertSharedOpaqueOutputDeletionPostponed(numLazilyDeleted: 0);
+
+            // Invalid pipA's sideband file. This should cause deletion to not be postponed
+            InvalidateSidebandFile(GetSidebandFile(result, pipA.Process), SidebandIntegrityCheckFailReason.FileNotFound);
+            RunScheduler(filter: rootFilter)
+                .AssertCacheHit(pipA.Process.PipId)
+                .AssertCacheHit(pipB.Process.PipId);
+            AssertSharedOpaqueOutputDeletionNotPostponed();
+        }
+
+        [Fact]
         public void TestSidebandFileIsAlwaysProducedForPipsWithSharedOpaqueDirectoryOutputs()
         {
             // Setup: PipA => sharedOpaqueDir => PipB

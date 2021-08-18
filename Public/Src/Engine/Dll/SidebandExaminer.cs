@@ -173,7 +173,15 @@ namespace BuildXL.Engine
             // TODO(#1657322): FilterNodesToBuild can be pretty expensive, so we should avoid doing this twice (here and in Scheduler.InitForOrchestrator)
             else if (Scheduler.PipGraph.FilterNodesToBuild(LoggingContext, RootFilter, out var nodesRangeSet))
             {
-                return nodesRangeSet.Where(nodeId => Scheduler.GetPipType(nodeId.ToPipId()) == PipType.Process);
+                // Need to check not only explicitly filtered nodes but also their dependencies
+                var buildSetCalculator = new Scheduler.Scheduler.SchedulerBuildSetCalculator(LoggingContext, Scheduler);
+                var scheduledNodesResult = buildSetCalculator.GetNodesToSchedule(
+                    scheduleDependents: false,
+                    explicitlyScheduledNodes: nodesRangeSet,
+                    forceSkipDepsMode: ForceSkipDependenciesMode.Disabled,
+                    scheduleMetaPips: false);
+
+                return scheduledNodesResult.ScheduledNodes.Where(nodeId => Scheduler.GetPipType(nodeId.ToPipId()) == PipType.Process);
             }
             else
             {

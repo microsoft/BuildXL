@@ -7587,7 +7587,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Build set calculator which interfaces with the scheduler
         /// </summary>
-        private sealed class SchedulerBuildSetCalculator : BuildSetCalculator<Process, AbsolutePath, FileArtifact, DirectoryArtifact>
+        internal sealed class SchedulerBuildSetCalculator : BuildSetCalculator<Process, AbsolutePath, FileArtifact, DirectoryArtifact>
         {
             private readonly Scheduler m_scheduler;
 

@@ -401,13 +401,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                         Configuration.HistoryBufferSize);
 
             var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(Configuration, size);
-            QuotaKeeper = QuotaKeeper.Create(
+            QuotaKeeper = new QuotaKeeper(
                 FileSystem,
                 _tracer,
+                quotaKeeperConfiguration,
                 ShutdownStartedCancellationToken,
                 this,
-                _distributedStore,
-                quotaKeeperConfiguration);
+                _distributedStore);
 
             var result = await QuotaKeeper.StartupAsync(context);
 

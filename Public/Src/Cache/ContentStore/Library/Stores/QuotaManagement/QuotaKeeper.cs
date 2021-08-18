@@ -105,6 +105,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileSystemContentStoreInternal store,
             IDistributedLocationStore? distributedStore)
         {
+            Contract.RequiresNotNull(fileSystem);
+            Contract.RequiresNotNull(tracer);
+            Contract.RequiresNotNull(configuration);
+
             _contentStoreTracer = tracer;
             Tracer = new Tracer(name: $"{Component}({store.RootPath})");
             _allContentSize = configuration.ContentDirectorySize;
@@ -115,22 +119,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             _evictionQueue =  new ConcurrentQueue<ReserveSpaceRequest>();
             _rules = CreateRules(fileSystem, configuration, store);
             Counters = new CounterCollection<QuotaKeeperCounters>();
-        }
-
-        /// <nodoc />
-        public static QuotaKeeper Create(
-            IAbsFileSystem fileSystem,
-            ContentStoreInternalTracer tracer,
-            CancellationToken token,
-            FileSystemContentStoreInternal store,
-            IDistributedLocationStore? distributedStore,
-            QuotaKeeperConfiguration configuration)
-        {
-            Contract.RequiresNotNull(fileSystem);
-            Contract.RequiresNotNull(tracer);
-            Contract.RequiresNotNull(configuration);
-
-            return new QuotaKeeper(fileSystem, tracer, configuration, token, store, distributedStore);
         }
 
         /// <inheritdoc />

@@ -176,16 +176,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             await _distributedCopier.StartupAsync(context).ThrowIfFailure();
 
-            // NOTE: We create and start the content location store before the inner content store just in case the
-            // inner content store starts background eviction after startup. We need the content store to be initialized
-            // so that it can be queried and used to unregister content.
+            // Initializing inner store before initializing LocalLocationStore because LocalLocationStore may use inner
+            // store for reconciliation purposes
+            await InnerContentStore.StartupAsync(context).ThrowIfFailure();
+
+            // NOTE: We initialize the inner content store before the factory because it is possible for a machine's
+            // drive to have no quota leftover, in which case LLS will fail to start. If the drive is full and eviction
+            // needs to happen, then it'll do so without updating LLS. The expectation is that the reconciliation will
+            // fix these cases over time.
             await ContentLocationStoreFactory.StartupAsync(context).ThrowIfFailure();
 
             _contentLocationStore = await ContentLocationStoreFactory.CreateAsync(LocalMachineLocation, InnerContentStore as ILocalContentStore);
-
-            // Initializing inner store before initializing LocalLocationStore because
-            // LocalLocationStore may use inner store for reconciliation purposes
-            await InnerContentStore.StartupAsync(context).ThrowIfFailure();
 
             await _contentLocationStore.StartupAsync(context).ThrowIfFailure();
 

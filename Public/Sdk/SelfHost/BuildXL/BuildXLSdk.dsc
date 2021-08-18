@@ -721,10 +721,12 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     // Add the file with non-nullable attributes for non-dotnet core projects
     // if nullable flag is set, but a special flag is false.
-    if (args.nullable && qualifier.targetFramework !== "net5.0" && args.addNotNullAttributeFile !== false) {
-        args = args.merge({
-            sources: [notNullAttributesFile],
-        });
+    if (args.addNotNullAttributeFile !== false && qualifier.targetFramework !== "net5.0") {
+        if ( (args.nullable || args.addNotNullAttributeFile === true)) {
+            args = args.merge({
+                sources: [notNullAttributesFile],
+            });
+        }
     }
 
     args = args.merge({

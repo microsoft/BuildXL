@@ -2,8 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+
+#nullable enable
 
 namespace BuildXL.Utilities
 {
@@ -24,7 +27,9 @@ namespace BuildXL.Utilities
     public readonly struct Possible<TResult>
     {
         // Note that TFailure is constrained to a ref type, so we can use null as a success-or-fail marker.
-        private readonly Failure m_failure;
+        private readonly Failure? m_failure;
+        
+        [AllowNull]
         private readonly TResult m_result;
 
         /// <summary>
@@ -41,7 +46,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Possible(Failure failure)
         {
-            Contract.RequiresNotNull(failure);
+            Contract.Requires(failure != null);
             m_failure = failure;
             m_result = default(TResult);
         }
@@ -71,14 +76,18 @@ namespace BuildXL.Utilities
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
         public static implicit operator Possible<TResult>(Failure failure)
         {
-            Contract.RequiresNotNull(failure);
+            Contract.Requires(failure != null);
             return new Possible<TResult>(failure);
         }
 
         /// <summary>
         /// Indicates if this is a successful outcome (<see cref="Result" /> available) or not (<see cref="Failure" /> available).
         /// </summary>
+        [MemberNotNullWhen(false, nameof(Failure))]
+        [MemberNotNullWhen(false, nameof(m_failure))]
+#pragma warning disable CS8775 // Member must have a non-null value when exiting in some condition. The compiler can't figure out that 'Failure' and 'm_failure' are the same.
         public bool Succeeded => m_failure == null;
+#pragma warning restore CS8775 // Member must have a non-null value when exiting in some condition.
 
         /// <summary>
         /// Result, available only if <see cref="Succeeded" />.
@@ -108,7 +117,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Failure, available only if not <see cref="Succeeded" />.
         /// </summary>
-        public Failure Failure
+        public Failure? Failure
         {
             get
             {
@@ -139,7 +148,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2> Then<TResult2>(Func<TResult, Possible<TResult2>> binder)
         {
-            Contract.RequiresNotNull(binder);
+            Contract.Requires(binder != null);
             return Succeeded ? binder(m_result) : new Possible<TResult2>(m_failure);
         }
 
@@ -149,7 +158,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Task<Possible<TResult2>> ThenAsync<TResult2>(Func<TResult, Task<Possible<TResult2>>> binder)
         {
-            Contract.RequiresNotNull(binder);
+            Contract.Requires(binder != null);
             return Succeeded ? binder(m_result) : Task.FromResult(new Possible<TResult2>(m_failure));
         }
 
@@ -170,8 +179,8 @@ namespace BuildXL.Utilities
             Func<Failure, Possible<TResult2, TFailure2>> failureBinder)
             where TFailure2 : Failure
         {
-            Contract.RequiresNotNull(resultBinder);
-            Contract.RequiresNotNull(failureBinder);
+            Contract.Requires(resultBinder != null);
+            Contract.Requires(failureBinder != null);
             return Succeeded ? resultBinder(m_result) : failureBinder(m_failure);
         }
 
@@ -188,7 +197,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2> Then<TResult2>(Func<TResult, TResult2> thenFunc)
         {
-            Contract.RequiresNotNull(thenFunc);
+            Contract.Requires(thenFunc != null);
             return Succeeded ? new Possible<TResult2>(thenFunc(m_result)) : new Possible<TResult2>(m_failure);
         }
 
@@ -205,7 +214,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2> Then<TData, TResult2>(TData data, Func<TData, TResult, TResult2> thenFunc)
         {
-            Contract.RequiresNotNull(thenFunc);
+            Contract.Requires(thenFunc != null);
             return Succeeded ? new Possible<TResult2>(thenFunc(data, m_result)) : new Possible<TResult2>(m_failure);
         }
     }

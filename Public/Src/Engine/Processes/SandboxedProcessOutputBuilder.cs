@@ -42,7 +42,8 @@ namespace BuildXL.Processes
         {
             Contract.Requires(encoding != null);
             Contract.Requires(maxMemoryLength >= 0);
-            Contract.Requires(fileStorage != null || observer != null);
+
+            HookOutputStream = (fileStorage != null || observer != null);
 
             m_stringBuilderWrapper = Pools.GetStringBuilder();
             m_stringBuilder = m_stringBuilderWrapper.Instance;
@@ -164,6 +165,12 @@ namespace BuildXL.Processes
         /// Whether this builder has been frozen
         /// </summary>
         public bool IsFrozen { get; private set; }
+
+        /// <summary>
+        /// Whether the process wrapper should hook this stream, i.e. whether an observer is configured.
+        /// When false, the stream output should be allowed to stream to the parent console.
+        /// </summary>
+        public bool HookOutputStream { get; }
 
         /// <summary>
         /// Obtain finalized output

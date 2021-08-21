@@ -16,7 +16,7 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// The output of a sandboxes process, stored either in memory or on disk
+    /// The output of a sandboxed process, stored either in memory or on disk.
     /// </summary>
     public sealed class SandboxedProcessOutput
     {
@@ -46,7 +46,7 @@ namespace BuildXL.Processes
             SandboxedProcessFile file,
             BuildXLException exception)
         {
-            requires((fileName == null && length >= 0) || (fileName != null && length >= NoLength) || exception != null);
+            requires(length >= NoLength || exception != null);
             requires(exception != null ^ (value != null ^ fileName != null));
             requires(exception != null || encoding != null);
             requires(encoding != null);

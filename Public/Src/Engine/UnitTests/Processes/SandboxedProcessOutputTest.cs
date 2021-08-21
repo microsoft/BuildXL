@@ -35,6 +35,7 @@ namespace Test.BuildXL.Processes
                         tempFiles,
                         SandboxedProcessFile.StandardOutput,
                         null);
+                XAssert.IsTrue(outputBuilder.HookOutputStream);
                 outputBuilder.AppendLine(content);
                 var output = outputBuilder.Freeze();
                 XAssert.IsFalse(output.IsSaved);
@@ -55,6 +56,7 @@ namespace Test.BuildXL.Processes
                     null,
                     SandboxedProcessFile.StandardOutput,
                     writtenOutput => observedOutput += writtenOutput);
+            XAssert.IsTrue(outputBuilder.HookOutputStream);
             outputBuilder.AppendLine(content);
             SandboxedProcessOutput output = outputBuilder.Freeze();
             XAssert.IsFalse(output.IsSaved);
@@ -77,6 +79,7 @@ namespace Test.BuildXL.Processes
                         tempFiles,
                         SandboxedProcessFile.StandardOutput,
                         null);
+                XAssert.IsTrue(outputBuilder.HookOutputStream);
                 outputBuilder.AppendLine(content);
                 var output = outputBuilder.Freeze();
                 XAssert.IsTrue(output.IsSaved);
@@ -84,6 +87,25 @@ namespace Test.BuildXL.Processes
                 XAssert.IsTrue(File.Exists(fileName));
                 XAssert.AreEqual(content + Environment.NewLine, await output.ReadValueAsync());
             }
+        }
+
+        [Fact]
+        public void OutputPassThroughToParentConsole()
+        {
+            // Verify we can construct a builder with pass-through arguments.
+            var outputBuilder =
+                new SandboxedProcessOutputBuilder(
+                    Encoding.UTF8,
+                    maxMemoryLength: 0,
+                    fileStorage: null,
+                    file: SandboxedProcessFile.StandardOutput,
+                    observer: null);
+            XAssert.IsFalse(outputBuilder.HookOutputStream);
+            SandboxedProcessOutput output = outputBuilder.Freeze();
+            XAssert.IsNotNull(output);
+            XAssert.IsTrue(output.HasLength);
+            XAssert.IsFalse(output.HasException);
+            XAssert.AreEqual(0, output.Length);
         }
 
         // Skipping this test for *nix systems because there it is not true that a file cannot be deleted if another program has opened it first.
@@ -100,6 +122,7 @@ namespace Test.BuildXL.Processes
                     var content = new string('S', 100);
                     var outputBuilder =
                         new SandboxedProcessOutputBuilder(Encoding.UTF8, content.Length / 2, tempFiles, SandboxedProcessFile.StandardOutput, null);
+                    XAssert.IsTrue(outputBuilder.HookOutputStream);
 
                     // NOTE: this only holds on Windows
                     // The specified content plus a NewLine will exceed the max memory length.

@@ -747,8 +747,7 @@ static bool InitializeAttributeList(ProcessCreationAttributes& attr, bool addPro
 }
 
 /** Populates an LPPROC_THREAD_ATTRIBUTE_LIST that specifies allowlisted inheritance of the given handles.
-- At least one handle must be provided (an empty allowlist is not represented; just leave off the attribute list).
-- Upon successful return (true), `attr` is populated with an LPPROC_THREAD_ATTRIBUTE_LIST and the underlying handle array.
+- Upon successful return (true), `attr` is populated with an LPPROC_THREAD_ATTRIBUTE_LIST and the underlying handle array, or no list was added if there are no inheritable handles.
 - On failure (false), the contents of `attr` are undefined (though some members may need to destruct).
 */
 #pragma warning( push )
@@ -774,14 +773,16 @@ static bool CreateProcAttributesForExplicitHandleInheritance(
         attr.handles.push_back(hStdError);
     }
 
-    assert(attr.handles.size() > 0);
+    // An empty inheritance list is not represented; just leave off the attribute list.
+    if (attr.handles.size() > 0)
+    {
+        if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
+            PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+            &attr.handles[0], sizeof(HANDLE) * attr.handles.size(),
+            /*prev value*/ NULL, /*return size*/ NULL)) {
 
-    if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
-        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-        &attr.handles[0], sizeof(HANDLE) * attr.handles.size(),
-        /*prev value*/ NULL, /*return size*/ NULL)) {
-
-        return false;
+            return false;
+        }
     }
 
     return true;
@@ -938,7 +939,10 @@ CreateDetouredProcess(
     si.StartupInfo.hStdInput = hStdInput;
     si.StartupInfo.hStdOutput = hStdOutput;
     si.StartupInfo.hStdError = hStdError;
-    si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    if (hStdOutput != INVALID_HANDLE_VALUE || hStdError != INVALID_HANDLE_VALUE || hStdInput != INVALID_HANDLE_VALUE)
+    {
+        si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    }
 
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));

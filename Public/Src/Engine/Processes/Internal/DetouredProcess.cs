@@ -394,16 +394,20 @@ namespace BuildXL.Processes.Internal
 
                 m_starting = true;
 
-                // The process creation flags
-                // We use CREATE_DEFAULT_ERROR_MODE to ensure that the hard error mode of the child process (i.e., GetErrorMode)
-                // is deterministic. Inheriting error mode is the default, but there may be some concurrent operation that temporarily
-                // changes it (process global). The CLR has been observed to do so.
-                // We use CREATE_NO_WINDOW in case BuildXL is attached to a console windows to prevent child processes from messing up
-                // the console window. If BuildXL itself is started without a console window the flag is not set to prevent creating
-                // extra conhost.exe processes.
-                int creationFlags =
-                    ((s_consoleWindow == IntPtr.Zero && !m_disableConHostSharing) ?
-                        0 : Native.Processes.ProcessUtilities.CREATE_NO_WINDOW) | Native.Processes.ProcessUtilities.CREATE_DEFAULT_ERROR_MODE;
+                bool redirectStreams = m_errorDataReceived != null || m_outputDataReceived != null;
+
+                // The process creation flags:
+                // - We use CREATE_DEFAULT_ERROR_MODE to ensure that the hard error mode of the child process (i.e., GetErrorMode)
+                //   is deterministic. Inheriting error mode is the default, but there may be some concurrent operation that temporarily
+                //   changes it (process global). The CLR has been observed to do so.
+                // - We use CREATE_NO_WINDOW when redirecting stdout/err/in and there is a parent console (to prevent creating extra conhost.exe
+                //   processes on Windows when running headless) or when console sharing is disabled (typical for BuildXL which takes over
+                //   management of the console). Otherwise we use the parent console for output.
+                int creationFlags = Native.Processes.ProcessUtilities.CREATE_DEFAULT_ERROR_MODE;
+                if (redirectStreams && (s_consoleWindow != IntPtr.Zero || m_disableConHostSharing))
+                {
+                    creationFlags |= Native.Processes.ProcessUtilities.CREATE_NO_WINDOW;
+                }
 
                 SafeFileHandle standardInputWritePipeHandle = null;
                 SafeFileHandle standardOutputReadPipeHandle = null;
@@ -429,21 +433,47 @@ namespace BuildXL.Processes.Internal
                             environmentPtr = environmentHandle.AddrOfPinnedObject();
                         }
 
-                        Pipes.CreateInheritablePipe(
-                            Pipes.PipeInheritance.InheritRead,
-                            Pipes.PipeFlags.WriteSideAsync,
-                            readHandle: out hStdInput,
-                            writeHandle: out standardInputWritePipeHandle);
-                        Pipes.CreateInheritablePipe(
-                            Pipes.PipeInheritance.InheritWrite,
-                            Pipes.PipeFlags.ReadSideAsync,
-                            readHandle: out standardOutputReadPipeHandle,
-                            writeHandle: out hStdOutput);
-                        Pipes.CreateInheritablePipe(
-                            Pipes.PipeInheritance.InheritWrite,
-                            Pipes.PipeFlags.ReadSideAsync,
-                            readHandle: out standardErrorReadPipeHandle,
-                            writeHandle: out hStdError);
+                        if (redirectStreams)
+                        {
+                            Pipes.CreateInheritablePipe(
+                                Pipes.PipeInheritance.InheritRead,
+                                Pipes.PipeFlags.WriteSideAsync,
+                                readHandle: out hStdInput,
+                                writeHandle: out standardInputWritePipeHandle);
+                        }
+                        else
+                        {
+                            // Avoid stdin hooking when not needed.
+                            hStdInput = new SafeFileHandle(new IntPtr(-1), true);
+                        }
+
+                        if (m_outputDataReceived != null)
+                        {
+                            Pipes.CreateInheritablePipe(
+                                Pipes.PipeInheritance.InheritWrite,
+                                Pipes.PipeFlags.ReadSideAsync,
+                                readHandle: out standardOutputReadPipeHandle,
+                                writeHandle: out hStdOutput);
+                        }
+                        else
+                        {
+                            // Pass through to the parent console.
+                            hStdOutput = new SafeFileHandle(new IntPtr(-1), true);
+                        }
+
+                        if (m_errorDataReceived != null)
+                        {
+                            Pipes.CreateInheritablePipe(
+                                Pipes.PipeInheritance.InheritWrite,
+                                Pipes.PipeFlags.ReadSideAsync,
+                                readHandle: out standardErrorReadPipeHandle,
+                                writeHandle: out hStdError);
+                        }
+                        else
+                        {
+                            // Pass through to the parent console.
+                            hStdError = new SafeFileHandle(new IntPtr(-1), true);
+                        }
 
                         // We want a per-process job primarily. If nested job support is not available, then we make sure to not have a BuildXL-level job.
                         if (JobObject.OSSupportsNestedJobs && m_createJobObjectForCurrentProcess)
@@ -578,24 +608,33 @@ namespace BuildXL.Processes.Internal
                         }
                     }
 
-                    var standardInputStream = new FileStream(standardInputWritePipeHandle, FileAccess.Write, m_bufferSize, isAsync: true);
-                    m_standardInputWriter = new StreamWriter(standardInputStream, m_standardInputEncoding, m_bufferSize) { AutoFlush = true };
+                    if (standardInputWritePipeHandle != null)
+                    {
+                        var standardInputStream = new FileStream(standardInputWritePipeHandle, FileAccess.Write, m_bufferSize, isAsync: true);
+                        m_standardInputWriter = new StreamWriter(standardInputStream, m_standardInputEncoding, m_bufferSize) { AutoFlush = true };
+                    }
 
-                    var standardOutputFile = AsyncFileFactory.CreateAsyncFile(
-                        standardOutputReadPipeHandle,
-                        FileDesiredAccess.GenericRead,
-                        ownsHandle: true,
-                        kind: FileKind.Pipe);
-                    m_outputReader = new AsyncPipeReader(standardOutputFile, m_outputDataReceived, m_standardOutputEncoding, m_bufferSize);
-                    m_outputReader.BeginReadLine();
+                    if (standardOutputReadPipeHandle != null)
+                    {
+                        var standardOutputFile = AsyncFileFactory.CreateAsyncFile(
+                            standardOutputReadPipeHandle,
+                            FileDesiredAccess.GenericRead,
+                            ownsHandle: true,
+                            kind: FileKind.Pipe);
+                        m_outputReader = new AsyncPipeReader(standardOutputFile, m_outputDataReceived, m_standardOutputEncoding, m_bufferSize);
+                        m_outputReader.BeginReadLine();
+                    }
 
-                    var standardErrorFile = AsyncFileFactory.CreateAsyncFile(
-                        standardErrorReadPipeHandle,
-                        FileDesiredAccess.GenericRead,
-                        ownsHandle: true,
-                        kind: FileKind.Pipe);
-                    m_errorReader = new AsyncPipeReader(standardErrorFile, m_errorDataReceived, m_standardErrorEncoding, m_bufferSize);
-                    m_errorReader.BeginReadLine();
+                    if (standardErrorReadPipeHandle != null)
+                    {
+                        var standardErrorFile = AsyncFileFactory.CreateAsyncFile(
+                            standardErrorReadPipeHandle,
+                            FileDesiredAccess.GenericRead,
+                            ownsHandle: true,
+                            kind: FileKind.Pipe);
+                        m_errorReader = new AsyncPipeReader(standardErrorFile, m_errorDataReceived, m_standardErrorEncoding, m_bufferSize);
+                        m_errorReader.BeginReadLine();
+                    }
 
                     Contract.Assert(!m_processHandle.IsInvalid);
                     m_processWaitHandle = new SafeWaitHandleFromSafeHandle(m_processHandle);

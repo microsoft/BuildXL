@@ -94,17 +94,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         public abstract void GraphBuilderFilesAreNotRemoved(LoggingContext context, string graphFile);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DependencyIsIgnoredScriptIsMissing,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Message = EventConstants.LabeledProvenancePrefix + "Project '{projectName}' with script command '{scriptCommandName}' declares a dependency on '{dependency}' with script command '{dependencyScriptCommandName}', but the requested script is not defined on " +
-            "the target dependency. The dependency is ignored.",
-            EventTask = (ushort)Tasks.Engine,
-            EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void DependencyIsIgnoredScriptIsMissing(LoggingContext context, Location location, string projectName, string scriptCommandName, string dependency, string dependencyScriptCommandName);
-
-        [GeneratedEvent(
             (ushort)LogEventId.JavaScriptCommandIsEmpty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -133,17 +122,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void CycleInJavaScriptCommands(LoggingContext context, Location location, string cycle);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ProjectIsIgnoredScriptIsMissing,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Message = EventConstants.LabeledProvenancePrefix + "Script command '{scriptCommandName}' is requested to be scheduled for project '{projectName}', but the command is not defined. " +
-            "The invocation is ignored.",
-            EventTask = (ushort)Tasks.Engine,
-            EventOpcode = (byte)Tasks.Parser,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void ProjectIsIgnoredScriptIsMissing(LoggingContext context, Location location, string projectName, string scriptCommandName);
 
         [GeneratedEvent(
             (ushort)LogEventId.CannotFindGraphBuilderTool,

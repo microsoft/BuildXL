@@ -675,11 +675,9 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 foreach (var deserializedProject in flattenedJavaScriptGraph.Projects)
                 {
-                    // If the requested script is not available on the project, log and skip it
+                    // If the requested script is not available on the project, skip it
                     if (!deserializedProject.AvailableScriptCommands.ContainsKey(command))
                     {
-                        Tracing.Logger.Log.ProjectIsIgnoredScriptIsMissing(
-                                    m_context.LoggingContext, Location.FromFile(deserializedProject.ProjectFolder.ToString(m_context.PathTable)), deserializedProject.Name, command);
                         continue;
                     }
 
@@ -766,13 +764,9 @@ namespace BuildXL.FrontEnd.JavaScript
                         // If it is a local dependency, add a dependency to the same JavaScript project and the specified command
                         if (dependency.IsLocalKind())
                         {
-                            // If it is not defined verbose log it and try to find its closest transitive dependencies
+                            // If it is not defined try to find its closest transitive dependencies
                             if (!resolvedProjects.TryGetValue((javaScriptProject.Name, dependency.Command), out var value))
                             {
-                                Tracing.Logger.Log.DependencyIsIgnoredScriptIsMissing(
-                                    m_context.LoggingContext, Location.FromFile(javaScriptProject.ProjectFolder.ToString(m_context.PathTable)), javaScriptProject.Name, javaScriptProject.ScriptCommandName, 
-                                    javaScriptProject.Name, dependency.Command);
-
                                 AddClosestPresentDependencies(
                                     javaScriptProject.Name, 
                                     dependency.Command, 
@@ -805,12 +799,9 @@ namespace BuildXL.FrontEnd.JavaScript
                                         $"Specified dependency '{packageDependencyName}' does not exist.");
                                 }
 
-                                // If it is not defined verbose log it and try to find its closest transitive dependencies
+                                // If it is not defined try to find its closest transitive dependencies
                                 if (!resolvedProjects.TryGetValue((packageDependencyName, dependency.Command), out var value))
                                 {
-                                    Tracing.Logger.Log.DependencyIsIgnoredScriptIsMissing(
-                                        m_context.LoggingContext, Location.FromFile(javaScriptProject.ProjectFolder.ToString(m_context.PathTable)), javaScriptProject.Name, javaScriptProject.ScriptCommandName, packageDependencyName, dependency.Command);
-
                                     AddClosestPresentDependencies(
                                         packageDependencyName, 
                                         dependency.Command, 

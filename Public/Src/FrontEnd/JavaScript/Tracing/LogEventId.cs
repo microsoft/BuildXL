@@ -16,9 +16,9 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         // reserved 11900 .. 12000 for JavaScript
         InvalidResolverSettings = 11900,
         ProjectGraphConstructionError = 11901,
-        ProjectIsIgnoredScriptIsMissing = 11902,
+        // Not used. Was ProjectIsIgnoredScriptIsMissing = 11902,
         CannotDeleteSerializedGraphFile = 11903,
-        DependencyIsIgnoredScriptIsMissing = 11904,
+        // Not used. Was DependencyIsIgnoredScriptIsMissing = 11904,
         SchedulingPipFailure = 11905,
         UnexpectedPipBuilderException = 11906,
         GraphConstructionFinishedSuccessfullyButWithWarnings = 11907,

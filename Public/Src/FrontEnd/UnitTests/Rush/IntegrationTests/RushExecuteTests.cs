@@ -163,10 +163,6 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.True(bPostBuild != null);
             Assert.True(cPostBuild != null);
 
-            // Script A post-build should cause two dependencies (going from B and C post-build) ignored
-            AssertInformationalEventLogged(LogEventId.DependencyIsIgnoredScriptIsMissing, count: 2);
-            AssertInformationalEventLogged(LogEventId.ProjectIsIgnoredScriptIsMissing);
-
             // Now check dependencies
             Assert.True(IsDependencyAndDependent(aPreBuild, aBuild));
             Assert.True(IsDependencyAndDependent(bPreBuild, bBuild));

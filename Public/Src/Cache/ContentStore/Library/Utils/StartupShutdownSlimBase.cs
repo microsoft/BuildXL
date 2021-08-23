@@ -50,7 +50,10 @@ namespace BuildXL.Cache.ContentStore.Utils
         public virtual bool ShutdownCompleted { get; private set; }
 
         /// <nodoc />
-        protected virtual Func<BoolResult, string>? ExtraStartupMessageFactory => null;
+        protected virtual string? GetArgumentsMessage()
+        {
+            return null;
+        }
 
         /// <inheritdoc />
         public bool ShutdownStarted => _shutdownStartedCancellationTokenSource.Token.IsCancellationRequested;
@@ -72,6 +75,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         protected CancellableOperationContext TrackShutdown(Context context, CancellationToken token)
             => new CancellableOperationContext(new OperationContext(context, token), ShutdownStartedCancellationToken);
 
+        private string GetComponentMessage()
+        {
+            var argumentMessage = GetArgumentsMessage();
+            var idPart = $"Id={_instanceId}.";
+            return argumentMessage == null ? idPart : $"{idPart} {argumentMessage}";
+        }
+
         /// <inheritdoc />
         public virtual Task<BoolResult> StartupAsync(Context context)
         {
@@ -92,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     var result = await operationContext.PerformInitializationAsync(
                         Tracer,
                         () => StartupCoreAsync(operationContext),
-                        endMessageFactory: r => $"Id={_instanceId}." + ExtraStartupMessageFactory?.Invoke(r));
+                        endMessageFactory: r => GetComponentMessage());
                     StartupCompleted = true;
 
                     return result;
@@ -125,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             var result = await operationContext.PerformOperationAsync(
                 Tracer,
                 () => ShutdownCoreAsync(operationContext),
-                extraEndMessage: r => $"Id={_instanceId}.");
+                extraEndMessage: r => GetComponentMessage());
             ShutdownCompleted = true;
 
             return result;

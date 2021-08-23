@@ -55,7 +55,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         public IRoleObserver? Observer { get; set; }
 
-        public IGlobalCacheService? LocalGlobalCacheService { get; set; }
+        internal  IGlobalCacheService? LocalGlobalCacheService { get; set; }
+
+        internal IClientAccessor<MachineLocation, IGlobalCacheService>? GlobalCacheServiceClientFactory { get; set; }
 
         /// <nodoc />
         public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStore;
@@ -177,13 +179,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
             else if (Configuration.MetadataStore is ClientContentMetadataStoreConfiguration clientConfig)
             {
-                var localClient = LocalGlobalCacheService == null
-                    ? null
-                    : new LocalClient<IGlobalCacheService>(Configuration.PrimaryMachineLocation, LocalGlobalCacheService);
+                var masterClientFactory = new GrpcMasterClientFactory<IGlobalCacheService>(redisStore, GlobalCacheServiceClientFactory!, masterElectionMechanism);
 
                 return new ClientGlobalCacheStore(
                     redisStore,
-                    new GrpcMasterClientFactory<IGlobalCacheService>(redisStore, clientConfig, masterElectionMechanism, localClient),
+                    masterClientFactory,
                     clientConfig);
             }
             else

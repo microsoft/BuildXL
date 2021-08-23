@@ -130,7 +130,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             var selectors = Database.GetSelectors(context, weakFingerprint);
             return Task.FromResult(selectors.Select(s => new LevelSelectors(s, hasMore: false)));
-            
         }
 
         public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)

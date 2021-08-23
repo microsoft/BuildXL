@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -24,39 +25,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// Creates a gRPC connection to the CASaaS master, and returns a client that implements <typeparamref name="T"/>
     /// by talking via gRPC with it.
     /// </summary>
-    public class GrpcMasterClientFactory<T> : StartupShutdownComponentBase, IClientFactory<T>
+    public class GrpcMasterClientFactory<T> : StartupShutdownComponentBase, IClientAccessor<T>
         where T : class
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcMasterClientFactory<T>));
 
-
         private readonly IGlobalLocationStore _globalStore;
         private readonly IMasterElectionMechanism _masterElectionMechanism;
-        private readonly ClientContentMetadataStoreConfiguration _configuration;
-        private readonly LocalClient<T> _localClient;
+        private readonly IClientAccessor<MachineLocation, T> _clientAccessor;
 
-        private AsyncLazy<Result<ClientHandle>> _currentClientHandleLazy = AsyncLazy<Result<ClientHandle>>.FromResult(null);
+        private AsyncLazy<Result<ClientKey>> _currentClientKeyLazy = AsyncLazy<Result<ClientKey>>.FromResult(null);
 
         public GrpcMasterClientFactory(
             IGlobalLocationStore globalStore,
-            ClientContentMetadataStoreConfiguration configuration,
-            IMasterElectionMechanism masterElectionMechanism,
-            LocalClient<T> localClient)
+            IClientAccessor<MachineLocation, T> clientAccessor,
+            IMasterElectionMechanism masterElectionMechanism)
         {
             _globalStore = globalStore;
             _masterElectionMechanism = masterElectionMechanism;
-            _configuration = configuration;
-            _localClient = localClient;
-
-            if (_localClient != null)
-            {
-                LinkLifetime(_localClient);
-            }
+            _clientAccessor = clientAccessor;
+            LinkLifetime(clientAccessor);
         }
 
-        public async ValueTask<T> CreateClientAsync(OperationContext context)
+        private async ValueTask<ClientKey> GetClientAsync(OperationContext context)
         {
-            var lazy = _currentClientHandleLazy;
+            var lazy = _currentClientKeyLazy;
             var handleResult = await lazy.GetValueAsync();
             var handle = handleResult?.GetValueOrDefault();
             var clusterState = _globalStore.ClusterState;
@@ -68,45 +61,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     Tracer,
                     async () =>
                     {
-                        AsyncLazy<Result<ClientHandle>> oldValue = Interlocked.CompareExchange(
-                            ref _currentClientHandleLazy,
-                            new AsyncLazy<Result<ClientHandle>>(() => CreateClientHandleAsync(context)),
+                        AsyncLazy<Result<ClientKey>> oldValue = Interlocked.CompareExchange(
+                            ref _currentClientKeyLazy,
+                            new AsyncLazy<Result<ClientKey>>(() => GetMasterLocationAsync(context, masterId)),
                             lazy);
 
-                        // Shutdown old channel
-                        if (oldValue == lazy && handle?.Channel != null)
-                        {
-                            await handle.Channel.ShutdownAsync();
-                        }
-
-                        lazy = _currentClientHandleLazy;
+                        lazy = _currentClientKeyLazy;
                         return await lazy.GetValueAsync();
-                    });
+                    },
+                    extraEndMessage: r => r.GetValueOrDefault()?.ToString());
             }
 
-            return handleResult.ThrowIfFailure().Client;
+            return handleResult.ThrowIfFailure();
         }
 
-        private async Task<Result<ClientHandle>> CreateClientHandleAsync(OperationContext context)
-        {
-            var masterId = _globalStore.ClusterState.MasterMachineId;
-            var masterLocationResult = await GetMasterLocationAsync(context, masterId);
-            if (!masterLocationResult)
-            {
-                return new ErrorResult(masterLocationResult);
-            }
-
-            if (_localClient != null && _localClient.Location.Equals(masterLocationResult.Value))
-            {
-                return new ClientHandle(_localClient.Client, null, null, _localClient.Location);
-            }
-            
-            return await ConnectAsync(context, masterId, masterLocationResult.Value);
-        }
-
-        private async Task<Result<MachineLocation>> GetMasterLocationAsync(OperationContext context, MachineId? masterId)
+        private async Task<Result<ClientKey>> GetMasterLocationAsync(OperationContext context, MachineId? masterId)
         {
             var clusterState = _globalStore.ClusterState;
+            if (masterId != null && clusterState.TryResolve(masterId.Value, out var masterLocation))
+            {
+                return new ClientKey(masterId, masterLocation);
+            }
+
             if (masterId == null)
             {
                 var masterElectionState = await _masterElectionMechanism.GetRoleAsync(context);
@@ -114,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     if (masterElectionState.Value.Master.IsValid)
                     {
-                        return masterElectionState.Value.Master;
+                        return new ClientKey(masterId, masterElectionState.Value.Master);
                     }
                 }
                 else
@@ -124,34 +100,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                 return new ErrorResult("Unknown master");
             }
-
-            if (!clusterState.TryResolve(masterId.Value, out var masterLocation))
+            else
             {
                 return new ErrorResult($"Can't resolve master id '{masterId}'");
             }
-
-            return masterLocation;
         }
 
-        private Task<Result<ClientHandle>> ConnectAsync(OperationContext context, MachineId? machineId, MachineLocation machineLocation)
+        public async Task<TResult> UseAsync<TResult>(OperationContext context, Func<T, Task<TResult>> operation)
         {
-            var message = $"MasterId=[{machineId}] MasterLocation=[{machineLocation}]";
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    var hostInfo = machineLocation.ExtractHostInfo();
-                    var channel = new Channel(hostInfo.host, hostInfo.port ?? _configuration.Port, ChannelCredentials.Insecure);
-                    var client = channel.CreateGrpcService<T>(ClientFactory.Create(MetadataServiceSerializer.BinderConfiguration));
-                    var handle = new ClientHandle(client, channel, machineId, machineLocation);
-
-                    await channel.ConnectAsync(DateTime.UtcNow + _configuration.ConnectTimeout);
-                    return Result.Success(handle);
-                },
-                extraStartMessage: message,
-                extraEndMessage: r => message);
+            var clientKey = await GetClientAsync(context);
+            return await _clientAccessor.UseAsync(context, clientKey.Machine, operation);
         }
 
-        private record ClientHandle(T Client, ChannelBase Channel, MachineId? MachineId, MachineLocation Machine);
+        private record ClientKey(MachineId? MachineId, MachineLocation Machine);
     }
 }

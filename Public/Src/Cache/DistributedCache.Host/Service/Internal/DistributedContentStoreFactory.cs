@@ -266,11 +266,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (redisConfig.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
             {
-                redisConfig.MetadataStore = new ClientContentMetadataStoreConfiguration((int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort)
+                redisConfig.MetadataStore = new ClientContentMetadataStoreConfiguration()
                 {
                     AreBlobsSupported = _distributedSettings.ContentMetadataBlobsEnabled && redisConfig.AreBlobsSupported,
                     OperationTimeout = _distributedSettings.ContentMetadataClientOperationTimeout,
-                    ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
                 };
             }
 
@@ -326,13 +325,24 @@ namespace BuildXL.Cache.Host.Service.Internal
             };
 
             CentralStreamStorage centralStreamStorage = configuration.CentralStorage.CreateCentralStorage();
+            LocalClient<IGlobalCacheService> localServiceClient = default;
 
             if (_distributedSettings.IsMasterEligible)
             {
                 var service = CreateGlobalCacheService(primaryCacheRoot, configuration, centralStreamStorage);
                 _redisMemoizationStoreFactory.Value.LocalGlobalCacheService = service;
+                localServiceClient = new LocalClient<IGlobalCacheService>(RedisContentLocationStoreConfiguration.PrimaryMachineLocation, service);
                 yield return new ProtobufNetGrpcServiceEndpoint<IGlobalCacheService, GlobalCacheService>(nameof(GlobalCacheService), service);
             }
+
+            _redisMemoizationStoreFactory.Value.GlobalCacheServiceClientFactory = new ClientPool<IGlobalCacheService>(
+                    new ConnectionPool(new ConnectionPoolConfiguration()
+                    {
+                        DefaultPort = (int)_arguments.Configuration.LocalCasSettings.ServiceSettings.GrpcPort,
+                        ConnectTimeout = _distributedSettings.ContentMetadataClientConnectionTimeout,
+                    },
+                    _arguments.Overrides.Clock),
+                    localServiceClient);
         }
 
         private GlobalCacheService CreateGlobalCacheService(AbsolutePath primaryCacheRoot, GlobalCacheServiceConfiguration configuration, CentralStreamStorage centralStreamStorage)

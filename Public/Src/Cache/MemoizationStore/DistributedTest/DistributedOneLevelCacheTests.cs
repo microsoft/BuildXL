@@ -67,7 +67,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 {
                     dcs.ContentMetadataEnableResilience = true;
                     dcs.ContentMetadataStoreMode = mode.Value;
-                    dcs.UseMemoizationContentMetadataStore = dcs.TestIteration == 1;
+                    dcs.UseMemoizationContentMetadataStore = true;
                 }
             });
 
@@ -129,6 +129,11 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                             var getResult = await cacheSession.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
                             Assert.Equal(contentHashList, getResult.ContentHashListWithDeterminism.ContentHashList);
                         }
+                        else
+                        {
+                            var getResult = await cacheSession.GetContentHashListAsync(context, sf, Token).ShouldBeSuccess();
+                            Assert.Equal(null, getResult.ContentHashListWithDeterminism.ContentHashList);
+                        }
 
                         var level = await findLevelAsync(cacheSession);
                         level.Should().Be(expectedLevel);
@@ -159,6 +164,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                     Assert.Equal(null, addResult.ContentHashListWithDeterminism.ContentHashList);
                     await ensureLevelAsync(masterCache, 0 /* Master DB gets updated immediately */);
 
+                    TraceLine("Verifying CHL in worker caches via remote");
                     // Verify found remotely
                     await ensureLevelAsync(workerCache0, 1);
                     await ensureLevelAsync(workerCache1, 1);

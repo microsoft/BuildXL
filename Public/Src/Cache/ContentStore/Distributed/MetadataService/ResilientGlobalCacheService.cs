@@ -63,14 +63,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly IClock _clock;
         protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
 
-        public bool ForceClientRetries
+        internal bool ForceClientRetries(out string reason)
         {
-            get
+            if (_role == Role.Worker)
             {
-                return _role == Role.Worker
-                        || !_lastSuccessfulHeartbeat.IsRecent(_clock.UtcNow, _configuration.MasterLeaseStaleThreshold)
-                        || !_hasRestoredCheckpoint;
+                reason = "Service is in worker mode";
+                return true;
             }
+
+            var lastHeartbeat = _lastSuccessfulHeartbeat;
+            var now = _clock.UtcNow;
+            if (!lastHeartbeat.IsRecent(now, _configuration.MasterLeaseStaleThreshold))
+            {
+                reason = $"Service's last successful heartbeat was at `{lastHeartbeat}`, currently `{now}` is beyond staleness threshold `{_configuration.MasterLeaseStaleThreshold}`";
+                return true;
+            }
+
+            if (!_hasRestoredCheckpoint)
+            {
+                reason = "Service has yet to restore a checkpoint";
+                return true;
+            }
+
+            reason = string.Empty;
+            return false;
         }
 
         private DateTime _lastSuccessfulHeartbeat;
@@ -112,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             await _createCheckpointLoopTask;
 
-            if (!ForceClientRetries)
+            if (!ForceClientRetries(out _))
             {
                 // Stop logging
                 _eventStream.SetIsLogging(false);
@@ -165,11 +181,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             TRequest request,
             Func<OperationContext, Task<Result<TResponse>>> executeAsync)
         {
-            if (!request.Replaying && ForceClientRetries)
+            if (!request.Replaying && ForceClientRetries(out var reason))
             {
                 return new TResponse()
                 {
-                    ShouldRetry = true
+                    ShouldRetry = true,
+                    ErrorMessage = reason
                 };
             }
 
@@ -179,9 +196,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 if (result.TryGetValue(out var response))
                 {
-                    if (ForceClientRetries)
+                    if (ForceClientRetries(out reason))
                     {
                         response.ShouldRetry = true;
+                        response.ErrorMessage = reason;
                     }
                     else if (response.PersistRequest)
                     {
@@ -192,11 +210,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         }
                     }
                 }
-                else if (ForceClientRetries)
+                else if (ForceClientRetries(out reason))
                 {
                     return new TResponse()
                     {
-                        ShouldRetry = true
+                        ShouldRetry = true,
+                        ErrorMessage = reason
                     };
                 }
             }
@@ -337,7 +356,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     await Task.Delay(_configuration.Checkpoint.CreateCheckpointInterval, context.Token);
 
-                    if (ForceClientRetries)
+                    if (ForceClientRetries(out _))
                     {
                         continue;
                     }

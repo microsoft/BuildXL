@@ -79,13 +79,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 var constructorInfo = typeof(TResult).GetConstructor(new[] { typeof(ResultBase), typeof(string) });
                 if (constructorInfo == null)
                 {
-                    constructorInfo = typeof(TResult).GetConstructor(new[] { typeof(Result), typeof(string) });
-                }
-
-                if (constructorInfo == null)
-                {
                     result = null;
-                    errorMessage = $"Constructor '{type}(ResultBase, string)' or '{type}(Result, string)' are not defined for type '{type}'.";
+                    errorMessage = $"Constructor '{type}(ResultBase, string)' are not defined for type '{type}'.";
                     return false;
                 }
 

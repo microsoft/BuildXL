@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         // Used for testing.
         internal enum Counters
         {
-            ProactiveReplication_Succeeded, 
+            ProactiveReplication_Succeeded,
             ProactiveReplication_Failed,
             ProactiveReplication_Skipped,
             ProactiveReplication_Rejected,
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly DistributedContentCopier _distributedCopier;
         private readonly DisposableDirectory _copierWorkingDirectory;
         private Lazy<Task<Result<ReadOnlyDistributedContentSession>>>? _proactiveCopySession;
-        internal Lazy<Task<Result<ReadOnlyDistributedContentSession>>> ProactiveCopySession =>  NotNull(_proactiveCopySession, nameof(_proactiveCopySession));
+        internal Lazy<Task<Result<ReadOnlyDistributedContentSession>>> ProactiveCopySession => NotNull(_proactiveCopySession, nameof(_proactiveCopySession));
 
         /// <nodoc />
         public DistributedContentStore(
@@ -560,7 +560,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Attempts to get local location store if enabled
         /// </summary>
-        public bool TryGetLocalLocationStore([NotNullWhen(true)]out LocalLocationStore? localLocationStore)
+        public bool TryGetLocalLocationStore([NotNullWhen(true)] out LocalLocationStore? localLocationStore)
         {
             if (_contentLocationStore is TransitioningContentLocationStore tcs)
             {
@@ -581,7 +581,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Checks the LLS <see cref="DistributedCentralStorage"/> for the content if available and returns
         /// the storage instance if content is found
         /// </summary>
-        private bool CheckLlsForContent(ContentHash desiredContent, [NotNullWhen(true)]out DistributedCentralStorage? storage)
+        private bool CheckLlsForContent(ContentHash desiredContent, [NotNullWhen(true)] out DistributedCentralStorage? storage)
         {
             if (_contentLocationStore is TransitioningContentLocationStore tcs
                 && tcs.LocalLocationStore.DistributedCentralStorage != null
@@ -623,14 +623,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions)
         {
             var operationContext = OperationContext(context);
-            deleteOptions ??= new DeleteContentOptions() {DeleteLocalOnly = true};
+            deleteOptions ??= new DeleteContentOptions() { DeleteLocalOnly = true };
 
             return operationContext.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
                     var deleteResult = await InnerContentStore.DeleteAsync(context, contentHash, deleteOptions);
-                    var contentHashes = new ContentHash[] {contentHash};
+                    var contentHashes = new ContentHash[] { contentHash };
                     if (!deleteResult)
                     {
                         return deleteResult;
@@ -658,7 +658,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         GetBulkOrigin.Local);
                     if (!result)
                     {
-                        deleteResult =  new DeleteResult(result, result.ToString());
+                        deleteResult = new DeleteResult(result, result.ToString());
                         deleteResultsMapping.Add(LocalMachineLocation.Path, deleteResult);
                         return new DistributedDeleteResult(contentHash, deleteResult.ContentSize, deleteResultsMapping);
                     }

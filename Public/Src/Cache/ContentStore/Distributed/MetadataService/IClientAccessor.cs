@@ -12,8 +12,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// Obtains a connection to a host that implements <typeparamref name="TClient"/>
     /// </summary>
-    public interface IClientAccessor<TKey, TClient> : IDisposable
+    public interface IClientAccessor<TKey, TClient> : IStartupShutdownSlim
     {
-        Task<TResult> UseAsync<TResult>(Context context, TKey key, Func<TClient, Task<TResult>> operation);
+        Task<TResult> UseAsync<TResult>(OperationContext context, TKey key, Func<TClient, Task<TResult>> operation);
+    }
+
+    /// <summary>
+    /// Obtains a connection to a host that implements <typeparamref name="TClient"/>
+    /// </summary>
+    public interface IClientAccessor<TClient> : IStartupShutdownSlim
+    {
+        Task<TResult> UseAsync<TResult>(OperationContext context, Func<TClient, Task<TResult>> operation);
     }
 }

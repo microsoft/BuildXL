@@ -183,11 +183,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             | BlobContentMetadataStoreModeOverride.Flags()
             | ClusterGlobalStoreModeOverride.Flags();
 
+        private bool _useMemoizationContentMetadataStore;
+
         /// <summary>
         /// Indicates whether IContentMetadataStore implementation should be used instead of RedisGlobalStore implementation
         /// for global metadata tracking. NOTE: IContentMetadataStore supports Redis operations as well.
         /// </summary>
-        public bool UseMemoizationContentMetadataStore { get; set; }
+        public bool UseMemoizationContentMetadataStore
+        {
+            get
+            {
+                // If distributed is enabled for memoization even partially), we must use memoization content metadata store
+                return _useMemoizationContentMetadataStore ||
+                    (MemoizationContentMetadataStoreModeOverride ?? ContentMetadataStoreMode).Flags().HasAnyFlag(ContentMetadataStoreModeFlags.Distributed);
+            }
+            set
+            {
+                _useMemoizationContentMetadataStore = value;
+            }
+        }
 
         /// <summary>
         /// Configuration for RedisMemoizationDatabase/RedisMemoizationAdapter

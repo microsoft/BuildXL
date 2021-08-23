@@ -46,7 +46,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             if (response.ShouldRetry)
             {
-                throw new ClientCanRetryException("Target machine indicated that retry is needed.");
+                return new ErrorResult(
+                    exception: new ClientCanRetryException($"Target machine indicated that retry is needed."),
+                    message: response.ErrorMessage).AsResult<TResult>();
             }
             else if (response.Succeeded)
             {

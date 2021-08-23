@@ -47,7 +47,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             return _store.GetContentHashListAsync(context, strongFingerprint).ThenAsync(r =>
             {
-                return new ContentHashListResult(DeserializeContentHashListWithDeterminism(r.Value.Data), r.Value.ReplacementToken);
+                return new ContentHashListResult(DeserializeContentHashListWithDeterminism(r.Value?.Data), r.Value?.ReplacementToken ?? string.Empty);
             });
         }
 

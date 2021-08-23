@@ -18,13 +18,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Configuration for remote client content metadata store
     /// </summary
-    public record ClientContentMetadataStoreConfiguration(int Port) : ContentMetadataStoreConfiguration
+    public record ClientContentMetadataStoreConfiguration : ContentMetadataStoreConfiguration
     {
-        /// <summary>
-        /// The amount of time to wait for a connection to be established
-        /// </summary>
-        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(30);
-
         /// <summary>
         /// The amount of time to wait for an operation to complete
         /// </summary>

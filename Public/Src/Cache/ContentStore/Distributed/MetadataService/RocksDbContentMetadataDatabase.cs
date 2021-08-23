@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.SymbolStore;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -642,8 +643,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // This method calls _keyValueStore.Use with non-static lambda, because this code is complicated
             // and not as perf critical as other places.
             var key = GetMetadataKey(strongFingerprint);
-            SerializedMetadataEntry? result = null;
-            var status = _keyValueStore.Use(
+            var result = _keyValueStore.Use(
                 store =>
                 {
                     using (_metadataLocks[key[0]].AcquireReadLock())
@@ -672,12 +672,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     }
                 });
 
-            if (!status.Succeeded)
-            {
-                return new Result<SerializedMetadataEntry>(status.Failure.CreateException());
-            }
-
-            return new Result<SerializedMetadataEntry>(result!, isNullAllowed: true);
+            return result.ToResult(isNullAllowed: true)!;
         }
 
         /// <inheritdoc />

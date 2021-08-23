@@ -173,69 +173,72 @@ namespace ContentStoreTest.Distributed.Sessions
             }
 
             var settings = new TestDistributedContentSettings()
-                           {
-                               TestMachineIndex = index,
-                               TestIteration = iteration,
-                               IsDistributedContentEnabled = true,
-                               KeySpacePrefix = "TestPrefix",
+            {
+                TestMachineIndex = index,
+                TestIteration = iteration,
+                IsDistributedContentEnabled = true,
+                KeySpacePrefix = "TestPrefix",
 
-                               // By default, only first store is master eligible
-                               IsMasterEligible = index == 0,
+                // By default, only first store is master eligible
+                IsMasterEligible = index == 0,
 
-                               GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", PrimaryGlobalStoreDatabase.ConnectionString),
-                               SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase.ConnectionString) : null,
-                               RedisInternalLogSeverity = Severity.Info.ToString(),
+                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", PrimaryGlobalStoreDatabase.ConnectionString),
+                SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase.ConnectionString) : null,
+                RedisInternalLogSeverity = Severity.Info.ToString(),
 
-                               // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
-                               EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
-                               AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
-                               ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),
-                               ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob_Unspecified", "Unused"),
+                // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
+                EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
+                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
+                ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),
+                ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob_Unspecified", "Unused"),
 
-                               IsContentLocationDatabaseEnabled = true,
-                               UseDistributedCentralStorage = true,
-                               RedisMemoizationExpiryTimeMinutes = 60,
-                               MachineActiveToClosedIntervalMinutes = 5,
-                               MachineActiveToExpiredIntervalMinutes = 10,
-                               IsRepairHandlingEnabled = true,
+                IsContentLocationDatabaseEnabled = true,
+                UseDistributedCentralStorage = true,
+                RedisMemoizationExpiryTimeMinutes = 60,
+                MachineActiveToClosedIntervalMinutes = 5,
+                MachineActiveToExpiredIntervalMinutes = 10,
+                IsRepairHandlingEnabled = true,
 
-                               UseUnsafeByteStringConstruction = true,
+                UseUnsafeByteStringConstruction = true,
 
-                               SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
+                SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
 
-                               RestoreCheckpointIntervalMinutes = 1,
-                               CreateCheckpointIntervalMinutes = 1,
-                               HeartbeatIntervalMinutes = InfiniteHeartbeatMinutes,
+                RestoreCheckpointIntervalMinutes = 1,
+                CreateCheckpointIntervalMinutes = 1,
+                HeartbeatIntervalMinutes = InfiniteHeartbeatMinutes,
 
-                               RetryIntervalForCopiesMs = DistributedContentSessionTests.DefaultRetryIntervalsForTest.Select(t => (int)t.TotalMilliseconds).ToArray(),
+                RetryIntervalForCopiesMs = DistributedContentSessionTests.DefaultRetryIntervalsForTest.Select(t => (int)t.TotalMilliseconds).ToArray(),
 
-                               RedisBatchPageSize = 1,
-                               CheckLocalFiles = true,
+                RedisBatchPageSize = 1,
+                CheckLocalFiles = true,
 
-                               // Tests disable reconciliation by default
-                               ReconcileMode = ReconciliationMode.None.ToString(),
+                // Tests disable reconciliation by default
+                ReconcileMode = ReconciliationMode.None.ToString(),
 
-                               PinMinUnverifiedCount = 1,
-                               // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
-                               MachineRisk = 0.0000001,
+                PinMinUnverifiedCount = 1,
+                // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
+                MachineRisk = 0.0000001,
 
-                               TraceProactiveCopy = true,
-                               ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.ToString() : nameof(ProactiveCopyMode.Disabled),
-                               PushProactiveCopies = true,
-                               EnableProactiveReplication = EnableProactiveReplication,
-                               ProactiveCopyRejectOldContent = true,
-                               ProactiveCopyOnPut = ProactiveCopyOnPuts,
-                               ProactiveCopyOnPin = ProactiveCopyOnPins,
-                               ProactiveCopyGetBulkBatchSize = 1,
-                               ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
-                               ProactiveCopyMaxRetries = ProactiveCopyRetries,
+                TraceProactiveCopy = true,
+                ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.ToString() : nameof(ProactiveCopyMode.Disabled),
+                PushProactiveCopies = true,
+                EnableProactiveReplication = EnableProactiveReplication,
+                ProactiveCopyRejectOldContent = true,
+                ProactiveCopyOnPut = ProactiveCopyOnPuts,
+                ProactiveCopyOnPin = ProactiveCopyOnPins,
+                ProactiveCopyGetBulkBatchSize = 1,
+                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
+                ProactiveCopyMaxRetries = ProactiveCopyRetries,
 
-                               // Use very low to delay to keep tests with proactive replication from running a very long time
-                               ProactiveReplicationDelaySeconds = 0.001,
+                // Use very low to delay to keep tests with proactive replication from running a very long time
+                ProactiveReplicationDelaySeconds = 0.001,
 
-                               ContentLocationDatabaseOpenReadOnly = true,
-                               EnablePublishingCache = EnablePublishingCache,
-                           };
+                ContentMetadataClientOperationTimeout = "1s",
+                ContentMetadataClientConnectionTimeout = "1s",
+
+                ContentLocationDatabaseOpenReadOnly = true,
+                EnablePublishingCache = EnablePublishingCache,
+            };
 
             if (ProactiveCopyLocationThreshold.HasValue)
             {

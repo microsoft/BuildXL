@@ -18,13 +18,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public static class MetadataServiceSerializer
     {
-        public static BinderConfiguration BinderConfiguration { get; } = CreateBinderConfiguration();
+        public static BinderConfiguration BinderConfiguration { get; }
 
-        public static RuntimeTypeModel TypeModel { get; } = CreateRuntimeTypeModel();
+        public static RuntimeTypeModel TypeModel { get; }
 
-        private static BinderConfiguration CreateBinderConfiguration()
+        public static ClientFactory ClientFactory { get; }
+
+        static MetadataServiceSerializer()
         {
-            return BinderConfiguration.Create(new[] { ProtoBufMarshallerFactory.Create(CreateRuntimeTypeModel(), ProtoBufMarshallerFactory.Options.None) });
+            TypeModel = CreateRuntimeTypeModel();
+            BinderConfiguration = BinderConfiguration.Create(new[] { ProtoBufMarshallerFactory.Create(TypeModel, ProtoBufMarshallerFactory.Options.None) });
+            ClientFactory = ClientFactory.Create(BinderConfiguration);
         }
 
         public static RuntimeTypeModel CreateRuntimeTypeModel()

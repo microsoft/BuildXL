@@ -1,6 +1,22 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210813.0  (Release [115264](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115264)) Released 8/18/2021
+- Added Drive write counters for C Drive in all Windows OS
+- Add ColdStorage using a FSCS
+- Update Node.js version to v16.6.1
+- Improve SandboxedProcess resource tracking for Unix
+- [LinuxSandbox] Break symlink loops in resolve_path
+- Adding a new dispatcher to choose a worker for light pips
+- Various bug fixes
+
+# 0.1.0-20210808.0  (Release [114717](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114717)) Released 8/11/2021
+- Light process pip improvements
+- Support encryption and authentication for grpc.core
+- Honor global passthroughs when building a Ninja pip's environment
+- Fixes for Guardian support
+- Limit the number of pip errors written into ADO summary file
+
 # 0.1.0-20210730.1.1  (Release [114273](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=114273)) Released 8/4/2021
 - [Guardian] Case insensitive directory name comparisons on Windows
 - [IPC/Service pips] Keep track of assigned ports (to avoid collisions)

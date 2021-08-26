@@ -434,6 +434,12 @@ interface StaticDirectory extends PathQueries {
     /** Gets an array of files given its paths; returns undefined in the result array if no such a file exists in this static directory. */
     getFiles: (path: (Path | PathFragment)[]) => File[];
 
+    /**
+     * Asserts that a given file is part of the directory.
+     * For opaque directories, the check is delayed to runtime execution. Otherwise, this is equivalent to getFile()
+     */
+    assertExistence: (path: Path | PathFragment) => File;
+
     /** ensures the subFolder exists in the sealed directory and will return a new sealed directory scoped to that subdirectory */
     ensureContents: (args: {subFolder: RelativePath}) => StaticDirectory;
 
@@ -458,21 +464,11 @@ interface StaticDirectory extends PathQueries {
 /** A shared opaque directory. Its static content is always empty. */
 interface SharedOpaqueDirectory extends StaticDirectory {
     kind: "shared",
-    /**
-     * Asserts that a given output file is part of the shared opaque directory.
-     * The check is delayed to runtime execution. 
-     */
-    assertExistence: (path: Path | PathFragment) => File;
 }
 
 /** An exclusive opaque directory. Its static content is always empty. */
 interface ExclusiveOpaqueDirectory extends StaticDirectory {
     kind: "exclusive",
-    /**
-     * Asserts that a given output file is part of the exclusive opaque directory.
-     * The check is delayed to runtime execution. 
-     */
-    assertExistence: (path: Path | PathFragment) => File;
 }
 
 /** A source sealed directory where only the top directory is sealed. Its static content is always empty. */

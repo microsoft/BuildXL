@@ -84,11 +84,10 @@ namespace BuildXL.FrontEnd.Script.Ambients
         {
             var path = GetPathFromArgument(context, receiver, arg);
 
-            // This function is not exposed to non-opaque directories, so we could just assert here. But just in case (e.g. some casts can force things), 
-            // throw a handled exception
+            // For non-opaque outputs, this is just a getFile() call.
             if (!receiver.SealDirectoryKind.IsOpaqueOutput())
             {
-                throw new InvalidOutputAssertionUnderOpaqueDirectoryException(path.ToString(context.PathTable), new ErrorContext(objectCtx: arg.Value, pos: 0));
+                return GetFile(context, receiver, arg, captures);
             }
 
             if (!path.IsWithin(context.PathTable, receiver.Root.Path))

@@ -464,24 +464,26 @@ namespace M
             Assert.Equal("bondFile_proxies.cs", ((PathAtom) result).ToString(StringTable));
         }
 
-        [Fact]
-        public void TestPathAndDirectory()
+        [Theory]
+        [InlineData("getFile")]
+        [InlineData("assertExistence")]
+        public void TestPathAndDirectory(string getOrAssert)
         {
             var testWriter = CreateTestWriter();
             var configWriter = testWriter.ConfigWriter;
 
-            configWriter.AddBuildSpec(@"MyProject/project.dsc", @"
-import {Transformer} from 'Sdk.Transformers';
+            configWriter.AddBuildSpec(@"MyProject/project.dsc", $@"
+import {{Transformer}} from 'Sdk.Transformers';
 
 namespace MyProject
-{
+{{
     const x = Transformer.sealDirectory(d`dirs`, glob(d`dirs`, ""*""));
     const y = p`dirs/a.txt`;
     const z = y.parent;
 
-    export const v0 = (y === x.getFile(y).path);
+    export const v0 = (y === x.{getOrAssert}(y).path);
     export const v1 = (z === y.parent);
-}");
+}}");
 
             testWriter.AddExtraFile(@"MyProject/dirs/a.txt", "Awesome");
             testWriter.AddExtraFile(@"MyProject/dirs/b.txt", "Super");

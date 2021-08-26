@@ -1,6 +1,12 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210821.0  (Release [115264](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115764)) Released 8/26/2021
+- Enable useHistoricalCpuUsage by default in CloudBuild
+- Fixes to worker early release handling to avoid failures in certain conditions
+- Allow managing cluster state in distributed cache orchestrator
+- Various bug fixes
+
 # 0.1.0-20210813.0  (Release [115264](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115264)) Released 8/18/2021
 - Added Drive write counters for C Drive in all Windows OS
 - Add ColdStorage using a FSCS

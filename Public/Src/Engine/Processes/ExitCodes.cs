@@ -43,6 +43,9 @@ namespace BuildXL.Processes
         /// <summary>
         /// Value used by Execution Log to indicate that the process exit code has not been initailized.
         /// </summary>
+        /// <remarks>
+        /// The decimal representation is 3131746989
+        /// </remarks>
         public const uint UninitializedProcessExitCode = 0xBAAAAAAD;
     }
 }

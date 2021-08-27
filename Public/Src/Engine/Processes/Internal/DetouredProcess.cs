@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -78,6 +79,11 @@ namespace BuildXL.Processes.Internal
         private readonly ContainerConfiguration m_containerConfiguration;
         private readonly bool m_setJobBreakawayOk;
         private readonly bool m_createJobObjectForCurrentProcess;
+
+        /// Gather information for diagnosing flaky tests
+        private readonly bool m_diagnosticsEnabled = false;
+        private readonly StringBuilder m_diagnostics;
+        internal string Diagnostics => m_diagnostics?.ToString();
 
         private readonly LoggingContext m_loggingContext;
 
@@ -202,15 +208,16 @@ namespace BuildXL.Processes.Internal
         {
             // Notify the injected that the process is being killed
             m_processInjector?.OnKilled();
-
+            LogDiagnostics($"Process will be killed with exit code {exitCode}");
+            
             var processHandle = m_processHandle;
             if (processHandle != null && !processHandle.IsInvalid)
             {
                 // Ignore result, as there is a race with regular process termination that we cannot do anything about.
                 m_killed = true;
-
                 // No job object means that we are on an old OS; let's just terminate this process (we can't reliably terminate all child processes)
                 Analysis.IgnoreResult(Native.Processes.ProcessUtilities.TerminateProcess(processHandle, exitCode));
+                LogDiagnostics("DetouredProcess is killed using TerminateProcess");
             }
 
             using (m_queryJobDataLock.AcquireWriteLock())
@@ -220,10 +227,14 @@ namespace BuildXL.Processes.Internal
                 {
                     // Ignore result, as there is a race with regular shutdown.
                     m_killed = true;
-
                     Analysis.IgnoreResult(jobObject.Terminate(exitCode));
+
+                    LogDiagnostics("DetouredProcess is killed via JobObject termination");
                 }
             }
+
+            LogDiagnostics("Stack trace:");
+            LogDiagnostics(Environment.StackTrace);
         }
 
         /// <summary>
@@ -333,7 +344,8 @@ namespace BuildXL.Processes.Internal
             string timeoutDumpDirectory,
             ContainerConfiguration containerConfiguration,
             bool setJobBreakawayOk,
-            bool createJobObjectForCurrentProcess)
+            bool createJobObjectForCurrentProcess,
+            bool diagnosticsEnabled)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -365,6 +377,12 @@ namespace BuildXL.Processes.Internal
 
             m_loggingContext = loggingContext;
             m_timeoutDumpDirectory = timeoutDumpDirectory;
+
+            if (diagnosticsEnabled)
+            {
+                m_diagnosticsEnabled = true;
+                m_diagnostics = new StringBuilder();
+            }
         }
 
         /// <summary>
@@ -992,6 +1010,15 @@ namespace BuildXL.Processes.Internal
                 m_syncSemaphore.Dispose();
 
                 m_disposed = true;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void LogDiagnostics(string line)
+        {
+            if (m_diagnosticsEnabled)
+            {
+                m_diagnostics.AppendLine(line);
             }
         }
 

@@ -163,7 +163,8 @@ namespace BuildXL.Processes
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
                     setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
-                    info.CreateJobObjectForCurrentProcess);
+                    info.CreateJobObjectForCurrentProcess,
+                    info.DiagnosticsEnabled);
         }
 
         /// <inheritdoc />
@@ -698,6 +699,7 @@ namespace BuildXL.Processes
                     MessageProcessingFailure = m_reports?.MessageProcessingFailure,
                     ProcessStartTime = m_detouredProcess.StartTime,
                     HasReadWriteToReadFileAccessRequest = m_reports?.HasReadWriteToReadFileAccessRequest ?? false,
+                    DiagnosticMessage = m_detouredProcess.Diagnostics
                 };
 
             SetResult(result);

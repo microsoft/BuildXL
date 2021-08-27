@@ -111,6 +111,12 @@ namespace BuildXL.Processes
         /// </summary>
         public ContainerConfiguration ContainerConfiguration { get; }
 
+        /// <summary>
+        /// Enable diagnostics for this process. 
+        /// This will add additional information to the SandboxedProcessResult
+        /// </summary>
+        internal bool DiagnosticsEnabled { get; set; }
+
         /// <remarks>
         /// This constructor is never used in this project, but there exist external projects that
         /// compile against this assembly and already depend on this constructor.

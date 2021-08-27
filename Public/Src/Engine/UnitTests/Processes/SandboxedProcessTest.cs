@@ -80,7 +80,7 @@ namespace Test.BuildXL.Processes
         {
             var stdout = await result.StandardOutput.ReadValueAsync();
             var stderr = await result.StandardError.ReadValueAsync();
-            XAssert.IsFalse(result.Killed, "Process claims it or a child process was killed; exit code: {0}, stdout: '{1}', stderr: '{2}'.", result.ExitCode, stdout.Trim(), stderr.Trim());
+            XAssert.IsFalse(result.Killed, "Process claims it or a child process was killed; exit code: {0}, stdout: '{1}', stderr: '{2}'. Diagnostic information: \n {3}", result.ExitCode, stdout.Trim(), stderr.Trim(), result.DiagnosticMessage);
             XAssert.AreEqual(0, result.ExitCode, "Unexpected error code; stdout: '{0}', stderr: '{1}'", stdout, stderr);
             XAssert.AreEqual(string.Empty, stderr.Trim());
             XAssert.AreEqual(echoMessage, stdout.Trim());
@@ -98,6 +98,7 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.LogProcessDetouringStatus = true;
                 info.FileAccessManifest.ReportFileAccesses = true;
                 info.FileAccessManifest.ReportProcessArgs = true;
+                info.DiagnosticsEnabled = true;
 
                 var result = await RunProcess(info);
                 await CheckEchoProcessResult(result, echoMessage);
@@ -188,6 +189,7 @@ namespace Test.BuildXL.Processes
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo " + echoMessage,
                         WorkingDirectory = string.Empty,
+                        DiagnosticsEnabled = true,
                     };
 
                 var result = await RunProcess(info);
@@ -506,6 +508,7 @@ namespace Test.BuildXL.Processes
             const string echoMessage = "Hello from a child process";
             var spawnOperation = Operation.Spawn(Context.PathTable, waitToFinish, Operation.Echo(echoMessage));
             var info = ToProcessInfo(ToProcess(spawnOperation));
+            info.DiagnosticsEnabled = true;
             var result = await RunProcess(info);
 
             // no survivors
@@ -562,6 +565,7 @@ namespace Test.BuildXL.Processes
         {
             var echoMessage = "hi";
             var info = ToProcessInfo(EchoProcess(echoMessage), disableConHostSharing: disableConHostSharing);
+            info.DiagnosticsEnabled = true;
             SandboxedProcessResult result = await RunProcess(info);
             await CheckEchoProcessResult(result, echoMessage);
         }
@@ -604,11 +608,11 @@ namespace Test.BuildXL.Processes
                 Operation.Echo(s),
                 Operation.Echo(s)));
             info.MaxLengthInMemory = s.Length - 1;
-
+            info.DiagnosticsEnabled = true;
             var result = await RunProcess(info);
 
             XAssert.AreEqual(0, result.ExitCode);
-            XAssert.IsFalse(result.Killed);
+            XAssert.IsFalse(result.Killed, $"Process claims that it was killed. Diagnostic information: \n {result.DiagnosticMessage}");
             XAssert.IsFalse(result.StandardOutput.HasException);
             XAssert.IsTrue(result.StandardOutput.HasLength);
             XAssert.AreEqual(result.StandardOutput.Length, (s.Length + Environment.NewLine.Length) * 2);
@@ -643,6 +647,7 @@ namespace Test.BuildXL.Processes
                     [envVarName] = envVarValue
                 });
 
+            info.DiagnosticsEnabled = true;
             SandboxedProcessResult result = await RunProcess(info);
             await CheckEchoProcessResult(result, echoMessage: envVarValue);
         }
@@ -1153,6 +1158,7 @@ namespace Test.BuildXL.Processes
             var echoOp = Operation.Echo(echoMessage);
             var info = GetEchoProcessInfo(echoMessage);
             info.FileAccessManifest.ReportProcessArgs = reportProcessArgs;
+            info.DiagnosticsEnabled = true;
 
             var result = await RunProcess(info);
             await CheckEchoProcessResult(result, echoMessage);

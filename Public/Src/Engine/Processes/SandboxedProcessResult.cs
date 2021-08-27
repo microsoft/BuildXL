@@ -145,6 +145,14 @@ namespace BuildXL.Processes
         public bool MessageCountSemaphoreCreated { get; set; }
 
         /// <summary>
+        /// Diagnostic information. 
+        /// </summary>
+        /// <remarks>
+        /// For test purposes only
+        /// </remarks>
+        public string DiagnosticMessage { get; set; }
+
+        /// <summary>
         /// Serializes this instance to a given <paramref name="stream"/>.
         /// </summary>
         public void Serialize(Stream stream, Action<BuildXLWriter, AbsolutePath> writePath = null)

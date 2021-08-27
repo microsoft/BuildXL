@@ -1961,10 +1961,11 @@ namespace Test.BuildXL.Scheduler
             Setup();
             FileArtifact depArtifact1 = CreateSourceFile();
             FileArtifact outArtifact1 = CreateOutputFileArtifact();
+            FileArtifact outArtifact2 = CreateOutputFileArtifact(root: outArtifact1.Path.GetParent(Context.PathTable));
 
             Process process = CreateProcess(
                 new List<FileArtifact> { depArtifact1 },
-                new List<FileArtifact> { outArtifact1 });
+                new List<FileArtifact> { outArtifact1, outArtifact2 });
 
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsTrue(addProcess);
@@ -1982,8 +1983,11 @@ namespace Test.BuildXL.Scheduler
             bool existenceAsserted = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(processToo.DirectoryOutputs.Single(), outArtifact1.Path, out _);
             XAssert.IsFalse(existenceAsserted);
 
+            existenceAsserted = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(processToo.DirectoryOutputs.Single(), outArtifact2.Path, out _);
+            XAssert.IsFalse(existenceAsserted);
+
             // Static checks on declared outputs should work as usual
-            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite, 2);
         }
 
         [Fact]

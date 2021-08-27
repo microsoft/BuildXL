@@ -2050,7 +2050,7 @@ namespace BuildXL.Pips.Graph
                 using (LockManager.PathAccessGroupLock pathAccessLock = LockManager.AcquirePathAccessLock(fileArtifact))
                 {
                     // Check if the assertion was already made. In that case, just return successfully.
-                    if (OutputsUnderOpaqueExistenceAssertions.ContainsKey(outputDirectoryArtifact))
+                    if (OutputsUnderOpaqueExistenceAssertions.TryGet(outputDirectoryArtifact) is var result && result.IsFound && result.Item.Value.Contains(fileArtifact))
                     {
                         return true;
                     }

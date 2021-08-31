@@ -1,8 +1,9 @@
-// Example call for crashes over the past week:
-// CrashBugSummary(ago(7d), now())
-.create-or-alter function with (folder = "triage", docstring = "CrashBugSummary", skipvalidation = "true") CrashBugSummary(startDate:datetime, endDate:datetime)
-{
-let annotatedSessions = AnnotatedSessions(startDate, endDate);
+// CrashBugSummary({startDate},{endDate},{infra},{mSRReportable},{customer},{buildQueue},{buildInfo_Build},{stamp},{bucketGroup}) 
+.create-or-alter function with (folder = "triage", docstring = "CrashBugSummaryV2", skipvalidation = "true") CrashBugSummary(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", stamp:string="", bucketGroup:string="") {
+//let startDate = ago(7d);
+//let endDate = ago(0d);
+//let customer = "APEX";
+let annotatedSessions = AnnotatedSessions2(startDate, endDate, infra=infra, mSRReportable=mSRReportable, customer=customer, buildQueue=buildQueue, buildInfo_Build=buildInfo_Build, stamp=stamp, bucketGroup=bucketGroup);
 //
 //
 // *****
@@ -44,12 +45,12 @@ let crashSummary = unknownCrashSessions
 // *****
 // Bug work item info from Azure DevOps
 // *****
-let bugInfo = cluster('1es').database('VSTSAnalytics').WorkItemV2
-| where OrganizationName ==  "mseng.visualstudio.com" and TeamProject == "1ES"  
+let bugInfo = cluster('1es').database('AzureDevOps').WorkItem
+| where OrganizationName ==  "mseng" and TeamProject == "1ES"  
 | where AreaPath contains @"1ES\MichaelP - Team" or AreaPath contains @"1ES\DavidW - Team"
 | where WorkItemType == "Bug"
-| extend ResolvedDate = todatetime(strcat_array(extract_all(@"(\d{2})/(\d{2})/(\d{4})", dynamic([3, 1, 2]), tostring(Data["Microsoft.VSTS.Common.ResolvedDate"]))[0], "-"))
-| extend ClosedDate = todatetime(strcat_array(extract_all(@"(\d{2})/(\d{2})/(\d{4})", dynamic([3, 1, 2]), tostring(Data["Microsoft.VSTS.Common.ClosedDate"]))[0], "-"))
+| extend ResolvedDate = todatetime(strcat_array(extract_all(@"(\d{2})/(\d{2})/(\d{4})", dynamic([3, 1, 2]), extractjson('$.Microsoft.VSTS.Common.ResolvedDate', Data, typeof(string)))[0], "-"))
+| extend ClosedDate = todatetime(strcat_array(extract_all(@"(\d{2})/(\d{2})/(\d{4})", dynamic([3, 1, 2]), extractjson('$.Microsoft.VSTS.Common.ClosedDate', Data, typeof(string)))[0], "-"))
 | extend FixDate = iff(isnull(ResolvedDate), ClosedDate, ResolvedDate) // Prefer resolved date over closed date
 | project FixDate, Title, WorkItemId;
 //
@@ -69,11 +70,9 @@ let bugInfo = cluster('1es').database('VSTSAnalytics').WorkItemV2
 // Ignore => Ignore bug: Existing bug with FixDate where FixDate is before BuildVersionDate
 // -----
 // *****
-let crashBugSummary = crashSummary 
-| join kind = leftouter( bugInfo ) on $left.SuggestedBugName == $right.Title
+bugInfo | join kind = rightouter( crashSummary ) on $left.Title == $right.SuggestedBugName 
 | extend BugAction = iff(isnull(WorkItemId) or isempty(WorkItemId), "File", iff(isnull(FixDate), "Update", iff(FixDate < BuildVersionDate, "Reactivate", "Ignore")))
 | sort by BugAction, Count
-| project BugAction, WorkItemId, Count, SuggestedBugName, BugRepro;
-//
-crashBugSummary;
+| project BugAction, WorkItemId, Count, SuggestedBugName, BugRepro
+| order by Count desc;
 }

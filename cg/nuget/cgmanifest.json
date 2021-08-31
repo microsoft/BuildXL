@@ -1121,6 +1121,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.BannedApiAnalyzers",
+          "Version": "3.3.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.CSharp",
           "Version": "2.10.0"
         }
@@ -1429,6 +1438,15 @@
         "NuGet": {
           "Name": "Microsoft.IO.RecyclableMemoryStream",
           "Version": "1.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IO.Redist",
+          "Version": "4.7.1"
         }
       }
     },
@@ -1913,6 +1931,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.VisualStudio.ComponentModelHost",
+          "Version": "17.0.255-preview-ga4c683bf62"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.VisualStudio.Composition",
           "Version": "14.2.19-pre"
         }
@@ -1924,6 +1951,15 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.CoreUtility",
           "Version": "15.4.27004"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.GraphModel",
+          "Version": "17.0.0-previews-3-31605-261"
         }
       }
     },
@@ -1958,6 +1994,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.VisualStudio.Interop",
+          "Version": "17.0.0-previews-3-31605-261"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.VisualStudio.LanguageServer.Protocol",
           "Version": "16.3.57"
         }
@@ -1977,6 +2022,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.ProjectAggregator",
+          "Version": "17.0.0-previews-3-31605-261"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.ProjectAggregator",
           "Version": "8.0.50728"
         }
       }
@@ -1987,6 +2041,33 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.ProjectSystem",
           "Version": "14.1.127-pre"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.ProjectSystem",
+          "Version": "17.0.667-pre"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.RemoteControl",
+          "Version": "16.3.41"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.SDK.Analyzers",
+          "Version": "16.10.10"
         }
       }
     },
@@ -2076,7 +2157,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Shell.15.0",
-          "Version": "15.8.28010"
+          "Version": "17.0.0-previews-3-31605-261"
         }
       }
     },
@@ -2086,6 +2167,15 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Shell.Framework",
           "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Framework",
+          "Version": "17.0.0-previews-3-31605-261"
         }
       }
     },
@@ -2122,6 +2212,15 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Shell.Immutable.14.0",
           "Version": "15.0.25405"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop",
+          "Version": "17.0.0-previews-3-31605-261"
         }
       }
     },
@@ -2210,6 +2309,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.VisualStudio.Telemetry",
+          "Version": "16.3.198"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.VisualStudio.Text.Data",
           "Version": "15.8.525"
         }
@@ -2282,6 +2390,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.VisualStudio.Threading",
+          "Version": "17.0.32-alpha"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.VisualStudio.Threading.Analyzers",
           "Version": "16.9.60"
         }
@@ -2293,6 +2410,15 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Utilities",
           "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Utilities.Internal",
+          "Version": "16.3.23"
         }
       }
     },

@@ -77,6 +77,37 @@ namespace BuildXL.VsPackage.VsProject
             return manager.Build(new BuildParameters(), new BuildRequestData(instance, new[] { target }));
         }
 
+#if Dev17
+        private Task<BuildResult> BuildProjectAsync(CancellationToken cancellationToken)
+        {
+
+            return ProjectLockService.ReadLockAsync(
+                async readLock =>
+                {
+                    var project = await readLock.GetProjectAsync(ConfiguredProject, cancellationToken);
+                    var projectName = project.FullPath;
+
+                    var buildFilter = project.Xml.Properties.Where(a => a.Name == Constants.DominoBuildFilterProp).Select(a => a.Value).FirstOrDefault();
+                    if (buildFilter == null)
+                    {
+                        // Some BuildXL native projects do not have the output directory because they do not call linker. It means that the other native projects will build them. That's why, just return 'success' for those projects.
+                        return BuildSuccessResult;
+                    }
+
+                    // Building native projects does not use the BuildFilter even if it is given. We just use the spec file filtering for those.
+                    var specFile = project.Xml.Properties.Where(a => a.Name == Constants.DominoSpecFileProp).Select(a => a.Value).FirstOrDefault();
+                    if (specFile != null)
+                    {
+                        var result = await BuildManagerHolder.BuildManager.BuildProjectAsync(projectName, SpecUtilities.GenerateSpecFilter(specFile));
+                        return result ? BuildSuccessResult : BuildFailResult;
+                    }
+
+                    return BuildFailResult;
+
+                },
+                cancellationToken);
+        }
+#else
         private async Task<BuildResult> BuildProjectAsync(CancellationToken cancellationToken)
         {
             using (var readLock = await ProjectLockService.ReadLockAsync(cancellationToken))
@@ -102,6 +133,7 @@ namespace BuildXL.VsPackage.VsProject
                 return BuildFailResult;
             }
         }
+#endif
 
         public bool IsCancelable => true;
 

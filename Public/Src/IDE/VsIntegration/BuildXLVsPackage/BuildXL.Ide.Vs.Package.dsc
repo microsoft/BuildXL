@@ -10,17 +10,17 @@ namespace BuildXLVsPackage {
         assemblyName: "BuildXLVsPackage",
         rootNamespace: "BuildXL.VsPackage",
         skipDocumentationGeneration: false,
-        sources: globR(d`.`, "*.cs"),
+        sources: globR(d`../BuildXLVsPackageShared`, "*.cs"),
 
         // Disabling runtime contracts to avoid redundant dependency.
         contractsLevel: Contracts.ContractsLevel.disabled,
         embeddedResources: [
             {
-                resX: f`Resources/MessageDialog.resx`, 
+                resX: f`../BuildXLVsPackageShared/Resources/MessageDialog.resx`, 
                 generatedClassMode: "explicit",
             },
             {
-                resX: f`Strings.resx`,
+                resX: f`../BuildXLVsPackageShared/Strings.resx`,
             },
             {
                 linkedContent: [
@@ -34,28 +34,28 @@ namespace BuildXLVsPackage {
             NetFx.Microsoft.Build.Engine.dll,
             NetFx.Microsoft.Build.Framework.dll,
 
-            importFrom("Microsoft.VisualStudio.ComponentModelHost").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Framework").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Interop").pkg,
+            importFrom("Microsoft.VisualStudio.ComponentModelHost.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Framework.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Interop.Legacy").pkg,
             importFrom("Microsoft.VisualStudio.Shell.Interop.8.0").pkg,
             importFrom("Microsoft.VisualStudio.Shell.Interop.9.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Interop.10.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Interop.11.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Interop.12.0").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Interop.10.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Interop.11.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Interop.12.0.Legacy").pkg,
             importFrom("Microsoft.VisualStudio.Shell.Interop.14.0.DesignTime").pkg,
-            importFrom("Microsoft.VisualStudio.TextManager.Interop").pkg,
-            importFrom("Microsoft.VisualStudio.TextManager.Interop.8.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Immutable.10.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Immutable.11.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Immutable.12.0").pkg,
-            importFrom("Microsoft.VisualStudio.Shell.Immutable.14.0").pkg,
-            importFrom("Microsoft.VisualStudio.ProjectAggregator").pkg,
-            importFrom("EnvDTE").pkg,
-            importFrom("EnvDTE80").pkg,
-            importFrom("VSLangProj").pkg,
-            importFrom("VSLangProj2").pkg,
+            importFrom("Microsoft.VisualStudio.TextManager.Interop.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.TextManager.Interop.8.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Immutable.10.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Immutable.11.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Immutable.12.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.Shell.Immutable.14.0.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.ProjectAggregator.Legacy").pkg,
+            importFrom("EnvDTE.Legacy").pkg,
+            importFrom("EnvDTE80.Legacy").pkg,
+            importFrom("VSLangProj.Legacy").pkg,
+            importFrom("VSLangProj2.Legacy").pkg,
             // The following don't declare the nuget version to use
-            Managed.Factory.createBinary(importFrom("Microsoft.VisualStudio.OLE.Interop").Contents.all, r`lib/Microsoft.VisualStudio.OLE.Interop.dll`),
+            Managed.Factory.createBinary(importFrom("Microsoft.VisualStudio.OLE.Interop.Legacy").Contents.all, r`lib/Microsoft.VisualStudio.OLE.Interop.dll`),
             Managed.Factory.createBinary(importFrom("Microsoft.VisualStudio.Shell.14.0").Contents.all, r`lib/Microsoft.VisualStudio.Shell.14.0.dll`),
 
             NetFx.System.ComponentModel.Composition.dll,
@@ -65,8 +65,8 @@ namespace BuildXLVsPackage {
             NetFx.System.Xml.dll,
             NetFx.System.Xml.Linq.dll,
             importFrom("System.Collections.Immutable").pkg,
-            importFrom("Microsoft.VisualStudio.Threading").pkg,
-            importFrom("Microsoft.VisualStudio.ProjectSystem").pkg,
+            importFrom("Microsoft.VisualStudio.Threading.Legacy").pkg,
+            importFrom("Microsoft.VisualStudio.ProjectSystem.Legacy").pkg,
             importFrom("Microsoft.VisualStudio.Composition").pkg,
         ],
     });
@@ -74,7 +74,7 @@ namespace BuildXLVsPackage {
     const deployment: Deployment.Definition = {
         contents: [
             f`extension.vsixmanifest`,
-            f`Resources/[Content_Types].xml`,
+            f`../BuildXLVsPackageShared/Resources/[Content_Types].xml`,
             f`BuildXLVsPackage.pkgdef`,
             dll.runtime,
             {

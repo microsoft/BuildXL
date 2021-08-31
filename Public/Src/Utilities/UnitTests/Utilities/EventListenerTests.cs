@@ -465,6 +465,14 @@ namespace Test.BuildXL.Utilities
                 XAssert.AreEqual(1, listener.InternalErrorDetails.Count);
                 XAssert.AreEqual("ErrorEvent", listener.InternalErrorDetails.FirstErrorName);
             }
+
+            using (var listener = new TrackingEventListener(Events.Log))
+            {
+                listener.RegisterEventSource(TestEvents.Log);
+                string testMessage = "message";
+                TestEvents.Log.CriticalEvent(testMessage);
+                XAssert.IsTrue(listener.InternalErrorDetails.FirstErrorMessage.Contains(testMessage));
+            }
         }
 
         [EventSource(Name = "TestSource")]

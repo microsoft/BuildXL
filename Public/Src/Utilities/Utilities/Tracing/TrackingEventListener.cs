@@ -183,7 +183,8 @@ namespace BuildXL.Utilities.Tracing
             long keywords = (long)eventData.Keywords;
             string eventName = eventData.EventName;
 
-            BucketError(keywords, eventName, eventData.Message);
+            string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, m_baseTime, useCustomPipDescription: false);
+            BucketError(keywords, eventName, eventMessage);
             Interlocked.Increment(ref m_numCriticals);
         }
 

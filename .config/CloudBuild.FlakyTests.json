@@ -38,7 +38,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'success', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/e1be25f6-2b43-2877-90b0-b057ae618cd1",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.EnvironmentVariables": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.EnvironmentVariables",
@@ -50,7 +50,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'success', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.LargeStandardOutputToFile": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.LargeStandardOutputToFile",
@@ -62,7 +62,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "assert.false() failure expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: False)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: False)",
@@ -74,7 +74,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "assert.null() failure expected: (null) actual: reportedprocess[] [reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }, reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }]"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: True)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.QuickSurvivors(waitToFinish: True)",
@@ -86,7 +86,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "assert.null() failure expected: (null) actual: reportedprocess[] [reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }, reportedprocess { creationtime = #DATE#z, exitcode = #HEX#, exittime = #DATE#z, iocounters = buildxl.native.io.iocounters, kerneltime = #NUM#:#NUM#:#NUM#, ... }]"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: False)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: False)",
@@ -98,7 +98,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'test', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: True)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.ReportProcessCommandLineArgs(reportProcessArgs: True)",
@@ -110,7 +110,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'test', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: False)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: False)",
@@ -122,7 +122,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'hi', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         },
         "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: True)": {
           "Name": "Test.BuildXL.Processes.SandboxedProcessTest.UseDisabledAndEnabledConHostSharing(disableConHostSharing: True)",
@@ -134,7 +134,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "process claims it or a child process was killed; exit code: #NUM#, stdout: 'hi', stderr: ''. expected: false actual: true"
           ],
           "SessionUri": "https://cloudbuild.microsoft.com/build/679fb135-6071-5b10-be90-5090f514eb8b",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2021-09-01T03:00:32.4861896Z"
         }
       },
       "Metadata": {

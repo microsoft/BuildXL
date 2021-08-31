@@ -294,7 +294,12 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
         ),
-        Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
+        // Zip sandbox only when inside CloudBuild or when environment variable is specifically set for local build.
+        Cmd.flag(
+            "--zipSandbox",
+            Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD") ||
+            (Environment.hasVariable("[Sdk.BuildXL]qTestZipSandbox") && Environment.getBooleanValue("[Sdk.BuildXL]qTestZipSandbox"))
+        ),
         Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions),

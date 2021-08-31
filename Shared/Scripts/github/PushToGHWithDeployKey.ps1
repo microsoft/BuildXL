@@ -1,3 +1,12 @@
+Param(
+ [Parameter(mandatory=$true)]
+ [String]$privateKey,
+ [Parameter(mandatory=$true)]
+ [String]$publicKey,
+ [Parameter(mandatory=$true)]
+ [String]$knownHostsSecureFilePath
+)
+
 # Creates a backup of a given file
 function Backup-File {
     param([string]$filePath);
@@ -51,8 +60,6 @@ if (!(Test-Path $sshDirectory)) {
 # ----------Private Key----------
 # Get private key from keyvault, and write it to file under .ssh
 # Keys must have unix line endings
-$privateKey = "$(Key-Github-DeployKey-PrivateKey)"
-
 $header = "-----BEGIN OPENSSH PRIVATE KEY----- "
 $footer = "-----END OPENSSH PRIVATE KEY-----"
 
@@ -65,13 +72,12 @@ Backup-And-Write-Content $privateKeyFile $privateKey
 
 # ----------Public Key----------
 # Write public key from key vault
-$publicKey = "$(Key-Github-DeployKey-PublicKey)"
 Backup-And-Write-Content $publicKeyFile $publicKey
 
 # ----------Known Hosts----------
 # known_hosts file is stored as a secure file for the pipeline
 Backup-File $knownHostsFile
-Move-Item $(File_Known_Hosts.secureFilePath) $knownHostsFile
+Move-Item $knownHostsSecureFilePath $knownHostsFile
 
 # ----------Push to GH----------
 & "c:\program files\git\bin\git" "push" "git@github.com:microsoft/BuildXL.git" "HEAD:master" "--force" "--verbose" | Write-Output
@@ -92,5 +98,5 @@ else {
 }
 
 if ($gitExitCode -ne "0") {
-    Write-Error "Force push to Github failed with exit code $($gitExitCode)" -ErrorAction Stop
+    Write-Error "Force push to Github failed with exit code $gitExitCode" -ErrorAction Stop
 }

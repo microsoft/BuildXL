@@ -746,6 +746,9 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // Start with an empty cache for closest present dependencies
             var closestDependenciesCache = new Dictionary<(string name, string command), HashSet<JavaScriptProject>>();
+            // Used to make sure a cycle in the package-to-package graph (that will be caught later in ProjectGraphToPipGraphConstructor.TrySchedulePipsForFilesAsync)
+            // does not induce a cycle when looking for closest dependencies of absent commands.
+            var cycleDetector = new HashSet<(string name, string command)>();
 
             // Now resolve dependencies
             foreach (var kvp in resolvedProjects)
@@ -775,7 +778,8 @@ namespace BuildXL.FrontEnd.JavaScript
                                     projectDependencies, 
                                     closestDependenciesCache, 
                                     resolvedCommandGroupMembership,
-                                    commandGroupMembership);
+                                    commandGroupMembership,
+                                    cycleDetector);
                             }
                             else
                             {
@@ -810,7 +814,8 @@ namespace BuildXL.FrontEnd.JavaScript
                                         projectDependencies, 
                                         closestDependenciesCache, 
                                         resolvedCommandGroupMembership,
-                                        commandGroupMembership);
+                                        commandGroupMembership,
+                                        cycleDetector);
                                 }
                                 else
                                 {
@@ -909,8 +914,17 @@ namespace BuildXL.FrontEnd.JavaScript
             HashSet<JavaScriptProject> closestDependencies,
             Dictionary<(string name, string command), HashSet<JavaScriptProject>> closestDependenciesCache,
             Dictionary<JavaScriptProject, JavaScriptProject> resolvedCommandGroupMembership,
-            Dictionary<string, string> commandGroupMembership)
+            Dictionary<string, string> commandGroupMembership,
+            HashSet<(string projectName, string command)> cycleDetector)
         {
+            // If we are seeing the same project/command being resolved, that means there is a cycle in the project-to-project graph.
+            // The cycle will be properly detected and communicated when building the pip graph if present script commands actually realize it.
+            // We break the cycle here by just not adding any closest present dependencies for that script command.
+            if (cycleDetector.Contains((projectName, command)))
+            {
+                return;
+            }
+
             // Check the cache to see if we resolved this project/command before
             if (closestDependenciesCache.TryGetValue((projectName, command), out var closestCachedDependencies))
             {
@@ -919,6 +933,7 @@ namespace BuildXL.FrontEnd.JavaScript
             }
 
             closestCachedDependencies = new HashSet<JavaScriptProject>();
+            cycleDetector.Add((projectName, command));
 
             // The assumption is that projectName and command represent an absent project
             // Get all its dependencies to retrieve the 'frontier' of present projects
@@ -938,7 +953,8 @@ namespace BuildXL.FrontEnd.JavaScript
                             closestCachedDependencies, 
                             closestDependenciesCache, 
                             resolvedCommandGroupMembership,
-                            commandGroupMembership);
+                            commandGroupMembership,
+                            cycleDetector);
                     }
                     else
                     {
@@ -961,7 +977,8 @@ namespace BuildXL.FrontEnd.JavaScript
                                 closestCachedDependencies, 
                                 closestDependenciesCache, 
                                 resolvedCommandGroupMembership,
-                                commandGroupMembership);
+                                commandGroupMembership,
+                                cycleDetector);
                         }
                         else
                         {
@@ -974,6 +991,7 @@ namespace BuildXL.FrontEnd.JavaScript
             // Populate the result and update the cache
             closestDependencies.AddRange(closestCachedDependencies);
             closestDependenciesCache[(projectName, command)] = closestCachedDependencies;
+            cycleDetector.Remove((projectName, command));
         }
 
         /// <summary>

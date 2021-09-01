@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Utilities.Configuration;
@@ -269,6 +270,29 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.True(IsDependencyAndDependent(p5, p1));
         }
 
+        [Theory]
+        [MemberData(nameof(ProjectCycles))]
+        public void CyclesOnAbsentCommandsAreProperlyHandled(params (string projectName, string projectFolder, string[] dependencies)[] projects)
+        {
+            // Define a cycle between projects. All projects only have the default 'build' script command. 'webpack' is missing in all.
+            // Here we are making sure that searching for the closest present dependencies of 'webpack' does not induce a stack overflow and the missing script is just ignored
+            // The cycle is caught afterwards.
+            var build = Build(executeCommands: "[{commandName: 'build-and-webpack', commands:['build', 'webpack'], dependsOn:[{command: 'build', kind: 'package'}, {command: 'webpack', kind: 'package'}]}]");
+
+            foreach (var project in projects)
+            {
+                build.AddJavaScriptProject(project.projectName, project.projectFolder, dependencies: project.dependencies);
+            }
+
+            var config = build.PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, projects.Select(project => (project.projectFolder, project.projectName)).ToArray());
+
+            // We should get a cycle
+            Assert.False(result.IsSuccess);
+            AssertErrorEventLogged(LogEventId.ProjectGraphConstructionError);
+        }
+
         private BuildXLEngineResult BuildDummyWithCommands(string commands)
         {
             var config = Build(executeCommands: commands)
@@ -278,6 +302,19 @@ namespace Test.BuildXL.FrontEnd.Rush
             return RunRushProjects(config, new[] {
                 ("src/A", "@ms/project-A")
             });
+        }
+
+        private static IEnumerable<object[]> ProjectCycles() 
+        {
+            return new List<object[]> 
+            {
+                // A -> B -> C -> A
+                new object[] { ("@ms/project-A", "src/A", new[] { "@ms/project-B" }), ("@ms/project-B", "src/B", new[] { "@ms/project-C" }), ("@ms/project-C", "src/C", new[] { "@ms/project-A" }) },
+                // A <-> B
+                new object[] { ("@ms/project-A", "src/A", new[] { "@ms/project-B" }), ("@ms/project-B", "src/B", new[] { "@ms/project-A" }) },
+                // A -> A
+                new object[] { ("@ms/project-A", "src/A", new[] { "@ms/project-A" })}
+            };
         }
     }
 }

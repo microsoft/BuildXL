@@ -17,7 +17,7 @@ using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Threading;
-
+using System.Diagnostics.ContractsLight;
 
 namespace Test.BuildXL.Distribution
 {
@@ -37,27 +37,27 @@ namespace Test.BuildXL.Distribution
 
         void IWorkerNotificationManager.Cancel()
         {
-            CancelCalls++;
+            Interlocked.Increment(ref CancelCalls);
         }
 
         void IWorkerNotificationManager.Exit()
         {
-            ExitCalls++;
+            Interlocked.Increment(ref ExitCalls);
         }
 
         void IWorkerNotificationManager.ReportEventMessage(EventMessage eventMessage)
         {
-            ReportEventMessageCalls++;
+            Interlocked.Increment(ref ReportEventMessageCalls);
         }
 
         void IWorkerNotificationManager.ReportResult(ExtendedPipCompletionData pipCompletion)
         {
-            ReportResultCalls++;
+            Interlocked.Increment(ref ReportResultCalls);
         }
 
         void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer)
         {
-            StartCalls++;
+            Interlocked.Increment(ref StartCalls);
         }
     }
 
@@ -73,9 +73,12 @@ namespace Test.BuildXL.Distribution
 
         public WorkerPipExecutionServiceMock(LoggingContext loggingContext) => m_loggingContext = loggingContext;
 
-        public void WaitForPendingRequests()
+        public void WaitForPendingRequests(int expectedCount, TimeSpan? timeout = null)
         {
-            SpinWait.SpinUntil(() => m_ongoingRequests == 0);
+            var maxWait = timeout ?? TimeSpan.FromSeconds(20);  // Let's not hang
+            var timeoutTask = Task.Delay(maxWait);
+            SpinWait.SpinUntil(() => (m_ongoingRequests == 0 && m_finishedRequests == expectedCount) || timeoutTask.IsCompleted);
+            Contract.Assert(!timeoutTask.IsCompleted, $"Timed out waiting for pending requests. Finished requests: {m_finishedRequests}. Expected: {expectedCount}. Ongoing {m_ongoingRequests}");
         }
 
         // Interface methods

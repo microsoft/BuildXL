@@ -120,10 +120,10 @@ namespace Test.BuildXL.Distribution
                 Interlocked.Add(ref m_processedRequests, count);
             }
 
-            public void WaitForRequestsToBeProcessed()
+            public void WaitForRequestsToBeProcessed(int expectedCount, TimeSpan? timeout = null)
             {
                 SpinWait.SpinUntil(() => m_receivedRequests == m_processedRequests);
-                PipExecutionService.WaitForPendingRequests();
+                PipExecutionService.WaitForPendingRequests(expectedCount, timeout);
             }
         }
     }

@@ -5,10 +5,10 @@ using System;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Configuration;
+using System.Collections.Generic;
 
 namespace Test.BuildXL.Distribution
 {
@@ -56,14 +56,14 @@ namespace Test.BuildXL.Distribution
             // Send same gRPC message twice
             testRun.ReceiveBuildRequest(buildRequest);
             testRun.ReceiveBuildRequest(buildRequest);
-            testRun.WaitForRequestsToBeProcessed();
+            testRun.WaitForRequestsToBeProcessed(expectedCount: 2);
 
             // We should only see two pip results reported
             Assert.Equal(2, testRun.NotificationManager.ReportResultCalls);
 
             testRun.ReceiveBuildRequest((3, PipExecutionStep.CacheLookup), (4, PipExecutionStep.CacheLookup));
             testRun.ReceiveBuildRequest(buildRequest);
-            testRun.WaitForRequestsToBeProcessed();
+            testRun.WaitForRequestsToBeProcessed(expectedCount: 4);
             
             // Only the two new ones should be added
             Assert.Equal(4, testRun.NotificationManager.ReportResultCalls);
@@ -80,7 +80,7 @@ namespace Test.BuildXL.Distribution
             var testRun = await CreateRunAttachAndStart();
 
             testRun.ReceiveBuildRequest((1, PipExecutionStep.MaterializeOutputs), (2, PipExecutionStep.MaterializeOutputs));
-            testRun.WaitForRequestsToBeProcessed();
+            testRun.WaitForRequestsToBeProcessed(expectedCount: 2);
 
             testRun.ReceiveExitCallFromOrchestator();
             await testRun.EndRunAsync();
@@ -97,7 +97,7 @@ namespace Test.BuildXL.Distribution
 
             testRun.PipExecutionService.StepsToFail.Add((1, PipExecutionStep.CacheLookup));
             testRun.ReceiveBuildRequest((1, PipExecutionStep.CacheLookup), (2, PipExecutionStep.CacheLookup));
-            testRun.WaitForRequestsToBeProcessed();
+            testRun.WaitForRequestsToBeProcessed(expectedCount: 2);
 
             testRun.ReceiveExitCallFromOrchestator();
 
@@ -114,7 +114,7 @@ namespace Test.BuildXL.Distribution
             var testRun = await CreateRunAttachAndStart();
 
             testRun.ReceiveBuildRequest((1, PipExecutionStep.CacheLookup), (2, PipExecutionStep.CacheLookup));
-            testRun.WaitForRequestsToBeProcessed();
+            testRun.WaitForRequestsToBeProcessed(expectedCount: 2);
 
             testRun.ReceiveExitCallFromOrchestator(isFailed: true);
 

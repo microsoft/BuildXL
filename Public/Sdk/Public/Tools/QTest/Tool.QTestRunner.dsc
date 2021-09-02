@@ -46,8 +46,7 @@ const defaultArgs: QTestArguments = {
 const enum CoverageOptions {
     None,
     DynamicFull,
-    DynamicChangeList,
-    Custom
+    DynamicChangeList
 }
 
 function getCodeCoverageOption(args: QTestArguments): CoverageOptions {
@@ -69,8 +68,6 @@ function getCodeCoverageOption(args: QTestArguments): CoverageOptions {
                 return CoverageOptions.DynamicChangeList;
             case CoverageOptions.DynamicFull.toString():
                 return CoverageOptions.DynamicFull;
-            case CoverageOptions.Custom.toString():
-                return CoverageOptions.Custom;
             default:
                 return CoverageOptions.None;
         }
@@ -78,16 +75,6 @@ function getCodeCoverageOption(args: QTestArguments): CoverageOptions {
 
     return CoverageOptions.None;
 }
-
-function getQCodeCoverageEnumType(coverageOption: CoverageOptions): string {
-    switch(coverageOption) {
-        case CoverageOptions.DynamicChangeList:
-        case CoverageOptions.DynamicFull:
-            return dynamicCodeCovString;
-        default:
-            return coverageOption.toString();
-    }
- }
 
 function qTestTypeToString(args: QTestArguments) : string {
     switch (args.qTestType) {
@@ -238,21 +225,7 @@ export function runQTest(args: QTestArguments): Result {
         ? jsProject.projectFolder
         : Context.getNewOutputDirectory("sandbox");
 
-    let qCodeCoverageEnumType : string = CoverageOptions.None.toString();
-    let codeCoverageOption = getCodeCoverageOption(args);
-    let changeAffectedInputListWrittenFile = undefined;
-    if (codeCoverageOption === CoverageOptions.DynamicChangeList) {
-        const parentDir = d`${logDir}`.parent;
-        const leafDir = d`${logDir}`.nameWithoutExtension;
-        const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
-        changeAffectedInputListWrittenFile = p`${dir}/fileWithImpactedTargets.txt`;
-        changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
-    }
-
-    qCodeCoverageEnumType = getQCodeCoverageEnumType(codeCoverageOption);
-
-    // Keep this for dev build. Office has a requirement to run code coverage for dev build and open the result with VS.
-    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;
+    let qCodeCoverageEnumType = CoverageOptions.None.toString();
 
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
@@ -263,7 +236,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option(
             "--qTestLogsDir ",
             isJSProject
-            ? Artifact.sharedOpaqueOutput(logDir)
+            ? Artifact.none(logDir)
             : Artifact.output(logDir)
         ),
         Cmd.option(
@@ -294,12 +267,7 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
         ),
-        // Zip sandbox only when inside CloudBuild or when environment variable is specifically set for local build.
-        Cmd.flag(
-            "--zipSandbox",
-            Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD") ||
-            (Environment.hasVariable("[Sdk.BuildXL]qTestZipSandbox") && Environment.getBooleanValue("[Sdk.BuildXL]qTestZipSandbox"))
-        ),
+        Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions),
@@ -312,8 +280,6 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--doNotFailForZeroTestCases", args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotFailForZeroTestCases),
         Cmd.flag("--qTestHonorTrxResultSummary", args.qTestHonorTrxResultSummary),
         Cmd.option("--qTestParserType ", args.qTestParserType),
-        Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
-        Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),
         Cmd.option("--AzureDevOpsLogUploadMode ", args.qTestAzureDevOpsLogUploadMode)
     ];
 
@@ -324,7 +290,7 @@ export function runQTest(args: QTestArguments): Result {
                 Artifact.none(sandboxDir)
             ),
             Cmd.flag("--inPlaceTestExecution", true),
-            Cmd.flag("--isManaged", false)
+            Cmd.flag("--isManaged", false),
         ];
 
         commandLineArgs = commandLineArgs.concat(jsProjectArguments);
@@ -337,6 +303,21 @@ export function runQTest(args: QTestArguments): Result {
         // Files passed through qTestDirToDeploy or qTestInputs argument are recorded in
         // a manifest file that QTest will then use to generate fresh sandboxes for new runs.
         let inputsFile = createInputsManifest(args);
+
+        let codeCoverageOption = getCodeCoverageOption(args);
+        let changeAffectedInputListWrittenFile = undefined;
+        if (codeCoverageOption === CoverageOptions.DynamicChangeList) {
+            const parentDir = d`${logDir}`.parent;
+            const leafDir = d`${logDir}`.nameWithoutExtension;
+            const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
+            changeAffectedInputListWrittenFile = p`${dir}/fileWithImpactedTargets.txt`;
+            changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
+        }
+    
+        qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? dynamicCodeCovString :  CoverageOptions.None.toString();
+    
+        // Keep this for dev build. Office has a requirement to run code coverage for dev build and open the result with VS.
+        qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;
 
         let dotnetProjectArguments: Argument[] = [
             Cmd.option(
@@ -358,6 +339,8 @@ export function runQTest(args: QTestArguments): Result {
                     ? Artifact.input(args.vstestSettingsFileForCoverage)
                     : Artifact.input(args.vstestSettingsFile)
             ),
+            Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
+            Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),
         ];
 
         commandLineArgs = commandLineArgs.concat(dotnetProjectArguments);
@@ -440,7 +423,8 @@ export function runQTest(args: QTestArguments): Result {
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
 
     // If code coverage is enabled, schedule a pip that will perform coverage file upload.
-    if (qCodeCoverageEnumType === dynamicCodeCovString || qCodeCoverageEnumType === CoverageOptions.Custom.toString()) {
+    // Code Coverage file upload is currently only supported for non-JavaScript targets.
+    if (qCodeCoverageEnumType === dynamicCodeCovString && !isJSProject) {
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;
@@ -448,13 +432,12 @@ export function runQTest(args: QTestArguments): Result {
         let qtestCodeCovUploadTempDirectory = Context.getTempDirectory("qtestCodeCovUpload");
 
         const commandLineArgsForUploadPip: Argument[] = [
-            Cmd.option("--qTestLogsDir ", isJSProject? Artifact.none(coverageLogDir) : Artifact.output(coverageLogDir)),
+            Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
             Cmd.option("--qTestContextInfo ", Artifact.none(qTestContextInfoFile)),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
             Cmd.flag("--logging", true),
-            Cmd.option("--buildPlatform ", qTestPlatformToString(args.qTestPlatform)),
-            Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType)
+            Cmd.option("--buildPlatform ", qTestPlatformToString(args.qTestPlatform))
         ];
 
         Transformer.execute({

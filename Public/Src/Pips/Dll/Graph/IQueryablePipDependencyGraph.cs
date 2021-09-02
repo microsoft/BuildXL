@@ -25,7 +25,12 @@ namespace BuildXL.Pips.Graph
         /// Tries to find a producer of the given path (i.e., artifact with the highest rewrite count) that
         /// satisfies an optional ordering filter. Returns null if a corresponding pip is not found.
         /// </summary>
-        Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? orderingFilter = null);
+        /// <remarks>
+        /// Observe this method is based on the information on the pip graph exclusively, and therefore dynamic outputs (i.e. outputs under an opaque directory) are not considered.
+        /// For back compat reasons (some analyzers may depend on this behavior), setting <paramref name="includeFilesUnderExclusiveOpaques"/> will perform a search on exclusive
+        /// opaque producers checking whether the root of the opaque includes the given path. This query may result in false positives when the given path was not actually produced.
+        /// </remarks>
+        Pip TryFindProducer(AbsolutePath path, VersionDisposition versionDisposition, DependencyOrderingFilter? orderingFilter = null, bool includeFilesUnderExclusiveOpaques = false);
 
         /// <summary>
         /// Hydrates the pip from the pip id.

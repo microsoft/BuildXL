@@ -60,7 +60,7 @@ namespace Test.BuildXL.Scheduler
             m_concurrentStop = stopValue;
         }
 
-        public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter = null)
+        public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter = null, bool includeExclusiveOpaques = true)
         {
             Pip producer;
             if (!m_pathProducers.TryGetValue(producedPath, out producer))

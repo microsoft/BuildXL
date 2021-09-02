@@ -35,10 +35,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             var opaqueOutput = CreateOutputDirectoryArtifact();
             var outputWithinOpaque = CreateOutputFileArtifact(opaqueOutput.Path.ToString(Context.PathTable));
 
-            // Make sure the opaque output exists before perfoming the build and that concurrency is limited to 1
-            // process pip. This ensures that the reader of the opaque output file will always fail due to the disallowed
-            // access. The actual order they run in is not controlable externally, but that doesn't matter because the
-            // dependency violation analysis depends on the graph rather than runtime order to catch the violation.
             Directory.CreateDirectory(opaqueOutput.Path.ToString(Context.PathTable));
             File.WriteAllText(outputWithinOpaque.Path.ToString(Context.PathTable), "content");
             Configuration.Schedule.MaxProcesses = 1;
@@ -50,7 +46,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             });
             builderA.AddOutputDirectory(opaqueOutput, SealDirectoryKind.Opaque);
-            SchedulePipBuilder(builderA);
+            var writer = SchedulePipBuilder(builderA);
 
             var builderB = CreatePipBuilder(new Operation[]
             {
@@ -58,9 +54,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.ReadFile(outputWithinOpaque, doNotInfer:true)
             });
 
-            SchedulePipBuilder(builderB);
+            var reader = SchedulePipBuilder(builderB);
 
-            ScheduleRunResult result = RunScheduler().AssertFailure();
+            ScheduleRunResult result = RunScheduler(constraintExecutionOrder: new[] { ((Pip)writer.Process, (Pip)reader.Process)}).AssertFailure();
 
             AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
             AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
@@ -97,7 +93,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
             AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationUndeclaredOrderedRead);
+            AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationReadRace);
         }
 
 

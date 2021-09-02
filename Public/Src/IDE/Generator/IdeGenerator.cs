@@ -206,7 +206,7 @@ namespace BuildXL.Ide.Generator
                     {
                         var referencePath = reference.Key;
                         var referenceName = referencePath.GetName(m_context.PathTable).RemoveExtension(m_context.StringTable);
-                        var pip = m_context.PipGraph.TryFindProducer(referencePath, VersionDisposition.Latest, null);
+                        var pip = m_context.PipGraph.TryFindProducer(referencePath, VersionDisposition.Latest, null, includeFilesUnderExclusiveOpaques: true);
                         var producerSpecFilePath = pip?.Provenance?.Token.Path;
                         MsbuildFile referencedMsbuildFile;
                         if (producerSpecFilePath.HasValue && msbuildFilesBySpecFiles.TryGetValue(producerSpecFilePath.Value, out referencedMsbuildFile) && referencedMsbuildFile != msbuildFile)

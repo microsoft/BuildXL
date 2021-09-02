@@ -258,6 +258,27 @@ namespace IntegrationTest.BuildXL.Scheduler
             var source = CreateSourceFile(exclusiveOpaqueRoot);
 
             // Read the source file
+            var reader = ScheduleProcessWithUndeclaredReads(source);
+
+            // Create an exclusive opaque that produces the same file
+            var builder = CreatePipBuilder(new List<Operation>() { Operation.WriteFile(source, doNotInfer: true) });
+            var exclusiveOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(Context.PathTable, exclusiveOpaqueRoot);
+            builder.AddOutputDirectory(exclusiveOpaqueDirectoryArtifact, SealDirectoryKind.Opaque);
+            var writer = SchedulePipBuilder(builder);
+
+            // A violation should be detected when reading the produced output as a source file
+            // Force an execution order to avoid write locks 
+            RunScheduler(constraintExecutionOrder: new[] { ((Pip)reader.Process, (Pip)writer.Process)}).AssertFailure();
+            AssertErrorEventLogged(LogEventId.DependencyViolationWriteInUndeclaredSourceRead);
+        }
+
+        [Fact]
+        public void ReadingAnAbsentFileUnderAnExclusiveOpaqueIsAllowed()
+        {
+            var exclusiveOpaqueRoot = Path.Combine(ObjectRoot, "exclusiveOpaque");
+            var source = CreateSourceFile(exclusiveOpaqueRoot);
+
+            // Read the source file
             ScheduleProcessWithUndeclaredReads(source);
 
             // Create an empty exclusive opaque
@@ -266,9 +287,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddOutputDirectory(exclusiveOpaqueDirectoryArtifact, SealDirectoryKind.Opaque);
             SchedulePipBuilder(builder);
 
-            // A violation should be detected regardless of the content of the exclusive opaque
-            RunScheduler().AssertFailure();
-            AssertErrorEventLogged(LogEventId.DependencyViolationWriteInUndeclaredSourceRead);
+            // No violation should be detected when reading a non-existent file
+            RunScheduler().AssertSuccess();
         }
 
         [Fact]

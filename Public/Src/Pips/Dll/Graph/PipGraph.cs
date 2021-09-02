@@ -239,12 +239,12 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <inheritdoc />
-        public PipId? TryFindProducerPipId(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter)
+        public PipId? TryFindProducerPipId(AbsolutePath path, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter, bool includeFilesUnderExclusiveOpaques = false)
         {
-            Contract.Assume(producedPath.IsValid);
+            Contract.Assume(path.IsValid);
 
             // First check if the file is witin any opaque output directory. If it is, attribute the production to that pip.
-            NodeId opaqueDirectoryProducer = TryFindContainingExclusiveOpaqueOutputDirectory(producedPath);
+            NodeId opaqueDirectoryProducer = includeFilesUnderExclusiveOpaques ? TryFindContainingExclusiveOpaqueOutputDirectory(path) : NodeId.Invalid;
 
             PipId matchedPipId;
             if (!maybeOrderingFilter.HasValue)
@@ -256,7 +256,7 @@ namespace BuildXL.Pips.Graph
                 }
                 else if (versionDisposition == VersionDisposition.Latest)
                 {
-                    FileArtifact artifact = TryGetLatestFileArtifactForPath(producedPath);
+                    FileArtifact artifact = TryGetLatestFileArtifactForPath(path);
                     if (!artifact.IsValid)
                     {
                         return null;
@@ -267,7 +267,7 @@ namespace BuildXL.Pips.Graph
                 else
                 {
                     Contract.Assert(versionDisposition == VersionDisposition.Earliest);
-                    NodeId producerNode = TryGetOriginalProducerForPath(producedPath);
+                    NodeId producerNode = TryGetOriginalProducerForPath(path);
                     if (!producerNode.IsValid)
                     {
                         return null;
@@ -306,7 +306,7 @@ namespace BuildXL.Pips.Graph
                             //       Consider a fancier IsReachableFrom(from, {set of to}) which returns the 'to' node found first (fewest hops).
                             if (!originalProducerNode.IsValid)
                             {
-                                originalProducerNode = TryGetOriginalProducerForPath(producedPath);
+                                originalProducerNode = TryGetOriginalProducerForPath(path);
                             }
 
                             if (!originalProducerNode.IsValid)
@@ -336,7 +336,7 @@ namespace BuildXL.Pips.Graph
                             // P_1 ->   R -> P_3
                             //      \__>P_2>__/
                             // R is concurrent with P_2 if it is present. But without P_2, it is well-ordered between P_1 and P_3 (so concurrent with no P_*)
-                            FileArtifact latestArtifact = TryGetLatestFileArtifactForPath(producedPath);
+                            FileArtifact latestArtifact = TryGetLatestFileArtifactForPath(path);
 
                             var referenceNode = orderingFilter.Reference.PipId.ToNodeId();
 
@@ -359,7 +359,7 @@ namespace BuildXL.Pips.Graph
                                 matchedPipId = PipId.Invalid;
                                 for (int rewriteCount = latestArtifact.RewriteCount; rewriteCount >= 0; rewriteCount--)
                                 {
-                                    var thisArtifact = new FileArtifact(producedPath, rewriteCount);
+                                    var thisArtifact = new FileArtifact(path, rewriteCount);
                                     NodeId producerNodeId;
                                     if (!PipProducers.TryGetValue(thisArtifact, out producerNodeId))
                                     {
@@ -387,7 +387,7 @@ namespace BuildXL.Pips.Graph
                             // Since the earliest producer of a path is ordered before any later producers (higher write counts), we can try to find a path from there.
                             if (!originalProducerNode.IsValid)
                             {
-                                originalProducerNode = TryGetOriginalProducerForPath(producedPath);
+                                originalProducerNode = TryGetOriginalProducerForPath(path);
                             }
 
                             if (!originalProducerNode.IsValid)
@@ -427,9 +427,9 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <inheritdoc />
-        public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter)
+        public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter, bool includeFilesUnderExclusiveOpaques = false)
         {
-            PipId? matchedPipId = TryFindProducerPipId(producedPath, versionDisposition, maybeOrderingFilter);
+            PipId? matchedPipId = TryFindProducerPipId(producedPath, versionDisposition, maybeOrderingFilter, includeFilesUnderExclusiveOpaques);
             if (!matchedPipId.HasValue)
             {
                 return null;

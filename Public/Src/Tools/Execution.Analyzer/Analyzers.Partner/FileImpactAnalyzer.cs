@@ -640,7 +640,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 foreach (var observedPath in m_fingerprintComputations[nodeId.ToPipId().Value])
                 {
-                    PipId? pipId = CachedGraph.PipGraph.TryFindProducerPipId(observedPath.Path, VersionDisposition.Latest, null);
+                    PipId? pipId = CachedGraph.PipGraph.TryFindProducerPipId(observedPath.Path, VersionDisposition.Latest, null, includeFilesUnderExclusiveOpaques: true);
                     if (pipId.HasValue)
                     {
                         var newNodeId = pipId.Value.ToNodeId();

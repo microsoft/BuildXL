@@ -726,11 +726,11 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Wrapper for <see cref="IQueryablePipDependencyGraph.TryFindProducer"/> that tracks <see cref="FileMonitoringViolationAnalysisCounter.ViolationClassificationGraphQueryDuration"/>
         /// </summary>
-        private Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? orderingFilter = null)
+        private Pip TryFindProducer(AbsolutePath path, VersionDisposition versionDisposition, DependencyOrderingFilter? orderingFilter = null)
         {
             using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.ViolationClassificationGraphQueryDuration))
             {
-                return m_graph.TryFindProducer(producedPath, versionDisposition, orderingFilter);
+                return m_graph.TryFindProducer(path, versionDisposition, orderingFilter);
             }
         }
 

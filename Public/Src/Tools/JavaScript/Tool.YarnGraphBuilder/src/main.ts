@@ -29,6 +29,12 @@ if (process.argv.length < 5) {
 let repoFolder = process.argv[2];
 let outputGraphFile = process.argv[3];
 let pathToYarn = process.argv[4];
+let testJson : string = undefined;
+
+// Unit tests may write a path to a JSON file that can be read here to parse a custom json payload to test older yarn formats.
+if (process.argv.length === 6) {
+    testJson = fs.readFileSync(process.argv[5], "utf8");
+}
 
 function readPackageJson(location: string): PackageJson {
     return JSON.parse(
@@ -37,9 +43,33 @@ function readPackageJson(location: string): PackageJson {
 }
 
 try {
-    const workspaces = JSON.parse(
-        execSync(`"${pathToYarn}" --silent workspaces info --json`).toString()
-    ) as YarnWorkspaces;
+    /**
+     * New versions of yarn return a workspace dependency tree in the following format:
+     * { 
+     *     'workspaceName' : { 
+     *         location: 'some/location',
+     *         workspaceDependencies: [],
+     *         mismatchedWorkspaceDependencies: []
+     *     } 
+     * }
+     * 
+     * Older versions of yarn return the following format instead where the data key contains json as seen above:
+     * {
+     *     type: 'log',
+     *     data: '{ 'workspaceName' : { location: 'some/location', workspaceDependencies: [], mismatchedWorkspaceDependencies: [] } }' 
+     * }
+     */
+    let workspaceJson = JSON.parse(testJson === undefined
+        ? execSync(`"${pathToYarn}" --silent workspaces info --json`).toString()
+        : testJson
+    );
+    
+    // Parse the data key if the old format is found.
+    if ("type" in workspaceJson && workspaceJson["type"] === "log") {
+        workspaceJson = JSON.parse(workspaceJson["data"]);
+    }
+
+    const workspaces = workspaceJson as YarnWorkspaces;
 
     const projects = Object.keys(workspaces).map(
         (workspaceKey): JavaScriptProject => {

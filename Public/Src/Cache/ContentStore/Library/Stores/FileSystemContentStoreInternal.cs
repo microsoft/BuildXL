@@ -1744,10 +1744,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
 
-            // If this happens inside of the using statement, we hang: LockSet does not provide reentrant locks, so the
-            // PlaceFile operation inside BeforeEvict will hang when it tries to acquire the lock again. Changing this
-            // is nontrivial and complex, so we'd rather send some files that aren't evicted to cold storage instead.
-            await BeforeEvictAsync(context, contentHash);
+            // Don't copy content that we must delete to ColdStorage (for example: invalid content)
+            if (!force)
+            {
+                // If this happens inside of the using statement, we hang: LockSet does not provide reentrant locks, so the
+                // PlaceFile operation inside BeforeEvict will hang when it tries to acquire the lock again. Changing this
+                // is nontrivial and complex, so we'd rather send some files that aren't evicted to cold storage instead.
+                await BeforeEvictAsync(context, contentHash);
+            }
 
             long pinnedSize = 0;
             using (LockSet<ContentHash>.LockHandle? contentHashHandle = acquireLock ? await _lockSet.AcquireAsync(contentHash) : _lockSet.TryAcquire(contentHash))

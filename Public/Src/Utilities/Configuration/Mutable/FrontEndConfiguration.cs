@@ -52,6 +52,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ForcePopulatePackageCache = template.ForcePopulatePackageCache;
             UsePackagesFromFileSystem = template.UsePackagesFromFileSystem;
             RespectWeakFingerprintForNugetUpToDateCheck = template.RespectWeakFingerprintForNugetUpToDateCheck;
+            ForceGenerateNuGetSpecs = template.ForceGenerateNuGetSpecs;
             UseLegacyOfficeLogic = template.UseLegacyOfficeLogic;
             TrackMethodInvocations = template.TrackMethodInvocations;
             CycleDetectorStartupDelay = template.CycleDetectorStartupDelay;
@@ -155,6 +156,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? RespectWeakFingerprintForNugetUpToDateCheck { get; set; }
+
+        /// <inheritdoc/>
+        public bool? ForceGenerateNuGetSpecs { get; set; }
 
         /// <inheritdoc/>
         public bool? UseLegacyOfficeLogic { get; set; }

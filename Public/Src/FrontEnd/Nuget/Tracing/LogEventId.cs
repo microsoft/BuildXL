@@ -48,5 +48,6 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         NugetFailedDownloadPackage,
         NugetFailedGenerationResultFromDownloadedPackage,
         NugetFailedToWriteGeneratedSpecStateFile,
+        NugetCannotReuseSpecOnDisk,
     }
 }

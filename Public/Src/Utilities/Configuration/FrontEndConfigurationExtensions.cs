@@ -36,6 +36,9 @@ namespace BuildXL.Utilities.Configuration
         public const bool DefaultRespectWeakFingerprint = false;
 
         /// <nodoc/>
+        public const bool DefaultForceGenerateNuGetSpecs = false;
+
+        /// <nodoc/>
         public const int DefaultDebuggerPort = 41177;
 
         /// <nodoc/>
@@ -155,6 +158,10 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public static bool RespectWeakFingerprintForNugetUpToDateCheck(this IFrontEndConfiguration configuration) => 
             configuration.RespectWeakFingerprintForNugetUpToDateCheck ?? DefaultRespectWeakFingerprint;
+
+        /// <nodoc/>
+        public static bool ForceGenerateNuGetSpecs(this IFrontEndConfiguration configuration) =>
+            configuration.ForceGenerateNuGetSpecs ?? DefaultForceGenerateNuGetSpecs;
 
         /// <nodoc/>
         public static bool DebuggerBreakOnExit(this IFrontEndConfiguration configuration) => 

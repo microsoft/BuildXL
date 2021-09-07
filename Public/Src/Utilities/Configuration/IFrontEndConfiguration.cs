@@ -214,6 +214,11 @@ namespace BuildXL.Utilities.Configuration
         bool? RespectWeakFingerprintForNugetUpToDateCheck { get; }
 
         /// <summary>
+        /// Forces NuGet resolver to regenerate NuGet specs even if there exist specs on disk that have matched fingerprints.
+        /// </summary>
+        bool? ForceGenerateNuGetSpecs { get; }
+
+        /// <summary>
         /// Office-specific flag. Office passes this so we can ensure that when V2 becomes the default, office maintains existing codepath via this flag if needed.
         /// </summary>
         /// TODO: remove this when Office is in DScript V2

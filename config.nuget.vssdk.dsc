@@ -40,7 +40,7 @@ export const pkgs = [
     // Legacy nuget packages required for pre-Dev17 versions of the VS extension
     { id: "EnvDTE", version: "8.0.2", alias: "EnvDTE.Legacy" },
     { id: "EnvDTE80", version: "8.0.3", alias: "EnvDTE80.Legacy" },
-    { id: "Microsoft.VisualStudio.ComponentModelHost", version: "15.8.525", alias: "Microsoft.VisualStudio.ComponentModelHost.Legacy" },
+    { id: "Microsoft.VisualStudio.ComponentModelHost", version: "16.0.189-g83e7c53a57", alias: "Microsoft.VisualStudio.ComponentModelHost.Legacy" },
     { id: "Microsoft.VisualStudio.OLE.Interop", version: "7.10.6071", alias: "Microsoft.VisualStudio.OLE.Interop.Legacy" },
     { id: "Microsoft.VisualStudio.ProjectAggregator", version: "8.0.50728", alias: "Microsoft.VisualStudio.ProjectAggregator.Legacy" },
     { id: "Microsoft.VisualStudio.ProjectSystem", version: "14.1.127-pre", alias: "Microsoft.VisualStudio.ProjectSystem.Legacy" },

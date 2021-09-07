@@ -709,6 +709,7 @@ namespace BuildXL.FrontEnd.Nuget
                         {
                             generatedSpecsCount++;
                             result.Add(analyzedPackage.ActualId, GenerateSpecFile(analyzedPackage));
+                            Logger.Log.NugetCannotReuseSpecOnDisk(m_context.LoggingContext, analyzedPackage.ActualId);
                         }
                         else
                         {
@@ -945,6 +946,7 @@ namespace BuildXL.FrontEnd.Nuget
             //  * Both the generated spec and package config file exist on disk
             // NOTE: This is not resilient to the specs being modified by other entities than the build engine.
             if (fileFormat == NugetSpecGenerator.SpecGenerationFormatVersion &&
+                !m_host.Configuration.FrontEnd.ForceGenerateNuGetSpecs() &&
                 packageRestoreFingerprint != null && string.Equals(packageRestoreFingerprint, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, StringComparison.Ordinal) &&
                 generateSpecFingerprint != null && string.Equals(generateSpecFingerprint, expectedGenerateSpecFingerprint, StringComparison.OrdinalIgnoreCase) &&
                 File.Exists(packageDsc) &&

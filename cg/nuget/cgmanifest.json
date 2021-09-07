@@ -1923,7 +1923,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.ComponentModelHost",
-          "Version": "15.8.525"
+          "Version": "16.0.189-g83e7c53a57"
         }
       }
     },

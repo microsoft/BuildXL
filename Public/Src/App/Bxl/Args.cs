@@ -527,6 +527,9 @@ namespace BuildXL
                             "flushPageCacheToFileSystemOnStoringOutputsToCache",
                             sign => sandboxConfiguration.FlushPageCacheToFileSystemOnStoringOutputsToCache = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "forceGenerateNuGetSpecs",
+                            sign => frontEndConfiguration.ForceGenerateNuGetSpecs = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "forcePopulatePackageCache",
                             sign => frontEndConfiguration.ForcePopulatePackageCache = sign),
                         OptionHandlerFactory.CreateBoolOption(

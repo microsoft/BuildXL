@@ -367,6 +367,16 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = "{message}")]
         public abstract void NugetConcurrencyLevel(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetCannotReuseSpecOnDisk,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "NuGet resolver cannot reuse existing spec on disk for package '{package}' because spec's fingerprint may have changed or /forceGenerateNuGetSpecs is on",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void NugetCannotReuseSpecOnDisk(LoggingContext context, string package);
+
     }
 }
 #pragma warning restore SA1600 // Element must be documented

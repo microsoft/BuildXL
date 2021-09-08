@@ -1,6 +1,18 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210903.0  (Release [116707](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116707)) Released 9/8/2021
+- Support VS2022 to BuildXL VS extension
+- Relax exclusive opaque violations to only consider actually produced files
+- [QTest] Update NuGet package to incorporate Gradle fix
+- [JavaScript] Deal with absent script resolution in the presence of project-to-project cycle
+- [JavaScript] Add support for older Yarn workspace format
+- Various bug fixes
+
+# 0.1.0-20210826.4  (Release [116164](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116164)) Released 9/1/2021
+- [QTest] Add support for uploading test coverage for JS
+- Various bugfixes
+
 # 0.1.0-20210821.0  (Release [115264](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=115764)) Released 8/26/2021
 - Enable useHistoricalCpuUsage by default in CloudBuild
 - Fixes to worker early release handling to avoid failures in certain conditions

@@ -109,6 +109,15 @@ namespace BuildXL.Processes
                     throw Contract.AssertFailure("Default not defined for RetryReason: " + reason.ToString());
             }
         }
+
+        /// <summary>
+        /// Returns retry info to retry on a different worker when the failing process was run in a VM.
+        /// </summary>
+        /// <remarks>Temporary mitigation for bug 1871707</remarks>
+        public static RetryInfo GetRetryInfoForVmMitigation()
+        {
+            return RetryOnDifferentWorker(RetryReason.UserSpecifiedExitCode);
+        }
     }
 
     /// <summary>

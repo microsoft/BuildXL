@@ -162,7 +162,8 @@ namespace BuildXL.Processes
             Tuple<AbsolutePath, Encoding> encodedStandardError,
             Tuple<AbsolutePath, Encoding> encodedStandardOutput,
             Dictionary<string, int> pipProperties,
-            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses)
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            RetryInfo retryInfo = null)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ExecutionFailed,
@@ -184,7 +185,7 @@ namespace BuildXL.Processes
                 containerConfiguration: containerConfiguration,
                 pipProperties: pipProperties,
                 timedOut: false,
-                retryInfo: RetryInfo.GetDefault(RetryReason.UserSpecifiedExitCode),
+                retryInfo: retryInfo ?? RetryInfo.GetDefault(RetryReason.UserSpecifiedExitCode),
                 createdDirectories: null);
         }
 

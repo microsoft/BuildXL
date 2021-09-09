@@ -1307,8 +1307,8 @@ namespace BuildXL.Processes
                             result,
                             sandboxPrepTime.ElapsedMilliseconds,
                             cancellationTokenSource.Token,
-                            process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
-                            allInputPathsUnderSharedOpaques);
+                            allInputPathsUnderSharedOpaques,
+                            process);
                 LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
 
                 return ValidateDetoursCommunication(
@@ -1600,8 +1600,8 @@ namespace BuildXL.Processes
             SandboxedProcessResult result,
             long sandboxPrepMs,
             CancellationToken cancellationToken,
-            long maxDetoursHeapSize,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            ISandboxedProcess process)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             bool canceled = result.Killed && cancellationToken.IsCancellationRequested;
@@ -1611,6 +1611,7 @@ namespace BuildXL.Processes
                 : m_pip.SuccessExitCodes.Contains(result.ExitCode);
             bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
             bool exitedWithRetryAbleUserError = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
+            long maxDetoursHeapSize = process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize;
 
             Dictionary<string, int> pipProperties = null;
 
@@ -1690,6 +1691,9 @@ namespace BuildXL.Processes
                             {
                                 Tuple<AbsolutePath, Encoding> encodedStandardError = null;
                                 Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
+                                RetryInfo info = process is ExternalVmSandboxedProcess
+                                    ? RetryInfo.GetRetryInfoForVmMitigation()
+                                    : null;
 
                                 if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
                                 {
@@ -1708,7 +1712,8 @@ namespace BuildXL.Processes
                                         encodedStandardError,
                                         encodedStandardOutput,
                                         pipProperties,
-                                        sharedDynamicDirectoryWriteAccesses);
+                                        sharedDynamicDirectoryWriteAccesses,
+                                        info);
                                 }
 
                                 Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");

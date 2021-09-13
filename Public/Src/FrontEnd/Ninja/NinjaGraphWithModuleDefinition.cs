@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Ninja.Serialization;
+using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 
 namespace BuildXL.FrontEnd.Ninja
@@ -10,7 +11,7 @@ namespace BuildXL.FrontEnd.Ninja
     /// <summary>
     /// Encapsulates a <see cref="NinjaGraph"/> with its corresponding <see cref="ModuleDefinition"/>
     /// </summary>
-    public readonly struct NinjaGraphWithModuleDefinition
+    public readonly struct NinjaGraphWithModuleDefinition : ISingleModuleProjectGraphResult
     {
         /// <nodoc/>
         public NinjaGraph Graph { get; }

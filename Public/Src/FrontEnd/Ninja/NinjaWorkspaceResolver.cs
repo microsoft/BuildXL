@@ -4,15 +4,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
-using BuildXL.FrontEnd.Workspaces;
+using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
@@ -20,7 +17,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
-using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -29,18 +25,9 @@ namespace BuildXL.FrontEnd.Ninja
     /// <summary>
     /// Workspace resolver using a custom JSON generator from ninja specs
     /// </summary>
-    public class NinjaWorkspaceResolver : IWorkspaceModuleResolver
+    public sealed class NinjaWorkspaceResolver : ProjectGraphWorkspaceResolverBase<NinjaGraphWithModuleDefinition, INinjaResolverSettings>
     {
         internal const string NinjaResolverName = "Ninja";
-
-        /// <inheritdoc />
-        public string Name { get; }
-
-        private FrontEndContext m_context;
-        private FrontEndHost m_host;
-
-        private INinjaResolverSettings m_resolverSettings;
-
         private AbsolutePath m_pathToTool;
         internal AbsolutePath ProjectRoot;
         internal AbsolutePath SpecFile;
@@ -71,158 +58,34 @@ namespace BuildXL.FrontEnd.Ninja
         /// <inheritdoc/>
         public NinjaWorkspaceResolver()
         {
-            Name = nameof(NinjaWorkspaceResolver);
+            Name = "Ninja";
             m_graph = new Lazy<Task<Possible<NinjaGraphWithModuleDefinition>>>(TryComputeBuildGraphAsync);
             SerializedGraphPath = new Lazy<AbsolutePath>(GetToolOutputPath);
         }
 
-        /// <inheritdoc />
-        public Task<Possible<ISourceFile>> TryParseAsync(
-            AbsolutePath pathToParse,
-            AbsolutePath moduleOrConfigPathPromptingParse,
-            ParsingOptions parsingOptions = null)
-        {
-            return Task.FromResult(Possible.Create((ISourceFile)GetOrCreateSourceFile(pathToParse)));
-        }
-
-
-        private SourceFile GetOrCreateSourceFile(AbsolutePath path)
-        {
-            Contract.Assert(path.IsValid);
-
-            if (m_createdSourceFiles.TryGetValue(path, out SourceFile sourceFile))
-            {
-                return sourceFile;
-            }
-
-            // This is the interop point to advertise values to other DScript specs
-            // For now we just return an empty SourceFile
-            sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
-
-            // We need the binder to recurse
-            sourceFile.ExternalModuleIndicator = sourceFile;
-            sourceFile.SetLineMap(new int[0] { });
-
-            m_createdSourceFiles.Add(path, sourceFile);
-            return sourceFile;
-        }
-
         /// <inheritdoc/>
-        public string DescribeExtent()
-        {
-            Possible<HashSet<ModuleDescriptor>> maybeModules = GetAllKnownModuleDescriptorsAsync().GetAwaiter().GetResult();
-
-            if (!maybeModules.Succeeded)
-            {
-                return I($"Module extent could not be computed. {maybeModules.Failure.Describe()}");
-            }
-
-            return string.Join(", ", maybeModules.Result.Select(module => module.Name));
-        }
-
-        /// <inheritdoc/>
-        public virtual string Kind => KnownResolverKind.NinjaResolverKind;
-
-        /// <inheritdoc/>
-        public async ValueTask<Possible<HashSet<ModuleDescriptor>>> GetAllKnownModuleDescriptorsAsync()
-        {
-            var result = (await m_graph.Value)
-                .Then(projectGraphResult => new HashSet<ModuleDescriptor> { projectGraphResult.ModuleDefinition.Descriptor });
-
-            return result;
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<Possible<ModuleDefinition>> TryGetModuleDefinitionAsync(ModuleDescriptor moduleDescriptor)
-        {
-            // TODO: Maybe we don't need to wait on the graph
-            Possible<ModuleDefinition> result = (await m_graph.Value).Then<ModuleDefinition>(
-                parsedResult =>
-                {
-                    // There is a single module, so we check against that
-                    if (parsedResult.ModuleDefinition.Descriptor != moduleDescriptor)
-                    {
-                        return new ModuleNotOwnedByThisResolver(moduleDescriptor);
-                    }
-
-                    return parsedResult.ModuleDefinition;
-                });
-
-            return result;
-        }
-
-
-        /// <summary>
-        /// The result of computing the build graph
-        /// </summary>
-        public Possible<NinjaGraphWithModuleDefinition> ComputedGraph
-        {
-            get { 
-                Contract.Assert(m_graph != null && m_graph.IsValueCreated, "The computation of the build graph should have been triggered to be able to retrieve this value");
-                return m_graph.Value.Result;
-            }
-        }
-
-        /// <inheritdoc/>
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        public async ValueTask<Possible<IReadOnlyCollection<ModuleDescriptor>>> TryGetModuleDescriptorsAsync(ModuleReferenceWithProvenance moduleReference)
-        {
-            Possible<IReadOnlyCollection<ModuleDescriptor>> result = (await m_graph.Value).Then(
-                parsedResult =>
-                    (IReadOnlyCollection<ModuleDescriptor>)(
-                        parsedResult.ModuleDefinition.Descriptor.Name == moduleReference.Name ?
-                            new[] { parsedResult.ModuleDefinition.Descriptor }
-                            : CollectionUtilities.EmptyArray<ModuleDescriptor>()));
-
-            return result;
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<Possible<ModuleDescriptor>> TryGetOwningModuleDescriptorAsync(AbsolutePath specPath)
-        {
-            Possible<ModuleDescriptor> result = (await m_graph.Value).Then<ModuleDescriptor>(
-                parsedResult =>
-                {
-                    if (!parsedResult.ModuleDefinition.Specs.Contains(specPath))
-                    {
-                        return new SpecNotOwnedByResolverFailure(specPath.ToString(m_context.PathTable));
-                    }
-
-                    return parsedResult.ModuleDefinition.Descriptor;
-                });
-
-            return result;
-        }
-
-        /// <inheritdoc/>
-        public Task ReinitializeResolver() => Task.FromResult<object>(null);
-
-        /// <inheritdoc />
-        public ISourceFile[] GetAllModuleConfigurationFiles()
-        {
-            return CollectionUtilities.EmptyArray<ISourceFile>();
-        }
+        public override string Kind => KnownResolverKind.NinjaResolverKind;
 
         /// <inheritdoc />
         /// <summary>
         /// Initializes the workspace resolver
         /// </summary>
-        public bool TryInitialize(
+        public override bool TryInitialize(
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
             IResolverSettings resolverSettings)
         {
-            m_host = host;
-            m_context = context;
-            m_resolverSettings = resolverSettings as INinjaResolverSettings;
-            Contract.Assert(m_resolverSettings != null);
+            if (!base.TryInitialize(host, context, configuration, resolverSettings))
+            {
+                return false;
+            }
 
             var relativePathToGraphConstructionTool = RelativePath.Create(context.StringTable, NinjaGraphBuilderRelativePath);
             m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, relativePathToGraphConstructionTool);
 
 
-            if (!m_resolverSettings.ProjectRoot.IsValid)
+            if (!m_resolverSettings.Root.IsValid)
             {
                 if (!m_resolverSettings.SpecFile.IsValid)
                 {
@@ -235,7 +98,7 @@ namespace BuildXL.FrontEnd.Ninja
             }
             else
             {
-                ProjectRoot = m_resolverSettings.ProjectRoot;
+                ProjectRoot = m_resolverSettings.Root;
                 SpecFile = m_resolverSettings.SpecFile;
                 if (!m_resolverSettings.SpecFile.IsValid)
                 {
@@ -260,7 +123,8 @@ namespace BuildXL.FrontEnd.Ninja
             return true;
         }
 
-        private async Task<Possible<NinjaGraphWithModuleDefinition>> TryComputeBuildGraphAsync()
+        /// <inheritdoc />
+        protected override async Task<Possible<NinjaGraphWithModuleDefinition>> TryComputeBuildGraphAsync()
         {
             Possible<NinjaGraphResult> maybeGraph = await ComputeBuildGraphAsync();
             
@@ -310,7 +174,7 @@ namespace BuildXL.FrontEnd.Ninja
                     standardError);
             }
             
-            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
             
             // Add custom deserializer for converting string arrays to AbsolutePath ReadOnlySets
@@ -339,11 +203,11 @@ namespace BuildXL.FrontEnd.Ninja
             SerializeToolArguments(outputFile, argumentsFile);
 
             // After running the tool we'd like to remove some files 
-            void CleanUpOnResult()
+            void cleanUpOnResult()
             {
                 try
                 {
-                    var shouldKeepArgs = m_resolverSettings.KeepToolFiles ?? false;
+                    var shouldKeepArgs = m_resolverSettings.KeepProjectGraphFile ?? false;
                     if (!shouldKeepArgs)
                     {
                         FileUtilities.DeleteFile(argumentsFile.ToString(m_context.PathTable));
@@ -359,6 +223,7 @@ namespace BuildXL.FrontEnd.Ninja
                 }
             }
 
+
             return FrontEndUtilities.RunSandboxedToolAsync(
                 m_context,
                 m_pathToTool.ToString(m_context.PathTable),
@@ -367,8 +232,8 @@ namespace BuildXL.FrontEnd.Ninja
                 arguments: I($@"""{argumentsFile.ToString(m_context.PathTable)}"""),
                 workingDirectory: SpecFile.GetParent(m_context.PathTable).ToString(m_context.PathTable),
                 description: "Ninja graph builder",
-                BuildParameters.GetFactory().PopulateFromEnvironment(),
-                onResult: CleanUpOnResult);
+                RetrieveBuildParameters(),
+                onResult: cleanUpOnResult);
         }
 
         private void SerializeToolArguments(AbsolutePath outputFile, AbsolutePath argumentsFile)
@@ -432,6 +297,14 @@ namespace BuildXL.FrontEnd.Ninja
 
             fileAccessManifest.AddScope(toolDirectory, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowReadAlways);            
             return fileAccessManifest;
+        }
+
+        /// <inheritdoc />
+        protected override SourceFile DoCreateSourceFile(AbsolutePath path)
+        {
+            // This is the interop point to advertise values to other DScript specs
+            // For now we just return an empty SourceFile
+            return SourceFile.Create(path.ToString(m_context.PathTable));
         }
 
         private sealed class NinjaGraphBuildStorage : ISandboxedProcessFileStorage

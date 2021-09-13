@@ -4,13 +4,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities.Configuration.Resolvers;
+using BuildXL.Utilities.Configuration.Resolvers.Mutable;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <summary>
     /// Resolver settings for a JavaScript-based front-end.
     /// </summary>
-    public class JavaScriptResolverSettings : ResolverSettings, IJavaScriptResolverSettings
+    public class JavaScriptResolverSettings : UntrackingResolverSettings, IJavaScriptResolverSettings
     {
         /// <nodoc/>
         public JavaScriptResolverSettings()
@@ -25,14 +26,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public JavaScriptResolverSettings(
             IJavaScriptResolverSettings resolverSettings,
             PathRemapper pathRemapper)
-            : base(resolverSettings, pathRemapper)
+            : base(resolverSettings, resolverSettings, pathRemapper)
         {
             Root = pathRemapper.Remap(resolverSettings.Root);
             ModuleName = resolverSettings.ModuleName;
-            UntrackedDirectoryScopes = resolverSettings.UntrackedDirectoryScopes;
-            UntrackedFiles = resolverSettings.UntrackedFiles;
-            UntrackedDirectories = resolverSettings.UntrackedDirectories;
-            UntrackedGlobalDirectoryScopes = resolverSettings.UntrackedGlobalDirectoryScopes;
             Environment = resolverSettings.Environment;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             NodeExeLocation = resolverSettings.NodeExeLocation;
@@ -43,7 +40,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             WritingToStandardErrorFailsExecution = resolverSettings.WritingToStandardErrorFailsExecution;
             DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
             CustomScheduling = resolverSettings.CustomScheduling;
-            ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
             CustomScripts = resolverSettings.CustomScripts;
             SuccessExitCodes = resolverSettings.SuccessExitCodes;
             RetryExitCodes = resolverSettings.RetryExitCodes;
@@ -56,15 +52,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string ModuleName { get; set; }
-
-        /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectoryScopes { get; set; }
-
-        /// <inheritdoc/>
-        public IReadOnlyList<FileArtifact> UntrackedFiles { get; set; }
-
-        /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, RelativePath>> UntrackedDirectories { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyDictionary<string, EnvironmentData> Environment { get; set; }
@@ -94,16 +81,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? BlockWritesUnderNodeModules { get; set; }
 
         /// <inheritdoc />
-        public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
-
-        /// <inheritdoc />
         public RewritePolicy? DoubleWritePolicy { get; set; }
 
         /// <inheritdoc />
         public ICustomSchedulingCallback CustomScheduling { get; set; }
-
-        /// <inheritdoc />
-        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
 
         /// <inheritdoc />
         public object CustomScripts { get; set; }

@@ -29,7 +29,7 @@ namespace BuildXL.FrontEnd.CMake
         private ICMakeResolverSettings m_cMakeResolverSettings;
 
         // TODO: Multiple modules
-        private ModuleDefinition ModuleDef => m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.ComputedGraph.Result.ModuleDefinition;
+        private ModuleDefinition ModuleDef => m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.ComputedProjectGraph.Result.ModuleDefinition;
 
         /// <nodoc />
         public string Name { get; private set; }
@@ -93,6 +93,8 @@ namespace BuildXL.FrontEnd.CMake
                 qualifierId, 
                 m_frontEndName, 
                 m_cMakeResolverSettings.RemoveAllDebugFlags ?? false,
+                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedEnvironment,
+                m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.UserDefinedPassthroughVariables,
                 m_cMakeResolverSettings.UntrackingSettings);
             return graphConstructor.TrySchedulePips(filteredNodes, qualifierId);
         }

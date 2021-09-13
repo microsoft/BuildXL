@@ -49,14 +49,20 @@ namespace BuildXL.FrontEnd.Ninja
         /// <summary>
         ///  TODO: Remove after the cloudbuild environment is correctly set
         /// </summary>
-        private readonly Lazy<AbsolutePath> m_manuallyDroppedDependenciesPath;
+        private readonly AbsolutePath m_manuallyDroppedDependenciesPath;
+        private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
+        private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
 
-        
-        /// We expose all the environment to the processes so we can get these values lazily
-        private readonly Lazy<IEnumerable<KeyValuePair<string, string>>> m_environmentVariables;
-        private readonly Lazy<IEnumerable<KeyValuePair<string, string>>> m_passThroughEnvironmentVariables;
-
-        public NinjaPipConstructor(FrontEndContext context, FrontEndHost frontEndHost, string frontEndName, ModuleDefinition moduleDefinition, QualifierId qualifierId, AbsolutePath projectRoot, AbsolutePath specPath, bool suppressDebugFlags, IUntrackingSettings untrackingSettings)
+        public NinjaPipConstructor(FrontEndContext context, 
+            FrontEndHost frontEndHost, 
+            string frontEndName, 
+            ModuleDefinition moduleDefinition, 
+            QualifierId qualifierId, 
+            AbsolutePath projectRoot, 
+            AbsolutePath specPath, bool suppressDebugFlags,
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables,
+            IUntrackingSettings untrackingSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -73,18 +79,11 @@ namespace BuildXL.FrontEnd.Ninja
             m_untrackingSettings = untrackingSettings;
             m_pipConstructionHelper = GetPipConstructionHelperForModule(m_projectRoot, moduleDefinition, qualifierId);
             m_frontEndName = frontEndName;
-            m_manuallyDroppedDependenciesPath = Lazy.Create(() => m_frontEndHost.Configuration.Layout.BuildEngineDirectory
-                                                         .Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CMakeNinjaPipEnvironment")));
+            m_manuallyDroppedDependenciesPath = m_frontEndHost.Configuration.Layout.BuildEngineDirectory
+                                                    .Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CMakeNinjaPipEnvironment"));
 
-            // Lazy initialization of environment variables and passthroughs
-            var allEnvironmentVariables = Lazy.Create(GetAllEnvironmentVariables);
-            
-            // Exclude passthroughs from the environment exposed to the pip
-            m_environmentVariables = Lazy.Create(() => allEnvironmentVariables.Value
-                .Where(kvp => !SpecialEnvironmentVariables.PassThroughPrefixes.Any(prefix => kvp.Key.StartsWith(prefix)))
-                .Where(kvp => !m_frontEndHost.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Contains(kvp.Key)));
-            
-            m_passThroughEnvironmentVariables = Lazy.Create(() => allEnvironmentVariables.Value.Where(kvp => SpecialEnvironmentVariables.PassThroughPrefixes.Any(prefix => kvp.Key.StartsWith(prefix))));
+
+            PrepareEnvironment(userDefinedEnvironment, userDefinedPassthroughVariables, out m_userDefinedEnvironment, out m_userDefinedPassthroughVariables);
         }
 
         internal bool TrySchedulePip(NinjaNode node, QualifierId qualifierId, out Process process)
@@ -332,7 +331,7 @@ namespace BuildXL.FrontEnd.Ninja
 
             // TODO: This is just here because the cloud build requires manually dropping the necessary executables and libraries, and should be removed
             // when that issue is resolved.
-            string toolsDir = m_manuallyDroppedDependenciesPath.Value.ToString(m_context.PathTable);
+            string toolsDir = m_manuallyDroppedDependenciesPath.ToString(m_context.PathTable);
             processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(m_context.PathTable, toolsDir)));
 
             // Git accesses should be ignored if .git directory is there
@@ -372,22 +371,19 @@ namespace BuildXL.FrontEnd.Ninja
 
         private void SetEnvironmentVariables(ProcessBuilder processBuilder, NinjaNode node)
         {
-            foreach (KeyValuePair<string, string> kvp in m_environmentVariables.Value)
+            foreach (KeyValuePair<string, string> kvp in m_userDefinedEnvironment)
             {
                 if (kvp.Value != null)
                 {
                     var envPipData = new PipDataBuilder(m_context.StringTable);
-                    if (SpecialEnvironmentVariables.PassThroughPrefixes.All(prefix => !kvp.Key.StartsWith(prefix)))
-                    {
-                        envPipData.Add(kvp.Value);
-                        processBuilder.SetEnvironmentVariable(StringId.Create(m_context.StringTable, kvp.Key), envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
-                    }
+                    envPipData.Add(kvp.Value);
+                    processBuilder.SetEnvironmentVariable(StringId.Create(m_context.StringTable, kvp.Key), envPipData.ToPipData(kvp.Value, PipDataFragmentEscaping.NoEscaping));
                 }
             }
 
-            foreach (var kvp in m_passThroughEnvironmentVariables.Value)
+            foreach (var passthrough in m_userDefinedPassthroughVariables)
             {
-                processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, kvp.Key));
+                processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, passthrough));
             }
 
             foreach (var envVar in SpecialEnvironmentVariables.CloudBuildEnvironment)
@@ -420,19 +416,39 @@ namespace BuildXL.FrontEnd.Ninja
                     mspdbsrvPipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
         }
 
-        // Should be called from a Lazy
-        private IDictionary<string, string> GetAllEnvironmentVariables()
+        /// <summary>
+        ///  Ninja builds in CloudBuild are just a prototype and only work by carefully preparing the environment for the pips.
+        ///  This method overrides the environment if we are in a cloudbuild build.
+        /// </summary>
+        private void PrepareEnvironment(
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughs,
+            out IEnumerable<KeyValuePair<string, string>> environment,
+            out IEnumerable<string> passthroughs)
         {
-            IDictionary<string, string> environment = FrontEndUtilities.GetEngineEnvironment(m_frontEndHost.Engine, m_frontEndName);
+            // Assume we are building in cloudbuild if the custom directory with the needed tools is
+            var inCloudBuild = FileUtilities.Exists(m_manuallyDroppedDependenciesPath.ToString(m_context.PathTable));
 
-            // Check if we are (supposedly) in the cloud (if the special folder exists)
-            if (!FileUtilities.Exists(m_manuallyDroppedDependenciesPath.Value.ToString(m_context.PathTable)))
+            if (!inCloudBuild)
             {
-                return environment;
+                environment = userDefinedEnvironment;
+                passthroughs = userDefinedPassthroughs;
+                return;
             }
             else
             {
-                return SpecialCloudConfiguration.OverrideEnvironmentForCloud(environment, m_manuallyDroppedDependenciesPath.Value, m_context);
+                // Augment the environment with our own tools
+                var augmentedEnvironment = SpecialCloudConfiguration.OverrideEnvironmentForCloud(userDefinedEnvironment, m_manuallyDroppedDependenciesPath, m_context);
+
+                // Filter passthroughs
+                environment = augmentedEnvironment.Where(kvp => !isCloudBuildPassthrough(kvp.Key));
+                passthroughs = userDefinedPassthroughs.Union(augmentedEnvironment.Select(kvp => kvp.Key).Where(k => isCloudBuildPassthrough(k)));
+
+                bool isCloudBuildPassthrough(string envVar)
+                {
+                    return SpecialEnvironmentVariables.PassThroughPrefixes.Any(prefix => envVar.StartsWith(prefix))
+                        || m_frontEndHost.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Contains(envVar);
+                }
             }
         }
 

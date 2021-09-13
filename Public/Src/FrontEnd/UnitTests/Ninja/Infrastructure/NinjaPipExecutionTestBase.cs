@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine;
@@ -15,6 +14,7 @@ using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using Test.BuildXL.Processes;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.FrontEnd.Ninja
 {
@@ -58,10 +58,31 @@ namespace Test.BuildXL.FrontEnd.Ninja
         }
 
         /// <inheritdoc/>
-        protected ICommandLineConfiguration BuildAndGetConfiguration(NinjaSpec spec, bool includeProjectRoot = true, bool includeSpecFile = true)
+        protected ICommandLineConfiguration BuildAndGetConfiguration(NinjaSpec spec,
+            bool includeProjectRoot = true,
+            bool includeSpecFile = true,
+            IEnumerable<(string Key, string Value)> environment = null,
+            IEnumerable<string> passthroughs = null)
         {
+            var environmentDict = (environment == null && passthroughs == null) ? null : new Dictionary<string, DiscriminatingUnion<string, UnitValue>>();
+
+            if (environment != null) 
+            { 
+                foreach (var (k, v) in environment)
+                {
+                    environmentDict.Add(k, new DiscriminatingUnion<string, UnitValue>(v));
+                }
+            }
+
+            if (passthroughs != null)
+            {
+                foreach (var p in passthroughs)
+                {
+                    environmentDict.Add(p, new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit));
+                }
+            }
             return base.Build()
-                .Configuration(NinjaPrelude(targets: spec.Targets, includeProjectRoot: includeProjectRoot, includeSpecFile: includeSpecFile))
+                .Configuration(NinjaPrelude(targets: spec.Targets, includeProjectRoot: includeProjectRoot, includeSpecFile: includeSpecFile, environment: environmentDict))
                 .AddSpec(Path.Combine(SourceRoot, DefaultProjectRoot, DefaultSpecFileName), spec.Content)
                 .PersistSpecsAndGetConfiguration();
         }
@@ -102,6 +123,20 @@ build {outputFileName}: r
 build all: phony {outputFileName}
 ";
             return new NinjaSpec(content, new[] {"all"});
+        }
+
+        /// <summary>
+        /// Returns a project that echoes the value of an environment variable to an output file
+        /// </summary>
+        protected NinjaSpec CreatePrintEnvVariableProject(string outputFileName, string varName)
+        {
+            var content =
+$@"rule r
+    command = {CMD} /C ""echo %{varName}% > $out""
+build {outputFileName}: r
+build all: phony {outputFileName}
+";
+            return new NinjaSpec(content, new[] { "all" });
         }
 
         protected NinjaSpec CreateWriteReadProject(string firstOutput, string secondOutput)
@@ -204,14 +239,16 @@ build install: phony {dummyFile}
             string specFile = null,
             IEnumerable<string> targets = null,
             bool includeProjectRoot = true,
-            bool includeSpecFile = true) => $@"
+            bool includeSpecFile = true,
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null) => $@"
 config({{
     resolvers: [
         {{
             kind: 'Ninja',
             targets: [{ ExpandTargetsOrGetDefault(targets)} ],
             {(includeSpecFile ? "specFile: f`" + (specFile ?? DefaultSpecFileLocation) + "`," : "")}
-            {(includeProjectRoot ? "projectRoot: d`" + (projectRoot ?? DefaultProjectRoot) + "`," : "")}
+            {(includeProjectRoot ? "root: d`" + (projectRoot ?? DefaultProjectRoot) + "`," : "")}
+            {DictionaryToExpression("environment", environment)}
             moduleName: ""DefaultModule""
         }},
     ],
@@ -229,5 +266,12 @@ config({{
     ]";
 
         private string ExpandTargetsOrGetDefault(IEnumerable<string> targets) => targets != null ? string.Join(",", targets.Select(t => $"\"{t}\"")) : "\"all\"";
+
+        private static string DictionaryToExpression(string memberName, Dictionary<string, DiscriminatingUnion<string, UnitValue>> dictionary)
+        {
+            return (dictionary == null ?
+                string.Empty :
+                $"{memberName}: Map.empty<string, (PassthroughEnvironmentVariable | string)>(){ string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', {(property.Value?.GetValue() is UnitValue ? "Unit.unit()" : $"'{property.Value?.GetValue()}'")})")) },");
+        }
     }
 }

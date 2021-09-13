@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.Ninja
 
         private NinjaWorkspaceResolver m_ninjaWorkspaceResolver;
         private INinjaResolverSettings m_ninjaResolverSettings;
-        private ModuleDefinition ModuleDef => m_ninjaWorkspaceResolver.ComputedGraph.Result.ModuleDefinition;
+        private ModuleDefinition ModuleDef => m_ninjaWorkspaceResolver.ComputedProjectGraph.Result.ModuleDefinition;
 
         /// <nodoc />
         public string Name { get; private set; }
@@ -85,7 +85,7 @@ namespace BuildXL.FrontEnd.Ninja
         private bool? TryEvaluate(ModuleDefinition module, QualifierId qualifierId)    // TODO: Async?
         {
             
-            NinjaGraphWithModuleDefinition result = m_ninjaWorkspaceResolver.ComputedGraph.Result;
+            NinjaGraphWithModuleDefinition result = m_ninjaWorkspaceResolver.ComputedProjectGraph.Result;
             
             // TODO: Actual filtering. For now [first development only] we schedule all pips because we are dealing with a single spec 'all'
             IReadOnlyCollection<NinjaNode> filteredNodes = result.Graph.Nodes;
@@ -99,7 +99,9 @@ namespace BuildXL.FrontEnd.Ninja
                 qualifierId, 
                 m_frontEndName, 
                 m_ninjaResolverSettings.RemoveAllDebugFlags ?? false,
-                m_ninjaResolverSettings.UntrackingSettings);
+                m_ninjaWorkspaceResolver.UserDefinedEnvironment,
+                m_ninjaWorkspaceResolver.UserDefinedPassthroughVariables,
+                m_ninjaResolverSettings);
 
             return graphConstructor.TrySchedulePips(filteredNodes, qualifierId);
         }

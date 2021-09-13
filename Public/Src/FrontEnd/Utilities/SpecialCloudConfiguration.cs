@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
+using System.Linq;
 
 namespace BuildXL.FrontEnd.Utilities
 {
@@ -18,12 +19,12 @@ namespace BuildXL.FrontEnd.Utilities
         /// to them via environment variables. This method returns that 'artificial' environment.
         /// We try to not modify the current variables, appending to the existing ones instead of overriding them.
         /// </summary>
-        public static IDictionary<string, string> OverrideEnvironmentForCloud(IDictionary<string, string> environmentDict, AbsolutePath pathToDependencies, FrontEndContext context)
+        public static IDictionary<string, string> OverrideEnvironmentForCloud(IEnumerable<KeyValuePair<string, string>> environment, AbsolutePath pathToDependencies, FrontEndContext context)
         {
-
             var pathTable = context.PathTable;
             var stringTable = context.StringTable;
 
+            var environmentDict = environment.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
             var previousValue = "";
             if (environmentDict.ContainsKey("INCLUDE"))
             {

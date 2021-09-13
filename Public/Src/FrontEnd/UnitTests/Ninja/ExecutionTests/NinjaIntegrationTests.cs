@@ -8,13 +8,9 @@ using System.Linq;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
 using Test.BuildXL.EngineTestUtilities;
-using Test.BuildXL.FrontEnd.Ninja;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -28,6 +24,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
     /// </remarks>
     public class NinjaIntegrationTest : NinjaPipExecutionTestBase
     {
+        private const string OutputFileName = "foo.txt";
+
         public NinjaIntegrationTest(ITestOutputHelper output)
             : base(output)
         {
@@ -36,7 +34,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         [Fact]
         public void EndToEndSinglePipExecution()
         {
-            var config = BuildAndGetConfiguration(CreateHelloWorldProject("foo.txt"));
+            var config = BuildAndGetConfiguration(CreateHelloWorldProject(OutputFileName));
             var engineResult = RunEngineWithConfig(config);
             Assert.True(engineResult.IsSuccess);
         }
@@ -62,6 +60,96 @@ namespace Test.BuildXL.FrontEnd.Ninja
             // Make sure pips ran and the files are there
             Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "first.txt")));
             Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "second.txt")));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void BuildWithEnvironmentVariables(bool exposeVariable)
+        {
+            var outContents = "chelo";
+            var exposedVariable = exposeVariable ? "MY_VAR" : "OTHER_VAR"; 
+
+            var config = BuildAndGetConfiguration(CreatePrintEnvVariableProject(OutputFileName, exposedVariable), 
+                environment: new List<(string, string)> { ("MY_VAR", outContents) });
+
+            var engineResult = RunEngineWithConfig(config);
+            Assert.True(engineResult.IsSuccess);
+
+            var outFilePath = Path.Combine(SourceRoot, DefaultProjectRoot, OutputFileName);
+
+            // Defining a custom environment will hide the rest of it
+            // The build will print %exposedVariable% but will only have %MY_VAR% set
+            var expectedContents = exposeVariable ? outContents : "%OTHER_VAR%";
+
+            var contents = File.ReadAllText(outFilePath);
+
+            // Use .Contains() because echo can add whitepsace / newlines
+            Assert.True(contents.Contains(expectedContents));
+        }
+
+        [Fact]
+        public void BuildExposesEnvironmentWhenNoVariablesSpecifiedInSpec()
+        {
+            var expectedOutContents = "chelivery";
+
+            Environment.SetEnvironmentVariable("MY_VAR", expectedOutContents);
+
+            // Build without specifying an environment - the whole environment should be exposed
+            var config = BuildAndGetConfiguration(CreatePrintEnvVariableProject(OutputFileName, "MY_VAR"));
+
+            var engineResult = RunEngineWithConfig(config);
+            Assert.True(engineResult.IsSuccess);
+
+            var outFilePath = Path.Combine(SourceRoot, DefaultProjectRoot, OutputFileName);
+
+            var actualContents = File.ReadAllText(outFilePath);
+            
+            // Use .Contains() because echo can add whitepsace / newlines
+            Assert.True(actualContents.Contains(expectedOutContents));
+        }
+
+        [Fact]
+        public void BuildWithExplicitEmptyEnvironment()
+        {
+            var expectedOutContents = "chelivery";
+
+            Environment.SetEnvironmentVariable("MY_VAR", expectedOutContents);
+
+            // Build with an explicit empty environment
+            // This means the variable shouldn't be exposed
+            var config = BuildAndGetConfiguration(CreatePrintEnvVariableProject(OutputFileName, "MY_VAR"), environment: new List<(string, string)>());
+
+            var engineResult = RunEngineWithConfig(config);
+            Assert.True(engineResult.IsSuccess);
+
+            var outFilePath = Path.Combine(SourceRoot, DefaultProjectRoot, OutputFileName);
+
+            var actualContents = File.ReadAllText(outFilePath);
+
+            // Use .Contains() because echo can add whitepsace / newlines
+            Assert.False(actualContents.Contains(expectedOutContents));
+        }
+
+        [Fact]
+        public void BuildExposesPassthroughVariables()
+        {
+            var expectedOutContents = "chelo_passthrough";
+
+            Environment.SetEnvironmentVariable("MY_VAR", expectedOutContents);
+
+            // Build without specifying an environment
+            var config = BuildAndGetConfiguration(CreatePrintEnvVariableProject(OutputFileName, "MY_VAR"), passthroughs: new List<string> { "MY_VAR" });
+
+            var engineResult = RunEngineWithConfig(config);
+            Assert.True(engineResult.IsSuccess);
+
+            var outFilePath = Path.Combine(SourceRoot, DefaultProjectRoot, OutputFileName);
+
+            var actualContents = File.ReadAllText(outFilePath);
+
+            // Use .Contains() because echo can add whitepsace / newlines
+            Assert.True(actualContents.Contains(expectedOutContents));
         }
 
         [Fact (Skip = "This test needs the double write policy to be set to unsafe. Deleting from a shared opaque is blocked," +
@@ -115,7 +203,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         [InlineData(false, true)]
         public void CanOmmitSpecFileOrProjectRoot(bool includeProjectRoot, bool includeSpecFile)
         {
-            var config = BuildAndGetConfiguration(CreateHelloWorldProject("foo.txt"), includeProjectRoot, includeSpecFile);
+            var config = BuildAndGetConfiguration(CreateHelloWorldProject(OutputFileName), includeProjectRoot, includeSpecFile);
             var engineResult = RunEngineWithConfig(config);
             Assert.True(engineResult.IsSuccess);
         }

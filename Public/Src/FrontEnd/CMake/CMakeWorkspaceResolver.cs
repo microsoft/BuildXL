@@ -67,7 +67,7 @@ namespace BuildXL.FrontEnd.CMake
         private readonly Lazy<NinjaResolverSettings> m_embeddedResolverSettings;
         private bool m_ninjaWorkspaceResolverInitialized;
 
-        internal Possible<NinjaGraphWithModuleDefinition> ComputedGraph => EmbeddedNinjaWorkspaceResolver.ComputedGraph;
+        internal Possible<NinjaGraphWithModuleDefinition> ComputedGraph => EmbeddedNinjaWorkspaceResolver.ComputedProjectGraph;
 
         /// <inheritdoc/>
         public CMakeWorkspaceResolver()
@@ -309,7 +309,7 @@ namespace BuildXL.FrontEnd.CMake
             var settings = new NinjaResolverSettings
             {
                 ModuleName = m_resolverSettings.ModuleName,
-                ProjectRoot = m_buildDirectory,
+                Root = m_buildDirectory,
 
                 // The "file in which this resolver was configured"
                 File = m_resolverSettings.File,

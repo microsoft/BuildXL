@@ -243,7 +243,6 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         {
             if (m_projectGraph == null)
             {
-
                 m_projectGraph = await TryComputeBuildGraphAsync();
             }
 

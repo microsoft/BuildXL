@@ -3,13 +3,14 @@
 
 using System.Collections.Generic;
 using BuildXL.Utilities.Configuration.Resolvers;
+using BuildXL.Utilities.Configuration.Resolvers.Mutable;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <summary>
     /// Concrete implementation of the settings for Ninja resolver
     /// </summary>
-    public class NinjaResolverSettings : ResolverSettings, INinjaResolverSettings
+    public class NinjaResolverSettings : UntrackingResolverSettings, INinjaResolverSettings
     {
         /// <nodoc />
         public NinjaResolverSettings()
@@ -19,24 +20,24 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <nodoc />
-        public NinjaResolverSettings(INinjaResolverSettings template, PathRemapper pathRemapper) : base(template, pathRemapper)
+        public NinjaResolverSettings(INinjaResolverSettings template, PathRemapper pathRemapper) : base(template, template, pathRemapper)
         {
-
             Targets = template.Targets;
-            ProjectRoot = pathRemapper.Remap(template.ProjectRoot);
+            Root = pathRemapper.Remap(template.Root);
             ModuleName = template.ModuleName;
-            KeepToolFiles = template.KeepToolFiles;
+            KeepProjectGraphFile = template.KeepProjectGraphFile;
             SpecFile = pathRemapper.Remap(template.SpecFile);
             RemoveAllDebugFlags = template.RemoveAllDebugFlags;
-            UntrackingSettings = template.UntrackingSettings;
-            AllowWritableSourceDirectory = template.AllowWritableSourceDirectory;
+            Environment = template.Environment;
         }
 
         /// <inheritdoc />
         public IReadOnlyList<string> Targets { get; set; }
 
-        /// <inheritdoc />
-        public AbsolutePath ProjectRoot { get; set; }
+        /// <summary>
+        /// Root of the project. Typically, where the build.ninja file is located
+        /// </summary>
+        public AbsolutePath Root { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath SpecFile { get; set; }
@@ -45,12 +46,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public string ModuleName { get; set; }
 
         /// <inheritdoc />
-        public IUntrackingSettings UntrackingSettings { get; set; }
-
-        /// <inheritdoc />
-        public bool? KeepToolFiles { get; set; }
+        public bool? KeepProjectGraphFile { get; set; }
 
         /// <inheritdoc />
         public bool? RemoveAllDebugFlags { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyDictionary<string, EnvironmentData> Environment { get; set; }
     }
 }

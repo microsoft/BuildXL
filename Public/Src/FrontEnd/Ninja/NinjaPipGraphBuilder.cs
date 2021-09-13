@@ -13,8 +13,6 @@ namespace BuildXL.FrontEnd.Ninja
 {
     internal sealed class NinjaPipGraphBuilder
     {
-        private FrontEndContext m_context;
-        private FrontEndHost m_frontEndHost;
         private readonly NinjaPipConstructor m_pipConstructor;
 
         /// <nodoc/>
@@ -27,6 +25,8 @@ namespace BuildXL.FrontEnd.Ninja
             QualifierId qualifierId,
             string frontEndName,
             bool suppressDebugFlags,
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables,
             IUntrackingSettings untrackingSettings)
         {
             Contract.Requires(context != null);
@@ -35,11 +35,7 @@ namespace BuildXL.FrontEnd.Ninja
             Contract.Requires(projectRoot.IsValid);
             Contract.Requires(specPath.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
-
-            m_context = context;
-            m_frontEndHost = frontEndHost;
-
-            m_pipConstructor = new NinjaPipConstructor(context, frontEndHost, frontEndName, moduleDefinition, qualifierId, projectRoot, specPath, suppressDebugFlags, untrackingSettings);
+            m_pipConstructor = new NinjaPipConstructor(context, frontEndHost, frontEndName, moduleDefinition, qualifierId, projectRoot, specPath, suppressDebugFlags, userDefinedEnvironment, userDefinedPassthroughVariables, untrackingSettings);
         }
 
 

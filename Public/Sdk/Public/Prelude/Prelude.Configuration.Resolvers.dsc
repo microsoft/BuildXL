@@ -681,7 +681,7 @@ interface JavaScriptCommandDependency {
 /**
  * Resolver for projects specified for the Ninja build system
  */
-interface NinjaResolver extends ResolverBase {
+interface NinjaResolver extends ResolverBase, UntrackingSettings {
     kind: "Ninja";
 
     /**
@@ -695,7 +695,7 @@ interface NinjaResolver extends ResolverBase {
      * (or the corresponding .ninja build file if it's named differently).
      * If not present, specFile should be specified and its parent will be the projectRoot
      */
-    projectRoot?: Directory;
+    root?: Directory;
 
     /* The build file, typically build.ninja. If null, f`${projectRoot}/build.ninja` is used */
     specFile?: File;
@@ -712,12 +712,15 @@ interface NinjaResolver extends ResolverBase {
      * of the dependency graph. Useful for debugging.
      * If not present, we don't keep the outputs.
      */
-    keepToolFiles?: boolean;
+    keepProjectGraphFile?: boolean;
 
-     /**
-     * Custom untracking settings
+    /**
+     * Environment that is exposed to Ninja pips. If not defined, the current process environment is exposed
+     * The value can be either EnvironmentData or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
+     * but its value won't be considered part of the build inputs for tracking purposes. This means that any change in the value of the 
+     * variable won't cause a rebuild.
      */
-    untrackingSettings?: UntrackingSettings;
+    environment?: Map<string, (PassthroughEnvironmentVariable | EnvironmentData)>;
 
     /**
      * Remove all flags involved with the output of debug information (PDB files).

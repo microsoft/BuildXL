@@ -80,14 +80,14 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         {
             var settings = resolverSettings ?? new NinjaResolverSettings();
             // We want to have both ProjectRoot and SpecFile defined
-            if (settings.ProjectRoot == AbsolutePath.Invalid)
+            if (settings.Root == AbsolutePath.Invalid)
             {
-                settings.ProjectRoot = AbsolutePath.Create(PathTable, TestRoot);
+                settings.Root = AbsolutePath.Create(PathTable, TestRoot);
             }
 
             if (settings.SpecFile == AbsolutePath.Invalid)
             {
-                settings.SpecFile = settings.ProjectRoot.Combine(PathTable, "build.ninja");
+                settings.SpecFile = settings.Root.Combine(PathTable, "build.ninja");
             }
 
             if (qualifierId == default)
@@ -128,16 +128,20 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
 
             using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _))
             {
+                resolverSettings.ComputeEnvironment(FrontEndContext.PathTable, out var environment, out var passthroughEnv, out var _);
+
                 var pipConstructor = new NinjaPipConstructor(
                     FrontEndContext,
                     controller,
                     "NinjaFrontEnd",
                     m_testModule,
                     qualifierId,
-                    resolverSettings.ProjectRoot,
+                    resolverSettings.Root,
                     resolverSettings.SpecFile,
                     resolverSettings.RemoveAllDebugFlags ?? false,
-                    resolverSettings.UntrackingSettings);
+                    environment,
+                    passthroughEnv,
+                    resolverSettings);
 
                 var schedulingResults = new Dictionary<NinjaNode, (bool, Process)>();
 

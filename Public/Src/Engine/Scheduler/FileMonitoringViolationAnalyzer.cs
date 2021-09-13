@@ -173,6 +173,11 @@ namespace BuildXL.Scheduler
             WriteInSourceSealDirectory,
 
             /// <summary>
+            /// Detected a write inside an exclusive opaque directory
+            /// </summary>
+            WriteInExclusiveOpaque,
+
+            /// <summary>
             /// Detected a write to the same path that is treated as an undeclared source file
             /// </summary>
             WriteInUndeclaredSourceRead,
@@ -834,9 +839,10 @@ namespace BuildXL.Scheduler
 
         private void ReportBlockedScopesViolations(Process pip, List<ReportedViolation> reportedViolations, AbsolutePath access)
         {
-            // Check there are no source sealed directories containing the write
+            // Check there are no source sealed directories containing the write nor exclusive opaques
+            
             // Observe that source sealed directories are not allowed above a shared opaque, which means that any source sealed directory
-            // containing the access will be under the shared opaque (or they will share roots)
+            // containing the access will be under the shared opaque (or they will share roots). Same applies to exclusive opaques.
             var sourceSealedContainer = m_graph.TryGetSealSourceAncestor(access);
             if (sourceSealedContainer != DirectoryArtifact.Invalid)
             {
@@ -868,6 +874,22 @@ namespace BuildXL.Scheduler
                         isAllowlistedViolation: false,
                         related: ownerPip,
                         tempPath));
+            }
+
+            // Check if the shared opaque write happens inside an exclusive opaque directory
+            if (m_graph.TryFindContainingExclusiveOpaqueOutputDirectoryProducer(access) is var producer && producer.IsValid)
+            {
+                var relatedPip = m_graph.HydratePip(producer, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                // We found an exclusive opaque directory that contains the write
+                reportedViolations.Add(
+                    HandleDependencyViolation(
+                        DependencyViolationType.WriteInExclusiveOpaque,
+                        AccessLevel.Write,
+                        access,
+                        pip,
+                        isAllowlistedViolation: false,
+                        related: relatedPip,
+                        pip.Executable.Path));
             }
         }
 
@@ -1914,6 +1936,21 @@ namespace BuildXL.Scheduler
                     if (isError && hasRelatedPip)
                     {
                         Logger.Log.DependencyViolationWriteInSourceSealDirectory(
+                            LoggingContext,
+                            violator.SemiStableHash,
+                            violator.GetDescription(Context),
+                            violator.Provenance.Token.Path.ToString(Context.PathTable),
+                            GetProcessWorkingDirectory(violator),
+                            path.ToString(Context.PathTable),
+                            related.GetDescription(Context));
+                    }
+
+                    break;
+                case DependencyViolationType.WriteInExclusiveOpaque:
+
+                    if (isError && hasRelatedPip)
+                    {
+                        Logger.Log.DependencyViolationWriteInExclusiveOpaqueDirectory(
                             LoggingContext,
                             violator.SemiStableHash,
                             violator.GetDescription(Context),

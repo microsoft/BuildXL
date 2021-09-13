@@ -70,7 +70,7 @@ namespace BuildXL.Pips.Tracing
         InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories = 14114,
         InvalidGraphSinceSourceSealedDirectoryContainsOutputFile = 14104,
         InvalidGraphSinceSourceSealedDirectoryContainsOutputDirectory = 14105,
-        InvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory = 14106,
+        // Was InvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory = 14106,
         InvalidGraphSinceOutputDirectoryCoincidesSourceFile = 14107,
         InvalidGraphSinceOutputDirectoryCoincidesOutputFile = 14108,
         InvalidGraphSinceOutputDirectoryCoincidesSealedDirectory = 14109,

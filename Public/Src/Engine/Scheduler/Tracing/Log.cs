@@ -2073,6 +2073,25 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipDescription);
 
         [GeneratedEvent(
+           (int)LogEventId.DependencyViolationWriteInExclusiveOpaqueDirectory,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+           EventTask = (int)Tasks.Scheduler,
+           Message =
+               PipDependencyAnalysisPrefix +
+               "Write under an exclusive opaque directory: This pip writes to path '{4}', which is under the exclusive opaque directory '{5}'. " +
+               "Exclusive opaque directories can only be written by a single producer.")]
+        public abstract void DependencyViolationWriteInExclusiveOpaqueDirectory(
+           LoggingContext context,
+           long pipSemiStableHash,
+           string pipDescription,
+           string pipSpecPath,
+           string pipWorkingDirectory,
+           string path,
+           string producingPipDescription);
+
+        [GeneratedEvent(
             (int)LogEventId.DependencyViolationWriteInUndeclaredSourceRead,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

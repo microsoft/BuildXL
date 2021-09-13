@@ -1931,6 +1931,122 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void SharedOpaqueContainsExclusiveOpaque()
+        {
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = true;
+            /*
+                PipA -> [sod] \ sodFile
+                        [eod\subDir1] \ eodSubDir1File
+                        [eod\sibDir2] \ eodSubDir2File
+
+                Allowed accesses:
+                PipB <- [sod] && sodFile
+                PipC <- [eod\subDir1] && eodSubDir1File
+                PipD <- [eod\sibDir2] && eodSubDir2File
+
+                Disallowed accesses:
+                PipE <- [sod] && eodSubDir2File
+                PipF <- [eod\subDir1] && sodFile
+             */
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(NestedSharedOpaqueDirectories)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var exclusiveOpaqueSubDir1 = Path.Combine(sharedOpaqueDir, "subDir1");
+            var exclusiveOpaqueSubDir1Path = AbsolutePath.Create(Context.PathTable, exclusiveOpaqueSubDir1);
+            var exclusiveOpaqueSubDir1Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(exclusiveOpaqueSubDir1Path);
+
+            var exclusiveOpaqueSubDir2 = Path.Combine(sharedOpaqueDir, "subDir2");
+            var exclusiveOpaqueSubDir2Path = AbsolutePath.Create(Context.PathTable, exclusiveOpaqueSubDir2);
+            var exclusiveOpaqueSubDir2Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(exclusiveOpaqueSubDir2Path);
+
+            var sodFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var exclusiveSubDir1File = CreateOutputFileArtifact(exclusiveOpaqueSubDir1);
+            var exclusiveSubDir2File = CreateOutputFileArtifact(exclusiveOpaqueSubDir2);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(sodFile, doNotInfer: true),
+                Operation.WriteFile(exclusiveSubDir1File, doNotInfer: true),
+                Operation.WriteFile(exclusiveSubDir2File, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(exclusiveOpaqueSubDir1Artifact, SealDirectoryKind.Opaque);
+            builderA.AddOutputDirectory(exclusiveOpaqueSubDir2Artifact, SealDirectoryKind.Opaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodFile);
+            var pipB = SchedulePipBuilder(builderB);
+
+            var builderC = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(exclusiveOpaqueSubDir1Path), exclusiveSubDir1File);
+            var pipC = SchedulePipBuilder(builderC);
+
+            var builderD = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(exclusiveOpaqueSubDir2Path), exclusiveSubDir2File);
+            var pipD = SchedulePipBuilder(builderD);
+
+            RunScheduler().AssertSuccess();
+
+            ResetPipGraphBuilder();
+
+            pipA = SchedulePipBuilder(builderA);
+            pipB = SchedulePipBuilder(builderB);
+            pipC = SchedulePipBuilder(builderC);
+            pipD = SchedulePipBuilder(builderD);
+
+            // takes dependency on the root directory artifact, but tries to read a file from a subdirectory
+            // this should result in a DFA (since that artifact does not contain that file)
+            var builderE = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), exclusiveSubDir2File);
+            var pipE = SchedulePipBuilder(builderE);
+
+            // takes dependency on an exclusive subdirectory artifact, but tries to read a file from the root shared opaque
+            // this should result in a DFA (since that artifact does not contain that file)
+            var builderF = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(exclusiveOpaqueSubDir1Path), sodFile);
+            var pipF = SchedulePipBuilder(builderF);
+
+            RunScheduler().AssertFailure().AssertCacheHitWithoutAssertingSuccess(
+                pipA.Process.PipId,
+                pipB.Process.PipId,
+                pipC.Process.PipId,
+                pipD.Process.PipId);
+
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
+        }
+
+        [Fact]
+        public void SharedOpaqueCannotWriteInExclusiveOpaqueInDifferentPip()
+        {
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = true;
+            
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(NestedSharedOpaqueDirectories)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var exclusiveOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir");
+            var exclusiveOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, exclusiveOpaqueSubDir);
+            var exclusiveOpaqueSubDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(exclusiveOpaqueSubDirPath);
+
+            var sodFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var exclusiveSubDir1File = CreateOutputFileArtifact(exclusiveOpaqueSubDir);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(exclusiveSubDir1File, doNotInfer: true),
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreatePipBuilder(new Operation[] {});
+            builderB.AddOutputDirectory(exclusiveOpaqueSubDirArtifact, SealDirectoryKind.Opaque);
+            var pipB = SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertFailure();
+
+            AllowErrorEventLoggedAtLeastOnce(LogEventId.FileMonitoringError);
+            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteInExclusiveOpaqueDirectory, 1);
+        }
+
+        [Fact]
         public void NestedSharedOpaquesProperContentMaterialization()
         {
             /*

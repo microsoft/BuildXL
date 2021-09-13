@@ -295,6 +295,11 @@ namespace Test.BuildXL.Scheduler
             return ((Process)m_pips[pipId]).Executable.Path;
         }
 
+        public PipId TryFindContainingExclusiveOpaqueOutputDirectoryProducer(AbsolutePath filePath)
+        {
+            return PipId.Invalid;
+        }
+
         #endregion
     }
 }

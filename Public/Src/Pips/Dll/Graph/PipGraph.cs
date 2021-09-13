@@ -196,6 +196,17 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <inheritdoc/>
+        public PipId TryFindContainingExclusiveOpaqueOutputDirectoryProducer(AbsolutePath filePath)
+        {
+            if (TryFindContainingExclusiveOpaqueOutputDirectory(filePath) is var producer && producer.IsValid)
+            {
+                return producer.ToPipId();
+            }
+
+            return PipId.Invalid;
+        }
+
+        /// <inheritdoc/>
         public DirectoryArtifact TryGetSealSourceAncestor(AbsolutePath path)
         {
             // Walk the parent directories of the path to find if it is under a sealedSourceDirectory.

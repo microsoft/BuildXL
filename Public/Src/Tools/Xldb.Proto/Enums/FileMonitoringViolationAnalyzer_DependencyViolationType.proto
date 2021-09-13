@@ -18,10 +18,11 @@ enum FileMonitoringViolationAnalyzer_DependencyViolationType{
     UndeclaredOutput = 6;
     ReadUndeclaredOutput = 7;
     WriteInSourceSealDirectory = 8;
-    WriteInUndeclaredSourceRead = 9;
-    WriteInExistingFile = 10;
-    WriteOnAbsentPathProbe = 11;
-    AbsentPathProbeUnderUndeclaredOpaque = 12;
-    WriteToTempPathInsideSharedOpaque = 13;
-    TempFileProducedByIndependentPips = 14;
+    WriteInExclusiveOpaque = 9;
+    WriteInUndeclaredSourceRead = 10;
+    WriteInExistingFile = 11;
+    WriteOnAbsentPathProbe = 12;
+    AbsentPathProbeUnderUndeclaredOpaque = 13;
+    WriteToTempPathInsideSharedOpaque = 14;
+    TempFileProducedByIndependentPips = 15;
 }

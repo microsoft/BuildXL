@@ -305,6 +305,7 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreFailure = 5022,
 
         DependencyViolationWriteInSourceSealDirectory = 5023,
+        DependencyViolationWriteInExclusiveOpaqueDirectory = 14533,
 
         // Fingerprint store [5024]
         FingerprintStoreGarbageCollectCanceled = 5024,

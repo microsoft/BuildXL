@@ -62,6 +62,12 @@ namespace BuildXL.Pips.Graph
         DirectoryArtifact TryGetSealSourceAncestor(AbsolutePath path);
 
         /// <summary>
+        /// Returns the first (by walking the path upwards) exclusive opaque directory containing <paramref name="filePath"/> 
+        /// or <see cref="PipId.Invalid"/> if there is no such producer
+        /// </summary>
+        PipId TryFindContainingExclusiveOpaqueOutputDirectoryProducer(AbsolutePath filePath);
+
+        /// <summary>
         /// Tries to find if the given path is under a temporary directory
         /// </summary>
         bool TryGetTempDirectoryAncestor(AbsolutePath path, out Pip pip, out AbsolutePath temPath);

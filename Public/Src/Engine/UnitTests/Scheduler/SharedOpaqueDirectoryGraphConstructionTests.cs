@@ -51,9 +51,8 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(@"\\dummyPath\SharedOpaqueDir1", @"\\dummyPath\SharedOpaqueDir1\OpaqueDir2")]
         [InlineData(@"\\dummyPath\OpaqueDir1\SharedOpaqueDir2", @"\\dummyPath\OpaqueDir1")] 
-        public void OpaqueAndSharedOpaqueShouldNotOverlap(string pod, string od)
+        public void OpaqueShouldNotContainSharedOpaque(string pod, string od)
         {
             using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
             {
@@ -80,9 +79,8 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(@"\\dummyPath\SharedOpaqueDir1", @"\\dummyPath\SharedOpaqueDir1\OpaqueDir2", false)]
         [InlineData(@"\\dummyPath\OpaqueDir1\SharedOpaqueDir2", @"\\dummyPath\OpaqueDir1", true)]
-        public void OpaqueAndSharedOpaqueShouldNotOverlapOnDifferentPips(string pod, string od, bool failOnFinish)
+        public void OpaqueShouldNotContainSharedOpaque(string pod, string od, bool failOnFinish)
         {
             using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
             {

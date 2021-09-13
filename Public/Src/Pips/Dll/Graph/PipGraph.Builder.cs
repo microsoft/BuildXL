@@ -551,9 +551,7 @@ namespace BuildXL.Pips.Graph
             }
 
             /// <summary>
-            /// A shared opaque directory is not allowed to contain:
-            /// - exclusive (non-shared) opaque directories
-            /// - fully sealed directories
+            /// A shared opaque directory is not allowed to contain fully sealed directories
             /// </summary>
             private bool EnsureSharedOpaqueDirectoriesHaveNoDisallowedChildren(
                 ObjectPool<Queue<HierarchicalNameId>> queuePool,
@@ -587,7 +585,7 @@ namespace BuildXL.Pips.Graph
                     return true;
                 }
 
-                errorCount = EnsureSharedOpaqueDirectoriesHaveNoExclusiveOpaquesNorFullySealedDirectories(
+                errorCount = EnsureSharedOpaqueDirectoriesHaveNoFullySealedDirectories(
                     queuePool,
                     visited,
                     directory,
@@ -599,12 +597,10 @@ namespace BuildXL.Pips.Graph
             }
 
             /// <summary>
-            /// Under a shared opaque we don't allow:
-            /// - exclusive opaque directory (their delete-all-before-run semantics doesn't play well with sharing)
-            /// - fully sealed directories (nothing under a fully sealed is supposed to change)
+            /// Under a shared opaque we don't allow fully sealed directories (nothing under a fully sealed is supposed to change)
             /// </summary>
             /// <returns>Number of disallowed artifacts found under the given directory</returns>
-            private int EnsureSharedOpaqueDirectoriesHaveNoExclusiveOpaquesNorFullySealedDirectories(
+            private int EnsureSharedOpaqueDirectoriesHaveNoFullySealedDirectories(
                 ObjectPool<Queue<HierarchicalNameId>> queuePool,
                 ConcurrentDictionary<HierarchicalNameId, bool> visited,
                 DirectoryArtifact directory,
@@ -612,7 +608,7 @@ namespace BuildXL.Pips.Graph
                 Pip outputDirectoryProducer,
                 int errorCount)
             {
-                if (PathIsExclusiveOpaqueOrFullySealed(directory.Path, directory, outputDirectoryProducerProvenance, outputDirectoryProducer))
+                if (PathIsFullySealed(directory.Path, directory, outputDirectoryProducerProvenance, outputDirectoryProducer))
                 {
                     return 1;
                 }
@@ -630,7 +626,7 @@ namespace BuildXL.Pips.Graph
                         foreach (var child in Context.PathTable.EnumerateImmediateChildren(current))
                         {
                             var childAsPath = new AbsolutePath(child);
-                            var childError = PathIsExclusiveOpaqueOrFullySealed(childAsPath, directory, outputDirectoryProducerProvenance, outputDirectoryProducer);
+                            var childError = PathIsFullySealed(childAsPath, directory, outputDirectoryProducerProvenance, outputDirectoryProducer);
 
                             if (!childError && visited.TryAdd(child, true))
                             {
@@ -648,23 +644,11 @@ namespace BuildXL.Pips.Graph
                 return errorCount;
             }
 
-            private bool PathIsExclusiveOpaqueOrFullySealed(AbsolutePath path, DirectoryArtifact directory, PipProvenance outputDirectoryProducerProvenance, Pip outputDirectoryProducer)
+            private bool PathIsFullySealed(AbsolutePath path, DirectoryArtifact directory, PipProvenance outputDirectoryProducerProvenance, Pip outputDirectoryProducer)
             {
                 foreach (var sealedDirectoryAndProducer in SealDirectoryTable.GetSealedDirectories(path))
                 {
                     var directoryArtifact = sealedDirectoryAndProducer.Key;
-
-                    // Exclusive opaque directories are blocked
-                    if (directoryArtifact.IsOutputDirectory() && !directoryArtifact.IsSharedOpaque)
-                    {
-                        LogInvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory(
-                            sealedDirectoryAndProducer,
-                            directory,
-                            outputDirectoryProducerProvenance,
-                            outputDirectoryProducer,
-                            path);
-                        return true;
-                    }
 
                     // Fully sealed directories are blocked (partial sealed are ok)
                     if (PipTable.GetSealDirectoryKind(sealedDirectoryAndProducer.Value) == SealDirectoryKind.Full)
@@ -720,34 +704,6 @@ namespace BuildXL.Pips.Graph
                         sealedDirectoryAndProducer.Key.Path.ToString(Context.PathTable),
                         sealedDirectoryProducer.GetDescription(Context));
                 }
-            }
-
-            private void LogInvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory(
-                KeyValuePair<DirectoryArtifact, PipId> exclusiveOpaqueDirectoryAndProducer,
-                DirectoryArtifact directory,
-                PipProvenance sharedOpaqueProducerProvenance,
-                Pip sharedOpaqueProducer,
-                AbsolutePath childAsPath)
-            {
-                // Error because the shared opaque directory contains an exclusive opaque directory.
-                if (!OutputDirectoryProducers.TryGetValue(exclusiveOpaqueDirectoryAndProducer.Key, out var exclusiveOpaqueProducerChildNode))
-                {
-                    exclusiveOpaqueProducerChildNode = exclusiveOpaqueDirectoryAndProducer.Value.ToNodeId();
-                }
-
-                var exclusiveOpaqueProducer = PipTable.HydratePip(
-                    exclusiveOpaqueProducerChildNode.ToPipId(),
-                    PipQueryContext.PipGraphPostValidation);
-
-                Logger.Log.ScheduleFailInvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory(
-                    LoggingContext,
-                    sharedOpaqueProducerProvenance.Token.Path.ToString(Context.PathTable),
-                    sharedOpaqueProducerProvenance.Token.Line,
-                    sharedOpaqueProducerProvenance.Token.Position,
-                    directory.Path.ToString(Context.PathTable),
-                    sharedOpaqueProducer.GetDescription(Context),
-                    childAsPath.ToString(Context.PathTable),
-                    exclusiveOpaqueProducer.GetDescription(Context));
             }
 
             private bool EnsureOutputDirectoryDoesNotClashWithOtherArtifactsAndDoesNotHaveChild(

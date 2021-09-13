@@ -128,25 +128,6 @@ namespace BuildXL.Pips.Tracing
            string sealedDirectoryProducerDescription);
 
         [GeneratedEvent(
-            (int)LogEventId.InvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (int)Tasks.Scheduler,
-            Message =
-                EventConstants.ProvenancePrefix +
-                "Invalid graph since the shared opaque directory '{sharedOpaqueDirectory}', produced by '{sharedOpaqueDirectoryProducerDescription}', contains the exclusive opaque directory '{exclusiveOpaqueDirectory}', " +
-                "produced by '{exclusiveOpaqueDirectoryProducerDescription}'.")]
-        public abstract void ScheduleFailInvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory(
-            LoggingContext context,
-            string file,
-            int line,
-            int column,
-            string sharedOpaqueDirectory,
-            string sharedOpaqueDirectoryProducerDescription,
-            string exclusiveOpaqueDirectory,
-            string exclusiveOpaqueDirectoryProducerDescription);
-        [GeneratedEvent(
            (int)LogEventId.InvalidGraphSinceOutputDirectoryCoincidesSourceFile,
            EventGenerators = EventGenerators.LocalOnly,
            EventLevel = Level.Error,

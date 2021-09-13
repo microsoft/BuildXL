@@ -66,6 +66,7 @@ namespace BuildXL.Scheduler
                         return SimplifiedViolationType.Read;
                     case DependencyViolationType.UndeclaredOutput:
                     case DependencyViolationType.WriteInSourceSealDirectory:
+                    case DependencyViolationType.WriteInExclusiveOpaque:
                     case DependencyViolationType.WriteInExistingFile:
                     case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
                     case DependencyViolationType.WriteOnAbsentPathProbe:

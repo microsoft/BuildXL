@@ -524,8 +524,8 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage),
-            Message = "BuildXL set the Build Termination time to {mins} mins, please increase the CB timeout in your queue config if this seems too low")]
-        public abstract void CbTimeoutInfo(LoggingContext context, int mins);
+            Message = "{ShortProductName} will terminate if build exceeds {allowedRemainingMinutes} minutes ({minutesBeforeQueueTimeout} minutes before timeout specified in CloudBuild Queue configuration).")]
+        public abstract void CbTimeoutInfo(LoggingContext context, int minutesBeforeQueueTimeout, int allowedRemainingMinutes);
     }
 
     /// <summary>

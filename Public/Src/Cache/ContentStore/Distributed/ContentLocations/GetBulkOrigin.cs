@@ -16,6 +16,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// The locations should be obtained from a global remote store (redis).
         /// </summary>
-        Global
+        Global,
+
+        /// <summary>
+        /// The locations should be obtained from the ColdStorage consistent hashing system.
+        /// </summary>
+        ColdStorage
     }
 }

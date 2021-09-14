@@ -135,5 +135,60 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                     .AsTasks();
         }
 
+        /// <summary>
+        /// Processes given inputs with three fallback for failures
+        /// </summary>
+        /// <remarks>
+        /// * Call first function in given inputs
+        /// * Retry failures with first fallback function
+        /// * Retry remaining failures with second fallback function
+        /// * Retry remaining failures with third fallback function
+        /// * Fix indices for results of fallback functions
+        /// * Merge the results
+        /// </remarks>
+        public async static Task<IEnumerable<Task<Indexed<TResult>>>> RunWithFallback<TSource, TResult>(
+            IReadOnlyList<TSource> inputs,
+            GetIndexedResults<TSource, TResult> initialFunc,
+            GetIndexedResults<TSource, TResult> fallbackFunc,
+            GetIndexedResults<TSource, TResult> secondFallbackFunc,
+            GetIndexedResults<TSource, TResult> thirdFallbackFunc,
+            Func<TResult, bool> isSuccessFunc
+            )
+        {
+            // Get results from first method
+            IEnumerable<Task<Indexed<TResult>>> initialResults = await RunWithFallback(inputs, initialFunc, fallbackFunc, secondFallbackFunc, isSuccessFunc);
+
+            // Determine hits / misses based on given isSuccessFunc
+            ILookup<bool, Indexed<TResult>> resultLookup = await initialResults.ToLookupAwait(r => isSuccessFunc(r.Item));
+
+            IReadOnlyList<Indexed<TResult>> indexedSuccesses = resultLookup[true].ToList();
+            IReadOnlyList<Indexed<TResult>> indexedFailures = resultLookup[false].ToList();
+
+            // Return early if no misses
+            if (indexedFailures.Count == 0)
+            {
+                return indexedSuccesses.AsTasks();
+            }
+
+            // Try fallback for items that failed in first attempt
+            IReadOnlyList<TSource> missedInputs = indexedFailures.Select(r => inputs[r.Index]).ToList();
+            IEnumerable<Task<Indexed<TResult>>> fallbackResults = await thirdFallbackFunc(missedInputs);
+
+            // Fix indices for fallback results to corresponding indices from original input
+            IList<Indexed<TResult>> fixedFallbackResults = new List<Indexed<TResult>>(missedInputs.Count);
+            foreach (var resultTask in fallbackResults)
+            {
+                Indexed<TResult> result = await resultTask;
+
+                int originalIndex = indexedFailures[result.Index].Index;
+                fixedFallbackResults.Add(result.Item.WithIndex(originalIndex));
+            }
+
+            // Merge original successful results with fallback results
+            return indexedSuccesses
+                    .Concat(fixedFallbackResults)
+                    .AsTasks();
+        }
+
     }
 }

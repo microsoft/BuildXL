@@ -19,7 +19,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ContentStoreSettings? contentStoreSettings,
             IDistributedLocationStore? distributedStore,
             ConfigurationModel? configurationModel = null,
-            ColdStorage? coldStorage = null)
+            IColdStorage? coldStorage = null)
             => new FileSystemContentStore(
                 fileSystem, SystemClock.Instance, rootPath, configurationModel, distributedStore, contentStoreSettings, coldStorage);
     }

@@ -375,5 +375,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             return left.CompareTo(right) > 0;
         }
+
+        /// <nodoc />
+        public long LeastSignificantLong(int length)
+        {
+            fixed (byte* p = &_bytes.FixedElementField)
+            {
+                var span = new ReadOnlySpan<byte>(p, length);
+                var startIndex = span.Length - 8;
+                return BitConverter.ToInt64(span.ToArray(), startIndex);
+            }
+        }
     }
 }

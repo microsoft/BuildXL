@@ -17,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
     public class WorkflowsTests
     {
         [Fact]
-        public void TestRunWithTwoFallbacks()
+        public void TestRunWithThreeFallbacks()
         {
             List<ContentHashWithPath> listFile = new List<ContentHashWithPath>();
 
@@ -32,14 +32,18 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
             ContentHashWithPath contentHash3 = new ContentHashWithPath(new ContentHash("MD5:72F6F256239CC69B6FE9AF1C7489CFD3"), new AbsolutePath(PathGeneratorUtilities.GetAbsolutePath("A", dirs)) / "destination3.txt");
             listFile.Add(contentHash3);
 
+            ContentHashWithPath contentHash4 = new ContentHashWithPath(new ContentHash("MD5:72F6F256239CC69B6FE9AF1C7489CFD4"), new AbsolutePath(PathGeneratorUtilities.GetAbsolutePath("A", dirs)) / "destination4.txt");
+            listFile.Add(contentHash4);
+
             IEnumerable<Task<Indexed<PlaceFileResult>>> result = Workflows.RunWithFallback<ContentHashWithPath, PlaceFileResult>(
                 listFile,
                 initialFunc: args =>
                 {
-                    Assert.Equal(args.Count, 3);
+                    Assert.Equal(args.Count, 4);
                     Assert.Equal(args[0], contentHash1);
                     Assert.Equal(args[1], contentHash2);
                     Assert.Equal(args[2], contentHash3);
+                    Assert.Equal(args[3], contentHash4);
 
                     return Task.FromResult(args.AsIndexed().Select(
                         p =>
@@ -58,10 +62,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                 },
                 fallbackFunc: args =>
                 {
-                    // First fallback should only receive 2 hashes
-                    Assert.Equal(args.Count, 2);
+                    // First fallback should only receive 3 hashes
+                    Assert.Equal(args.Count, 3);
                     Assert.Equal(args[0], contentHash1);
                     Assert.Equal(args[1], contentHash3);
+                    Assert.Equal(args[2], contentHash4);
 
                     return Task.FromResult(args.AsIndexed().Select(
                         p =>
@@ -80,13 +85,36 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                 },
                 secondFallbackFunc: args =>
                 {
-                    // Second fallback should only receive 1 hash
-                    Assert.Equal(args.Count, 1);
+                    // Second fallback should only receive 2 hashes
+                    Assert.Equal(args.Count, 2);
                     Assert.Equal(args[0], contentHash1);
+                    Assert.Equal(args[1], contentHash4);
 
                     return Task.FromResult(args.AsIndexed().Select(
                         p =>
                         {
+                            return Task.FromResult(new Indexed<PlaceFileResult>(
+                                new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR"),
+                                p.Index));
+                        }));
+                },
+                thirdFallbackFunc: args =>
+                {
+                    // Second fallback should only receive 2 hashes
+                    Assert.Equal(args.Count, 2);
+                    Assert.Equal(args[0], contentHash1);
+                    Assert.Equal(args[1], contentHash4);
+
+                    return Task.FromResult(args.AsIndexed().Select(
+                        p =>
+                        {
+                            // Only number 4 placed successfully
+                            if (p.Index == 1)
+                            {
+                                return Task.FromResult(new Indexed<PlaceFileResult>(
+                                    new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy),
+                                    p.Index));
+                            }
                             return Task.FromResult(new Indexed<PlaceFileResult>(
                                 new PlaceFileResult(PlaceFileResult.ResultCode.Error, "ERROR"),
                                 p.Index));
@@ -97,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Utils
                     return arg.Succeeded;
                 }).Result;
 
-            Assert.Equal(result.ToList().Count, 3);
+            Assert.Equal(result.ToList().Count, 4);
 
             result.ToList().ForEach(p => {
                 if (p.Result.Index == 0) {

@@ -645,7 +645,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 var contentHashes = args.Select(p => p.Hash).ToList();
                 localGetBulkResult.Value = await ContentLocationStore.GetBulkAsync(context, contentHashes, context.Token, urgencyHint, GetBulkOrigin.Local);
-                return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: true, urgencyHint, localGetBulkResult.Value, reason);
+                return await FetchFromContentLocationStoreThenPutAsync(context, args, GetBulkOrigin.Local, urgencyHint, localGetBulkResult.Value, reason);
             };
 
             GetIndexedResults<ContentHashWithPath, PlaceFileResult> fallbackFunc = async args =>
@@ -653,7 +653,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 var contentHashes = args.Select(p => p.Hash).ToList();
                 var globalGetBulkResult = await ContentLocationStore.GetBulkAsync(context, contentHashes, context.Token, urgencyHint, GetBulkOrigin.Global);
                 globalGetBulkResult = globalGetBulkResult.Subtract(localGetBulkResult.Value);
-                return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: false, urgencyHint, globalGetBulkResult, reason);
+                return await FetchFromContentLocationStoreThenPutAsync(context, args, GetBulkOrigin.Global, urgencyHint, globalGetBulkResult, reason);
             };
 
             // If ColdStorage is ON try to place files from it before use remote locations
@@ -667,6 +667,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     },
                     fallbackFunc: initialFunc,
                     secondFallbackFunc: fallbackFunc,
+                    thirdFallbackFunc: async args =>
+                    {
+                        var coldStorageGetBulkResult = _coldStorage.GetBulkLocations(context, args);
+                        return await FetchFromContentLocationStoreThenPutAsync(context, args, GetBulkOrigin.ColdStorage, urgencyHint, coldStorageGetBulkResult, reason);
+                    },
                     isSuccessFunc: result => IsPlaceFileSuccess(result));
             }
 
@@ -680,7 +685,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private async Task<PlaceBulkResult> FetchFromContentLocationStoreThenPutAsync(
             OperationContext context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-            bool isLocal,
+            GetBulkOrigin origin,
             UrgencyHint urgencyHint,
             GetBulkLocationsResult getBulkResult,
             CopyReason reason)
@@ -709,7 +714,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             var contentHashWithSizeAndLocations = indexed.Item;
                             PlaceFileResult result;
 
-                            if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: !isLocal, out var useInRingMachineLocations, out var errorMessage))
+                            if (!CanCopyContentHash(context, contentHashWithSizeAndLocations, isGlobal: origin == GetBulkOrigin.Global, out var useInRingMachineLocations, out var errorMessage))
                             {
                                 result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, errorMessage);
                             }
@@ -727,7 +732,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                                 if (!copyResult)
                                 {
-                                    result = new PlaceFileResult(copyResult);
+                                    // For ColdStorage we should treat all errors as cache misses
+                                    result = origin != GetBulkOrigin.ColdStorage ? new PlaceFileResult(copyResult) : new PlaceFileResult(copyResult, PlaceFileResult.ResultCode.NotPlacedContentNotFound);
                                 }
                                 else
                                 {

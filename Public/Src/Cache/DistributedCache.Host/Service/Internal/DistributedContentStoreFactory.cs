@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -38,7 +39,6 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Exceptions;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -453,7 +453,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (_distributedSettings.ColdStorageSettings != null)
             {
-                coldStorage = new ColdStorage(_fileSystem, _distributedSettings.ColdStorageSettings);
+                coldStorage = new ColdStorage(_fileSystem, _distributedSettings.ColdStorageSettings, _copier);
+                _redisMemoizationStoreFactory.Value.SetColdStorage(coldStorage);
             }
 
             if (_distributedSettings.GetMultiplexMode() == MultiplexMode.Legacy)

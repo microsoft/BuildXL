@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -193,6 +194,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             // call to CreateTopLevelStore
             var topLevelAndPrimaryStore = factory.CreateTopLevelStore();
 
+            IColdStorage coldStorage = topLevelAndPrimaryStore.primaryDistributedStore.ColdStorage;
+
             if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
                 _logger.Always("Creating distributed server with content and metadata store");
@@ -240,7 +243,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     cacheFactory,
                     localServerConfiguration,
                     capabilities: distributedSettings.EnablePublishingCache ? Capabilities.All : Capabilities.AllNonPublishing,
-                    factory.GetAdditionalEndpoints());
+                    factory.GetAdditionalEndpoints(),
+                    coldStorage);
             }
             else
             {
@@ -252,7 +256,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
                     path => topLevelAndPrimaryStore.topLevelStore,
                     localServerConfiguration,
-                    factory.GetAdditionalEndpoints());
+                    factory.GetAdditionalEndpoints(),
+                    coldStorage);
             }
         }
 

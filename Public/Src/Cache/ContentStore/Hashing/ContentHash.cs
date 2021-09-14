@@ -479,5 +479,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             return true;
         }
+
+        /// <summary>
+        ///     Returns a 64-bit signed integer formed by the least significant bytes of the hash.
+        /// </summary>
+        public long LeastSignificantLong()
+        {
+            return _bytes.LeastSignificantLong(ByteLength);
+        }
     }
 }

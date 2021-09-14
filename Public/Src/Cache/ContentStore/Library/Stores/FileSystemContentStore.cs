@@ -78,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             DistributedEvictionSettings? distributedEvictionSettings = null,
             TrimBulkAsync? trimBulkAsync = null,
             ContentStoreSettings? settings = null,
-            ColdStorage? coldStorage = null)
+            IColdStorage? coldStorage = null)
         : this(fileSystem, clock, rootPath, configurationModel, distributedEvictionSettings?.DistributedStore, settings, coldStorage)
         {
         }
@@ -93,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ConfigurationModel? configurationModel,
             IDistributedLocationStore? distributedStore,
             ContentStoreSettings? settings,
-            ColdStorage? coldStorage)
+            IColdStorage? coldStorage)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);

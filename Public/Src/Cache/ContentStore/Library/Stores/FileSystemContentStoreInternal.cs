@@ -161,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private Timer? _selfCheckTimer;
 
-        private readonly ColdStorage? _coldStorage;
+        private readonly IColdStorage? _coldStorage;
 
         /// <nodoc />
         public FileSystemContentStoreInternal(
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ConfigurationModel? configurationModel = null,
             ContentStoreSettings? settings = null,
             IDistributedLocationStore? distributedStore = null,
-            ColdStorage? coldStorage = null)
+            IColdStorage? coldStorage = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
@@ -1731,7 +1731,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         FileReplacementMode.FailIfExists,
                         FileRealizationMode.HardLink).ThrowIfFailureAsync();
 
-                    _coldStorage.PutFileAsync(context, contentHash, disposableFile).FireAndForget(context);
+                    _coldStorage.PutFileAsync(context, contentHash, disposableFile, CancellationToken.None).FireAndForget(context);
 
                     return BoolResult.Success;
                 },

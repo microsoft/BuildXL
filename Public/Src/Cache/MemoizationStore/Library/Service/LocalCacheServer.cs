@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -53,7 +52,8 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
             Capabilities capabilities,
-            IGrpcServiceEndpoint[]? additionalEndpoints = null)
+            IGrpcServiceEndpoint[]? additionalEndpoints = null,
+            IColdStorage? coldStorage = null)
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration, additionalEndpoints)
         {
             // This must agree with the base class' StoresByName to avoid "missing content store" errors from Grpc, and
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                     nameof(cacheFactory));
             });
 
-            _grpcCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore, localContentServerConfiguration);
+            _grpcCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore, localContentServerConfiguration, coldStorage);
         }
 
         /// <inheritdoc />
@@ -210,8 +210,10 @@ namespace BuildXL.Cache.MemoizationStore.Service
             IDictionary<int, ISessionHandle<ICacheSession, LocalCacheServerSessionData>> sessionHandles)
         {
             var sessionInfoList = new List<HibernatedCacheSessionInfo>(sessionHandles.Count);
-            foreach (var (id, handle) in sessionHandles)
+            foreach (var keyValuePair in sessionHandles)
             {
+                var id = keyValuePair.Key;
+                var handle = keyValuePair.Value;
                 if (handle.Session is IHibernateCacheSession hibernateSession)
                 {
                     IList<PublishingOperation>? pending = null;
@@ -245,9 +247,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
             }
 
             var contentHandles = new Dictionary<int, ISessionHandle<IContentSession, LocalContentServerSessionData>>(sessionHandles.Count);
-            foreach (var (key, handle) in sessionHandles)
+            foreach (var keyValuePair in sessionHandles)
             {
-                contentHandles[key] = handle;
+                contentHandles[keyValuePair.Key] = keyValuePair.Value;
             }
             await LocalContentServer.HibernateSessionsAsync(context, contentHandles, Config, Tracer, FileSystem);
         }

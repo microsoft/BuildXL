@@ -16,6 +16,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         ProactiveBackground,
 
         /// <nodoc />
+        ColdStorage,
+
+        /// <nodoc />
         ProactiveCopyOnPut,
 
         /// <nodoc />

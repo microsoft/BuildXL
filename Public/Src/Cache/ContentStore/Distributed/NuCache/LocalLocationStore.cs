@@ -164,6 +164,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly MachineList.Settings _machineListSettings;
 
+        private readonly ColdStorage? _coldStorage;
+
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
@@ -171,7 +173,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IGlobalCacheStore globalCacheStore,
             LocalLocationStoreConfiguration configuration,
             DistributedContentCopier copier,
-            IMasterElectionMechanism masterElectionMechanism)
+            IMasterElectionMechanism masterElectionMechanism,
+            ColdStorage? coldStorage)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(globalStore);
@@ -182,6 +185,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             GlobalStore = globalStore;
             GlobalCacheStore = globalCacheStore;
             _masterElectionMechanism = masterElectionMechanism;
+            _coldStorage = coldStorage;
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ShortHash>(clock);
@@ -703,6 +707,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         ClusterState.SetMasterMachine(leadershipState.Master);
 
+                        if (_coldStorage != null)
+                        {
+                            // We update the ColdStorage consistent-hashing ring on every heartbeat in case the cluster state has changed 
+                            _coldStorage.UpdateRingAsync(context, ClusterState).FireAndForget(context);
+                        }
+                        
                         await ProcessStateAsync(context, checkpointState, leadershipState, inline, forceRestore).ThrowIfFailureAsync();
 
                         return false;

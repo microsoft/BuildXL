@@ -617,6 +617,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             switch (request.Reason)
             {
                 case CopyReason.None:
+                case CopyReason.ColdStorage:
                 case CopyReason.ProactiveBackground:
                     return true;
                 case CopyReason.ProactiveCopyOnPut:

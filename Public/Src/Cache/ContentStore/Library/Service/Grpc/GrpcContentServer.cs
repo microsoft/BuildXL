@@ -94,6 +94,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly AbsolutePath _workingDirectory;
         private DisposableDirectory? _temporaryDirectory;
 
+        private readonly IColdStorage? _coldStorage;
+
         /// <nodoc />
         public CounterCollection<GrpcContentServerCounters> Counters { get; } = new CounterCollection<GrpcContentServerCounters>();
 
@@ -147,7 +149,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession, LocalContentServerSessionData> sessionHandler,
             IReadOnlyDictionary<string, IContentStore> storesByName,
-            LocalServerConfiguration? localServerConfiguration = null)
+            LocalServerConfiguration? localServerConfiguration = null,
+            IColdStorage? coldStorage = null)
         {
             Contract.Requires(storesByName != null);
 
@@ -166,6 +169,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             GrpcAdapter = new ContentServerAdapter(this);
             PushFileHandler = storesByName.Values.OfType<IPushFileHandler>().FirstOrDefault();
             CopyRequestHandler = _contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault();
+
+            _coldStorage = coldStorage;
 
             Logger = logger;
         }
@@ -324,6 +329,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         return result;
                     }
+                }
+            }
+
+            // ColdStorage is last in the lookup order so no time is wasted during the main GRPC search
+            if (_coldStorage != null)
+            {
+                OpenStreamResult result = await _coldStorage.OpenStreamAsync(context, hash, CancellationToken.None);
+                if (result.Code != OpenStreamResult.ResultCode.ContentNotFound)
+                {
+                    return result;
                 }
             }
 

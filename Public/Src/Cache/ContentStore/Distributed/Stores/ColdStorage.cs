@@ -7,14 +7,17 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
@@ -23,15 +26,40 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.ConfigurationHelper;
 
-namespace BuildXL.Cache.ContentStore.Stores
+#nullable enable
+
+namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <summary>
     /// ColdStorage is a store for handling large drives.
     /// It is queried after the MultiplexedStore and before the remote cache.
     /// The data is saved during eviction process of the <see cref="FileSystemContentStoreInternal"/>.
     /// </summary>
-    public class ColdStorage : StartupShutdownSlimBase
+    public class ColdStorage : StartupShutdownSlimBase, IColdStorage
     {
+        private struct RingNode
+        {
+            public long NodeId;
+            public MachineLocation MachineLocation;
+
+            public RingNode(long nodeId, MachineLocation machineLocation)
+            {
+                NodeId = nodeId;
+                MachineLocation = machineLocation;
+            }
+        }
+
+        /// <summary>
+        /// Consistent Hashing: https://en.wikipedia.org/wiki/Consistent_hashing
+        /// We create a virtual ring with the active cache servers. When we need to save or search content
+        /// we use the closest nodes to the content hash in the ring. This way, the only thing that each node
+        /// has to know is how the ring is built.
+        /// Note: The current machine is not saved in the ring
+        /// </summary>
+        private RingNode[] _ring;
+
+        private readonly ReaderWriterLockSlim _ringLock = new ReaderWriterLockSlim();
+
         private readonly IContentStore _store;
 
         private IContentSession? _session;
@@ -39,6 +67,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         protected const string SessionName = "cold_storage_session";
 
         protected const string ErrorMsg = "ColdStorage did not finish Startup yet";
+
+        private readonly int _copiesQuantity;
+
+        private readonly int _maxParallelPlaces;
 
         protected override Tracer Tracer { get; }  = new Tracer(nameof(ColdStorage));
 
@@ -52,9 +84,15 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private readonly AbsolutePath _rootPath;
 
-        public ColdStorage(IAbsFileSystem fileSystem, ColdStorageSettings coldStorageSettings)
+        private readonly IContentHasher _contentHasher;
+
+        private readonly DistributedContentCopier _copier;
+
+        public ColdStorage(IAbsFileSystem fileSystem, ColdStorageSettings coldStorageSettings, DistributedContentCopier distributedContentCopier)
         {
             _fileSystem = fileSystem;
+            _copier = distributedContentCopier;
+
             _rootPath = coldStorageSettings.GetAbsoulutePath();
 
             ConfigurationModel configurationModel
@@ -63,6 +101,19 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentStoreSettings contentStoreSettings = FromColdStorageSettings(coldStorageSettings);
 
             _store = new FileSystemContentStore(fileSystem, SystemClock.Instance, _rootPath, configurationModel, null, contentStoreSettings, null);
+
+            HashType hashType;
+            if (!Enum.TryParse<HashType>(coldStorageSettings.ConsistentHashingHashType, true, out hashType))
+            {
+                hashType = HashType.SHA256;
+            }
+            _contentHasher = HashInfoLookup.GetContentHasher(hashType);
+
+            _copiesQuantity = coldStorageSettings.ConsistentHashingCopiesQuantity;
+            _maxParallelPlaces = coldStorageSettings.MaxParallelPlaces;
+
+            // Starts empty and is created during the first update 
+            _ring = new RingNode[0]; 
         }
 
         private static ContentStoreSettings FromColdStorageSettings(ColdStorageSettings settings)
@@ -114,6 +165,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 _fileSystem.DeleteDirectory(_rootPath / "temp", DeleteOptions.All);
             }
 
+            await _copier.StartupAsync(context).ThrowIfFailure();
+
             CreateSessionResult<IContentSession> sessionResult = _store.CreateSession(context, SessionName, ImplicitPin.None).ThrowIfFailure();
             _session = sessionResult.Session!;
 
@@ -124,22 +177,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             BoolResult sessionResult = _session != null ? await _session.ShutdownAsync(context) : BoolResult.Success;
             BoolResult storeResult = await _store.ShutdownAsync(context);
-            return sessionResult & storeResult;
-        }
-
-        public Task<PutResult> PutFileAsync(
-            Context context,
-            HashType hashType,
-            AbsolutePath path,
-            FileRealizationMode realizationMode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal)
-        {
-            if (_session == null)
-            {
-                return Task.FromResult(new PutResult(new ContentHash(hashType), ErrorMsg));
-            }
-            return _session.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint);
+            BoolResult copierResult = await _copier.ShutdownAsync(context);
+            return sessionResult & storeResult & copierResult;
         }
 
         public Task<PutResult> PutFileAsync(
@@ -157,15 +196,74 @@ namespace BuildXL.Cache.ContentStore.Stores
             return _session.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint);
         }
 
-        public Task PutFileAsync(
+        public Task<PutResult> PutFileAsync(
             Context context,
             ContentHash contentHash,
-            DisposableFile disposableFile)
+            DisposableFile disposableFile,
+            CancellationToken cts)
         {
-                return PutFileAsync(context, contentHash, disposableFile.Path, FileRealizationMode.Copy, CancellationToken.None, UrgencyHint.Low).ContinueWith(p =>
+                return PutFileAsync(context, contentHash, disposableFile.Path, FileRealizationMode.Copy, cts, UrgencyHint.Low).ContinueWith(p =>
                 {
                     disposableFile.Dispose();
+                    if (p.Result.Succeeded)
+                    {
+                        PushContentToRemoteLocations(context, p.Result, cts);
+                    }
+                    return p.Result;
                 });
+        }
+
+        public void PushContentToRemoteLocations(
+            Context context,
+            PutResult putResult,
+            CancellationToken cts)
+        {
+            var contentHashWithSize = new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
+            var operationContext = new OperationContext(context, cts);
+
+            var machineLocations = GetMachineLocations(putResult.ContentHash);
+            foreach (MachineLocation machine in machineLocations)
+            {
+                PushFileToRemoteLocationAsync(operationContext, contentHashWithSize, machine).FireAndForget(operationContext);
+            }
+        }
+
+        private async Task PushFileToRemoteLocationAsync(
+            OperationContext operationContext,
+            ContentHashWithSize contentHashWithSize,
+            MachineLocation machine)
+        {
+            var streamResult = await _session!.OpenStreamAsync(operationContext, contentHashWithSize.Hash, CancellationToken.None);
+
+            // If the OpenStream fails, we do not copy the file
+            if (streamResult.Succeeded)
+            {
+                using (streamResult.Stream)
+                {
+                    await _copier.PushFileAsync(
+                        operationContext,
+                        contentHashWithSize,
+                        machine,
+                        streamResult.Stream,
+                        isInsideRing: false,
+                        CopyReason.ColdStorage,
+                        ProactiveCopyLocationSource.DesignatedLocation,
+                        attempt: 1).IgnoreFailure();
+                }
+            }
+        }
+
+        public Task<OpenStreamResult> OpenStreamAsync(
+            Context context,
+            ContentHash contentHash,
+            CancellationToken cts,
+            UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        {
+            if (_session == null)
+            {
+                return Task.FromResult(new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, ErrorMsg));
+            }
+            return _session.OpenStreamAsync(context, contentHash, cts, urgencyHint);
         }
 
         public Task<PlaceFileResult> PlaceFileAsync(
@@ -218,7 +316,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         return new Indexed<PlaceFileResult>(await CreateTempAndPutAsync(context, indexed.Item.Hash, contentSession), indexed.Index);
                     },
-                    new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 8 });
+                    new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _maxParallelPlaces });
 
             putFilesBlock.PostAll(args.AsIndexed());
 
@@ -230,5 +328,101 @@ namespace BuildXL.Cache.ContentStore.Stores
             return copyFilesLocally.AsTasks();
         }
 
+        public GetBulkLocationsResult GetBulkLocations(OperationContext context, IReadOnlyList<ContentHashWithPath> contentHashes)
+        {
+            return context.PerformOperation(Tracer,
+                operation: () =>
+                {
+                    var contentHashesInfo = new List<ContentHashWithSizeAndLocations>();
+
+                    foreach (ContentHashWithPath contentHash in contentHashes)
+                    {
+                        var locations = GetMachineLocations(contentHash.Hash);
+                        var contentHashWithLocations = new ContentHashWithSizeAndLocations(contentHash.Hash, -1, locations);
+
+                        contentHashesInfo.Add(contentHashWithLocations);
+                    }
+
+                    return new GetBulkLocationsResult(contentHashesInfo, GetBulkOrigin.ColdStorage);
+                });
+        }
+
+        private List<MachineLocation> GetMachineLocations(ContentHash contentHash)
+        {
+            List<MachineLocation> machines = new List<MachineLocation>();
+
+            long contentId = contentHash.LeastSignificantLong();
+
+            using (_ringLock.AcquireReadLock())
+            {
+                int firstNodeIndex = FindFirstNodeIndex(contentId);
+                for (int i = 0; i < Math.Min(_ring.Length, _copiesQuantity); i++)
+                {
+                    int currentPosition = (firstNodeIndex + i) % _ring.Length;
+                    // This implementation of Consistent Hashing does not use virtual nodes
+                    machines.Add(_ring[currentPosition].MachineLocation);
+                }
+            };
+
+            return machines;
+        }
+
+        private int FindFirstNodeIndex(long id)
+        {
+            int indx = 0;
+            while (indx < _ring.Length && _ring[indx].NodeId < id)
+            {
+                indx++;
+            }
+            // Close the ring at the end
+            if (indx == _ring.Length)
+            {
+                indx = 0;
+            }
+            return indx;
+        }
+
+        private RingNode[] CreateNewRing(ClusterState clusterState) {
+            MachineId currentMachineId = clusterState.PrimaryMachineId;
+
+            SortedList<long, RingNode> sortedMachines = new SortedList<long, RingNode>();
+
+            IReadOnlyList<MachineLocation> machineLocations = clusterState.Locations;
+
+            MachineId machineId;
+            foreach (var machine in machineLocations)
+            {
+                // We use the machineId to place it in the virtual ring
+                bool success = clusterState.TryResolveMachineId(machine, out machineId);
+
+                // Create the consistent-hashing virtual ring with the active servers
+                if (success && !clusterState.IsMachineMarkedInactive(machineId) && currentMachineId != machineId)
+                {
+                    long id = _contentHasher.GetContentHash(
+                        BitConverter.GetBytes(machineId.Index)
+                        ).LeastSignificantLong();
+                    sortedMachines.Add(id, new RingNode(id, machine));
+                }
+            }
+
+            return sortedMachines.Values.ToArray();
+        }
+
+        public Task<BoolResult> UpdateRingAsync(OperationContext context, ClusterState clusterState)
+        {
+            // This is a CPU intensive operation and is called from the Heartbeat so we don't want to consume the calling thread
+            return context.PerformOperationAsync(Tracer,
+                () => Task.Run(() =>
+                    {
+                        RingNode[] newRing = CreateNewRing(clusterState);
+
+                        using (_ringLock.AcquireWriteLock())
+                        {
+                            _ring = newRing;
+                        };
+                        return BoolResult.Success;
+                    })
+                );
+        }
     }
 }

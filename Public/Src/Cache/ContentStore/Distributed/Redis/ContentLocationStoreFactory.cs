@@ -65,6 +65,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStoreSecondary;
 
+        private ColdStorage? _coldStorage;
+
         private readonly Lazy<LocalLocationStore> _lazyLocalLocationStore;
 
         public ContentLocationStoreFactory(
@@ -121,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             var redisStore = CreateRedisGlobalStore();
             var masterElectionMechanism = CreateMasterElectionMechanism(redisStore);
             var globalStore = CreateGlobalCacheStore(redisStore, masterElectionMechanism);
-            var localLocationStore = new LocalLocationStore(Clock, redisStore, globalStore, Configuration, Copier, masterElectionMechanism);
+            var localLocationStore = new LocalLocationStore(Clock, redisStore, globalStore, Configuration, Copier, masterElectionMechanism, _coldStorage);
             return localLocationStore;
         }
 
@@ -283,6 +285,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 Configuration.RedisConnectionMultiplexerConfiguration);
 
             return CreateDatabase(factory, databaseName)!;
+        }
+
+        public void SetColdStorage(ColdStorage coldStorage)
+        {
+            // We use the ColdStorage to lazily build the LocalLocationStore later
+            _coldStorage = coldStorage;
         }
     }
 }

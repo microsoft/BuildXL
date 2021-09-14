@@ -73,6 +73,15 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? SelfCheckDefaultHddDelayInMilliseconds { get; set; }
 
+        [DataMember]
+        public int ConsistentHashingCopiesQuantity { get; set; } = 3;
+
+        [DataMember]
+        public int MaxParallelPlaces { get; set; } = 8;
+
+        [DataMember]
+        public string ConsistentHashingHashType { get; set; } = "SHA256";
+
         # endregion
 
         public ColdStorageSettings() { }

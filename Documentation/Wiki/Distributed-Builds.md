@@ -17,7 +17,7 @@ The communication between the orchestrator and workers is carried out through re
 - [**GrpcOrchestratorClient**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcOrchestratorClient.cs) - Held by workers to send messages to the orchestrator
 - [**GrpcWorkerClient**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcWorkerClient.cs) - Held by the orchestrator to send messages to a worker 
 - [**GrpcWorkerServer**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcWorkerServer.cs) - Receives messages on the worker and calls `WorkerService` methods appropriately 
-- [**GrpcWorkerServer**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcOrchestratorServer.cs) - Receives messages on the orchestrator and calls `OrchestratorService` methods appropriately 
+- [**GrpcOrchestratorServer**](../../Public/Src/Engine/Dll/Distribution/Grpc/GrpcOrchestratorServer.cs) - Receives messages on the orchestrator and calls `OrchestratorService` methods appropriately 
 - [**ClientConnectionManager**](../../Public/Src/Engine/Dll/Distribution/Grpc/ClientConnectionManager.cs) - Manages the gRPC channels, monitoring the connection status and logging events
 
 

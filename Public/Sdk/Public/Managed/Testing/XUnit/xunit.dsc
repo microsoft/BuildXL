@@ -61,7 +61,14 @@ export function runConsoleTest(args: TestRunArguments): Result {
         untrackedScopes: [
             ...addIf(args.untrackTestDirectory === true, testDeployment.contents.root),
             ...((args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes) || [])
-        ]
+        ],
+        untrackedPaths : (
+            args.unsafeTestRunArguments && 
+            args.unsafeTestRunArguments.untrackedPaths && 
+            args.unsafeTestRunArguments.untrackedPaths.map(path => typeof(path) === "File" 
+                ? <File>path 
+                : File.fromPath(testDeployment.contents.root.combine(<RelativePath>path)))) 
+        || [],
     };
 
     let execArguments : Transformer.ExecuteArguments = {

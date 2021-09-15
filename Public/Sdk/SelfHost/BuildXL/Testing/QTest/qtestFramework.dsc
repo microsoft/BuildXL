@@ -217,7 +217,14 @@ function runTest(args : TestRunArguments) : File[] {
         qTestAcquireSemaphores: args.tools && args.tools.exec && args.tools.exec.acquireSemaphores,
         qTestDisableCodeCoverage : args.disableCodeCoverage,
         tools: args.tools,
-        qTestUntrackedScopes: args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes
+        qTestUntrackedScopes: args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes,
+        qTestUntrackedPaths:  (
+            args.unsafeTestRunArguments && 
+            args.unsafeTestRunArguments.untrackedPaths && 
+            args.unsafeTestRunArguments.untrackedPaths.map(path => typeof(path) === "File" 
+                ? <File>path 
+                : File.fromPath(args.testDeployment.contents.root.combine(<RelativePath>path)))) 
+        || [],
     });
 
     return [

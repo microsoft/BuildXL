@@ -295,6 +295,11 @@ export interface UnsafeTestRunArguments {
      * Collection of directories and their recursive content to untrack during test execution
      */
     untrackedScopes?: Directory[];
+    
+    /**
+     * Collection of absolute paths or paths relative to the test deployment root to untrack during test execution
+     */
+    untrackedPaths?: (File | RelativePath)[];
 }
 
 @@public

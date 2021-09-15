@@ -37,6 +37,8 @@ namespace AppTest {
                     App.exe
                 ]
             },
-        ]
+        ],
+        // This file is generated for non-Windows OSs
+        runTestArgs: {unsafeTestRunArguments: {untrackedPaths: [r`AppTestsMMF`]}}
     });
 }

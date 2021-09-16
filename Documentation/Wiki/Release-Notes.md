@@ -1,6 +1,10 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210909.1  (Release [117108](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117108)) Released 9/15/2021
+- Add new option to force regenerate nuget package specs.
+-	Retry external VM processes on a different worker during retryable failures.
+
 # 0.1.0-20210903.0  (Release [116707](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=116707)) Released 9/8/2021
 - Support VS2022 to BuildXL VS extension
 - Relax exclusive opaque violations to only consider actually produced files

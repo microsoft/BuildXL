@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -45,6 +46,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
                     Function("getDirectoryValues", GetDirectoryValues, GetDirectoryValuesSignature),
                     Function("hasVariable", HasVariable, HasVariableSignature),
                     Function("newLine", NewLine, NewLineSignature),
+                    Function("expandEnvironmentVariablesInPath", ExpandEnvironmentVariablesInPath, ExpandEnvironmentVariablesInPathSignature),
+                    Function("expandEnvironmentVariablesInString", ExpandEnvironmentVariablesInString, ExpandEnvironmentVariablesInStringSignature),
                 });
         }
 
@@ -217,6 +220,38 @@ namespace BuildXL.FrontEnd.Script.Ambients
             return EvaluationResult.Create(Environment.NewLine);
         }
 
+        /// <summary>
+        /// Replaces the name of each environment variable embedded in the specified path with the string equivalent of the value of the variable.
+        /// Replacement only occurs for environment variables that are set. Unset environment variables are left unexpanded.
+        /// </summary>
+        private static EvaluationResult ExpandEnvironmentVariablesInPath(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        {
+            var path = Args.AsPath(args, 0);
+            var pathAsString = path.ToString(context.PathTable);
+
+            if (StringVariableExpander.TryExpandVariablesInString(pathAsString, context.FrontEndHost.Engine, out string expandedPath))
+            {
+                // The resulting expanded path may not be a valid one. Apply the same validations as when creating an absolute path from a literal
+                return AmbientPath.CreateFromAbsolutePathString(context, expandedPath);
+            }
+
+            // No expansion occurred
+            return EvaluationResult.Create(path);
+        }
+
+        private static EvaluationResult ExpandEnvironmentVariablesInString(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        {
+            var unexpandedString = Args.AsString(args, 0);
+
+            if (StringVariableExpander.TryExpandVariablesInString(unexpandedString, context.FrontEndHost.Engine, out string expandedString))
+            {
+                return EvaluationResult.Create(expandedString);
+            }
+
+            // No expansion occurred
+            return EvaluationResult.Create(unexpandedString);
+        }
+
         private static T ThrowInvalidFormatException<T>(string name, string value, int pos)
         {
             Contract.Requires(name != null);
@@ -245,6 +280,14 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
             return value;
         }
+
+        private CallSignature ExpandEnvironmentVariablesInPathSignature => CreateSignature(
+            required: RequiredParameters(AmbientTypes.PathType),
+            returnType: AmbientTypes.PathType);
+
+        private CallSignature ExpandEnvironmentVariablesInStringSignature => CreateSignature(
+            required: RequiredParameters(AmbientTypes.StringType),
+            returnType: AmbientTypes.StringType);
 
         private CallSignature NewLineSignature => CreateSignature(
             returnType: AmbientTypes.StringType);

@@ -565,6 +565,72 @@ const outputDir = execResult.getOutputDirectory(d`O:/out/dir/outputDir`);
             Assert.Equal(CreateAbsolutePath(@"O:\out\dir\outputDir"), ((StaticDirectory) results["outputDir"]).Path);
         }
 
+        /// <summary>
+        /// Most tests are in <see cref="InterpretStringOperations.TestStringVariableExpansionInWindows(string, string)"/> since the implementation 
+        /// is shared. Here we focus on path validation logic.
+        /// </summary>
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData("C:/path/%MyEnvVar%/foo", "C:/path/MyValue/foo", true)]
+        [InlineData("C:/path/%MyEnvVarWithInvalidChars%/foo", "", false)]
+        public void TestPathVariableExpansion(string unexpanded, string expanded, bool expectSuccess)
+        {
+            Environment.SetEnvironmentVariable("MyEnvVar", "MyValue");
+            Environment.SetEnvironmentVariable("MyEnvVarWithInvalidChars", "MyOther:Value");
+
+            string expression = $"const s: Path = Environment.expandEnvironmentVariablesInPath(p`{unexpanded}`);";
+
+            if (expectSuccess)
+            {
+                var result = EvaluateExpressionsWithNoErrors(expression, "s");
+                Assert.Equal(AbsolutePath.Create(PathTable, expanded), result["s"]);
+            }
+            else
+            {
+                var error = EvaluateWithFirstError(expression, "s");
+                Assert.Equal((int)global::BuildXL.FrontEnd.Script.Tracing.LogEventId.InvalidPathOperation, error.ErrorCode);
+            }
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData("%MyEnvVar%", "MyValue")]
+        [InlineData("%MyEnvVar%WithATail", "MyValueWithATail")]
+        [InlineData("WithAHead%MyEnvVar%WithATail", "WithAHeadMyValueWithATail")]
+        [InlineData("WithAHead%MyEnvVar%WithATail%MyOtherEnvVar%WithAnotherTail", "WithAHeadMyValueWithATailMyOtherValueWithAnotherTail")]
+        [InlineData("%NotDefinedVar%", "%NotDefinedVar%")]
+        [InlineData("%MyEnvVar%With%NotDefinedVar%", "MyValueWith%NotDefinedVar%")]
+        [InlineData("%MyEnvVar%%MyEnvVar%", "MyValueMyValue")]
+        [InlineData("%MyEnvVar", "%MyEnvVar")]
+        [InlineData("%%", "%%")]
+        [InlineData("%", "%")]
+        public void TestStringVariableExpansionInWindows(string unexpanded, string expanded)
+        {
+            Environment.SetEnvironmentVariable("MyEnvVar", "MyValue");
+            Environment.SetEnvironmentVariable("MyOtherEnvVar", "MyOtherValue");
+
+            var result = EvaluateExpressionsWithNoErrors($"const s: string = Environment.expandEnvironmentVariablesInString('{unexpanded}');", "s");
+
+            Assert.Equal(expanded, result["s"]);
+        }
+
+        [TheoryIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [InlineData("$MyEnvVar", "MyValue")]
+        [InlineData("$MyEnvVar/WithATail", "MyValue/WithATail")]
+        [InlineData("WithAHead$MyEnvVar/WithATail", "WithAHeadMyValue/WithATail")]
+        [InlineData("WithAHead($MyEnvVar)WithATail($MyOtherEnvVar)WithAnotherTail", "WithAHead(MyValue)WithATail(MyOtherValue)WithAnotherTail")]
+        [InlineData("$NotDefinedVar", "$NotDefinedVar")]
+        [InlineData("$MyEnvVar/With$NotDefinedVar", "MyValue/With$NotDefinedVar")]
+        [InlineData("$MyEnvVar$MyEnvVar", "MyValueMyValue")]
+        [InlineData("$", "$")]
+        public void TestStringVariableExpansionInUnix(string unexpanded, string expanded)
+        {
+            Environment.SetEnvironmentVariable("MyEnvVar", "MyValue");
+            Environment.SetEnvironmentVariable("MyOtherEnvVar", "MyOtherValue");
+
+            var result = EvaluateExpressionsWithNoErrors($"const s: string = Environment.expandEnvironmentVariablesInString('{unexpanded}');", "s");
+
+            Assert.Equal(expanded, result["s"]);
+        }
+
         private static void CheckUnorderedArray<T>(object expected, object actual)
         {
             var expectedArray = expected as ArrayLiteral;

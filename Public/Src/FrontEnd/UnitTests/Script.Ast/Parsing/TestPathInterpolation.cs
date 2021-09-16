@@ -6,6 +6,7 @@ using BuildXL.FrontEnd.Script.Tracing;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities;
 
 namespace Test.DScript.Ast.Parsing
 {
@@ -83,6 +84,21 @@ namespace Test.DScript.Ast.Parsing
         public void LiteralBacktickPathInterpolation4()
         {
             TestExpression("p`path/${x}/abc.txt`", "p`path/${x}/abc.txt`");
+        }
+
+        [Fact]
+        public void InterpolatedPathWithStringVarAsHead()
+        {
+            var absolutePath = OperatingSystemHelper.IsUnixOS ? "/foo" : "c:/foo";
+
+            string code = 
+$@"const pathAsString : string = '{absolutePath}';
+const x = p`${{pathAsString}}`;
+export const r = `x is ${{x}}`;";
+
+            var result = EvaluateExpressionWithNoErrors(code, "r");
+
+            Assert.Equal($"x is p`{absolutePath}`", (string)result, ignoreCase: true);
         }
 
         private void WithError(string expression, LogEventId eventId)

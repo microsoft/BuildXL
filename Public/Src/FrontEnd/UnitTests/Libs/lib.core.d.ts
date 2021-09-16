@@ -460,7 +460,7 @@ interface String {
     startsWith(str: string): boolean;
     endsWith(str: string): boolean;
     toArray(): string[];
-
+	
     /** Returns the length of a String object. */
     readonly length: number;
 

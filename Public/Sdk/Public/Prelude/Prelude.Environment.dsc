@@ -6,7 +6,7 @@
 
 namespace Environment {
     /** 
-     * get an environment variable that represetns a boolean. 
+     * get an environment variable that represents a boolean. 
      * Returns false if the value is not defined, if it is '0' or 'false'
      * Returns true if the value is set to '1' or 'true'
      * Fails if the value is any other value.
@@ -45,4 +45,17 @@ namespace Environment {
 
     /** Returns a string that represents new-line separator */
     export declare function newLine() : string;
+
+    /**
+     * Replaces the name of each environment variable embedded in the specified path with the string equivalent of the value of the variable.
+     * Replacement only occurs for environment variables that are set. Unset environment variables are left unexpanded.
+     * If the resulting expansion is not a valid path, an evaluation error is generated.
+     */
+    export declare function expandEnvironmentVariablesInPath(path: Path) : Path;
+    
+    /**
+     * Replaces the name of each environment variable embedded in the specified string with the string equivalent of the value of the variable.
+     * Replacement only occurs for environment variables that are set. Unset environment variables are left unexpanded.
+     */
+    export declare function expandEnvironmentVariablesInString(string: string) : string;
 }

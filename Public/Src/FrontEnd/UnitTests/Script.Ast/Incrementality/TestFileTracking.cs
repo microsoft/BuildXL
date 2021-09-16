@@ -150,6 +150,36 @@ namespace Test.DScript.Ast.Incrementality
             }
         }
 
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void EnvVarExpansionShouldInvalidateTheCacheOnChange(bool envVarIsSet)
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
+            {
+                var appDeployment = CreateAppDeployment(tempFiles);
+
+                var testRoot = tempFiles.GetUniqueDirectory(PathTable).ToString(PathTable);
+
+                // The env var is explicit set (or explicitly deleted)
+                Environment.SetEnvironmentVariable("MyEnvVar", envVarIsSet? "MyValue" : null);
+
+                string spec = @"export const s = Environment.expandEnvironmentVariablesInString('%MyEnvVar%');";
+                var buildDefinition = CreateDefinition(spec);
+
+                // The first run should be a miss
+                RunAndAssertGraphCacheMiss(WriteSpecs(testRoot, buildDefinition), appDeployment);
+
+                // A second run should be a hit
+                RunAndAssertGraphCacheHit(WriteSpecs(testRoot, buildDefinition), appDeployment);
+
+                // Change the environment variable the expanded string referenced. We should now
+                // get a cache miss even when the env var was not set to begin with
+                Environment.SetEnvironmentVariable("MyEnvVar", "MyOTHERValue");
+                RunAndAssertGraphCacheMiss(WriteSpecs(testRoot, buildDefinition), appDeployment);
+            }
+        }
+
         [Fact(Skip = "Fails due to race condition when purging the cache")]
         public void RemovingTheFileShouldInvalidateTheCache()
         {

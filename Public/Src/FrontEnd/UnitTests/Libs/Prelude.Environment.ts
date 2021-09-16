@@ -45,4 +45,17 @@ namespace Environment {
 
     /** Returns a string that represents new-line separator */
     export declare function newLine() : string;
+     
+    /**
+     * Replaces the name of each environment variable embedded in the specified path with the string equivalent of the value of the variable.
+     * Replacement only occurs for environment variables that are set. Unset environment variables are left unexpanded.
+     * If the resulting expansion is not a valid path, an evaluation error is generated.
+    */
+    export declare function expandEnvironmentVariablesInPath(path: Path) : Path;
+    
+    /**
+     * Replaces the name of each environment variable embedded in the specified string with the string equivalent of the value of the variable.
+     * Replacement only occurs for environment variables that are set. Unset environment variables are left unexpanded.
+    */
+    export declare function expandEnvironmentVariablesInString(string: string) : string;
 }

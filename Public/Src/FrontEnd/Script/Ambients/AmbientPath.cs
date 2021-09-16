@@ -161,7 +161,14 @@ namespace BuildXL.FrontEnd.Script.Ambients
         public static EvaluationResult CreateFromAbsolutePathString(ImmutableContextBase context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var absolutePath = Args.AsString(args, 0);
+            return CreateFromAbsolutePathString(context, absolutePath);
+        }
 
+        /// <summary>
+        /// <see cref="CreateFromAbsolutePathString(ImmutableContextBase, ModuleLiteral, EvaluationStackFrame)"/>
+        /// </summary>
+        public static EvaluationResult CreateFromAbsolutePathString(ImmutableContextBase context, string absolutePath)
+        {
             var result = AbsolutePath.TryCreate(context.PathTable, absolutePath, out var resultPath, out var characterWithError);
             if (result == AbsolutePath.ParseResult.Success)
             {
@@ -186,7 +193,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
             throw new InvalidPathOperationException(message, new ErrorContext(pos: 1));
         }
-        
+
         /// <summary>
         /// Signature for path interpolation
         /// </summary>

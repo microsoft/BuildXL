@@ -68,6 +68,10 @@ namespace BuildXL.Utilities
 #else
             false;
 #endif
+        /// <summary>
+        /// Returns true if the current platform is a Windows platform.
+        /// </summary>
+        public static bool IsWindowsOS { get; } = Environment.OSVersion.Platform != PlatformID.MacOSX && Environment.OSVersion.Platform != PlatformID.Unix;
 
         /// <summary>
         /// Indicates if BuildXL is running on .NET Core

@@ -323,9 +323,9 @@ namespace BuildXL.FrontEnd.JavaScript
                 sb.AppendLine($"const lazy{i} : {lazyEvaluation.FormattedExpectedType} = {lazyEvaluation.Expression};");
             }
 
-            // Parse and bind the source file
+            // Parse the source file
             // As a result, all the statements of the file are variable declarations, corresponding to each lazy
-            FrontEndUtilities.TryParseAndBindSourceFile(m_host, m_context, LazyEvaluationsFile, sb.ToString(), out var sourceFile);
+            FrontEndUtilities.TryParseSourceFile(m_context, LazyEvaluationsFile, sb.ToString(), out var sourceFile);
 
             // Create a mapping from statements to lazys for the resolver to consume, so they can be later linked
             // with the JavaScriptProjects they affect

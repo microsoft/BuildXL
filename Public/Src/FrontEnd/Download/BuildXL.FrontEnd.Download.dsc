@@ -16,7 +16,7 @@ namespace Download {
             Script.dll,
             Sdk.dll,
             TypeScript.Net.dll,
-
+            Utilities.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
@@ -25,13 +25,17 @@ namespace Download {
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
-            importFrom("SharpZipLib").pkg,
             ...BuildXLSdk.tplPackages,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            importFrom("Newtonsoft.Json").pkg,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Download",
+        ],
+        runtimeContent:[
+            importFrom("BuildXL.Tools").FileDownloader.withQualifier({
+                configuration : qualifier.configuration, 
+                targetFramework: "netcoreapp3.1", 
+                targetRuntime: qualifier.targetRuntime }).deployment
         ],
     });
 }

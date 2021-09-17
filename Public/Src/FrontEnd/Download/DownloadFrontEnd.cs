@@ -4,7 +4,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Download.Tracing;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using JetBrains.Annotations;
@@ -12,12 +14,13 @@ using JetBrains.Annotations;
 namespace BuildXL.FrontEnd.Download
 {
     /// <summary>
-    /// NuGet resolver frontend
+    /// Download resolver frontend
     /// </summary>
     public sealed class DownloadFrontEnd : FrontEnd<DownloadWorkspaceResolver>
     {
-        private readonly Logger m_logger;
-        private readonly Statistics m_statistics;
+        private readonly Script.Tracing.Logger m_logger;
+        private readonly FrontEndStatistics m_frontEndStatistics;
+        private readonly EvaluationStatistics m_evaluationStatistics;
 
         /// <summary>
         /// Gets or sets the name of the front-end.
@@ -30,8 +33,9 @@ namespace BuildXL.FrontEnd.Download
         /// <nodoc/>
         public DownloadFrontEnd()
         {
-            m_logger = Logger.Log;
-            m_statistics = new Statistics();
+            m_logger = Script.Tracing.Logger.CreateLogger(preserveLogEvents: true);
+            m_frontEndStatistics = new FrontEndStatistics();
+            m_evaluationStatistics = new EvaluationStatistics();
         }
 
         /// <inheritdoc />
@@ -44,7 +48,8 @@ namespace BuildXL.FrontEnd.Download
             Contract.Requires(SupportedResolvers.Contains(kind));
 
             return new DownloadResolver(
-                m_statistics,
+                m_frontEndStatistics,
+                m_evaluationStatistics,
                 Host,
                 Context,
                 m_logger,
@@ -54,8 +59,18 @@ namespace BuildXL.FrontEnd.Download
         /// <inheritdoc />
         public override void LogStatistics(Dictionary<string, long> statistics)
         {
-            m_statistics.Downloads.LogStatistics("Download.Download", statistics);
-            m_statistics.Extractions.LogStatistics("Download.Extract", statistics);
+            Logger.Log.ContextStatistics(Context.LoggingContext, Name, m_evaluationStatistics.ContextTrees,
+                m_evaluationStatistics.Contexts);
+
+            var frontEndStatistics = new Dictionary<string, long>
+            {
+                { "Download.AggregatedAstConversionCount", (long)m_frontEndStatistics.SpecAstConversion.Count },
+                { "Download.AggregatedAstConversionDurationMs", (long)m_frontEndStatistics.SpecAstConversion.AggregateDuration.TotalMilliseconds },
+                { "Download.AggregatedAstSerializationDurationMs", (long)m_frontEndStatistics.SpecAstSerialization.AggregateDuration.TotalMilliseconds },
+                { "Download.AggregatedAstDeserializationDurationMs", (long)m_frontEndStatistics.SpecAstDeserialization.AggregateDuration.TotalMilliseconds },
+            };
+
+            Logger.Log.BulkStatistic(Context.LoggingContext, frontEndStatistics);
         }
     }
 }

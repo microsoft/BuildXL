@@ -43,7 +43,7 @@ namespace Node {
         }
         else {
             // Otherwise, just get it from the static directory as specified
-            nodeToolFile = nodeInstallation.getFile(relativePathToInstallation);
+            nodeToolFile = nodeInstallation.assertExistence(relativePathToInstallation);
         }
         
         return {

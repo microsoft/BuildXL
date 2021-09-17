@@ -414,10 +414,7 @@ namespace BuildXL.FrontEnd.Utilities
         /// <returns>Whether parsing and binding succeded</returns>
         public static bool TryParseAndBindSourceFile(FrontEndHost host, FrontEndContext context, AbsolutePath sourceFilePath, string sourceFileContent, out TypeScript.Net.Types.SourceFile sourceFile)
         {
-            var parser = new DScriptParser(context.PathTable);
-            sourceFile = (TypeScript.Net.Types.SourceFile) parser.ParseSourceFileContent(sourceFilePath.ToString(context.PathTable), sourceFileContent, ParsingOptions.DefaultParsingOptions);
-            
-            if (sourceFile.ParseDiagnostics.Count != 0)
+            if (!TryParseSourceFile(context, sourceFilePath, sourceFileContent, out sourceFile))
             {
                 return false;
             }
@@ -431,6 +428,18 @@ namespace BuildXL.FrontEnd.Utilities
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Parses an arbitrary string returning a corresponding ISourceFile.
+        /// </summary>
+        /// <returns>Whether parsing succeded</returns>
+        public static bool TryParseSourceFile(FrontEndContext context, AbsolutePath sourceFilePath, string sourceFileContent, out TypeScript.Net.Types.SourceFile sourceFile)
+        {
+            var parser = new DScriptParser(context.PathTable);
+            sourceFile = (TypeScript.Net.Types.SourceFile)parser.ParseSourceFileContent(sourceFilePath.ToString(context.PathTable), sourceFileContent, ParsingOptions.DefaultParsingOptions);
+
+            return sourceFile.ParseDiagnostics.Count != 0;
         }
 
         /// <summary>

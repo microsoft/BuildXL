@@ -71,7 +71,8 @@ namespace BuildXL.Pips.Graph
         /// 94: Detours no longer report chain of symlinks when symlinks are opened with FILE_FLAG_OPEN_REPARSE_POINT.
         /// 95: Add ActionKind to CompositeSharedOpaqueSealDirectory
         /// 96: Add DisableFullReparsePointResolving at the pip level
+        /// 97: Download resolver schedules real pips
         /// </remarks>
-        TwoPhaseV2 = 96,
+        TwoPhaseV2 = 97,
     }
 }

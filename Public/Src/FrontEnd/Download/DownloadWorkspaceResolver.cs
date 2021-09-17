@@ -9,11 +9,13 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Download.Tracing;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
@@ -34,6 +36,7 @@ namespace BuildXL.FrontEnd.Download
 
         // These are set during Initialize
         private FrontEndContext m_context;
+        private FrontEndHost m_host;
 
         /// <nodoc />
         public IReadOnlyDictionary<string, DownloadData> Downloads { get; private set; }
@@ -64,11 +67,13 @@ namespace BuildXL.FrontEnd.Download
             Contract.Assert(settings != null);
 
             m_context = context;
+            m_host = host;
             Name = resolverSettings.Name;
 
             var resolverFolder = host.GetFolderForFrontEnd(resolverSettings.Name ?? Kind);
 
             var downloads = new Dictionary<string, DownloadData>(StringComparer.Ordinal);
+            int i = 0;
             foreach (var downloadSettings in settings.Downloads)
             {
                 if (!ValidateAndExtractDownloadData(context, downloadSettings, downloads, resolverFolder, out var downloadData))
@@ -77,7 +82,8 @@ namespace BuildXL.FrontEnd.Download
                 }
 
                 downloads.Add(downloadSettings.ModuleName, downloadData);
-                UpdateDataForDownloadData(downloadData);
+                UpdateDataForDownloadData(downloadData, i);
+                i++;
             }
 
             Downloads = downloads;
@@ -247,46 +253,93 @@ namespace BuildXL.FrontEnd.Download
 
             if (!Downloads.TryGetValue(descriptor.Name, out var downloadData))
             {
-                Contract.Assert(false, "Inconsistent internal state of NugetWorkspaceResolver");
+                Contract.Assert(false, "Inconsistent internal state of DownloadResolver");
                 return Task.FromResult<Possible<ISourceFile>>(new SpecNotOwnedByResolverFailure(pathToParseAsString));
             }
 
-            var sourceFile = SourceFile.Create(pathToParseAsString);
+            string exeExtension = OperatingSystemHelper.IsWindowsOS ? ".exe" : string.Empty;
 
-            var downloadDeclarationType = new TypeReferenceNode("File");
-            downloadDeclarationType.TypeName.Pos = 1;
-            downloadDeclarationType.TypeName.End = 2;
-            var downloadDeclaration = new VariableDeclaration(downloadData.DownloadedValueName, Identifier.CreateUndefined(), downloadDeclarationType);
-            downloadDeclaration.Flags |= NodeFlags.Export | NodeFlags.Public | NodeFlags.ScriptPublic;
-            downloadDeclaration.Pos = 1;
-            downloadDeclaration.End = 2;
+            // CODESYNC: keep in sync with Public\Src\Tools\FileDownloader\Tool.FileDownloader.dsc deployment
+            var pathToDownloader = m_host.Configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Downloader" + exeExtension));
+            var pathToExtractor = m_host.Configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Extractor" + exeExtension));
 
-            var extractedDeclarationType = new TypeReferenceNode("StaticDirectory");
-            extractedDeclarationType.TypeName.Pos = 3;
-            extractedDeclarationType.TypeName.Pos = 4;
-            var extractedDeclaration = new VariableDeclaration(downloadData.ExtractedValueName, Identifier.CreateUndefined(), extractedDeclarationType);
-            extractedDeclaration.Flags |= NodeFlags.Export | NodeFlags.Public | NodeFlags.ScriptPublic;
-            extractedDeclaration.Pos = 3;
-            extractedDeclaration.End = 4;
+            // Create a spec file that schedules two pips: a download one followed by an extract one. The latter only if extraction is specified
+            // CODESYNC: tools arguments and behavior defined in Public\Src\Tools\FileDownloader\Downloader.cs and \Public\Src\Tools\FileDownloader\Extractor.cs
+            var spec = $@"
+                export declare const qualifier: {{}};
+            
+                const downloadTool  = {CreateToolDefinition(pathToDownloader)}
+                const downloadResult = {CreateDownloadPip(downloadData)}
+                @@public export const {downloadData.DownloadedValueName} : File = downloadResult.getOutputFile(p`{downloadData.DownloadedFilePath.ToString(m_context.PathTable)}`);";
 
-            sourceFile.Statements.Add(
-                new VariableStatement()
-                {
-                    DeclarationList = new VariableDeclarationList(
-                        NodeFlags.Const,
-                        downloadDeclaration,
-                        extractedDeclaration)
-                }
-            );
+            // The extract pip (and its corresponding public value) are only available if extraction needs to happen
+            if (downloadData.ShouldExtractBits)
+            {
+                spec += $@"
+                    const extractTool  = {CreateToolDefinition(pathToExtractor)}
+                    const extractResult = {CreateExtractPip(downloadData)}
+                    @@public export const {downloadData.ExtractedValueName} : OpaqueDirectory = extractResult.getOutputDirectory(d`{downloadData.ContentsFolder.Path.ToString(m_context.PathTable)}`);
+                    ";
+            }
 
-            // Needed for the binder to recurse.
-            sourceFile.ExternalModuleIndicator = sourceFile;
-            sourceFile.SetLineMap(new [] { 0, 2} );
+            // No need to check for errors here since they are embedded in the source file and downstream consumers check for those
+            FrontEndUtilities.TryParseSourceFile(m_context, pathToParse, spec, out var sourceFile);
 
             return Task.FromResult<Possible<ISourceFile>>(sourceFile);
         }
 
-        internal void UpdateDataForDownloadData(DownloadData downloadData, FrontEndContext context = null)
+        private string CreateToolDefinition(AbsolutePath pathToTool)
+        {
+            return $"{{exe: f`{pathToTool.ToString(m_context.PathTable)}`, dependsOnCurrentHostOSDirectories: true, prepareTempDirectory: true}};";
+        }
+
+        private string CreateDownloadPip(DownloadData data)
+        {
+            string downloadDirectory = data.DownloadedFilePath.GetParent(m_context.PathTable).ToString(m_context.PathTable);
+
+            // The download pip is flagged with isLight, since it is mostly network intensive
+            // We disable reparse point resolving for this pip (and the extract one below) since the frontend directory
+            // sometimes is placed under a junction (typically when CB junction outputs) and with full reparse point resolution enabled this 
+            // would generate a DFA. We know these pips do not interact with reparse points, so this is safe.
+            return $@"<TransformerExecuteResult> _PreludeAmbientHack_Transformer.execute({{
+                tool: downloadTool,
+                tags: ['download'],
+                description: 'Downloading \""{data.DownloadUri}\""',
+                workingDirectory: d`{downloadDirectory}`,
+                arguments: [
+                    {{name: '/url:', value: '{data.DownloadUri}'}},
+                    {{name: '/downloadDirectory:', value: p`{downloadDirectory}`}},
+                    {(data.ContentHash.HasValue? $"{{name: '/hash:', value: '{data.ContentHash.Value}'}}," : string.Empty)}
+                    {(!string.IsNullOrEmpty(data.Settings.FileName) ? $"{{name: '/fileName:', value: '{data.Settings.FileName}'}}," : string.Empty)}
+                ],
+                outputs: [f`{data.DownloadedFilePath.ToString(m_context.PathTable)}`],
+                isLight: true,
+                unsafe: {{disableFullReparsePointResolving: true}},
+            }});";
+        }
+
+        private string CreateExtractPip(DownloadData data)
+        {
+            string extractDirectory = data.ContentsFolder.Path.ToString(m_context.PathTable);
+
+            // The result of the extraction goes into an exclusive opaque
+            return $@"<TransformerExecuteResult> _PreludeAmbientHack_Transformer.execute({{
+                tool: extractTool,
+                tags: ['extract'],
+                description: 'Extracting \""{data.DownloadUri}\""',
+                workingDirectory: d`{extractDirectory}`,
+                arguments: [
+                    {{name: '/file:', value: p`{data.DownloadedFilePath.ToString(m_context.PathTable)}`}},
+                    {{name: '/extractTo:', value: p`{extractDirectory}`}},
+                    {{name: '/archiveType:', value: '{data.Settings.ArchiveType}'}},
+                ],
+                outputs: [d`{extractDirectory}`],
+                dependencies: [{data.DownloadedValueName}],
+                unsafe: {{disableFullReparsePointResolving: true}},
+            }});";
+        }
+
+        internal void UpdateDataForDownloadData(DownloadData downloadData, int resolverSettingsIndex, FrontEndContext context = null)
         {
             context = context ?? m_context;
             Contract.Assert(context != null);
@@ -303,7 +356,15 @@ namespace BuildXL.FrontEnd.Download
                 new[] { downloadData.ModuleSpecFile },
                 allowedModuleDependencies: null,
                 cyclicalFriendModules: null,
-                mounts: null); // A Download package does not have any module dependency restrictions nor allowlist cycles
+                mounts: new Mount[] { 
+                    new Mount { 
+                        Name = PathAtom.Create(m_context.StringTable, $"Download#{resolverSettingsIndex}"), 
+                        Path = downloadData.ModuleRoot, 
+                        TrackSourceFileChanges = true, 
+                        IsWritable = true, 
+                        IsReadable = true,
+                        IsScrubbable = true } 
+                }); // A Download package does not have any module dependency restrictions nor allowlist cycles
 
             m_descriptors.Add(descriptor);
             m_descriptorsByName.Add(name, descriptor);

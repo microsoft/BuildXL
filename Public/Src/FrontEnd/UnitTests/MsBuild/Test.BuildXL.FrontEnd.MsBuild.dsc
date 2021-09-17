@@ -4,6 +4,7 @@
 import * as Managed from "Sdk.Managed";
 import * as MSBuild from "Sdk.Selfhost.MSBuild";
 import * as Frameworks from "Sdk.Managed.Frameworks";
+import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace Test.MsBuild {
     @@public
@@ -14,6 +15,9 @@ namespace Test.MsBuild {
                 runWithUntrackedDependencies: true
             },
         },
+        // QTest does not support opaque directories. Force this to be a xunit test since the dotnet runtime
+        // dependency comes from an opaque
+        testFramework: XUnit.framework,
         assemblyName: "Test.BuildXL.FrontEnd.MsBuild",
         sources: globR(d`.`, "*.cs"),
         references: [

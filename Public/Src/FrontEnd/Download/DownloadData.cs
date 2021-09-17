@@ -57,8 +57,6 @@ namespace BuildXL.FrontEnd.Download
 
             ModuleConfigFile = ModuleRoot.Combine(context.PathTable, "module.config.dsc");
             ModuleSpecFile = ModuleRoot.Combine(context.PathTable, "project.dsc");
-            DownloadManifestFile = ModuleRoot.Combine(context.PathTable, "manifest.download.txt");
-            ExtractManifestFile = ModuleRoot.Combine(context.PathTable, "manifest.extract.txt");
 
             ContentHash = contentHash;
 
@@ -79,12 +77,6 @@ namespace BuildXL.FrontEnd.Download
 
         /// <nodoc />
         public AbsolutePath DownloadedFilePath { get; }
-
-        /// <nodoc />
-        public AbsolutePath DownloadManifestFile { get; }
-
-        /// <nodoc />
-        public AbsolutePath ExtractManifestFile { get; }
 
         /// <nodoc />
         public DirectoryArtifact ContentsFolder { get; }

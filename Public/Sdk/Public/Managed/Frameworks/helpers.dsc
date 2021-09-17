@@ -32,7 +32,7 @@ namespace Helpers
 
         return {
             tool: {
-                exe: pkgContents.getFile(executable),
+                exe: pkgContents.assertExistence(executable), 
                 dependsOnCurrentHostOSDirectories: true
             },
             dependencies: [

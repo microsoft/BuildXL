@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Net;
-using BuildXL.FrontEnd.Download.Tracing;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
 using Xunit.Abstractions;
@@ -16,7 +15,7 @@ namespace Test.BuildXL.FrontEnd.Download
             RegisterEventSource(global::BuildXL.FrontEnd.Download.ETWLogger.Log);
         }
 
-        [Fact(Skip = "Temporarily disabled, produces a DFA on Mac")]
+        [Fact]
         public void NamedValuesAreExposed()
         {
             const string TestServer = "http://localhost:9754/";
@@ -37,6 +36,7 @@ config({{
                 moduleName: 'download',
                 url: '{TestServer}value-test.zip',
                 downloadedValueName: 'theDownloaded',
+                archiveType: 'zip',
                 extractedValueName: 'theExtracted'
             }}]
         }},

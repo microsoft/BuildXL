@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -80,123 +81,6 @@ namespace BuildXL.FrontEnd.Download.Tracing
         public abstract void DownloadFrontendHashValueNotValidContentHash(LoggingContext context, string id, string url, string hash);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DownloadMismatchedHash,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.UserError | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Invalid content for download id '{id}' from url '{url}'. The content hash was expected to be: '{expectedHash}' but the downloaded files hash was '{downloadedHash}'. This means that the data on the server has been altered and is not trusted.")]
-        public abstract void DownloadMismatchedHash(LoggingContext context, string id, string url, string expectedHash, string downloadedHash);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.StartDownload,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (ushort)(Keywords.UserMessage),
-            EventTask = (ushort)Tasks.Parser,
-            Message = "Starting download id '{id}' from url '{url}'.")]
-        public abstract void StartDownload(LoggingContext context, string id, string url);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.Downloaded,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (ushort)(Keywords.UserMessage),
-            EventTask = (ushort)Tasks.Parser,
-            Message = "Finished download id '{id}' from url '{url}' in {durationMs}ms with {sizeInBytes} bytes.")]
-        public abstract void Downloaded(LoggingContext context, string id, string url, long durationMs, long sizeInBytes );
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DownloadFailed,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Failed to download id '{id}' from url '{url}': {error}.")]
-        public abstract void DownloadFailed(LoggingContext context, string id, string url, string error);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorPreppingForDownload,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to prepare for download id '{id}': {error}.")]
-        public abstract void ErrorPreppingForDownload(LoggingContext context, string id, string error);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorCheckingIncrementality,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to check the incremental information of download id '{id}': {error}.")]
-        public abstract void ErrorCheckingIncrementality(LoggingContext context, string id, string error);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorStoringIncrementality,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to store incremental information of download id '{id}': {error}.")]
-        public abstract void ErrorStoringIncrementality(LoggingContext context, string id, string error);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorExtractingArchive,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to extract archive '{id}' from '{archive}' to '{folder}': {error}.")]
-        public abstract void ErrorExtractingArchive(LoggingContext context, string id, string archive, string folder, string error);
-        
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorNothingExtracted,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to extract archive '{id}'. Nothing was extracted from '{archive}' to '{folder}'")]
-        public abstract void ErrorNothingExtracted(LoggingContext context, string id, string archive, string folder);
-   
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorValidatingPackage,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to validate extracted archive '{id}' from '{archive}' to '{folder}': {error}.")]
-        public abstract void ErrorValidatingPackage(LoggingContext context, string id, string archive, string folder, string error);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ErrorListingPackageContents,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.InfrastructureError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Error occured trying to enumerate extracted archive '{id}' from '{archive}' to '{folder}': {error}.")]
-        public abstract void ErrorListingPackageContents(LoggingContext context, string id, string archive, string folder, string error);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DownloadManifestDoesNotMatch,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (ushort)(Keywords.UserMessage),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Download manifest indicates a redownload is required because of '{reason}'. Expected: '{expected}' actual: '{actual}'")]
-        public abstract void DownloadManifestDoesNotMatch(LoggingContext context, string id, string archive, string reason, string expected, string actual);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ExtractManifestDoesNotMatch,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (ushort)(Keywords.UserMessage),
-            EventTask = (ushort)Tasks.Parser,
-            Message = ResolverSettingsPrefix + "Extraction manifest indicates a re-extraction is required because of '{reason}'. Expected: '{expected}' actual: '{actual}'")]
-        public abstract void ExtractManifestDoesNotMatch(LoggingContext context, string id, string archive, string reason, string expected, string actual);
-
-        [GeneratedEvent(
             (ushort)LogEventId.NameContainsInvalidCharacters,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -206,22 +90,22 @@ namespace BuildXL.FrontEnd.Download.Tracing
         public abstract void NameContainsInvalidCharacters(LoggingContext context, string fieldName, string name);
 
         [GeneratedEvent(
-            (ushort)LogEventId.AuthenticationViaIWAFailed,
+            (ushort)LogEventId.ContextStatistics,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (ushort)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Parser,
-            Message = "Download resolver was not able to authenticate using Integrated Windows Authentication for '{uri}': {details}")]
-        public abstract void AuthenticationViaIWAFailed(LoggingContext context, string uri, string details);
+            Message = "[Download.{0}] contexts: {1} trees, {2} contexts.",
+            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+        public abstract void ContextStatistics(LoggingContext context, string name, long contextTrees, long contexts);
 
         [GeneratedEvent(
-            (ushort)LogEventId.AuthenticationViaCredentialProviderFailed,
-            EventGenerators = EventGenerators.LocalOnly,
+            (ushort)LogEventId.BulkStatistic,
+            EventGenerators = Generators.Statistics,
             EventLevel = Level.Verbose,
-            Keywords = (ushort)(Keywords.UserMessage),
-            EventTask = (ushort)Tasks.Parser,
-            Message = "Download resolver was not able to authenticate using a credential provider for '{uri}': {details}")]
-        public abstract void AuthenticationViaCredentialProviderFailed(LoggingContext context, string uri, string details);
+            EventTask = (ushort)Tasks.CommonInfrastructure,
+            Message = "N/A",
+            Keywords = (int)Keywords.Diagnostics)]
+        public abstract void BulkStatistic(LoggingContext context, IDictionary<string, long> statistics);
     }
 
 

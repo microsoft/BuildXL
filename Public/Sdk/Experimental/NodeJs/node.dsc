@@ -8,10 +8,10 @@ import { Npm } from "Sdk.JavaScript";
 namespace Node {
 
     @@public
-    export const tool = getNodeTool();
+    export const tool : Transformer.ToolDefinition = getNodeTool();
     
     @@public
-    export const npmCli = getNpmCli();
+    export const npmCli : File = getNpmCli();
 
     const nodeExecutablesDir : Directory = d`${getNodeTool().exe.parent}`;
 
@@ -19,7 +19,25 @@ namespace Node {
      * Self-contained node executables. Platform dependent.
      */
     @@public
-    export const nodeExecutables : StaticDirectory = Transformer.sealDirectory(nodeExecutablesDir, globR(nodeExecutablesDir));
+    export const nodeExecutables : Deployment.Deployable | StaticDirectory = getNodeExecutables();
+
+    /**
+     * TODO: after a new LKG is pushed, the node package should always be an opaque directory
+     * so this code can be simplified
+     */
+    function getNodeExecutables() : Deployment.Deployable | StaticDirectory {
+        const nodePackage = getNodePackage();
+
+        if (nodePackage.kind === "exclusive" || nodePackage.kind === "shared") {
+            const relativePath = nodePackage.root.path.getRelative(nodeExecutablesDir.path);
+
+            return Deployment.createDeployableOpaqueSubDirectory(
+                <OpaqueDirectory>nodePackage, relativePath);
+        } 
+        else {
+            return Transformer.sealDirectory(nodeExecutablesDir, globR(nodeExecutablesDir));
+        }
+    }
 
     @@public
     export function run(args: Transformer.ExecuteArguments) : Transformer.ExecuteResult {
@@ -55,25 +73,46 @@ namespace Node {
     const nodeOsxDir = `node-${nodeVersion}-darwin-x64`;
     const nodeLinuxDir = `node-${nodeVersion}-linux-x64`;
 
+    function getNodePackage(): StaticDirectory {
+        const host = Context.getCurrentHost();
+    
+        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
+    
+        let pkgContents : StaticDirectory = undefined;
+        
+        switch (host.os) {
+            case "win":
+                pkgContents = importFrom("NodeJs.win-x64").extracted;
+                break;
+            case "macOS": 
+                pkgContents = importFrom("NodeJs.osx-x64").extracted;
+                break;
+            case "unix": 
+                pkgContents = importFrom("NodeJs.linux-x64").extracted;
+                break;
+            default:
+                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
+        }
+
+        return pkgContents;
+    }
+    
     function getNodeTool() : Transformer.ToolDefinition {
         const host = Context.getCurrentHost();
     
         Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
         let executable : RelativePath = undefined;
-        let pkgContents : StaticDirectory = undefined;
+        let pkgContents : StaticDirectory = getNodePackage();
         
         switch (host.os) {
             case "win":
-                pkgContents = importFrom("NodeJs.win-x64").extracted;
                 executable = r`${nodeWinDir}/node.exe`;
                 break;
             case "macOS": 
-                pkgContents = importFrom("NodeJs.osx-x64").extracted;
                 executable = r`${nodeOsxDir}/bin/node`;
                 break;
             case "unix": 
-                pkgContents = importFrom("NodeJs.linux-x64").extracted;
                 executable = r`${nodeLinuxDir}/bin/node`;
                 break;
             default:
@@ -81,7 +120,7 @@ namespace Node {
         }
   
         return {
-            exe: pkgContents.getFile(executable),
+            exe: pkgContents.assertExistence(executable),
             runtimeDirectoryDependencies: [
                 pkgContents,
             ],
@@ -91,10 +130,10 @@ namespace Node {
         };
     }
 
-    function getNpmCli() {
+    function getNpmCli() : File {
         const host = Context.getCurrentHost();
     
-        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit verisons supported.");
+        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
         let executable : RelativePath = undefined;
         let pkgContents : StaticDirectory = undefined;
@@ -116,7 +155,7 @@ namespace Node {
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
         }
 
-        return pkgContents.getFile(executable);
+        return pkgContents.assertExistence(executable);
     }
 
     @@public 

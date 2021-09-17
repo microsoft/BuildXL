@@ -293,7 +293,7 @@ namespace BuildXL.Processes
                     MonitorZwCreateOpenQueryFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
                     ForceReadOnlyForRequestedReadWrite = m_sandboxConfig.ForceReadOnlyForRequestedReadWrite,
                     IgnoreReparsePoints = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreReparsePoints,
-                    IgnoreFullReparsePointResolving = !configuration.EnableFullReparsePointResolving(),
+                    IgnoreFullReparsePointResolving = !EnableFullReparsePointResolving(configuration, pip),
                     IgnorePreloadedDlls = m_sandboxConfig.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
                     IgnoreZwRenameFileInformation = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreZwOtherFileInformation,
@@ -507,6 +507,14 @@ namespace BuildXL.Processes
                 descriptor2 => Lazy.Create(
                     () => Task.Factory.StartNew(
                         () => new Regex(descriptor2.Pattern, descriptor2.Options | RegexOptions.Compiled | RegexOptions.CultureInvariant)))).Value;
+        }
+
+        /// <summary>
+        /// Only enabled when <see cref="ConfigurationExtensions.EnableFullReparsePointResolving(IConfiguration)"/> and the given process doesn't disable it explicitly
+        /// </summary>
+        private static bool EnableFullReparsePointResolving(IConfiguration configuration, Process process)
+        {
+            return configuration.EnableFullReparsePointResolving() && !process.DisableFullReparsePointResolving;
         }
 
         private string GetDetoursInternalErrorFilePath()
@@ -3970,7 +3978,7 @@ namespace BuildXL.Processes
                         }
 
                         // Absent accesses may still contain reparse points. If we are fully resolving them, keep track of them for further processing
-                        if (!hasEnumeration && m_configuration.EnableFullReparsePointResolving() && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
+                        if (!hasEnumeration && EnableFullReparsePointResolving(m_configuration, m_pip) && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
                         {
                             maybeUnresolvedAbsentAccesses.Add(entry.Key);
                         }
@@ -4124,7 +4132,7 @@ namespace BuildXL.Processes
                     // Let's try to make sure then that unresolved absent probes don't end up in the observed path set. Here we address the case when reparse point are produced by the same pip. Cross-pip
                     // scenarios are not addressed here.
 
-                    if (m_configuration.EnableFullReparsePointResolving() && reparsePointProduced)
+                    if (EnableFullReparsePointResolving(m_configuration, m_pip) && reparsePointProduced)
                     {
                         foreach(AbsolutePath absentAccess in maybeUnresolvedAbsentAccesses)
                         {

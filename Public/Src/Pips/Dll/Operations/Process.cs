@@ -752,6 +752,12 @@ namespace BuildXL.Pips.Operations
         public bool WritingToStandardErrorFailsExecution => (ProcessOptions & Options.WritingToStandardErrorFailsExecution) != 0;
 
         /// <summary>
+        /// <see cref="Options.DisableFullReparsePointResolving"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool DisableFullReparsePointResolving => (ProcessOptions & Options.DisableFullReparsePointResolving) != 0;
+
+        /// <summary>
         /// Shortcut; <see cref="ServiceInfo.ShutdownPipId"/>.
         /// </summary>
         public PipId ShutdownProcessPipId => ServiceInfo?.ShutdownPipId ?? PipId.Invalid;

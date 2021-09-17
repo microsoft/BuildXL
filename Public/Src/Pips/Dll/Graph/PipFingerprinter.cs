@@ -296,6 +296,7 @@ namespace BuildXL.Pips.Graph
             fingerprinter.Add(nameof(Process.TrustStaticallyDeclaredAccesses), process.TrustStaticallyDeclaredAccesses? 1 : 0);
             fingerprinter.Add(nameof(Process.PreservePathSetCasing), process.PreservePathSetCasing ? 1 : 0);
             fingerprinter.Add(nameof(Process.WritingToStandardErrorFailsExecution), process.WritingToStandardErrorFailsExecution ? 1 : 0);
+            fingerprinter.Add(nameof(Process.DisableFullReparsePointResolving), process.DisableFullReparsePointResolving ? 1 : 0);
             fingerprinter.Add(nameof(Process.RetryAttemptEnvironmentVariable), process.RetryAttemptEnvironmentVariable.IsValid ? process.RetryAttemptEnvironmentVariable.ToString(m_pathTable.StringTable) : "{Invalid}");
 
             // When DisableCacheLookup is set, the pip is marked as perpetually dirty for incremental scheduling.

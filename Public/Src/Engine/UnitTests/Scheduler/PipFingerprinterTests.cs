@@ -817,6 +817,7 @@ namespace Test.BuildXL.Scheduler
             bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
             bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
             bool writingToStandardErrorFailsExecution = source.Vary(p => p.WritingToStandardErrorFailsExecution);
+            bool disableFullReparsePointResolving = source.Vary(p => p.DisableFullReparsePointResolving);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -868,6 +869,11 @@ namespace Test.BuildXL.Scheduler
             if (writingToStandardErrorFailsExecution)
             {
                 options |= Process.Options.WritingToStandardErrorFailsExecution;
+            }
+
+            if (disableFullReparsePointResolving)
+            {
+                options |= Process.Options.DisableFullReparsePointResolving;
             }
 
             return new Process(

@@ -70,7 +70,8 @@ namespace BuildXL.Pips.Graph
         /// 93: Add succeed fast exit codes.
         /// 94: Detours no longer report chain of symlinks when symlinks are opened with FILE_FLAG_OPEN_REPARSE_POINT.
         /// 95: Add ActionKind to CompositeSharedOpaqueSealDirectory
+        /// 96: Add DisableFullReparsePointResolving at the pip level
         /// </remarks>
-        TwoPhaseV2 = 95,
+        TwoPhaseV2 = 96,
     }
 }

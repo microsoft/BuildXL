@@ -1532,6 +1532,68 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(writer.Process.PipId);
         }
 
+        [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void IndividualPipsCanTurnOffReparsePointResolution(bool pipDisablesFullReparsePointResolution)
+        {
+            // Enable reparse point resolution globally
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+
+            // Create the following layout
+            // sodA 
+            //  -- nestedDir
+            //    -- output.txt 
+            // sodB 
+            //  -- junction -> sodA 
+
+            AbsolutePath sodA = CreateUniqueDirectory(prefix: "sodA");
+            AbsolutePath sodB = CreateUniqueDirectory(prefix: "sodB");
+
+            var nestedDirPath = sodA.Combine(Context.PathTable, "nestedDir").ToString(Context.PathTable);
+            FileUtilities.CreateDirectory(nestedDirPath);
+
+            DirectoryArtifact nestedDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodA.Combine(Context.PathTable, "nestedDir"));
+            DirectoryArtifact junctionDir = DirectoryArtifact.CreateWithZeroPartialSealId(sodB.Combine(Context.PathTable, "junction"));
+            DirectoryArtifact nestedDirViaJunction = DirectoryArtifact.CreateWithZeroPartialSealId(junctionDir.Path.Combine(Context.PathTable, "nestedDir"));
+
+            FileArtifact outputViaJunction = FileArtifact.CreateOutputFile(nestedDirViaJunction.Path.Combine(Context.PathTable, "output.txt"));
+            FileArtifact outputViaRealPath = FileArtifact.CreateOutputFile(nestedDir.Path.Combine(Context.PathTable, "output.txt"));
+
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(junctionDir), sodA.ToString(Context.PathTable), isTargetFile: false));
+
+            // The pip writes via a junction, and the final target lands outside of the cone of the opaque
+            var writerBuilder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputViaJunction, doNotInfer: true),
+            });
+
+            writerBuilder.AddOutputDirectory(sodB, SealDirectoryKind.SharedOpaque);
+            writerBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            if (pipDisablesFullReparsePointResolution)
+            {
+                writerBuilder.Options |= Process.Options.DisableFullReparsePointResolving;
+            }
+
+            var writer = SchedulePipBuilder(writerBuilder);
+
+            var result = RunScheduler();
+
+            // If the pip ignores full reparse point resolution, then we shouldn't notice the junction
+            if (pipDisablesFullReparsePointResolution)
+            {
+                result.AssertSuccess();
+            }
+            else
+            {
+                // Otherwise, a DFA is expected.
+                result.AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                IgnoreWarnings();
+            }
+        }
+
         /// <summary>
         /// Pips delete their outputs before running. When a symlink is declared as output,
         /// we should delete the symlink itself and not the underlying target file.

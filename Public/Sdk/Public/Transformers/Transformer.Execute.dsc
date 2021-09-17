@@ -325,6 +325,12 @@ namespace Transformer {
          * This option is only supported for pips with no output directories nor source sealed dependencies.
          */
         trustStaticallyDeclaredAccesses?: boolean;
+
+        /**
+         * Disables reparse point resolution for this particular execution.
+         * The flag has no effect if reparse point resolution is globally disabled already.
+         */
+        disableFullReparsePointResolving?: boolean;
     }
 
     /**

@@ -32,4 +32,5 @@ enum Options{
     Uncancellable = 262144;
     PreservePathSetCasing = 524288;
     WritingToStandardErrorFailsExecution = 1048576;
+    DisableFullReparsePointResolving = 2097152;
 }

@@ -16,7 +16,7 @@ namespace Test.BuildXL.FrontEnd.Download
             RegisterEventSource(global::BuildXL.FrontEnd.Download.ETWLogger.Log);
         }
 
-        [Fact]
+        [Fact(Skip = "Temporarily disabled, produces a DFA on Mac")]
         public void NamedValuesAreExposed()
         {
             const string TestServer = "http://localhost:9754/";

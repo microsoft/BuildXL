@@ -3,8 +3,8 @@
 
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
-const artifactNugetVersion = "18.191.31619-buildid15811057";
-const azureDevopsNugetVersion = "16.187.0-internal202105042";
+const artifactNugetVersion = "18.194.31720-buildid16023539";
+const azureDevopsNugetVersion = "16.194.0-internal202109201";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.

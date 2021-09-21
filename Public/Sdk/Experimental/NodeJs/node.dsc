@@ -19,24 +19,14 @@ namespace Node {
      * Self-contained node executables. Platform dependent.
      */
     @@public
-    export const nodeExecutables : Deployment.Deployable | StaticDirectory = getNodeExecutables();
+    export const nodeExecutables : Deployment.Deployable = getNodeExecutables();
 
-    /**
-     * TODO: after a new LKG is pushed, the node package should always be an opaque directory
-     * so this code can be simplified
-     */
-    function getNodeExecutables() : Deployment.Deployable | StaticDirectory {
+    function getNodeExecutables() : Deployment.Deployable {
         const nodePackage = getNodePackage();
+        const relativePath = nodePackage.root.path.getRelative(nodeExecutablesDir.path);
 
-        if (nodePackage.kind === "exclusive" || nodePackage.kind === "shared") {
-            const relativePath = nodePackage.root.path.getRelative(nodeExecutablesDir.path);
-
-            return Deployment.createDeployableOpaqueSubDirectory(
-                <OpaqueDirectory>nodePackage, relativePath);
-        } 
-        else {
-            return Transformer.sealDirectory(nodeExecutablesDir, globR(nodeExecutablesDir));
-        }
+        return Deployment.createDeployableOpaqueSubDirectory(
+            <OpaqueDirectory>nodePackage, relativePath);
     }
 
     @@public
@@ -73,12 +63,12 @@ namespace Node {
     const nodeOsxDir = `node-${nodeVersion}-darwin-x64`;
     const nodeLinuxDir = `node-${nodeVersion}-linux-x64`;
 
-    function getNodePackage(): StaticDirectory {
+    function getNodePackage(): OpaqueDirectory {
         const host = Context.getCurrentHost();
     
         Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
-        let pkgContents : StaticDirectory = undefined;
+        let pkgContents : OpaqueDirectory = undefined;
         
         switch (host.os) {
             case "win":
@@ -103,7 +93,7 @@ namespace Node {
         Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
         let executable : RelativePath = undefined;
-        let pkgContents : StaticDirectory = getNodePackage();
+        let pkgContents : OpaqueDirectory = getNodePackage();
         
         switch (host.os) {
             case "win":

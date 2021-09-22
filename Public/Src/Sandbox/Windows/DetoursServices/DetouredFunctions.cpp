@@ -5818,13 +5818,19 @@ DWORD WINAPI Detoured_GetFinalPathNameByHandleW(
     {
         wstring normalizedPath;
         TranslateFilePath(wstring(lpszFilePath), normalizedPath, false);
+        DWORD copyPathLength = (DWORD)normalizedPath.length() + 1; //wcscpy_s expects the destination buffer to account for the null terminator
 
-        if (normalizedPath.length() <= cchFilePath)
+        if (copyPathLength <= cchFilePath)
         {
             wcscpy_s(lpszFilePath, cchFilePath, normalizedPath.c_str());
+            // When GetFinalPathNameByHandleW succeeds the return value does not include the terminating null character
+            return (DWORD)normalizedPath.length();
         }
-
-        return (DWORD)normalizedPath.length();
+        else
+        {
+            // Provided buffer is too small, GetFinalPathNameByHandleW returns the required buffer size including the terminating null character.
+            return copyPathLength;
+        }
     }
 
     return err;

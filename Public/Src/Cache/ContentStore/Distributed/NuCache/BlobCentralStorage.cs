@@ -497,7 +497,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override async Task<TResult> ReadCoreAsync<TResult>(OperationContext context, string storageId, Func<StreamWithLength, Task<TResult>> readStreamAsync)
         {
-            var blob = _primaryContainer.GetBlockBlobReference(storageId);
+            var blob = await GetBlockBlobReferenceAsync(_containers[0].container, _containers[0].shardId, storageId, context.Token);
             var exists = await blob.ExistsAsync(null, null, context.Token);
 
             if (!exists)
@@ -517,7 +517,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override async Task<BoolResult> StoreCoreAsync(OperationContext context, string storageId, Stream stream)
         {
-            var blob = _primaryContainer.GetBlockBlobReference(storageId);
+            var blob = await GetBlockBlobReferenceAsync(_containers[0].container, _containers[0].shardId, storageId, context.Token);
             await blob.UploadFromStreamAsync(stream);
             return BoolResult.Success;
         }

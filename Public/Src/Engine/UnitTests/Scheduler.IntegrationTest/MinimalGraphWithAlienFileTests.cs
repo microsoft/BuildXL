@@ -32,9 +32,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             AbsolutePath sod = dirPath.Combine(Context.PathTable, "sod");
             AbsolutePath eod = dirPath.Combine(Context.PathTable, "eod");
             DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
-            var declaredOuput = CreateSourceFile(root: dirPath);
-            var sharedOpaqueOutput = CreateSourceFile(root: sod);
-            var exclusiveOpaqueOutput = CreateSourceFile(root: eod);
+            var declaredOuput = CreateOutputFileArtifact(root: dirPath);
+            var sharedOpaqueOutput = CreateOutputFileArtifact(root: sod);
+            var exclusiveOpaqueOutput = CreateOutputFileArtifact(root: eod);
 
             var operations = new List<Operation>
             {
@@ -51,10 +51,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             // This makes sure we use the right file system, which is aware of alien files
             builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
 
+            var pip = SchedulePipBuilder(builder);
+
             // Run once
             RunScheduler().AssertSuccess();
             // Run a second time. Nothing changed, we should get a hit
-            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
         }
 
         [Theory]

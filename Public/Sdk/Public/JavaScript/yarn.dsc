@@ -43,6 +43,7 @@ namespace Yarn {
         userNpmrcLocation?: NpmrcLocation,
         globalNpmrcLocation?: NpmrcLocation,
         verbose?: boolean,
+        ignoreOptionalDependencies?: boolean,
     }
 
     /**
@@ -118,7 +119,8 @@ namespace Yarn {
             arguments:[
                 Cmd.rawArgument("install"),
                 Cmd.flag("--frozen-lockfile", arguments.frozenLockfile || false),
-                Cmd.flag("--verbose", arguments.verbose)
+                Cmd.flag("--verbose", arguments.verbose),
+                Cmd.flag("--ignore-optional", arguments.ignoreOptionalDependencies)
             ],
             outputs: [
                 {kind: "shared", directory: d`${arguments.repoRoot}`},

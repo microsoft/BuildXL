@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20210917.2  (Release [117834](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117843)) Released 9/22/2021
+-	Download resolver schedules proper pips
+-	Full reparse point resolution can be disabled at the pip level
+-	DScript support for expanding environment variables in paths and strings
+-	Improvements on the Ninja frontend in order to better deal with the environment
+-	Exclusive opaques can now be nested under shared opaques
+-	Various bug fixes
+
 # 0.1.0-20210909.1  (Release [117108](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117108)) Released 9/15/2021
 - Add new option to force regenerate nuget package specs.
 -	Retry external VM processes on a different worker during retryable failures.

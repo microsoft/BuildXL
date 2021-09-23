@@ -21,7 +21,7 @@ namespace Plugin {
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
         ],
         runtimeContent: [
-            importFrom("Sdk.Protocols.Grpc").runtimeContent,
+            importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,
         ]
     });
 }

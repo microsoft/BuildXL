@@ -51,7 +51,7 @@ namespace Library {
             ...BuildXLSdk.systemMemoryDeployment,
         ],
         runtimeContent: [
-            importFrom("Sdk.Protocols.Grpc").runtimeContent,
+            importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,
         ],
         allowUnsafeBlocks: true,
         skipDocumentationGeneration: true,

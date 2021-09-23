@@ -32,7 +32,7 @@ namespace GrpcTest {
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runtimeContent: [
-            importFrom("Sdk.Protocols.Grpc").runtimeContent,
+            importFrom("Sdk.Protocols.Grpc").Deployment.runtimeContent,
         ],
     });
 }

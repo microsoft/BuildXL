@@ -179,47 +179,13 @@ namespace BuildXL.Native.IO.Windows
                 // Maintain a list of files that that were enumerated for deletion
                 HashSet<string> pathsEnumeratedForDeletion = stringSetPool.Instance;
 
-                // Enumerate the directory, deleting contents along the way
-                // The enumeration operation itself is not recursive, but there is a recursive call to DeleteDirectoryAndContentsInternal
-                EnumerateDirectoryResult result = m_fileSystem.EnumerateDirectoryEntries(
-                    directoryPath,
-                    (name, attr, isActionableReparsePoint) =>
-                    {
-                        cancellationToken?.ThrowIfCancellationRequested();
-
-                        string childPath = Path.Combine(directoryPath, name);
-
-                        // Only descend if the entry is a directory and not an actionable reparse point
-                        if ((attr & FileAttributes.Directory) != 0 && !isActionableReparsePoint)
-                        {
-                            int subDirectoryEntryCount = DeleteDirectoryAndContentsInternal(
-                                childPath,
-                                deleteRootDirectory: true,
-                                shouldDelete: shouldDelete,
-                                tempDirectoryCleaner: tempDirectoryCleaner,
-                                bestEffort: bestEffort,
-                                cancellationToken: cancellationToken);
-                            if (subDirectoryEntryCount > 0)
-                            {
-                                remainingChildCount++;
-                            }
-                        }
-                        else
-                        {
-                            if (shouldDelete(childPath))
-                            {
-                                // This method already has retry logic, so no need to do retry in DeleteFile
-                                DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
-                            }
-                            else
-                            {
-                                remainingChildCount++;
-                            }
-                        }
-
-                        // This is not a recursive list
-                        pathsEnumeratedForDeletion.Add(childPath);
-                    }, isEnumerationForDirectoryDeletion: true);
+                EnumerateDirectoryResult result = enumerateDirectory(pathsEnumeratedForDeletion);
+                
+                if (result.Status == EnumerateDirectoryStatus.AccessDenied)
+                {
+                    FileUtilities.TryTakeOwnershipAndSetWriteable(directoryPath);
+                    result = enumerateDirectory(pathsEnumeratedForDeletion);
+                }
 
                 // If result.Status == EnumerateDirectoryStatus.SearchDirectoryNotFound that means the directory is already deleted.
                 // This could happen if this is a reparse point directory and the target got deleted first.
@@ -315,6 +281,51 @@ namespace BuildXL.Native.IO.Windows
 
                 return remainingChildCount;
             }
+
+            EnumerateDirectoryResult enumerateDirectory(HashSet<string> pathsEnumeratedForDeletion)
+            {
+                // Enumerate the directory, deleting contents along the way
+                // The enumeration operation itself is not recursive, but there is a recursive call to DeleteDirectoryAndContentsInternal
+                return m_fileSystem.EnumerateDirectoryEntries(
+                    directoryPath,
+                    (name, attr, isActionableReparsePoint) =>
+                    {
+                        cancellationToken?.ThrowIfCancellationRequested();
+
+                        string childPath = Path.Combine(directoryPath, name);
+
+                            // Only descend if the entry is a directory and not an actionable reparse point
+                            if ((attr & FileAttributes.Directory) != 0 && !isActionableReparsePoint)
+                        {
+                            int subDirectoryEntryCount = DeleteDirectoryAndContentsInternal(
+                                childPath,
+                                deleteRootDirectory: true,
+                                shouldDelete: shouldDelete,
+                                tempDirectoryCleaner: tempDirectoryCleaner,
+                                bestEffort: bestEffort,
+                                cancellationToken: cancellationToken);
+                            if (subDirectoryEntryCount > 0)
+                            {
+                                remainingChildCount++;
+                            }
+                        }
+                        else
+                        {
+                            if (shouldDelete(childPath))
+                            {
+                                    // This method already has retry logic, so no need to do retry in DeleteFile
+                                    DeleteFile(childPath, retryOnFailure: !bestEffort, tempDirectoryCleaner: tempDirectoryCleaner);
+                            }
+                            else
+                            {
+                                remainingChildCount++;
+                            }
+                        }
+
+                            // This is not a recursive list
+                            pathsEnumeratedForDeletion.Add(childPath);
+                    }, isEnumerationForDirectoryDeletion: true);
+            };
         }
 
         /// <summary>
@@ -374,7 +385,7 @@ namespace BuildXL.Native.IO.Windows
                 if (ex.NativeErrorCode == NativeIOConstants.ErrorAccessDenied)
                 {
                     // Try taking ownership of the directory. If this fails, don't bother handling the failure
-                    if (TryTakeOwnershipAndSetAcl(directoryPath))
+                    if (TryTakeOwnershipAndSetWriteable(directoryPath))
                     {
                         try
                         {
@@ -660,7 +671,7 @@ namespace BuildXL.Native.IO.Windows
             {
                 // Before attempting new method, log failure of previous attempt
                 Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Failed to delete via MoveReplacement. Attempting to take ownership of file.");
-                if (TryTakeOwnershipAndSetAcl(path))
+                if (TryTakeOwnershipAndSetWriteable(path))
                 {
                     Logger.Log.FileUtilitiesDiagnostic(m_loggingContext, path, "Successfully took ownership of file. Attempting delete again.");
                     deleteResult = TryOpenForDeletion(path);
@@ -794,7 +805,8 @@ namespace BuildXL.Native.IO.Windows
             return true;
         }
 
-        private bool TryTakeOwnershipAndSetAcl(string path)
+        /// <inheritdoc />
+        public bool TryTakeOwnershipAndSetWriteable(string path)
         {
             if (path.StartsWith(FileSystemWin.LongPathPrefix, StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith(FileSystemWin.LocalDevicePrefix, StringComparison.OrdinalIgnoreCase) ||
@@ -803,48 +815,99 @@ namespace BuildXL.Native.IO.Windows
                 path = path.Substring(4, path.Length - 4);
             }
 
+            // takeown will fail if it operates through a substed path.
+            // Attempt to get subst mappings and resolve it to the original drive's path
+            var substResult = startProcess("subst", "", captureOutputStreams: true);
+            if(substResult.Success && !string.IsNullOrEmpty(substResult.OptionalOutputStream))
+            {
+                foreach (string line in substResult.OptionalOutputStream.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    const string SubstDelimiter = @"\: => ";
+                    int index = substResult.OptionalOutputStream.IndexOf(SubstDelimiter);
+
+                    if (index != -1)
+                    {
+                        string substTo = substResult.OptionalOutputStream.Substring(0, index);
+                        int substFromStartIndex = index + SubstDelimiter.Length;
+                        string substFrom = line.Substring(substFromStartIndex, line.Length - substFromStartIndex);
+
+                        if (path.StartsWith(substTo, StringComparison.OrdinalIgnoreCase))
+                        {
+                            path = path.ToUpperInvariant().Replace(substTo.ToUpperInvariant(), substFrom.ToUpperInvariant());
+                        }
+                        break;
+                    }
+                }
+            }
+
             Logger.Log.SettingOwnershipAndAcl(m_loggingContext, path);
 
             // It is possible that TakeOwn fails, but ICACLS will still succeed, so do not return false on failure
-            StartProcess("takeown", I($"/F \"{path}\""));
+            startProcess("takeown", I($"/F \"{path}\""));
+
+            // First grant full access to all accounts in the Users group. This is done for the sake of CloudBuild where
+            // the cache service is running under a different user context than the build. It must be able to interact
+            // with the file. It may then create hardlinks to the file used in subsequent builds which then run under
+            // different users. They must be able to access the files from cache as well.
+            startProcess("icacls", I($"\"{path}\" /grant Users:(F)"));
 
 #if !NET_STANDARD_20
             string userSid = WindowsIdentity.GetCurrent().User?.Value;
             if (userSid != null)
             {
                 // SID must be prefixed with '*' char
-                return StartProcess("icacls", I($"\"{path}\" /grant *{userSid}:(F)"));
+                return startProcess("icacls", I($"\"{path}\" /grant *{userSid}:(F)")).Success;
             }
 #endif
             // could not get user's SID -> fall back to using username
-            return StartProcess("icacls", I($"\"{path}\" /grant {Environment.UserName}:(F)"));
+            return startProcess("icacls", I($"\"{path}\" /grant {Environment.UserName}:(F)")).Success;
 
-
-            bool StartProcess(string processName, string arguments)
+            (bool Success, string OptionalOutputStream) startProcess(string processName, string arguments, bool captureOutputStreams = false)
             {
-                var process = Process.Start(new ProcessStartInfo()
+                using (var pool = Pools.StringBuilderPool.GetInstance())
                 {
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
-                    FileName = processName,
-                    Arguments = arguments
-                });
-                process.WaitForExit(60 * 1000);
+                    StringBuilder outputBuilder = pool.Instance;
 
-                if (process.ExitCode != 0)
-                {
-                    Logger.Log.SettingOwnershipAndAclFailed(
-                        m_loggingContext,
-                        path,
-                        process.StartInfo.FileName,
-                        process.StartInfo.Arguments,
-                        process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd());
-                    return false;
+                    var process = Process.Start(new ProcessStartInfo()
+                    {
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true,
+                        FileName = processName,
+                        Arguments = arguments
+                    });
+                    process.OutputDataReceived += proc_OutputDataReceived;
+                    process.ErrorDataReceived += proc_OutputDataReceived;
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+                    process.WaitForExit(60 * 1000);
+
+                    if (process.ExitCode != 0 || captureOutputStreams)
+                    {
+                        string outputStream = outputBuilder.ToString();
+
+                        if (process.ExitCode != 0)
+                        {
+                            Logger.Log.SettingOwnershipAndAclFailed(
+                                m_loggingContext,
+                                path,
+                                process.StartInfo.FileName,
+                                process.StartInfo.Arguments,
+                                outputStream);
+                            return (false, outputStream);
+                        }
+
+                        return (true, outputStream);
+                    }
+
+                    return (true, null);
+
+                    void proc_OutputDataReceived(object sender, DataReceivedEventArgs e)
+                    {
+                        outputBuilder.AppendLine(e.Data);
+                    }
                 }
-
-                return true;
             }
         }
 
@@ -1592,7 +1655,16 @@ namespace BuildXL.Native.IO.Windows
             {
                 FileInfo fileInfo = new FileInfo(path);
 
-                FileSecurity security = fileInfo.GetAccessControl();
+                FileSecurity security;
+                try
+                {
+                    security = fileInfo.GetAccessControl();
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    TryTakeOwnershipAndSetWriteable(path);
+                    security = fileInfo.GetAccessControl();
+                }
 
                 if (allow)
                 {
@@ -1604,7 +1676,15 @@ namespace BuildXL.Native.IO.Windows
                 }
 
                 // For some bizarre reason, instead using SetAccessControl on the caller's existing FileStream fails reliably.
-                fileInfo.SetAccessControl(security);
+                try
+                {
+                    fileInfo.SetAccessControl(security);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    TryTakeOwnershipAndSetWriteable(path);
+                    fileInfo.SetAccessControl(security);
+                }
             }
             catch (ArgumentException e)
             {

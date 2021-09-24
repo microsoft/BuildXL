@@ -65,6 +65,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Stream.Dispose();
         }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            if (Stream is FileStream fs)
+            {
+                return $"Length={Length}, FileStream={fs.Name}";
+            }
+
+            return $"Length={Length}, StreamType={Stream.GetType()}";
+        }
     }
 
     /// <summary>

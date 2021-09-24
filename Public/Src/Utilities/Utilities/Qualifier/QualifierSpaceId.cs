@@ -66,5 +66,11 @@ namespace BuildXL.Utilities.Qualifier
         /// Checks if this qualifier space id is valid.
         /// </summary>
         public bool IsValid => this != Invalid;
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return IsValid ? Id.ToString() : nameof(Invalid);
+        }
     }
 }

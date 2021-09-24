@@ -113,10 +113,15 @@ namespace BuildXL.Storage
                 m_data = existence.HasValue ? (IsKnownExistenceFlag | ((long)existence << ExistenceShift)) : 0L;
             }
 
-
             private LengthAndExistence(long combinedValue)
             {
                 m_data = combinedValue;
+            }
+
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                return $"Length={Length}, Existence={Existence}";
             }
 
             /// <summary>

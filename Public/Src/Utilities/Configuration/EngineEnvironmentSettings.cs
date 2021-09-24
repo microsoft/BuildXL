@@ -543,6 +543,14 @@ namespace BuildXL.Utilities.Configuration
                 m_valueFactory = valueFactory;
             }
 
+            // /// <inheritdoc />
+            // public override string ToString()
+            // {
+            //     // Usually this type is used as Setting<string>
+            //     // so this method should have the same semantic as the implicit conversion operator.
+            //     return StringValue;
+            // }
+
             private void Update()
             {
                 if (!m_isExplicitlySet && m_version != SettingsEnvironment.Version)

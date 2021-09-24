@@ -20,6 +20,7 @@ using BuildXL.Utilities;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
+using StructGenerators;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -84,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             public MachineLocation Master { get; init; }
 
-            public DateTime CreationTimeUtc { get; set; }
+            public DateTime CreationTimeUtc { get; init; }
 
             public DateTime LastUpdateTimeUtc { get; init; }
 
@@ -98,6 +99,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public Role GetRole(MachineLocation location)
             {
                 return location.Equals(Master) ? Role.Master : Role.Worker;
+            }
+
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                return
+                    $"Master={Master}, CreationTimeUtc={CreationTimeUtc}, LastUpdateTimeUtc={LastUpdateTimeUtc}, LeaseExpiryTimeUtc={LeaseExpiryTimeUtc}";
             }
         }
 

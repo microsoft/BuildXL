@@ -118,6 +118,9 @@ namespace BuildXL.Pips.Operations
                 Contract.Requires(reader != null);
                 return new Options((PathRenderingOption)reader.ReadByte());
             }
+
+            /// <inheritdoc />
+            public override string ToString() => $"Option={PathRenderingOption}";
         }
 
         /// <summary>

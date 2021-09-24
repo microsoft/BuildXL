@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return new CheckpointState(new EventSequencePoint(epochStartCursorTime));
         }
 
-        public bool Equals([AllowNull] CheckpointState other)
+        public bool Equals(CheckpointState? other)
         {
             if (other is null)
             {
@@ -94,6 +94,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
 
             return EqualityComparer<CheckpointState>.Default.Equals(this, (obj as CheckpointState)!);
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"Id={CheckpointId}, CheckpointTime={CheckpointTime}, StartSequencePoint={StartSequencePoint}, Producer={Producer}";
         }
 
         public Result<string> ToJson(JsonSerializerOptions? options = null)

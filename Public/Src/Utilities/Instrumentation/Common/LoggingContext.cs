@@ -64,6 +64,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
             {
                 return Guid.TryParse(s, out _);
             }
+
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                return $"Id={Id}, Environment={Environment}, RelatedActivityId={RelatedActivityId}, RelatedId={RelatedId}";
+            }
         }
 
         private const string DefaultEnvironment = "Unset";

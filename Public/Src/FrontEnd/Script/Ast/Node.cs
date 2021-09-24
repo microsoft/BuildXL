@@ -139,11 +139,12 @@ namespace BuildXL.FrontEnd.Script
         {
             Contract.Requires(path.IsValid);
 #if DEBUG
+            var st = FrontEndContext.DebugContext.StringTable;
             return FrontEndContext.DebugContext != null
-                ? path.ToString(FrontEndContext.DebugContext.StringTable, PathFormat.Script)
-                : string.Join(PathFormatter.GetPathSeparator(PathFormat.Script).ToString(), path.Components.ToString());
+                ? path.ToString(st, PathFormat.Script)
+                : string.Join(PathFormatter.GetPathSeparator(PathFormat.Script).ToString(), path.Components.Select(s => s.ToString(st)));
 #else
-            return string.Join(PathFormatter.GetPathSeparator(PathFormat.Script).ToString(), path.Components.ToString());
+            return string.Join(PathFormatter.GetPathSeparator(PathFormat.Script).ToString(), path.Components);
 #endif
         }
 

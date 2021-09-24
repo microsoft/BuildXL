@@ -32,6 +32,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             Item = item;
             Index = index;
         }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"Index={Index}, Item={Item}";
+        }
     }
 
 #pragma warning disable SA1402 // File may only contain a single class

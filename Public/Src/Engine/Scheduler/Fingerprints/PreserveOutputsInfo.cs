@@ -102,5 +102,11 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(Salt), Salt.ToHex());
             fingerprinter.Add(nameof(PreserveOutputTrustLevel), PreserveOutputTrustLevel);
         }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"TrustLevel={PreserveOutputTrustLevel}, Salt={Salt}";
+        }
     }
 }

@@ -96,7 +96,7 @@ namespace BuildXL.VsPackage
         /// </summary>
         public BuildXLVsPackage()
         {
-            Debug.WriteLine(string.Format(CultureInfo.InvariantCulture, "Entering constructor for: {0}", ToString()));
+            Debug.WriteLine(string.Format(CultureInfo.InvariantCulture, "Entering constructor for: {0}", GetType().ToString()));
             m_projectInfoDictionary = new Dictionary<string, ProjectInfo>(StringComparer.OrdinalIgnoreCase);
 
             // Regular expressions to parse errors or warnings
@@ -127,7 +127,7 @@ namespace BuildXL.VsPackage
             }
 #endif
 
-            Debug.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", ToString()));
+            Debug.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", GetType().ToString()));
             await base.InitializeAsync(cancellationToken, progress);
 
             // do the rest on the UI thread

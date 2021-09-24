@@ -18,7 +18,7 @@ namespace BuildXL.Utilities
         private readonly int m_id;
 
         /// <summary>
-        /// The singleton to reference Unqualified values.
+        /// The singleton to reference invalid values.
         /// </summary>
         public static readonly QualifierId Invalid = new QualifierId(false);
 
@@ -99,10 +99,13 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool IsValid => this != Invalid;
 
+        private string ToDebuggerDisplay() => ToString();
+
+        /// <inheritdoc />
         [SuppressMessage("Microsoft.Performance", "CA1811")]
-        private string ToDebuggerDisplay()
-        {
-            return IsValid ? m_id.ToString(CultureInfo.InvariantCulture) : "Invalid";
-        }
+        public override string ToString() => 
+            IsValid
+            ? (this == Unqualified ? nameof(Unqualified) : m_id.ToString(CultureInfo.InvariantCulture)) 
+            : nameof(Invalid);
     }
 }

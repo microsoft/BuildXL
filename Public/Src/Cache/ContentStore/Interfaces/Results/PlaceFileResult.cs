@@ -169,5 +169,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
         /// <inheritdoc />
         protected override string GetSuccessString() => $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
+
+        /// <inheritdoc />
+        protected override string GetErrorString()
+        {
+            if (Error is not null && Code != ResultCode.Error)
+            {
+                // Its possible that the operation failed but the code is not error.
+                // For instance, the copy may fail and the resulting error code in some cases can be 'NotPlacedContentNotFound'.
+                return $"{Code} {Error}";
+            }
+
+            return base.GetErrorString();
+        }
     }
 }

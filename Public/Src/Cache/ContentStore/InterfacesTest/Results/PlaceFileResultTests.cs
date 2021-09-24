@@ -25,6 +25,18 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         }
 
         [Fact]
+        public void NotPlacedContentNotFoundWithError()
+        {
+            var other = new BoolResult("error");
+            var code = PlaceFileResult.ResultCode.NotPlacedContentNotFound;
+            var result = new PlaceFileResult(other, code, "message");
+            Assert.Equal(code, result.Code);
+
+            // Error code should be part of the final string.
+            Assert.Contains(code.ToString(), result.ToString());
+        }
+
+        [Fact]
         public void ConstructFromResultBase()
         {
             var other = new BoolResult("error");

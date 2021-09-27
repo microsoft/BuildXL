@@ -26,7 +26,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
 
             public TimeSpan IcmIncidentCacheTtl { get; set; } = TimeSpan.FromHours(1);
 
-            public TimeSpan MinimumWaitTimeBetweenDownscaleSteps { get; set; } = TimeSpan.FromMinutes(20);
+            public TimeSpan MinimumWaitTimeBetweenDownscaleSteps { get; set; } = TimeSpan.FromHours(1);
 
             public TimeSpan MinimumWaitTimeBetweenFailedStateReports { get; set; } = TimeSpan.FromMinutes(15);
         }

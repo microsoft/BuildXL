@@ -50,7 +50,7 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
     {
         public class Configuration
         {
-            public TimeSpan UsedMemoryLookback { get; set; } = TimeSpan.FromDays(7);
+            public TimeSpan UsedMemoryLookback { get; set; } = TimeSpan.FromDays(14);
 
             public TimeSpan UsedMemoryAggregationInterval { get; set; } = TimeSpan.FromMinutes(5);
 
@@ -58,13 +58,13 @@ namespace BuildXL.Cache.Monitor.Library.Rules.Autoscaling
 
             public long? MaximumClusterMemoryAllowedMb { get; set; } = null;
 
-            public TimeSpan WorkloadLookback { get; set; } = TimeSpan.FromHours(6);
+            public TimeSpan WorkloadLookback { get; set; } = TimeSpan.FromDays(1);
 
             public TimeSpan WorkloadAggregationInterval { get; set; } = TimeSpan.FromMinutes(5);
 
             public double MinimumWorkloadExtraPct { get; set; } = 0.3;
 
-            public TimeSpan ServerLoadLookback { get; set; } = TimeSpan.FromHours(6);
+            public TimeSpan ServerLoadLookback { get; set; } = TimeSpan.FromDays(1);
 
             public TimeSpan ServerLoadAggregationInterval { get; set; } = TimeSpan.FromMinutes(5);
 

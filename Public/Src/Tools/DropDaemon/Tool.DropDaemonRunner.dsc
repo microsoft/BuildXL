@@ -468,6 +468,7 @@ export namespace DropDaemonRunner {
         "__CLOUDBUILD_AUTH_HELPER_ROOT__",
         "__Q_DPAPI_Secrets_Dir",
         "__CREDENTIAL_PROVIDER_LOG_DIR",
+        "APPROOT",
     ];
     const cloudBuildVars: string[] = [
         "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 

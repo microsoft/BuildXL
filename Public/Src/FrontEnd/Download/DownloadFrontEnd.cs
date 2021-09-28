@@ -59,6 +59,12 @@ namespace BuildXL.FrontEnd.Download
         /// <inheritdoc />
         public override void LogStatistics(Dictionary<string, long> statistics)
         {
+            // If the frontend was not properly initialized, there is nothing to log
+            if (Context == null)
+            {
+                return;
+            }
+
             Logger.Log.ContextStatistics(Context.LoggingContext, Name, m_evaluationStatistics.ContextTrees,
                 m_evaluationStatistics.Contexts);
 

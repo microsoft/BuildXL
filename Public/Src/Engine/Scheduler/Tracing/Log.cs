@@ -789,7 +789,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.CopyingPipOutputToLocalStorage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance | (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.Storage,
             Message = "[{formattedSemiStableHash}] Ensured pip output hash '{contentHash}' is available for local materialization: Result: {result} | Target location up-to-date: {targetLocationUpToDate} | Remotely copied bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipOutputToLocalStorage(

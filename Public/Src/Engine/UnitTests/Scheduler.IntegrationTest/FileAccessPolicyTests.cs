@@ -7,7 +7,6 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -88,13 +87,17 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Validate cache miss if the process removes untracked path declarations
             pip = CreateAndSchedulePipBuilder(ops).Process;
-            runSchedulerResult = RunScheduler().AssertCacheHitWithoutAssertingSuccess();
+            runSchedulerResult = RunScheduler().AssertCacheMissWithoutAssertingSuccess(pip.PipId);
 
             if (!declareDependency)
             {
                 runSchedulerResult.AssertPipResultStatus((pip.PipId, PipResultStatus.Failed));
                 AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
+            }
+            else
+            {
+                runSchedulerResult.AssertSuccess();
             }
         }
 

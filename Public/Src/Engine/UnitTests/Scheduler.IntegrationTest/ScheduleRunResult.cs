@@ -79,6 +79,11 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// If the status indicates the pip was executed, i.e. there was a cache miss
+        /// </summary>
+        private bool IsExecutedPipResult(PipResultStatus status) => status == PipResultStatus.Succeeded || status == PipResultStatus.Failed || status == PipResultStatus.Canceled;
+
+        /// <summary>
         /// Validates that a pip was a cache hit. This method works even if incremental scheduling filtered
         /// out the pip
         /// </summary>
@@ -96,8 +101,7 @@ namespace Test.BuildXL.Scheduler
                 PipId pipId = pipIds[i];
                 if (PipResults.TryGetValue(pipId, out status))
                 {
-                    XAssert.AreNotEqual(PipResultStatus.Succeeded, status, "A pip ran, but it should have been a cache hit. Pip at 0-based parameter index: " + i);
-                    XAssert.AreNotEqual(PipResultStatus.Failed, status, "A pip ran, but it should have been a cache hit. Pip at 0-based parameter index: " + i);
+                    XAssert.IsFalse(IsExecutedPipResult(status), "A pip ran, but it should have been a cache hit. Pip at 0-based parameter index: " + i);
                 }
             }
 
@@ -120,7 +124,7 @@ namespace Test.BuildXL.Scheduler
                 PipId pipId = pipIds[i];
                 if (PipResults.TryGetValue(pipId, out status))
                 {
-                    XAssert.AreEqual(PipResultStatus.Succeeded, status, "A pip was a cache hit, but it should have been a cache miss. Pip at 0-based parameter index: " + i);
+                    XAssert.IsTrue(IsExecutedPipResult(status), "A pip was a cache hit, but it should have been a cache miss. Pip at 0-based parameter index: " + i);
                 }
                 else
                 {

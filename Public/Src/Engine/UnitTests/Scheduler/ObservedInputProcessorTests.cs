@@ -1433,5 +1433,27 @@ namespace Test.BuildXL.Scheduler
                 false,
                 TestObservation.ExpectAccessCheckFailure(fileInsideNestedDirectory, isNestedUnderTopOnlySourceSealedDirectory: true));
         }
+
+        /// <summary>
+        /// This unit test addresses bug#1878423. See comments for more details.
+        /// </summary>
+        [Fact]
+        public void SearchPathWithCommonNamesBetweenObservationsAndStaticDependencies()
+        {
+            var harness = new Harness();
+            var enumeration = harness.AddDirectoryEnumeration(A("X", "Dir1", ""), isSearchPath: true, members: new[] { "a.h", "common.ext" });
+
+            // This addresses a bug where only 'common,ext', and not 'common' is not added to filter.AccessedFileNamesWithoutExtension
+            // We should expect to see 'common.ext' added because it is a directory from a dynamic observation
+            // and 'common' (without the file extension) added because it is declared as a static dependency
+            harness.AddAbsentProbeObservation(A("X", "Dir1", "common.ext", "some.file"));
+            harness.AddFileDependency(A("X", "Dir1", "common.ext"));
+            harness.Process(ObservedInputProcessingStatus.Success, true);
+            
+            var filter = harness.TrackedDirectoryFilters[enumeration.Path] as SearchPathDirectoryMembershipFilter;
+
+            XAssert.IsTrue(filter.AccessedFileNamesWithoutExtension.Contains(StringId.Create(harness.Context.StringTable, "common"))); // from the static dependency
+            XAssert.IsTrue(filter.AccessedFileNamesWithoutExtension.Contains(StringId.Create(harness.Context.StringTable, "common.ext"))); // from the absent path probe
+        }
     }
 }

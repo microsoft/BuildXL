@@ -72,7 +72,8 @@ namespace BuildXL.Pips.Graph
         /// 95: Add ActionKind to CompositeSharedOpaqueSealDirectory
         /// 96: Add DisableFullReparsePointResolving at the pip level
         /// 97: Download resolver schedules real pips
+        /// 98: Update search path filter computation to track visited files and directories separately in "BuildXL.Scheduler.Fingerprints.ObservedInputProcessor.ComputeSearchPathsAndFilter".
         /// </remarks>
-        TwoPhaseV2 = 97,
+        TwoPhaseV2 = 98,
     }
 }

@@ -922,6 +922,10 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Computes the set of paths which use search path enumerations and the accessed file name set under
         /// the search paths.
         /// </summary>
+        /// <remarks>
+        /// This method assumes that paths from observations and static dependencies are sorted (ie: a parent path will
+        /// always appear before a child path), because of the visited set of paths is used by <see cref="AddAccessedFileNames"/>.
+        /// </remarks>
         private static DirectoryMembershipFilter ComputeSearchPathsAndFilter<TTarget, TObservation>(
             ref SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             PathTable pathTable,
@@ -933,9 +937,11 @@ namespace BuildXL.Scheduler.Fingerprints
             HashSet<AbsolutePath> searchPaths)
             where TTarget : struct, IObservedInputProcessingTarget<TObservation>
         {
-            using (var pooledPathSet = Pools.GetAbsolutePathSet())
+            using (var pooledFilePathSet = Pools.GetAbsolutePathSet())
+            using (var pooledDirectoryPathSet = Pools.GetAbsolutePathSet())
             {
-                HashSet<AbsolutePath> visitedPaths = pooledPathSet.Instance;
+                HashSet<AbsolutePath> visitedFilePaths = pooledFilePathSet.Instance;
+                HashSet<AbsolutePath> visitedDirectoryPaths = pooledDirectoryPathSet.Instance;
 
                 HashSet<StringId> accessedFileNames = new HashSet<StringId>(pathTable.StringTable.CaseInsensitiveEqualityComparer);
 
@@ -976,7 +982,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                     if (addFileNamesFromObservations)
                     {
-                        AddAccessedFileNames(pathTable, searchPaths, visitedPaths, accessedFileNames, path, isDirectoryEnumeration);
+                        AddAccessedFileNames(pathTable, searchPaths, visitedFilePaths, visitedDirectoryPaths, accessedFileNames, path, isDirectoryEnumeration);
                     }
                 }
 
@@ -996,14 +1002,14 @@ namespace BuildXL.Scheduler.Fingerprints
                 {
                     var path = dependency.Path;
                     bool isDirectory = false;
-                    AddAccessedFileNames(pathTable, searchPaths, visitedPaths, accessedFileNames, path, isDirectory);
+                    AddAccessedFileNames(pathTable, searchPaths, visitedFilePaths, visitedDirectoryPaths, accessedFileNames, path, isDirectory);
                 }
 
                 foreach (var dependency in pip.DirectoryDependencies)
                 {
                     var path = dependency.Path;
                     bool isDirectory = true;
-                    AddAccessedFileNames(pathTable, searchPaths, visitedPaths, accessedFileNames, path, isDirectory);
+                    AddAccessedFileNames(pathTable, searchPaths, visitedFilePaths, visitedDirectoryPaths, accessedFileNames, path, isDirectory);
                 }
 
                 var searchPathFilter = new SearchPathDirectoryMembershipFilter(pathTable, accessedFileNames);
@@ -1017,7 +1023,8 @@ namespace BuildXL.Scheduler.Fingerprints
         private static void AddAccessedFileNames(
             PathTable pathTable,
             HashSet<AbsolutePath> searchPaths,
-            HashSet<AbsolutePath> visitedPaths,
+            HashSet<AbsolutePath> visitedFilePaths,
+            HashSet<AbsolutePath> visitedDirectoryPaths,
             HashSet<StringId> accessedFileNamesWithoutExtension,
             AbsolutePath path,
             bool isDirectory)
@@ -1027,7 +1034,8 @@ namespace BuildXL.Scheduler.Fingerprints
                 return;
             }
 
-            while (path.IsValid && visitedPaths.Add(path))
+            // Track visited files and directories separately due to bug#1878423
+            while (path.IsValid && ((!isDirectory && visitedFilePaths.Add(path)) || (isDirectory && visitedDirectoryPaths.Add(path))))
             {
                 var parent = path.GetParent(pathTable);
                 if (searchPaths.Contains(parent))

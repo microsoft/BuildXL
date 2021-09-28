@@ -868,7 +868,7 @@ namespace BuildXL.Native.IO.Windows
                 {
                     StringBuilder outputBuilder = pool.Instance;
 
-                    var process = Process.Start(new ProcessStartInfo()
+                    using (var process = Process.Start(new ProcessStartInfo()
                     {
                         UseShellExecute = false,
                         CreateNoWindow = true,
@@ -876,36 +876,44 @@ namespace BuildXL.Native.IO.Windows
                         RedirectStandardOutput = true,
                         FileName = processName,
                         Arguments = arguments
-                    });
-                    process.OutputDataReceived += proc_OutputDataReceived;
-                    process.ErrorDataReceived += proc_OutputDataReceived;
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-                    process.WaitForExit(60 * 1000);
-
-                    if (process.ExitCode != 0 || captureOutputStreams)
+                    }))
                     {
-                        string outputStream = outputBuilder.ToString();
-
-                        if (process.ExitCode != 0)
+                        process.OutputDataReceived += proc_OutputDataReceived;
+                        process.ErrorDataReceived += proc_OutputDataReceived;
+                        process.BeginOutputReadLine();
+                        process.BeginErrorReadLine();
+                        if (!process.WaitForExit(60 * 1000))
                         {
-                            Logger.Log.SettingOwnershipAndAclFailed(
-                                m_loggingContext,
-                                path,
-                                process.StartInfo.FileName,
-                                process.StartInfo.Arguments,
-                                outputStream);
-                            return (false, outputStream);
+                            process.Kill();
                         }
 
-                        return (true, outputStream);
-                    }
+                        // Call WaitForExit one more time to ensure asynchronous streams have completed flushing
+                        process.WaitForExit();
 
-                    return (true, null);
+                        if (process.ExitCode != 0 || captureOutputStreams)
+                        {
+                            string outputStream = outputBuilder.ToString();
 
-                    void proc_OutputDataReceived(object sender, DataReceivedEventArgs e)
-                    {
-                        outputBuilder.AppendLine(e.Data);
+                            if (process.ExitCode != 0)
+                            {
+                                Logger.Log.SettingOwnershipAndAclFailed(
+                                    m_loggingContext,
+                                    path,
+                                    process.StartInfo.FileName,
+                                    process.StartInfo.Arguments,
+                                    outputStream);
+                                return (false, outputStream);
+                            }
+
+                            return (true, outputStream);
+                        }
+
+                        return (true, null);
+
+                        void proc_OutputDataReceived(object sender, DataReceivedEventArgs e)
+                        {
+                            outputBuilder.AppendLine(e.Data);
+                        }
                     }
                 }
             }

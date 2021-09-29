@@ -9,5 +9,5 @@ namespace Unsafe {
     export declare function outputFile(path: Path, rewriteCount?: number): File;
 
     /** Unsafe function to create an exclusive output directory. */
-    export declare function exOutputDirectory(path: Path): Directory;
+    export declare function exOutputDirectory(path: Path): StaticDirectory;
 }

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -58,10 +59,9 @@ export const xPath = p`a/b/c`;
                 .RootSpec("spec.dsc")
                 .EvaluateExpressionsWithNoErrors("x", "xPath");
 
-            var x = result.Get<DirectoryArtifact>("x");
+            var x = result.Get<StaticDirectory>("x");
             var xPath = result.Get<AbsolutePath>("xPath");
 
-            XAssert.AreEqual((uint)0, x.PartialSealId);
             XAssert.AreEqual(xPath, x.Path);            
         }
     }

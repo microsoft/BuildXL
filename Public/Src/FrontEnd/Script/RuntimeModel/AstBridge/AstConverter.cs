@@ -2609,10 +2609,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 int rewriteCount = arguments.Length > 1 && arguments[1] is NumberLiteral rc ? rc.UnboxedValue : 1;
                 return new FileLiteral(path.Value, rewriteCount, Location(source));
             }
-            else if (selector.Selector == m_conversionContext.UnsafeExOutputDirectory)
-            {
-                return new DirectoryLiteralExpression(path, Location(source));
-            }
 
             return null;
         }

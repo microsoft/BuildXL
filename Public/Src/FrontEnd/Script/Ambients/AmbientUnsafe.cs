@@ -5,6 +5,8 @@ using BuildXL.FrontEnd.Script.Ambients.Exceptions;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips.Operations;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients
@@ -51,7 +53,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             ThrowIfNotAllowed(context, ExOutputDirectory);
 
             var path = Args.AsPath(args, 0);
-            return EvaluationResult.Create(DirectoryArtifact.CreateWithZeroPartialSealId(path));
+            return EvaluationResult.Create(new StaticDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(path), SealDirectoryKind.Opaque, PipConstructionHelper.EmptyStaticDirContents));
         }
 
         private CallSignature UnsafeOutputFileSignature => CreateSignature(
@@ -61,7 +63,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
         private CallSignature UnsafeExOutputDirectorySignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.PathType),
-            returnType: AmbientTypes.DirectoryType);
+            returnType: AmbientTypes.StaticDirectoryType);
 
         private void ThrowIfNotAllowed(Context context, string methodName)
         {

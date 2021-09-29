@@ -1680,7 +1680,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, TestOutputDirectory);
 
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
-                arguments.Add("/d /c start /B " + CmdHelper.CmdX64 + " /k");  // Starts child process that hangs on console input and has to be killed by job object.
+                arguments.Add("/d /c start /B " + CmdHelper.CmdX64 + " /C timeout 1000 > NUL");  // Starts child process that 'hangs' and has to be killed by job object.
 
                 var pip = new Process(
                     executableFileArtifact,
@@ -1749,7 +1749,7 @@ namespace Test.BuildXL.Processes.Detours
                 AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, TestOutputDirectory);
 
                 var arguments = new PipDataBuilder(context.PathTable.StringTable);
-                arguments.Add("/d /c start /B " + CmdHelper.CmdX64 + " /k");  // Starts child process that hangs on console input and has to be killed by job object.
+                arguments.Add("/d /c start /B " + CmdHelper.CmdX64 + " /C timeout 1000 > NUL");  // Starts child process that 'hangs' and has to be killed by job object.
 
                 var pip = new Process(
                     executableFileArtifact,

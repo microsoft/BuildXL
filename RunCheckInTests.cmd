@@ -82,7 +82,7 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
 set start=%time%
 set stepName=Building 'release\win-x64' and DistributedBuildRunner using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json 
+    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json -SharedCacheMode disable 
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 
@@ -151,7 +151,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Performing a /cleanonly build
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly -SharedCacheMode disable
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
@@ -226,7 +226,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Running SymLink Tests
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\ -SharedCacheMode disable
         rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!

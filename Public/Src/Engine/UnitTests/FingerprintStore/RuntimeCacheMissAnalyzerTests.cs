@@ -860,7 +860,7 @@ namespace Test.BuildXL.FingerprintStore
             ResetPipGraphBuilder();
 
             var pip = SchedulePipBuilder(builderB).Process;
-            RunScheduler(m_testHooks).AssertCacheMiss();
+            RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.PipId, out var cacheMiss));
             XAssert.AreEqual(cacheMiss.DetailAndResult.Result, CacheMissAnalysisResult.MissingFromOldBuild);

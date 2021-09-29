@@ -1520,7 +1520,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
             var pip = SchedulePipBuilder(builder);
 
-            RunScheduler().AssertCacheMiss().AssertSuccess();
+            RunScheduler().AssertCacheMiss(pip.Process.PipId).AssertSuccess();
         }
 
         [Theory]

@@ -1520,7 +1520,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             if (shareInput)
             {
-                RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss();
+                RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
             }
             else
             {

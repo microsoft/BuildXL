@@ -269,7 +269,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 }
                 else
                 {
-                    result.AssertNotScheduled();
+                    result.AssertNotScheduled(scheduledProcess.Process.PipId);
                 }
             }
 

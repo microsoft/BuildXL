@@ -17,6 +17,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         public static ScheduleRunResult AssertNotScheduled(this ScheduleRunResult @this, params PipId[] pipIds)
         {
+            XAssert.IsTrue(pipIds.Length > 0, "Scheduling assertions should specify the pip ids in question");
+
             @this.AssertSuccess();
             PipResultStatus status;
             for (int i = 0; i < pipIds.Length; i++)
@@ -34,6 +36,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         public static ScheduleRunResult AssertScheduled(this ScheduleRunResult @this, params PipId[] pipIds)
         {
+            XAssert.IsTrue(pipIds.Length > 0, "Scheduling assertions should specify the pip ids in question");
+
             @this.AssertSuccess();
             PipResultStatus status;
             for (int i = 0; i < pipIds.Length; i++)

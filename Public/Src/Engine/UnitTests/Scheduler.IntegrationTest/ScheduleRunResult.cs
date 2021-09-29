@@ -95,6 +95,8 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public ScheduleRunResult AssertCacheHitWithoutAssertingSuccess(params PipId[] pipIds)
         {
+            XAssert.IsTrue(pipIds.Length > 0, "Cache hit assertions should specify the pip ids in question");
+
             PipResultStatus status;
             for (int i = 0; i < pipIds.Length; i++)
             {
@@ -118,6 +120,8 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public ScheduleRunResult AssertCacheMissWithoutAssertingSuccess(params PipId[] pipIds)
         {
+            XAssert.IsTrue(pipIds.Length > 0, "Cache hit assertions should specify the pip ids in question");
+
             PipResultStatus status;
             for (int i = 0; i < pipIds.Length; i++)
             {

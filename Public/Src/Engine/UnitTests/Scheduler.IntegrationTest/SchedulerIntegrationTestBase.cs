@@ -55,10 +55,14 @@ namespace Test.BuildXL.Scheduler
         // graphid to tests to allow exercising incremental scheduling.
         private bool m_graphWasModified;
 
+        /// <summary>
+        /// Sanity check to make sure something was scheduled and avoid empty testing
+        /// </summary>
+        private bool m_graphWasEverModified;
+
         public PipGraph LastGraph { get; private set; }
 
         private JournalState m_journalState;
-
         private readonly ITestOutputHelper m_testOutputHelper;
 
         /// <summary>
@@ -369,6 +373,7 @@ namespace Test.BuildXL.Scheduler
             bool updateStatusTimerEnabled = false,
             Action<TestScheduler> verifySchedulerPostRun = default,
             string runNameOrDescription = null,
+            bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default)
         {
             if (m_graphWasModified || LastGraph == null)
@@ -390,6 +395,7 @@ namespace Test.BuildXL.Scheduler
                 updateStatusTimerEnabled: updateStatusTimerEnabled,
                 verifySchedulerPostRun: verifySchedulerPostRun,
                 runNameOrDescription: runNameOrDescription,
+                allowEmptySchedule: allowEmptySchedule,
                 cancellationToken: cancellationToken);
         }
 
@@ -403,6 +409,7 @@ namespace Test.BuildXL.Scheduler
             get
             {
                 m_graphWasModified = true;
+                m_graphWasEverModified = true;
                 return base.PipGraphBuilder;
             }
         }
@@ -428,8 +435,12 @@ namespace Test.BuildXL.Scheduler
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
             Action<TestScheduler> verifySchedulerPostRun = default,
+            bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default)
         {
+            XAssert.IsTrue(m_graphWasEverModified || allowEmptySchedule,
+    "Attempting to run an empty scheduler. This usually means you forgot to schedule the pips in the test case. Suppress this failure by passing allowEmptySchedule = true");
+
             MarkSchedulerRun(runNameOrDescription);
 
             // This is a new logging context to be used just for this instantiation of the scheduler. That way it can

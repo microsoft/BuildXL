@@ -91,7 +91,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // Indicate to from file A that file B_i should be read
                 File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
 
-                var result = RunScheduler().AssertCacheMiss();
+                var result = RunScheduler().AssertCacheMiss(pip.PipId);
 
                 var weakFingerprint = result.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
                 bool addedWeakFingerprint = weakFingerprints.Add(weakFingerprint);
@@ -137,7 +137,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // Change content of file B
                 File.WriteAllText(path: lastFileBPath, contents: Guid.NewGuid().ToString());
 
-                var executionResult = RunScheduler().AssertCacheMiss();
+                var executionResult = RunScheduler().AssertCacheMiss(pip.PipId);
                 var weakFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
                 ContentHash pathSetHash = executionResult.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
                 var executionStrongFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].StrongFingerprint;
@@ -151,7 +151,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 Assert.True(addedStrongFingerprint, "New strong fingerprint should be computed since file B has unique content");
 
-                var cacheHitResult = RunScheduler().AssertCacheHit();
+                var cacheHitResult = RunScheduler().AssertCacheHit(pip.PipId);
 
                 weakFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].WeakFingerprint;
                 pathSetHash = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().PathSetHash;
@@ -174,7 +174,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
 
                 // We should get a hit for the same inputs
-                var result = RunScheduler().AssertCacheHit();
+                var result = RunScheduler().AssertCacheHit(pip.PipId);
 
                 // Weak fingerprint should be the same as the first run with this configuration (i.e. the
                 // augmented fingerprint when over the threshold)

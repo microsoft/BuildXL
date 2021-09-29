@@ -528,7 +528,7 @@ namespace Test.BuildXL.Scheduler
 
                 var result = ObservedInputProcessor.ProcessInternalAsync(
                     OperationContext.CreateUntracked(loggingContext),
-                    new Environment(this),
+                    new Environment(this, loggingContext),
                     new AssertingTarget(this, Context, (target, topOnly) => handled.Add(new Tuple<TestObservation, bool>(target, topOnly))),
                     CacheableProcess.GetProcessCacheInfo(process, Context),
                     ReadOnlyArray<TestObservation>.From(observations),
@@ -681,13 +681,10 @@ namespace Test.BuildXL.Scheduler
 
                 ICacheConfiguration IObservedInputProcessingEnvironment.Configuration => Configuration;
 
-                public Environment(Harness harness)
+                public Environment(Harness harness, LoggingContext loggingContext)
                 {
                     m_harness = harness;
                     Counters = new CounterCollection<PipExecutorCounter>();
-
-                    // No use of state in this struct, so it is safe to set it to null.
-                    State = null;
 
                     var context = m_harness.Context;
                     MountPathExpander mountExpander = new MountPathExpander(context.PathTable);
@@ -729,6 +726,31 @@ namespace Test.BuildXL.Scheduler
                             writable: true));
 
                     PathExpander = mountExpander;
+
+                    var config = ConfigurationHelpers.GetDefaultForTesting(
+                        context.PathTable,
+                        AbsolutePath.Create(context.PathTable, OperatingSystemHelper.IsWindowsOS ? "C:\\foo\\config.dsc" : "/Users/foo/config.dsc"));
+
+                    DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(loggingContext, context, config, sandboxConnection: GetSandboxConnection());
+
+                    State = new PipExecutionState.PipScopeState(
+                        new PipExecutionState(
+                            configuration: config,
+                            loggingContext,
+                            cache: null,
+                            fileAccessAllowlist: null,
+                            directoryMembershipFingerprinter: new DirectoryMembershipFingerprinter(loggingContext, Context),
+                            pathExpander: PathExpander,
+                            executionLog: null,
+                            directoryMembershipFinterprinterRuleSet: null,
+                            fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
+                            unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
+                            preserveOutputsSalt: default,
+                            fileSystemView: null,
+                            lazyDeletionOfSharedOpaqueOutputsEnabled: false,
+                            new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>()),
+                        moduleId: ModuleId.UnsafeCreate(2, "Test"),
+                        ifPreserveOutputs: false);
                 }
 
                 public PipExecutionContext Context => m_harness.Context;
@@ -747,6 +769,7 @@ namespace Test.BuildXL.Scheduler
                     DirectoryMembershipHashedEventData eventData,
                     IReadOnlyCollection<AbsolutePath> sharedOpaqueOutputs,
                     IReadOnlyCollection<AbsolutePath> createdDirectories,
+                    ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
                     out DirectoryEnumerationMode mode,
                     bool trackPathExistence = false)
                 {
@@ -1244,7 +1267,8 @@ namespace Test.BuildXL.Scheduler
                 preserveOutputsSalt: new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
                 directoryMembershipFinterprinterRuleSet: parentRuleSet,
-                lazyDeletionOfSharedOpaqueOutputsEnabled: false);
+                lazyDeletionOfSharedOpaqueOutputsEnabled: false, 
+                alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
             PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);

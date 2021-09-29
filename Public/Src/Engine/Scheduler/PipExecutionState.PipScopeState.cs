@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler
 {
@@ -50,6 +52,11 @@ namespace BuildXL.Scheduler
             public UnsafeOptions UnsafeOptions { get; private set; }
 
             /// <summary>
+            /// <see cref="PipExecutionState.AlienFileEnumerationCache"/>
+            /// </summary>
+            public ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> AlienFileEnumerationCache { get; private set; }
+
+            /// <summary>
             /// The cacheable pip abstraction which defines cache relevant data and behavior
             /// </summary>
             private CacheableProcess m_cacheablePip;
@@ -76,6 +83,7 @@ namespace BuildXL.Scheduler
                     DirectoryMembershipFingerprinterRuleSet = parent.m_directoryMembershipFingerprinterRuleSet;
                 }
 
+                AlienFileEnumerationCache = parent.AlienFileEnumerationCache;
                 UnsafeOptions = new UnsafeOptions(parent.m_unsafeConfiguration, ifPreserveOutputs ? parent.m_preserveOutputsSalt : UnsafeOptions.PreserveOutputsNotUsed);
             }
 

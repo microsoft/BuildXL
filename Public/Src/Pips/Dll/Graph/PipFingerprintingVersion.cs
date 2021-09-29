@@ -73,7 +73,8 @@ namespace BuildXL.Pips.Graph
         /// 96: Add DisableFullReparsePointResolving at the pip level
         /// 97: Download resolver schedules real pips
         /// 98: Update search path filter computation to track visited files and directories separately in "BuildXL.Scheduler.Fingerprints.ObservedInputProcessor.ComputeSearchPathsAndFilter".
+        /// 99: Alien file enumerations are cached
         /// </remarks>
-        TwoPhaseV2 = 98,
+        TwoPhaseV2 = 99,
     }
 }

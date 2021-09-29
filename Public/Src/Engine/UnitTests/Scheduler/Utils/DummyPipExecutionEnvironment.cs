@@ -167,7 +167,8 @@ namespace Test.BuildXL.Scheduler.Utils
                 unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
                 preserveOutputsSalt: preserveOutputsSalt,
                 serviceManager: new DummyServiceManager(),
-                lazyDeletionOfSharedOpaqueOutputsEnabled: false);
+                lazyDeletionOfSharedOpaqueOutputsEnabled: false,
+                alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
 
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             

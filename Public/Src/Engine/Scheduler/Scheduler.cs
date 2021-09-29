@@ -70,6 +70,8 @@ using Process = BuildXL.Pips.Operations.Process;
 
 namespace BuildXL.Scheduler
 {
+    using DirectoryMemberEntry = ValueTuple<AbsolutePath, string>;
+
     /// <summary>
     /// Class implementing the scheduler.
     /// </summary>
@@ -898,6 +900,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         private readonly LoggingContext m_loggingContext;
 
+        /// <summary>
+        /// Cache used to hold alien file enumerations per directory
+        /// </summary>
+        private readonly ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> m_alienFileEnumerationCache;
+
         #endregion
 
         #region Ready Queue
@@ -1402,6 +1409,8 @@ namespace BuildXL.Scheduler
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
             ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
+
+            m_alienFileEnumerationCache = new ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>>();
         }
 
         private static int GetLoggingPeriodInMsForExecution(IConfiguration configuration)
@@ -6090,7 +6099,8 @@ namespace BuildXL.Scheduler
                     unsafeConfiguration: m_configuration.Sandbox.UnsafeSandboxConfiguration,
                     preserveOutputsSalt: m_previousInputsSalt,
                     lazyDeletionOfSharedOpaqueOutputsEnabled: m_lazyDeletionOfSharedOpaqueOutputsEnabled,
-                    serviceManager: m_serviceManager);
+                    serviceManager: m_serviceManager,
+                    alienFileEnumerationCache: m_alienFileEnumerationCache);
             }
         }
 

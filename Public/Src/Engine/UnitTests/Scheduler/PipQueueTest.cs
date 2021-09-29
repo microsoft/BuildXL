@@ -342,7 +342,8 @@ namespace Test.BuildXL.Scheduler
                     fileSystemView: fileSystemView,
                     fileContentManager: new FileContentManager(this, new NullOperationTracker()),
                     directoryMembershipFinterprinterRuleSet: null,
-                    lazyDeletionOfSharedOpaqueOutputsEnabled: false);
+                    lazyDeletionOfSharedOpaqueOutputsEnabled: false,
+                    alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
 
                 ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
 

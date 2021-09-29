@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -107,6 +108,11 @@ namespace BuildXL.Scheduler
         public bool LazyDeletionOfSharedOpaqueOutputsEnabled { get; }
 
         /// <summary>
+        /// Cache used to hold alien file enumerations per directory
+        /// </summary>
+        public ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> AlienFileEnumerationCache { get; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public PipExecutionState(
@@ -123,11 +129,13 @@ namespace BuildXL.Scheduler
             PreserveOutputsInfo preserveOutputsSalt,
             FileSystemView fileSystemView,
             bool lazyDeletionOfSharedOpaqueOutputsEnabled,
+            ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
             ServiceManager serviceManager = null)
         {
             Contract.Requires(fileContentManager != null);
             Contract.Requires(directoryMembershipFingerprinter != null);
             Contract.Requires(pathExpander != null);
+            Contract.RequiresNotNull(alienFileEnumerationCache);
 
             Cache = cache;
             m_fileAccessAllowlist = fileAccessAllowlist;
@@ -144,6 +152,7 @@ namespace BuildXL.Scheduler
             m_unsafeConfiguration = unsafeConfiguration;
             m_preserveOutputsSalt = preserveOutputsSalt;
             LazyDeletionOfSharedOpaqueOutputsEnabled = lazyDeletionOfSharedOpaqueOutputsEnabled;
+            AlienFileEnumerationCache = alienFileEnumerationCache;
 
             if (fileSystemView != null)
             {

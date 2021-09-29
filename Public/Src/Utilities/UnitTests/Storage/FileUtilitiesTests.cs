@@ -238,43 +238,6 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(Directory.Exists(GetFullPath(Target)));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin:true)]
-        public void CreateDirectoryWithoutPermissions()
-        {
-            string pathWithoutPermissions = GetFullPath("NoPermissions");
-            string childWithoutPermissions = Path.Combine(pathWithoutPermissions, "childDir1");
-            string child2WithoutPermissions = Path.Combine(childWithoutPermissions, "childDir2");
-            Directory.CreateDirectory(pathWithoutPermissions);
-            RevokeAccess(pathWithoutPermissions);
-            FileUtilities.CreateDirectory(child2WithoutPermissions);
-            XAssert.IsTrue(Directory.Exists(child2WithoutPermissions));
-        }
-
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
-        public void DeleteDirectoryWithoutPermissions()
-        {
-            string parentDirectory = GetFullPath("parent");
-            string nestedWithoutPermissions = Path.Combine(parentDirectory, "childDir1");
-            string moreNested = Path.Combine(nestedWithoutPermissions, "childDir2");
-            Directory.CreateDirectory(moreNested);
-            File.WriteAllText(Path.Combine(moreNested, "testFile.txt"), "hello");
-            RevokeAccess(nestedWithoutPermissions);
-            FileUtilities.DeleteDirectoryContents(parentDirectory, deleteRootDirectory: true);
-            XAssert.IsFalse(Directory.Exists(parentDirectory));
-        }
-
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
-        public void DeleteFileWithoutPermission()
-        {
-            string parentDirectory = GetFullPath("parent");
-            Directory.CreateDirectory(parentDirectory);
-            string testFile = Path.Combine(parentDirectory, "test.txt");
-            File.WriteAllText(testFile, "hello");
-            RevokeAccess(testFile);
-            FileUtilities.DeleteFile(testFile);
-            XAssert.IsFalse(File.Exists(testFile));
-        }
-
         [Fact]
         public async Task WriteAllText()
         {
@@ -1070,67 +1033,6 @@ namespace Test.BuildXL.Storage
             FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
             XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
             XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath)); 
-        }
-
-        /// <summary>
-        /// This test simulates an uncooperative file which after being produced needs its ownership and ACLs
-        /// tweaked in order to allow ingestion into the cache.
-        /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
-        public void HasUnwritableAccessControlTest()
-        {
-            string testFilePath = Path.Combine(TemporaryDirectory, "testFile.txt");
-            File.WriteAllText(testFilePath, "hello");
-            RevokeAccess(testFilePath);
-
-            // These should not fail
-            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteData, false);
-            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
-        }
-
-        private static void RevokeAccess(string testFilePath)
-        {
-            string icaclsResult;
-            if (RunIcacls($"{testFilePath} /setowner SYSTEM", out icaclsResult) != 0)
-            {
-                XAssert.Fail($"Failed to reset file owner: {Environment.NewLine}{icaclsResult}");
-            }
-
-            // Deny access to this account
-            if (RunIcacls($"{testFilePath} /deny {Environment.UserDomainName}\\{Environment.UserName}:(GA) /inheritance:r", out icaclsResult) != 0)
-            {
-                XAssert.Fail($"Failed to reset filesystem ACLs: {Environment.NewLine}{icaclsResult}");
-            }
-        }
-
-        private static int RunIcacls(string arguments, out string result)
-        {
-            var psi = new ProcessStartInfo();
-            psi.FileName = "icacls";
-            psi.Arguments = arguments;
-            psi.CreateNoWindow = true;
-            psi.UseShellExecute = false;
-            psi.RedirectStandardError = true;
-            psi.RedirectStandardOutput = true;
-
-            var proc = Process.Start(psi);
-            StringBuilder outputStream = new StringBuilder();
-            proc.OutputDataReceived += proc_OutputDataReceived;
-            proc.ErrorDataReceived += proc_OutputDataReceived;
-
-            proc.BeginErrorReadLine();
-            proc.BeginOutputReadLine();
-
-            proc.WaitForExit(10 * 1000);
-            
-            result = outputStream.ToString();
-            return proc.ExitCode;
-
-            void proc_OutputDataReceived(object sender, DataReceivedEventArgs e)
-            {
-                outputStream.AppendLine(e.Data);
-            }
-
         }
 
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)

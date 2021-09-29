@@ -800,12 +800,5 @@ namespace BuildXL.Native.IO.Unix
                 throw new BuildXLException(I($"Failed to set permissions for file '{path}' - error: {Marshal.GetLastWin32Error()}"));
             }
         }
-
-        /// <inheritdoc />
-        public bool TryTakeOwnershipAndSetWriteable(string path)
-        {
-            // Ownership not applicable for Unix. Setting writable is not implemented for Unix
-            return false;
-        }
     }
 }

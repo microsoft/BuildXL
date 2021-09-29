@@ -1814,7 +1814,6 @@ namespace BuildXL.Native.IO.Windows
             {
                 string dir = stackDirs.Pop();
                 result = CreateDirectoryW(ToLongPathIfExceedMaxPath(dir), IntPtr.Zero);
-                string lastAccessDeniedDir = null;
 
                 if (!result && (firstFoundError == NativeIOConstants.ErrorSuccess))
                 {
@@ -1822,21 +1821,8 @@ namespace BuildXL.Native.IO.Windows
 
                     if (currentError != NativeIOConstants.ErrorAlreadyExists)
                     {
-                        // We may be able to address an access denied by taking file ownership and adding more permissive access on the parent
-                        if (currentError == NativeIOConstants.ErrorAccessDenied && lastAccessDeniedDir != dir)
-                        {
-                            lastAccessDeniedDir = dir;
-                            if (TryTakeOwnershipAndSetWriteable(Path.GetDirectoryName(dir)))
-                            {
-                                stackDirs.Push(dir);
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            // Another thread may have been created directory or its parents.
-                            firstFoundError = currentError;
-                        }
+                        // Another thread may have been created directory or its parents.
+                        firstFoundError = currentError;
                     }
                     else
                     {

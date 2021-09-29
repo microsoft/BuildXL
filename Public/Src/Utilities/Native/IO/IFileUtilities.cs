@@ -407,11 +407,6 @@ namespace BuildXL.Native.IO
         string GetUserSettingsFolder(string appName);
 
         /// <summary>
-        /// Tries to make a file writeable via taking file ownership and setting filesystem access control list
-        /// </summary>
-        bool TryTakeOwnershipAndSetWriteable(string path);
-
-        /// <summary>
         /// Helper to set file access rights for a file.
         /// </summary>
         /// <param name="path">Path to a file.</param>

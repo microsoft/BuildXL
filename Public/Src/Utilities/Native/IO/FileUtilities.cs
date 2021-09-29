@@ -659,9 +659,6 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileUtilities.GetUserSettingsFolder(string)"/>
         public static string GetUserSettingsFolder(string appName) => s_fileUtilities.GetUserSettingsFolder(appName);
 
-        /// <see cref="IFileUtilities.TryTakeOwnershipAndSetWriteable(string)"/>
-        public static bool TryTakeOwnershipAndSetWriteable(string path) => s_fileUtilities.TryTakeOwnershipAndSetWriteable(path);
-
         #endregion
 
         #region Soft- (Junction) and Hardlink functions

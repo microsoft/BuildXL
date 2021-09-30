@@ -46,6 +46,8 @@ namespace Sdk.Tests {
             yarnTool: {exe: f`path\to\yarn`},
             repoRoot: d`out\src`,
             yarnCacheFolder: d`out/path/to/pnpm/store`,
+            networkConcurrency: 40,
+            networkTimeout: 300000
         });
     }
 }

@@ -44,6 +44,8 @@ namespace Yarn {
         globalNpmrcLocation?: NpmrcLocation,
         verbose?: boolean,
         ignoreOptionalDependencies?: boolean,
+        networkConcurrency?: number,
+        networkTimeout?: number,
     }
 
     /**
@@ -120,7 +122,9 @@ namespace Yarn {
                 Cmd.rawArgument("install"),
                 Cmd.flag("--frozen-lockfile", arguments.frozenLockfile || false),
                 Cmd.flag("--verbose", arguments.verbose),
-                Cmd.flag("--ignore-optional", arguments.ignoreOptionalDependencies)
+                Cmd.flag("--ignore-optional", arguments.ignoreOptionalDependencies),
+                Cmd.option("--network-concurrency ", arguments.networkConcurrency),
+                Cmd.option("--network-timeout ", arguments.networkTimeout),
             ],
             outputs: [
                 {kind: "shared", directory: d`${arguments.repoRoot}`},

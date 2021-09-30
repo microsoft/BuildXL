@@ -42,6 +42,18 @@ Transformer.execute({
                 separator: "",
                 items: ["install"],
             },
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--network-concurrency"],
+            },
+            "40",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["--network-timeout"],
+            },
+            "300000",
         ],
     },
     workingDirectory: d`./Out/src`,

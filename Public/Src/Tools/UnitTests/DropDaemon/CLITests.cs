@@ -73,17 +73,16 @@ namespace Test.Tool.DropDaemon
             yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
             yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint, EnableCloudBuildIntegration }, new[] { "mydrop", "http://xyz", "True" } };
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
-            yield return new object[] { "addfile", new[] { File, DropNameOption }, new[] { @"""c:\x\y.txt""", "mydrop" } };
-            yield return new object[] { "addfile", new[] { File }, new[] { @"""c:\x\y.txt""" } };
-            yield return new object[] { "addfile", new[] { File, RelativeDropPath }, new[] { @"""c:\x\y.txt""", "a/b/c.txt" } };
-            yield return new object[] { "addfile", new[] { File, RelativeDropPath }, new[] { @"""c:\x\y.txt""", @"a\\b\\c.txt" } };
-            yield return new object[] { "addfile", new[] { File, RelativeDropPath }, new[] { @"""c:\x\y.txt""", "\"a\\b\\c.txt\"" } };
+            yield return new object[] { "addfile", new Option[] { File, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "mydrop", "http://xyz" } };
+            yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "a/b/c.txt", "mydrop", "http://xyz" } };
+            yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", @"a\\b\\c.txt", "mydrop", "http://xyz" } };
+            yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "\"a\\b\\c.txt\"", "mydrop", "http://xyz" } };
             yield return new object[] { "finalize", new Option[0], new string[0] };
             yield return new object[] { "finalize", new[] { DropNameOption }, new[] { "mydrop" } };
             yield return new object[] { "stop", new Option[0], new string[0] };
             yield return new object[] { "stop", new[] { DropNameOption }, new[] { "mydrop" } };
-            yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace }, new[] { "moniker_string", @"c:\dir", "123:1:12345", "/remote/", ".*", "##" } };
-            yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath }, new[] { "moniker_string", @"c:\dir\f.txt", "id1", "123:1:12345", "/remote/f.txt" } };
+            yield return new object[] { "addartifacts", new Option[] { IpcServerMonikerRequired, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace, DropNameOption, DropEndpoint }, new[] { "moniker_string", @"c:\dir", "123:1:12345", "/remote/", ".*", "##", "mydrop", "http://xyz" } };
+            yield return new object[] { "addartifacts", new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { "moniker_string", @"c:\dir\f.txt", "id1", "123:1:12345", "/remote/f.txt", "mydrop", "http://xyz" } };
         }
 
         [Theory]

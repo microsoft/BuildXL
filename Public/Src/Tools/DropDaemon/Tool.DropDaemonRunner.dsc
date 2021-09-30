@@ -21,16 +21,26 @@ export namespace DropDaemonRunner {
      */
     @@public
     export const runner: DropRunner = {
+        startService: startService,
+
+        createDropUnderService: createDropUnderService,
+
         createDrop: (
             args: DropCreateArguments
         )
-        => createDrop(args),
+        => {
+            // TODO: do we want to nuke extra fields from args before passing it to startService ?
+            const serviceStartResult = startService(<ServiceStartArguments>args);
+            return createDropUnderService(serviceStartResult, args);
+        },
         
         addFilesToDrop: addFiles,
 
         addDirectoriesToDrop: addDirectoriesToDrop,
 
         addArtifactsToDrop: addArtifactsToDrop,
+
+        finalizeDrop: finalizeDrop,
 
         fileInfoToDropFileInfo: fileInfoToDropFileInfo,
 
@@ -40,7 +50,7 @@ export namespace DropDaemonRunner {
             args: ServiceStartArguments
         )
         => {
-            return startService(
+            return startServiceInternal(
                 <UberArguments>args,
                 "start-nodrop",
                 "stop",
@@ -80,6 +90,13 @@ export namespace DropDaemonRunner {
      */
     @@public
     export const cloudBuildRunner: DropRunner = {
+        startService: (
+            args: DropOperationArguments
+        )
+        => runner.startService(
+            applyCloudBuildDefaultsAndSetEnvVars(args)
+        ),
+        createDropUnderService: runner.createDropUnderService,
         createDrop: (
             args: DropOperationArguments
         )
@@ -89,6 +106,7 @@ export namespace DropDaemonRunner {
         addFilesToDrop: runner.addFilesToDrop,
         addDirectoriesToDrop: runner.addDirectoriesToDrop,
         addArtifactsToDrop: runner.addArtifactsToDrop,
+        finalizeDrop: runner.finalizeDrop,
         fileInfoToDropFileInfo: runner.fileInfoToDropFileInfo,
         directoryInfoToDropDirectoryInfo: runner.directoryInfoToDropDirectoryInfo,
         startDaemonNoDrop: runner.startDaemonNoDrop,
@@ -113,8 +131,24 @@ export namespace DropDaemonRunner {
             relativePathReplacementArguments: directoryInfo.relativePathReplacementArguments
         }; 
     }
+    
+    function startService(args: ServiceStartArguments): ServiceStartResult {
+        const shutdownCmdName = "stop";
+        const finalizationCmdName = "finalize";
+        const startArgs = overrideServerMoniker(
+            <UberArguments>args
+        );
 
-    function startService(args: UberArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName?: string, skipValidation?: boolean): ServiceStartResult {
+        return startServiceInternal(
+            startArgs,
+            "start",
+            shutdownCmdName,
+            finalizationCmdName,
+            false
+        );
+    }
+
+    function startServiceInternal(args: UberArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName?: string, skipValidation?: boolean): ServiceStartResult {
         if (skipValidation !== true) {
             Contract.requires(
                 args.service !== undefined || args.dropServiceConfigFile !== undefined,
@@ -159,37 +193,30 @@ export namespace DropDaemonRunner {
         };
     }
 
-    function createDrop(args: DropCreateArguments): DropCreateResult {
+    function createDropUnderService(serviceStartResult: ServiceStartResult, args: DropCreateArguments): DropCreateResult {
+        Contract.requires(
+            serviceStartResult !== undefined, 
+            "service must be started first and result of that operation must be provided"
+        );
+
         if (args.dropDomainId !== undefined) {
             Contract.requires(
                 args.dropDomainId >= 0 && args.dropDomainId <= 255,
                 "DropDomainId value must be within [0..255] interval.");
         }
- 
-        // start service
-        const shutdownCmdName = "stop";
-        const finalizationCmdName = "finalize";
-        const startArgs = overrideServerMoniker(
-            <UberArguments>args
-        );
-        const dropStartResult = startService(
-            startArgs,
-            "start",
-            shutdownCmdName,
-            finalizationCmdName,
-            false
-        );
-        
-        // execute 'dropd create'
+
         const result = executeDropdCommand(
-            dropStartResult,
+            serviceStartResult,
             "create",
             <UberArguments>args,
             overrideMustRunOnOrchestrator
         );
-        
-        // return aggregate info
-        return <DropCreateResult>{serviceStartInfo: dropStartResult, outputs: result.outputs};
+
+        // DropCreateResult is how we link other API calls to an appropriate service / drop:
+        //     serviceStartInfo is a pointer to the service pip that will be handling drop operations
+        //     dropConfig contains a fully-qualified drop name (endpoint + name)
+        //     outputs contains a dummy output of 'create' command which allows other pip to take dependency on (so they are only executed after a drop was created)
+        return <DropCreateResult>{serviceStartInfo: serviceStartResult, dropConfig: args, outputs: result.outputs};
     }
 
     function addFiles(createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[]): Result {
@@ -274,10 +301,13 @@ export namespace DropDaemonRunner {
               ]
             : [];
 
-        const uberArgs = args.merge<UberArguments>({
-            dependencies: createResult.outputs || [],
-            ipcServerMoniker: Transformer.getIpcServerMoniker(),
-        });
+        const uberArgs = args
+            // use the same config (service / service config file / name) that was used to create a drop
+            .merge<UberArguments>(createResult.dropConfig)
+            .merge<UberArguments>({
+                dependencies: createResult.outputs || [],
+                ipcServerMoniker: Transformer.getIpcServerMoniker(),
+            });
 
         return executeDropdCommand(
             createResult.serviceStartInfo,
@@ -289,6 +319,9 @@ export namespace DropDaemonRunner {
                     ...directoryMessageBody,
                 ],
                 lazilyMaterializedDependencies: [
+                    // output of a 'create' command is only used as an order dependency
+                    ...createResult.outputs,
+                    // inputs are not materialized; the daemon is in charge of requesting materialization of artifacts it needs
                     ...fileInfos.map(fi => fi.file),
                     ...directoryInfos.map(di => di.directory)
                 ],
@@ -296,6 +329,33 @@ export namespace DropDaemonRunner {
         );
     }
 
+    function finalizeDrop(createResult: DropCreateResult, args: DropOperationArguments, addOperationResults: Result[]) {
+        Contract.requires(
+            createResult !== undefined,
+            "result of the 'drop create' operation must be provided"
+        );
+        
+        Contract.requires(
+            addOperationResults !== undefined,
+            "addOperationResults cannot be undefined (it can be empty)"
+        );
+
+        const uberArgs = args
+            // use the same config (service / service config file / name) that was used to create a drop
+            .merge<UberArguments>(createResult.dropConfig)
+            .merge<UberArguments>({
+                dependencies: [...createResult.outputs, ...addOperationResults],
+                ipcServerMoniker: Transformer.getIpcServerMoniker(),
+            });
+
+        return executeDropdCommand(
+            createResult.serviceStartInfo,
+            "finalizeDrop",
+            uberArgs,
+            // TODO: mark order dependencies for lazy materialization ?
+            overrideMustRunOnOrchestrator
+        );
+    }
 
     function overrideMustRunOnOrchestrator(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
         return args.override<Transformer.IpcSendArguments>({
@@ -472,7 +532,7 @@ export namespace DropDaemonRunner {
     ];
     const cloudBuildVars: string[] = [
         "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 
-        "QAUTHMATERIALROOT",                  // Auth material for low-privilege build.
+        "QAUTHMATERIALROOT",                        // Auth material for low-privilege build.
         "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH", // Cloudbuild auth helper executable path for build cache, symbol, and drop
         ...cloudBuildVarsPointingToDirs];
     /**

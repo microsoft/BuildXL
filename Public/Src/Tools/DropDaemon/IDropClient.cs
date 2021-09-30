@@ -24,6 +24,11 @@ namespace Tool.DropDaemon
         string DropUrl { get; }
 
         /// <summary>
+        /// Whether an attempt to finalize the drop has been made.
+        /// </summary>
+        bool AttemptedFinalization { get; }
+
+        /// <summary>
         /// Task for performing 'drop create'.
         /// </summary>
         Task<DropItem> CreateAsync();

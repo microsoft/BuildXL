@@ -45,9 +45,10 @@ namespace Test.Tool.DropDaemon
         public void TestCreate(bool shouldSucceed)
         {
             var dropClient = new MockDropClient(createSucceeds: shouldSucceed);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                AssertRpcResult(shouldSucceed, daemon.Create());
+                var dropName = GetDropFullName(dropConfig);
+                AssertRpcResult(shouldSucceed, daemon.Create(dropName));
                 AssertDequeueEtwEvent(etwListener, shouldSucceed, EventKind.DropCreation);
             });
         }
@@ -58,9 +59,10 @@ namespace Test.Tool.DropDaemon
         public void TestFinalize(bool shouldSucceed)
         {
             var dropClient = new MockDropClient(finalizeSucceeds: shouldSucceed);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                daemon.Create();     // We can only finalize if we created
+                var dropName = GetDropFullName(dropConfig);
+                daemon.Create(dropName);     // We can only finalize if we created
                 AssertDequeueEtwEvent(etwListener, true, EventKind.DropCreation);
 
                 AssertRpcResult(shouldSucceed, daemon.Finalize());
@@ -76,9 +78,10 @@ namespace Test.Tool.DropDaemon
         public void TestCreateFinalize(bool shouldCreateSucceed, bool shouldFinalizeSucceed)
         {
             var dropClient = new MockDropClient(createSucceeds: shouldCreateSucceed, finalizeSucceeds: shouldFinalizeSucceed);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var rpcResult = daemon.Create();
+                var dropName = GetDropFullName(dropConfig);
+                var rpcResult = daemon.Create(dropName);
                 AssertRpcResult(shouldCreateSucceed, rpcResult);
                 rpcResult = daemon.Finalize();
                 AssertRpcResult(shouldFinalizeSucceed, rpcResult);
@@ -92,7 +95,7 @@ namespace Test.Tool.DropDaemon
         public void TestNonCreatorCantFinalize()
         {
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: false);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
                 // This daemon is not the creator of the drop so it can't finalize it
                 AssertRpcResult(false, daemon.Finalize());
@@ -111,9 +114,10 @@ namespace Test.Tool.DropDaemon
                 ? new MockDropClient.CreateDelegate(() => Task.FromResult(new DropItem()))
                 : new MockDropClient.CreateDelegate(() => MockDropClient.FailTask<DropItem>(errorMessage));
             var dropClient = new MockDropClient(dropUrl: url, createFunc: createFunc);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var rpcResult = daemon.Create();
+                var dropName = GetDropFullName(dropConfig);
+                var rpcResult = daemon.Create(dropName);
                 AssertRpcResult(shouldSucceed, rpcResult);
                 var dropEvent = AssertDequeueEtwEvent(etwListener, shouldSucceed, EventKind.DropCreation);
                 Assert.Equal(url, dropEvent.DropUrl);
@@ -125,18 +129,20 @@ namespace Test.Tool.DropDaemon
         public void TestFailingWithDropErrorDoesNotThrow()
         {
             var dropClient = GetFailingMockDropClient(() => new DropServiceException("injected drop service failure"));
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
+                var dropName = GetDropFullName(dropConfig);
+
                 // create
                 {
-                    var rpcResult = daemon.Create();
+                    var rpcResult = daemon.Create(dropName);
                     AssertRpcResult(shouldSucceed: false, rpcResult: rpcResult);
                     AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropCreation);
                 }
 
                 // add file
                 {
-                    var rpcResult = daemon.AddFileAsync(new DropItemForFile("file.txt")).Result;
+                    var rpcResult = daemon.AddFileAsync(new DropItemForFile(dropName, "file.txt")).Result;
                     AssertRpcResult(shouldSucceed: false, rpcResult: rpcResult);
                 }
 
@@ -152,12 +158,15 @@ namespace Test.Tool.DropDaemon
         [Fact]
         public void TestFailingWithGenericErrorThrows()
         {
-            var dropClient = GetFailingMockDropClient(() => new Exception("injected generic failure"));
-            WithSetup(dropClient, (daemon, etwListener) =>
+            const string ExceptionMessage = "injected generic failure";
+            var dropClient = GetFailingMockDropClient(() => new Exception(ExceptionMessage));
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
+                var dropName = GetDropFullName(dropConfig);
+
                 // create
                 {
-                    Assert.Throws<Exception>(() => daemon.Create());
+                    Assert.Throws<Exception>(() => daemon.Create(dropName));
 
                     // etw event must nevertheless be received
                     AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropCreation);
@@ -165,12 +174,15 @@ namespace Test.Tool.DropDaemon
 
                 // add file
                 {
-                    Assert.Throws<Exception>(() => daemon.AddFileAsync(new DropItemForFile("file.txt")).GetAwaiter().GetResult());
+                    Assert.Throws<Exception>(() => daemon.AddFileAsync(new DropItemForFile(dropName, "file.txt")).GetAwaiter().GetResult());
                 }
 
                 // finalize
                 {
-                    Assert.Throws<Exception>(() => daemon.Finalize());
+                    // due to SafeWhenAll, we will be returning an AggregateException
+                    var aggregateException = Assert.Throws<AggregateException>(() => daemon.Finalize());
+                    Assert.Equal(1, aggregateException.InnerExceptions.Count);
+                    Assert.Equal(ExceptionMessage, aggregateException.InnerExceptions[0].Message);
 
                     // etw event must nevertheless be received
                     AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropFinalization);
@@ -182,9 +194,11 @@ namespace Test.Tool.DropDaemon
         public void TestMultipleFinalizationBehavior()
         {
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                daemon.Create();
+                var dropName = GetDropFullName(dropConfig);
+
+                daemon.Create(dropName);
                 AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
 
                 AssertRpcResult(true, daemon.Finalize());
@@ -201,9 +215,11 @@ namespace Test.Tool.DropDaemon
         public void FinalizeIsCalledOnStop()
         {
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                daemon.Create();
+                var dropName = GetDropFullName(dropConfig);
+
+                daemon.Create(dropName);
                 AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
 
                 daemon.RequestStop();
@@ -220,9 +236,11 @@ namespace Test.Tool.DropDaemon
         public void FinalizeOnStopAfterNormalFinalizationIsOk()
         {
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                daemon.Create();
+                var dropName = GetDropFullName(dropConfig);
+
+                daemon.Create(dropName);
                 etwListener.DequeueDropEvent(); // Dequeue create
 
                 AssertRpcResult(true, daemon.Finalize());
@@ -240,9 +258,10 @@ namespace Test.Tool.DropDaemon
         public void TestFinalizeOnStopErrorsAreQueued()
         {
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: false);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                daemon.Create();
+                var dropName = GetDropFullName(dropConfig);
+                daemon.Create(dropName);
                 etwListener.DequeueDropEvent(); // Dequeue create
                 daemon.RequestStop();
                 AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropFinalization);
@@ -254,7 +273,7 @@ namespace Test.Tool.DropDaemon
         public void TestNonCreatorDoesntFinalizeOnStop()
         {
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: false);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
                 // We don't call create for this daemon
                 daemon.RequestStop();
@@ -272,14 +291,16 @@ namespace Test.Tool.DropDaemon
                 return Task.FromResult(AddFileResult.Associated);
             });
 
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
+                var dropName = GetDropFullName(dropConfig);
+
                 var provider = IpcFactory.GetProvider();
                 var connStr = provider.CreateNewConnectionString();
                 var contentInfo = new FileContentInfo(new ContentHash(HashType.Vso0), length: 123456);
 
                 var client = new Client(provider.GetClient(connStr, new ClientConfig()));
-                var addFileItem = new DropItemForBuildXLFile(client, filePath: "file-which-doesnt-exist.txt", fileId: "23423423:1", fileContentInfo: contentInfo);
+                var addFileItem = new DropItemForBuildXLFile(client, dropName, filePath: "file-which-doesnt-exist.txt", fileId: "23423423:1", fileContentInfo: contentInfo);
 
                 // addfile succeeds without needing BuildXL server nor the file on disk
                 IIpcResult result = daemon.AddFileAsync(addFileItem).GetAwaiter().GetResult();
@@ -322,8 +343,9 @@ namespace Test.Tool.DropDaemon
                 return Task.FromResult(AddFileResult.UploadedAndAssociated);
             });
 
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
+                var dropName = GetDropFullName(dropConfig);
                 var ipcProvider = IpcFactory.GetProvider();
                 var ipcExecutor = new LambdaIpcOperationExecutor(op =>
                 {
@@ -338,7 +360,7 @@ namespace Test.Tool.DropDaemon
                     (moniker, mockServer) =>
                     {
                         var client = new Client(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig()));
-                        var addFileItem = new DropItemForBuildXLFile(client, filePath, fileId, fileContentInfo: TestFileContentInfo);
+                        var addFileItem = new DropItemForBuildXLFile(client, dropName, filePath, fileId, fileContentInfo: TestFileContentInfo);
 
                         // addfile succeeds
                         IIpcResult result = daemon.AddFileAsync(addFileItem).GetAwaiter().GetResult();
@@ -367,8 +389,9 @@ namespace Test.Tool.DropDaemon
                 throw ex;
             });
 
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
+                var dropName = GetDropFullName(dropConfig);
                 var ipcProvider = IpcFactory.GetProvider();
                 var ipcExecutor = new LambdaIpcOperationExecutor(op =>
                 {
@@ -387,6 +410,7 @@ namespace Test.Tool.DropDaemon
                         var addFileItem = new DropItemForBuildXLFile(
                             symlinkTester: (file) => file == filePath ? true : false,
                             client: client,
+                            fullDropName: dropName,
                             filePath: filePath,
                             fileId: fileId,
                             fileContentInfo: TestFileContentInfo);
@@ -408,9 +432,10 @@ namespace Test.Tool.DropDaemon
 
             // check that drop daemon rejects it outright
             var dropClient = new MockDropClient(addFileSucceeds: true);
-            WithSetup(dropClient, (daemon, etwListener) =>
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var ipcResult = daemon.AddFileAsync(new DropItemForFile(targetFile), symlinkTester: (file) => file == targetFile ? true : false).GetAwaiter().GetResult();
+                var dropName = GetDropFullName(dropConfig);
+                var ipcResult = daemon.AddFileAsync(new DropItemForFile(dropName, targetFile), symlinkTester: (file) => file == targetFile ? true : false).GetAwaiter().GetResult();
                 Assert.False(ipcResult.Succeeded, "adding symlink to drop succeeded while it was expected to fail");
                 Assert.True(ipcResult.Payload.Contains(global::Tool.DropDaemon.DropDaemon.SymlinkAddErrorMessagePrefix));
             });
@@ -481,10 +506,10 @@ namespace Test.Tool.DropDaemon
                     var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
-                        (daemon, etwListener) =>
+                        (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ##",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ##",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -549,10 +574,10 @@ namespace Test.Tool.DropDaemon
                     var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
-                        (daemon, etwListener) =>
+                        (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .* --directoryRelativePathReplace ##",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .* --directoryRelativePathReplace ##",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -582,12 +607,12 @@ namespace Test.Tool.DropDaemon
 
             WithSetup(
                 dropClient, 
-                (daemon, etwListener) =>
+                (daemon, etwListener, dropConfig) =>
                 {
                     // only hash and file rewrite count are important here; the rest are just fake values
                     var hash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(1)).Render();
                     var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                        $"addartifacts --ipcServerMoniker {daemon.Config.Moniker} --file non-existent-file.txt --dropPath remote-file-name.txt --hash {hash} --fileId 12345:{(isSourceFile ? 0 : 1)}",
+                        $"addartifacts --ipcServerMoniker {daemon.Config.Moniker} --service {dropConfig.Service} --name {dropConfig.Name} --file non-existent-file.txt --dropPath remote-file-name.txt --hash {hash} --fileId 12345:{(isSourceFile ? 0 : 1)}",
                         new UnixParser());
                     var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -644,10 +669,10 @@ namespace Test.Tool.DropDaemon
                     var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
-                        (daemon, etwListener) =>
+                        (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ##",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ##",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
                             
@@ -739,10 +764,10 @@ namespace Test.Tool.DropDaemon
                     var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
-                        (daemon, etwListener) =>
+                        (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {dropPath} --directoryFilter .* --directoryRelativePathReplace {serializeReplaceArgument(replaceOldValue, replaceNewValue)}",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {dropPath} --directoryFilter .* --directoryRelativePathReplace {serializeReplaceArgument(replaceOldValue, replaceNewValue)}",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -821,21 +846,24 @@ namespace Test.Tool.DropDaemon
 
 
         /// <remarks>
-        /// If an apiClient is not passed (ie. null by default), we creat a new Client that returns success for any bool command called.
+        /// If an apiClient is not passed (i.e., null by default), we create a new Client that returns success for any bool command called.
         /// </remarks>
-        private void WithSetup(IDropClient dropClient, Action<global::Tool.DropDaemon.DropDaemon, DropEtwListener> action, Client apiClient = null)
+        private void WithSetup(IDropClient dropClient, Action<global::Tool.DropDaemon.DropDaemon, DropEtwListener, DropConfig> action, Client apiClient = null)
         {
             var etwListener = ConfigureEtwLogging();
             string moniker = ServicePipDaemon.IpcProvider.RenderConnectionString(ServicePipDaemon.IpcProvider.CreateNewMoniker());
             var daemonConfig = new DaemonConfig(VoidLogger.Instance, moniker: moniker, enableCloudBuildIntegration: false);
-            var dropConfig = new DropConfig(string.Empty, null);
+            var dropConfig = new DropConfig("test", new Uri("file://xyz"));
             if (apiClient == null)
             {
                 apiClient = new Client(new MockClient(ipcOperation => IpcResult.Success("true")));
             }
-            var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, dropConfig, Task.FromResult(dropClient), client: apiClient);
-            action(daemon, etwListener);
+            var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, client: apiClient);
+            daemon.RegisterDropClientForTesting(dropConfig, dropClient);
+            action(daemon, etwListener, dropConfig);
         }
+
+        private string GetDropFullName(DropConfig config) => global::Tool.DropDaemon.DropDaemon.FullyQualifiedDropName(config);
 
         private DropEtwListener ConfigureEtwLogging()
         {

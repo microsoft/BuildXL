@@ -48,11 +48,6 @@ namespace Tool.DropDaemon
         public TimeSpan HttpSendTimeout { get; }
 
         /// <summary>
-        ///     Enable verbose logging.
-        /// </summary>
-        public bool Verbose { get; }
-
-        /// <summary>
         ///     Enable drop telemetry.
         /// </summary>
         public bool EnableTelemetry { get; }
@@ -61,11 +56,6 @@ namespace Tool.DropDaemon
         ///     Enable chunk dedup.
         /// </summary>
         public bool EnableChunkDedup { get; }
-
-        /// <summary>
-        ///     Log directory.
-        /// </summary>
-        public string LogDir { get; }
 
         /// <summary>
         ///     File name for artifact-side logs
@@ -144,9 +134,6 @@ namespace Tool.DropDaemon
         public static TimeSpan DefaultHttpSendTimeout { get; } = TimeSpan.FromMinutes(10);
 
         /// <nodoc/>
-        public static bool DefaultVerbose { get; } = false;
-
-        /// <nodoc/>
         public static bool DefaultEnableTelemetry { get; } = false;
 
         /// <nodoc/>
@@ -170,10 +157,8 @@ namespace Tool.DropDaemon
             int? maxParallelUploads = null,
             TimeSpan? retention = null,
             TimeSpan? httpSendTimeout = null,
-            bool? verbose = null,
             bool? enableTelemetry = null,
             bool? enableChunkDedup = null,
-            string logDir = null,
             string artifactLogName = null,
             int? batchSize = null,
             byte? dropDomainId = null,
@@ -192,10 +177,8 @@ namespace Tool.DropDaemon
             MaxParallelUploads = maxParallelUploads ?? DefaultMaxParallelUploads;
             Retention = retention ?? DefaultRetention;
             HttpSendTimeout = httpSendTimeout ?? DefaultHttpSendTimeout;
-            Verbose = verbose ?? DefaultVerbose;
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             EnableChunkDedup = enableChunkDedup ?? DefaultEnableChunkDedup;
-            LogDir = logDir;
             ArtifactLogName = artifactLogName;
             BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
             DomainId = dropDomainId;

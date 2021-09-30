@@ -25,6 +25,8 @@ namespace Test.Tool.DropDaemon
 
         public string DropUrl { get; }
 
+        public bool AttemptedFinalization { get; private set; }
+
         public MockDropClient(
             string dropUrl = null,
             CreateDelegate createFunc = null,
@@ -48,7 +50,7 @@ namespace Test.Tool.DropDaemon
                 return Assembly.Load(name);
             }
 
-            // WE have some issues with versioning old legacy assemblies
+            // We have some issues with versioning old legacy assemblies
             if (name.Version.Major == 15 && name.Version.Minor == 1280)
             {
                 name.Version = new Version(1, 0);
@@ -82,7 +84,11 @@ namespace Test.Tool.DropDaemon
             return m_addFileFunc(item);
         }
 
-        public Task<FinalizeResult> FinalizeAsync() => m_finalizeFunc();
+        public Task<FinalizeResult> FinalizeAsync()
+        {
+            AttemptedFinalization = true;
+            return m_finalizeFunc();
+        }
 
         public IDictionary<string, long> GetStats() => new Dictionary<string, long>(0);
 

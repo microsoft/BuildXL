@@ -33,13 +33,15 @@ using static Tool.ServicePipDaemon.Statics;
 namespace Tool.DropDaemon
 {
     /// <summary>
-    ///     Responsible for accepting and handling TCP/IP connections from clients.
+    /// Responsible for accepting and handling TCP/IP connections from clients.
     /// </summary>
     public sealed class DropDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon, IDisposable, IIpcOperationExecutor
     {
         private const int ServicePointParallelismForDrop = 200;
 
-        /// <summary>Prefix for the error message of the exception that gets thrown when a symlink is attempted to be added to drop.</summary>
+        /// <summary>
+        /// Prefix for the error message of the exception that gets thrown when a symlink is attempted to be added to drop.
+        /// </summary>
         internal const string SymlinkAddErrorMessagePrefix = "SymLinks may not be added to drop: ";
 
         private const string LogFileName = "DropDaemon";
@@ -53,17 +55,17 @@ namespace Tool.DropDaemon
 
         internal static readonly List<Option> DropConfigOptions = new List<Option>();
 
-        /// <summary>Drop configuration.</summary>
-        public DropConfig DropConfig { get; }
-
-        /// <summary>Name of the drop this daemon is constructing.</summary>
-        public string DropName => DropConfig.Name;
-
-        private readonly Task<IDropClient> m_dropClientTask;
-        private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<DirectoryArtifact, AsyncLazy<Possible<List<SealedDirectoryFile>>>> m_directoryArtifactContent
-            = new();
-
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
+
+        /// <summary>
+        /// Cached content of sealed directories.
+        /// </summary>
+        private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<DirectoryArtifact, AsyncLazy<Possible<List<SealedDirectoryFile>>>> m_directoryArtifactContent = new();
+
+        /// <summary>
+        /// A mapping between a fully-qualified drop name and a corresponding dropConfig/VsoClient
+        /// </summary>
+        private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<string, (DropConfig dropConfig, Lazy<Task<IDropClient>> lazyVsoClientTask)> m_vsoClients = new();
 
         #region Options and commands
 
@@ -272,11 +274,8 @@ namespace Tool.DropDaemon
             needsIpcClient: false,
             clientAction: (conf, _) =>
             {
-                var dropConfig = new DropConfig(string.Empty, new Uri("file://xyz"));
                 var daemonConfig = CreateDaemonConfig(conf);
-                var vsoClientTask = TaskSourceSlim.Create<IDropClient>();
-                vsoClientTask.SetException(new NotSupportedException());
-                using (var daemon = new DropDaemon(conf.Config.Parser, daemonConfig, dropConfig, vsoClientTask.Task))
+                using (var daemon = new DropDaemon(conf.Config.Parser, daemonConfig))
                 {
                     daemon.Start();
                     daemon.Completion.GetAwaiter().GetResult();
@@ -292,7 +291,6 @@ namespace Tool.DropDaemon
            clientAction: (conf, _) =>
            {
                SetupThreadPoolAndServicePoint(s_minWorkerThreadsForDrop, s_minIoThreadsForDrop, ServicePointParallelismForDrop);
-               var dropConfig = CreateDropConfig(conf);
                var daemonConf = CreateDaemonConfig(conf);
 
                if (daemonConf.MaxConcurrentClients <= 1)
@@ -301,23 +299,10 @@ namespace Tool.DropDaemon
                    return -1;
                }
 
-               if (dropConfig.SignBuildManifest && !dropConfig.GenerateBuildManifest)
-               {
-                   conf.Logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
-               }
-
-               if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, out string errMessage))
-               {
-                   conf.Logger.Error(errMessage);
-                   return -1;
-               }
-
                using (var client = CreateClient(conf.Get(IpcServerMonikerOptional), daemonConf))
                using (var daemon = new DropDaemon(
                    parser: conf.Config.Parser,
                    daemonConfig: daemonConf,
-                   dropConfig: dropConfig,
-                   dropClientTask: null,
                    client: client))
                {
                    daemon.Start();
@@ -354,63 +339,100 @@ namespace Tool.DropDaemon
            clientAction: SyncRPCSend,
            serverAction: async (conf, dropDaemon) =>
            {
+               var dropConfig = CreateDropConfig(conf);
                var daemon = dropDaemon as DropDaemon;
-               daemon.Logger.Info("[CREATE]: Started at " + daemon.DropConfig.Service + "/" + daemon.DropName);
-               IIpcResult result = await daemon.CreateAsync();
-               daemon.Logger.Info("[CREATE]: " + result);
+               var name = FullyQualifiedDropName(dropConfig);
+               daemon.Logger.Info($"[CREATE]: Started at '{name}'");
+               if (dropConfig.SignBuildManifest && !dropConfig.GenerateBuildManifest)
+               {
+                   conf.Logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
+               }
+
+               if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, out string errMessage))
+               {
+                   daemon.Logger.Error($"[CREATE]: Cannot create drop due to an invalid build manifest configuration: {errMessage}");
+                   return new IpcResult(IpcResultStatus.InvalidInput, errMessage);
+               }
+
+               daemon.EnsureVsoClientIsCreated(dropConfig);
+               IIpcResult result = await daemon.CreateAsync(name);
+               daemon.Logger.Info($"[CREATE]: {result}");
                return result;
            });
 
-        internal static readonly Command FinalizeDropCmd = RegisterCommand(
+        internal static readonly Command FinalizeCmd = RegisterCommand(
             name: "finalize",
-            description: "[RPC] Invokes the 'finalize' operation.",
+            description: "[RPC] Invokes the 'finalize' operation for all drops",
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
                 var daemon = dropDaemon as DropDaemon;
-                daemon.Logger.Info("[FINALIZE] Started at" + daemon.DropConfig.Service + "/" + daemon.DropName);
+                daemon.Logger.Info("[FINALIZE] Started finalizing all running drops.");
 
-                if (daemon.DropConfig.GenerateBuildManifest)
+                // Build manifest logic is not a part of the FinalizeAsync/DoFinalize because daemon-wide finalization can be either triggered
+                // by a finalize call from BuildXL or by the logic in FinalizedByCreatorServicePipDaemon. We do not want to create manifests if
+                // some of the upstream drop operations failed or did not run at all (manifests created in such cases might not represent drops
+                // that a build was expected to produce).
+                // If we receive a finalize command, we are guaranteed that all upstream drop operations were successful (or in case of finalizeDrop,
+                // all operations for a particular drop were successful).
+                // Note: if there is a finalizeDrop call for drop_A, that call is successfully executed, and an operation for another drop (drop_B)
+                // fails, both drops (drop_A and drop_B) will be finalized, but only drop_A will contain build manifest.
+                var buildManifestResult = await daemon.ProcessBuildManifestsAsync();
+                if (!buildManifestResult.Succeeded)
                 {
-                    var bsiResult = await UploadBsiFileAsync(daemon);
-                    if (!bsiResult.Succeeded)
-                    {
-                        daemon.Logger.Error($"[FINALIZE] Failure occured during BuildSessionInfo (bsi) upload: {bsiResult.Payload}");
-                        return bsiResult;
-                    }
-
-                    var buildManifestResult = await GenerateAndUploadBuildManifestFileWithSignedCatalogAsync(daemon);
-                    if (!buildManifestResult.Succeeded)
-                    {
-                        daemon.Logger.Error($"[FINALIZE] Failure occured during Build Manifest upload: {buildManifestResult.Payload}");
-                        return buildManifestResult;
-                    }
+                    // drop-specific error is already logged
+                    daemon.Logger.Info($"[FINALIZE] Operation failed while processing a build manifest.");
+                    return buildManifestResult;
                 }
 
                 IIpcResult result = await daemon.FinalizeAsync();
-                daemon.Logger.Info("[FINALIZE] " + result);
+                daemon.Logger.Info($"[FINALIZE] {result}");
                 return result;
             });
+
+        internal static readonly Command FinalizeDropCmd = RegisterCommand(
+           name: "finalizeDrop",
+           description: "[RPC] Invokes the 'finalize' operation for a particular drop",
+           options: DropConfigOptions,
+           clientAction: SyncRPCSend,
+           serverAction: async (conf, dropDaemon) =>
+           {
+               var daemon = dropDaemon as DropDaemon;
+               var dropConfig = CreateDropConfig(conf);
+               daemon.Logger.Info($"[FINALIZE] Started finalizing '{dropConfig.Name}'.");
+
+               var buildManifestResult = await daemon.ProcessBuildManifestForDropAsync(dropConfig);
+               if (!buildManifestResult.Succeeded)
+               {
+                   daemon.Logger.Info($"[FINALIZE] Operation failed while processing a build manifest.");
+                   return buildManifestResult;
+               }
+
+               IIpcResult result = await daemon.FinalizeSingleDropAsync(dropConfig);
+               daemon.Logger.Info($"[FINALIZE] {result}");
+               return result;
+           });
 
         internal static readonly Command FinalizeDropAndStopDaemonCmd = RegisterCommand(
             name: "finalize-and-stop",
             description: "[RPC] Invokes the 'finalize' operation; then stops the daemon.",
             clientAction: SyncRPCSend,
-            serverAction: Command.Compose(FinalizeDropCmd.ServerAction, StopDaemonCmd.ServerAction));
+            serverAction: Command.Compose(FinalizeCmd.ServerAction, StopDaemonCmd.ServerAction));
 
         internal static readonly Command AddFileToDropCmd = RegisterCommand(
             name: "addfile",
             description: "[RPC] invokes the 'addfile' operation.",
-            options: new Option[] { File, RelativeDropPath, HashOptional },
+            options: DropConfigOptions.Union(new Option[] { File, RelativeDropPath, HashOptional }),
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
                 var daemon = dropDaemon as DropDaemon;
                 daemon.Logger.Verbose("[ADDFILE] Started");
+                var dropConfig = CreateDropConfig(conf);
                 string filePath = conf.Get(File);
                 string hashValue = conf.Get(HashOptional);
                 var contentInfo = string.IsNullOrEmpty(hashValue) ? null : (FileContentInfo?)FileContentInfo.Parse(hashValue);
-                var dropItem = new DropItemForFile(filePath, conf.Get(RelativeDropPath), contentInfo);
+                var dropItem = new DropItemForFile(DropDaemon.FullyQualifiedDropName(dropConfig), filePath, conf.Get(RelativeDropPath), contentInfo);
                 IIpcResult result = System.IO.File.Exists(filePath)
                     ? await daemon.AddFileAsync(dropItem)
                     : new IpcResult(IpcResultStatus.ExecutionError, "file '" + filePath + "' does not exist");
@@ -421,12 +443,14 @@ namespace Tool.DropDaemon
         internal static readonly Command AddArtifactsToDropCmd = RegisterCommand(
             name: "addartifacts",
             description: "[RPC] invokes the 'addartifacts' operation.",
-            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace },
+            options: DropConfigOptions.Union(new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace }),
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
                 var daemon = dropDaemon as DropDaemon;
                 daemon.Logger.Verbose("[ADDARTIFACTS] Started");
+                var dropConfig = CreateDropConfig(conf);
+                daemon.EnsureVsoClientIsCreated(dropConfig);
 
                 var result = await AddArtifactsToDropInternalAsync(conf, daemon);
 
@@ -445,19 +469,13 @@ namespace Tool.DropDaemon
         }
 
         /// <nodoc />
-        public DropDaemon(IParser parser, DaemonConfig daemonConfig, DropConfig dropConfig, Task<IDropClient> dropClientTask, IIpcProvider rpcProvider = null, Client client = null)
+        public DropDaemon(IParser parser, DaemonConfig daemonConfig, IIpcProvider rpcProvider = null, Client client = null)
             : base(parser,
                    daemonConfig,
-                   !string.IsNullOrWhiteSpace(dropConfig.LogDir) ? new FileLogger(dropConfig.LogDir, LogFileName, daemonConfig.Moniker, dropConfig.Verbose, DropDLogPrefix) : daemonConfig.Logger,
+                   !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? new FileLogger(daemonConfig.LogDir, LogFileName, daemonConfig.Moniker, daemonConfig.Verbose, DropDLogPrefix) : daemonConfig.Logger,
                    rpcProvider,
                    client)
         {
-            Contract.Requires(dropConfig != null);
-
-            DropConfig = dropConfig;
-            m_logger.Info("Using DropDaemon config: " + JsonConvert.SerializeObject(Config));
-
-            m_dropClientTask = dropClientTask ?? Task.Run(() => (IDropClient)new VsoClient(m_logger, this));
         }
 
         internal static void EnsureCommandsInitialized()
@@ -479,14 +497,25 @@ namespace Tool.DropDaemon
         /// In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
         /// result of this operation.
         /// </summary>
-        protected override async Task<IIpcResult> DoCreateAsync()
+        protected override async Task<IIpcResult> DoCreateAsync(string name)
         {
+            if (name == null)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, "Name cannot be null when creating a drop.");
+            }
+
+            if (!m_vsoClients.TryGetValue(name, out var configAndClient))
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Could not find VsoClient for a provided drop name: '{name}'");
+            }
+
             DropCreationEvent dropCreationEvent =
-                await SendDropEtwEvent(
-                    WrapDropErrorsIntoDropEtwEvent(InternalCreateAsync));
+                await SendDropEtwEventAsync(
+                    WrapDropErrorsIntoDropEtwEvent(() => InternalCreateAsync(configAndClient.lazyVsoClientTask.Value)),
+                    configAndClient.lazyVsoClientTask.Value);
 
             return dropCreationEvent.Succeeded
-                ? IpcResult.Success(I($"Drop {DropName} created."))
+                ? IpcResult.Success(I($"Drop '{configAndClient.dropConfig.Name}' created."))
                 : new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
         }
 
@@ -509,9 +538,14 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, SymlinkAddErrorMessagePrefix + dropItem.FullFilePath);
             }
 
+            if (!m_vsoClients.TryGetValue(dropItem.FullyQualifiedDropName, out var configAndClient))
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Could not find VsoClient for a provided drop name: '{dropItem.FullyQualifiedDropName}' (file '{dropItem.FullFilePath}')");
+            }
+
             return await WrapDropErrorsIntoIpcResult(async () =>
             {
-                IDropClient dropClient = await m_dropClientTask;
+                IDropClient dropClient = await configAndClient.lazyVsoClientTask.Value;
                 AddFileResult result = await dropClient.AddFileAsync(dropItem);
 
                 switch (result)
@@ -519,30 +553,73 @@ namespace Tool.DropDaemon
                     case AddFileResult.Associated:
                     case AddFileResult.UploadedAndAssociated:
                     case AddFileResult.SkippedAsDuplicate:
-                        return IpcResult.Success(I($"File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{DropName}'."));
+                        return IpcResult.Success(I($"File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{configAndClient.dropConfig.Name}'."));
                     case AddFileResult.RegisterFileForBuildManifestFailure:
-                        return new IpcResult(IpcResultStatus.ExecutionError, $"Failure during BuildManifest Hash generation for File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{DropName}'.");
+                        return new IpcResult(IpcResultStatus.ExecutionError, $"Failure during BuildManifest Hash generation for File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{configAndClient.dropConfig.Name}'.");
                     default:
                         return new IpcResult(IpcResultStatus.ExecutionError, $"Unhandled drop result: {result}");
                 }
             });
         }
 
+        private async Task<IIpcResult> ProcessBuildManifestsAsync()
+        {
+            var tasks = m_vsoClients.Values.Select(async client =>
+                {
+                    await Task.Yield();
+                    var dropClient = await client.lazyVsoClientTask.Value;
+                    // return early if we have already finalized this drop
+                    if (dropClient.AttemptedFinalization)
+                    {
+                        return IpcResult.Success();
+                    }
+
+                    return await ProcessBuildManifestForDropAsync(client.dropConfig);
+                }).ToArray();
+
+            var ipcResults = await TaskUtilities.SafeWhenAll(tasks);
+            return IpcResult.Merge(ipcResults);
+        }
+
+        private async Task<IIpcResult> ProcessBuildManifestForDropAsync(DropConfig dropConfig)
+        {
+            if (!dropConfig.GenerateBuildManifest)
+            {
+                return IpcResult.Success();
+            }
+
+            var bsiResult = await UploadBsiFileAsync(dropConfig);
+            if (!bsiResult.Succeeded)
+            {
+                Logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during BuildSessionInfo (bsi) upload: {bsiResult.Payload}");
+                return bsiResult;
+            }
+
+            var buildManifestResult = await GenerateAndUploadBuildManifestFileWithSignedCatalogAsync(dropConfig);
+            if (!buildManifestResult.Succeeded)
+            {
+                Logger.Error($"[FINALIZE ({dropConfig.Name})] Failure occurred during Build Manifest upload: {buildManifestResult.Payload}");
+                return buildManifestResult;
+            }
+
+            return IpcResult.Success();
+        }
+
         /// <summary>
         /// Uploads the bsi.json for the given drop.
         /// Should be called only when DropConfig.GenerateBuildManifest is true.
         /// </summary>
-        public async static Task<IIpcResult> UploadBsiFileAsync(DropDaemon daemon)
+        private async Task<IIpcResult> UploadBsiFileAsync(DropConfig dropConfig)
         {
-            Contract.Requires(daemon.DropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            if (!System.IO.File.Exists(daemon.DropConfig.BsiFileLocation))
+            if (!System.IO.File.Exists(dropConfig.BsiFileLocation))
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"BuildSessionInfo not found at provided BsiFileLocation: '{daemon.DropConfig.BsiFileLocation}'");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"BuildSessionInfo not found at provided BsiFileLocation: '{dropConfig.BsiFileLocation}'");
             }
 
-            var bsiDropItem = new DropItemForFile(daemon.DropConfig.BsiFileLocation, relativeDropPath: BuildManifestHelper.DropBsiPath);
-            return await daemon.AddFileAsync(bsiDropItem);
+            var bsiDropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), dropConfig.BsiFileLocation, relativeDropPath: BuildManifestHelper.DropBsiPath);
+            return await AddFileAsync(bsiDropItem);
         }
 
         /// <summary>
@@ -550,15 +627,15 @@ namespace Tool.DropDaemon
         /// by workers using <see cref="VsoClient.RegisterFilesForBuildManifestAsync"/> for the given drop.
         /// Should be called only when DropConfig.GenerateBuildManifest is true.
         /// </summary>
-        public async static Task<IIpcResult> GenerateAndUploadBuildManifestFileWithSignedCatalogAsync(DropDaemon daemon)
+        private async Task<IIpcResult> GenerateAndUploadBuildManifestFileWithSignedCatalogAsync(DropConfig dropConfig)
         {
-            Contract.Requires(daemon.DropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            var bxlResult = await daemon.ApiClient.GenerateBuildManifestFileList(daemon.DropName);
+            var bxlResult = await ApiClient.GenerateBuildManifestFileList(FullyQualifiedDropName(dropConfig));
 
             if (!bxlResult.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {daemon.DropName}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
             }
 
             List<BuildManifestFile> manifestFileListForDrop = bxlResult.Result
@@ -568,10 +645,10 @@ namespace Tool.DropDaemon
             BuildManifestData buildManifestData = new BuildManifestData(
                 CloudBuildManifestV1.ManifestInfoV1.Version,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                daemon.DropConfig.CloudBuildId,
-                daemon.DropConfig.Repo,
-                daemon.DropConfig.Branch,
-                daemon.DropConfig.CommitId,
+                dropConfig.CloudBuildId,
+                dropConfig.Repo,
+                dropConfig.Branch,
+                dropConfig.CommitId,
                 manifestFileListForDrop);
 
             string localFilePath;
@@ -587,23 +664,23 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, $"Exception while trying to store Build Manifest locally before drop upload: {ex}");
             }
 
-            var dropItem = new DropItemForFile(localFilePath, relativeDropPath: BuildManifestHelper.DropBuildManifestPath);
-            var buildManifestUploadResult = await daemon.AddFileAsync(dropItem);
+            var dropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), localFilePath, relativeDropPath: BuildManifestHelper.DropBuildManifestPath);
+            var buildManifestUploadResult = await AddFileAsync(dropItem);
 
             if (!buildManifestUploadResult.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occured during Build Manifest upload: {buildManifestUploadResult.Payload}");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occurred during Build Manifest upload: {buildManifestUploadResult.Payload}");
             }
 
-            if (!daemon.DropConfig.SignBuildManifest)
+            if (!dropConfig.SignBuildManifest)
             {
                 return IpcResult.Success("Unsigned Build Manifest generated and uploaded successfully");
             }
 
             var startTime = DateTime.UtcNow;
-            var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(daemon, localFilePath);
+            var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(dropConfig, localFilePath);
             long signTimeMs = (long)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
-            daemon.Logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
+            Logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
 
             return signManifestResult;
         }
@@ -612,16 +689,16 @@ namespace Tool.DropDaemon
         /// Generates and uploads a catalog file for <see cref="BuildManifestHelper.BuildManifestFilename"/> and <see cref="BuildManifestHelper.BsiFilename"/>
         /// Should be called only when DropConfig.GenerateBuildManifest is true and DropConfig.SignBuildManifest is true.
         /// </summary>
-        public async static Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropDaemon daemon, string buildManifestLocalPath)
+        private async Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropConfig dropConfig, string buildManifestLocalPath)
         {
-            Contract.Requires(daemon.DropConfig.GenerateBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though Build Manifest Generation is Disabled in DropConfig");
-            Contract.Requires(daemon.DropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");
+            Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though Build Manifest Generation is Disabled in DropConfig");
+            Contract.Requires(dropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");
 
             var generateCatalogResult = await BuildManifestHelper.GenerateSignedCatalogAsync(
-                daemon.DropConfig.MakeCatToolPath,
-                daemon.DropConfig.EsrpManifestSignToolPath,
+                dropConfig.MakeCatToolPath,
+                dropConfig.EsrpManifestSignToolPath,
                 buildManifestLocalPath,
-                daemon.DropConfig.BsiFileLocation);
+                dropConfig.BsiFileLocation);
 
             if (!generateCatalogResult.Success)
             {
@@ -630,8 +707,8 @@ namespace Tool.DropDaemon
 
             string catPath = generateCatalogResult.Payload;
 
-            var dropItem = new DropItemForFile(catPath, relativeDropPath: BuildManifestHelper.DropCatalogFilePath);
-            var uploadCatFileResult = await daemon.AddFileAsync(dropItem);
+            var dropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), catPath, relativeDropPath: BuildManifestHelper.DropCatalogFilePath);
+            var uploadCatFileResult = await AddFileAsync(dropItem);
 
             // Delete temporary file created during Build Manifest signing
             try
@@ -645,7 +722,7 @@ namespace Tool.DropDaemon
 
             if (!uploadCatFileResult.Succeeded)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occured during Build Manifest CAT file upload: {uploadCatFileResult.Payload}");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occurred during Build Manifest CAT file upload: {uploadCatFileResult.Payload}");
             }
 
             return IpcResult.Success("Catalog file signed and uploaded successfully");
@@ -658,23 +735,54 @@ namespace Tool.DropDaemon
         /// </summary>
         protected override async Task<IIpcResult> DoFinalizeAsync()
         {
+            var finalizationTasks = m_vsoClients.Values.Select(async client =>
+               {
+                   var dropClient = await client.lazyVsoClientTask.Value;
+                   if (dropClient.AttemptedFinalization)
+                   {
+                       return IpcResult.Success(I($"An attempt to finalize drop {client.dropConfig.Name} has already been made; skipping this finalization."));
+                   }
+
+                   return await FinalizeSingleDropAsync(client.dropConfig, client.lazyVsoClientTask.Value);
+               }).ToArray();
+
+            var results = await TaskUtilities.SafeWhenAll(finalizationTasks);
+            return IpcResult.Merge(results);
+        }
+
+        private async Task<IIpcResult> FinalizeSingleDropAsync(DropConfig dropConfig, Task<IDropClient> dropClientTask = null)
+        {
+            await Task.Yield();
+            if (dropClientTask == null)
+            {
+                var dropName = FullyQualifiedDropName(dropConfig);
+                if (!m_vsoClients.TryGetValue(dropName, out var configAndClient))
+                {
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"Could not find VsoClient for a provided drop name: '{dropName}'");
+                }
+
+                dropClientTask = configAndClient.lazyVsoClientTask.Value;
+            }
+
+            // We invoke 'finalize' regardless whether the drop is finalize (dropClient.IsFinalized) or not.
             var dropFinalizationEvent =
-                await SendDropEtwEvent(
-                    WrapDropErrorsIntoDropEtwEvent(InternalFinalizeAsync));
+                await SendDropEtwEventAsync(
+                    WrapDropErrorsIntoDropEtwEvent(() => InternalFinalizeAsync(dropClientTask)),
+                    dropClientTask);
 
             return dropFinalizationEvent.Succeeded
-                ? IpcResult.Success(I($"Drop {DropName} finalized"))
+                ? IpcResult.Success(I($"Drop {dropConfig.Name} finalized"))
                 : new IpcResult(ParseIpcStatus(dropFinalizationEvent.AdditionalInformation), dropFinalizationEvent.ErrorMessage);
         }
 
-        /// <inheritdoc />
-        public new void Dispose()
+        /// <nodoc />
+        public override void Dispose()
         {
-            if (m_dropClientTask.IsCompleted && !m_dropClientTask.IsFaulted)
-            {
-                ReportStatisticsAsync().GetAwaiter().GetResult();
+            ReportStatisticsAsync().GetAwaiter().GetResult();
 
-                m_dropClientTask.Result.Dispose();
+            foreach (var kvp in m_vsoClients)
+            {
+                kvp.Value.lazyVsoClientTask.Value.Result.Dispose();
             }
 
             base.Dispose();
@@ -690,9 +798,9 @@ namespace Tool.DropDaemon
         ///
         /// Doesn't handle any exceptions.
         /// </summary>
-        private async Task<DropCreationEvent> InternalCreateAsync()
+        private async Task<DropCreationEvent> InternalCreateAsync(Task<IDropClient> vsoClientTask)
         {
-            IDropClient dropClient = await m_dropClientTask;
+            IDropClient dropClient = await vsoClientTask;
             DropItem dropItem = await dropClient.CreateAsync();
             return new DropCreationEvent()
             {
@@ -710,9 +818,9 @@ namespace Tool.DropDaemon
         ///
         /// Doesn't handle any exceptions.
         /// </summary>
-        private async Task<DropFinalizationEvent> InternalFinalizeAsync()
+        private async Task<DropFinalizationEvent> InternalFinalizeAsync(Task<IDropClient> dropClientTask)
         {
-            IDropClient dropClient = await m_dropClientTask;
+            var dropClient = await dropClientTask;
             await dropClient.FinalizeAsync();
             return new DropFinalizationEvent()
             {
@@ -722,21 +830,39 @@ namespace Tool.DropDaemon
 
         private async Task ReportStatisticsAsync()
         {
-            IDropClient dropClient = await m_dropClientTask;
-            var stats = dropClient.GetStats();
+            var stats = new Dictionary<string, long>();
+            foreach (var kvp in m_vsoClients)
+            {
+                if (kvp.Value.lazyVsoClientTask.Value.IsCompleted && !kvp.Value.lazyVsoClientTask.Value.IsFaulted)
+                {
+                    m_logger.Warning($"No stats collected for drop '{kvp.Value.dropConfig.Name}' due to an error.");
+                    continue;
+                }
+
+                var vsoClient = await kvp.Value.lazyVsoClientTask.Value;
+                var clientStats = vsoClient.GetStats();
+                if (clientStats == null || clientStats.Count == 0)
+                {
+                    m_logger.Info("No stats recorded by drop client of type " + vsoClient.GetType().Name);
+                    continue;
+                }
+
+                foreach (var statistic in clientStats)
+                {
+                    if (!stats.ContainsKey(statistic.Key))
+                    {
+                        stats.Add(statistic.Key, 0);
+                    }
+
+                    stats[statistic.Key] += statistic.Value;
+                }
+            }
+
             if (stats != null && stats.Any())
             {
                 // log stats
                 m_logger.Info("Statistics: ");
                 m_logger.Info(string.Join(Environment.NewLine, stats.Select(s => s.Key + " = " + s.Value)));
-
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.MaxParallelUploads), DropConfig.MaxParallelUploads);
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.NagleTime), (long)DropConfig.NagleTime.TotalMilliseconds);
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.BatchSize), DropConfig.BatchSize);
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.EnableChunkDedup), DropConfig.EnableChunkDedup ? 1 : 0);
-                stats.Add(nameof(DaemonConfig) + nameof(Config.MaxConcurrentClients), Config.MaxConcurrentClients);
-                stats.Add(nameof(DaemonConfig) + nameof(Config.ConnectRetryDelay), (long)Config.ConnectRetryDelay.TotalMilliseconds);
-                stats.Add(nameof(DaemonConfig) + nameof(Config.MaxConnectRetries), Config.MaxConnectRetries);
 
                 stats.AddRange(m_counters.AsStatistics());
 
@@ -754,10 +880,6 @@ namespace Tool.DropDaemon
                         m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
                     }
                 }
-            }
-            else
-            {
-                m_logger.Info("No stats recorded by drop client of type " + dropClient.GetType().Name);
             }
         }
 
@@ -851,7 +973,7 @@ namespace Tool.DropDaemon
                 : -1;
         }
 
-        private async Task<T> SendDropEtwEvent<T>(Task<T> task) where T : DropOperationBaseEvent
+        private async Task<T> SendDropEtwEventAsync<T>(Task<T> task, Task<IDropClient> dropClient) where T : DropOperationBaseEvent
         {
             long startTime = DateTime.UtcNow.Ticks;
             T dropEvent = null;
@@ -873,10 +995,7 @@ namespace Tool.DropDaemon
                 // common properties: execution time, drop type, drop url
                 dropEvent.ElapsedTimeTicks = DateTime.UtcNow.Ticks - startTime;
                 dropEvent.DropType = "VsoDrop";
-                if (m_dropClientTask.IsCompleted && !m_dropClientTask.IsFaulted)
-                {
-                    dropEvent.DropUrl = (await m_dropClientTask).DropUrl;
-                }
+                dropEvent.DropUrl = (await dropClient).DropUrl;
 
                 // send event
                 m_etwLogger.Log(dropEvent);
@@ -897,10 +1016,8 @@ namespace Tool.DropDaemon
                 maxParallelUploads: conf.Get(MaxParallelUploads),
                 retention: TimeSpan.FromDays(conf.Get(RetentionDays)),
                 httpSendTimeout: TimeSpan.FromMilliseconds(conf.Get(HttpSendTimeoutMillis)),
-                verbose: conf.Get(Verbose),
                 enableTelemetry: conf.Get(EnableTelemetry),
                 enableChunkDedup: conf.Get(EnableChunkDedup),
-                logDir: conf.Get(LogDir),
                 artifactLogName: conf.Get(ArtifactLogName),
                 batchSize: conf.Get(BatchSize),
                 dropDomainId: domainId,
@@ -926,6 +1043,10 @@ namespace Tool.DropDaemon
 
         private static async Task<IIpcResult> AddArtifactsToDropInternalAsync(ConfiguredCommand conf, DropDaemon daemon)
         {
+            var dropName = conf.Get(DropNameOption);
+            var serviceEndpoint = conf.Get(DropEndpoint);
+            var fullDropName = FullyQualifiedDropName(serviceEndpoint, dropName);
+
             var files = File.GetValues(conf.Config).ToArray();
             var fileIds = FileId.GetValues(conf.Config).ToArray();
             var hashes = HashOptional.GetValues(conf.Config).ToArray();
@@ -967,6 +1088,7 @@ namespace Tool.DropDaemon
                 .Range(0, files.Length)
                 .Select(i => new DropItemForBuildXLFile(
                     daemon.ApiClient,
+                    fullDropName,
                     filePath: files[i],
                     fileId: fileIds[i],
                     fileContentInfo: FileContentInfo.Parse(hashes[i]),
@@ -984,8 +1106,8 @@ namespace Tool.DropDaemon
             }
 
             (IEnumerable<DropItemForBuildXLFile> dropDirectoryMemberItems, string error) = await CreateDropItemsForDirectoriesAsync(
-                conf,
                 daemon,
+                fullDropName,
                 directoryPaths,
                 directoryIds,
                 directoryDropPaths,
@@ -1052,6 +1174,7 @@ namespace Tool.DropDaemon
 
         private static async Task<(DropItemForBuildXLFile[], string error)> CreateDropItemsForDirectoryAsync(
             DropDaemon daemon,
+            string fullyQualifiedDropName,
             string directoryPath,
             string directoryId,
             string dropPath,
@@ -1101,6 +1224,7 @@ namespace Tool.DropDaemon
 
                 dropItemForBuildXLFiles.Add(new DropItemForBuildXLFile(
                     daemon.ApiClient,
+                    fullyQualifiedDropName,
                     file.FileName,
                     BuildXL.Ipc.ExternalApi.FileId.ToString(file.Artifact),
                     file.ContentInfo,
@@ -1135,8 +1259,8 @@ namespace Tool.DropDaemon
         }
 
         private static async Task<(IEnumerable<DropItemForBuildXLFile>, string error)> CreateDropItemsForDirectoriesAsync(
-            ConfiguredCommand conf,
             DropDaemon daemon,
+            string fullyQualifiedDropName,
             string[] directoryPaths,
             string[] directoryIds,
             string[] dropPaths,
@@ -1155,7 +1279,7 @@ namespace Tool.DropDaemon
             var createDropItemsTasks = Enumerable
                 .Range(0, directoryPaths.Length)
                 .Select(i => CreateDropItemsForDirectoryAsync(
-                    daemon, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], relativePathsReplacementArgs[i]))
+                    daemon, fullyQualifiedDropName, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], relativePathsReplacementArgs[i]))
                 .ToArray();
 
             var createDropItemsResults = await TaskUtilities.SafeWhenAll(createDropItemsTasks);
@@ -1220,7 +1344,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Gets the content of a SealedDirectory from BuildXL and caches the result
         /// </summary>
-        public Task<Possible<List<SealedDirectoryFile>>> GetSealedDirectoryContentAsync(DirectoryArtifact artifact, string path)
+        internal Task<Possible<List<SealedDirectoryFile>>> GetSealedDirectoryContentAsync(DirectoryArtifact artifact, string path)
         {
             return m_directoryArtifactContent.GetOrAdd(artifact, (daemon: this, path), static (key, tuple) =>
             {
@@ -1228,9 +1352,36 @@ namespace Tool.DropDaemon
             }).Item.Value.GetValueAsync();
         }
 
+        internal void RegisterDropClientForTesting(DropConfig config, IDropClient client)
+        {
+            m_vsoClients.Add(FullyQualifiedDropName(config), (config, new Lazy<Task<IDropClient>>(() => Task.FromResult(client))));
+        }
+
+        private void EnsureVsoClientIsCreated(DropConfig dropConfig)
+        {
+            var name = FullyQualifiedDropName(dropConfig);
+            var getOrAddResult = m_vsoClients.GetOrAdd(
+                name,
+                (logger: m_logger, apiClient: ApiClient, daemonConfig: Config, dropConfig: dropConfig),
+                static (dropName, data) =>
+                {
+                    return (data.dropConfig, new Lazy<Task<IDropClient>>(() => Task.Run(() => (IDropClient)new VsoClient(data.logger, data.apiClient, data.daemonConfig, data.dropConfig))));
+                });
+
+            // if it's a freshly added VsoClient, start the task
+            if (!getOrAddResult.IsFound)
+            {
+                getOrAddResult.Item.Value.lazyVsoClientTask.Value.Forget();
+            }
+        }
+
+        internal static string FullyQualifiedDropName(DropConfig dropConfig) => FullyQualifiedDropName(dropConfig.Service, dropConfig.Name);
+
+        private static string FullyQualifiedDropName(Uri service, string dropName) => $"{service?.ToString() ?? string.Empty}/{dropName}";
+
         internal readonly struct RelativePathReplacementArguments
         {
-            public string OldValue { get; } 
+            public string OldValue { get; }
 
             public string NewValue { get; }
 

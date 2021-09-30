@@ -75,23 +75,23 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Implementation of the creation command 
         /// </summary>
-        protected abstract Task<IIpcResult> DoCreateAsync();
+        protected abstract Task<IIpcResult> DoCreateAsync(string name = null);
 
         /// <summary>
         /// Synchronous version of <see cref="CreateAsync"/>
         /// </summary>
-        public IIpcResult Create()
+        public IIpcResult Create(string name = null)
         {
-            return CreateAsync().GetAwaiter().GetResult();
+            return CreateAsync(name).GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Creates the session
         /// </summary>
-        public Task<IIpcResult> CreateAsync()
+        public Task<IIpcResult> CreateAsync(string name = null)
         {
             m_wasCreator = true;
-            return DoCreateAsync();
+            return DoCreateAsync(name);
         }
 
         /// <summary>

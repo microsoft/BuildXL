@@ -417,7 +417,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public void Dispose()
+        public virtual void Dispose()
         {
             m_server.Dispose();
             ApiClient?.Dispose();
@@ -538,7 +538,9 @@ namespace Tool.ServicePipDaemon
                 maxConnectRetries: conf.Get(MaxConnectRetries),
                 connectRetryDelay: TimeSpan.FromMilliseconds(conf.Get(ConnectRetryDelayMillis)),
                 stopOnFirstFailure: conf.Get(StopOnFirstFailure),
-                enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration));
+                enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration),
+                logDir: conf.Get(LogDir),
+                verbose: conf.Get(Verbose));
         }
 
         private static string Usage()

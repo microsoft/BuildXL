@@ -99,8 +99,7 @@ namespace Tool.DropDaemon
         private readonly DropConfig m_config;
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
-        private readonly DropDaemon m_dropDaemon;
-
+        private readonly Client m_bxlApiClient;
         private readonly NagleQueue<AddFileItem> m_nagleQueue;
 
         private CancellationToken Token => m_cancellationSource.Token;
@@ -127,14 +126,19 @@ namespace Tool.DropDaemon
         /// <inheritdoc />
         public string DropUrl => ServiceEndpoint + "/_apis/drop/drops/" + DropName;
 
+        /// <inheritdoc />
+        public bool AttemptedFinalization { get; private set; }
+
         /// <nodoc />
-        public VsoClient(IIpcLogger logger, DropDaemon dropDaemon)
+        public VsoClient(IIpcLogger logger, Client bxlApiClient, DaemonConfig daemonConfig, DropConfig dropConfig)
         {
-            Contract.Requires(dropDaemon?.DropConfig != null);
+            Contract.Requires(daemonConfig != null);
+            Contract.Requires(dropConfig != null);
 
             m_logger = logger;
-            m_dropDaemon = dropDaemon;
-            m_config = dropDaemon.DropConfig;
+            m_config = dropConfig;
+            m_bxlApiClient = bxlApiClient;
+
             m_cancellationSource = new CancellationTokenSource();
 
             logger.Info("Using drop config: " + JsonConvert.SerializeObject(m_config));
@@ -155,7 +159,7 @@ namespace Tool.DropDaemon
             if (m_config.ArtifactLogName != null)
             {
                 DropAppTraceSource.SingleInstance.SetSourceLevel(System.Diagnostics.SourceLevels.Verbose);
-                Tracer.AddFileTraceListener(Path.Combine(m_config.LogDir, m_config.ArtifactLogName));
+                Tracer.AddFileTraceListener(Path.Combine(daemonConfig.LogDir, m_config.ArtifactLogName));
             }
         }
 
@@ -167,8 +171,8 @@ namespace Tool.DropDaemon
         private async Task<HashSet<string>> RegisterFilesForBuildManifestAsync(BuildManifestEntry[] buildManifestEntries)
         {
             await Task.Yield();
-            Contract.Requires(m_dropDaemon.DropConfig.GenerateBuildManifest, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
-            var bxlResult = await m_dropDaemon.ApiClient.RegisterFilesForBuildManifest(m_dropDaemon.DropName, buildManifestEntries);
+            Contract.Requires(m_config.GenerateBuildManifest, "RegisterFileForBuildManifest API called even though Build Manifest Generation is Disabled in DropConfig");
+            var bxlResult = await m_bxlApiClient.RegisterFilesForBuildManifest(DropDaemon.FullyQualifiedDropName(m_config), buildManifestEntries);
             if (!bxlResult.Succeeded)
             {
                 m_logger.Verbose($"ApiClient.RegisterFileForBuildManifest unsuccessful. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
@@ -244,6 +248,7 @@ namespace Tool.DropDaemon
         /// </summary>
         public async Task<FinalizeResult> FinalizeAsync(CancellationToken token)
         {
+            AttemptedFinalization = true;
             await m_nagleQueue.DisposeAsync();
 
             var startTime = DateTime.UtcNow;
@@ -332,7 +337,7 @@ namespace Tool.DropDaemon
 
                 Task<HashSet<string>> registerFilesForBuildManifestTask = null;
                 // Register files for Build Manifest
-                if (m_dropDaemon.DropConfig.GenerateBuildManifest)
+                if (m_config.GenerateBuildManifest)
                 {
                     BuildManifestEntry[] buildManifestEntries = dedupedBatch
                         .Where(dropItem => dropItem.BlobIdentifier != null)

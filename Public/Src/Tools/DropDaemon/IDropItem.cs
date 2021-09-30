@@ -44,6 +44,13 @@ namespace Tool.DropDaemon
         long FileLength { get; }
 
         /// <summary>
+        /// Fully qualified name (endpoint + drop name) of a drop
+        /// </summary>
+        [NotNull]
+        [Pure]
+        string FullyQualifiedDropName { get; }
+
+        /// <summary>
         /// Full information about the file which is to be added to a drop.  After the completion
         /// of the returned task, the file must exist on disk.  The returned file info must also
         /// match the full file path returned by the <see cref="FullFilePath"/> property.

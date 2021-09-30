@@ -707,7 +707,7 @@ namespace Tool.SymbolDaemon
         /// <summary>
         /// Creates a symbol request.
         /// </summary>
-        protected override async Task<IIpcResult> DoCreateAsync()
+        protected override async Task<IIpcResult> DoCreateAsync(string name = null)
         {
             // TODO(olkonone): add logging
             Request createRequestResult;
@@ -772,7 +772,7 @@ namespace Tool.SymbolDaemon
         }
 
         /// <nodoc />
-        public new void Dispose()
+        public override void Dispose()
         {
             if (m_symbolServiceClientTask.IsCompleted && !m_symbolServiceClientTask.IsFaulted)
             {

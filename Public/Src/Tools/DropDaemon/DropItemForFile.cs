@@ -26,6 +26,9 @@ namespace Tool.DropDaemon
         /// <summary>
         ///     Constructor.
         /// </summary>
+        /// <param name="fullDropName">
+        ///     Fully qualified name of a drop.
+        /// </param>
         /// <param name="fileFullPath">
         ///     Path to the target file which is to be added to drop.  The file must exist on disk at the time of invocation.
         /// </param>
@@ -35,10 +38,11 @@ namespace Tool.DropDaemon
         /// <param name="fileContentInfo">
         ///     Expected content hash and file length. May be left null.
         /// </param>
-        public DropItemForFile(string fileFullPath, string relativeDropPath = null, FileContentInfo? fileContentInfo = null)
+        public DropItemForFile(string fullDropName, string fileFullPath, string relativeDropPath = null, FileContentInfo? fileContentInfo = null)
         {
             Contract.Requires(fileFullPath != null);
 
+            FullyQualifiedDropName = fullDropName;
             FullFilePath = Path.GetFullPath(fileFullPath);
             if (FullFilePath.Length >= MaxNonLongFileNameLength && !FullFilePath.StartsWith(LongFileNamePrefix))
             {
@@ -71,6 +75,9 @@ namespace Tool.DropDaemon
 
         /// <inheritdoc />
         public string RelativeDropPath { get; }
+
+        /// <inheritdoc />
+        public string FullyQualifiedDropName { get; }
 
         /// <inheritdoc />
         public virtual Task<FileInfo> EnsureMaterialized()

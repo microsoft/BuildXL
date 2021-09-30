@@ -51,6 +51,16 @@ namespace Tool.ServicePipDaemon
         ///     Enable logging ETW events related to drop creation and finalization.
         /// </summary>
         public bool EnableCloudBuildIntegration { get; }
+
+        /// <summary>
+        ///     Log directory.
+        /// </summary>
+        public string LogDir { get; }
+
+        /// <summary>
+        ///     Enable verbose logging.
+        /// </summary>
+        public bool Verbose { get; }
         #endregion
 
         #region Defaults
@@ -73,6 +83,9 @@ namespace Tool.ServicePipDaemon
 
         /// <nodoc/>
         public static bool DefaultEnableCloudBuildIntegration { get; } = false;
+
+        /// <nodoc/>
+        public static bool DefaultVerbose { get; } = false;
         #endregion
 
         // ==================================================================================================
@@ -86,7 +99,9 @@ namespace Tool.ServicePipDaemon
             int? maxConnectRetries = null,
             TimeSpan? connectRetryDelay = null,
             bool? stopOnFirstFailure = null,
-            bool? enableCloudBuildIntegration = null)
+            bool? enableCloudBuildIntegration = null,
+            string logDir = null,
+            bool? verbose = null)
         {
             Contract.Requires(logger != null);
             Moniker = moniker;
@@ -95,6 +110,8 @@ namespace Tool.ServicePipDaemon
             ConnectRetryDelay = connectRetryDelay ?? DefaultConnectRetryDelay;
             StopOnFirstFailure = stopOnFirstFailure ?? DefaultStopOnFirstFailure;
             EnableCloudBuildIntegration = enableCloudBuildIntegration ?? DefaultEnableCloudBuildIntegration;
+            LogDir = logDir;
+            Verbose = verbose ?? DefaultVerbose;
         }
     }
 }

@@ -128,6 +128,9 @@ export interface DropCreateArguments extends DropSettings, DaemonSettings, DropO
 export interface DropCreateResult extends Result {
     /** Info about the started service */
     serviceStartInfo: ServiceStartResult;
+
+    /** Arguments used to create a drop */
+    dropConfig: DropCreateArguments;
 }
 
 /**
@@ -250,7 +253,6 @@ export interface DirectoryInfo extends ArtifactInfo {
     relativePathReplacementArguments?: RelativePathReplacementArguments; 
 }
 
-
 //////////// Legacy types, preserved to maintain back compatibility
 
 /**
@@ -261,6 +263,12 @@ export interface DropRunner {
     /** Invokes 'dropc create'. */
     createDrop: (args: DropCreateArguments) => DropCreateResult;
 
+    /** Starts a shared service that can be used to process multiple drops. */
+    startService: (args: ServiceStartArguments) => ServiceStartResult;
+
+    /** Uses an existing service to create a drop. */
+    createDropUnderService: (serviceStartResult: ServiceStartResult, args: DropCreateArguments) => DropCreateResult;
+
     /** 
      * Adds files to drop. 
      * Preferred method is to use addArtifactsToDrop.
@@ -270,15 +278,19 @@ export interface DropRunner {
     /** 
      * Adds directories to drop. 
      * Preferred method is to use addArtifactsToDrop.
-     * If used, directoryContentFilter must specify a .Net-style case-insensitive regex.
      */
     addDirectoriesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, directories: DirectoryInfo[]) => Result;
 
     /** 
      * Adds artifacts to drop.
-     * If used, directoryContentFilter must specify a .Net-style case-insensitive regex.
      */
     addArtifactsToDrop: (createResult: DropCreateResult, args: DropOperationArguments, artifacts: DropArtifactInfo[]) => Result;
+
+    /**
+     * Triggers finalization of a drop. Results of all add* operations associated with the drop must be provided.
+     * Calling this API is optional. At the end of a build, all drops that have not been finalized, will be automatically finalized.
+     */
+    finalizeDrop: (createResult: DropCreateResult, args: DropOperationArguments, addOperationResults: Result[]) => Result;
 
     // ------------------------------- for legacy type conversion --------------------------
 

@@ -44,23 +44,26 @@ namespace Tool.DropDaemon
         private readonly bool m_chunkDedup;
 
         /// <nodoc/>
-        public DropItemForBuildXLFile(Client client,
+        public DropItemForBuildXLFile(
+                Client client,
+                string fullDropName,
                 string filePath,
                 string fileId,
                 FileContentInfo fileContentInfo,
                 string relativeDropPath = null)
-            : this(Statics.IsSymLinkOrMountPoint, client, filePath, fileId, fileContentInfo, relativeDropPath)
+            : this(Statics.IsSymLinkOrMountPoint, client, fullDropName, filePath, fileId, fileContentInfo, relativeDropPath)
         {
         }
 
         internal DropItemForBuildXLFile(
             Func<string, bool> symlinkTester,
             Client client,
+            string fullDropName,
             string filePath,
             string fileId,
             FileContentInfo fileContentInfo,
             string relativeDropPath = null)
-            : base(filePath, relativeDropPath, fileContentInfo)
+            : base(fullDropName, filePath, relativeDropPath, fileContentInfo)
         {
             Contract.Requires(symlinkTester != null);
             Contract.Requires(client != null);

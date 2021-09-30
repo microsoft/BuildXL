@@ -215,6 +215,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         () => ExecuteCoreAsync(context, request, executeAsync),
                         caller: caller,
                         traceOperationStarted: false,
+                        // Removing this (i.e., enabling logging on all operations) overwhelms NLog, causing extreme
+                        // memory usage growth until you run out of it.
+                        traceErrorsOnly: true,
                         extraStartMessage: extraStartMessage,
                         extraEndMessage: r => string.Join(" ", extraEndMessage?.Invoke(r), request.BlockId?.ToString(), $"Retry=[{r.GetValueOrDefault()?.ShouldRetry}]"));
 

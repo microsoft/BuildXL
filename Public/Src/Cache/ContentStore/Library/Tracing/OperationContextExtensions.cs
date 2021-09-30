@@ -171,7 +171,17 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <nodoc />
         protected void TraceOperationStarted(string caller)
         {
-            if (_traceOperationStarted && !_traceErrorsOnly)
+            var traceOperationStarted = _traceOperationStarted;
+            var traceErrorsOnly = _traceErrorsOnly;
+
+            var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
+            if (configuration is not null)
+            {
+                traceOperationStarted = configuration.StartMessage ?? traceOperationStarted;
+                traceErrorsOnly = configuration.ErrorsOnly ?? traceErrorsOnly;
+            }
+
+            if (traceOperationStarted && !traceErrorsOnly)
             {
                 _tracer.OperationStarted(_context, caller, enabled: true, additionalInfo: _extraStartMessage);
             }
@@ -180,7 +190,17 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <nodoc />
         protected void TraceOperationFinished(TResult result, TimeSpan duration, string caller)
         {
-            if (_traceOperationFinished || duration > _silentOperationDurationThreshold)
+            var traceOperationFinished = _traceOperationFinished;
+            var traceErrorsOnly = _traceErrorsOnly;
+
+            var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
+            if (configuration is not null)
+            {
+                traceOperationFinished = configuration.StopMessage ?? traceOperationFinished;
+                traceErrorsOnly = configuration.ErrorsOnly ?? traceErrorsOnly;
+            }
+
+            if (traceOperationFinished || duration > _silentOperationDurationThreshold)
             {
                 string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
@@ -191,9 +211,14 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                     traceableResult.MakeCritical();
                 }
 
-                // Ignoring _traceErrorsOnly flag if the operation is too long.
-                bool traceErrorsOnly = duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly;
-                _tracer.OperationFinished(_context, traceableResult, duration, message, caller, traceErrorsOnly: traceErrorsOnly);
+                _tracer.OperationFinished(
+                    _context,
+                    traceableResult,
+                    duration,
+                    message,
+                    caller,
+                    // Ignoring _traceErrorsOnly flag if the operation is too long.
+                    traceErrorsOnly: duration > _silentOperationDurationThreshold ? false : traceErrorsOnly);
             }
         }
 
@@ -330,11 +355,26 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
         private void TraceResultOperationFinished<TOther>(TOther result, TimeSpan duration, string caller) where TOther : ResultBase
         {
-            if (_traceOperationFinished || duration > _silentOperationDurationThreshold)
+            var traceOperationFinished = _traceOperationFinished;
+            var traceErrorsOnly = _traceErrorsOnly;
+
+            var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
+            if (configuration is not null)
+            {
+                traceOperationFinished = configuration.StopMessage ?? traceOperationFinished;
+                traceErrorsOnly = configuration.ErrorsOnly ?? traceErrorsOnly;
+            }
+
+            if (traceOperationFinished || duration > _silentOperationDurationThreshold)
             {
                 // Ignoring _traceErrorsOnly flag if the operation is too long.
-                bool traceErrorsOnly = duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly;
-                _tracer.OperationFinished(_context, result, duration, message: string.Empty, caller, traceErrorsOnly: traceErrorsOnly);
+                _tracer.OperationFinished(
+                    _context,
+                    result,
+                    duration,
+                    message: string.Empty,
+                    caller,
+                    traceErrorsOnly: duration > _silentOperationDurationThreshold ? false : traceErrorsOnly);
             }
         }
     }
@@ -426,7 +466,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 _context.Token.ThrowIfCancellationRequested();
 
                 using var timer = CreatePeriodicTimerIfNeeded();
-                
+
                 return await WithOptionalTimeoutAsync(operation, _timeout, _context, caller: Caller);
             }
             catch (Exception ex)
@@ -436,7 +476,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public static async Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context, [CallerMemberName]string? caller = null) where T : ResultBase
+        public static async Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context, [CallerMemberName] string? caller = null) where T : ResultBase
         {
             if (timeout == null)
             {
@@ -490,7 +530,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 var stopwatch = StopwatchSlim.Start();
 
                 var result = RunOperationAndConvertExceptionToError(_operation);
-                
+
                 TraceOperationFinished(result, stopwatch.Elapsed, caller!);
                 return result;
             }

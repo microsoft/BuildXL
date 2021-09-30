@@ -145,6 +145,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return BoolResult.Success;
             },
             traceOperationStarted: false,
+            // Removing this (i.e., enabling logging on all operations) overwhelms NLog, causing extreme
+            // memory usage growth until you run out of it.
+            traceErrorsOnly: true,
             extraStartMessage: msg,
             extraEndMessage: _ => msg);
         }

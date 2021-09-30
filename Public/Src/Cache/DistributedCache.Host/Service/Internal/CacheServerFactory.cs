@@ -26,6 +26,7 @@ using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using static BuildXL.Utilities.ConfigurationHelper;
+using BuildXL.Cache.ContentStore.Tracing;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -62,6 +63,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             var distributedSettings = cacheConfig.DistributedContentSettings;
             var isLocal = distributedSettings == null || !distributedSettings.IsDistributedContentEnabled;
 
+            LogManager.Update(distributedSettings.LogManager);
             var serviceConfiguration = CreateServiceConfiguration(
                 _logger,
                 _fileSystem,

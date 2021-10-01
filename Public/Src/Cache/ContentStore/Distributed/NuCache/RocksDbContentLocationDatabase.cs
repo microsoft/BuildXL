@@ -565,7 +565,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             killSwitchUsed = killSwitch.IsCancellationRequested;
                         }).ToBoolResult();
-                }, messageFactory: _ => $"KillSwitch=[{killSwitchUsed}] ReturnKeysOnly=[{returnKeysOnly}] Canceled=[{token.IsCancellationRequested}]").ThrowIfFailure();
+                },
+                messageFactory: _ => $"KillSwitch=[{killSwitchUsed}] ReturnKeysOnly=[{returnKeysOnly}] Canceled=[{token.IsCancellationRequested}]",
+                traceErrorsOnly: true).ThrowIfFailure();
 
                 foreach (var key in keyBuffer)
                 {

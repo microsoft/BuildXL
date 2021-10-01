@@ -329,7 +329,7 @@ export namespace DropDaemonRunner {
         );
     }
 
-    function finalizeDrop(createResult: DropCreateResult, args: DropOperationArguments, addOperationResults: Result[]) {
+    function finalizeDrop(createResult: DropCreateResult, args: DropOperationArguments, addOperationResults: Result[]) : Result {
         Contract.requires(
             createResult !== undefined,
             "result of the 'drop create' operation must be provided"

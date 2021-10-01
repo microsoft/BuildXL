@@ -912,6 +912,20 @@ namespace BuildXL.Engine.Cache.Artifacts
                     FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                     out handle);
 
+                // If access is denied, try adjusting permissions
+                if (openResultForWriting.Status == OpenFileStatus.AccessDenied)
+                {
+                    FileUtilities.TryTakeOwnershipAndSetWriteable(path);
+
+                    openResultForWriting = FileUtilities.TryCreateOrOpenFile(
+                        path,
+                        FileDesiredAccess.GenericWrite | FileDesiredAccess.GenericRead,
+                        FileShare.Read | FileShare.Delete,
+                        FileMode.Open,
+                        FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
+                        out handle);
+                }
+
                 if (openResultForWriting.Succeeded)
                 {
                     Contract.Assert(handle != null && !handle.IsInvalid);

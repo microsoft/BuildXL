@@ -14,6 +14,7 @@ using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -236,6 +237,43 @@ namespace Test.BuildXL.Storage
 
             FileUtilities.CreateDirectory(GetFullPath(Target));
             XAssert.IsTrue(Directory.Exists(GetFullPath(Target)));
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin:true)]
+        public void CreateDirectoryWithoutPermissions()
+        {
+            string pathWithoutPermissions = GetFullPath("NoPermissions");
+            string childWithoutPermissions = Path.Combine(pathWithoutPermissions, "childDir1");
+            string child2WithoutPermissions = Path.Combine(childWithoutPermissions, "childDir2");
+            Directory.CreateDirectory(pathWithoutPermissions);
+            ACLHelpers.RevokeAccess(pathWithoutPermissions);
+            FileUtilities.CreateDirectory(child2WithoutPermissions);
+            XAssert.IsTrue(Directory.Exists(child2WithoutPermissions));
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        public void DeleteDirectoryWithoutPermissions()
+        {
+            string parentDirectory = GetFullPath("parent");
+            string nestedWithoutPermissions = Path.Combine(parentDirectory, "childDir1");
+            string moreNested = Path.Combine(nestedWithoutPermissions, "childDir2");
+            Directory.CreateDirectory(moreNested);
+            File.WriteAllText(Path.Combine(moreNested, "testFile.txt"), "hello");
+            ACLHelpers.RevokeAccess(nestedWithoutPermissions);
+            FileUtilities.DeleteDirectoryContents(parentDirectory, deleteRootDirectory: true);
+            XAssert.IsFalse(Directory.Exists(parentDirectory));
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        public void DeleteFileWithoutPermission()
+        {
+            string parentDirectory = GetFullPath("parent");
+            Directory.CreateDirectory(parentDirectory);
+            string testFile = Path.Combine(parentDirectory, "test.txt");
+            File.WriteAllText(testFile, "hello");
+            ACLHelpers.RevokeAccess(testFile);
+            FileUtilities.DeleteFile(testFile);
+            XAssert.IsFalse(File.Exists(testFile));
         }
 
         [Fact]
@@ -1033,6 +1071,22 @@ namespace Test.BuildXL.Storage
             FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
             XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
             XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath)); 
+        }
+
+        /// <summary>
+        /// This test simulates an uncooperative file which after being produced needs its ownership and ACLs
+        /// tweaked in order to allow ingestion into the cache.
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        public void HasUnwritableAccessControlTest()
+        {
+            string testFilePath = Path.Combine(TemporaryDirectory, "testFile.txt");
+            File.WriteAllText(testFilePath, "hello");
+            ACLHelpers.RevokeAccess(testFilePath);
+
+            // These should not fail
+            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteData, false);
+            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
         }
 
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)

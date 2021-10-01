@@ -7,16 +7,18 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
+using BuildXL.Engine.Cache.Tracing;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.StorageTestUtilities;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -826,6 +828,18 @@ namespace Test.BuildXL.Engine.Cache
             Directory.CreateDirectory(symlinkPath);
             File.WriteAllText(Path.Combine(symlinkPath, "file.txt"), "Some file contents");
             await harness.VerifyMaterialization(symlink, contentHash, ContentMaterializationOrigin.DeployedFromCache, info);
+        }
+
+        [FactIfSupported(requiresAdmin:true, requiresWindowsBasedOperatingSystem:true)]
+        public void FilesWithoutPermissionsAreStillFlushed()
+        {
+            var harness = CreateHarness(useDummyFileContentTable: true);
+            var testFile = Path.Combine(TemporaryDirectory, "myfile.txt");
+            File.WriteAllText(testFile, "hello");
+            ACLHelpers.RevokeAccess(testFile);
+            var result = harness.Store.TryPrepareFileToTrackOrStore(new ExpandedAbsolutePath(AbsolutePath.Create(harness.Context.PathTable, testFile), harness.Context.PathTable), tryFlushPageCacheToFileSystem: true);
+            // We should not see the verbose event about failing to flush the file without an ACL
+            AssertVerboseEventLogged(LogEventId.StorageFailureToOpenFileForFlushOnIngress, 0, false);
         }
 
         private Harness CreateHarness(

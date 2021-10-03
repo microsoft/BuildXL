@@ -864,7 +864,7 @@ namespace Tool.DropDaemon
                 m_logger.Info("Statistics: ");
                 m_logger.Info(string.Join(Environment.NewLine, stats.Select(s => s.Key + " = " + s.Value)));
 
-                stats.AddRange(m_counters.AsStatistics());
+                stats.AddRange(GetDaemonStats("DropDaemon"));
 
                 // report stats to BuildXL (if m_client is specified)
                 if (ApiClient != null)

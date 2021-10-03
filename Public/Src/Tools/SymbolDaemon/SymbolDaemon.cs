@@ -812,7 +812,7 @@ namespace Tool.SymbolDaemon
             if (stats != null && stats.Any())
             {
                 // log stats
-                stats.AddRange(m_counters.AsStatistics("SymbolDaemon"));
+                stats.AddRange(GetDaemonStats("SymbolDaemon"));
                 m_logger.Info($"Statistics:{string.Join(string.Empty, stats.Select(s => $"{Environment.NewLine}{s.Key}={s.Value}"))}");
 
                 // report stats to BuildXL

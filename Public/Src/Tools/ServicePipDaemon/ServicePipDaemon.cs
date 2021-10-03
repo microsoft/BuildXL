@@ -70,10 +70,10 @@ namespace Tool.ServicePipDaemon
         protected readonly IIpcLogger m_logger;
 
         /// <nodoc />
-        protected readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
+        private readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
 
         /// <nodoc />
-        protected enum DaemonCounter
+        private enum DaemonCounter
         {
             /// <nodoc/>
             [CounterType(CounterType.Stopwatch)]
@@ -630,5 +630,8 @@ namespace Tool.ServicePipDaemon
                 return new Failure<string>(e.DemystifyToString());
             }
         }
+
+        /// <nodoc />
+        protected IDictionary<string, long> GetDaemonStats(string prefix = null) => m_counters.AsStatistics(prefix);
     }
 }

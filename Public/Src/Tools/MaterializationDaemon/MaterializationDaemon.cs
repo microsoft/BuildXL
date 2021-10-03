@@ -17,6 +17,7 @@ using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using MaterializationDaemon;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
@@ -59,6 +60,7 @@ namespace Tool.MaterializationDaemon
         private readonly Dictionary<string, string> m_macros;
         private readonly ActionQueue m_actionQueue;
         private readonly ConcurrentBigMap<string, bool> m_materializationStatus;
+        private readonly CounterCollection<MaterializationDaemonCounter> m_counters;
 
         #region Options and commands
 
@@ -220,6 +222,7 @@ namespace Tool.MaterializationDaemon
             m_config = materializationConfig;
             m_actionQueue = new ActionQueue(m_config.MaxDegreeOfParallelism);
             m_materializationStatus = new ConcurrentBigMap<string, bool>();
+            m_counters = new CounterCollection<MaterializationDaemonCounter>();
 
             m_macros = new Dictionary<string, string>
             {
@@ -229,6 +232,13 @@ namespace Tool.MaterializationDaemon
             m_logger.Info($"MaterializationDaemon config: {JsonConvert.SerializeObject(m_config)}");
             m_logger.Info($"Defined macros (count={m_macros.Count}):{Environment.NewLine}{string.Join(Environment.NewLine, m_macros.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
 
+        }
+
+        /// <nodoc/>
+        public override void Dispose()
+        {
+            ReportStatisticsAsync().GetAwaiter().GetResult();
+            base.Dispose();
         }
 
         internal static void EnsureCommandsInitialized()
@@ -256,6 +266,8 @@ namespace Tool.MaterializationDaemon
         /// </summary>
         private async Task<IIpcResult> RegisterManifestInternalAsync(ConfiguredCommand conf)
         {
+            m_counters.IncrementCounter(MaterializationDaemonCounter.RegisterManifestRequestCount);
+
             var directoryPaths = Directory.GetValues(conf.Config).ToArray();
             var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
             var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
@@ -286,38 +298,54 @@ namespace Tool.MaterializationDaemon
             }
 
             var manifestFiles = possibleManifestFiles.Result;
+            var sw = Stopwatch.StartNew();
             List<string> filesToMaterialize = null;
             try
             {
                 // ensure that the manifest files are actually present on disk
-                await m_actionQueue.ForEachAsync(
-                    manifestFiles,
-                    async (manifest, i) =>
-                    {
-                        await MaterializeFileAsync(manifest.Artifact, manifest.FileName, ignoreMaterializationFailures: false);
-                    });
-
-                var possibleFiles = await ParseManifestFilesAsync(manifestFiles);
-                if (!possibleFiles.Succeeded)
+                using (m_counters.StartStopwatch(MaterializationDaemonCounter.RegisterManifestFileMaterializationDuration))
                 {
-                    return new IpcResult(IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
+                    await m_actionQueue.ForEachAsync(
+                        manifestFiles,
+                        async (manifest, i) =>
+                        {
+                            m_counters.AddToCounter(MaterializationDaemonCounter.RegisterManifestFileMaterializationQueueDuration, sw.ElapsedMilliseconds);
+                            await MaterializeFileAsync(manifest.Artifact, manifest.FileName, ignoreMaterializationFailures: false);
+                        }); 
+                }
+
+                Possible<List<string>> possibleFiles;
+                using (m_counters.StartStopwatch(MaterializationDaemonCounter.ManifestParsingOuterDuration))
+                {
+                    m_counters.AddToCounter(MaterializationDaemonCounter.ManifestParsingTotalFiles, possibleManifestFiles.Result.Count);
+                    possibleFiles = await ParseManifestFilesAsync(manifestFiles);
+                    if (!possibleFiles.Succeeded)
+                    {
+                        return new IpcResult(IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
+                    }
+
+                    m_counters.AddToCounter(MaterializationDaemonCounter.ManifestParsingReferencedTotalFiles, possibleFiles.Result.Count);
                 }
 
                 filesToMaterialize = possibleFiles.Result;
-
-                await m_actionQueue.ForEachAsync(
-                    filesToMaterialize,
-                    async (fileName, i) =>
-                    {
-                        // Since these file paths are not real build artifacts (i.e., just strings constructed by a parser),
-                        // they might not be "known" to BuildXL, and because of that, BuildXL won't be able to materialize them.
-                        // Manifests are known to contain references to files that are not produced during a build, so we are 
-                        // ignoring materialization failures for such files. We are doing this so we won't fail IPC pips and
-                        // a build could succeed.
-                        // If there are real materialization errors (e.g., cache failure), the daemon relies on BuildXL logging
-                        // the appropriate error events and failing the build.
-                        await MaterializeFileAsync(FileArtifact.Invalid, fileName, ignoreMaterializationFailures: true);
-                    });
+                sw = Stopwatch.StartNew();
+                using (m_counters.StartStopwatch(MaterializationDaemonCounter.RegisterManifestReferencedFileMaterializationDuration))
+                {
+                    await m_actionQueue.ForEachAsync(
+                        filesToMaterialize,
+                        async (file, i) =>
+                        {
+                            // Since these file paths are not real build artifacts (i.e., just strings constructed by a parser),
+                            // they might not be "known" to BuildXL, and because of that, BuildXL won't be able to materialize them.
+                            // Manifests are known to contain references to files that are not produced during a build, so we are 
+                            // ignoring materialization failures for such files. We are doing this so we won't fail IPC pips and
+                            // a build could succeed.
+                            // If there are real materialization errors (e.g., cache failure), the daemon relies on BuildXL logging
+                            // the appropriate error events and failing the build.
+                            m_counters.AddToCounter(MaterializationDaemonCounter.RegisterManifestReferencedFileMaterializationQueueDuration, sw.ElapsedMilliseconds);
+                            await MaterializeFileAsync(FileArtifact.Invalid, file, ignoreMaterializationFailures: true);
+                        }); 
+                }
             }
             catch (Exception e)
             {
@@ -334,6 +362,8 @@ namespace Tool.MaterializationDaemon
 
         private async Task<IIpcResult> MaterializeDirectoriesAsync(ConfiguredCommand conf)
         {
+            m_counters.IncrementCounter(MaterializationDaemonCounter.MaterializeDirectoriesRequestCount);
+
             var directoryPaths = Directory.GetValues(conf.Config).ToArray();
             var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
             var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
@@ -372,22 +402,28 @@ namespace Tool.MaterializationDaemon
             }
 
             var filesToMaterialize = possibleFiles.Result;
-            try
+            var sw = Stopwatch.StartNew();
+            using (m_counters.StartStopwatch(MaterializationDaemonCounter.MaterializeDirectoriesOuterMaterializationDuration))
             {
-                await m_actionQueue.ForEachAsync(
-                   filesToMaterialize,
-                   async (file, i) =>
-                   {
-                       await MaterializeFileAsync(file.Artifact, file.FileName, ignoreMaterializationFailures: false);
-                   });
-            }
-            catch (Exception e)
-            {
-                return new IpcResult(
-                   IpcResultStatus.GenericError,
-                   e.ToStringDemystified());
+                try
+                {
+                    await m_actionQueue.ForEachAsync(
+                       filesToMaterialize,
+                       async (file, i) =>
+                       {
+                           m_counters.AddToCounter(MaterializationDaemonCounter.MaterializeDirectoriesMaterializationQueueDuration, sw.ElapsedMilliseconds);
+                           await MaterializeFileAsync(file.Artifact, file.FileName, ignoreMaterializationFailures: false);
+                       });
+                }
+                catch (Exception e)
+                {
+                    return new IpcResult(
+                       IpcResultStatus.GenericError,
+                       e.ToStringDemystified());
+                }
             }
 
+            m_counters.IncrementCounter(MaterializationDaemonCounter.MaterializeDirectoriesFilesToMaterialize);
             return IpcResult.Success(
                 $"Materialized files ({filesToMaterialize.Count}):{Environment.NewLine}{string.Join(Environment.NewLine, filesToMaterialize.Select(f => f.FileName))}");
         }
@@ -426,10 +462,14 @@ namespace Tool.MaterializationDaemon
         {
             var directoryArtifact = BuildXL.Ipc.ExternalApi.DirectoryId.Parse(directoryId);
             // TODO: Consider doing filtering on the engine side
-            var possibleContent = await ApiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
-            if (!possibleContent.Succeeded)
+            Possible<List<SealedDirectoryFile>> possibleContent;
+            using (m_counters.StartStopwatch(MaterializationDaemonCounter.GetSealedDirectoryContentDuration))
             {
-                return new Failure<string>(I($"Failed to get the content of a directory artifact ({directoryId}, {directoryPath}){Environment.NewLine}{possibleContent.Failure.Describe()}"));
+                possibleContent = await ApiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
+                if (!possibleContent.Succeeded)
+                {
+                    return new Failure<string>(I($"Failed to get the content of a directory artifact ({directoryId}, {directoryPath}){Environment.NewLine}{possibleContent.Failure.Describe()}"));
+                } 
             }
 
             var content = possibleContent.Result;
@@ -473,7 +513,12 @@ namespace Tool.MaterializationDaemon
             {
                 while (true)
                 {
-                    var possibleResult = await launchExternalProcessAndParseOutputAsync(process);
+                    Possible<List<string>> possibleResult;
+                    using (m_counters.StartStopwatch(MaterializationDaemonCounter.ManifestParsingInnerDuration))
+                    {
+                        possibleResult = await launchExternalProcessAndParseOutputAsync(process);
+                    }
+
                     if (possibleResult.Succeeded)
                     {
                         Logger.Verbose($"Manifest file ('{manifestFilePath}') content:{Environment.NewLine}{string.Join(Environment.NewLine, possibleResult.Result)}");
@@ -482,6 +527,8 @@ namespace Tool.MaterializationDaemon
 
                     if (retryCount < s_retryIntervals.Length)
                     {
+                        m_counters.IncrementCounter(MaterializationDaemonCounter.ManifestParsingExternalParserRetriesCount);
+                        m_counters.AddToCounter(MaterializationDaemonCounter.ManifestParsingExternalParserTotalRetryDelayDuration, (long)s_retryIntervals[retryCount].TotalMilliseconds);
                         Logger.Verbose($"Retrying an external parser due to an error. Retries left: {s_retryIntervals.Length - retryCount}. Error: {possibleResult.Failure.Describe()}.");
                         // wait before retrying
                         await Task.Delay(s_retryIntervals[retryCount]);
@@ -491,6 +538,7 @@ namespace Tool.MaterializationDaemon
                     }
                     else
                     {
+                        m_counters.IncrementCounter(MaterializationDaemonCounter.ManifestParsingExternalParserFailuresAfterRetriesCount);
                         Logger.Warning($"Failing an external parser because the number of retries were exhausted. The latest error: {possibleResult.Failure.Describe()}.");
                         return possibleResult.Failure;
                     }
@@ -666,11 +714,77 @@ namespace Tool.MaterializationDaemon
             return res;
         }
 
+        private async Task ReportStatisticsAsync()
+        {
+            var stats = m_counters.AsStatistics("MaterializationDaemon");
+            stats.AddRange(GetDaemonStats("MaterializationDaemon"));
+            m_logger.Info($"Statistics:{string.Join(string.Empty, stats.Select(s => $"{Environment.NewLine}{s.Key}={s.Value}"))}");
+
+            // report stats to BuildXL
+            if (ApiClient != null)
+            {
+                var possiblyReported = await ApiClient.ReportStatistics(stats);
+                if (possiblyReported.Succeeded && possiblyReported.Result)
+                {
+                    m_logger.Info("Statistics successfully reported to BuildXL.");
+                }
+                else
+                {
+                    var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
+                    m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
+                }
+            }
+            
+        }
+
         private enum FilterKind : byte
         {
             Include,
 
             Exclude
+        }
+
+        private enum MaterializationDaemonCounter
+        {
+            [CounterType(CounterType.Stopwatch)]
+            GetSealedDirectoryContentDuration,
+
+            MaterializeDirectoriesRequestCount,
+
+            MaterializeDirectoriesFilesToMaterialize,
+
+            [CounterType(CounterType.Stopwatch)]
+            MaterializeDirectoriesOuterMaterializationDuration,
+
+            MaterializeDirectoriesMaterializationQueueDuration,
+
+            RegisterManifestRequestCount,
+
+            [CounterType(CounterType.Stopwatch)]
+            RegisterManifestFileMaterializationDuration,
+
+            RegisterManifestFileMaterializationQueueDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            RegisterManifestReferencedFileMaterializationDuration,
+
+            RegisterManifestReferencedFileMaterializationQueueDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            ManifestParsingOuterDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            ManifestParsingInnerDuration,
+
+            ManifestParsingTotalFiles,
+
+            ManifestParsingReferencedTotalFiles,
+
+            ManifestParsingExternalParserRetriesCount,
+
+            ManifestParsingExternalParserFailuresAfterRetriesCount,
+
+            ManifestParsingExternalParserTotalRetryDelayDuration,
         }
     }
 }

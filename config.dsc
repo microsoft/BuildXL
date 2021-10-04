@@ -464,8 +464,8 @@ config({
                 // DotNet Core Runtime 5.0
                 {
                     moduleName: "DotNet-Runtime.win-x64.5.0.100",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/4c86f8a0-8f0b-454f-9419-081c2f21b348/52a1d3c12effa2bc1b552a4fd9f53d20/dotnet-runtime-5.0.0-win-x64.zip",
-                    hash: "VSO0:401A023634910E6B80414B4D541BB7D11C710D8D24C0C8B0712EFA80C1D33B1A00",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/e285f4d2-03b3-44b3-960c-4897d24b36a6/3e2458ba37e913aad84394253c0a50da/dotnet-runtime-5.0.10-win-x64.zip",
+                    hash: "VSO0:23E48E45703DAC800E97ADE38E43CACB8518D895F72AAB9EB426D9ADE837F6C200",
                     archiveType: "zip",
                 },
                 {
@@ -476,8 +476,8 @@ config({
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.5.0.100",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/c84d49aa-200c-4400-a517-87cce5b7516d/94c89b00380eb212e19538b05f8cb968/dotnet-runtime-5.0.0-linux-x64.tar.gz",
-                    hash: "VSO0:92E66F1C7562AFBEBBFD93CC98EB54279A65A81F2013492BC64177BB116E3A6000",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/4bb93b65-658d-4c6c-b4e2-32ec2a3d8aa6/ca3a11e65bcbc6dbb30330a54fcc1059/dotnet-runtime-5.0.10-linux-x64.tar.gz",
+                    hash: "VSO0:A7B32570216C6EBF2EA18584402EE03FB58246483A49977877D20B9654A321F300",
                     archiveType: "tgz",
                 },
 

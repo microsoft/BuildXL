@@ -1239,7 +1239,7 @@ namespace BuildXL.Scheduler
 
             // Ensure that when the cancellationToken is signaled, we respond with the
             // internal cancellation process.
-            m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination());
+            m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination(cancelRunningPips: true));
 
             m_schedulerCancellationTokenSource = new CancellationTokenSource();
 
@@ -7729,6 +7729,12 @@ namespace BuildXL.Scheduler
         {
             if (m_scheduleTerminating)
             {
+                if (cancelRunningPips)
+                {
+                    // Previous termination call may not have requested cancellation of already running pips.
+                    // Hence we need to process that part of the request even if another termination is already in progress.
+                    m_schedulerCancellationTokenSource.Cancel();
+                }
                 return;
             }
 

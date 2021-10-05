@@ -151,6 +151,8 @@ namespace BuildXL.Processes.Remoting
         {
             var executable = m_tool.ExecutablePath;
             var args = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile);
+            builder.Append(CreateString(ProcessId.ToString()));
+            builder.Append(CreateString(0.ToString()));
 
             if (OperatingSystemHelper.IsLinuxOS)
             {

@@ -76,6 +76,8 @@ namespace BuildXL.Utilities
         private readonly string m_provenance;
 
         private readonly Action<string> m_logger;
+        private readonly Action<string> m_outputBuilder;
+        private readonly Action<string> m_errorBuilder;
 
         private int m_processId = -1;
 
@@ -120,17 +122,20 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(process);
 
             m_logger = logger;
+            m_outputBuilder = outputBuilder;
+            m_errorBuilder = errorBuilder;
+
             Process = process;
             Process.Exited += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
 
-            if (outputBuilder != null)
+            if (m_outputBuilder != null)
             {
-                process.OutputDataReceived += (sender, e) => FeedOutputBuilder(m_stdoutFlushedTcs, e.Data, outputBuilder);
+                process.OutputDataReceived += (sender, e) => FeedOutputBuilder(m_stdoutFlushedTcs, e.Data, m_outputBuilder);
             }
 
-            if (errorBuilder != null)
+            if (m_errorBuilder != null)
             {
-                process.ErrorDataReceived += (sender, e) => FeedOutputBuilder(m_stderrFlushedTcs, e.Data, errorBuilder);
+                process.ErrorDataReceived += (sender, e) => FeedOutputBuilder(m_stderrFlushedTcs, e.Data, m_errorBuilder);
             }
 
             m_timeout = timeout;
@@ -169,8 +174,16 @@ namespace BuildXL.Utilities
                 ThrowBuildXLException($"Failed to start process '{Process.StartInfo.FileName}'", e);
             }
 
-            Process.BeginOutputReadLine();
-            Process.BeginErrorReadLine();
+            if (m_outputBuilder != null)
+            {
+                Process.BeginOutputReadLine();
+            }
+
+            if (m_errorBuilder != null)
+            {
+                Process.BeginErrorReadLine();
+            }
+
             StartTime = DateTime.UtcNow;
             Log($"started at {StartTime}");
         }
@@ -216,6 +229,17 @@ namespace BuildXL.Utilities
         public Task WaitForStdOutAndStdErrAsync()
         {
             Log($"waiting for stderr and stdout to flush");
+
+            if (m_outputBuilder == null)
+            {
+                m_stdoutFlushedTcs.TrySetResult(Unit.Void);
+            }
+
+            if (m_errorBuilder == null)
+            {
+                m_stderrFlushedTcs.TrySetResult(Unit.Void);
+            }
+
             return Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
         }
 

@@ -149,8 +149,8 @@ namespace BuildXL.Processes
             m_processExecutor = new AsyncProcessExecutor(
                 CreateProcess(info),
                 info.Timeout ?? s_defaultProcessTimeout,
-                line => FeedStdOut(m_output, line),
-                line => FeedStdErr(m_error, line),
+                m_output.HookOutputStream ? line => FeedStdOut(m_output, line) : null,
+                m_error.HookOutputStream ? line => FeedStdErr(m_error, line) : null,
                 info.Provenance,
                 msg => LogProcessState(msg));
         }
@@ -358,12 +358,12 @@ namespace BuildXL.Processes
                     FileName = info.FileName,
                     Arguments = info.Arguments,
                     WorkingDirectory = info.WorkingDirectory,
-                    StandardErrorEncoding = m_output.Encoding,
-                    StandardOutputEncoding = m_error.Encoding,
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
+                    StandardErrorEncoding = m_error.HookOutputStream ? m_error.Encoding : null,
+                    StandardOutputEncoding = m_output.HookOutputStream ? m_output.Encoding : null,
+                    RedirectStandardError = m_error.HookOutputStream,
+                    RedirectStandardOutput = m_output.HookOutputStream,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = m_output.HookOutputStream || m_error.HookOutputStream
                 },
                 EnableRaisingEvents = true
             };

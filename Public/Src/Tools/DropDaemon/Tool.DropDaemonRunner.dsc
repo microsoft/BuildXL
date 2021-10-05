@@ -344,7 +344,7 @@ export namespace DropDaemonRunner {
             // use the same config (service / service config file / name) that was used to create a drop
             .merge<UberArguments>(createResult.dropConfig)
             .merge<UberArguments>({
-                dependencies: [...createResult.outputs, ...addOperationResults],
+                dependencies: [...createResult.outputs, ...addOperationResults.mapMany(r => r.outputs)],
                 ipcServerMoniker: Transformer.getIpcServerMoniker(),
             });
 

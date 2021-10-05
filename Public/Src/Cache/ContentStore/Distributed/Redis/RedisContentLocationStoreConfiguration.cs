@@ -232,6 +232,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Time before memoization entries expire.
         /// </summary>
-        public TimeSpan ExpiryTime { get; set; }
+        public TimeSpan ExpiryTime { get; set; } = TimeSpan.FromDays(1);
     }
 }

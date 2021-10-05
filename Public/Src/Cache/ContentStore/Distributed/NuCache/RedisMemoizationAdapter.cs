@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 expectedReplacementToken,
                                 replacementBytes,
                                 replacement.ReplacementToken);
-                            batch.KeyExpireAsync(key, Configuration.OperationTimeout).FireAndForget(nestedContext);
+                            batch.KeyExpireAsync(key, Configuration.ExpiryTime).FireAndForget(nestedContext);
                             return task;
                         },
                         RedisOperation.CompareExchange);

@@ -2142,15 +2142,24 @@ namespace BuildXL.Scheduler.Fingerprints
                                     continue;
                                 }
 
+                                // If the path under consideration is a directory, we want to distinguish between a directory that is part of the original sources
+                                // and a directory that was created during the build (and exclude the latter). Observe that if we are in the cache
+                                // look up case, createdDirectories will always be empty, but at the same time the scrubber will guarantee that directories created
+                                // by this pip containing shared opaques will also be removed. TODO: enabling lazy shared opaques implies start using sideband information
+                                // or roundtriping created directories through the cache
+                                if (createdDirectories.Contains(realFileEntryPath))
+                                {
+                                    continue;
+                                }
+
                                 try
                                 {
-                                    // We can always remove any stale shared opaque files since those are permanently flagged. 
-                                    if (SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntryPath.ToString(PathTable), out var sharedOpaqueExistence) &&
-                                        // If the path under consideration is a directory, we want to distinguish between a directory that is part of the original sources
-                                        // and a directory that was created during the build (and exclude the latter). Observe that if we are in the cache
-                                        // look up case, createdDirectories will always be empty, but at the same time the scrubber will guarantee that directories created
-                                        // by this pip containing shared opaques will also be removed. TODO: enabling lazy shared opaques implies start using sideband information
-                                        (sharedOpaqueExistence != PathExistence.ExistsAsDirectory || createdDirectories.Contains(realFileEntryPath)))
+                                    // We can always remove any stale shared opaque files since those are permanently flagged.
+                                    // This only makes sense to do if lazy deletion of shared opaque outputs is enabled, otherwise no shared opaque files
+                                    // should be left under any directory.
+                                    if (m_env.State.LazyDeletionOfSharedOpaqueOutputsEnabled &&
+                                        SharedOpaqueOutputHelper.IsSharedOpaqueOutput(realFileEntryPath.ToString(PathTable), out var sharedOpaqueExistence) &&
+                                        sharedOpaqueExistence != PathExistence.ExistsAsDirectory)
                                     {
                                         continue;
                                     }
@@ -2164,7 +2173,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                 alienFileEnumerationMutable.Add(realFileEntry);
                             }
                         }
-                        
+
                         // Try update the alien file enumeration cache
                         alienFileEnumerationCache.TryAdd(path, alienFileEnumerationMutable);
                         alienFileEnumeration = alienFileEnumerationMutable;

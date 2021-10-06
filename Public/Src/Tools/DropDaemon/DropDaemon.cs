@@ -286,7 +286,7 @@ namespace Tool.DropDaemon
         internal static readonly Command StartCmd = RegisterCommand(
            name: "start",
            description: "Starts the server process.",
-           options: DropConfigOptions.Union(new[] { IpcServerMonikerOptional }),
+           options: new[] { IpcServerMonikerOptional },
            needsIpcClient: false,
            clientAction: (conf, _) =>
            {
@@ -393,7 +393,7 @@ namespace Tool.DropDaemon
         internal static readonly Command FinalizeDropCmd = RegisterCommand(
            name: "finalizeDrop",
            description: "[RPC] Invokes the 'finalize' operation for a particular drop",
-           options: DropConfigOptions,
+           options: DropConfigOptions.Union(new[] { IpcServerMonikerOptional }),
            clientAction: SyncRPCSend,
            serverAction: async (conf, dropDaemon) =>
            {

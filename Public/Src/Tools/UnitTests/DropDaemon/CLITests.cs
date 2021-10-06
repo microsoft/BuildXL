@@ -70,13 +70,14 @@ namespace Test.Tool.DropDaemon
 
         public static IEnumerable<object[]> ValidCommandLinesTestData()
         {
-            yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
-            yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint, EnableCloudBuildIntegration }, new[] { "mydrop", "http://xyz", "True" } };
+            yield return new object[] { "start", new Option[0], new string[0] };
+            yield return new object[] { "start", new Option[] { EnableCloudBuildIntegration, Verbose }, new[] { "true", "false" } };
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "a/b/c.txt", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", @"a\\b\\c.txt", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "\"a\\b\\c.txt\"", "mydrop", "http://xyz" } };
+            yield return new object[] { "finalizeDrop", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
             yield return new object[] { "finalize", new Option[0], new string[0] };
             yield return new object[] { "finalize", new[] { DropNameOption }, new[] { "mydrop" } };
             yield return new object[] { "stop", new Option[0], new string[0] };
@@ -99,7 +100,7 @@ namespace Test.Tool.DropDaemon
                 ? $"--{option.LongName} {valuePost}"
                 : null;
 
-            var cmdline = ConstructCmdLine("start --service http://qwe " + pre, json, post);
+            var cmdline = ConstructCmdLine("create --service http://qwe " + pre, json, post);
             var dropConf = CreateDropConfig(ParseArgs(cmdline));
             Assert.NotNull(dropConf);
 
@@ -160,8 +161,8 @@ namespace Test.Tool.DropDaemon
         ///     the property of the resulting config object matches the value we passed on the command line.
         /// </summary>
         [Theory]
-        [MemberData(nameof(ConfigOptionsTestData), typeof(DaemonConfig))]
-        [MemberData(nameof(ConfigOptionsTestData), typeof(DropConfig))]
+        [MemberData(nameof(ConfigOptionsCreateTestData))]
+        [MemberData(nameof(ConfigOptionsStartTestData))]
         public void TestDaemonConfigOptions(string cmdline, string jsonContent, PropertyInfo property, object expectedValue)
         {
             // construct and parse command line
@@ -200,10 +201,12 @@ namespace Test.Tool.DropDaemon
             return $"{cmdlinePrefix ?? string.Empty} {json} {cmdlineSuffix ?? string.Empty}";
         }
 
-        public static IEnumerable<object[]> ConfigOptionsTestData(Type confType)
+        public static IEnumerable<object[]> ConfigOptionsStartTestData() => ConfigOptionsTestData(typeof(DaemonConfig), StartCmd, "");
+        public static IEnumerable<object[]> ConfigOptionsCreateTestData() => ConfigOptionsTestData(typeof(DropConfig), CreateDropCmd, "--name 123 --service http://xyz");
+
+        public static IEnumerable<object[]> ConfigOptionsTestData(Type confType, Command cmd, string requiredFlags)
         {
-            var cmd = StartCmd;
-            var cmdline = cmd.Name + " --name 123 --service http://xyz "; // prepend required flags in all cases
+            var cmdline = $"{cmd.Name} {requiredFlags} "; // prepend required flags in all cases
 
             var properties = confType.GetProperties().Where(
                 p => !p.Name.StartsWith("Default") && !p.Name.StartsWith("MaxConcurrentClients") && !p.Name.StartsWith("Logger") && !p.Name.StartsWith("MaxConcurrentRequestsPerClient"));

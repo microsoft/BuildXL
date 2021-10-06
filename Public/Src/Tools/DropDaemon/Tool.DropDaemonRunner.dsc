@@ -29,8 +29,8 @@ export namespace DropDaemonRunner {
             args: DropCreateArguments
         )
         => {
-            // TODO: do we want to nuke extra fields from args before passing it to startService ?
-            const serviceStartResult = startService(<ServiceStartArguments>args);
+            const serviceStartArgs = asServiceStartArgs(args);
+            const serviceStartResult = startService(serviceStartArgs);
             return createDropUnderService(serviceStartResult, args);
         },
         
@@ -54,8 +54,7 @@ export namespace DropDaemonRunner {
                 <UberArguments>args,
                 "start-nodrop",
                 "stop",
-                undefined,
-                true
+                undefined
             );
         },
 
@@ -143,23 +142,11 @@ export namespace DropDaemonRunner {
             startArgs,
             "start",
             shutdownCmdName,
-            finalizationCmdName,
-            false
+            finalizationCmdName
         );
     }
 
-    function startServiceInternal(args: UberArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName?: string, skipValidation?: boolean): ServiceStartResult {
-        if (skipValidation !== true) {
-            Contract.requires(
-                args.service !== undefined || args.dropServiceConfigFile !== undefined,
-                "drop endpoint must be defined, or must be specified in drop config file"
-            );
-            Contract.requires(
-                args.name !== undefined || args.dropServiceConfigFile !== undefined,
-                "drop name must be defined, or must be inferrable in drop config file"
-            );
-        }
-        
+    function startServiceInternal(args: UberArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName?: string): ServiceStartResult {        
         const moniker = Transformer.getNewIpcMoniker();
         
         const connectArgs = <UberArguments><DropOperationArguments>{maxConnectRetries: args.maxConnectRetries, connectRetryDelayMillis: args.connectRetryDelayMillis, ipcMoniker: moniker};
@@ -204,6 +191,12 @@ export namespace DropDaemonRunner {
                 args.dropDomainId >= 0 && args.dropDomainId <= 255,
                 "DropDomainId value must be within [0..255] interval.");
         }
+
+        Contract.requires(args.service !== undefined || args.dropServiceConfigFile !== undefined,
+                "drop endpoint must be defined, or must be specified in drop config file");
+        
+        Contract.requires(args.name !== undefined || args.dropServiceConfigFile !== undefined,
+                "drop name must be defined, or must be inferrable in drop config file");
 
         const result = executeDropdCommand(
             serviceStartResult,
@@ -371,6 +364,28 @@ export namespace DropDaemonRunner {
 
     function overrideMoniker(args: Object, moniker: IpcMoniker): UberArguments {
         return args.override<UberArguments>({ipcMoniker: moniker});
+    }
+
+    function asServiceStartArgs(args: DropCreateArguments) : ServiceStartArguments {
+        // We need to get rid of the extra options carried by DropCreateArguments
+        // which would be iterated as arguments and then not recognized by the option parser.
+        // Casting is not enough, as the properties will be preserved in the underlying object.  
+        // TODO: Support something like this from DScript itself? 
+        return <ServiceStartArguments> 
+        {
+            // DaemonSettings
+            maxConcurrentClients: args.maxConcurrentClients,
+            enableCloudBuildIntegration: args.enableCloudBuildIntegration,
+            verbose: args.verbose,
+
+            // CommonArguments
+            dependencies: args.dependencies,
+            forwardEnvironmentVars: args.forwardEnvironmentVars,
+            additionalEnvironmentVars: args.additionalEnvironmentVars,
+            untrackedDirectoryScopes: args.untrackedDirectoryScopes,
+            timeoutInMilliseconds: args.timeoutInMilliseconds,
+            warningTimeoutInMilliseconds: args.warningTimeoutInMilliseconds
+        };
     }
 
     // Any use of this directory should be in untracked scope.

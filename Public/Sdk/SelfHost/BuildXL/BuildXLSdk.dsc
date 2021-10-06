@@ -311,7 +311,7 @@ export const systemMemoryDeployment = getSystemMemoryPackages(true);
 // This is meant to be used only when declaring NuGet packages' dependencies. In that particular case, you should be
 // calling this function with includeNetStandard: false
 @@public 
-export function getSystemMemoryPackages(includeNetStandard: boolean) {
+export function getSystemMemoryPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
     return [
         ...(isDotNetCoreApp ? [] : [
             importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
@@ -774,7 +774,7 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 });
 
 /** Returns true if test should use QTest framework. */
-function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
+function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
         && !(qualifier.targetFramework === "net5.0")          // Disable QTest for .net 5 for now.
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process

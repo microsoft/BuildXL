@@ -143,7 +143,7 @@ function passThroughEnvVars(envVarNames: string[]): Transformer.EnvironmentVaria
             : []);
 }
 
-function categoryToTrait(cat: string) {
+function categoryToTrait(cat: string) : NameValuePair {
     return {name: "Category", value: cat};
 };
 

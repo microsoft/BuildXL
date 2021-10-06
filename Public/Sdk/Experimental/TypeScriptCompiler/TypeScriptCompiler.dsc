@@ -108,6 +108,6 @@ export interface Result {
     sourceMap?: File;
 }
 
-function toTargetVersionString(target: Target){
+function toTargetVersionString(target: Target) : string{
     return target.toString().toUpperCase();
 }

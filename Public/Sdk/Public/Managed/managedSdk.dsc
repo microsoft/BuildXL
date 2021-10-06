@@ -246,7 +246,7 @@ function processResources(args: Arguments, name: string) : { sources: File[], li
  * Checks the type of application an sets the deployment option defaults for that
  * type. We pass the default as the first argument to merge so applications can always override.
  */
-function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework, appConfig: File)
+function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework, appConfig: File) : Arguments
 {
     switch (targetType)
     {

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as BuildXLSdk from "Sdk.BuildXL";
+import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: BuildXLSdk.FullFrameworkQualifier;
 
@@ -15,6 +16,6 @@ export const evaluationOnlyDeployment = BuildXLSdk.isDropToolingEnabled ? DropDa
 export const exe = BuildXLSdk.isDropToolingEnabled ? DropDaemon.exe : undefined;
 
 @@public
-export function selectDeployment(evaluationOnly: boolean) {
+export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
     return BuildXLSdk.isDropToolingEnabled ? DropDaemon.selectDeployment(evaluationOnly) : undefined;
 } 

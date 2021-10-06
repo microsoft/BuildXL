@@ -5,7 +5,7 @@ namespace Detours.Lib {
     
     export declare const qualifier: BuildXLSdk.PlatformDependentQualifier;
     
-    export const preprocessorSymbols = {
+    const preprocessorSymbols = {
         items: [
             "DETOURS_X86_X64",
             "_MBCS",

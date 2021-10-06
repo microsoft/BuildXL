@@ -4,6 +4,7 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
+import * as Managed from "Sdk.Managed";
 
 export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 
@@ -58,7 +59,7 @@ export const kustoPackages = [
 
 // Need to exclude netstandard.dll reference when calling this function for creating a nuget package.
 @@public
-export function getSerializationPackages(includeNetStandard: boolean) {
+export function getSerializationPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
     return [
         ... (getSystemTextJson(includeNetStandard)),
         ...(BuildXLSdk.isFullFramework ? [
@@ -73,7 +74,7 @@ export function getSerializationPackages(includeNetStandard: boolean) {
 }
 
 @@public
-export function getSystemTextJson(includeNetStandard: boolean) {
+export function getSystemTextJson(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
     return [
         ...(includeNetStandard && BuildXLSdk.isFullFramework ? [
             BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
@@ -85,7 +86,7 @@ export function getSystemTextJson(includeNetStandard: boolean) {
 }
 
 @@public
-export function getProtobufPackages(includeNetStandard: boolean) {
+export function getProtobufPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
     return [
         ...(BuildXLSdk.isFullFramework && includeNetStandard ? [
                 NetFx.System.IO.dll,
@@ -112,7 +113,7 @@ export function getProtobufPackages(includeNetStandard: boolean) {
 }
 
 @@public
-export function getGrpcPackages(includeNetStandard: boolean) {
+export function getGrpcPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
     return [
         ...getProtobufPackages(includeNetStandard),
         importFrom("Grpc.Core").pkg,
@@ -121,7 +122,7 @@ export function getGrpcPackages(includeNetStandard: boolean) {
 }
 
 @@public
-export function getProtobufNetPackages(includeNetStandard: boolean) {
+export function getProtobufNetPackages(includeNetStandard: boolean) : Managed.ManagedNugetPackage[] {
     return [
         ...getGrpcPackages(includeNetStandard),
         importFrom("protobuf-net.Core").pkg,

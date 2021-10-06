@@ -85,7 +85,7 @@ namespace Helpers {
         return results.toArray();
     }
 
-    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, referencesToSkip: Set<Deployment.DeployableItem>,results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) {
+    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, referencesToSkip: Set<Deployment.DeployableItem>,results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) : Shared.Binary[] {
         if (visitedReferences.contains(ref) || referencesToSkip.contains(ref))
         {
             return;

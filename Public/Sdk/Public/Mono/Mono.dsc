@@ -7,7 +7,7 @@ import * as MacOS from "Sdk.MacOS";
 const monoFrameworkPath = "MONO_HOME";
 const monoExecutable = Context.getCurrentHost().os !== "win" ? findMonoExecutable() : undefined;
 
-function findMonoExecutable() {
+function findMonoExecutable() : File {
     let result = Environment.hasVariable(monoFrameworkPath)
         ? f`${Environment.getFileValue(monoFrameworkPath)}/mono`
         : f`/Library/Frameworks/Mono.framework/Versions/Current/Commands/mono`;

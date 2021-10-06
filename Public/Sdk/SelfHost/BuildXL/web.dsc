@@ -28,7 +28,7 @@ namespace WebFramework {
         }
     }
 
-    function isDotNetCore31() {
+    function isDotNetCore31() : boolean {
         return qualifier.targetFramework === "netcoreapp3.1";
     }
 }

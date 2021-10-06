@@ -11,7 +11,7 @@ const SubstitutePlugin64 = Processes.TestPrograms.SubstituteProcessExecutionPlug
 const SubstitutePlugin86 = Processes.TestPrograms.SubstituteProcessExecutionPlugin.withQualifier({platform: "x86"});
 
 namespace Processes.Detours {
-    function test(platform: string) {
+    function test(platform: string) : BuildXLSdk.TestResult {
         const detours = platform === "x64" ? DetoursTest64 : DetoursTest86;
         const assemblyName = "Test.BuildXL.Processes.Detours";
 

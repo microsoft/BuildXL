@@ -36,7 +36,7 @@ namespace AriaNative {
     
     export const innerTemplates = native.Templates.defaultNativeBinaryInnerTemplates.merge({clRunner: clRunnerDefaultValue});
 
-    export const nativeDllBuilderDefaultValue = {
+    const nativeDllBuilderDefaultValue = {
         innerTemplates: innerTemplates,
         platform: platform,
         linkTimeCodeGeneration: qualifier.configuration === "release" ? native.Link.LinkTimeCodeGenerationOption.use : undefined,

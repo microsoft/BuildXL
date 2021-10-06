@@ -35,7 +35,7 @@ export const msbuildRuntimeContent = [
     ],
 ];
 
-function getFrameworkFolder() { 
+function getFrameworkFolder() : string { 
     return BuildXLSdk.isDotNetCoreBuild ? "dotnetcore" : qualifier.targetFramework;
 }  
 

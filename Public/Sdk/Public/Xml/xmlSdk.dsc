@@ -294,7 +294,7 @@ function toName(name: string | Name) : Name {
 }
 
 @@public
-export function nameEquals(left: string | Name, right: string | Name) {
+export function nameEquals(left: string | Name, right: string | Name) : boolean {
     if (typeof left === "string") {
         if (typeof right === "string") {
             return left === right;

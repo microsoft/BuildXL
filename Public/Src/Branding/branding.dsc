@@ -81,7 +81,7 @@ export const productDescription = `${longProductName}. Build: ${version}, Versio
 export const versionNumberForToolsThatDontSupportPreReleaseTag = computeVersionNumberForToolsThatDontSupportPreReleaseTag();
 
 /** See versionNumberForToolThatDoesntSupportPeeReleaseTag*/
-function computeVersionNumberForToolsThatDontSupportPreReleaseTag()
+function computeVersionNumberForToolsThatDontSupportPreReleaseTag() : string
 {
     if (!prereleaseTag || prereleaseTag === devBuildPreReleaseTag)
     {

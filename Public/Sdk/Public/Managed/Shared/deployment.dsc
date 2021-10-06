@@ -199,7 +199,7 @@ namespace Deployment {
         handleDuplicate: DeploymentSdk.HandleDuplicateFileDeployment,
         currentResult: DeploymentSdk.FlattenedResult,
         deploymentOptions: FlattenOptions,
-        provenance: DeploymentSdk.Diagnostics.Provenance) {
+        provenance: DeploymentSdk.Diagnostics.Provenance) : DeploymentSdk.FlattenedResult {
         return deployable.deploy(deployable, targetFolder, handleDuplicate, currentResult, deploymentOptions, provenance);
     }
 

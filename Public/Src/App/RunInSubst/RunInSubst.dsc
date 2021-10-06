@@ -6,8 +6,7 @@ namespace RunInSubst {
 
     const headers = [f`stdafx.h`];
 
-    @@public
-    export const preprocessorSymbols = {
+    const preprocessorSymbols = {
         items: [
             "RUNINSUBST_X86_X64",
             "_MBCS",
@@ -27,17 +26,7 @@ namespace RunInSubst {
         })
     });
 
-    @@public
-    export const staticLibraryBuilderDefaultValue = {
-        innerTemplates: nativeInnerTemplate,
-        platform: qualifier.platform,
-        linkTimeCodeGeneration: qualifier.configuration === "release"
-            ? Native.Link.LinkTimeCodeGenerationOption.use
-            : undefined,
-    };
-
-    @@public
-    export const nativeExeBuilderDefaultValue = {
+    const nativeExeBuilderDefaultValue = {
         innerTemplates: nativeInnerTemplate,
         platform: qualifier.platform,
         linkTimeCodeGeneration: qualifier.configuration === "release"

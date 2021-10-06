@@ -509,8 +509,20 @@ namespace BuildXL.SandboxedProcessExecutor
                     string semaphoreName = !string.IsNullOrEmpty(info.DetoursFailureFile)
                         ? info.DetoursFailureFile.Replace('\\', '_')
                         : "Detours_" + info.PipSemiStableHash.ToString("X16", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString();
-
                     int maxRetry = 3;
+
+                    // We check this first due to bug#1873910 when executing in a VM on Cloudbuild.
+                    // Creating this Semaphore may fail due to a semaphore with the same name already existing.
+                    // The reason for this is currently unknown, however since the name for the failures file is
+                    // created in SandboxedProcessPipExecutor.GetDetoursInternalErrorFilePath with a unique guid
+                    // along with the pip hash it should be safe to dispose because the name is unique to this pip.
+                    if (System.Threading.Semaphore.TryOpenExisting(semaphoreName, out var existingSemaphore))
+                    {
+                        m_logger.LogInfo($"Disposing existing semaphore with name '{semaphoreName}'.");
+                        // Calling dispose on this will allow us to create a new semaphore with the same name
+                        existingSemaphore.Dispose();
+                    }
+
                     while (!fam.SetMessageCountSemaphore(semaphoreName))
                     {
                         m_logger.LogInfo($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");

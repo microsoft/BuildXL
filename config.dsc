@@ -652,6 +652,17 @@ config({
             isWritable: false,
             isReadable: true
         },
+        ...(Environment.getStringValue("BUILDXL_DROP_CONFIG") !== undefined ? 
+        [
+            {
+                // Path used in CloudBuild for things like drop configuration files. These files should not be tracked.
+                name: a`CloudBuild`,
+                path: Environment.getPathValue("BUILDXL_DROP_CONFIG").parent,
+                trackSourceFileChanges: false,
+                isWritable: false,
+                isReadable: true
+            }
+        ] : []),
         {
             name: a`ThirdParty_mono`,
             path: p`third_party/mono@abad3612068e7333956106e7be02d9ce9e346f92`,

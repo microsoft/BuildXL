@@ -275,15 +275,19 @@ namespace BuildXL.Engine
 
             BuildXL.Cache.ContentStore.Logging.Logger logger = null;
             GrpcEnvironmentOptions.GrpcVerbosity grpcVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Disabled;
+            List<string> grpcTrace = null;
             if (EngineEnvironmentSettings.GrpcVerbosityEnabled)
             {
                 var fileLogger = new BuildXL.Cache.ContentStore.Logging.FileLog(configuration.Logging.RpcLog.ToString(context.PathTable) + ".grpc");
                 logger = new BuildXL.Cache.ContentStore.Logging.Logger(true, fileLogger);
-                grpcVerbosity = GrpcEnvironmentOptions.GrpcVerbosity.Debug;
+                grpcVerbosity = (GrpcEnvironmentOptions.GrpcVerbosity?)EngineEnvironmentSettings.GrpcVerbosityLevel.Value ?? GrpcEnvironmentOptions.GrpcVerbosity.Error;
+                var grpcTraceString = EngineEnvironmentSettings.GrpcTraceList.Value ?? "all";
+                grpcTrace = grpcTraceString.Split(',').ToList();
             }
 
             GrpcEnvironment.Initialize(logger: logger, options: new GrpcEnvironmentOptions { 
                 LoggingVerbosity = grpcVerbosity,
+                Trace = grpcTrace
             });
 
             Logger.Log.GrpcSettings(

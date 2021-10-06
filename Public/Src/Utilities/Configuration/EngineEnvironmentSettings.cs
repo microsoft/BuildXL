@@ -217,6 +217,22 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcVerbosityEnabled = CreateSetting("BuildXLGrpcVerbosityEnabled", value => value == "1");
 
         /// <summary>
+        /// Grpc verbosity level
+        /// </summary>
+        /// <remarks>
+        /// See GrpcEnvironmentOptions.GrpcVerbosity
+        /// </remarks>
+        public static readonly Setting<int?> GrpcVerbosityLevel = CreateSetting("BuildXLGrpcVerbosityLevel", value => ParseInt32(value, allowZero: true));
+
+        /// <summary>
+        /// Comma separated list of grpc tracers for grpc logging. Only relevant if GrpcVerbosityEnabled is true
+        /// </summary>
+        /// <remarks>
+        /// See GRPC_TRACE in https://github.com/grpc/grpc/blob/master/doc/environment_variables.md
+        /// </remarks>
+        public static readonly Setting<string> GrpcTraceList = CreateSetting("BuildXLGrpcTraceList", value => value);
+
+        /// <summary>
         /// Authorization token location in AutoPilot machines at CloudBuild 
         /// </summary>
         public static readonly Setting<string> CBBuildIdentityTokenPath = CreateSetting("CB_BUILDIDENTITYTOKEN_PATH", value => value);

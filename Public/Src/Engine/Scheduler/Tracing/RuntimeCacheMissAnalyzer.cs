@@ -131,7 +131,7 @@ namespace BuildXL.Scheduler.Tracing
         private readonly IDictionary<PipId, RunnablePipPerformanceInfo> m_runnablePipPerformance;
         private readonly PipExecutionContext m_context;
 
-        private int MaxCacheMissCanPerform => m_configuration.Logging.CacheMissBatch ? EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value * EngineEnvironmentSettings.MaxMessagesPerBatch : EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
+        private int MaxCacheMissCanPerform => EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
         private int m_numCacheMissPerformed = 0;
 
         private readonly string m_downLoadedPreviousFingerprintStoreSavedPath = null;
@@ -183,7 +183,7 @@ namespace BuildXL.Scheduler.Tracing
                 BatchLogging,
                 maxDegreeOfParallelism: 1,
                 interval: TimeSpan.FromMinutes(5),
-                batchSize: EngineEnvironmentSettings.MaxMessagesPerBatch) : null;
+                batchSize: 100) : null;
 
 
             m_testHooks = testHooks;
@@ -426,7 +426,7 @@ namespace BuildXL.Scheduler.Tracing
 
         private bool IsCacheMissEligible(PipId pipId)
         {
-            if (Interlocked.Increment(ref m_numCacheMissPerformed) >= MaxCacheMissCanPerform)
+            if ((Interlocked.Increment(ref m_numCacheMissPerformed) - 1) >= MaxCacheMissCanPerform)
             {
                 Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisExceedMaxNumAndCannotPerformCount);
                 return false;

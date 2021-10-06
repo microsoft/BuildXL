@@ -36,7 +36,7 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> MaxNumPipsForCacheMissAnalysis = CreateSetting("MaxNumPipsForCacheMissAnalysis", value => ParseInt32(value) ?? 1000);
 
         /// <summary>
-        /// The maximum number of RPC
+        /// The maximum number of RPC messages to batch together for worker/orcehstrator communication
         /// </summary>
         public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 1000);
 

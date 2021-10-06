@@ -9,6 +9,7 @@ import * as Branding from "BuildXL.Branding";
 import * as Deployment from "Sdk.Deployment";
 
 import * as Managed from "Sdk.Managed";
+import * as Native from "Sdk.Native";
 import * as Shared from "Sdk.Managed.Shared";
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as QTest from "Sdk.Managed.Testing.QTest";
@@ -20,6 +21,8 @@ import * as ResXPreProcessor from "Sdk.BuildXL.Tools.ResXPreProcessor";
 import * as LogGenerator from "Sdk.BuildXL.Tools.LogGenerator";
 import * as ScriptSdkTestRunner from "Sdk.TestRunner";
 import * as Contracts from "Tse.RuntimeContracts";
+import * as BinarySigner from "BuildXL.Tools.BinarySigner";
+import * as NativeSdk from "Sdk.Native";
 
 @@public
 export * from "Sdk.Managed";
@@ -273,7 +276,7 @@ export const dotNetFramework = isDotNetCoreBuild
 @@public
 export function library(args: Arguments): Managed.Assembly {
     args = processArguments(args, "library");
-    return Managed.library(args);
+    return Signing.esrpSignAssembly(Managed.library(args));
 }
 
 /**
@@ -389,7 +392,7 @@ export function executable(args: Arguments): Managed.Assembly {
         },
     });
 
-    return Managed.executable(args);
+    return Signing.esrpSignAssembly(Managed.executable(args));
 }
 
 @@public
@@ -833,4 +836,38 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
     args);
 
     return args;
+}
+
+namespace Native {
+    export declare const qualifier: PlatformDependentQualifier;
+
+    /** Build a native dll. ESRP signs the file if enabled. */
+    @@public
+    export function library(args: NativeSdk.Dll.Arguments): NativeSdk.Dll.NativeDllImage {
+        Contract.requires(
+            args !== undefined,
+            "Signing.buildDll arguments must not be undefined."
+        );
+        
+        let result = NativeSdk.Dll.build(args);
+
+        return result.override<NativeSdk.Dll.NativeDllImage>({
+            binaryFile : Signing.esrpSignFile(result.binaryFile)
+        });
+    }
+
+    /** Build a native exe. ESRP signs the file if enabled.*/
+    @@public
+    export function executable(args: NativeSdk.Exe.Arguments): NativeSdk.Exe.NativeExeImage {
+        Contract.requires(
+            args !== undefined,
+            "Signing.buildExe arguments must not be undefined."
+        );
+        
+        let result = NativeSdk.Exe.build(args);
+
+        return result.override<NativeSdk.Exe.NativeExeImage>({
+            binaryFile : Signing.esrpSignFile(result.binaryFile)
+        });
+    }
 }

@@ -9,7 +9,7 @@ namespace Processes.TestPrograms.RemoteApi {
     export declare const qualifier: BuildXLSdk.PlatformDependentQualifier;
     
     @@public
-    export const exe = Native.Exe.build({
+    export const exe = BuildXLSdk.Native.executable({
         outputFileName: PathAtom.create("RemoteApi.exe"),
         innerTemplates: {
             // Statically link the crt so we can run tests during the build on machines which don't have the debug crt installed.

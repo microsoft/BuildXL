@@ -35,7 +35,7 @@ namespace RunInSubst {
     };
 
     @@public
-    export const exe: Native.Exe.NativeExeImage = Native.Exe.build(
+    export const exe: Native.Exe.NativeExeImage = BuildXLSdk.Native.executable(
         nativeExeBuilderDefaultValue.merge<Native.Exe.Arguments>({
             outputFileName: PathAtom.create("RunInSubst.exe"),
             sources: [f`RunInSubst.cpp`],

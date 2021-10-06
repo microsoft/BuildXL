@@ -669,7 +669,20 @@ config({
             trackSourceFileChanges: true,
             isWritable: false,
             isReadable: true
-        }
+        },
+        ...(Context.getCurrentHost().os === "win" &&
+            Environment.getFlag("ENABLE_ESRP") &&
+            Environment.getStringValue("SIGN_TOOL_PATH") !== undefined ? [
+                {
+                    // This config file may not be in the same directory as the enlistment root
+                    name: a`ESRPClientRoot`,
+                    isReadable: true,
+                    isWritable: false,
+                    isScrubbable: false,
+                    path: f`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`.parent.path,
+                    trackSourceFileChanges: true
+                }
+            ] : [])
     ],
 
     searchPathEnumerationTools: [

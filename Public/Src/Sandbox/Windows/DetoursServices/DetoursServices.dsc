@@ -75,7 +75,7 @@ namespace Core {
     });
 
     @@public
-    export const nativesDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
+    export const nativesDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && BuildXLSdk.Native.library(
         sharedSettings.merge<Native.Dll.Arguments>({
             outputFileName: PathAtom.create("BuildXLNatives.dll"),
             preprocessorSymbols: [{name: "BUILDXL_NATIVES_LIBRARY"}],
@@ -113,7 +113,7 @@ namespace Core {
 
     // This dll contains libraries used in detours that are consumed by tests (which do not run under detours)
     @@public
-    export const testDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
+    export const testDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && BuildXLSdk.Native.library(
     {
         outputFileName: PathAtom.create("BuildXLTestNatives.dll"),
         preprocessorSymbols: [
@@ -148,7 +148,7 @@ namespace Core {
     });
 
     @@public
-    export const detoursDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
+    export const detoursDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && BuildXLSdk.Native.library(
         sharedSettings.merge<Native.Dll.Arguments>({
             outputFileName: PathAtom.create("DetoursServices.dll"),
             preprocessorSymbols: [{name: "DETOURS_SERVICES_NATIVES_LIBRARY"}],

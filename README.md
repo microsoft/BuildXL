@@ -15,18 +15,11 @@ BuildXL accelerates multiple build languages, including:
 BuildXL has a command-line interface. There are currently no plans to integrate it into Visual Studio. The project is open source in the spirit of transparency of our engineering system. You may find our technology useful if you face similar issues of scale. Note that BuildXL is not intended as a replacement for MSBuild or to indicate any future direction of build languages from Microsoft.
 
 ## Documentation
-The BuildXL documentation main page is [here](Documentation/INDEX.md).
+The BuildXL documentation landing page is [here](Documentation/INDEX.md).
 
-## Examples and Demos
-See the `Examples/` folder for basic project examples. See the [Demos](Public/Src/Demos/Demos.md) page for information about various technical demos like using the process sandboxing code.
-
-# Building the Code
+## Examples
+See the `Examples/` folder for basic project examples. 
 
 ## Build Status - Azure DevOps Pipelines
 [![Build status](https://dev.azure.com/mseng/Domino/_apis/build/status/8196?branchName=master)](https://dev.azure.com/mseng/Domino/_build/latest?definitionId=8196)
 
-## Command Line Build and Test
-See the [Developer Guide](Documentation/Wiki/DeveloperGuide.md) for instructions on compiling BuildXL.
-
-# Contributing
-See [CONTRIBUTING](CONTRIBUTING.md).

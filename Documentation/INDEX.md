@@ -6,9 +6,12 @@ This is the primary documentation for Microsoft Build Accelerator (BuildXL). If 
 Keep this as the sole primary landing page for documentation and avoid creating nested navigation pages for navigation.
 
 # Overview
-* [ReadMe](../README.md)
+* [Introduction](../README.md)
 * [Why BuildXL?](Wiki/WhyBuildXL.md)
 * [Demos](../Public/Src/Demos/Demos.md)
+
+# Onboarding 
+* [Onboarding a JavaScript repo](Wiki/Frontends/js-onboarding.md)
 
 # Project Documentation
 * [Release Notes](Wiki/Release-Notes.md)
@@ -72,9 +75,6 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) 
 * [XLG Debugger](Wiki/Advanced-Features/XLG-Debugger/INDEX.md) 
 * [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md)
-
-## Onboarding
-* [Onboarding a JavaScript repo](Wiki/Frontends/js-onboarding.md)
 
 ## DScript
 * [Introduction](Wiki/DScript/Introduction.md)

@@ -90,10 +90,10 @@ export namespace DropDaemonRunner {
     @@public
     export const cloudBuildRunner: DropRunner = {
         startService: (
-            args: DropOperationArguments
+            args: ServiceStartArguments
         )
         => runner.startService(
-            applyCloudBuildDefaultsAndSetEnvVars(args)
+            asServiceStartArgs(applyCloudBuildDefaultsAndSetEnvVars(args))
         ),
         createDropUnderService: runner.createDropUnderService,
         createDrop: (
@@ -366,7 +366,7 @@ export namespace DropDaemonRunner {
         return args.override<UberArguments>({ipcMoniker: moniker});
     }
 
-    function asServiceStartArgs(args: DropCreateArguments) : ServiceStartArguments {
+    function asServiceStartArgs(args: (DaemonSettings & CommonArguments)) : ServiceStartArguments {
         // We need to get rid of the extra options carried by DropCreateArguments
         // which would be iterated as arguments and then not recognized by the option parser.
         // Casting is not enough, as the properties will be preserved in the underlying object.  
@@ -449,20 +449,20 @@ export namespace DropDaemonRunner {
                 // --generateBuildManifest Needs to be set after --dropServiceConfigFile to overwrite the bool set by json config
                 // Used to enable ABTesting Build Manifest via BXL ENV var, safe to remove after complete feature rollout
                 ...addIf(
-                    command === "start" && Environment.getFlag("BuildXLEnableBuildManifestGeneration") === true,
+                    command === "create" && Environment.getFlag("BuildXLEnableBuildManifestGeneration") === true,
                     Cmd.flag("--generateBuildManifest", true)
                 ),
                 ...addIf(
-                    command === "start" && Environment.getFlag("BuildXLEnableBuildManifestSigning") === true,
+                    command === "create" && Environment.getFlag("BuildXLEnableBuildManifestSigning") === true,
                     Cmd.flag("--signBuildManifest", true)
                 ),
                 // Disable flags will have precedence
                 ...addIf(
-                    command === "start" && Environment.getFlag("BuildXLDisableBuildManifestGeneration") === true,
+                    command === "create" && Environment.getFlag("BuildXLDisableBuildManifestGeneration") === true,
                     Cmd.flag("--generateBuildManifest", false)
                 ),
                 ...addIf(
-                    command === "start" && Environment.getFlag("BuildXLDisableBuildManifestSigning") === true,
+                    command === "create" && Environment.getFlag("BuildXLDisableBuildManifestSigning") === true,
                     Cmd.flag("--signBuildManifest", false)
                 ),
             ],

@@ -73,6 +73,7 @@ namespace Test.Tool.DropDaemon
             yield return new object[] { "start", new Option[0], new string[0] };
             yield return new object[] { "start", new Option[] { EnableCloudBuildIntegration, Verbose }, new[] { "true", "false" } };
             yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
+            yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint, GenerateBuildManifest, SignBuildManifest }, new[] { "mydrop", "http://xyz", "true", "false" } };
             yield return new object[] { "addfile", new Option[] { File, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", "a/b/c.txt", "mydrop", "http://xyz" } };
             yield return new object[] { "addfile", new Option[] { File, RelativeDropPath, DropNameOption, DropEndpoint }, new[] { @"""c:\x\y.txt""", @"a\\b\\c.txt", "mydrop", "http://xyz" } };

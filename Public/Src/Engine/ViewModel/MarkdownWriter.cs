@@ -11,18 +11,40 @@ namespace BuildXL.ViewModel
     /// <nodoc />
     internal class MarkDownWriter : IDisposable
     {
-        private TextWriter m_writer;
+        private readonly TextWriter m_writer;
+        private readonly FileStream m_stream;
+        private readonly long m_targetBytes;
 
         /// <nodoc />
-        public MarkDownWriter(string filePath)
+        public MarkDownWriter(string filePath, 
+            long targetLengthBytes = 10 * 1024 * 1024 /*Default to 10MB limit to avoid browser perf issues*/)
         {
-            m_writer = new StreamWriter(filePath);
+            m_stream = new FileStream(filePath, FileMode.CreateNew);
+            m_writer = new StreamWriter(m_stream);
+            m_targetBytes = targetLengthBytes;
         }
 
         /// <inheritdoc />
         public void Dispose()
         {
             m_writer.Dispose();
+        }
+
+        /// <summary>
+        /// Length in bytes of markdown file written so far.
+        /// </summary>
+        public long Length
+        {
+            get => m_stream.Length;
+        }
+
+        /// <summary>
+        /// Whether the total length of the markdown exceeds the target size. Useful for callers
+        /// to regulate how much data to include
+        /// </summary>
+        public bool ExceedsTargetBytes
+        {
+            get => m_targetBytes < Length;
         }
 
         /// <nodoc />

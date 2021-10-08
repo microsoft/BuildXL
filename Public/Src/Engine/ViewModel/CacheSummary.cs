@@ -53,6 +53,12 @@ namespace BuildXL.ViewModel
 
                 for (var i = 0; i < BatchEntries.Count; i++)
                 {
+                    if (writer.ExceedsTargetBytes)
+                    {
+                        writer.WritePreSection("Analysis Results Truncated", "Additional analysis results have been truncated to ensure browser responsiveness", 25);
+                        break;
+                    }
+
                     writer.WritePreSection($"Batch #{i}", BatchEntries[i], 25);
                 }
                 writer.EndDetailedTableSummary();

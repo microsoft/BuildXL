@@ -831,30 +831,31 @@ namespace Tool.DropDaemon
         private async Task ReportStatisticsAsync()
         {
             var stats = new Dictionary<string, long>();
-            foreach (var kvp in m_vsoClients)
+            foreach (var (dropConfig, lazyVsoClientTask) in m_vsoClients.Values)
             {
-                if (kvp.Value.lazyVsoClientTask.Value.IsCompleted && !kvp.Value.lazyVsoClientTask.Value.IsFaulted)
+                try
                 {
-                    m_logger.Warning($"No stats collected for drop '{kvp.Value.dropConfig.Name}' due to an error.");
-                    continue;
-                }
-
-                var vsoClient = await kvp.Value.lazyVsoClientTask.Value;
-                var clientStats = vsoClient.GetStats();
-                if (clientStats == null || clientStats.Count == 0)
-                {
-                    m_logger.Info("No stats recorded by drop client of type " + vsoClient.GetType().Name);
-                    continue;
-                }
-
-                foreach (var statistic in clientStats)
-                {
-                    if (!stats.ContainsKey(statistic.Key))
+                    var vsoClient = await lazyVsoClientTask.Value;
+                    var clientStats = vsoClient.GetStats();
+                    if (clientStats == null || clientStats.Count == 0)
                     {
-                        stats.Add(statistic.Key, 0);
+                        m_logger.Info("No stats recorded by drop client of type " + vsoClient.GetType().Name);
+                        continue;
                     }
 
-                    stats[statistic.Key] += statistic.Value;
+                    foreach (var statistic in clientStats)
+                    {
+                        if (!stats.ContainsKey(statistic.Key))
+                        {
+                            stats.Add(statistic.Key, 0);
+                        }
+
+                        stats[statistic.Key] += statistic.Value;
+                    }
+                }
+                catch (Exception e)
+                {
+                    m_logger.Warning($"No stats collected for drop '{dropConfig.Name}' due to an error. Exception details: {e}");
                 }
             }
 
@@ -866,7 +867,7 @@ namespace Tool.DropDaemon
 
                 stats.AddRange(GetDaemonStats("DropDaemon"));
 
-                // report stats to BuildXL (if m_client is specified)
+                // report stats to BuildXL (if ApiClient is specified)
                 if (ApiClient != null)
                 {
                     var possiblyReported = await ApiClient.ReportStatistics(stats);

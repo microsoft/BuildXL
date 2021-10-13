@@ -44,9 +44,13 @@ namespace BuildXL.Utilities.Tracing
         private readonly PipExecutionContext m_context;
         private readonly Action m_onEventWritten;
 
-        // Pending events queue.
-        private readonly BlockingCollection<IQueuedAction> m_pendingEvents = new BlockingCollection<IQueuedAction>();
+        // Pending events queue and corresponding draining thread.
+        // The queue could be more easily modeled with a BlockingCollection (which doesn't need any explicit synchronization primitives), but noticeable thread contention
+        // was found under high load of events being added.
+        private readonly ConcurrentQueue<IQueuedAction> m_pendingEvents = new ConcurrentQueue<IQueuedAction>();
+        private readonly AutoResetEvent m_eventsAvailable = new AutoResetEvent(false);
         private readonly Thread m_pendingEventsDrainingThread;
+        private bool m_completeAdding = false;
 
         // RW lock that allows for safe disposal of pending events queue.
         private readonly ReadWriteLock m_eventQueueLock = ReadWriteLock.Create();
@@ -89,24 +93,37 @@ namespace BuildXL.Utilities.Tracing
             m_pendingEventsDrainingThread = new Thread(
                 () =>
                 {
-                    try
+                    // Keeps trying to drain the event queue as long as new events can be added
+                    // Adding events and completing the queue are properly synchronized already (a write lock
+                    // is taken before completing), but there is the slim chance we finish draining the queue
+                    // and before we check for m_completeAdding here again, an Add + CompleteAdding happen, which
+                    // could leave unprocessed events in the queue. So we also check here whether the queue is not empty
+                    while (!m_completeAdding || !m_pendingEvents.IsEmpty)
                     {
-                        foreach (IQueuedAction action in m_pendingEvents.GetConsumingEnumerable())
+                        // Wait until at least one event is available for consumption
+                        m_eventsAvailable.WaitOne();
+
+                        // If new events can still be added, let's give writers the chance to add more events.
+                        // This allows for more efficient draining, since therefore the thread synchronization tax is only paid
+                        // once for many events. A 100ms lag is acceptable for events to be sitting in the queue. Profiler shows a 10x
+                        // aggregated time gain by doing this. Some consideration for why picking this time:
+                        // - A greater didn't seem to make a difference (e.g. 500ms was tried with equivalent perf results)
+                        // - There are temporal constraints that need events (in particular, the build manifest one) to get serialized
+                        // and sent to workers before the pip completion event (which does not go through the binary logger) happens. So
+                        // we don't want xlg events to sit in the queue for too long.
+                        if (!m_completeAdding)
+                        {
+                            Thread.Sleep(100);
+                        }
+
+                        // Drain all events available on the queue
+                        while (m_pendingEvents.TryDequeue(out var action))
                         {
                             action.Run();
                         }
                     }
-                    catch (InvalidOperationException)
-                    {
-                        // InvalidOperationException is thrown when calling Take() for a marked-as-completed blocking collection.
-                        // However, GetConsumingEnumerable throws an InvalidOperationException here, which is unusual. 
-                        // In further investigations, we discovered that it might throw one if the collection in BlockingCollection 
-                        // is passed in the constructor and we externally modify that collection outside of BlockingCollection. 
-                        // Even we do not do that, we rarely have InvalidOperationException here, which is a NetCore bug.
-                        // We reported the bug; but for now, we swallow that exception and we treat it as a signal for completion.
-                        return;
-                    }
                 });
+
             m_pendingEventsDrainingThread.Start();
         }
 
@@ -170,7 +187,9 @@ namespace BuildXL.Utilities.Tracing
                 // Event queue is not disposed yet, so we can safely use it.
                 if (!m_eventQueueDisposed)
                 {
-                    m_pendingEvents.Add(action);
+                    m_pendingEvents.Enqueue(action);
+                    // Signal that an event is avaliable for consumption
+                    m_eventsAvailable.Set();
                 }
                 else
                 {
@@ -206,9 +225,13 @@ namespace BuildXL.Utilities.Tracing
             {
                 if (!m_eventQueueDisposed)
                 {
-                    m_pendingEvents.CompleteAdding();
+                    // Make sure we let the consumer thread know there are no more events being added
+                    // and wake it up in case it was waiting
+                    m_completeAdding = true;
+                    m_eventsAvailable.Set();
+
                     m_pendingEventsDrainingThread.Join();
-                    m_pendingEvents.Dispose();
+                    m_eventsAvailable.Dispose();
                     m_eventQueueDisposed = true;
                 }
             }

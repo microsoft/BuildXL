@@ -399,10 +399,12 @@ namespace BuildXL.Pips
             Contract.Requires(outputDirectoryArtifact.IsValid);
             Contract.Requires(outputInOpaque.IsValid);
 
+            // A null pip graph is the case of, for example, /phase:evaluate. Since there is no real execution going on, let's pretend the asserted file exists
             if (PipGraph is null)
             {
-                fileArtifact = FileArtifact.Invalid;
-                return false;
+                // Outputs in opaques always have rewrite count 1
+                fileArtifact = FileArtifact.CreateOutputFile(outputInOpaque);
+                return true;
             }
 
             return PipGraph.TryAssertOutputExistenceInOpaqueDirectory(outputDirectoryArtifact, outputInOpaque, out fileArtifact);

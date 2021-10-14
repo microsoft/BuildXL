@@ -1,6 +1,19 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20211003.0.1 (Release [119237](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=119237)) Released 10/06/2021
+-	Multi-drop handling by a single daemon 
+-	Add various Materialization Daemon counters
+-	Add network configuration to Yarn SDK
+-	Fix taking file ownership and applying ACL
+
+# 0.1.0-20210924.6.3 (Release [118701](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=118701)) Released 9/29/2021
+-	[Detours] Account for null terminator in GetFinalPathNameByHandle
+-	Reduce size of VSCode DScript package to allow auto-updating the package
+-	Add --ignore-optional option to yard install arguments
+-	Fix build manifest signing compatibility issue with some build queues
+-	Various bug fixes
+
 # 0.1.0-20210917.2  (Release [117834](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=117843)) Released 9/22/2021
 -	Download resolver schedules proper pips
 -	Full reparse point resolution can be disabled at the pip level

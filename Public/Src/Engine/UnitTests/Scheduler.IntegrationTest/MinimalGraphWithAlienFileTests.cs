@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -345,6 +346,46 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Make sure the intermediate output was in fact not produced
             Assert.False(File.Exists(outputFile.Path.ToString(Context.PathTable)));
+        }
+
+        [Fact]
+        public void AlienEnumerationCacheIsValid()
+        {
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            DirectoryArtifact dirToPathArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+            var sourceFile = CreateSourceFile(root: dirPath);
+
+            // This is a pip that statically declares a source file and enumerates the directory that contains it
+            var writer = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(sourceFile),
+                Operation.EnumerateDir(dirToPathArtifact, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            writer.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+
+            var writePip = SchedulePipBuilder(writer);
+
+            // This pip enumerates the same dir containing the source file
+            var enumerator = CreatePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(dirToPathArtifact, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+
+            // This makes sure we use the right file system, which is aware of alien files
+            enumerator.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+
+            var enumeratorPip = SchedulePipBuilder(enumerator);
+
+            // Run once. Since writePip enumerates the dir, the alien enumeration is cached. EnumeratorPip runs afterwards and reuses the cached value, since it is enumerating the same dir.
+            // writePip has the source file coming from the pip filesystem (since it is statically declared) and enumeratorPip hasn't.
+            RunScheduler(constraintExecutionOrder:new[] {((Pip)writePip.Process, (Pip)enumeratorPip.Process)}).AssertSuccess();
+
+            // Run again but in opposite order. We should get a cache hit, which validates the alien enumeration caching is stable regardless of the outcome of the pip filesystem
+            RunScheduler(constraintExecutionOrder: new[] { ((Pip)enumeratorPip.Process, (Pip)writePip.Process) }).AssertSuccess().AssertCacheHit(enumeratorPip.Process.PipId, writePip.Process.PipId);
         }
 
         [Fact]

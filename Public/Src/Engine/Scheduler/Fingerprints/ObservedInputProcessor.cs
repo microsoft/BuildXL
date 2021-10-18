@@ -2102,12 +2102,6 @@ namespace BuildXL.Scheduler.Fingerprints
                             foreach (var realFileEntry in realFileEnumResult.Members)
                             {
                                 AbsolutePath realFileEntryPath = realFileEntry.Item1;
-                                // If the real entry is already part of the enumeration, this means it is also part of the pip file system 
-                                // and it is already included
-                                if (pipFileEnumResult.Contains(realFileEntry))
-                                {
-                                    continue;
-                                }
 
                                 // If the entry is a directory created by other pip, even if that directory is empty, it will be
                                 // ruled out here

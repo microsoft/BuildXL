@@ -3301,6 +3301,7 @@ namespace BuildXL.Engine
                 {"PathTableBytes", pathTable.SizeInBytes },
                 {"SymbolTableBytes", symbolTable.SizeInBytes },
                 {"StringTableBytes", stringTable.SizeInBytes },
+                {"StringTableCount", stringTable.Count },
                 {"StringTableLargeStringBytes", stringTable.LargeStringSize },
                 {"StringTableLargeStringCount", stringTable.LargeStringCount },
                 {"StringTableOverflowBufferStringCount", stringTable.OverflowedStringCount },

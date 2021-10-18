@@ -93,9 +93,9 @@ namespace BuildXL.Utilities
         /// Default overflow buffer number.
         /// </summary>
         /// <remarks>
-        /// Using 3 as the default value after measuring usage in the largest builds we run
+        /// Using 5 as the default value after measuring usage in the largest builds we run
         /// </remarks>
-        private static int s_defaultOverflowBufferCount = 3;
+        private static int s_defaultOverflowBufferCount = 5;
 
         // a StringId has the upper 11 bits as a buffer selector and the lower 21 bits as byte selector within the buffer
         // internals for use by the unit tests

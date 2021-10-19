@@ -483,21 +483,21 @@ config({
 
                 // DotNet Core Runtime 3.1
                 {
-                    moduleName: "DotNet-Runtime.win-x64.3.1.6",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/f01755a3-b9cf-4d63-acdd-e331337548d6/ab5385bc8a555e741bc093b3459015b7/dotnet-runtime-3.1.6-win-x64.zip",
-                    hash: "VSO0:9757187648C77E11F41303763ED2CCD427741616EE38376C40E96827671482C500",
+                    moduleName: "DotNet-Runtime.win-x64.3.1.19",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/931d585f-d14b-4714-93e7-b6c648b2aabd/8040f6c391002ae09b3e79662033eeb1/aspnetcore-runtime-3.1.19-win-x64.zip",
+                    hash: "VSO0:AA74CA39625548953060640B7F2D2B535A12E49B2E8995E66E86C774F2D6C4FC00",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64.3.1.6",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/d1a67dcf-12d9-4ecd-86a4-c4a659f0eebf/519db8ce56503d551d35ef9378239c70/dotnet-runtime-3.1.6-osx-x64.tar.gz",
-                    hash: "VSO0:F0FBE5172B7D57CE46EEF54BED6790EF197D841B53B83656982616DC193740D800",
+                    moduleName: "DotNet-Runtime.osx-x64.3.1.19",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d8fc8a1f-8d5f-4ab9-b847-5a265231987f/f634e0332753e0a436d16c7a9e0614dc/aspnetcore-runtime-3.1.19-osx-x64.tar.gz",
+                    hash: "VSO0:51F3BFF42A88CA9DE4034CC6EE895AB9151498DE380EA9A3B3D41E0CB7BE607600",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64.3.1.6",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/7c2978aa-1a4c-4fb0-a7cd-1dbaf1ce405d/c54e21f55dfa49d2ccdb599fa2edb9ed/dotnet-runtime-3.1.6-linux-x64.tar.gz",
-                    hash: "VSO0:713CA0FE106D1EEE837E4595312F4771CDD429147DA2E1CB66F85E2603DD9BA900",
+                    moduleName: "DotNet-Runtime.linux-x64.3.1.19",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/7a050aa5-7842-4bfa-a1c9-67c6c5995ea9/5592f443610943d5ca738ae92309dfab/aspnetcore-runtime-3.1.19-linux-x64.tar.gz",
+                    hash: "VSO0:C6CA26DD12EBC3A35AEEFAF400DA970F2AAAA6864EEF660247754594F4B330DF00",
                     archiveType: "tgz",
                 },
                 

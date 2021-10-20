@@ -76,41 +76,6 @@ namespace Tool.DropDaemon
         ///     Build Manifest Signing flag.
         /// </summary>
         public bool SignBuildManifest { get; }
-
-        /// <summary>
-        ///     Repo path of the code being build
-        /// </summary>
-        public string Repo { get; }
-
-        /// <summary>
-        ///     Current Git branch within the specified <see cref="Repo"/>
-        /// </summary>
-        public string Branch { get; }
-
-        /// <summary>
-        ///     Current Git CommitId within the specified <see cref="Repo"/>
-        /// </summary>
-        public string CommitId { get; }
-
-        /// <summary>
-        ///     Represents the RelativeActivityId specific to the cloud build environment
-        /// </summary>
-        public string CloudBuildId { get; }
-
-        /// <summary>
-        ///     Represents the BuildSessionInfo: bsi.json file path.
-        /// </summary>
-        public string BsiFileLocation { get; }
-
-        /// <summary>
-        ///     Represents the Path to makecat.exe for Build Manifest Catalog generation.
-        /// </summary>
-        public string MakeCatToolPath { get; }
-
-        /// <summary>
-        ///     Represents the Path to EsrpManifestSign.exe for Build Manifest Catalog Signing.
-        /// </summary>
-        public string EsrpManifestSignToolPath { get; }
         #endregion
 
         #region Defaults
@@ -163,14 +128,7 @@ namespace Tool.DropDaemon
             int? batchSize = null,
             byte? dropDomainId = null,
             bool? generateBuildManifest = null,
-            bool? signBuildManifest = null,
-            string repo = null,
-            string branch = null,
-            string commitId = null,
-            string cloudBuildId = null,
-            string bsiFileLocation = null,
-            string makeCatToolPath = null,
-            string esrpManifestSignToolPath = null)
+            bool? signBuildManifest = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -184,13 +142,6 @@ namespace Tool.DropDaemon
             DomainId = dropDomainId;
             GenerateBuildManifest = generateBuildManifest ?? DefaultGenerateBuildManifest;
             SignBuildManifest = signBuildManifest ?? DefaultSignBuildManifest;
-            Repo = repo ?? string.Empty;
-            Branch = branch ?? string.Empty;
-            CommitId = commitId ?? string.Empty;
-            CloudBuildId = cloudBuildId ?? string.Empty;
-            BsiFileLocation = bsiFileLocation ?? string.Empty;
-            MakeCatToolPath = makeCatToolPath ?? string.Empty;
-            EsrpManifestSignToolPath = esrpManifestSignToolPath ?? string.Empty;
         }
     }
 }

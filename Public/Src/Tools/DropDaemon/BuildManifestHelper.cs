@@ -157,36 +157,37 @@ HashAlgorithms=SHA256
         }
 
         /// <summary>
-        /// Checks if provided <see cref="DropConfig"/> contains all required fields for Build Manifest generation and signing.
+        /// Checks if provided <see cref="DropServiceConfig"/> contains all required fields for Build Manifest generation and signing,
+        /// if the feature is enabled according to the <see cref="DropConfig"/>.
         /// </summary>
         /// <returns>True if dropConfig contains all required fields</returns>
-        public static bool VerifyBuildManifestRequirements(DropConfig dropConfig, out string error)
+        public static bool VerifyBuildManifestRequirements(DropConfig dropConfig, DropServiceConfig serviceConfig, out string error)
         {
             if (dropConfig.GenerateBuildManifest)
             {
                 List<string> missingFields = new List<string>();
 
-                if (string.IsNullOrEmpty(dropConfig.Repo))
+                if (string.IsNullOrEmpty(serviceConfig.Repo))
                 {
                     missingFields.Add("repo");
                 }
 
-                if (string.IsNullOrEmpty(dropConfig.Branch))
+                if (string.IsNullOrEmpty(serviceConfig.Branch))
                 {
                     missingFields.Add("branch");
                 }
 
-                if (string.IsNullOrEmpty(dropConfig.CommitId))
+                if (string.IsNullOrEmpty(serviceConfig.CommitId))
                 {
                     missingFields.Add("commitId");
                 }
 
-                if (string.IsNullOrEmpty(dropConfig.CloudBuildId))
+                if (string.IsNullOrEmpty(serviceConfig.CloudBuildId))
                 {
                     missingFields.Add("cloudBuildId");
                 }
 
-                if (string.IsNullOrEmpty(dropConfig.BsiFileLocation))
+                if (string.IsNullOrEmpty(serviceConfig.BsiFileLocation))
                 {
                     missingFields.Add("BsiFileLocation");
                 }
@@ -197,9 +198,9 @@ HashAlgorithms=SHA256
                     return false;
                 }
 
-                if (!File.Exists(dropConfig.BsiFileLocation))
+                if (!File.Exists(serviceConfig.BsiFileLocation))
                 {
-                    error = $"GenerateBuildManifest = true, but the BSI File does not exist at : '{dropConfig.BsiFileLocation}";
+                    error = $"GenerateBuildManifest = true, but the BSI File does not exist at : '{serviceConfig.BsiFileLocation}";
                     return false;
                 }
             }
@@ -208,12 +209,12 @@ HashAlgorithms=SHA256
             {
                 List<string> missingFields = new List<string>();
 
-                if (string.IsNullOrEmpty(dropConfig.MakeCatToolPath))
+                if (string.IsNullOrEmpty(serviceConfig.MakeCatToolPath))
                 {
                     missingFields.Add("MakeCatToolPath");
                 }
 
-                if (string.IsNullOrEmpty(dropConfig.EsrpManifestSignToolPath))
+                if (string.IsNullOrEmpty(serviceConfig.EsrpManifestSignToolPath))
                 {
                     missingFields.Add("EsrpManifestSignToolPath");
                 }
@@ -226,14 +227,14 @@ HashAlgorithms=SHA256
 
                 List<string> missingFiles = new List<string>();
 
-                if (!File.Exists(dropConfig.MakeCatToolPath))
+                if (!File.Exists(serviceConfig.MakeCatToolPath))
                 {
-                    missingFiles.Add($"MakeCatTool does not exist at : '{dropConfig.MakeCatToolPath}'");
+                    missingFiles.Add($"MakeCatTool does not exist at : '{serviceConfig.MakeCatToolPath}'");
                 }
 
-                if (!File.Exists(dropConfig.EsrpManifestSignToolPath))
+                if (!File.Exists(serviceConfig.EsrpManifestSignToolPath))
                 {
-                    missingFiles.Add($"EsrpManifestSignTool does not exist at : '{dropConfig.EsrpManifestSignToolPath}'");
+                    missingFiles.Add($"EsrpManifestSignTool does not exist at : '{serviceConfig.EsrpManifestSignToolPath}'");
                 }
 
                 if (missingFiles.Count != 0)

@@ -854,11 +854,12 @@ namespace Test.Tool.DropDaemon
             string moniker = ServicePipDaemon.IpcProvider.RenderConnectionString(ServicePipDaemon.IpcProvider.CreateNewMoniker());
             var daemonConfig = new DaemonConfig(VoidLogger.Instance, moniker: moniker, enableCloudBuildIntegration: false);
             var dropConfig = new DropConfig("test", new Uri("file://xyz"));
+            var dropServiceConfig = new DropServiceConfig();
             if (apiClient == null)
             {
                 apiClient = new Client(new MockClient(ipcOperation => IpcResult.Success("true")));
             }
-            var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, client: apiClient);
+            var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, dropServiceConfig, client: apiClient);
             daemon.RegisterDropClientForTesting(dropConfig, dropClient);
             action(daemon, etwListener, dropConfig);
         }

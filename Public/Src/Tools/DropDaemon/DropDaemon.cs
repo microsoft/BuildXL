@@ -53,7 +53,7 @@ namespace Tool.DropDaemon
 
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
 
-        internal static readonly List<Option> DropConfigOptions = new List<Option>();
+        internal static readonly List<Option> ConfigOptions = new();
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
@@ -82,21 +82,35 @@ namespace Tool.DropDaemon
             },
         });
 
-        internal static readonly StrOption DropNameOption = RegisterDropConfigOption(new StrOption("name")
+        internal static readonly StrOption DropNameOption = RegisterConfigOption(new StrOption("name")
         {
             ShortName = "n",
             HelpText = "Drop name",
             IsRequired = true,
         });
 
-        internal static readonly UriOption DropEndpoint = RegisterDropConfigOption(new UriOption("service")
+        internal static readonly StrOption OptionalDropName = new StrOption(DropNameOption.LongName)
+        {
+            ShortName = DropNameOption.ShortName,
+            HelpText = DropNameOption.HelpText,
+            IsRequired = false,
+        };
+
+        internal static readonly UriOption DropEndpoint = RegisterConfigOption(new UriOption("service")
         {
             ShortName = "s",
             HelpText = "Drop endpoint URI",
             IsRequired = true,
         });
 
-        internal static readonly IntOption BatchSize = RegisterDropConfigOption(new IntOption("batchSize")
+        internal static readonly StrOption OptionalDropEndpoint = new StrOption(DropEndpoint.LongName)
+        {
+            ShortName = DropEndpoint.ShortName,
+            HelpText = DropEndpoint.HelpText,
+            IsRequired = false,
+        };
+
+        internal static readonly IntOption BatchSize = RegisterConfigOption(new IntOption("batchSize")
         {
             ShortName = "bs",
             HelpText = "OBSOLETE due to the hardcoded config. (Size of batches in which to send 'associate' requests)",
@@ -104,7 +118,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultBatchSizeForAssociate,
         });
 
-        internal static readonly IntOption MaxParallelUploads = RegisterDropConfigOption(new IntOption("maxParallelUploads")
+        internal static readonly IntOption MaxParallelUploads = RegisterConfigOption(new IntOption("maxParallelUploads")
         {
             ShortName = "mpu",
             HelpText = "Maximum number of uploads to issue to drop service in parallel",
@@ -112,7 +126,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultMaxParallelUploads,
         });
 
-        internal static readonly IntOption NagleTimeMillis = RegisterDropConfigOption(new IntOption("nagleTimeMillis")
+        internal static readonly IntOption NagleTimeMillis = RegisterConfigOption(new IntOption("nagleTimeMillis")
         {
             ShortName = "nt",
             HelpText = "OBSOLETE due to the hardcoded config. (Maximum time in milliseconds to wait before triggering a batch 'associate' request)",
@@ -120,7 +134,7 @@ namespace Tool.DropDaemon
             DefaultValue = (int)DropConfig.DefaultNagleTimeForAssociate.TotalMilliseconds,
         });
 
-        internal static readonly IntOption RetentionDays = RegisterDropConfigOption(new IntOption("retentionDays")
+        internal static readonly IntOption RetentionDays = RegisterConfigOption(new IntOption("retentionDays")
         {
             ShortName = "rt",
             HelpText = "Drop retention time in days",
@@ -128,14 +142,14 @@ namespace Tool.DropDaemon
             DefaultValue = (int)DropConfig.DefaultRetention.TotalDays,
         });
 
-        internal static readonly IntOption HttpSendTimeoutMillis = RegisterDropConfigOption(new IntOption("httpSendTimeoutMillis")
+        internal static readonly IntOption HttpSendTimeoutMillis = RegisterConfigOption(new IntOption("httpSendTimeoutMillis")
         {
             HelpText = "Timeout for http requests",
             IsRequired = false,
             DefaultValue = (int)DropConfig.DefaultHttpSendTimeout.TotalMilliseconds,
         });
 
-        internal static readonly BoolOption EnableTelemetry = RegisterDropConfigOption(new BoolOption("enableTelemetry")
+        internal static readonly BoolOption EnableTelemetry = RegisterConfigOption(new BoolOption("enableTelemetry")
         {
             ShortName = "t",
             HelpText = "Verbose logging",
@@ -143,7 +157,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultEnableTelemetry,
         });
 
-        internal static readonly BoolOption EnableChunkDedup = RegisterDropConfigOption(new BoolOption("enableChunkDedup")
+        internal static readonly BoolOption EnableChunkDedup = RegisterConfigOption(new BoolOption("enableChunkDedup")
         {
             ShortName = "cd",
             HelpText = "Chunk level dedup",
@@ -151,7 +165,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultEnableChunkDedup,
         });
 
-        internal static readonly NullableIntOption OptionalDropDomainId = RegisterDropConfigOption(new NullableIntOption("domainId")
+        internal static readonly NullableIntOption OptionalDropDomainId = RegisterConfigOption(new NullableIntOption("domainId")
         {
             ShortName = "ddid",
             HelpText = "Optional drop domain id setting.",
@@ -159,7 +173,7 @@ namespace Tool.DropDaemon
             DefaultValue = null,
         });
 
-        internal static readonly BoolOption GenerateBuildManifest = RegisterDropConfigOption(new BoolOption("generateBuildManifest")
+        internal static readonly BoolOption GenerateBuildManifest = RegisterConfigOption(new BoolOption("generateBuildManifest")
         {
             ShortName = "gbm",
             HelpText = "Generate a Build Manifest",
@@ -167,7 +181,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultGenerateBuildManifest,
         });
 
-        internal static readonly BoolOption SignBuildManifest = RegisterDropConfigOption(new BoolOption("signBuildManifest")
+        internal static readonly BoolOption SignBuildManifest = RegisterConfigOption(new BoolOption("signBuildManifest")
         {
             ShortName = "sbm",
             HelpText = "Sign the Build Manifest",
@@ -175,7 +189,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultSignBuildManifest,
         });
 
-        internal static readonly StrOption Repo = RegisterDropConfigOption(new StrOption("repo")
+        internal static readonly StrOption Repo = RegisterConfigOption(new StrOption("repo")
         {
             ShortName = "r",
             HelpText = "Repo location",
@@ -183,7 +197,7 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
-        internal static readonly StrOption Branch = RegisterDropConfigOption(new StrOption("branch")
+        internal static readonly StrOption Branch = RegisterConfigOption(new StrOption("branch")
         {
             ShortName = "b",
             HelpText = "Git branch name",
@@ -191,7 +205,7 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
-        internal static readonly StrOption CommitId = RegisterDropConfigOption(new StrOption("commitId")
+        internal static readonly StrOption CommitId = RegisterConfigOption(new StrOption("commitId")
         {
             ShortName = "ci",
             HelpText = "Git CommitId",
@@ -199,7 +213,7 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
-        internal static readonly StrOption CloudBuildId = RegisterDropConfigOption(new StrOption("cloudBuildId")
+        internal static readonly StrOption CloudBuildId = RegisterConfigOption(new StrOption("cloudBuildId")
         {
             ShortName = "cbid",
             HelpText = "RelativeActivityId",
@@ -207,7 +221,7 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
-        internal static readonly StrOption BsiFileLocation = RegisterDropConfigOption(new StrOption("bsiFileLocation")
+        internal static readonly StrOption BsiFileLocation = RegisterConfigOption(new StrOption("bsiFileLocation")
         {
             ShortName = "bsi",
             HelpText = "Represents the BuildSessionInfo: bsi.json file path.",
@@ -215,7 +229,7 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
-        internal static readonly StrOption MakeCatToolPath = RegisterDropConfigOption(new StrOption("makeCatToolPath")
+        internal static readonly StrOption MakeCatToolPath = RegisterConfigOption(new StrOption("makeCatToolPath")
         {
             ShortName = "makecat",
             HelpText = "Represents the Path to makecat.exe for Build Manifest Catalog generation.",
@@ -223,7 +237,7 @@ namespace Tool.DropDaemon
             DefaultValue = string.Empty,
         });
 
-        internal static readonly StrOption EsrpManifestSignToolPath = RegisterDropConfigOption(new StrOption("esrpManifestSignToolPath")
+        internal static readonly StrOption EsrpManifestSignToolPath = RegisterConfigOption(new StrOption("esrpManifestSignToolPath")
         {
             ShortName = "esrpTool",
             HelpText = "Represents the Path to EsrpManifestSign.exe for Build Manifest Catalog Signing.",
@@ -275,7 +289,8 @@ namespace Tool.DropDaemon
             clientAction: (conf, _) =>
             {
                 var daemonConfig = CreateDaemonConfig(conf);
-                using (var daemon = new DropDaemon(conf.Config.Parser, daemonConfig))
+                var dropServiceConfig = CreateDropServiceConfig(conf);
+                using (var daemon = new DropDaemon(conf.Config.Parser, daemonConfig, dropServiceConfig))
                 {
                     daemon.Start();
                     daemon.Completion.GetAwaiter().GetResult();
@@ -283,15 +298,24 @@ namespace Tool.DropDaemon
                 }
             });
 
+        /// The start command does not take name and service endpoint options, but we have to recognize them
+        /// for backwards compatibility so we take them optional instead.
+        private static List<Option> StartConfigOptions
+            => ConfigOptions
+                .Except(new Option[] { DropNameOption, DropEndpoint })
+                .Union(new[] { OptionalDropName, OptionalDropEndpoint, IpcServerMonikerOptional })
+                .ToList();
+
         internal static readonly Command StartCmd = RegisterCommand(
            name: "start",
            description: "Starts the server process.",
-           options: new[] { IpcServerMonikerOptional },
+           options: StartConfigOptions,
            needsIpcClient: false,
            clientAction: (conf, _) =>
            {
                SetupThreadPoolAndServicePoint(s_minWorkerThreadsForDrop, s_minIoThreadsForDrop, ServicePointParallelismForDrop);
                var daemonConf = CreateDaemonConfig(conf);
+               var serviceConf = CreateDropServiceConfig(conf);
 
                if (daemonConf.MaxConcurrentClients <= 1)
                {
@@ -303,6 +327,7 @@ namespace Tool.DropDaemon
                using (var daemon = new DropDaemon(
                    parser: conf.Config.Parser,
                    daemonConfig: daemonConf,
+                   serviceConfig: serviceConf,
                    client: client))
                {
                    daemon.Start();
@@ -314,7 +339,7 @@ namespace Tool.DropDaemon
         internal static readonly Command StartDaemonCmd = RegisterCommand(
            name: "start-daemon",
            description: "Starts the server process in background (as daemon).",
-           options: DropConfigOptions,
+           options: ConfigOptions,
            needsIpcClient: false,
            clientAction: (conf, _) =>
            {
@@ -335,7 +360,7 @@ namespace Tool.DropDaemon
         internal static readonly Command CreateDropCmd = RegisterCommand(
            name: "create",
            description: "[RPC] Invokes the 'create' operation.",
-           options: DropConfigOptions,
+           options: ConfigOptions,
            clientAction: SyncRPCSend,
            serverAction: async (conf, dropDaemon) =>
            {
@@ -348,7 +373,7 @@ namespace Tool.DropDaemon
                    conf.Logger.Warning("SignBuildManifest = true and GenerateBuildManifest = false. The BuildManifest will not be generated, and thus cannot be signed.");
                }
 
-               if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, out string errMessage))
+               if (!BuildManifestHelper.VerifyBuildManifestRequirements(dropConfig, daemon.DropServiceConfig, out string errMessage))
                {
                    daemon.Logger.Error($"[CREATE]: Cannot create drop due to an invalid build manifest configuration: {errMessage}");
                    return new IpcResult(IpcResultStatus.InvalidInput, errMessage);
@@ -393,7 +418,7 @@ namespace Tool.DropDaemon
         internal static readonly Command FinalizeDropCmd = RegisterCommand(
            name: "finalizeDrop",
            description: "[RPC] Invokes the 'finalize' operation for a particular drop",
-           options: DropConfigOptions.Union(new[] { IpcServerMonikerOptional }),
+           options: ConfigOptions.Union(new[] { IpcServerMonikerOptional }),
            clientAction: SyncRPCSend,
            serverAction: async (conf, dropDaemon) =>
            {
@@ -422,7 +447,7 @@ namespace Tool.DropDaemon
         internal static readonly Command AddFileToDropCmd = RegisterCommand(
             name: "addfile",
             description: "[RPC] invokes the 'addfile' operation.",
-            options: DropConfigOptions.Union(new Option[] { File, RelativeDropPath, HashOptional }),
+            options: ConfigOptions.Union(new Option[] { File, RelativeDropPath, HashOptional }),
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
@@ -443,7 +468,7 @@ namespace Tool.DropDaemon
         internal static readonly Command AddArtifactsToDropCmd = RegisterCommand(
             name: "addartifacts",
             description: "[RPC] invokes the 'addartifacts' operation.",
-            options: DropConfigOptions.Union(new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace }),
+            options: ConfigOptions.Union(new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace }),
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
@@ -461,6 +486,25 @@ namespace Tool.DropDaemon
         #endregion
 
         /// <summary>
+        /// Drop daemon service configuration
+        /// </summary>
+        public DropServiceConfig DropServiceConfig { get; }
+
+        /// <summary>
+        /// Creates DropServiceConfig using the values specified on the ConfiguredCommand
+        /// </summary>        
+        public static DropServiceConfig CreateDropServiceConfig(ConfiguredCommand conf)
+        {
+            return new DropServiceConfig(repo: conf.Get(Repo),
+                branch: conf.Get(Branch),
+                commitId: conf.Get(CommitId),
+                cloudBuildId: conf.Get(CloudBuildId),
+                bsiFileLocation: conf.Get(BsiFileLocation),
+                makeCatToolPath: conf.Get(MakeCatToolPath),
+                esrpManifestSignToolPath: conf.Get(EsrpManifestSignToolPath));
+        }
+
+        /// <summary>
         /// The purpose of this ctor is to force 'predictable' initialization of static fields.
         /// </summary>
         static DropDaemon()
@@ -469,13 +513,14 @@ namespace Tool.DropDaemon
         }
 
         /// <nodoc />
-        public DropDaemon(IParser parser, DaemonConfig daemonConfig, IIpcProvider rpcProvider = null, Client client = null)
+        public DropDaemon(IParser parser, DaemonConfig daemonConfig, DropServiceConfig serviceConfig, IIpcProvider rpcProvider = null, Client client = null)
             : base(parser,
                    daemonConfig,
                    !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? new FileLogger(daemonConfig.LogDir, LogFileName, daemonConfig.Moniker, daemonConfig.Verbose, DropDLogPrefix) : daemonConfig.Logger,
                    rpcProvider,
                    client)
         {
+            DropServiceConfig = serviceConfig;
         }
 
         internal static void EnsureCommandsInitialized()
@@ -613,12 +658,12 @@ namespace Tool.DropDaemon
         {
             Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateBuildManifestData API called even though Build Manifest Generation is Disabled in DropConfig");
 
-            if (!System.IO.File.Exists(dropConfig.BsiFileLocation))
+            if (!System.IO.File.Exists(DropServiceConfig.BsiFileLocation))
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"BuildSessionInfo not found at provided BsiFileLocation: '{dropConfig.BsiFileLocation}'");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"BuildSessionInfo not found at provided BsiFileLocation: '{DropServiceConfig.BsiFileLocation}'");
             }
 
-            var bsiDropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), dropConfig.BsiFileLocation, relativeDropPath: BuildManifestHelper.DropBsiPath);
+            var bsiDropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), DropServiceConfig.BsiFileLocation, relativeDropPath: BuildManifestHelper.DropBsiPath);
             return await AddFileAsync(bsiDropItem);
         }
 
@@ -645,10 +690,10 @@ namespace Tool.DropDaemon
             BuildManifestData buildManifestData = new BuildManifestData(
                 CloudBuildManifestV1.ManifestInfoV1.Version,
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                dropConfig.CloudBuildId,
-                dropConfig.Repo,
-                dropConfig.Branch,
-                dropConfig.CommitId,
+                DropServiceConfig.CloudBuildId,
+                DropServiceConfig.Repo,
+                DropServiceConfig.Branch,
+                DropServiceConfig.CommitId,
                 manifestFileListForDrop);
 
             string localFilePath;
@@ -695,10 +740,10 @@ namespace Tool.DropDaemon
             Contract.Requires(dropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");
 
             var generateCatalogResult = await BuildManifestHelper.GenerateSignedCatalogAsync(
-                dropConfig.MakeCatToolPath,
-                dropConfig.EsrpManifestSignToolPath,
+                DropServiceConfig.MakeCatToolPath,
+                DropServiceConfig.EsrpManifestSignToolPath,
                 buildManifestLocalPath,
-                dropConfig.BsiFileLocation);
+                DropServiceConfig.BsiFileLocation);
 
             if (!generateCatalogResult.Success)
             {
@@ -1023,17 +1068,10 @@ namespace Tool.DropDaemon
                 batchSize: conf.Get(BatchSize),
                 dropDomainId: domainId,
                 generateBuildManifest: conf.Get(GenerateBuildManifest),
-                signBuildManifest: conf.Get(SignBuildManifest),
-                repo: conf.Get(Repo),
-                branch: conf.Get(Branch),
-                commitId: conf.Get(CommitId),
-                cloudBuildId: conf.Get(CloudBuildId),
-                bsiFileLocation: conf.Get(BsiFileLocation),
-                makeCatToolPath: conf.Get(MakeCatToolPath),
-                esrpManifestSignToolPath: conf.Get(EsrpManifestSignToolPath));
+                signBuildManifest: conf.Get(SignBuildManifest));
         }
 
-        private static T RegisterDropConfigOption<T>(T option) where T : Option => RegisterOption(DropConfigOptions, option);
+        private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)
         {

@@ -366,13 +366,15 @@ export namespace DropDaemonRunner {
         return args.override<UberArguments>({ipcMoniker: moniker});
     }
 
-    function asServiceStartArgs(args: (DaemonSettings & CommonArguments)) : ServiceStartArguments {
+    function asServiceStartArgs(args: (DaemonSettings & DropOperationArguments)) : ServiceStartArguments {
         // We need to get rid of the extra options carried by DropCreateArguments
         // which would be iterated as arguments and then not recognized by the option parser.
         // Casting is not enough, as the properties will be preserved in the underlying object.  
         // TODO: Support something like this from DScript itself? 
         return <ServiceStartArguments> 
         {
+            dropServiceConfigFile: args.dropServiceConfigFile,
+
             // DaemonSettings
             maxConcurrentClients: args.maxConcurrentClients,
             enableCloudBuildIntegration: args.enableCloudBuildIntegration,
@@ -441,6 +443,11 @@ export namespace DropDaemonRunner {
                 Cmd.flag("--verbose", true),
                 Cmd.option("--logDir ", dropLogDirectory.path),
                 ...additionalCmdArgs,
+                ...addIf(
+                    command === "start",
+                    Cmd.option("--dropServiceConfigFile ",
+                                Artifact.input(Environment.getFileValue("BUILDXL_DROP_SERVICE_CONFIG")))
+                ),
                 Cmd.option(
                     "--dropServiceConfigFile ",
                     Artifact.input(args.dropServiceConfigFile)
@@ -449,21 +456,13 @@ export namespace DropDaemonRunner {
                 // --generateBuildManifest Needs to be set after --dropServiceConfigFile to overwrite the bool set by json config
                 // Used to enable ABTesting Build Manifest via BXL ENV var, safe to remove after complete feature rollout
                 ...addIf(
-                    command === "create" && Environment.getFlag("BuildXLEnableBuildManifestGeneration") === true,
-                    Cmd.flag("--generateBuildManifest", true)
-                ),
-                ...addIf(
-                    command === "create" && Environment.getFlag("BuildXLEnableBuildManifestSigning") === true,
-                    Cmd.flag("--signBuildManifest", true)
-                ),
-                // Disable flags will have precedence
-                ...addIf(
-                    command === "create" && Environment.getFlag("BuildXLDisableBuildManifestGeneration") === true,
-                    Cmd.flag("--generateBuildManifest", false)
-                ),
-                ...addIf(
-                    command === "create" && Environment.getFlag("BuildXLDisableBuildManifestSigning") === true,
-                    Cmd.flag("--signBuildManifest", false)
+                    command === "create",
+                    Cmd.flag("--generateBuildManifest", 
+                            Environment.getFlag("BuildXLEnableBuildManifestGeneration") === true 
+                            && Environment.getFlag("BuildXLDisableBuildManifestGeneration") !== true),
+                    Cmd.flag("--signBuildManifest", 
+                        Environment.getFlag("BuildXLEnableBuildManifestSigning") === true 
+                        && Environment.getFlag("BuildXLDisableBuildManifestSigning") !== true)
                 ),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),

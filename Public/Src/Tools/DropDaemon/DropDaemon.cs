@@ -628,6 +628,13 @@ namespace Tool.DropDaemon
 
         private async Task<IIpcResult> ProcessBuildManifestForDropAsync(DropConfig dropConfig)
         {
+            // Get the config saved on create, which holds the build manifest settings
+            var dropName = FullyQualifiedDropName(dropConfig);
+            if (m_vsoClients.TryGetValue(dropName, out var configAndClient))
+            {
+                dropConfig = configAndClient.dropConfig;
+            }
+
             if (!dropConfig.GenerateBuildManifest)
             {
                 return IpcResult.Success();

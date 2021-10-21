@@ -1,6 +1,18 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20211014.2.2 (Release [119987](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=119987&_a=release-pipeline-progress)) Released 10/20/2021
+-	Only consider stale shared opaques in minimal + alien enumeration mode when lazy scrubbing is enabled.
+-	Various fixes in DropDaemon service and SDK.
+-	Direct console output to parent when there is no stdout/stderr hook for UnsandboxedProcess.
+-	Improve compatibility with EnforceSomeTypeSanity linter policy.
+-	Add environment variable BuildXLGrpcVerbosityLevel to control the verbosity level of GRPC logging. 
+-	Use CloudBuild’s ESRP sign tool to sign BuildXL binaries.
+-	.NET 6 support for Nuget spec generator.
+-	Optimization: Replace blocking collection with concurrent queue for processing events in binary logger.
+-	Various bug fixes.
+
+
 # 0.1.0-20211003.0.1 (Release [119237](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=119237)) Released 10/06/2021
 -	Multi-drop handling by a single daemon 
 -	Add various Materialization Daemon counters

@@ -916,16 +916,16 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] The cache entry for strong fingerprint {strongFingerprint} could not be found, but the cache listed it as available for weak fingerprint {weakFingerprint}. " +
-                      "This is an unexpected cache inconsistency, and will result in a cache-miss for this pip.")]
+                      "This will result in a cache-miss for this pip.")]
         internal abstract void TwoPhaseCacheEntryMissing(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string strongFingerprint);
 
         [GeneratedEvent(
             (int)LogEventId.TwoPhaseFetchingCacheEntryFailed,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Failed to retrieve the cache entry for strong fingerprint {strongFingerprint}. This is an unexpected cache inconsistency, and will result in a cache-miss for this pip. Failure: {failure}")]
+            Message = "[{pipDescription}] Failed to retrieve the cache entry for strong fingerprint {strongFingerprint}. This will result in a cache-miss for this pip. Failure: {failure}")]
         internal abstract void TwoPhaseFetchingCacheEntryFailed(LoggingContext loggingContext, string pipDescription, string strongFingerprint, string failure);
 
         [GeneratedEvent(
@@ -941,10 +941,10 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (int)LogEventId.TwoPhaseFetchingMetadataForCacheEntryFailed,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Failed to retrieve metadata (content hash {metadataHash}) for the cache entry with strong fingerprint {strongFingerprint}. This is an unexpected cache inconsistency, and will result in a cache-miss for this pip. Failure: {failure}")]
+            Message = "[{pipDescription}] Failed to retrieve metadata (content hash {metadataHash}) for the cache entry with strong fingerprint {strongFingerprint}. This will result in a cache-miss for this pip. Failure: {failure}")]
         internal abstract void TwoPhaseFetchingMetadataForCacheEntryFailed(LoggingContext loggingContext, string pipDescription, string strongFingerprint, string metadataHash, string failure);
 
         [GeneratedEvent(

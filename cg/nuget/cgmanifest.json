@@ -546,7 +546,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "3.1.5"
+          "Version": "3.1.20"
         }
       }
     },
@@ -555,7 +555,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "5.0.0"
+          "Version": "5.0.11"
         }
       }
     },
@@ -564,7 +564,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "3.1.5"
+          "Version": "3.1.20"
         }
       }
     },
@@ -573,7 +573,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "5.0.0"
+          "Version": "5.0.11"
         }
       }
     },
@@ -582,7 +582,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "3.1.5"
+          "Version": "3.1.20"
         }
       }
     },
@@ -591,7 +591,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "5.0.0"
+          "Version": "5.0.11"
         }
       }
     },

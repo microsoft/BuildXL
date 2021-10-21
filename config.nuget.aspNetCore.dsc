@@ -6,9 +6,10 @@ const aspVersion = "2.2.0";
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
 const aspRefVersion = "3.1.3";
-const aspRuntimeVersion = "3.1.5";
+const aspRuntimeVersion = "3.1.20";
 
-const asp5Version = "5.0.0";
+const asp5RefVersion = "5.0.0";
+const asp5RuntimeVersion = "5.0.11";
 
 export const pkgs = [
     // aspnet web api
@@ -33,8 +34,8 @@ export const pkgs = [
     { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: aspRuntimeVersion },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: aspRuntimeVersion },
 
-    { id: "Microsoft.AspNetCore.App.Ref", version: asp5Version, alias: "Microsoft.AspNetCore.App.Ref.5.0.0" },
-    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp5Version, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.5.0.0" },
-    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp5Version, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.5.0.0" },
-    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp5Version, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.5.0.0" },
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp5RefVersion, alias: "Microsoft.AspNetCore.App.Ref.5.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp5RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.5.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp5RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.5.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp5RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.5.0.0" },
 ];

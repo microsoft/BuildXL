@@ -7733,7 +7733,7 @@ namespace BuildXL.Scheduler
                 {
                     // Previous termination call may not have requested cancellation of already running pips.
                     // Hence we need to process that part of the request even if another termination is already in progress.
-                    m_schedulerCancellationTokenSource.Cancel();
+                    m_schedulerCancellationTokenSource?.Cancel();
                 }
                 return;
             }
@@ -7756,7 +7756,7 @@ namespace BuildXL.Scheduler
             if (cancelRunningPips)
             {
                 // Cancel actively running external processes.
-                m_schedulerCancellationTokenSource.Cancel();
+                m_schedulerCancellationTokenSource?.Cancel();
             }
         }
 

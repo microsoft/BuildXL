@@ -314,7 +314,7 @@ namespace BuildXL.Scheduler.Tracing
                 Counters.IncrementCounter(FingerprintStoreCounters.NumDirectoryMembershipEvents);
 
                 var stringContentHash = ContentHashToString(data.DirectoryFingerprint.Hash);
-                if (!ExecutionFingerprintStore.TryGetContentHashValue(stringContentHash, out var value ))
+                if (!ExecutionFingerprintStore.ContainsContentHash(stringContentHash))
                 {
                     Counters.IncrementCounter(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut);
                     ExecutionFingerprintStore.PutContentHash(stringContentHash, JsonSerialize(data));

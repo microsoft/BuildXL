@@ -17,6 +17,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -707,6 +708,18 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
+        /// <summary>
+        /// Under high load querying rocksdb for the presence of a given hash becomes expensive. Keep
+        /// a bounded capacity cache to speed up the operation.
+        /// </summary>
+        /// <remarks>
+        /// This cache only contains the hashes that are known to be present in rocksdb storage.
+        /// The value is actually never used, just the presence of the key.
+        /// Consider this cache is valid as long as garbage collection happens on Dispose only (which is the
+        /// current case)
+        /// </remarks>
+        private readonly ObjectCache<(string, string), bool> m_hashCache;
+
         private readonly LruEntryTracker m_lruEntryTracker;
 
         /// <summary>
@@ -865,6 +878,11 @@ namespace BuildXL.Scheduler.Tracing
 
             // Don't track or modify TTL of entries during read only sessions
             m_lruEntryTracker = Accessor.ReadOnly ? null : new LruEntryTracker();
+            
+            // The capacity was calculated by using the Outlook client-web queue, which is likely an upper
+            // bound in terms of the ratio of hashes coming from directory enumerations over number of pips/overall build size
+            m_hashCache = new ObjectCache<(string, string), bool>(HashCodeHelper.GetGreaterOrEqualPrime(1000));
+
             m_loggingContext = loggingContext;
 
             if (testHooks?.MaxEntryAge != null)
@@ -1367,6 +1385,12 @@ namespace BuildXL.Scheduler.Tracing
                 return false;
             }
 
+            // Check whether the local cache has it to avoid querying rocksdb
+            if (m_hashCache.TryGetValue((key, columnFamilyName), out _))
+            {
+                return true;
+            }
+
             var keyFound = false;
             Analysis.IgnoreResult(
                 Accessor.Use(store =>
@@ -1374,6 +1398,12 @@ namespace BuildXL.Scheduler.Tracing
                     keyFound = store.Contains(key, columnFamilyName);
                 })
             );
+
+            // If rocksdb has it, update the local cache
+            if (keyFound)
+            {
+                m_hashCache.AddItem((key, columnFamilyName), true);
+            }
 
             return keyFound;
         }
@@ -1383,6 +1413,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool ContainsContentHash(string contentHash, bool putPurposeCheck = false)
         {
+            m_lruEntryTracker?.TrackPipUniqueOutputHashEntry(contentHash);
             return ContainsInternal(contentHash.ToString(), ColumnNames.ContentHashes);
         }
 

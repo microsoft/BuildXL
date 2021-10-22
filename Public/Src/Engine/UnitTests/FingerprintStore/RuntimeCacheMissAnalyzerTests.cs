@@ -60,7 +60,7 @@ namespace Test.BuildXL.FingerprintStore
 
         private readonly SchedulerTestHooks m_testHooks = new SchedulerTestHooks()
         {
-            FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
+            FingerprintStoreTestHooks = new FingerprintStoreTestHooks() { MaxEntryAge = TimeSpan.FromDays(1) }
         };
 
         [Fact]

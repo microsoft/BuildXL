@@ -1,53 +1,70 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using BuildXL.Utilities.PackedTable;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.PackedExecution
 {
-    /// <summary>
-    /// Information about a process pip's execution.
-    /// </summary>
-    /// <remarks>
-    /// Right now this is the most rudimentary information imaginable.
-    /// </remarks>
-    public struct PipExecutionEntry
+    /// <summary>Indicates the manner in which a pip executed.</summary>
+    public enum PipExecutionLevel
+    {
+        /// <summary>The pip's full work was performed.</summary>
+        Executed,
+
+        /// <summary>The pip was cached, and some work was performed to deploy it from cache.</summary>
+        Cached,
+
+        /// <summary>The pip was fully up to date.</summary>
+        UpToDate,
+
+        /// <summary>The pip failed.</summary>
+        Failed,
+    }
+
+    /// <summary>Information about a pip's execution.</summary>
+    /// <remarks>Based on the BuildXL PipExecutionPerformance type.</remarks>
+    public readonly struct PipExecutionEntry
     {
         /// <summary>
-        /// The worker on which this pip executed.
+        /// Indicates the manner in which a pip executed.
         /// </summary>
-        public readonly WorkerId Worker;
+        public readonly PipExecutionLevel ExecutionLevel;
 
         /// <summary>
-        /// Construct a PipExecutionEntry.
+        /// Start time in UTC.
+        /// </summary>
+        public readonly DateTime ExecutionStart;
+
+        /// <summary>
+        /// Stop time in UTC.
+        /// </summary>
+        public readonly DateTime ExecutionStop;
+
+        /// <summary>Worker identifier.</summary>
+        public readonly WorkerId WorkerId;
+
+        /// <summary>Construct a PipExecutionEntry.
         /// </summary>
         public PipExecutionEntry(
-            WorkerId worker)
+            PipExecutionLevel executionLevel,
+            DateTime executionStart,
+            DateTime executionStop,
+            WorkerId workerId)
         {
-            Worker = worker;
-        }
-
-        /// <summary>
-        /// Has this execution entry been initialized?
-        /// </summary>
-        /// <returns></returns>
-        public bool IsInitialized()
-        {
-            return Worker.FromId() > 0;
+            ExecutionLevel = executionLevel;
+            ExecutionStart = executionStart;
+            ExecutionStop = executionStop;
+            WorkerId = workerId;
         }
     }
 
-    /// <summary>
-    /// Table of pip execution data.
-    /// </summary>
+    /// <summary>Table of pip execution data.</summary>
     /// <remarks>
-    /// Since this table has the master PipTable as its base table, this table will have as many entries as
-    /// the PipTable. Since most pips in the overall graph are not process pips, that means most entries in
-    /// this table will be empty (e.g. 
+    /// This will generally have exactly one entry per pip, so it could be a SingleValueTable, but it is more
+    /// convenient to construct as a MultiValueTable.
     /// </remarks>
-    public class PipExecutionTable : SingleValueTable<PipId, PipExecutionEntry>
+    public class PipExecutionTable : MultiValueTable<PipId, PipExecutionEntry>
     {
         /// <summary>
         /// Construct a PipExecutionTable.

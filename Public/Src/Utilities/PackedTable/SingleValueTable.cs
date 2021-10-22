@@ -42,12 +42,12 @@ namespace BuildXL.Utilities.PackedTable
             get
             {
                 CheckValid(id);
-                return SingleValues[id.FromId() - 1];
+                return SingleValues[id.Value - 1];
             }
             set
             {
                 CheckValid(id);
-                SingleValues[id.FromId() - 1] = value;
+                SingleValues[id.Value - 1] = value;
             }
         }
 
@@ -57,7 +57,7 @@ namespace BuildXL.Utilities.PackedTable
         public TId Add(TValue value)
         {
             SingleValues.Add(value);
-            return default(TId).ToId(Count);
+            return default(TId).CreateFrom(Count);
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace BuildXL.Utilities.PackedTable
                 // Prepopulate the dictionary that does the caching
                 for (int i = 0; i < ValueTable.Count; i++)
                 {
-                    TId id = default(TId).ToId(i + 1);
+                    TId id = default(TId).CreateFrom(i + 1);
                     Entries.Add(ValueTable[id], id);
                 }
             }
@@ -115,7 +115,6 @@ namespace BuildXL.Utilities.PackedTable
             /// </summary>
             /// <param name="value">The updated value to use now.</param>
             /// <param name="optCombiner">Function to combine old and new values to determine final updated value.</param>
-            /// <returns></returns>
             public virtual TId UpdateOrAdd(TValue value, Func<TValue, TValue, TValue> optCombiner = null)
             {
                 if (Entries.TryGetValue(value, out TId id))

@@ -17,7 +17,7 @@ if "%1" == "-usedev" (
 )
 
 echo.
-REM Runing the XLG BuildXL analyzer: %BxlAnalyzerPath%\bxlanalyzer.exe
+@echo Running the XLG BuildXL analyzer: %BxlAnalyzerPath%\bxlanalyzer.exe
 echo.
 %BxlAnalyzerPath%\bxlanalyzer.exe %1 %2 %3 %4 %5 %6 %7 %8 %9
 if %ERRORLEVEL% NEQ 0 (

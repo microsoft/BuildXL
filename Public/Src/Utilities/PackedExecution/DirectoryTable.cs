@@ -1,37 +1,66 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.PackedTable;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Utilities.PackedTable;
 
 namespace BuildXL.Utilities.PackedExecution
 {
     /// <summary>
-    /// Boilerplate ID type to avoid ID confusion in code.
+    /// IDs of directories; corresponds to BuildXL DirectoryArtifact.
     /// </summary>
-    public struct DirectoryId : Id<DirectoryId>, IEqualityComparer<DirectoryId>
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+    public struct DirectoryId : Id<DirectoryId>
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
     {
-        /// <summary>Value as int.</summary>
-        public readonly int Value;
-        /// <summary>Constructor.</summary>
-        public DirectoryId(int value) { Id<StringId>.CheckNotZero(value); Value = value; }
-        /// <summary>Eliminator.</summary>
-        public int FromId() => Value;
-        /// <summary>Introducer.</summary>
-        public DirectoryId ToId(int value) => new DirectoryId(value);
-        /// <summary>Debugging.</summary>
+        /// <nodoc />
+        public readonly struct EqualityComparer : IEqualityComparer<DirectoryId>
+        {
+            /// <nodoc />
+            public bool Equals(DirectoryId x, DirectoryId y) => x.Value == y.Value;
+            /// <nodoc />
+            public int GetHashCode(DirectoryId obj) => obj.Value;
+        }
+
+        private readonly int m_value;
+
+        /// <nodoc />
+        public int Value => m_value;
+
+        /// <nodoc />
+        public DirectoryId(int value)
+        {
+            Id<DirectoryId>.CheckValidId(value);
+            m_value = value;
+        }
+
+        /// <nodoc />
+        public DirectoryId CreateFrom(int value) => new(value);
+
+        /// <nodoc />
         public override string ToString() => $"DirectoryId[{Value}]";
-        /// <summary>Comparison.</summary>
-        public bool Equals([AllowNull] DirectoryId x, [AllowNull] DirectoryId y) => x.Value == y.Value;
-        /// <summary>Hashing.</summary>
-        public int GetHashCode([DisallowNull] DirectoryId obj) => obj.Value;
+
+        /// <nodoc />
+        public static bool operator ==(DirectoryId x, DirectoryId y) => x.Value == y.Value;
+
+        /// <nodoc />
+        public static bool operator !=(DirectoryId x, DirectoryId y) => !(x == y);
+
+        /// <nodoc />
+        public IEqualityComparer<DirectoryId> Comparer => default(EqualityComparer);
+
+        /// <nodoc />
+        public int CompareTo([AllowNull] DirectoryId other) => Value.CompareTo(other.Value);
     }
 
     /// <summary>
-    /// Information about a single file.
+    /// Information about a single directory.
     /// </summary>
-    public struct DirectoryEntry 
+    public readonly struct DirectoryEntry 
     {
         /// <summary>
         /// The directory path.
@@ -45,37 +74,69 @@ namespace BuildXL.Utilities.PackedExecution
         /// The content flags for this directory.
         /// </summary>
         public readonly ContentFlags ContentFlags;
+        /// <summary>
+        /// This corresponds exactly to the (internal) DirectoryArtifact field with the same name.
+        /// </summary>
+        public readonly uint IsSharedOpaquePlusPartialSealId;
+
+        private const byte IsSharedOpaqueShift = 31;
+
+        private const uint IsSharedOpaqueBit = 1U << IsSharedOpaqueShift;
+
+        private const uint PartialSealIdMask = (1U << IsSharedOpaqueShift) - 1;
 
         /// <summary>
         /// Construct a DirectoryEntry.
         /// </summary>
-        public DirectoryEntry(NameId path, PipId producerPip, ContentFlags contentFlags)
-        { 
+        public DirectoryEntry(NameId path, PipId producerPip, ContentFlags contentFlags, bool isSharedOpaque, uint partialSealId)
+        {
+            Contract.Requires(!isSharedOpaque || (partialSealId > 0), "A shared opaque directory should always have a proper seal id");
+            Contract.Requires((partialSealId & ~PartialSealIdMask) == 0, "The most significant bit of a partial seal id should not be used");
+
             Path = path;
             ProducerPip = producerPip;
             ContentFlags = contentFlags;
+            IsSharedOpaquePlusPartialSealId = partialSealId | (isSharedOpaque ? IsSharedOpaqueBit : 0);
+        }
+
+        /// <summary>
+        /// Construct a DirectoryEntry with an already-encoded partial seal field.
+        /// </summary>
+        public DirectoryEntry(NameId path, PipId producerPip, ContentFlags contentFlags, uint isSharedOpaquePlusPartialSealId)
+        {
+            Path = path;
+            ProducerPip = producerPip;
+            ContentFlags = contentFlags;
+            IsSharedOpaquePlusPartialSealId = isSharedOpaquePlusPartialSealId;
         }
 
         /// <summary>
         /// Construct a DirectoryEntry with replaced content flags.
         /// </summary>
-        public DirectoryEntry WithContentFlags(ContentFlags contentFlags) { return new DirectoryEntry(Path, ProducerPip, contentFlags); }
+        public DirectoryEntry WithContentFlags(ContentFlags contentFlags) 
+            => new DirectoryEntry(Path, ProducerPip, contentFlags, IsSharedOpaquePlusPartialSealId);
 
         /// <summary>
-        /// Equality comparison.
+        /// The unique id for partially sealed directories
         /// </summary>
+        public uint PartialSealId => IsSharedOpaquePlusPartialSealId & PartialSealIdMask;
+
+        /// <summary>
+        /// Whether this directory represents a shared opaque directory
+        /// </summary>
+        public bool IsSharedOpaque => (IsSharedOpaquePlusPartialSealId & IsSharedOpaqueBit) != 0;
+
+        /// <nodoc />
         public struct EqualityComparer : IEqualityComparer<DirectoryEntry>
         {
-            /// <summary>
-            /// Equality.
-            /// </summary>
-            public bool Equals(DirectoryEntry x, DirectoryEntry y) => x.Path.Equals(y.Path);
-            /// <summary>
-            /// Hashing.
-            /// </summary>
-            /// <param name="obj"></param>
-            /// <returns></returns>
-            public int GetHashCode([DisallowNull] DirectoryEntry obj) => obj.Path.GetHashCode();
+            /// <nodoc />
+            public bool Equals(DirectoryEntry x, DirectoryEntry y) 
+                => x.Path.Equals(y.Path) 
+                   && x.IsSharedOpaquePlusPartialSealId == y.IsSharedOpaquePlusPartialSealId;
+
+            /// <nodoc />
+            public int GetHashCode([DisallowNull] DirectoryEntry obj) 
+                => obj.Path.GetHashCode() ^ obj.IsSharedOpaquePlusPartialSealId.GetHashCode();
         }
     }
 
@@ -88,10 +149,10 @@ namespace BuildXL.Utilities.PackedExecution
     public class DirectoryTable : SingleValueTable<DirectoryId, DirectoryEntry>
     {
         /// <summary>
-        /// The names of files in this DirectoryTable.
+        /// The pathnames of directories in this DirectoryTable.
         /// </summary>
         /// <remarks>
-        /// This sub-table is owned by this DirectoryTable; the DirectoryTable constructs it, and saves and loads it.
+        /// This table is shared between this table and the FileTable.
         /// </remarks>
         public readonly NameTable PathTable;
 
@@ -129,9 +190,19 @@ namespace BuildXL.Utilities.PackedExecution
             /// The only time that value can be set is when adding a new file not previously recorded.
             /// TODO: consider failing if this happens?
             /// </remarks>
-            public DirectoryId GetOrAdd(string directoryPath, PipId producerPip, ContentFlags contentFlags)
+            public DirectoryId GetOrAdd(
+                string directoryPath, 
+                PipId producerPip, 
+                ContentFlags contentFlags, 
+                bool isSharedOpaque, 
+                uint partialSealId)
             {
-                DirectoryEntry entry = new DirectoryEntry(PathTableBuilder.GetOrAdd(directoryPath), producerPip, contentFlags);
+                DirectoryEntry entry = new DirectoryEntry(
+                    PathTableBuilder.GetOrAdd(directoryPath), 
+                    producerPip, 
+                    contentFlags, 
+                    isSharedOpaque, 
+                    partialSealId);
                 return GetOrAdd(entry);
             }
         }

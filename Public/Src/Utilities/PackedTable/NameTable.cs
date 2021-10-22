@@ -11,23 +11,38 @@ namespace BuildXL.Utilities.PackedTable
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
     public struct NameId : Id<NameId>
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
     {
+        /// <summary>Comparer.</summary>
+        public struct EqualityComparer : IEqualityComparer<NameId>
+        {
+            /// <summary>Comparison.</summary>
+            public bool Equals(NameId x, NameId y) => x.Value == y.Value;
+            /// <summary>Hashing.</summary>
+            public int GetHashCode(NameId obj) => obj.Value;
+        }
+
+        private readonly int m_value;
         /// <summary>Value as int.</summary>
-        public readonly int Value;
+        public int Value => m_value;
         /// <summary>Constructor.</summary>
-        internal NameId(int value) { Id<NameId>.CheckNotZero(value); Value = value; }
-        /// <summary>Eliminator.</summary>
-        public int FromId() => Value;
-        /// <summary>Introducer.</summary>
-        public NameId ToId(int value) => new NameId(value);
+        public NameId(int value) { Id<NameId>.CheckValidId(value); m_value = value; }
+        /// <summary>Constructor via interface.</summary>
+        public NameId CreateFrom(int value) => new(value);
         /// <summary>Debugging.</summary>
         public override string ToString() => $"NameId[{Value}]";
         /// <summary>Comparison.</summary>
-        public bool Equals(NameId other) => Value == other.Value;
-        /// <summary>Hashing.</summary>
-        public int GetHashCode(NameId obj) => obj.Value;
-
+        public static bool operator ==(NameId x, NameId y) => x.Value == y.Value;
+        /// <summary>Comparison.</summary>
+        public static bool operator !=(NameId x, NameId y) => !(x == y);
+        /// <summary>Comparison.</summary>
+        public IEqualityComparer<NameId> Comparer => default(EqualityComparer);
+        /// <summary>Comparison via IComparable.</summary>
+        public int CompareTo([AllowNull] NameId other) => Value.CompareTo(other.Value);
     }
 
     /// <summary>
@@ -57,7 +72,7 @@ namespace BuildXL.Utilities.PackedTable
             /// <summary>
             /// Equality.
             /// </summary>
-            public bool Equals(NameEntry x, NameEntry y) => x.Prefix.Equals(y.Prefix) && x.Atom.Equals(y.Atom);
+            public bool Equals(NameEntry x, NameEntry y) => x.Prefix == y.Prefix && x.Atom == y.Atom;
             /// <summary>
             /// Hashing.
             /// </summary>
@@ -120,10 +135,10 @@ namespace BuildXL.Utilities.PackedTable
             {
                 // Walk up the prefix chain to the end.
                 entry = this[id];
-                if (entry.Atom.Equals(default)) { throw new Exception($"Invalid atom for id {entry.Atom}"); }
+                if (entry.Atom == default) { throw new Exception($"Invalid atom for id {entry.Atom}"); }
 
                 // Are we at the end yet?
-                atEnd = entry.Prefix.Equals(default);
+                atEnd = entry.Prefix == default;
 
                 len += StringTable[entry.Atom].Length;
 
@@ -148,11 +163,11 @@ namespace BuildXL.Utilities.PackedTable
         {
             NameEntry entry = this[nameId];
             ReadOnlySpan<char> prefixSpan;
-            if (!entry.Prefix.Equals(default))
+            if (entry.Prefix != default)
             {
                 // recurse on the prefix, which will result in it getting written into the first part of span
                 prefixSpan = GetText(entry.Prefix, span);
-                // add the separator
+                // add the separators
                 span[prefixSpan.Length] = Separator;
 
                 prefixSpan = span.Slice(0, prefixSpan.Length + 1);

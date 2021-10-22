@@ -1,31 +1,59 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.PackedTable;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.PackedTable;
 
 namespace BuildXL.Utilities.PackedExecution
 {
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-    public struct WorkerId : Id<WorkerId>, IEqualityComparer<WorkerId>
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+    public readonly struct WorkerId : Id<WorkerId>
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
     {
-        /// <summary>Value as int.</summary>
-        public readonly int Value;
-        /// <summary>Constructor.</summary>
-        public WorkerId(int value) { Value = value; }
-        /// <summary>Eliminator.</summary>
-        public int FromId() => Value;
-        /// <summary>Introducer.</summary>
-        public WorkerId ToId(int value) => new WorkerId(value);
-        /// <summary>Debugging.</summary>
+        /// <nodoc/>
+        public readonly struct EqualityComparer : IEqualityComparer<WorkerId>
+        {
+            /// <nodoc/>
+            public bool Equals(WorkerId x, WorkerId y) => x.Value == y.Value;
+            /// <nodoc/>
+            public int GetHashCode(WorkerId obj) => obj.Value;
+        }
+
+        private readonly int m_value;
+
+        /// <nodoc/>
+        public int Value => m_value;
+
+        /// <nodoc/>
+        public WorkerId(int value)
+        {
+            Id<WorkerId>.CheckValidId(value);
+            m_value = value;
+        }
+        /// <nodoc/>
+        public WorkerId CreateFrom(int value) => new(value);
+
+        /// <nodoc/>
         public override string ToString() => $"WorkerId[{Value}]";
-        /// <summary>Comparison.</summary>
-        public bool Equals(WorkerId x, WorkerId y) => x.Value == y.Value;
-        /// <summary>Hashing.</summary>
-        public int GetHashCode(WorkerId obj) => obj.Value;
+
+        /// <nodoc/>
+        public static bool operator ==(WorkerId x, WorkerId y) => x.Value == y.Value;
+
+        /// <nodoc/>
+        public static bool operator !=(WorkerId x, WorkerId y) => !(x == y);
+
+        /// <nodoc/>
+        public IEqualityComparer<WorkerId> Comparer => default(EqualityComparer);
+
+        /// <nodoc/>
+        public int CompareTo([AllowNull] WorkerId other) => Value.CompareTo(other.Value);
+
     }
 
     /// <summary>
@@ -55,7 +83,7 @@ namespace BuildXL.Utilities.PackedExecution
         /// <summary>
         /// Build a WorkerTable by caching worker machine names.
         /// </summary>
-        public class CachingBuilder : CachingBuilder<PackedTable.StringId>
+        public class CachingBuilder : CachingBuilder<PackedTable.StringId.EqualityComparer>
         {
             private readonly PackedTable.StringTable.CachingBuilder m_stringTableBuilder;
 

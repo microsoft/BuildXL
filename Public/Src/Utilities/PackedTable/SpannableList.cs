@@ -12,9 +12,10 @@ namespace BuildXL.Utilities.PackedTable
     /// A List implementation that allows Spans to be built over its backing store.
     /// </summary>
     /// <remarks>
-    /// This should clearly be in the framework
+    /// Note that this is not actually an IList[T] because of the indexer; this type uses
+    /// a ref-returning indexer, which IList[T] does not have.
     /// </remarks>
-    public class SpannableList<T> : IList<T>
+    public class SpannableList<T> : ICollection<T>
         where T : unmanaged
     {
         private T[] m_elements;
@@ -24,7 +25,7 @@ namespace BuildXL.Utilities.PackedTable
         /// </summary>
         public SpannableList(int capacity = 100)
         {
-            if (capacity <= 0) { throw new ArgumentException($"Capacity {capacity} must be >= 0)"); }
+            if (capacity < 0) { throw new ArgumentException($"Capacity {capacity} must be >= 0)"); }
 
             m_elements = new T[capacity];
         }
@@ -36,20 +37,17 @@ namespace BuildXL.Utilities.PackedTable
         }
 
         /// <summary>
-        /// Accessor.
+        /// Ref accessor.
         /// </summary>
-        public T this[int index]
+        /// <remarks>
+        /// Note that this breaks compatibility with IList[T] which does not have a ref indexer.
+        /// </remarks>
+        public ref T this[int index]
         {
             get
             {
                 CheckIndex(index);
-                return m_elements[index];
-            }
-
-            set
-            {
-                CheckIndex(index);
-                m_elements[index] = value;
+                return ref m_elements[index];
             }
         }
 
@@ -65,6 +63,7 @@ namespace BuildXL.Utilities.PackedTable
 
         private const float GrowthFactor = 1.4f; // 2 would eat too much when list gets very big
 
+        /// <summary>Ensure there is capacity to hold numItems more items.</summary>
         private void EnsureCapacity(int numItems)
         {
             int nextSize = m_elements.Length;
@@ -252,6 +251,18 @@ namespace BuildXL.Utilities.PackedTable
             }
             m_elements[Count - 1] = default;
             Count--;
+        }
+
+        /// <summary>
+        /// Remove items at the given index.
+        /// </summary>
+        public void RemoveRange(int index, int count)
+        {
+            for (int i = index; i < Count - count; i++)
+            {
+                m_elements[i] = m_elements[i + count];
+            }
+            Count -= count;
         }
 
         /// <summary>

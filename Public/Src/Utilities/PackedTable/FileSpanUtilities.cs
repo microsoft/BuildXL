@@ -7,12 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace BuildXL.Utilities.PackedTable
 {
-    /// <summary>
-    /// Generic Span[T] methods for saving and loading spans of unmanaged values.
-    /// </summary>
-    /// <remarks>
-    /// Actually amazingly high-performance, given how convenient and generic the code pattern is.
-    /// </remarks>
+    /// <summary>Generic Span[T] methods for saving and loading spans of unmanaged values.</summary>
     public static class FileSpanUtilities
     {
         /// <summary>

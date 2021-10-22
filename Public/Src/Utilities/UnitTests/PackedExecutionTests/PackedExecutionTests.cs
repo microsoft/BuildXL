@@ -58,7 +58,7 @@ namespace Test.Tool.Analyzers
             PackedExecution.Builder packedExecutionBuilder = new PackedExecution.Builder(packedExecution);
 
             string path = "d:\\os\\bin\\shellcommon\\shell\\merged\\winmetadata\\appresolverux.winmd";
-            FileId id = packedExecutionBuilder.FileTableBuilder.GetOrAdd(path, 1024 * 1024, default, default);
+            FileId id = packedExecutionBuilder.FileTableBuilder.GetOrAdd(path, 1024 * 1024, default, default, default);
 
             XAssert.AreEqual(0, packedExecution.PipTable.Count);
             XAssert.AreEqual(1, packedExecution.FileTable.Count);
@@ -96,7 +96,7 @@ namespace Test.Tool.Analyzers
             string name = "ShellCommon.Shell.ShellCommon.Shell.Merged.Winmetadata";
             PipId pipId = packedExecutionBuilder.PipTableBuilder.Add(hash, name, PipType.Process);
             string path = "d:\\os\\bin\\shellcommon\\shell\\merged\\winmetadata\\appresolverux.winmd";
-            packedExecutionBuilder.FileTableBuilder.GetOrAdd(path, 1024 * 1024, pipId, default);
+            packedExecutionBuilder.FileTableBuilder.GetOrAdd(path, 1024 * 1024, default, default, default);
             string workerName = "BIGWORKER";
             packedExecutionBuilder.WorkerTableBuilder.GetOrAdd(workerName);
 
@@ -118,7 +118,6 @@ namespace Test.Tool.Analyzers
 
             FileId fileId2 = packedExecution2.FileTable.Ids.First();
             XAssert.AreEqual(path, packedExecution2.FileTable.PathTable.GetText(packedExecution2.FileTable[fileId2].Path));
-            XAssert.AreEqual(pipId2, packedExecution2.FileTable[fileId2].ProducerPip);
 
             WorkerId workerId2 = packedExecution2.WorkerTable.Ids.First();
             XAssert.AreEqual(workerName, new string(packedExecution2.StringTable[packedExecution2.WorkerTable[workerId2]]));

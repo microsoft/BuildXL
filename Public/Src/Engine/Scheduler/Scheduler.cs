@@ -1343,7 +1343,7 @@ namespace BuildXL.Scheduler
             BuildManifestStoreTarget buildManifestStoreTarget = null;
 
             var executionLogPath = configuration.Logging.ExecutionLog;
-            if (configuration.Logging.LogPackedExecution && executionLogPath.IsValid && IsDistributedOrchestrator)
+            if (configuration.Logging.LogPackedExecution && executionLogPath.IsValid)
             {
                 var packedExecutionPath = Path.ChangeExtension(executionLogPath.ToString(Context.PathTable), "PXL"); // Packed eXecution Log
                 m_packedExecutionExporter = new PackedExecutionExporter(PipGraph, packedExecutionPath);

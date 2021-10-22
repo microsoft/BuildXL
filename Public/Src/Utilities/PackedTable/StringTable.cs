@@ -10,22 +10,38 @@ namespace BuildXL.Utilities.PackedTable
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-    public struct StringId : Id<StringId>, IEqualityComparer<StringId>
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+    public struct StringId : Id<StringId>
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
     {
+        /// <summary>Comparer.</summary>
+        public struct EqualityComparer : IEqualityComparer<StringId>
+        {
+            /// <summary>Comparison.</summary>
+            public bool Equals(StringId x, StringId y) => x.Value == y.Value;
+            /// <summary>Hashing.</summary>
+            public int GetHashCode(StringId obj) => obj.Value;
+        }
+
+        private readonly int m_value;
         /// <summary>Value as int.</summary>
-        public readonly int Value;
+        public int Value => m_value;
         /// <summary>Constructor.</summary>
-        public StringId(int value) { Id<StringId>.CheckNotZero(value); Value = value; }
-        /// <summary>Eliminator.</summary>
-        public int FromId() => Value;
-        /// <summary>Introducer.</summary>
-        public StringId ToId(int value) => new StringId(value);
+        public StringId(int value) { Id<StringId>.CheckValidId(value); m_value = value; }
+        /// <summary>Constructor via interface.</summary>
+        public StringId CreateFrom(int value) => new(value);
         /// <summary>Debugging.</summary>
         public override string ToString() => $"StringId[{Value}]";
         /// <summary>Comparison.</summary>
-        public bool Equals(StringId x, StringId y) => x.Value == y.Value;
-        /// <summary>Hashing.</summary>
-        public int GetHashCode(StringId obj) => obj.Value;
+        public static bool operator ==(StringId x, StringId y) => x.Equals(y);
+        /// <summary>Comparison.</summary>
+        public static bool operator !=(StringId x, StringId y) => !x.Equals(y);
+        /// <summary>Comparison.</summary>
+        public IEqualityComparer<StringId> Comparer => default(EqualityComparer);
+        /// <summary>Comparison via IComparable.</summary>
+        public int CompareTo([AllowNull] StringId other) => Value.CompareTo(other.Value);
     }
 
     /// <summary>

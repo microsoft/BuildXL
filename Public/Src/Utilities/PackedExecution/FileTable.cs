@@ -1,89 +1,140 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.PackedTable;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.PackedTable;
 
 namespace BuildXL.Utilities.PackedExecution
 {
     /// <summary>
-    /// Boilerplate ID type to avoid ID confusion in code.
+    /// IDs of files; corresponds to BuildXL FileArtifact.
     /// </summary>
-    public struct FileId : Id<FileId>, IEqualityComparer<FileId>
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+    public readonly struct FileId : Id<FileId>
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
     {
+        /// <nodoc />
+        public struct EqualityComparer : IEqualityComparer<FileId>
+        {
+            /// <nodoc />
+            public bool Equals(FileId x, FileId y) => x.Value == y.Value;
+            /// <nodoc />
+            public int GetHashCode(FileId obj) => obj.Value;
+        }
+
+        private readonly int m_value;
+
         /// <summary>Value as int.</summary>
-        public readonly int Value;
-        /// <summary>Constructor.</summary>
-        public FileId(int value) { Id<FileId>.CheckNotZero(value); Value = value; }
-        /// <summary>Eliminator.</summary>
-        public int FromId() => Value;
-        /// <summary>Introducer.</summary>
-        public FileId ToId(int value) => new FileId(value);
-        /// <summary>Debugging.</summary>
+        public int Value => m_value;
+
+        /// <nodoc />
+        public FileId(int value)
+        { 
+            Id<FileId>.CheckValidId(value);
+            m_value = value;
+        }
+        /// <nodoc />
+        public FileId CreateFrom(int value) => new(value);
+
+        /// <nodoc />
         public override string ToString() => $"FileId[{Value}]";
-        /// <summary>Comparison.</summary>
-        public bool Equals(FileId x, FileId y) => x.Value == y.Value;
-        /// <summary>Hashing.</summary>
-        public int GetHashCode(FileId obj) => obj.Value;
+
+        /// <nodoc />
+        public static bool operator ==(FileId x, FileId y) => x.Value == y.Value;
+
+        /// <nodoc />
+        public static bool operator !=(FileId x, FileId y) => !(x == y);
+
+        /// <nodoc />
+        public IEqualityComparer<FileId> Comparer => default(EqualityComparer);
+
+        /// <nodoc />
+        public int CompareTo([AllowNull] FileId other) => Value.CompareTo(other.Value);
+    }
+
+    /// <summary>
+    /// 256-bit (max) file hash, encoded as four ulongs.
+    /// </summary>
+    /// <remarks>
+    /// It appears that the VSO0 33-byte hash actually has zero as the last byte almost all the time, so 32 bytes
+    /// seems adequate in practice.
+    /// </remarks>
+    public readonly struct FileHash
+    {
+        /// <summary>First 64 bits of hash.</summary>
+        public readonly ulong Data0;
+        /// <summary>Second 64 bits of hash.</summary>
+        public readonly ulong Data1;
+        /// <summary>Third 64 bits of hash.</summary>
+        public readonly ulong Data2;
+        /// <summary>Fourth 64 bits of hash.</summary>
+        public readonly ulong Data3;
+
+        /// <summary>Construct a FileHash from a ulong[4] array.</summary>
+        public FileHash(ulong[] hashBuffer)
+        {
+            Data0 = hashBuffer[0];
+            Data1 = hashBuffer[1];
+            Data2 = hashBuffer[2];
+            Data3 = hashBuffer[3];
+        }
     }
 
     /// <summary>
     /// Information about a single file.
     /// </summary>
-    public struct FileEntry 
+    public readonly struct FileEntry 
     {
-        /// <summary>
-        /// The file's path.
-        /// </summary>
+        /// <summary>The file's path.</summary>
+        /// <remarks>
+        /// Since paths are long hierarchical names with lots of sharing with other paths, we use a
+        /// NameTable to store them, and hence the path is identified by NameId.
+        /// </remarks>
         public readonly NameId Path;
-        /// <summary>
-        /// File size in bytes.
-        /// </summary>
+        /// <summary>File size in bytes.</summary>
         public readonly long SizeInBytes;
-        /// <summary>
-        /// The pip that produced the file.
-        /// </summary>
-        public readonly PipId ProducerPip;
-        /// <summary>
-        /// The file's content flags.
-        /// </summary>
+        /// <summary>The file's content flags.</summary>
         public readonly ContentFlags ContentFlags;
+        /// <summary>The file's content hash.</summary>
+        public readonly FileHash Hash;
+        /// <summary>The file's rewrite count (see </summary>
+        public readonly int RewriteCount;
 
         /// <summary>
         /// Construct a FileEntry.
         /// </summary>
-        public FileEntry(NameId name, long sizeInBytes, PipId producerPip, ContentFlags contentFlags)
+        public FileEntry(NameId name, long sizeInBytes, ContentFlags contentFlags, FileHash hash, int rewriteCount)
         { 
             Path = name;
             SizeInBytes = sizeInBytes;
-            ProducerPip = producerPip;
             ContentFlags = contentFlags;
+            Hash = hash;
+            RewriteCount = rewriteCount;
         }
 
         /// <summary>
-        /// Construct a new FileEntry with a new producer pip.
+        /// Create a clone of this FileEntry with updated content flags.
         /// </summary>
-        public FileEntry WithProducerPip(PipId producerPip) { return new FileEntry(Path, SizeInBytes, producerPip, ContentFlags); }
-        /// <summary>
-        /// Construct a new FileEntry with new content flags.
-        /// </summary>
-        public FileEntry WithContentFlags(ContentFlags contentFlags) { return new FileEntry(Path, SizeInBytes, ProducerPip, contentFlags); }
+        public FileEntry WithContentFlags(ContentFlags contentFlags)
+            => new FileEntry(Path, SizeInBytes, contentFlags, Hash, RewriteCount);
 
         /// <summary>
-        /// Equality comparison.
+        /// Equality comparison (based on path, not hash).
         /// </summary>
         public struct EqualityComparer : IEqualityComparer<FileEntry>
         {
             /// <summary>
             /// Equality.
             /// </summary>
-            public bool Equals(FileEntry x, FileEntry y) => x.Path.Equals(y.Path);
+            public bool Equals(FileEntry x, FileEntry y) => x.Path == y.Path && x.RewriteCount == y.RewriteCount;
             /// <summary>
             /// Hashing.
             /// </summary>
-            public int GetHashCode([DisallowNull] FileEntry obj) => obj.Path.GetHashCode();
+            public int GetHashCode([DisallowNull] FileEntry obj) => obj.Path.GetHashCode() ^ obj.RewriteCount.GetHashCode();
         }
     }
 
@@ -96,7 +147,7 @@ namespace BuildXL.Utilities.PackedExecution
     public class FileTable : SingleValueTable<FileId, FileEntry>
     {
         /// <summary>
-        /// The names of files in this FileTable.
+        /// The pathnames of files in this FileTable.
         /// </summary>
         /// <remarks>
         /// This table is shared between this table and the DirectoryTable.
@@ -133,9 +184,6 @@ namespace BuildXL.Utilities.PackedExecution
                 bool eitherMaterializedFromCache = ((oldFlags & ContentFlags.MaterializedFromCache) != 0 || (newFlags & ContentFlags.MaterializedFromCache) != 0);
                 bool eitherMaterialized = ((oldFlags & ContentFlags.Materialized) != 0 || (newFlags & ContentFlags.Materialized) != 0);
 
-                // System should never tell us the file was both produced and materialized from cache
-                //Contract.Assert(!(eitherProduced && eitherMaterializedFromCache));
-
                 return newEntry.WithContentFlags(
                     eitherProduced
                         ? ContentFlags.Produced
@@ -158,30 +206,35 @@ namespace BuildXL.Utilities.PackedExecution
             /// Get or add an entry for the given file path.
             /// </summary>
             /// <remarks>
-            /// If the entry already exists, the sizeInBytes value passed here will be ignored!
-            /// The only time that value can be set is when adding a new file not previously recorded.
-            /// TODO: consider failing if this happens?
+            /// If the entry already exists, its existing data will be retained, and the arguments passed here 
+            /// will be ignored.
             /// </remarks>
-            public FileId GetOrAdd(string filePath, long sizeInBytes, PipId producerPip, ContentFlags contentFlags)
+            public FileId GetOrAdd(string filePath, long sizeInBytes, ContentFlags contentFlags, FileHash hash, int rewriteCount)
             {
                 FileEntry entry = new FileEntry(
                     PathTableBuilder.GetOrAdd(filePath),
                     sizeInBytes,
-                    producerPip,
-                    contentFlags);
+                    contentFlags,
+                    hash,
+                    rewriteCount);
                 return GetOrAdd(entry);
             }
 
             /// <summary>
             /// Update or add an entry for the given file path.
             /// </summary>
-            public FileId UpdateOrAdd(string filePath, long sizeInBytes, PipId producerPip, ContentFlags contentFlags)
+            /// <remarks>
+            /// If the entry already exists, its content flags will be merged with these, and the other file attributes
+            /// will be updated to the values passed here.
+            /// </remarks>
+            public FileId UpdateOrAdd(string filePath, long sizeInBytes, ContentFlags contentFlags, FileHash hash, int rewriteCount)
             {
                 FileEntry entry = new FileEntry(
                     PathTableBuilder.GetOrAdd(filePath),
                     sizeInBytes,
-                    producerPip,
-                    contentFlags);
+                    contentFlags,
+                    hash,
+                    rewriteCount);
                 return UpdateOrAdd(entry, m_mergeFunc);
             }
         }

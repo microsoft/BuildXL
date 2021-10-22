@@ -63,7 +63,7 @@ namespace BuildXL.Utilities.PackedTable
         /// <remarks>
         /// Mainly useful for testing.
         /// </remarks>
-        public IEnumerable<TId> Ids => Enumerable.Range(1, Count).Select(v => default(TId).ToId(v));
+        public IEnumerable<TId> Ids => Enumerable.Range(1, Count).Select(v => default(TId).CreateFrom(v));
 
         /// <summary>
         /// The base table (if any) that defines this table's ID range.
@@ -78,7 +78,7 @@ namespace BuildXL.Utilities.PackedTable
         /// </summary>
         public bool IsValid(TId id)
         {
-            return id.FromId() > 0 && id.FromId() <= Count;
+            return id.Value > 0 && id.Value <= Count;
         }
 
         /// <summary>

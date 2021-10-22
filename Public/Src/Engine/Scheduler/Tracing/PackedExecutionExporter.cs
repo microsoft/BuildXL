@@ -1,24 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#if NET_CORE
-using BuildXL.Utilities.PackedExecution;
-using BuildXL.Utilities.PackedTable;
-#endif
-using BuildXL.Pips;
-using BuildXL.Pips.Graph;
-using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Utilities;
-using BuildXL.Utilities.ParallelAlgorithms;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Pips;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Utilities;
+using BuildXL.Utilities.ParallelAlgorithms;
+#if NET_CORE
+using BuildXL.Utilities.PackedExecution;
+using BuildXL.Utilities.PackedTable;
+#endif
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -36,6 +36,62 @@ namespace BuildXL.Scheduler.Tracing
 #endif
 
     /// <summary>
+    /// Statistics for a given export, for cross-checking against analyzer.
+    /// </summary>
+    /// <remarks>
+    /// The fields here are deliberately all public for ease of calling Interlocked methods with refs to any field;
+    /// not a great pattern in general, but adequate for this purpose.
+    /// </remarks>
+    [Newtonsoft.Json.JsonObject(MemberSerialization = Newtonsoft.Json.MemberSerialization.Fields | Newtonsoft.Json.MemberSerialization.OptOut)]
+    public class PackedExecutionExportStatistics
+    {
+        /// <summary>Stat</summary>
+        public int FileArtifactContentDecidedEventCount;
+        /// <summary>Stat</summary>
+        public int FileArtifactOutputWithKnownLengthCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedEventCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedExecutionCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedStrongFingerprintCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedConsumedPathCount;
+        /// <summary>Stat</summary>
+        public int PipExecutionDirectoryOutputsEventCount;
+        /// <summary>Stat</summary>
+        public int PipExecutionDirectoryOutputsOutputCount;
+        /// <summary>Stat</summary>
+        public int PipExecutionDirectoryOutputsFileCount;
+        /// <summary>Stat</summary>
+        public int ProcessExecutionMonitoringReportedEventCount;
+        /// <summary>Stat</summary>
+        public int ProcessExecutionMonitoringReportedNonNullCount;
+        /// <summary>Stat</summary>
+        public int ProcessExecutionMonitoringReportedProcessCount;
+        /// <summary>Stat</summary>
+        public int PipListCount;
+        /// <summary>Stat</summary>
+        public int PipDependencyCount;
+        /// <summary>Stat</summary>
+        public int ProcessPipInfoCount;
+        /// <summary>Stat</summary>
+        public int DeclaredInputFileCount;
+        /// <summary>Stat</summary>
+        public int DeclaredInputDirectoryCount;
+        /// <summary>Stat</summary>
+        public int ConsumedFileCount;
+        /// <summary>Stat</summary>
+        public int ConsumedFileUnknownSizeCount;
+        /// <summary>Stat</summary>
+        public int DecidedFileCount;
+        /// <summary>Stat</summary>
+        public int DecidedFileValidProducerCount;
+        /// <summary>Stat</summary>
+        public int DecidedFileProducerConflictCount;
+    }
+
+    /// <summary>
     /// Exports the build graph and execution data in PackedExecution format.
     /// </summary>
     /// <remarks>
@@ -46,6 +102,9 @@ namespace BuildXL.Scheduler.Tracing
     public class PackedExecutionExporter : ExecutionAnalyzerBase
     {
 #if NET_CORE
+
+        #region Fields
+
         private readonly string m_outputDirectoryPath;
 
         /// <summary>
@@ -70,42 +129,51 @@ namespace BuildXL.Scheduler.Tracing
         private readonly PackedExecution.Builder m_packedExecutionBuilder;
 
         /// <summary>
-        /// Side dictionary tracking the BuildXL FileArtifact objects, for use when finding the producing pip.
+        /// List of decided files (either materialized from cache, or produced).
         /// </summary>
-        private readonly Dictionary<AbsolutePath, (FileId fileId, FileArtifact fileArtifact)> m_pathsToFiles = 
-            new Dictionary<AbsolutePath, (FileId fileId, FileArtifact fileArtifact)>();
-
-        /// <summary>
-        /// Side dictionary tracking the BuildXL DictionaryArtifact objects, for use when finding the producing pip.
-        /// </summary>
-        private readonly Dictionary<AbsolutePath, (DirectoryId directoryId, DirectoryArtifact directoryArtifact)> m_pathsToDirectories =
-            new Dictionary<AbsolutePath, (DirectoryId directoryId, DirectoryArtifact directoryArtifact)>();
-
-        /// <summary>
-        /// List of paths to decided files (either materialized from cache, or produced).
-        /// </summary>
-        private readonly HashSet<AbsolutePath> m_decidedFiles = new HashSet<AbsolutePath>();
+        private readonly HashSet<FileArtifact> m_decidedFiles = new HashSet<FileArtifact>();
 
         /// <summary>
         /// Upwards index from files to their containing director(ies).
         /// </summary>
-        private readonly Dictionary<AbsolutePath, List<DirectoryArtifact>> m_parentOutputDirectory = 
-            new Dictionary<AbsolutePath, List<DirectoryArtifact>>();
+        private readonly Dictionary<FileArtifact, List<DirectoryArtifact>> m_parentOutputDirectory = new Dictionary<FileArtifact, List<DirectoryArtifact>>();
 
         /// <summary>
-        /// Count of processed pips.
+        /// Index to optimize AbsolutePath->FileId lookup.
         /// </summary>
-        private int m_processedPipCount;
+        /// <remarks>
+        /// Note that this arguably should be keyed off FileArtifact rather than AbsolutePath, but this is made
+        /// difficult by the fact that the ObservedInput type (which represents pip-consumed files) has only 
+        /// a Path attribute, and doesn't track the source FileArtifacts. So we have to have some way to map from
+        /// path to FileId for purposes of determining the per-pip ConsumedFiles.
+        /// </remarks>
+        private readonly Dictionary<AbsolutePath, FileId> m_fileIndex = new Dictionary<AbsolutePath, FileId>();
 
         /// <summary>
-        /// Count of processed files.
+        /// Index to optimize AbsolutePath->DirectoryId lookup.
         /// </summary>
-        private int m_processedFileCount;
+        private readonly Dictionary<DirectoryArtifact, DirectoryId> m_directoryIndex = new Dictionary<DirectoryArtifact, DirectoryId>();
 
         /// <summary>
-        /// The list of WorkerAnalyzer instances which consume per-worker data.
+        /// The processor object which consumes pip execution data and analyzes it for file provenance.
         /// </summary>
-        private readonly List<WorkerAnalyzer> m_workerAnalyzers = new List<WorkerAnalyzer>();
+        private readonly ConcurrentPipProcessor m_concurrentPipProcessor;
+
+        /// <summary>
+        /// Buffer for accessing the data of a hash as an array of ulongs.
+        /// </summary>
+        /// <remarks>
+        /// This is 256 bits as that is the most we ever save in this format.
+        /// </remarks>
+        private readonly ulong[] m_hashBuffer = new ulong[4];
+
+        /// <summary>
+        /// The statistics for this run; not thread-safe, only access from a serial context.
+        /// </summary>
+        private readonly PackedExecutionExportStatistics m_statistics = new PackedExecutionExportStatistics();
+
+        #endregion
+
 #endif
 
         /// <summary>
@@ -127,13 +195,12 @@ namespace BuildXL.Scheduler.Tracing
             m_packedExecution.ConstructRelationTables();
 
             m_packedExecutionBuilder = new PackedExecution.Builder(m_packedExecution);
+            m_concurrentPipProcessor = new ConcurrentPipProcessor(this);
 
             if (threadSafe)
             {
                 m_lockObject = this;
             }
-
-            Console.WriteLine($"PackedExecutionExporter: Constructed at {DateTime.Now}.");
 #endif
         }
 
@@ -162,13 +229,26 @@ namespace BuildXL.Scheduler.Tracing
 
             BuildFileProducers();
 
+            m_packedExecutionBuilder.Complete();
+
             // and write it out
             m_packedExecution.SaveToDirectory(m_outputDirectoryPath);
+
+            // and the stats
+            File.WriteAllText(
+                Path.Combine(m_outputDirectoryPath, "statistics.json"),
+                Newtonsoft.Json.JsonConvert.SerializeObject(m_statistics, Newtonsoft.Json.Formatting.Indented));
 
             return 0;
         }
 
-            #region Analyzer event handlers
+        #region Analyzer event handlers
+
+        /// <summary>
+        /// Get the WorkerAnalyzer instance for the current worker ID (available as a base field on the analyzer).
+        /// </summary>
+        /// <returns></returns>
+        private ConcurrentPipProcessor GetConcurrentPipProcessor() => m_concurrentPipProcessor;
 
         /// <summary>
         /// Call the action from within a lock if m_lockObject is set.
@@ -177,60 +257,48 @@ namespace BuildXL.Scheduler.Tracing
         /// The "this" object and the action's argument are passed separately, to allow the
         /// action to be static.
         /// </remarks>
-        private void CallSerialized<T>(Action<PackedExecutionExporter, T> action, T argument)
+        private void CallSerialized<T>(Action<T> action, T argument)
         {
             if (m_lockObject != null)
             {
                 lock (m_lockObject)
                 {
-                    action(this, argument);
+                    action(argument);
                 }
             }
             else
             {
-                action(this, argument);
+                action(argument);
             }
         }
-
-        private static readonly Action<PackedExecutionExporter, WorkerListEventData> s_workerListAction =
-            (exporter, data) => exporter.WorkerListInternal(data);
 
         /// <summary>
         /// Handle a list of workers.
         /// </summary>
-        public override void WorkerList(WorkerListEventData data)
-        {
-            CallSerialized(s_workerListAction, data);
-        }
+        public override void WorkerList(WorkerListEventData data) 
+            => CallSerialized(WorkerListInternal, data);
 
         private void WorkerListInternal(WorkerListEventData data)
         {
             foreach (string workerName in data.Workers)
             {
-                WorkerId workerId = m_packedExecutionBuilder.WorkerTableBuilder.GetOrAdd(workerName);
-                m_workerAnalyzers.Add(new WorkerAnalyzer(this, workerName, workerId));
+                m_packedExecutionBuilder.WorkerTableBuilder.GetOrAdd(workerName);
             }
         }
-
-        private static readonly Action<PackedExecutionExporter, FileArtifactContentDecidedEventData> s_fileArtifactContentDecidedAction =
-            (exporter, data) => exporter.FileArtifactContentDecidedInternal(data);
 
         /// <summary>
         /// File artifact content (size, origin) is now known; create a FileTable entry for this file.
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
-        {
-            CallSerialized(s_fileArtifactContentDecidedAction, data);
-        }
+            => CallSerialized(FileArtifactContentDecidedInternal, data);
 
         private void FileArtifactContentDecidedInternal(FileArtifactContentDecidedEventData data)
         {
+            m_statistics.FileArtifactContentDecidedEventCount++;
+            
             if (data.FileArtifact.IsOutputFile && data.FileContentInfo.HasKnownLength)
             {
-                if (((++m_processedFileCount) % 1000000) == 0)
-                {
-                    Console.WriteLine($"Processed {m_processedFileCount} files...");
-                }
+                m_statistics.FileArtifactOutputWithKnownLengthCount++;
 
                 ContentFlags contentFlags = default;
                 switch (data.OutputOrigin)
@@ -246,119 +314,225 @@ namespace BuildXL.Scheduler.Tracing
                         // PipOutputOrigin.UpToDate - not relevant to this analyzer
                 }
 
-                // TODO: evaluate optimizing this with a direct hierarchical BXL-Path-to-PackedTable-Name mapping
-                string pathString = data.FileArtifact.Path.ToString(PathTable).ToCanonicalizedPath();
-                FileId fileId = m_packedExecutionBuilder.FileTableBuilder.UpdateOrAdd(
-                    pathString,
-                    data.FileContentInfo.Length, 
-                    default,
-                    contentFlags);
+                UpdateOrAddFile(
+                    data.FileArtifact,
+                    data.FileContentInfo.Length,
+                    contentFlags,
+                    FromContentHash(data.FileContentInfo.Hash),
+                    data.FileArtifact.RewriteCount);
 
-                // And save the FileId and the FileArtifact for later use when searching for producing pips.
-                m_pathsToFiles[data.FileArtifact.Path] = (fileId, data.FileArtifact);
-
-                m_decidedFiles.Add(data.FileArtifact.Path);
+                m_decidedFiles.Add(data.FileArtifact);
             }
         }
 
-        private static readonly Action<PackedExecutionExporter, ProcessFingerprintComputationEventData> s_processFingerprintComputedAction =
-            (exporter, data) => exporter.ProcessFingerprintComputedInternal(data);
+        /// <summary>
+        /// Get a FileHash from the first 256 bits of the content hash.
+        /// </summary>
+        private FileHash FromContentHash(ContentHash contentHash)
+        {
+            for (int i = 0; i < m_hashBuffer.Length; i++)
+            {
+                m_hashBuffer[i] = 0;
+            }
+
+            for (int i = 0; i < Math.Min(m_hashBuffer.Length * sizeof(ulong), contentHash.ByteLength); i++)
+            {
+                byte nextByte = contentHash[i];
+                ulong nextByteAsUlong = (ulong)nextByte;
+                ulong shiftedLeft = nextByteAsUlong << (56 - (i % 8) * 8);
+                m_hashBuffer[i / 8] |= shiftedLeft;
+            }
+
+            return new FileHash(m_hashBuffer);
+        }
+
+        private DirectoryId GetOrAddDirectory(DirectoryArtifact directoryArtifact, B_PipId producerPip)
+            // this cast is safe because BuildPips() confirms that B_PipId and P_PipId Values are the same
+            => GetOrAddDirectory(directoryArtifact, new P_PipId((int)producerPip.Value));
+
+        private DirectoryId GetOrAddDirectory(DirectoryArtifact directoryArtifact, P_PipId producerPip)
+        {
+            if (m_directoryIndex.TryGetValue(directoryArtifact, out DirectoryId result))
+            {
+                return result;
+            }
+            result = m_packedExecutionBuilder.DirectoryTableBuilder.GetOrAdd(
+                directoryArtifact.Path.ToString(PathTable).ToCanonicalizedPath(),
+                producerPip: producerPip,
+                contentFlags: default,
+                isSharedOpaque: directoryArtifact.IsSharedOpaque,
+                partialSealId: directoryArtifact.PartialSealId);
+            m_directoryIndex[directoryArtifact] = result;
+            return result;
+        }
+
+        private FileId GetOrAddFile(AbsolutePath path)
+        {
+            if (m_fileIndex.TryGetValue(path, out FileId result))
+            {
+                return result;
+            }
+
+            result = m_packedExecutionBuilder.FileTableBuilder.GetOrAdd(
+                path.ToString(PathTable).ToCanonicalizedPath(),
+                sizeInBytes: default,
+                contentFlags: default,
+                hash: default,
+                rewriteCount: default);
+            m_fileIndex[path] = result;
+            return result;
+        }
+
+        private FileId UpdateOrAddFile(FileArtifact fileArtifact, long length, ContentFlags contentFlags, FileHash hash, int rewriteCount)
+        {
+            FileId result = m_packedExecutionBuilder.FileTableBuilder.UpdateOrAdd(
+                fileArtifact.Path.ToString(PathTable).ToCanonicalizedPath(),
+                length,
+                contentFlags,
+                hash,
+                rewriteCount);
+            m_fileIndex[fileArtifact] = result;
+            return result;
+        }
 
         /// <summary>
         /// A process fingerprint was computed; use the execution data.
         /// </summary>
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
-        {
-            CallSerialized(s_processFingerprintComputedAction, data);
-        }
+            => CallSerialized(ProcessFingerprintComputedInternal, data);
 
         private void ProcessFingerprintComputedInternal(ProcessFingerprintComputationEventData data)
         {
-            if (data.Kind == FingerprintComputationKind.Execution)
-            {
-                if (((++m_processedPipCount) % 1000) == 0)
-                {
-                    Console.WriteLine($"Processed {m_processedPipCount} pips...");
-                }
-            }
-
-            GetWorkerAnalyzer()?.ProcessFingerprintComputed(data);
+            m_statistics.ProcessFingerprintComputedEventCount++;
+            GetConcurrentPipProcessor()?.ProcessFingerprintComputed(data);
         }
-
-        private static readonly Action<PackedExecutionExporter, PipExecutionDirectoryOutputs> s_pipExecutionDirectoryOutputsAction =
-            (exporter, data) => exporter.PipExecutionDirectoryOutputsInternal(data);
 
         /// <summary>
         /// The directory outputs of a pip are now known; index the directory contents
         /// </summary>
         /// <param name="data"></param>
         public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
-        {
-            CallSerialized(s_pipExecutionDirectoryOutputsAction, data);
-        }
+            => CallSerialized(PipExecutionDirectoryOutputsInternal, data);
 
         private void PipExecutionDirectoryOutputsInternal(PipExecutionDirectoryOutputs data)
         {
+            m_statistics.PipExecutionDirectoryOutputsEventCount++;
+
             foreach (var kvp in data.DirectoryOutputs)
             {
-                DirectoryId directoryId = m_packedExecutionBuilder.DirectoryTableBuilder.GetOrAdd(
-                    kvp.directoryArtifact.Path.ToString(PathTable).ToCanonicalizedPath(),
-                    default,
-                    default);
+                m_statistics.PipExecutionDirectoryOutputsOutputCount++;
 
-                m_pathsToDirectories[kvp.directoryArtifact.Path] = (directoryId, kvp.directoryArtifact);
+                DirectoryId directoryId = GetOrAddDirectory(kvp.directoryArtifact, data.PipId);
 
                 foreach (FileArtifact fileArtifact in kvp.fileArtifactArray)
                 {
+                    m_statistics.PipExecutionDirectoryOutputsFileCount++;
+
                     // The XLG file can wind up constructing a given file instance either here or in
                     // FileArtifactContentDecided. If it publishes it in both places, that place's entry
-                    // should win, which is why this uses GetOrAdd and the other location uses UpdateOrAdd.
-                    FileId fileId = m_packedExecutionBuilder.FileTableBuilder.GetOrAdd(
-                        fileArtifact.Path.ToString(PathTable).ToCanonicalizedPath(),
-                        default, default, default);
-
-                    m_pathsToFiles[fileArtifact.Path] = (fileId, fileArtifact);
+                    // should win, which is why this calls GetOrAdd rather than UpdateOrAdd.
+                    FileId fileId = GetOrAddFile(fileArtifact);
 
                     m_packedExecutionBuilder.DirectoryContentsBuilder.Add(directoryId, fileId);
 
                     // make the index from files up to containing directories
                     // TODO: when can there be more than one entry in this list?
-                    if (!m_parentOutputDirectory.TryGetValue(fileArtifact.Path, out List<DirectoryArtifact> parents))
+                    if (!m_parentOutputDirectory.TryGetValue(fileArtifact, out List<DirectoryArtifact> parents))
                     {
                         parents = new List<DirectoryArtifact>();
-                        m_parentOutputDirectory.Add(fileArtifact.Path, parents);
+                        m_parentOutputDirectory.Add(fileArtifact, parents);
                     }
                     parents.Add(kvp.directoryArtifact);
                 }
             }
         }
 
-        #endregion
+        /// <summary>Collect pip performance data.</summary>
+        public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
+            => CallSerialized(PipExecutionPerformanceInternal, data);
 
-        /// <summary>
-        /// Get the WorkerAnalyzer instance for the current worker ID (available as a base field on the analyzer).
-        /// </summary>
-        /// <returns></returns>
-        private WorkerAnalyzer GetWorkerAnalyzer()
+        internal void PipExecutionPerformanceInternal(PipExecutionPerformanceEventData data)
         {
-            // If GetWorkerAnalyzer() is called while m_workerAnalyzers is empty,
-            // we presume this is because this is a local BXL execution with no WorkerList.
-            // So we add one analyzer for the "local" worker.
-            if (m_workerAnalyzers.Count == 0)
+            if (data.ExecutionPerformance != null)
             {
-                m_workerAnalyzers.Add(new WorkerAnalyzer(this, "", default(WorkerId)));
-            }
+                PipExecutionEntry pipEntry = new PipExecutionEntry(
+                    (Utilities.PackedExecution.PipExecutionLevel)(int)data.ExecutionPerformance.ExecutionLevel,
+                    data.ExecutionPerformance.ExecutionStart,
+                    data.ExecutionPerformance.ExecutionStop,
+                    new WorkerId((int)data.ExecutionPerformance.WorkerId + 1));
 
-            if (m_workerAnalyzers.Count == 1)
-            {
-                // no choice (local case)
-                return m_workerAnalyzers[0];
-            }
+                m_packedExecutionBuilder.PipExecutionTableBuilder.Add(new P_PipId((int)data.PipId.Value), pipEntry);
 
-            return m_workerAnalyzers[(int)CurrentEventWorkerId];
+                ProcessPipExecutionPerformance processPerformance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
+
+                if (processPerformance != null)
+                {
+                    ProcessPipExecutionEntry processPipEntry = new ProcessPipExecutionEntry(
+                        new IOCounters(
+                            processPerformance.IO.ReadCounters.OperationCount,
+                            processPerformance.IO.ReadCounters.TransferCount,
+                            processPerformance.IO.WriteCounters.OperationCount,
+                            processPerformance.IO.WriteCounters.TransferCount,
+                            processPerformance.IO.OtherCounters.OperationCount,
+                            processPerformance.IO.OtherCounters.TransferCount),
+                        processPerformance.KernelTime,
+                        new MemoryCounters(
+                            processPerformance.MemoryCounters.AverageCommitSizeMb,
+                            processPerformance.MemoryCounters.AverageWorkingSetMb,
+                            processPerformance.MemoryCounters.PeakCommitSizeMb,
+                            processPerformance.MemoryCounters.PeakWorkingSetMb),
+                        processPerformance.NumberOfProcesses,
+                        processPerformance.ProcessExecutionTime,
+                        processPerformance.ProcessorsInPercents,
+                        processPerformance.SuspendedDurationMs,
+                        processPerformance.UserTime);
+
+                    m_packedExecutionBuilder.ProcessPipExecutionTableBuilder.Add(new P_PipId((int)data.PipId.Value), processPipEntry);
+                }
+            }
         }
 
-        #region Pips
+        /// <summary>Collect process performance data.</summary>
+        public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
+            => CallSerialized(ProcessExecutionMonitoringReportedInternal, data);
+
+        private void ProcessExecutionMonitoringReportedInternal(ProcessExecutionMonitoringReportedEventData data)
+        {
+            m_statistics.ProcessExecutionMonitoringReportedEventCount++;
+
+            if (data.ReportedProcesses != null)
+            {
+                m_statistics.ProcessExecutionMonitoringReportedNonNullCount++;
+
+                foreach (var reportedProcess in data.ReportedProcesses)
+                {
+                    m_statistics.ProcessExecutionMonitoringReportedProcessCount++;
+
+                    ProcessExecutionEntry processEntry = new ProcessExecutionEntry(
+                        reportedProcess.CreationTime,
+                        reportedProcess.ExitCode,
+                        reportedProcess.ExitTime,
+                        new IOCounters(
+                            reportedProcess.IOCounters.ReadCounters.OperationCount,
+                            reportedProcess.IOCounters.ReadCounters.TransferCount,
+                            reportedProcess.IOCounters.WriteCounters.OperationCount,
+                            reportedProcess.IOCounters.WriteCounters.TransferCount,
+                            reportedProcess.IOCounters.OtherCounters.OperationCount,
+                            reportedProcess.IOCounters.OtherCounters.TransferCount),
+                        reportedProcess.KernelTime,
+                        reportedProcess.ParentProcessId,
+                        m_packedExecutionBuilder.FileTableBuilder.PathTableBuilder.GetOrAdd(reportedProcess.Path),
+                        reportedProcess.ProcessId,
+                        reportedProcess.UserTime);
+
+                    m_packedExecutionBuilder.ProcessExecutionTableBuilder.Add(new P_PipId((int)data.PipId.Value), processEntry);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Building
 
         private List<PipReference> BuildPips()
         {
@@ -376,9 +550,6 @@ namespace BuildXL.Scheduler.Tracing
                     throw new ArgumentException($"Graph pip ID {graphPipId.Value} does not equal BXL pip ID {pipList[i].PipId.Value}");
                 }
             }
-
-            // ensure the PipExecutionTable is ready to be pipulated (heh)
-            m_packedExecution.PipExecutionTable.FillToBaseTableCount();
 
             return pipList;
         }
@@ -401,7 +572,8 @@ namespace BuildXL.Scheduler.Tracing
             }
             P_PipType pipType = (P_PipType)(int)pip.PipType;
 
-            P_PipId g_pipId = pipBuilder.Add(pip.SemiStableHash, pipName, pipType);
+            long semiStableHash = PipTable.GetPipSemiStableHash(pip.PipId);
+            P_PipId g_pipId = pipBuilder.Add(semiStableHash, pipName, pipType);
 
             return g_pipId;
         }
@@ -412,6 +584,9 @@ namespace BuildXL.Scheduler.Tracing
             // Since we added all the pips in pipList order to PipTable, we can traverse them again in the same order
             // to build the relation.
             SpannableList<P_PipId> buffer = new SpannableList<P_PipId>(); // to accumulate the IDs we add to the relation
+
+            m_statistics.PipListCount = pipList.Count;
+
             for (int i = 0; i < pipList.Count; i++)
             {
                 IEnumerable<P_PipId> pipDependencies = PipGraph
@@ -426,6 +601,8 @@ namespace BuildXL.Scheduler.Tracing
                 buffer.Clear();
                 buffer.AddRange(pipDependencies);
 
+                m_statistics.PipDependencyCount += buffer.Count;
+
                 // don't need to use a builder here, we're adding all dependencies in PipId order
                 m_packedExecution.PipDependencies.Add(buffer.AsSpan());
             }
@@ -433,61 +610,68 @@ namespace BuildXL.Scheduler.Tracing
 
         private void BuildProcessPipRelations()
         {
-            int totalProcessPips = 0;
-            int totalDeclaredInputFiles = 0, totalDeclaredInputDirectories = 0, totalConsumedFiles = 0;
+            m_concurrentPipProcessor.Complete();
 
-            foreach (var worker in m_workerAnalyzers)
+            foreach (ConcurrentPipProcessor.ProcessPipInfo processPipInfo in m_concurrentPipProcessor.ProcessPipInfoList)
             {
-                Console.WriteLine($"Completing worker {worker.Name}");
-                worker.Complete();
+                m_statistics.ProcessPipInfoCount++;
 
-                foreach (WorkerAnalyzer.ProcessPipInfo processPipInfo in worker.ProcessPipInfoList)
+                foreach (FileArtifact declaredInputFile in processPipInfo.DeclaredInputFiles)
                 {
-                    foreach (AbsolutePath declaredInputFilePath in processPipInfo.DeclaredInputFiles)
+                    m_statistics.DeclaredInputFileCount++;
+
+                    FileId fileId = GetOrAddFile(declaredInputFile);
+                    m_packedExecutionBuilder.DeclaredInputFilesBuilder.Add(processPipInfo.PipId, fileId);
+                }
+
+                foreach (DirectoryArtifact directoryArtifact in processPipInfo.DeclaredInputDirectories)
+                {
+                    m_statistics.DeclaredInputDirectoryCount++;
+
+                    DirectoryId directoryId = GetOrAddDirectory(directoryArtifact, processPipInfo.PipId);
+                    m_packedExecutionBuilder.DeclaredInputDirectoriesBuilder.Add(processPipInfo.PipId, directoryId);
+                }
+
+                foreach (AbsolutePath consumedInputPath in processPipInfo.ConsumedFiles)
+                {
+                    m_statistics.ConsumedFileCount++;
+
+                    FileId fileId = GetOrAddFile(consumedInputPath);
+
+                    if (m_packedExecution.FileTable[fileId].SizeInBytes == 0)
                     {
-                        m_packedExecutionBuilder.DeclaredInputFilesBuilder.Add(processPipInfo.PipId, m_pathsToFiles[declaredInputFilePath].fileId);
+                        m_statistics.ConsumedFileUnknownSizeCount++;
                     }
-                    totalDeclaredInputFiles += processPipInfo.DeclaredInputFiles.Count;
 
-                    foreach (DirectoryArtifact directoryArtifact in processPipInfo.DeclaredInputDirectories)
-                    {
-                        m_packedExecutionBuilder.DeclaredInputDirectoriesBuilder.Add(processPipInfo.PipId, m_pathsToDirectories[directoryArtifact.Path].directoryId);
-                    }
-                    totalDeclaredInputDirectories += processPipInfo.DeclaredInputDirectories.Count;
-
-                    foreach (AbsolutePath consumedInputPath in processPipInfo.ConsumedFiles)
-                    {
-                        m_packedExecutionBuilder.ConsumedFilesBuilder.Add(processPipInfo.PipId, m_pathsToFiles[consumedInputPath].fileId);
-                    }
-                    totalConsumedFiles += processPipInfo.ConsumedFiles.Count;
-
-                    m_packedExecution.PipExecutionTable[processPipInfo.PipId] = new PipExecutionEntry(processPipInfo.Worker);
-
-                    totalProcessPips++;
+                    m_packedExecutionBuilder.ConsumedFilesBuilder.Add(processPipInfo.PipId, fileId);
                 }
             }
-
-            m_packedExecutionBuilder.DeclaredInputFilesBuilder.Complete();
-            m_packedExecutionBuilder.DeclaredInputDirectoriesBuilder.Complete();
-            m_packedExecutionBuilder.ConsumedFilesBuilder.Complete();
         }
 
+        /// <summary>
+        /// Build the FileProducer relation.
+        /// </summary>
         private void BuildFileProducers()
         {
-            // set file producer
+            m_packedExecution.FileProducer.FillToBaseTableCount();
+
+            // Object we lock when checking for duplicate producers
+            object localLock = new object();
+
+            m_statistics.DecidedFileCount = m_decidedFiles.Count;
+
+            // set file producers, concurrently.
             Parallel.ForEach(
                 m_decidedFiles,
-                new ParallelOptions() { MaxDegreeOfParallelism = 1 }, // B4PR: Environment.ProcessorCount },
-                path =>
+                new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                fileArtifact =>
                 {
-                    var tuple = m_pathsToFiles[path];
-
                     // try to find a producer of this file
-                    var producer = PipGraph.TryGetProducer(tuple.fileArtifact);
+                    var producer = PipGraph.TryGetProducer(fileArtifact);
                     if (!producer.IsValid)
                     {
                         // it's not a statically declared file, so it must be produced as a part of an output directory
-                        if (m_parentOutputDirectory.TryGetValue(path, out var containingDirectories))
+                        if (m_parentOutputDirectory.TryGetValue(fileArtifact, out var containingDirectories))
                         {
                             foreach (var directory in containingDirectories)
                             {
@@ -502,15 +686,24 @@ namespace BuildXL.Scheduler.Tracing
 
                     if (producer.IsValid)
                     {
-                        // Theoretically this is safe if we never update the same file twice with different producers.
-                        // BXL: should we have an interlock to guard against this?
-                        // BXL: can a file have multiple producers legitimately? (PipGraph has some kind of method for getting all producers of a file)
-                        FileEntry entry = m_packedExecution.FileTable[tuple.fileId];
+                        // Now that we know who it was (the time-consuming part), take a lock before checking/modifying the producer table.
+                        lock (localLock)
+                        {
+                            m_statistics.DecidedFileValidProducerCount++;
 
-                        Contract.Assert(entry.ProducerPip.Equals(default(P_PipId)),
-                            $"Should not have set producer pip {entry.ProducerPip} yet for file {m_packedExecution.PathTable.GetText(entry.Path)}");
+                            FileId fileId = GetOrAddFile(fileArtifact);
 
-                        m_packedExecution.FileTable[tuple.fileId] = entry.WithProducerPip(new P_PipId((int)producer.Value));
+                            // Theoretically this is safe if we never update the same file twice with different producers.
+                            // BXL: should we have an interlock to guard against this?
+                            // BXL: can a file have multiple producers legitimately? (PipGraph has some kind of method for getting all producers of a file)
+                            P_PipId currentProducer = m_packedExecution.FileProducer[fileId];
+                            if (currentProducer != default)
+                            {
+                                m_statistics.DecidedFileProducerConflictCount++;
+                            }
+
+                            m_packedExecution.FileProducer[fileId] = new P_PipId((int)producer.Value);
+                        }
                     }
                 });
         }
@@ -523,60 +716,43 @@ namespace BuildXL.Scheduler.Tracing
         /// <remarks>
         /// Finding the producer pip for a file is evidently expensive and shouldn't be done on the execution log event thread.
         /// </remarks>
-        private class WorkerAnalyzer
+        private class ConcurrentPipProcessor
         {
-            /// <summary>
-            /// The information about an executed process pip.
-            /// </summary>
+            /// <summary>The information about an executed process pip.</summary>
             /// <remarks>
             /// TODO: Consider making this less object-y and more columnar... store all the declared input files
             /// in just one big list indexed by PipId, etc.
             /// </remarks>
             public struct ProcessPipInfo
             {
-                /// <summary>
-                /// The pip ID.
-                /// </summary>
+                /// <summary>The pip ID.</summary>
                 public readonly P_PipId PipId;
-                /// <summary>
-                /// Input files declared for the pip.
-                /// </summary>
-                public readonly List<AbsolutePath> DeclaredInputFiles;
-                /// <summary>
-                /// Input directories declared for the pip.
-                /// </summary>
-                public readonly List<DirectoryArtifact> DeclaredInputDirectories;
-                /// <summary>
-                /// Consumed files declared for the pip.
-                /// </summary>
-                public readonly List<AbsolutePath> ConsumedFiles;
-                /// <summary>
-                /// The worker that executed the pip.
-                /// </summary>
-                public readonly WorkerId Worker;
+                /// <summary>The numeric semistable hash.</summary>
+                public readonly long SemiStableHash;
+                /// <summary>Input files declared for the pip.</summary>
+                public readonly ICollection<FileArtifact> DeclaredInputFiles;
+                /// <summary>Input directories declared for the pip.</summary>
+                public readonly ICollection<DirectoryArtifact> DeclaredInputDirectories;
+                /// <summary>Consumed files declared for the pip.</summary>
+                public readonly ICollection<AbsolutePath> ConsumedFiles;
 
                 /// <summary>
                 /// Construct a ProcessPipInfo.
                 /// </summary>
                 public ProcessPipInfo(
                     P_PipId pipId, 
-                    List<AbsolutePath> declaredInputFiles, 
-                    List<DirectoryArtifact> declaredInputDirs, 
-                    List<AbsolutePath> consumedFiles, 
-                    WorkerId worker)
+                    long semiStableHash,
+                    ICollection<FileArtifact> declaredInputFiles,
+                    ICollection<DirectoryArtifact> declaredInputDirs,
+                    ICollection<AbsolutePath> consumedFiles)
                 {
                     PipId = pipId;
+                    SemiStableHash = semiStableHash;
                     DeclaredInputFiles = declaredInputFiles;
                     DeclaredInputDirectories = declaredInputDirs;
                     ConsumedFiles = consumedFiles;
-                    Worker = worker;
                 }
             }
-
-            /// <summary>
-            /// ID of this analyzer's worker.
-            /// </summary>
-            private readonly WorkerId m_workerId;
 
             /// <summary>
             /// The parent exporter.
@@ -601,13 +777,12 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Construct a WorkerAnalyzer.
             /// </summary>
-            public WorkerAnalyzer(PackedExecutionExporter exporter, string name, WorkerId workerId)
+            public ConcurrentPipProcessor(PackedExecutionExporter exporter)
             {
                 m_exporter = exporter;
-                Name = name;
-                m_workerId = workerId;
-
-                m_processingBlock = new ActionBlockSlim<ProcessFingerprintComputationEventData>(1, ProcessFingerprintComputedCore);
+                m_processingBlock = new ActionBlockSlim<ProcessFingerprintComputationEventData>(
+                    degreeOfParallelism: -1, // default
+                    processItemAction: ProcessFingerprintComputedCore);
             }
 
             /// <summary>
@@ -626,42 +801,60 @@ namespace BuildXL.Scheduler.Tracing
                 m_processingBlock.Post(data);
             }
 
+            private static readonly ICollection<AbsolutePath> s_noPaths = new List<AbsolutePath>();
+
             /// <summary>
             /// Really handle the incoming fingerprint computation.
             /// </summary>
-            public void ProcessFingerprintComputedCore(ProcessFingerprintComputationEventData data)
+            /// <remarks>
+            /// This is a concurrent method, not a serial method, so beware of shared mutable state.
+            /// </remarks>
+            internal void ProcessFingerprintComputedCore(ProcessFingerprintComputationEventData data)
             {
                 var pip = m_exporter.GetPip(data.PipId) as Process;
                 Contract.Assert(pip != null);
 
-                // only interested in the events generated after a corresponding pip was executed
-                // however, we still need to save pip description so there would be no missing entries in pips.csv
+                P_PipId packedPipId = new P_PipId((int)data.PipId.Value);
+
                 if (data.Kind != FingerprintComputationKind.Execution)
                 {
                     return;
                 }
 
+                Interlocked.Increment(ref m_exporter.m_statistics.ProcessFingerprintComputedExecutionCount);
+
                 // part 1: collect requested inputs
                 // count only output files/directories
                 // TODO: use a builder here? 400K or so objects seems livable though....
-                var declaredInputFiles = pip.Dependencies.Where(f => f.IsOutputFile).Select(f => f.Path).ToList();
-                var declaredInputDirs = pip.DirectoryDependencies.Where(d => d.IsOutputDirectory()).ToList();
-
-                var packedExecution = m_exporter.m_packedExecution;
-                var fileTable = packedExecution.FileTable;
-                var pathsToFiles = m_exporter.m_pathsToFiles;
+                var declaredInputFiles = pip.Dependencies.ToList();
+                var declaredInputDirs = pip.DirectoryDependencies.ToList();
 
                 // part 2: collect actual inputs                
-                var consumedPaths = data.StrongFingerprintComputations.Count == 0
-                    ? new List<AbsolutePath>()
-                    : data.StrongFingerprintComputations[0].ObservedInputs
+                ICollection<AbsolutePath> consumedPaths = data.StrongFingerprintComputations.Count == 0
+                    ? s_noPaths
+                    : data
+                        .StrongFingerprintComputations[0]
+                        .ObservedInputs
                         .Where(input => input.Type == ObservedInputType.FileContentRead || input.Type == ObservedInputType.ExistingFileProbe)
                         .Select(input => input.Path)
-                        .Where(path => pathsToFiles.TryGetValue(path, out var tuple) && fileTable[tuple.fileId].SizeInBytes > 0)
                         .ToList();
 
-                P_PipId packedPipId = new P_PipId((int)data.PipId.Value);
-                ProcessPipInfoList.Add(new ProcessPipInfo(packedPipId, declaredInputFiles, declaredInputDirs, consumedPaths, m_workerId));
+                Interlocked.Add(
+                    ref m_exporter.m_statistics.ProcessFingerprintComputedStrongFingerprintCount,
+                    data.StrongFingerprintComputations.Count);
+                Interlocked.Add(
+                    ref m_exporter.m_statistics.ProcessFingerprintComputedConsumedPathCount, 
+                    consumedPaths.Count);
+
+                lock (ProcessPipInfoList)
+                {
+                    ProcessPipInfoList.Add(new ProcessPipInfo(
+                        packedPipId,
+                        pip.SemiStableHash,
+                        declaredInputFiles,
+                        declaredInputDirs,
+                        consumedPaths));
+                }
             }
         }
 #endif

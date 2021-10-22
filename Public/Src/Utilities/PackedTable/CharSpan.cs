@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
@@ -68,7 +71,10 @@ namespace BuildXL.Utilities.PackedTable
         /// </remarks>
         public CharSpan(StringId s)
         {
-            if (s.Equals(default)) { throw new ArgumentException("Cannot construct CharSpan from default StringId"); }
+            if (s == default)
+            { 
+                throw new ArgumentException("Cannot construct CharSpan from default StringId");
+            }
             m_string = default;
             m_stringId = s;
             m_start = default;
@@ -77,9 +83,17 @@ namespace BuildXL.Utilities.PackedTable
 
         private static void Check(string s, int start, int length)
         {
-            if (s == null) { throw new ArgumentException($"String may not be null"); }
-            if (start < 0) { throw new ArgumentException($"Both start {start} and length {length} must be >= 0"); }
-            if (s.Length < start + length) { throw new ArgumentException($"String length {s.Length} must be <= the sum of start {start} and length {length}"); }
+            if (s == null)
+            {
+                throw new ArgumentException($"String may not be null");
+            }
+            if (start < 0) 
+            {
+                throw new ArgumentException($"Both start {start} and length {length} must be >= 0");
+            }
+            if (s.Length < start + length) {
+                throw new ArgumentException($"String length {s.Length} must be <= the sum of start {start} and length {length}");
+            }
         }
 
         /// <summary>
@@ -88,8 +102,14 @@ namespace BuildXL.Utilities.PackedTable
         /// <param name="table">The table to look up strings in, if this is a StringId CharSpan.</param>
         public ReadOnlySpan<char> AsSpan(StringTable table)
         {
-            if (m_string != null) { return m_string.AsSpan().Slice(m_start, m_length); }
-            else return table[m_stringId];
+            if (m_string != null)
+            { 
+                return m_string.AsSpan().Slice(m_start, m_length);
+            }
+            else
+            {
+                return table[m_stringId];
+            }
         }
 
         /// <summary>

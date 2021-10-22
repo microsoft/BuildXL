@@ -37,9 +37,9 @@ namespace BuildXL.Scheduler.Tracing
 
         /// <inheritdoc />
         public virtual IExecutionLogTarget CreateWorkerTarget(uint workerId)
-        {
-            return null;
-        }
+            // If it can handle worker events, it is its own worker target;
+            // CurrentEventWorkerId will carry the worker ID dynamically
+            => CanHandleWorkerEvents ? this : null;
 
         /// <inheritdoc/>
         public virtual void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)

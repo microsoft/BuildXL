@@ -61,6 +61,54 @@ namespace BuildXL.Execution.Analyzer
         }
     }
 
+    /// <summary>
+    /// Statistics for a given export, for cross-checking against analyzer.
+    /// </summary>
+    /// <remarks>
+    /// The fields here are deliberately all public for ease of calling Interlocked methods with references to any field;
+    /// not a great pattern in general, but adequate for this purpose.
+    /// </remarks>
+    [Newtonsoft.Json.JsonObject(MemberSerialization = Newtonsoft.Json.MemberSerialization.Fields | Newtonsoft.Json.MemberSerialization.OptOut)]
+    internal class FileConsumptionAnalyzerStatistics
+    {
+        /// <summary>Stat</summary>
+        public int FileArtifactContentDecidedEventCount;
+        /// <summary>Stat</summary>
+        public int FileArtifactOutputWithKnownLengthCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedEventCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedExecutionCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedStrongFingerprintCount;
+        /// <summary>Stat</summary>
+        public int ProcessFingerprintComputedConsumedPathCount;
+        /// <summary>Stat</summary>
+        public int PipExecutionDirectoryOutputsEventCount;
+        /// <summary>Stat</summary>
+        public int PipExecutionDirectoryOutputsOutputCount;
+        /// <summary>Stat</summary>
+        public int PipExecutionDirectoryOutputsFileCount;
+        /// <summary>Stat</summary>
+        public int PipCachedCount;
+        /// <summary>Stat</summary>
+        public int ProcessPipInfoCount;
+        /// <summary>Stat</summary>
+        public int DeclaredInputFileCount;
+        /// <summary>Stat</summary>
+        public int DeclaredInputDirectoryCount;
+        /// <summary>Stat</summary>
+        public int ConsumedFileCount;
+        /// <summary>Stat</summary>
+        public int ConsumedFileUnknownSizeCount;
+        /// <summary>Stat</summary>
+        public int DecidedFileCount;
+        /// <summary>Stat</summary>
+        public int DecidedFileValidProducerCount;
+        /// <summary>Stat</summary>
+        public int DecidedFileProducerConflictCount;
+    }
+
     internal sealed class FileConsumptionAnalyzer : Analyzer
     {
         /// <summary>
@@ -95,6 +143,8 @@ namespace BuildXL.Execution.Analyzer
         /// The path to the output directory
         /// </summary>
         public string OutputDirectoryPath;
+
+        private readonly FileConsumptionAnalyzerStatistics m_statistics = new FileConsumptionAnalyzerStatistics();
 
         public override bool CanHandleWorkerEvents => true;
 
@@ -131,8 +181,12 @@ namespace BuildXL.Execution.Analyzer
 
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
+            m_statistics.FileArtifactContentDecidedEventCount++;
+
             if (data.FileArtifact.IsOutputFile && data.FileContentInfo.HasKnownLength)
             {
+                m_statistics.FileArtifactOutputWithKnownLengthCount++;
+
                 if (!m_fileSizes.ContainsKey(data.FileArtifact.Path))
                 {
                     m_fileSizes.Add(data.FileArtifact.Path, data.FileContentInfo.Length);
@@ -154,9 +208,11 @@ namespace BuildXL.Execution.Analyzer
 
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
+            m_statistics.ProcessFingerprintComputedEventCount++;
+
             if (data.Kind == FingerprintComputationKind.Execution)
             {
-                if ((Interlocked.Increment(ref m_processedPips) % 1000) == 0)
+                if ((m_processedPips++ % 1000) == 0)
                 {
                     Console.WriteLine($"Processing {m_processedPips}");
                 }
@@ -167,12 +223,18 @@ namespace BuildXL.Execution.Analyzer
 
         public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
         {
+            m_statistics.PipExecutionDirectoryOutputsEventCount++;
+
             foreach (var kvp in data.DirectoryOutputs)
             {
+                m_statistics.PipExecutionDirectoryOutputsOutputCount++;
+
                 var paths = kvp.fileArtifactArray.Select(fa => fa.Path).ToList();
                 m_dynamicDirectoryContent[kvp.directoryArtifact] = paths;
                 foreach (var path in paths)
                 {
+                    m_statistics.PipExecutionDirectoryOutputsFileCount++;
+
                     m_parentOutputDirectory.Add(path, kvp.directoryArtifact);
                 }
             }
@@ -189,9 +251,11 @@ namespace BuildXL.Execution.Analyzer
 
             int totalDeclaredInputFiles = 0, totalDeclaredInputDirectories = 0, totalConsumedFiles = 0, totalActualProcessPips = 0;
 
+            m_statistics.ProcessPipInfoCount = m_executedProcessPips.Count;
+
             Parallel.ForEach(
                 m_executedProcessPips.Keys,
-                new ParallelOptions() { MaxDegreeOfParallelism = 1 },//Environment.ProcessorCount },
+                new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount },
                 pipId =>
                 {
                     var pip = m_executedProcessPips[pipId];
@@ -200,9 +264,12 @@ namespace BuildXL.Execution.Analyzer
 
                     if (pip.Worker == null)
                     {
+                        Interlocked.Increment(ref m_statistics.PipCachedCount);
+
                         // this pip was not executed (i.e., cache hit)
                         pip.ConsumedInputSize = -1;
                         pip.DeclaredInputSize = -1;
+
                         return;
                     }
 
@@ -213,6 +280,8 @@ namespace BuildXL.Execution.Analyzer
                     {
                         var inputFiles = pooledSetInputFiles.Instance;
                         var consumedFiles = pooledSetConsumedFiles.Instance;
+
+                        Interlocked.Add(ref m_statistics.DeclaredInputFileCount, pip.DeclaredInputFiles.Count);
 
                         // BXL executed this pip, so we can safely assume that its inputs were materialized.
                         foreach (var path in pip.DeclaredInputFiles)
@@ -225,6 +294,8 @@ namespace BuildXL.Execution.Analyzer
                             }
                         }
                         totalDeclaredInputFiles += pip.DeclaredInputFiles.Count;
+
+                        Interlocked.Add(ref m_statistics.DeclaredInputFileCount, pip.DeclaredInputDirectories.Count);
 
                         foreach (var directoryArtifact in pip.DeclaredInputDirectories)
                         {
@@ -242,6 +313,8 @@ namespace BuildXL.Execution.Analyzer
                             }
                         }
                         totalDeclaredInputDirectories += pip.DeclaredInputDirectories.Count;
+
+                        Interlocked.Add(ref m_statistics.ConsumedFileCount, pip.ConsumedFiles.Count);
 
                         foreach (var path in pip.ConsumedFiles)
                         {
@@ -261,6 +334,10 @@ namespace BuildXL.Execution.Analyzer
                                         });
                                 }
                             }
+                            else
+                            {
+                                Interlocked.Increment(ref m_statistics.ConsumedFileUnknownSizeCount);
+                            }
                         }
                         totalConsumedFiles += pip.ConsumedFiles.Count;
 
@@ -278,6 +355,8 @@ namespace BuildXL.Execution.Analyzer
                 });
 
             Console.WriteLine($"FileConsumptionAnalyzer: Analyzed {totalActualProcessPips} executed process pips ({totalDeclaredInputFiles} declared input files, {totalDeclaredInputDirectories} declared input directories, {totalConsumedFiles} consumed files) at {DateTime.Now}.");
+
+            m_statistics.DecidedFileCount = m_producedFiles.Count;
 
             // set file producer
             Parallel.ForEach(
@@ -305,6 +384,16 @@ namespace BuildXL.Execution.Analyzer
                         }
                     }
 
+                    if (producer.IsValid)
+                    {
+                        Interlocked.Increment(ref m_statistics.DecidedFileValidProducerCount);
+                    }
+
+                    if (outputFile.Producer.IsValid)
+                    {
+                        Interlocked.Increment(ref m_statistics.DecidedFileProducerConflictCount);
+                    }
+
                     outputFile.Producer = producer;
                 });
 
@@ -315,6 +404,10 @@ namespace BuildXL.Execution.Analyzer
                 Console.WriteLine($"Completing {worker.Name}");
                 worker.Complete();
             }
+
+            File.WriteAllText(
+                Path.Combine(OutputDirectoryPath, "statistics.json"),
+                Newtonsoft.Json.JsonConvert.SerializeObject(m_statistics, Newtonsoft.Json.Formatting.Indented));
 
             const int MaxConsumers = 10;
             m_writerFiles.WriteLine($"PathId,Path,Size,Producer,Consumers,Hash");

@@ -1,8 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.PackedTable;
 using System.IO;
+using BuildXL.Utilities.PackedTable;
 
 namespace BuildXL.Utilities.PackedExecution
 {
@@ -18,81 +18,55 @@ namespace BuildXL.Utilities.PackedExecution
     {
         #region Tables
 
-        /// <summary>
-        /// The directories.
-        /// </summary>
+        /// <summary>The directories.</summary>
         public readonly DirectoryTable DirectoryTable;
 
-        /// <summary>
-        /// The files.
-        /// </summary>
+        /// <summary>The files.</summary>
         public readonly FileTable FileTable;
 
-        /// <summary>
-        /// The paths.
-        /// </summary>
-        /// <remarks>
-        /// Shared by FileTable and DirectoryTable.
-        /// </remarks>
+        /// <summary>The paths.</summary>
+        /// <remarks>Shared by FileTable and DirectoryTable.</remarks>
         public readonly NameTable PathTable;
 
-        /// <summary>
-        /// The pips.
-        /// </summary>
+        /// <summary>The pips.</summary>
         public readonly PipTable PipTable;
 
-        /// <summary>
-        /// The pip executions.
-        /// </summary>
-        /// <remarks>
-        /// Currently this is stored sparsely -- most entries will be empty (uninitialized), since most pips are not
-        /// process pips (and if they are, may not get executed).
-        /// 
-        /// TODO: keep an eye on space usage here, and either support sparse derived tables, or make this data its own
-        /// base table and add a joining relation to the pip table.
-        /// </remarks>
+        /// <summary>The pip executions.</summary>
         public readonly PipExecutionTable PipExecutionTable;
 
-        /// <summary>
-        /// The strings.
-        /// </summary>
-        /// <remarks>
-        /// Shared by everything that contains strings (mainly PathTable).
-        /// </remarks>
+        /// <summary>The process executions.</summary>
+        public readonly ProcessExecutionTable ProcessExecutionTable;
+
+        /// <summary>The process pip executions.</summary>
+        public readonly ProcessPipExecutionTable ProcessPipExecutionTable;
+
+        /// <summary>The strings.</summary>
+        /// <remarks>Shared by everything that contains strings (mainly PathTable and PipTable.PipNameTable).</remarks>
         public readonly PackedTable.StringTable StringTable;
 
-        /// <summary>
-        /// The workers.
-        /// </summary>
+        /// <summary>The workers.</summary>
         public readonly WorkerTable WorkerTable;
 
         #endregion
 
         #region Relations
 
-        /// <summary>
-        /// The produced file relation (from executed pips towards the files they produced).
-        /// </summary>
+        /// <summary>The file producer relation (from each file to the single pip that produced it).</summary>
+        public SingleValueTable<FileId, PipId> FileProducer { get; private set; }
+
+        /// <summary>The consumed file relation (from executed pips to the files they consumed).</summary>
         public RelationTable<PipId, FileId> ConsumedFiles { get; private set; }
 
-        /// <summary>
-        /// The static input directory relation (from executed pips towards their statically declared input directories).
-        /// </summary>
+        /// <summary>The static input directory relation (from executed pips to their statically declared input directories).</summary>
         public RelationTable<PipId, DirectoryId> DeclaredInputDirectories { get; private set; }
 
-        /// <summary>
-        /// The static input file relation (from executed pips towards their statically declared input files).
-        /// </summary>
+        /// <summary>The static input file relation (from executed pips to their statically declared input files).</summary>
         public RelationTable<PipId, FileId> DeclaredInputFiles { get; private set; }
 
-        /// <summary>
-        /// The directory contents relation (from directories towards the files they contain).
-        /// </summary>
+        /// <summary>The directory contents relation (from directories to the files they contain).</summary>
         public RelationTable<DirectoryId, FileId> DirectoryContents { get; private set; }
 
-        /// <summary>
-        /// The pip dependency relation (from the dependent pip, towards the dependency pip).
-        /// </summary>
+        /// <summary>The pip dependency relation (from the dependent pip, to the dependency pip).</summary>
         public RelationTable<PipId, PipId> PipDependencies { get; private set; }
 
         #endregion
@@ -113,6 +87,8 @@ namespace BuildXL.Utilities.PackedExecution
             FileTable = new FileTable(PathTable);
             PipTable = new PipTable(StringTable);
             PipExecutionTable = new PipExecutionTable(PipTable);
+            ProcessExecutionTable = new ProcessExecutionTable(PipTable);
+            ProcessPipExecutionTable = new ProcessPipExecutionTable(PipTable);
             WorkerTable = new WorkerTable(StringTable);
         }
 
@@ -121,22 +97,22 @@ namespace BuildXL.Utilities.PackedExecution
         private static readonly string s_pathTableFileName = $"{nameof(PathTable)}.bin";
         private static readonly string s_pipTableFileName = $"{nameof(PipTable)}.bin";
         private static readonly string s_pipExecutionTableFileName = $"{nameof(PipExecutionTable)}.bin";
+        private static readonly string s_processExecutionTableFileName = $"{nameof(ProcessExecutionTable)}.bin";
+        private static readonly string s_processPipExecutionTableFileName = $"{nameof(ProcessPipExecutionTable)}.bin";
         private static readonly string s_stringTableFileName = $"{nameof(StringTable)}.bin";
         private static readonly string s_workerTableFileName = $"{nameof(WorkerTable)}.bin";
 
+        private static readonly string s_fileProducerFileName = $"{nameof(FileProducer)}.bin";
         private static readonly string s_consumedFilesFileName = $"{nameof(ConsumedFiles)}.bin";
         private static readonly string s_declaredInputDirectoriesFileName = $"{nameof(DeclaredInputDirectories)}.bin";
         private static readonly string s_declaredInputFilesFileName = $"{nameof(DeclaredInputFiles)}.bin";
         private static readonly string s_directoryContentsFileName = $"{nameof(DirectoryContents)}.bin";
         private static readonly string s_pipDependenciesFileName = $"{nameof(PipDependencies)}.bin";
 
-        /// <summary>
-        /// After the base tables are populated, construct the (now properly sized) relation tables.
-        /// </summary>
+        /// <summary>After the base tables are populated, construct the (now properly sized) relation tables.</summary>
         public void ConstructRelationTables()
         {
-            //System.Diagnostics.ContractsLight.Contract.Requires(ConsumedFiles == null, "Must only construct relation tables once");
-
+            FileProducer = new SingleValueTable<FileId, PipId>(FileTable);
             ConsumedFiles = new RelationTable<PipId, FileId>(PipTable, FileTable);
             DeclaredInputDirectories = new RelationTable<PipId, DirectoryId>(PipTable, DirectoryTable);
             DeclaredInputFiles = new RelationTable<PipId, FileId>(PipTable, FileTable);
@@ -144,9 +120,7 @@ namespace BuildXL.Utilities.PackedExecution
             PipDependencies = new RelationTable<PipId, PipId>(PipTable, PipTable);
         }
 
-        /// <summary>
-        /// Save the whole data set as a series of files in the given directory.
-        /// </summary>
+        /// <summary>Save all tables to the given directory.</summary>
         public void SaveToDirectory(string directory)
         {
             DirectoryTable.SaveToFile(directory, s_directoryTableFileName);
@@ -154,9 +128,12 @@ namespace BuildXL.Utilities.PackedExecution
             PathTable.SaveToFile(directory, s_pathTableFileName);
             PipTable.SaveToFile(directory, s_pipTableFileName);
             PipExecutionTable.SaveToFile(directory, s_pipExecutionTableFileName);
+            ProcessExecutionTable.SaveToFile(directory, s_processExecutionTableFileName);
+            ProcessPipExecutionTable.SaveToFile(directory, s_processPipExecutionTableFileName);
             StringTable.SaveToFile(directory, s_stringTableFileName);
             WorkerTable.SaveToFile(directory, s_workerTableFileName);
 
+            FileProducer?.SaveToFile(directory, s_fileProducerFileName);
             ConsumedFiles?.SaveToFile(directory, s_consumedFilesFileName);
             DeclaredInputDirectories?.SaveToFile(directory, s_declaredInputDirectoriesFileName);
             DeclaredInputFiles?.SaveToFile(directory, s_declaredInputFilesFileName);
@@ -164,9 +141,7 @@ namespace BuildXL.Utilities.PackedExecution
             PipDependencies?.SaveToFile(directory, s_pipDependenciesFileName);
         }
 
-        /// <summary>
-        /// Load the whole data set from a series of files in the given directory.
-        /// </summary>
+        /// <summary>Load all tables from the given directory.</summary>
         public void LoadFromDirectory(string directory)
         {
             DirectoryTable.LoadFromFile(directory, s_directoryTableFileName);
@@ -174,10 +149,17 @@ namespace BuildXL.Utilities.PackedExecution
             PathTable.LoadFromFile(directory, s_pathTableFileName);
             PipTable.LoadFromFile(directory, s_pipTableFileName);
             PipExecutionTable.LoadFromFile(directory, s_pipExecutionTableFileName);
+            ProcessExecutionTable.LoadFromFile(directory, s_processExecutionTableFileName);
+            ProcessPipExecutionTable.LoadFromFile(directory, s_processPipExecutionTableFileName);
             StringTable.LoadFromFile(directory, s_stringTableFileName);
             WorkerTable.LoadFromFile(directory, s_workerTableFileName);
 
             ConstructRelationTables();
+
+            if (File.Exists(Path.Combine(directory, s_fileProducerFileName)))
+            {
+                FileProducer.LoadFromFile(directory, s_fileProducerFileName);
+            }
 
             loadRelationTableIfExists(directory, s_consumedFilesFileName, ConsumedFiles);
             loadRelationTableIfExists(directory, s_declaredInputDirectoriesFileName, DeclaredInputDirectories);
@@ -196,68 +178,41 @@ namespace BuildXL.Utilities.PackedExecution
             }
         }
 
-        /// <summary>
-        /// Build an entire PackedExecution by collecting all the builders for each piece.
-        /// </summary>
+        /// <summary>Build a PackedExecution (by providing builders for all its tables).</summary>
         public class Builder
         {
-            /// <summary>
-            /// The PackedExecution being built.
-            /// </summary>
+            /// <summary>The full data set.</summary>
             public readonly PackedExecution PackedExecution;
 
-            /// <summary>
-            /// Builder for DirectoryTable.
-            /// </summary>
+            /// <nodoc />
             public readonly DirectoryTable.CachingBuilder DirectoryTableBuilder;
-            /// <summary>
-            /// Builder for FileTable.
-            /// </summary>
+            /// <nodoc />
             public readonly FileTable.CachingBuilder FileTableBuilder;
-            /// <summary>
-            /// Builder for PathTable.
-            /// </summary>
+            /// <nodoc />
             public readonly NameTable.Builder PathTableBuilder;
-            /// <summary>
-            /// Builder for PipTable.
-            /// </summary>
+            /// <nodoc />
             public readonly PipTable.Builder PipTableBuilder;
-            
-            // There is deliberately no PipExecutionTableBuilder; just call FillToBaseTableCount on it and then set values in it.
-
-            /// <summary>
-            /// Builder for StringTable..
-            /// </summary>
+            /// <nodoc />
+            public readonly PipExecutionTable.Builder<PipExecutionTable> PipExecutionTableBuilder;
+            /// <nodoc />
+            public readonly ProcessExecutionTable.Builder<ProcessExecutionTable> ProcessExecutionTableBuilder;
+            /// <nodoc />
+            public readonly ProcessPipExecutionTable.Builder<ProcessPipExecutionTable> ProcessPipExecutionTableBuilder;
+            /// <nodoc />
             public readonly PackedTable.StringTable.CachingBuilder StringTableBuilder;
-            /// <summary>
-            /// Builder for WOrkerTable.
-            /// </summary>
+            /// <nodoc />
             public readonly WorkerTable.CachingBuilder WorkerTableBuilder;
 
-            /// <summary>
-            /// Builder for ConsumedFiles relation.
-            /// </summary>
+            /// <nodoc />
             public readonly RelationTable<PipId, FileId>.Builder ConsumedFilesBuilder;
-            /// <summary>
-            /// Builder for DeclaredInputDirectories relation.
-            /// </summary>
+            /// <nodoc />
             public readonly RelationTable<PipId, DirectoryId>.Builder DeclaredInputDirectoriesBuilder;
-            /// <summary>
-            /// Builder for DeclaredInputFiles relation.
-            /// </summary>
+            /// <nodoc />
             public readonly RelationTable<PipId, FileId>.Builder DeclaredInputFilesBuilder;
-            /// <summary>
-            /// Builder for DirectoryContents relation.
-            /// </summary>
+            /// <nodoc />
             public readonly RelationTable<DirectoryId, FileId>.Builder DirectoryContentsBuilder;
-            /// <summary>
-            /// Builder for PipDependencies relation.
-            /// </summary>
-            public readonly RelationTable<PipId, PipId>.Builder PipDependenciesBuilder;
 
-            /// <summary>
-            /// Construct a Builder.
-            /// </summary>
+            /// <nodoc />
             public Builder(PackedExecution packedExecution)
             {
                 PackedExecution = packedExecution;
@@ -267,7 +222,11 @@ namespace BuildXL.Utilities.PackedExecution
                 PathTableBuilder = new NameTable.Builder(PackedExecution.PathTable, StringTableBuilder);
                 DirectoryTableBuilder = new DirectoryTable.CachingBuilder(PackedExecution.DirectoryTable, PathTableBuilder);
                 FileTableBuilder = new FileTable.CachingBuilder(PackedExecution.FileTable, PathTableBuilder);
-                PipTableBuilder = new PipTable.Builder(PackedExecution.PipTable, StringTableBuilder);               
+                PipTableBuilder = new PipTable.Builder(PackedExecution.PipTable, StringTableBuilder);
+                PipExecutionTableBuilder = new PipExecutionTable.Builder<PipExecutionTable>(PackedExecution.PipExecutionTable);
+                ProcessExecutionTableBuilder = new ProcessExecutionTable.Builder<ProcessExecutionTable>(PackedExecution.ProcessExecutionTable);
+                ProcessPipExecutionTableBuilder = new ProcessPipExecutionTable.Builder<ProcessPipExecutionTable>(PackedExecution.ProcessPipExecutionTable);
+                PipTableBuilder = new PipTable.Builder(PackedExecution.PipTable, StringTableBuilder);
                 WorkerTableBuilder = new WorkerTable.CachingBuilder(PackedExecution.WorkerTable, StringTableBuilder);
 
                 if (packedExecution.ConsumedFiles != null)
@@ -276,7 +235,27 @@ namespace BuildXL.Utilities.PackedExecution
                     DeclaredInputDirectoriesBuilder = new RelationTable<PipId, DirectoryId>.Builder(packedExecution.DeclaredInputDirectories);
                     DeclaredInputFilesBuilder = new RelationTable<PipId, FileId>.Builder(packedExecution.DeclaredInputFiles);
                     DirectoryContentsBuilder = new RelationTable<DirectoryId, FileId>.Builder(packedExecution.DirectoryContents);
-                    PipDependenciesBuilder = new RelationTable<PipId, PipId>.Builder(packedExecution.PipDependencies);
+                }
+            }
+
+            /// <summary>
+            /// Complete the builders that need completing.
+            /// </summary>
+            /// <remarks>
+            /// The builders that need completing are MultiValueTable.Builders, or builders derived therefrom.
+            /// </remarks>
+            public void Complete()
+            {
+                PipExecutionTableBuilder.Complete();
+                ProcessExecutionTableBuilder.Complete();
+                ProcessPipExecutionTableBuilder.Complete();
+
+                if (ConsumedFilesBuilder != null)
+                {
+                    ConsumedFilesBuilder.Complete();
+                    DeclaredInputFilesBuilder.Complete();
+                    DeclaredInputDirectoriesBuilder.Complete();
+                    DirectoryContentsBuilder.Complete();
                 }
             }
         }

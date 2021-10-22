@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Utilities.PackedTable;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.PackedTable;
 
 namespace BuildXL.Utilities.PackedExecution
 {
@@ -71,29 +72,56 @@ namespace BuildXL.Utilities.PackedExecution
     /// <summary>
     /// Boilerplate ID type to avoid ID confusion in code.
     /// </summary>
-    public readonly struct PipId : Id<PipId>, IEqualityComparer<PipId>
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+    public readonly struct PipId : Id<PipId>, IComparable<PipId>
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
     {
-        /// <summary>Value as int.</summary>
-        public readonly int Value;
-        /// <summary>Constructor.</summary>
-        public PipId(int value) { Id<StringId>.CheckNotZero(value); Value = value; }
-        /// <summary>Eliminator.</summary>
-        public int FromId() => Value;
-        /// <summary>Introducer.</summary>
-        public PipId ToId(int value) => new PipId(value);
-        /// <summary>Debugging.</summary>
-        public override string ToString() => $"PipId[{Value}]";
-        /// <summary>Comparison.</summary>
-        public bool Equals(PipId x, PipId y) => x.Value == y.Value;
-        /// <summary>Hashing.</summary>
-        public int GetHashCode(PipId obj) => obj.Value;
+        /// <summary>Comparer.</summary>
+        public struct EqualityComparer : IEqualityComparer<PipId>
+        {
+            /// <summary>Comparison.</summary>
+            public bool Equals(PipId x, PipId y) => x.Value == y.Value;
+            /// <summary>Hashing.</summary>
+            public int GetHashCode(PipId obj) => obj.Value;
+        }
 
+        private readonly int m_value;
+
+        /// <nodoc/>
+        public int Value => m_value;
+
+        /// <nodoc/>
+        public PipId(int value)
+        { 
+            Id<PipId>.CheckValidId(value);
+            m_value = value;
+        }
+
+        /// <nodoc/>
+        public PipId CreateFrom(int value) => new(value);
+
+        /// <nodoc/>
+        public override string ToString() => $"PipId[{Value}]";
+
+        /// <nodoc/>
+        public static bool operator ==(PipId x, PipId y) => x.Value == y.Value;
+
+        /// <nodoc/>
+        public static bool operator !=(PipId x, PipId y) => !(x == y);
+
+        /// <nodoc/>
+        public IEqualityComparer<PipId> Comparer => default(EqualityComparer);
+
+        /// <nodoc/>
+        public int CompareTo([AllowNull] PipId other) => Value.CompareTo(other.Value);
     }
 
     /// <summary>
     /// Core data about a pip in the pip graph.
     /// </summary>
-    public struct PipEntry
+    public readonly struct PipEntry
     {
         /// <summary>
         /// Semi-stable hash.
@@ -123,18 +151,12 @@ namespace BuildXL.Utilities.PackedExecution
             PipType = type;
         }
 
-        /// <summary>
-        /// Compare PipEntries by SemiStableHash value.
-        /// </summary>
+        /// <nodoc/>
         public struct EqualityComparer : IEqualityComparer<PipEntry>
         {
-            /// <summary>
-            /// Equality.
-            /// </summary>
+            /// <nodoc/>
             public bool Equals(PipEntry x, PipEntry y) => x.SemiStableHash.Equals(y.SemiStableHash);
-            /// <summary>
-            /// Hashing.
-            /// </summary>
+            /// <nodoc/>
             public int GetHashCode([DisallowNull] PipEntry obj) => obj.SemiStableHash.GetHashCode();
         }
     }

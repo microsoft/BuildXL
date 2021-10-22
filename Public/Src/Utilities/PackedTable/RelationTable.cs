@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 
 namespace BuildXL.Utilities.PackedTable
 {
@@ -31,6 +32,38 @@ namespace BuildXL.Utilities.PackedTable
         public RelationTable(ITable<TFromId> baseTable, ITable<TToId> relatedTable) : base(baseTable)
         {
             RelatedTable = relatedTable;
+        }
+
+        private static readonly IEqualityComparer<TToId> s_toComparer = default(TToId).Comparer;
+
+        /// <summary>
+        /// Construct a RelationTable from a one-to-one SingleValueTable.
+        /// </summary>
+        /// <remarks>
+        /// The only real point of doing this is to be able to invert the resulting relation.
+        /// </remarks>
+        public static RelationTable<TFromId, TToId> FromSingleValueTable(
+            SingleValueTable<TFromId, TToId> baseTable,
+            ITable<TToId> relatedTable)
+        {
+            RelationTable<TFromId, TToId> result = new RelationTable<TFromId, TToId>(baseTable, relatedTable);
+
+            TToId[] buffer = new TToId[1];
+            TToId[] empty = new TToId[0];
+            foreach (TFromId id in baseTable.Ids)
+            {
+                if (!s_toComparer.Equals(baseTable[id], default))
+                {
+                    buffer[0] = baseTable[id];
+                    result.Add(buffer);
+                }
+                else
+                {
+                    result.Add(empty);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -68,8 +101,8 @@ namespace BuildXL.Utilities.PackedTable
             // Ensure newRelations are sorted.
             for (int i = 1; i < newRelations.Length; i++)
             {
-                int previous = newRelations[i - 1].FromId();
-                int current = newRelations[i].FromId();
+                int previous = newRelations[i - 1].Value;
+                int current = newRelations[i].Value;
                 if (previous >= current)
                 {
                     throw new ArgumentException($"Cannot add unsorted and/or duplicate data to RelationTable: data[{i - 1}] = {previous}; data[{i}] = {current}");
@@ -100,7 +133,7 @@ namespace BuildXL.Utilities.PackedTable
             {
                 foreach (TToId relatedId in this[id])
                 {
-                    result.SingleValues[relatedId.FromId() - 1]++;
+                    result.SingleValues[relatedId.Value - 1]++;
                     sum++;
                 }
             }
@@ -121,8 +154,8 @@ namespace BuildXL.Utilities.PackedTable
             {
                 foreach (TToId relatedId in this[id])
                 {
-                    int relatedIdInt = relatedId.FromId() - 1;
-                    int idInt = id.FromId() - 1;
+                    int relatedIdInt = relatedId.Value - 1;
+                    int idInt = id.Value - 1;
                     int offset = result.Offsets[relatedIdInt];
                     int position = positions[relatedIdInt];
                     int relationIndex = result.Offsets[relatedIdInt] + positions[relatedIdInt];
@@ -139,7 +172,7 @@ namespace BuildXL.Utilities.PackedTable
                         // all the relations for this ID are known. now, we have to sort them.
                         Span<TFromId> finalSpan = 
                             result.MultiValues.AsSpan().Slice(result.Offsets[relatedIdInt], result.SingleValues[relatedIdInt]);
-                        SpanUtilities.Sort(finalSpan, (id1, id2) => id1.FromId().CompareTo(id2.FromId()));
+                        finalSpan.Sort((id1, id2) => id1.Value.CompareTo(id2.Value));
                     }
                 }
             }
@@ -151,93 +184,27 @@ namespace BuildXL.Utilities.PackedTable
 
         /// <summary>
         /// Build a Relation by adding unordered (from, to) tuples, and then finally completing the collection, which sorts
-        /// and populates the Relation.
+        /// and deduplicates the Relation.
         /// </summary>
-        public class Builder
+        /// <remarks>
+        /// This type is more strict than the MultiValueTable.Builder it derives from; it ensures that all relations are sorted
+        /// by TToId, and it deduplicates to ensure no duplicated TToId entries.
+        /// </remarks>
+        public class Builder : Builder<RelationTable<TFromId, TToId>>
         {
-            /// <summary>
-            /// The table being built.
-            /// </summary>
-            public readonly RelationTable<TFromId, TToId> Table;
-
-            private readonly SpannableList<(TFromId fromId, TToId toId)> m_list;
-
             /// <summary>
             /// Construct a Builder.
             /// </summary>
             public Builder(RelationTable<TFromId, TToId> table, int capacity = DefaultCapacity)
+                : base(table, capacity)
             {
-                Table = table ?? throw new ArgumentException("Table argument must not be null");
-                m_list = new SpannableList<(TFromId, TToId)>(capacity);
             }
 
-            /// <summary>
-            /// Add this relationship.
-            /// </summary>
-            public void Add(TFromId fromId, TToId toId)
-            {
-                m_list.Add((fromId, toId));
-            }
+            /// <summary>Compare these values; for relation tables, these must be sorted.</summary>
+            public override int Compare(TToId value1, TToId value2) => value1.Value.CompareTo(value2.Value);
 
-            /// <summary>
-            /// All relationships have been added; sort them all and build the final relation table.
-            /// </summary>
-            public void Complete()
-            {
-                m_list.AsSpan().Sort((tuple1, tuple2) =>
-                {
-                    int fromIdCompare = tuple1.fromId.FromId().CompareTo(tuple2.fromId.FromId());
-                    if (fromIdCompare != 0)
-                    {
-                        return fromIdCompare;
-                    }
-                    return tuple1.toId.FromId().CompareTo(tuple2.toId.FromId());
-                });
-
-                // and bin them by groups
-                int listIndex = 0;
-                SpannableList<TToId> buffer = new SpannableList<TToId>();
-                int listCount = m_list.Count;
-                Table.SetMultiValueCapacity(listCount);
-
-                foreach (TFromId id in Table.BaseTableOpt.Ids)
-                {
-                    if (listIndex >= m_list.Count)
-                    {
-                        // ran outta entries, rest all 0
-                        break;
-                    }
-
-                    // Count up how many are for id.
-                    int count = 0;
-                    buffer.Clear();
-                    
-                    // create a to-ID that will never equal any other ID (even default)
-                    TToId lastToId = default(TToId).ToId(-1);
-
-                    while (listIndex + count < m_list.Count)
-                    {
-                        var (fromId, toId) = m_list[listIndex + count];
-                        if (fromId.Equals(id))
-                        {
-                            // drop duplicates (silently...)
-                            // TODO: are duplicates here a logic bug? Because they do happen in practice.
-                            if (!toId.Equals(lastToId))
-                            {
-                                buffer.Add(toId);
-                            }
-                            count++;
-                            lastToId = toId;
-                            continue;
-                        }
-                        // ok we're done
-                        break;
-                    }
-
-                    Table.Add(buffer.AsSpan());
-                    listIndex += count;
-                }
-            }
+            /// <summary>Detect any duplicates; relation tables must not contain duplicate entries.</summary>
+            public override bool IsConsideredDistinct(TToId value1, TToId value2) => !value1.Comparer.Equals(value1, value2);
         }
     }
 }

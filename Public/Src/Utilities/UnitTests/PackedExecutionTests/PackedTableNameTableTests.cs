@@ -3,6 +3,7 @@
 
 using BuildXL.Utilities.PackedTable;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -14,6 +15,24 @@ namespace Test.Tool.Analyzers
     {
         public PackedTableNameTableTests(ITestOutputHelper output) : base(output)
         {
+        }
+
+        [Fact]
+        public void NameId_equality_is_consistent()
+        {
+            NameId oneId = new(1);
+#pragma warning disable CS1718 // Comparison made to same variable
+            XAssert.IsTrue(oneId == oneId);
+            XAssert.IsFalse(oneId != oneId);
+#pragma warning restore CS1718 // Comparison made to same variable
+            XAssert.IsFalse(oneId == default);
+            XAssert.IsTrue(oneId != default);
+            XAssert.IsTrue(default(NameId) == default(NameId));
+            NameId defaultId = default;
+            XAssert.IsTrue(defaultId == default);
+            XAssert.IsFalse(defaultId != default);
+            XAssert.IsFalse(defaultId == oneId);
+            XAssert.IsTrue(defaultId != oneId);
         }
 
         [Fact]

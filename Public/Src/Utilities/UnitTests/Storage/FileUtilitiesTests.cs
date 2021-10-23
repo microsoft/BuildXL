@@ -276,6 +276,21 @@ namespace Test.BuildXL.Storage
             XAssert.IsFalse(File.Exists(testFile));
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        public void DeleteFileWithLongPathWithoutPermissions()
+        {
+            string parentDirectory = GetFullPath("reallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylongpath");
+            Directory.CreateDirectory(parentDirectory);
+            string testFile = Path.Combine(parentDirectory, "test.txt");
+            File.WriteAllText(testFile, "hello");
+            ACLHelpers.RevokeAccessNative(testFile, LoggingContext);
+
+            XAssert.IsTrue(FileUtilities.TryTakeOwnershipAndSetWriteable(testFile));
+
+            FileUtilities.DeleteFile(testFile);
+            XAssert.IsFalse(File.Exists(testFile));
+        }
+
         [Fact]
         public async Task WriteAllText()
         {

@@ -818,7 +818,7 @@ namespace BuildXL.Native.IO.Windows
             // takeown will fail if it operates through a substed path.
             // Attempt to get subst mappings and resolve it to the original drive's path
             var substResult = startProcess("subst", "", captureOutputStreams: true);
-            if(substResult.Success && !string.IsNullOrEmpty(substResult.OptionalOutputStream))
+            if (substResult.Success && !string.IsNullOrEmpty(substResult.OptionalOutputStream))
             {
                 foreach (string line in substResult.OptionalOutputStream.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
                 {
@@ -841,26 +841,93 @@ namespace BuildXL.Native.IO.Windows
             }
 
             Logger.Log.SettingOwnershipAndAcl(m_loggingContext, path);
-
-            // It is possible that TakeOwn fails, but ICACLS will still succeed, so do not return false on failure
-            startProcess("takeown", I($"/F \"{path}\""));
-
-            // First grant full access to all accounts in the Users group. This is done for the sake of CloudBuild where
-            // the cache service is running under a different user context than the build. It must be able to interact
-            // with the file. It may then create hardlinks to the file used in subsequent builds which then run under
-            // different users. They must be able to access the files from cache as well.
-            startProcess("icacls", I($"\"{path}\" /grant Users:(F)"));
-
-#if !NET_STANDARD_20
-            string userSid = WindowsIdentity.GetCurrent().User?.Value;
-            if (userSid != null)
+            
+            // The long path prefix is required for paths greater than MAX_PATH before calling native methods.
+            if (path.Length > NativeIOConstants.MaxPath)
             {
-                // SID must be prefixed with '*' char
-                return startProcess("icacls", I($"\"{path}\" /grant *{userSid}:(F)")).Success;
+                path = FileSystemWin.LongPathPrefix + path;
             }
+
+            // First take ownership as the current user
+            var takeOwnershipNativeResult = NativeMethods.TakeOwnershipAsCurrentUserNative(path, m_loggingContext);
+
+            if (!takeOwnershipNativeResult)
+            {
+                Logger.Log.FileUtilitiesDiagnostic(m_loggingContext,
+                    path,
+                    $"Failed to take ownership of path. Native error codes have already been logged. Trying to set ACL now.");
+            }
+
+            // If we are unable to take ownership, we can still try to set the ACL, but it will most likely fail
+            try
+            {
+                FileInfo fileInfo = new FileInfo(path);
+                FileSecurity fileSecurity = fileInfo.GetAccessControl();
+
+                string userName =
+#if !NET_STANDARD_20
+                WindowsIdentity.GetCurrent().Name;
+#else
+                $"{Environment.UserDomainName}\\{Environment.UserName}";
 #endif
-            // could not get user's SID -> fall back to using username
-            return startProcess("icacls", I($"\"{path}\" /grant {Environment.UserName}:(F)")).Success;
+
+                // Remove any ACE that may be denying full access to the current user
+                fileSecurity.RemoveAccessRule(
+                    new FileSystemAccessRule(
+                        userName,
+                        FileSystemRights.FullControl,
+                        AccessControlType.Deny));
+
+                // Allow access to Users group. This is done for the sake of CloudBuild where
+                // the cache service is running under a different user context than the build. It must be able to interact
+                // with the file. It may then create hardlinks to the file used in subsequent builds which then run under
+                // different users. They must be able to access the files from cache as well.
+                fileSecurity.AddAccessRule(
+                    new FileSystemAccessRule(
+                        @"BUILTIN\USERS",
+                        FileSystemRights.FullControl,
+                        AccessControlType.Allow));
+
+                // Allow full control for the user running the BXL process
+                fileSecurity.AddAccessRule(
+                    new FileSystemAccessRule(
+                        userName,
+                        FileSystemRights.FullControl,
+                        AccessControlType.Allow));
+
+                // Set the new access control settings to be what they were before plus the new ones specified above
+                fileInfo.SetAccessControl(fileSecurity);
+
+                // If we got to this point, SetAccessControl was successful since it did not throw an exception
+                takeOwnershipNativeResult = true;
+            }
+            catch (Exception e)
+            {
+                // FileInfo.GetAccessControl or FileInfo.SetAccessControl will throw exceptions if we do not have proper
+                // permission to update the access rules.
+                if (e is IOException || e is SystemException || e is SEHException)
+                {
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext,
+                        path,
+                        $"Unable to set ACL because the file was not found or could not be opened. Exception: '{e}'");
+                }
+                else if (e is PrivilegeNotHeldException || e is UnauthorizedAccessException)
+                {
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext,
+                        path,
+                        $"Unable to set ACL due to insufficient privilege. Exception: '{e}'");
+                }
+                else
+                {
+                    Logger.Log.FileUtilitiesDiagnostic(m_loggingContext,
+                        path,
+                        $"Unable to set ACL. Exception: '{e}'");
+                }
+
+                takeOwnershipNativeResult = false;
+            }
+
+            return takeOwnershipNativeResult;
 
             (bool Success, string OptionalOutputStream) startProcess(string processName, string arguments, bool captureOutputStreams = false)
             {
@@ -895,7 +962,7 @@ namespace BuildXL.Native.IO.Windows
                         lock (outputBuilder)
                         {
                             string outputStream = outputBuilder.ToString();
-                        
+
                             if (process.ExitCode != 0)
                             {
                                 Logger.Log.SettingOwnershipAndAclFailed(
@@ -1498,10 +1565,508 @@ namespace BuildXL.Native.IO.Windows
             return path;
         }
 
-        private static class NativeMethods
+        /// <summary>
+        /// Native Methods for Windows FileUtilities
+        /// </summary>
+        public static class NativeMethods
         {
+            #region Definitions
+            /// <summary>
+            /// Contains information about a set of privileges for an access token.
+            /// https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_privileges
+            /// </summary>
+            [StructLayout(LayoutKind.Sequential)]
+            private struct TOKEN_PRIVILEGES
+            {
+                public uint PrivilegeCount;
+                [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1, ArraySubType = UnmanagedType.Struct)]
+                public LUID_AND_ATTRIBUTES[] Privileges;
+            }
+
+            /// <summary>
+            /// Represents a locally unique identifier (<see cref="LUID"/>) and its attributes.
+            /// https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-luid_and_attributes
+            /// </summary>
+            [StructLayout(LayoutKind.Sequential)]
+            private struct LUID_AND_ATTRIBUTES
+            {
+                public LUID Luid;
+                public uint Attributes;
+            }
+
+            /// <summary>
+            /// Describes a local identifier for an adapter.
+            /// https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-luid
+            /// </summary>
+            [StructLayout(LayoutKind.Sequential)]
+            private struct LUID
+            {
+                public uint LowPart;
+                public int  HighPart;
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 0)]
+            private struct EXPLICIT_ACCESS
+            {
+                public uint        grfAccessPermissions;
+                public ACCESS_MODE grfAccessMode;
+                public uint        grfInheritance;
+                public TRUSTEE     Trustee;
+            }
+
+            /// <summary>
+            /// Identifies the user account, group account, or logon session to which an access control entry (ACE) applies.
+            /// </summary>
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 0)]
+            private struct TRUSTEE
+            {
+                public IntPtr pMultipleTrustee;
+                public MULTIPLE_TRUSTEE_OPERATION MultipleTrusteeOperation;
+                public TRUSTEE_FORM TrusteeForm;
+                public TRUSTEE_TYPE TrusteeType;
+                public IntPtr ptstrName;
+            }
+
+            /// <summary>
+            /// Contains values that indicate whether a TRUSTEE structure is an impersonation trustee.
+            /// </summary>
+            private enum MULTIPLE_TRUSTEE_OPERATION
+            {
+                NO_MULTIPLE_TRUSTEE,
+                TRUSTEE_IS_IMPERSONATE
+            }
+
+            private enum TRUSTEE_FORM
+            {
+                TRUSTEE_IS_SID,
+                TRUSTEE_IS_NAME,
+                TRUSTEE_BAD_FORM,
+                TRUSTEE_IS_OBJECTS_AND_SID,
+                TRUSTEE_IS_OBJECTS_AND_NAME
+            }
+
+            private enum TRUSTEE_TYPE
+            {
+                TRUSTEE_IS_UNKNOWN,
+                TRUSTEE_IS_USER,
+                TRUSTEE_IS_GROUP,
+                TRUSTEE_IS_DOMAIN,
+                TRUSTEE_IS_ALIAS,
+                TRUSTEE_IS_WELL_KNOWN_GROUP,
+                TRUSTEE_IS_DELETED,
+                TRUSTEE_IS_INVALID,
+                TRUSTEE_IS_COMPUTER
+            }
+
+            /// <summary>
+            /// Enumeration containing values that correspond to the types of Windows objects that support security.
+            /// https://docs.microsoft.com/en-us/windows/win32/api/accctrl/ne-accctrl-se_object_type
+            /// </summary>
+            private enum SE_OBJECT_TYPE
+            {
+                /// <summary>
+                /// Unknown object type.
+                /// </summary>
+                SE_UNKNOWN_OBJECT_TYPE = 0,
+
+                /// <summary>
+                /// Indicates a file or directory.
+                /// </summary>
+                SE_FILE_OBJECT,
+
+                /// <summary>
+                /// Indicates a Windows service.
+                /// </summary>
+                SE_SERVICE,
+
+                /// <summary>
+                /// Indicates a printer.
+                /// </summary>
+                SE_PRINTER,
+
+                /// <summary>
+                /// Indicates a registry key.
+                /// </summary>
+                SE_REGISTRY_KEY,
+
+                /// <summary>
+                /// Indicates a network share.
+                /// </summary>
+                SE_LMSHARE,
+
+                /// <summary>
+                /// Indicates a local kernel object.
+                /// </summary>
+                SE_KERNEL_OBJECT,
+
+                /// <summary>
+                /// Indicates a window station or desktop object on the local computer.
+                /// </summary>
+                SE_WINDOW_OBJECT,
+
+                /// <summary>
+                /// Indicates a directory service object or a property set or property of a directory service object.
+                /// </summary>
+                SE_DS_OBJECT,
+
+                /// <summary>
+                /// Indicates a directory service object and all of its property sets and properties.
+                /// </summary>
+                SE_DS_OBJECT_ALL,
+
+                /// <summary>
+                /// Indicates a provider-defined object.
+                /// </summary>
+                SE_PROVIDER_DEFINED_OBJECT,
+
+                /// <summary>
+                /// Indicates a WMI object.
+                /// </summary>
+                SE_WMIGUID_OBJECT,
+
+                /// <summary>
+                /// Indicates an object for a registry entry under WOW64.
+                /// </summary>
+                SE_REGISTRY_WOW64_32KEY,
+            }
+
+            /// <summary>
+            /// Identifies the object-related security information being set or queried.
+            /// </summary>
+            [Flags]
+            private enum SECURITY_INFORMATION : uint
+            {
+                OWNER_SECURITY_INFORMATION = 0x00000001,
+                DACL_SECURITY_INFORMATION = 0x00000004,
+            }
+
+            /// <summary>
+            /// Contains values that indicate how the access rights in an <see cref="EXPLICIT_ACCESS"/> structure apply to the trustee.
+            /// </summary>
+            private enum ACCESS_MODE
+            {
+                NOT_USED_ACCESS = 0,
+                GRANT_ACCESS,
+                SET_ACCESS,
+                DENY_ACCESS,
+                REVOKE_ACCESS,
+                SET_AUDIT_SUCCESS,
+                SET_AUDIT_FAILURE
+            }
+
+            /// <summary>
+            /// Specifies different types of SIDs
+            /// </summary>
+            private enum SID_NAME_USE
+            {
+                SidTypeUser,
+                SidTypeGroup,
+                SidTypeDomain,
+                SidTypeAlias,
+                SidTypeWellKnownGroup,
+                SidTypeDeletedAccount,
+                SidTypeInvalid,
+                SidTypeUnknown,
+                SidTypeComputer,
+                SidTypeLabel,
+                SidTypeLogonSession
+            }
+
+            /// <summary>
+            /// https://docs.microsoft.com/en-us/windows/win32/secauthz/privilege-constants
+            /// Required privilege constant to take ownership of an object without being granted
+            /// discretionary access.
+            /// </summary>
+            public const string SE_TAKE_OWNERSHIP_NAME = "SeTakeOwnershipPrivilege";
+
+            /// <summary>
+            /// Required to perform restore operations.
+            /// </summary>
+            public const string SE_RESTORE_NAME = "SeRestorePrivilege";
+
+            /// <summary>
+            /// TOKEN_QUERY.
+            /// </summary>
+            private const int TOKEN_QUERY = 8;
+
+            /// <summary>
+            /// Required to enable or disable the privileges in an access token.
+            /// </summary>
+            private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+
+            /// <summary>
+            /// Used by <see cref="LUID_AND_ATTRIBUTES"/> to enable a privilege.
+            /// </summary>
+            private const int SE_PRIVILEGE_ENABLED = 2;
+
+            // Error codes
+            private const uint ERROR_SUCCESS = 0x0;
+            private const uint ERROR_INSUFFICIENT_BUFFER = 0x7a;
+            private const uint ERROR_INVALID_FLAGS = 0x3EC;
+            private const uint ERROR_NOT_ALL_ASSIGNED = 0x514;
+
+            /// <nodoc/>
             [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
             public static extern int SHGetKnownFolderPath(ref Guid rfid, int dwFlags, IntPtr hToken, out IntPtr lpszPath);
+
+            [DllImport("advapi32.dll", EntryPoint = "OpenProcessToken", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool OpenProcessToken(
+                [In]
+                IntPtr ProcessHandle,
+                uint DesiredAccess,
+                out IntPtr TokenHandle);
+
+            [DllImport("advapi32.dll", EntryPoint = "AdjustTokenPrivileges", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool AdjustTokenPrivileges(
+                [In]
+                IntPtr TokenHandle,
+                [MarshalAs(UnmanagedType.Bool)]
+                bool DisableAllPrivileges,
+                [In]
+                ref TOKEN_PRIVILEGES NewState,
+                uint BufferLength,
+                IntPtr PreviousState,
+                IntPtr ReturnLength);
+
+            [DllImport("kernel32.dll", EntryPoint = "GetCurrentProcess")]
+            private static extern IntPtr GetCurrentProcess();
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool LookupPrivilegeValue(
+                string lpSystemName,
+                string lpName,
+                ref LUID lpLuid);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool CloseHandle(IntPtr hObject);
+
+            [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+            private static extern int SetNamedSecurityInfo(
+                string pObjectName,
+                SE_OBJECT_TYPE ObjectType,
+                SECURITY_INFORMATION SecurityInfo,
+                IntPtr psidOwner,
+                IntPtr psidGroup,
+                IntPtr pDacl,
+                IntPtr pSacl);
+
+            [DllImport("advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+            private static extern bool LookupAccountName(
+                [MarshalAs(UnmanagedType.LPWStr)]
+                string lpSystemName,
+                [MarshalAs(UnmanagedType.LPWStr)]
+                string lpAccountName,
+                IntPtr Sid,
+                ref uint cbSid,
+                StringBuilder ReferencedDomainName,
+                ref uint cchReferencedDomainName,
+                out SID_NAME_USE peUse
+            );
+            #endregion
+
+            #region HelperMethods
+            /// <summary>
+            /// Takes ownership of the specified file/directory object.
+            /// </summary>
+            /// <param name="path">Path to file or directory to take ownership.</param>
+            /// <param name="loggingContext">Logging context</param>
+            /// <returns>True if the take ownership operation was successful.</returns>
+            public static bool TakeOwnershipAsCurrentUserNative(string path, LoggingContext loggingContext)
+            {
+                var takeOwnershipResult = true;
+                var sidCurrentUser = IntPtr.Zero;
+
+                try
+                {
+                    // SID for current user
+                    var currentUser =
+#if !NET_STANDARD_20
+                    WindowsIdentity.GetCurrent().Name;
+#else
+                    Environment.UserName;
+#endif
+                    sidCurrentUser = GetSidFromAccountName(currentUser, path, loggingContext);
+
+                    if (sidCurrentUser != IntPtr.Zero)
+                    {
+                        // 1. Take ownership as current user by enabling the SE_TAKE_OWNERSHIP_NAME privilege
+                        takeOwnershipResult &= SetPrivilege(SE_TAKE_OWNERSHIP_NAME, enablePrivilege: true, path, loggingContext);
+
+                        // 2. Try to set the current user as the owner of the file
+                        var setNamedSecurityInfoResult = SetNamedSecurityInfo(
+                                path,
+                                SE_OBJECT_TYPE.SE_FILE_OBJECT,
+                                SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION,
+                                sidCurrentUser,
+                                IntPtr.Zero,
+                                IntPtr.Zero,
+                                IntPtr.Zero);
+
+                        if (setNamedSecurityInfoResult != ERROR_SUCCESS)
+                        {
+                            Logger.Log.FileUtilitiesDiagnostic(loggingContext,
+                                path,
+                                $"SetNamedSecurityInfo failed during TakeOwnership with native error code: '{setNamedSecurityInfoResult}'");
+
+                            takeOwnershipResult = false;
+                        }
+
+                        // 3. Disable SE_TAKE_OWNERSHIP_NAME privilege
+                        takeOwnershipResult &= SetPrivilege(SE_TAKE_OWNERSHIP_NAME, enablePrivilege: false, path, loggingContext);
+
+                    }
+                    else
+                    {
+                        // Already logged in GetSidFromAccountName
+                        takeOwnershipResult = false;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Logger.Log.FileUtilitiesDiagnostic(
+                        loggingContext,
+                        path,
+                        $"TakeOwnershipAsCurrentUserNative failed with: {e}");
+                    takeOwnershipResult = false;
+
+                }
+                finally
+                {
+                    if (sidCurrentUser != IntPtr.Zero) 
+                    {
+                        Marshal.FreeHGlobal(sidCurrentUser);
+                    }
+                }
+
+                return takeOwnershipResult;
+            }
+
+            /// <summary>
+            /// Enables a privilege in an access token that allows the process to perform system-level actions that it could not previously.
+            /// https://docs.microsoft.com/en-us/windows/win32/secauthz/enabling-and-disabling-privileges-in-c--
+            /// </summary>
+            public static bool SetPrivilege(string privilege, bool enablePrivilege, string path, LoggingContext loggingContext)
+            {
+                IntPtr token = IntPtr.Zero;
+                TOKEN_PRIVILEGES tokenPrivileges = default;
+                LUID luid = default;
+
+                OpenProcessToken(
+                    GetCurrentProcess(),
+                    TOKEN_ADJUST_PRIVILEGES,
+                    out token);
+
+                if (enablePrivilege)
+                {
+                    if (!LookupPrivilegeValue(null, privilege, ref luid))
+                    {
+                        Logger.Log.FileUtilitiesDiagnostic(loggingContext,
+                            path,
+                            $"LookupPrivilegeValue failed for enable {SE_TAKE_OWNERSHIP_NAME} call with native error code: '{Marshal.GetLastWin32Error()}'");
+                        CloseHandle(token);
+                        return false;
+                    }
+
+                    tokenPrivileges.PrivilegeCount = 1;
+                    tokenPrivileges.Privileges = new LUID_AND_ATTRIBUTES[1];
+                    tokenPrivileges.Privileges[0].Luid = luid;
+                    tokenPrivileges.Privileges[0].Attributes = enablePrivilege ? SE_PRIVILEGE_ENABLED : (uint)0;
+                }
+
+                // Enable or disable the privilege
+                AdjustTokenPrivileges(
+                    token,
+                    false,
+                    ref tokenPrivileges,
+                    0,
+                    IntPtr.Zero,
+                    IntPtr.Zero);
+                var adjustPrivError = Marshal.GetLastWin32Error();
+                // The call is considered successful if the privilege didn't need to be set (ERROR_NOT_ALL_ASSIGNED).
+                var adjustPrivResult = adjustPrivError == ERROR_SUCCESS || adjustPrivError == ERROR_NOT_ALL_ASSIGNED;
+
+                if (!adjustPrivResult)
+                {
+                    Logger.Log.FileUtilitiesDiagnostic(loggingContext,
+                        path,
+                        $"AdjustTokenPrivileges failed for {(enablePrivilege ? "enable" : "disable")} {SE_TAKE_OWNERSHIP_NAME} call with native error code: {adjustPrivError}");
+                }
+
+                CloseHandle(token);
+
+                return adjustPrivResult;
+            }
+
+            /// <summary>
+            /// Gets a SID given an account name string.
+            /// </summary>
+            /// <remarks>Caller must free SID manually by calling Marshal.FreeHGlobal</remarks>
+            private static IntPtr GetSidFromAccountName(string name, string path, LoggingContext loggingContext)
+            {
+                var sidUser = IntPtr.Zero;
+                uint sidUserLength = 0;
+                StringBuilder referencedDomainName = null;
+                uint referencedDomainNameLength = 0;
+                var result = true;
+
+                LookupAccountName(
+                    null,
+                    name,
+                    sidUser,
+                    ref sidUserLength,
+                    referencedDomainName,
+                    ref referencedDomainNameLength,
+                    out var _);
+
+                // First call will fail and set the length variables
+                var error = Marshal.GetLastWin32Error();
+
+                if (error == ERROR_INSUFFICIENT_BUFFER || error == ERROR_INVALID_FLAGS)
+                {
+                    sidUser = Marshal.AllocHGlobal((int)sidUserLength);
+                    referencedDomainName = new StringBuilder((int)referencedDomainNameLength);
+
+                    // Call again with the buffers allocated
+                    var lookupAccountNameResult = LookupAccountName(
+                        null,
+                        name,
+                        sidUser,
+                        ref sidUserLength,
+                        referencedDomainName,
+                        ref referencedDomainNameLength,
+                        out var _);
+
+                    if (!lookupAccountNameResult)
+                    {
+                        result = false;
+                        error = Marshal.GetLastWin32Error();
+                    }
+                }
+                else
+                {
+                    result = false;
+                }
+
+                if (!result)
+                {
+                    Logger.Log.FileUtilitiesDiagnostic(loggingContext,
+                        path,
+                        $"LookupAccountName failed for user '{name}' with native error code: {error}");
+
+                    if (sidUser != IntPtr.Zero)
+                    {
+                        Marshal.FreeHGlobal(sidUser);
+                        sidUser = IntPtr.Zero;
+                    }
+                }
+
+                return sidUser;
+            }
+            #endregion
         }
 
         /// <inheritdoc />

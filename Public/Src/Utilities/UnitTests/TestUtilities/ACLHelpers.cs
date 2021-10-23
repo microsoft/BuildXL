@@ -3,7 +3,13 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
+using BuildXL.Native.IO;
+using BuildXL.Native.IO.Windows;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -29,6 +35,44 @@ namespace Test.BuildXL.TestUtilities
             {
                 throw new BuildXLTestException($"Failed to reset filesystem ACLs: {Environment.NewLine}{icaclsResult}");
             }
+        }
+
+        /// <summary>
+        /// Revokes access using the SetPrivilege native methods instead of calling icacls
+        /// </summary>
+        public static void RevokeAccessNative(string testFilePath, LoggingContext loggingContext)
+        {
+            if (testFilePath.Length > NativeIOConstants.MaxPath)
+            {
+                testFilePath = FileSystemWin.LongPathPrefix + testFilePath;
+            }
+
+            // Restore name privilege is required to change the owner of the file
+            FileUtilitiesWin.NativeMethods.SetPrivilege(FileUtilitiesWin.NativeMethods.SE_RESTORE_NAME, enablePrivilege: true, testFilePath, loggingContext);
+            
+            var fileInfo = new FileInfo(testFilePath);
+            var fileSecurity = fileInfo.GetAccessControl();
+
+            // Remove any existing rules for the current user
+            fileSecurity.RemoveAccessRuleAll(
+                    new FileSystemAccessRule(
+                        $"{Environment.UserDomainName}\\{Environment.UserName}",
+                        FileSystemRights.FullControl,
+                        AccessControlType.Allow));
+
+            // Add a new deny rule
+            fileSecurity.AddAccessRule(
+                    new FileSystemAccessRule(
+                        $"{Environment.UserDomainName}\\{Environment.UserName}",
+                        FileSystemRights.FullControl,
+                        AccessControlType.Deny));
+
+            // Update the owner to SYSTEM
+            fileSecurity.SetOwner(new NTAccount(@"NT AUTHORITY\SYSTEM"));
+            fileInfo.SetAccessControl(fileSecurity);
+            
+            // Remove restore name privilege once complete
+            FileUtilitiesWin.NativeMethods.SetPrivilege(FileUtilitiesWin.NativeMethods.SE_RESTORE_NAME, enablePrivilege: false, testFilePath, loggingContext);
         }
 
         private static int RunIcacls(string arguments, out string result)

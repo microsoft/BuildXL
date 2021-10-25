@@ -732,6 +732,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<Result<MachineState>> UpdateClusterStateAsync(OperationContext context, MachineState machineState = MachineState.Unknown, ClusterState clusterState = null)
         {
             clusterState ??= ClusterState;
+
+            // Due to initialization issues the instance level ClusterState still can be null.
+            if (clusterState is null)
+            {
+                return Task.FromResult(Result.FromErrorMessage<MachineState>("Failed to update cluster state because the existing cluster state is null."));
+            }
+
             var startMaxMachineId = clusterState.MaxMachineId;
 
             int postDbMaxMachineId = startMaxMachineId;

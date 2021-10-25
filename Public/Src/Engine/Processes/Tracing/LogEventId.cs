@@ -42,6 +42,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessMissingExpectedOutputOnCleanExit = 44,
         PipProcessWroteToStandardErrorOnCleanExit = 45,
         PipProcessOutputPreparationFailed = 46,
+        PipProcessOutputPreparationToBeRetriedInVM = 47,
         PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
         PipProcessPreserveOutputDirectorySkipMakeFilesPrivate = 54,
 

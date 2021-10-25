@@ -338,7 +338,7 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
-            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryDirectories(info) || !TryPreparePreCreatedDirectories(info))
+            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryDirectories(info) || !TryPreparePreCreatedDirectories(info) || !TryCleanStaleOuputs(info))
             {
                 return false;
             }
@@ -662,6 +662,40 @@ namespace BuildXL.SandboxedProcessExecutor
                 success = false;
                 return null;
             }
+        }
+
+        /// <summary>
+        /// This function will attempt to clean up some stale outputs from a previous run of this pip
+        /// by deleting a set of files specified in <see cref="SandboxedProcessInfo"/>.
+        /// </summary>
+        /// <returns>True if succeeded</returns>
+        private bool TryCleanStaleOuputs(SandboxedProcessInfo info)
+        {
+            if (info.ExternalVMSandboxedProcessData != null)
+            {
+                foreach (var staleFile in info.ExternalVMSandboxedProcessData.StaleFilesToClean)
+                {
+                    // Log who was holding the file from inside the VM
+                    if (FileUtilities.TryFindOpenHandlesToFile(staleFile, out var diagnosticData, printCurrentFilePath: true))
+                    {
+                        m_logger.LogInfo($"Open file handle diagnostic data for stale file '{staleFile}' : '{diagnosticData}'");
+                    }
+                    else
+                    {
+                        m_logger.LogInfo($"Unable to find open file handles for stale file '{staleFile}'");
+                    }
+
+                    var mayBeDeleted = FileUtilities.TryDeletePathIfExists(staleFile);
+                    if (!mayBeDeleted.Succeeded)
+                    {
+                        m_logger.LogError($"Unable to delete '{staleFile}' on VM with error: {mayBeDeleted.Failure.DescribeIncludingInnerFailures()}");
+                        return false;
+                    }
+                    m_logger.LogInfo($"Deleted stale output: '{staleFile}'");
+                }
+            }
+
+            return true;
         }
     }
 }

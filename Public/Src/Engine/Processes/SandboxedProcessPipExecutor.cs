@@ -217,6 +217,7 @@ namespace BuildXL.Processes
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
         private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> m_staleOutputsUnderSharedOpaqueDirectories;
+        private readonly List<string> m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM;
         
         private readonly ISandboxFileSystemView m_fileSystemView;
         private readonly IPipGraphFileSystemView m_pipGraphFileSystemView;
@@ -402,6 +403,7 @@ namespace BuildXL.Processes
             m_detoursListener = detoursListener;
             m_reparsePointResolver = reparsePointResolver;
             m_staleOutputsUnderSharedOpaqueDirectories = staleOutputsUnderSharedOpaqueDirectories;
+            m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM = new List<string>();
             m_fileSystemView = sandboxFileSystemView;
             m_pipGraphFileSystemView = pipGraphFileSystemView;
         }
@@ -1133,6 +1135,8 @@ namespace BuildXL.Processes
                     // Initialize VM once.
                     await m_vmInitializer.LazyInitVmAsync.Value;
 
+                    PopulateExternalVMSandboxedProcessData(info);
+
                     Tracing.Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
 
                     process = await ExternalSandboxedProcess.StartAsync(
@@ -1180,6 +1184,17 @@ namespace BuildXL.Processes
             }
 
             info.RemoteSandboxedProcessData = new RemoteSandboxedProcessData(tempDirectories.ToList());
+        }
+
+        private void PopulateExternalVMSandboxedProcessData(SandboxedProcessInfo info)
+        {
+            if (ShouldSandboxedProcessExecuteInVm)
+            {
+                if (m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM != null && m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM.Count > 0)
+                {
+                    info.ExternalVMSandboxedProcessData = new ExternalVMSandboxedProcessData(m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM);
+                }
+            }
         }
 
         /// <summary>
@@ -1699,9 +1714,6 @@ namespace BuildXL.Processes
                             {
                                 Tuple<AbsolutePath, Encoding> encodedStandardError = null;
                                 Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
-                                RetryInfo info = process is ExternalVmSandboxedProcess
-                                    ? RetryInfo.GetRetryInfoForVmMitigation()
-                                    : null;
 
                                 if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
                                 {
@@ -1720,8 +1732,7 @@ namespace BuildXL.Processes
                                         encodedStandardError,
                                         encodedStandardOutput,
                                         pipProperties,
-                                        sharedDynamicDirectoryWriteAccesses,
-                                        info);
+                                        sharedDynamicDirectoryWriteAccesses);
                                 }
 
                                 Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");
@@ -3271,6 +3282,8 @@ namespace BuildXL.Processes
 
         private async Task<bool> PrepareDirectoryOutputsAsync(HashSet<AbsolutePath> preserveOutputAllowlist)
         {
+            m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM.Clear(); // Remove any entries left over from a previous run
+
             foreach (var directoryOutput in m_pip.DirectoryOutputs)
             {
                 try
@@ -3291,7 +3304,19 @@ namespace BuildXL.Processes
                         {
                             foreach (var output in staleOutputs)
                             {
-                                PreparePathForOutputFile(output.Path);
+                                // For external VM processes, if the output file cannot be deleted, we can retry it on the VM
+                                // Therefore, don't throw an exception yet.
+                                var deletionResult = PreparePathForOutputFile(output.Path, outputDirectories: null, doNotThrowExceptionOnFailure: ShouldSandboxedProcessExecuteInVm);
+
+                                if (ShouldSandboxedProcessExecuteInVm && !deletionResult)
+                                {
+                                    // If one of the stale output directories is under the VM and the file handle is being held inside the VM
+                                    // then it is not possible to release the file handle under the host without admin privileges.
+                                    // Instead, we can try to take ownership and delete the file from within the VM on the next retry.
+                                    var filePath = output.Path.ToString(m_pathTable);
+                                    m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM.Add(filePath);
+                                    Tracing.Logger.Log.PipProcessOutputPreparationToBeRetriedInVM(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, filePath);
+                                }
                             }
                         }
                     }
@@ -5311,7 +5336,7 @@ namespace BuildXL.Processes
             return new MemoryStream(CharUtilities.Utf8NoBomNoThrow.GetBytes(data.ToString(m_context.PathTable)));
         }
 
-        private void PreparePathForOutputFile(AbsolutePath filePath, HashSet<AbsolutePath> outputDirectories = null)
+        private bool PreparePathForOutputFile(AbsolutePath filePath, HashSet<AbsolutePath> outputDirectories = null, bool doNotThrowExceptionOnFailure = false)
         {
             Contract.Requires(filePath.IsValid);
 
@@ -5320,7 +5345,14 @@ namespace BuildXL.Processes
 
             if (!mayBeDeleted.Succeeded)
             {
-                mayBeDeleted.Failure.Throw();
+                if (doNotThrowExceptionOnFailure)
+                {
+                    return false;
+                }
+                else
+                {
+                    mayBeDeleted.Failure.Throw();
+                }
             }
 
             AbsolutePath parentDirectory = filePath.GetParent(m_pathTable);
@@ -5330,6 +5362,8 @@ namespace BuildXL.Processes
                 // Ensure parent directory exists.
                 FileUtilities.CreateDirectory(parentDirectory.ToString(m_pathTable));
             }
+
+            return true;
         }
 
         private void PreparePathForDirectory(string expandedDirectoryPath, bool createIfNonExistent)

@@ -493,6 +493,11 @@ namespace BuildXL.Processes
         /// </summary>
         public TimeSpan? ReportQueueProcessTimeoutForTests { get; internal set; }
 
+        /// <summary>
+        /// Extra data for executing a pip in an external VM.
+        /// </summary>
+        public ExternalVMSandboxedProcessData ExternalVMSandboxedProcessData { get; set; }
+
         #region Serialization
 
         /// <nodoc />
@@ -556,6 +561,7 @@ namespace BuildXL.Processes
                 writer.Write(CreateJobObjectForCurrentProcess);
                 writer.WriteNullableString(DetoursFailureFile);
                 writer.Write(RemoteSandboxedProcessData, (w, v) => v.Serialize(w));
+                writer.Write(ExternalVMSandboxedProcessData, (w, v) => v.Serialize(w));
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -601,6 +607,7 @@ namespace BuildXL.Processes
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();
                 var detoursFailureFile = reader.ReadNullableString();
                 var remoteSandboxedProcessData = reader.ReadNullable(r => RemoteSandboxedProcessData.Deserialize(r));
+                var externalVMSandboxedProcessData = reader.ReadNullable(r => ExternalVMSandboxedProcessData.Deserialize(r));
 
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
@@ -639,7 +646,8 @@ namespace BuildXL.Processes
                     StandardObserverDescriptor = standardObserverDescriptor,
                     RedirectedTempFolders = redirectedTempFolder,
                     DetoursFailureFile = detoursFailureFile,
-                    RemoteSandboxedProcessData = remoteSandboxedProcessData
+                    RemoteSandboxedProcessData = remoteSandboxedProcessData,
+                    ExternalVMSandboxedProcessData = externalVMSandboxedProcessData
                 };
             }
         }

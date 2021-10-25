@@ -614,6 +614,19 @@ namespace BuildXL.Processes.Tracing
             string exception);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessOutputPreparationToBeRetriedInVM,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process output '{2}' could not be prepared. Attempting to delete it from within the VM on the next retry.")]
+        public abstract void PipProcessOutputPreparationToBeRetriedInVM(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path);
+
+        [GeneratedEvent(
             (int)LogEventId.PipStandardIOFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

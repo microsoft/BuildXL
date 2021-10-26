@@ -8,6 +8,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.PackedExecution;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.Tool.Analyzers
@@ -30,7 +31,7 @@ namespace Test.Tool.Analyzers
         // specifically XLG and PXL log creation. Right now this test does not work (the Scheduler invocation fails
         // and the Configuration.Logging.ExecutionLog property is Invalid), and it is not clear how feasible it is to
         // fix it.
-        //[Fact]
+        [Fact]
         public void TestLogPackedExecution()
         {
             FileArtifact srcA = CreateSourceFile();
@@ -50,17 +51,15 @@ namespace Test.Tool.Analyzers
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
-            System.Diagnostics.Debugger.Launch();
-
             ScheduleRunResult result = RunScheduler(); // .AssertCacheMiss(pipA.PipId, pipB.PipId);
 
-            AbsolutePath executionLogPath = Configuration.Logging.ExecutionLog;
+            AbsolutePath executionLogPath = result.Config.Logging.ExecutionLog;
             string packedExecutionPath = Path.ChangeExtension(executionLogPath.ToString(Context.PathTable), "PXL"); // Packed eXecution Log
 
             // Try reading it
             PackedExecution pex = new PackedExecution();
             pex.LoadFromDirectory(packedExecutionPath);
-
+            Assert.True(pex.PipTable.Count > 0);
         }
     }
 }

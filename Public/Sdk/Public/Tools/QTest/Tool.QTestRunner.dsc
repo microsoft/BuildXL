@@ -431,6 +431,7 @@ export function runQTest(args: QTestArguments): Result {
                 retryAttemptEnvironmentVariable: "QTEST_RETRIES_EXECUTED",
                 processRetries: (args.qTestAttemptCount ? args.qTestAttemptCount : 0) + 3,
                 allowUndeclaredSourceReads: isJSProject,
+                enforceWeakFingerprintAugmentation: isJSProject ? true : undefined,
                 outputs: outputs,
             },
             changeAffectedInputListWrittenFileArg

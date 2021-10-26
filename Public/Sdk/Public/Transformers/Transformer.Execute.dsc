@@ -262,6 +262,11 @@ namespace Transformer {
          * Defaults to false.
          */
         preservePathSetCasing?: boolean;
+
+        /**
+         * When set, weak fingerprint augmentation is enforced when performing cache lookup.
+         */
+        enforceWeakFingerprintAugmentation?: boolean;
     }
 
     @@public

@@ -102,6 +102,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
         private SymbolAtom m_preservePathSetCasing;
+        private SymbolAtom m_enforceWeakFingerprintAugmentation;
         private SymbolAtom m_processRetries;
         private SymbolAtom m_executeKeepOutputsWritable;
         private SymbolAtom m_succeedFastExitCodes;
@@ -152,11 +153,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_weight;
         private SymbolAtom m_changeAffectedInputListWrittenFile;
 
-
-        private SymbolAtom m_runtimeEnvironmentMinimumOSVersion;
-        private SymbolAtom m_runtimeEnvironmentMaximumOSVersion;
-        private SymbolAtom m_runtimeEnvironmentMinimumClrVersion;
-        private SymbolAtom m_runtimeEnvironmentMaximumClrVersion;
         private SymbolAtom m_runtimeEnvironmentClrOverride;
         private SymbolAtom m_clrConfigInstallRoot;
         private SymbolAtom m_clrConfigVersion;
@@ -170,10 +166,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private StringId m_clrConfigComplusDefaultVersion;
         private StringId m_clrConfigComplusDbgJitDebugLaunchSetting;
         private StringId m_clrConfigComplusOnlyUseLatestClr;
-        private SymbolAtom m_versionBuildNumber;
-        private SymbolAtom m_versionMajor;
-        private SymbolAtom m_versionMinor;
-        private SymbolAtom m_versionRevision;
         private SymbolAtom m_unsafeUntrackedPaths;
         private SymbolAtom m_unsafeUntrackedScopes;
         private SymbolAtom m_unsafeHasUntrackedChildProcesses;
@@ -252,6 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
             m_preservePathSetCasing = Symbol("preservePathSetCasing");
+            m_enforceWeakFingerprintAugmentation = Symbol("enforceWeakFingerprintAugmentation");
             m_processRetries = Symbol("processRetries");
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
@@ -308,11 +301,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_toolWarningTimeoutInMilliseconds = Symbol("warningTimeoutInMilliseconds");
             m_toolDescription = Symbol("description");
 
-            // Runtime environment.
-            m_runtimeEnvironmentMinimumOSVersion = Symbol("minimumOSVersion");
-            m_runtimeEnvironmentMaximumOSVersion = Symbol("maximumOSVersion");
-            m_runtimeEnvironmentMinimumClrVersion = Symbol("minimumClrVersion");
-            m_runtimeEnvironmentMaximumClrVersion = Symbol("maximumClrVersion");
             m_runtimeEnvironmentClrOverride = Symbol("clrOverride");
 
             // m_clrConfig
@@ -328,12 +316,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_clrConfigComplusDbgJitDebugLaunchSetting = StringId.Create(StringTable, "COMPLUS_DbgJitDebugLaunchSetting");
             m_clrConfigComplusDefaultVersion = StringId.Create(StringTable, "COMPLUS_DefaultVersion");
             m_clrConfigComplusOnlyUseLatestClr = StringId.Create(StringTable, "COMPLUS_OnlyUseLatestClr");
-
-            // Version
-            m_versionBuildNumber = Symbol("buildNumber");
-            m_versionMajor = Symbol("major");
-            m_versionMinor = Symbol("minor");
-            m_versionRevision = Symbol("revision");
 
             // Unsafe.
             m_unsafeUntrackedPaths = Symbol("untrackedPaths");
@@ -689,6 +671,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_preservePathSetCasing) == true)
             {
                 processBuilder.Options |= Process.Options.PreservePathSetCasing;
+            }
+
+            // Enforce weak fingerprint augmentation.
+            if (Converter.ExtractOptionalBoolean(obj, m_enforceWeakFingerprintAugmentation) == true)
+            {
+                processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;
             }
 
             // Process retries

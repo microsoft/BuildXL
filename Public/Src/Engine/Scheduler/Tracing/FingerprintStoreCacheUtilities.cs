@@ -36,8 +36,7 @@ namespace BuildXL.Scheduler.Tracing
         /// Computes a fingerprint for looking up fingerprint store
         /// </summary>
         private static ContentFingerprint ComputeFingerprint(
-            string key,
-            string environment)
+            string key)
         {
             using (var hasher = new BasicHashingHelper(recordFingerprintString: false))
             {
@@ -45,7 +44,6 @@ namespace BuildXL.Scheduler.Tracing
                 hasher.Add("FormatVersion", FingerprintStore.FormatVersion.Version.ToString());
                 hasher.Add("LookupVersion", FingerprintStoreLookupVersion);
                 hasher.Add("Key", key);
-                hasher.Add("Environment", environment);
 
                 var fingerprint = new ContentFingerprint(hasher.GenerateHash());
                 return fingerprint;
@@ -59,17 +57,16 @@ namespace BuildXL.Scheduler.Tracing
         /// The order of storing should be:
         /// 1. The actual content(files) of the fingerprint store
         /// 2. The metadata(descriptor) of the content.
-        /// 3. Publich the cache entry of the fingerprint store.
+        /// 3. Publish the cache entry of the fingerprint store.
         /// </remark>
         public static async Task<Possible<long>> TrySaveFingerprintStoreAsync(
             this EngineCache cache,
             LoggingContext loggingContext,
             AbsolutePath path,
             PathTable pathTable,
-            string key,
-            string environment)
+            string key)
         {
-            var fingerprint = ComputeFingerprint(key, environment);
+            var fingerprint = ComputeFingerprint(key);
             var pathStr = path.ToString(pathTable);
             BoxRef<long> size = 0;
 
@@ -155,10 +152,13 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext loggingContext,
             AbsolutePath path,
             PathTable pathTable,
-            string key,
-            string environment)
+            string key)
         {
-            var fingerprint = ComputeFingerprint(key, environment);
+            var fingerprint = ComputeFingerprint(key);
+            Logger.Log.GettingFingerprintStoreTrace(
+                loggingContext,
+                $"Attempting to fetch fingerprint store from cache: Key='{key}'. Resulting fingerprint='{fingerprint}'");
+
             var possibleCacheEntry = await cache.TwoPhaseFingerprintStore.TryGetLatestCacheEntryAsync(loggingContext, fingerprint);
             if (!possibleCacheEntry.Succeeded)
             {
@@ -169,14 +169,15 @@ namespace BuildXL.Scheduler.Tracing
                 return possibleCacheEntry.Failure;
             }
 
+            if (!possibleCacheEntry.Result.HasValue)
+            {
+                Logger.Log.GettingFingerprintStoreTrace(loggingContext, "Failed to find cache entry for fingerprint store");
+                return false;
+            }
+
             Logger.Log.GettingFingerprintStoreTrace(
                 loggingContext,
                 I($"Loaded fingerprint store entry from cache: Key='{key}' Fingerprint='{fingerprint}' MetadataHash='{possibleCacheEntry.Result?.MetadataHash ?? ContentHashingUtilities.ZeroHash}'"));
-
-            if (!possibleCacheEntry.Result.HasValue)
-            {
-                return false;
-            }
 
             var fingerprintStoreDescriptorHash = possibleCacheEntry.Result.Value.MetadataHash;
             var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(possibleCacheEntry.Result.Value.ToArray());

@@ -291,7 +291,7 @@ if ($Vs -or $VsAll) {
 $AdditionalBuildXLArguments +=@("/unsafe_GlobalUntrackedScopes:""C:\Program Files\WindowsApps""");
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
-$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
+$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/enableEvaluationThrottling");
 
 # Lazy shared opaque deletion is an experimental feature. We want to turn it on only for internal builds and when this script is not 
 # running under ADO (so we keep the feature out of PR validations for now).
@@ -312,6 +312,28 @@ if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArgum
 
 if ($Deploy -eq "LKG") {
     throw "The LKG deployment is special since it comes from a published NuGet package. It cannot be re-deployed in this selfhost wrapper.";
+}
+
+function Get-CacheMissArgs {
+    # Adds arguments to reference fingerprintstores corresponding to the last 3 commits.
+    # Argument is of the form: /cachemiss[commit123456]
+    # This ideally allows retrieval of the fingerprint store for the most recent close build to the current
+    # state of the repo.
+    $cacheMissArgs = "";
+    $output = git log --first-parent -n 3 --pretty=format:%H
+    
+    $cacheMissArgs += "/CacheMiss:[";
+    foreach ($item in $output.Split(" "))
+    {
+        $cacheMissArgs += "commit";
+        $cacheMissArgs += $item;
+        $cacheMissArgs += ":";
+    }
+
+    $cacheMissArgs = $cacheMissArgs.TrimEnd(":");
+    $cacheMissArgs += "]";
+
+    return $cacheMissArgs;
 }
 
 function New-Deployment {
@@ -547,6 +569,7 @@ $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironme
 
 $GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";
+$AdditionalBuildXLArguments += Get-CacheMissArgs;
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

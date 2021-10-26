@@ -601,7 +601,7 @@ namespace BuildXL.Engine
                 var storeKey = configuration.Logging.CacheMissAnalysisOption.Keys.FirstOrDefault();
                 if (storeKey == null)
                 {
-                    // We save fingerprintStore in cache only if the user passes /traceInfo:fingerprintStoreKey=<sha>
+                    // We save fingerprintStore in cache only if the user passes a key to the /cachemiss option
                     // If there is no key entry, we do not save the fingerprintStore; but it is not failure either.
                     SchedulerLogger.Log.MissingKeyWhenSavingFingerprintStore(loggingContext);
                     return false;
@@ -616,8 +616,7 @@ namespace BuildXL.Engine
                         loggingContext,
                         configuration.Layout.FingerprintStoreDirectory, // This is where the original execution fingerprint store locates. Save this to cache.
                         Context.PathTable,
-                        storeKey,
-                        configuration.Schedule.EnvironmentFingerprint);
+                        storeKey);
 
                     if (!storeResult.Succeeded)
                     {

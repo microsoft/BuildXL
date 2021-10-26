@@ -1,5 +1,9 @@
 ## Concept of weight
-BuildXL has a limited number of process slots that can be used for processes execution. This number is indicated by the argument /maxproc when running BuildXL. "Weight" is a concept that describes how resource-heavy a process is. It specifies how many process slots it requires to execute. The total "weight" of all processes running concurrently must be less than the number of available process slots. "Weight" defaults to 1, converts values < 1 to 1, and considers values >= available process slots to mean the process should run alone. Historic metadata of running processes can be taken into account for weighting pips. 
+BuildXL has a limited number of process slots that can be used for processes execution. This number is indicated by the argument /maxproc when running BuildXL. "Weight" is a concept that describes how resource-heavy a process is. It specifies how many process slots it requires to execute. The total "weight" of all processes running concurrently must be less than the number of available process slots. "Weight" defaults to 1, converts values < 1 to 1, and considers values >= available process slots to mean the process should run alone. 
+
+Weight can be statically configured as the examples below describe or use a dynamic value based on historical performance information. This historic information looks at the number of CPU clock cycles used compared to a process pip's wall clock runtime. If it utilized 3 CPU cores over its wall clock runtime window, a value of 3 will be used. Accuracy is impacted by how the operating allocates CPU time for the process.
+
+Historic metadata is toggled with the `/UseHistoricalCpuUsageInfo` command line flag. It defaults to enabled in CloudBuild but defaults to disabled otherwise. When historic weight and statically configured weight both exist, the larger of the two values are used.
 
 ## Language support & API
 `weight` is a field in the argument of `Transformer.execute` in DScript that allows user to specify the number.

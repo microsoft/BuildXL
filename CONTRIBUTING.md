@@ -1,5 +1,14 @@
+# Before you start
+This project is open source primarily to share knowledge about some of the build technologies used within Microsoft. You are welcome to take inspiration from and utilize the code as allowed by the license agreement.
+
+Development activities are performed on internal systems and code is regularly mirrored to this GitHub repo. Many validations, particularly performance and compatibility validations, can only be performed internally since most of the codebases using BuildXL are proprietary. External contributions need to be committed internally and then mirrored back out to the GitHub repo. 
+
+Due to the overhead associated with this process, we ask that contributions are limited to substantial changes as opposed to cleanups like fixing typos. We highly encourage creating an Issue prior to sending a Pull Request so the proposed change can be discussed prior to submission. We very much value the open source community and want to be respectful of people's time and interest.
+
+If you are a Microsoft employee, please make your contribution to the BuildXL.Internal repository.
+
 # Contributing to BuildXL
-This project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
+Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
 
 When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
 
@@ -8,7 +17,7 @@ The Code of Conduct this project has adopted is described in: [CODE_OF_CONDUCT.m
 ## Submitting Pull Requests
 
 - **DO** ensure your contribution has associated unit tests.
-- **DO** ensure submissions pass all Azure DevOps Pipelines phases and are merge conflict free.
+- **DO** ensure running RunCheckinTests.cmd passes
 - **DO NOT** submit build engine features as PRs to this repo first, or they will likely be declined.
 - **DO** submit issues for features. This facilitates discussion of a feature separately from its implementation, and increases the acceptance rates for pull requests.
 - **DO NOT** submit large code formatting changes without discussing with the team first.

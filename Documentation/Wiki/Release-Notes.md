@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20211022.4 (Release [120385](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=120385&_a=release-pipeline-progress)) Released 10/27/2021
+- New packed execution logging framework.
+- Object cache to fingerprint store for optimized access of the store.
+- Update ASPNetCore version to address security issue.
+- Upgrade DotNet 3 runtime to 3.1.19 for selfhost.
+- Differentiate between an individual DropConfig and global DropServiceConfig
+- Use native method for setting ACL instead of executing takeown/icacls.
+
 # 0.1.0-20211014.2.2 (Release [119987](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=119987&_a=release-pipeline-progress)) Released 10/20/2021
 -	Only consider stale shared opaques in minimal + alien enumeration mode when lazy scrubbing is enabled.
 -	Various fixes in DropDaemon service and SDK.

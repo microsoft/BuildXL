@@ -24,7 +24,7 @@ interface DScriptResolver extends ResolverBase {
     /** List of modules with respecting path where to look for this module or its inlined version. */
     modules?: (File | InlineModuleDefinition)[];
 
-    /** Weather specs under this resolver's root should be evaluated as part of the build. */
+    /** Whether specs under this resolver's root should be evaluated as part of the build. */
     definesBuildExtent?: boolean;
 }
 

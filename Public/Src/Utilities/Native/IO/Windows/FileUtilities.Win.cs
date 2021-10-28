@@ -841,12 +841,9 @@ namespace BuildXL.Native.IO.Windows
             }
 
             Logger.Log.SettingOwnershipAndAcl(m_loggingContext, path);
-            
+
             // The long path prefix is required for paths greater than MAX_PATH before calling native methods.
-            if (path.Length > NativeIOConstants.MaxPath)
-            {
-                path = FileSystemWin.LongPathPrefix + path;
-            }
+            path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
             // First take ownership as the current user
             var takeOwnershipNativeResult = NativeMethods.TakeOwnershipAsCurrentUserNative(path, m_loggingContext);

@@ -291,6 +291,24 @@ namespace Test.BuildXL.Storage
             XAssert.IsFalse(File.Exists(testFile));
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        public void TakeOwnershipOfFileAtMaxPathLength()
+        {
+            // Testing edge case where the the path length is = MAX_PATH
+            var parentDirectory = GetFullPath("parent");
+            Directory.CreateDirectory(parentDirectory);
+            var fileLength = NativeIOConstants.MaxDirectoryPath - parentDirectory.Length;
+            fileLength = fileLength > 0 ? fileLength : 1; // In case the base path is already too long for some reason or zero
+            var testFile = Path.Combine(parentDirectory, new string('a', fileLength));
+            File.WriteAllText(testFile, "hello");
+
+            ACLHelpers.RevokeAccessNative(testFile, LoggingContext);
+            XAssert.IsTrue(FileUtilities.TryTakeOwnershipAndSetWriteable(testFile));
+
+            FileUtilities.DeleteFile(testFile);
+            XAssert.IsFalse(File.Exists(testFile));
+        }
+
         [Fact]
         public async Task WriteAllText()
         {

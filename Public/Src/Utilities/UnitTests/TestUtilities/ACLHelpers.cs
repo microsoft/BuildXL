@@ -42,10 +42,7 @@ namespace Test.BuildXL.TestUtilities
         /// </summary>
         public static void RevokeAccessNative(string testFilePath, LoggingContext loggingContext)
         {
-            if (testFilePath.Length > NativeIOConstants.MaxPath)
-            {
-                testFilePath = FileSystemWin.LongPathPrefix + testFilePath;
-            }
+            testFilePath = FileSystemWin.ToLongPathIfExceedMaxPath(testFilePath);
 
             // Restore name privilege is required to change the owner of the file
             FileUtilitiesWin.NativeMethods.SetPrivilege(FileUtilitiesWin.NativeMethods.SE_RESTORE_NAME, enablePrivilege: true, testFilePath, loggingContext);

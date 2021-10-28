@@ -107,12 +107,12 @@ Resolvers are used to resolve a symbolic module name to a physical module config
 
 Modules specified explicitly (via the `modules` field in the main configuration) don't require a special resolver.  The general recommendation is that the modules defined as part of the build should be specified explicitly; in that case, resolvers should be used only to point to any DScript SDKs and/or NuGet packages needed for the build.
 
-BuildXL supports two types of resolvers: `SourceResolver` and `NuGetResolver`.  The former can find modules whose sources are already present on disk, while the latter takes a list of NuGet packages which it downloads and treats as DScript modules. 
+BuildXL supports different types of resolvers for different kinds of build projects ([`KnownResolverKind.cs`](../../Public/Src/FrontEnd/Sdk/Workspaces/Utilities/KnownResolverKind.cs)). For example, the `DScript` resolver can find modules whose sources are already present on disk, while `NuGetResolver` takes a list of NuGet packages which it downloads and treats as DScript modules.
 
-A typical way to include DScript SDKs in a build is to define a `SourceResolver` like the following:
+A typical way to include DScript SDKs in a build is to define a `Dscript` resolver like the following:
 ```ts
 {
-    kind: "SourceResolver",
+    kind: "DScript",
     modules: [
         ...globR(d`MySDKs`, "module.config.bm"),
     ]
@@ -140,16 +140,16 @@ To add NuGet packages, a `NuGetResolver` like the following should be added to t
 
 For completeness, below are type definitions of both `SourceResolver` and `NuGetResolver`.
 ```ts
-interface SourceResolver {
-    kind: "SourceResolver";
+interface DScriptResolver extends ResolverBase {
+    kind: "DScript";
 
     /** Root directory where packages are stored. */
     root?: Directory;
 
-    /** List of modules with respecting path where to look for this module. */
-    modules?: File[];
+    /** List of modules with respecting path where to look for this module or its inlined version. */
+    modules?: (File | InlineModuleDefinition)[];
 
-    /** Weather specs under this resolver's root should be evaluated as part of the build. */
+    /** Whether specs under this resolver's root should be evaluated as part of the build. */
     definesBuildExtent?: boolean;
 }
 
@@ -167,7 +167,7 @@ interface NuGetResolver {
 }
 ``` 
 
-## File access Allowlists
+## File access allowlists
 It is best to specify all file accesses. This way BuildXL tracks those files can can provide correct caching. On rare occasion some files may need to be untracked. For example when a process consumes system files that are known to be inconsequential to the build and there may be some variability in the content of those files across machines which would prevent cross machine caching.
 
 On an even rarer occasion, it may not be possible to predict the path of files that you desire to untrack. They may be nondeterministic. Allowlists exist for this last resort. **Use of allowlists is untracked and unsafe. They should be reserved as a last resort.**  
@@ -244,7 +244,7 @@ config({
 
 In the listing above, instead of explicitly listing all SDK modules found under the `Sdk` directory, we used [globbing](./DScript/Globbing.md), i.e., the `globR` function to recursively search the `Sdk` directory for all files named `module.config.bm` (in general, the search pattern may include wildcards).
 
-When the list of modules becomes unmanageably large for a single file, consider using [List Files](./DScript/List-Files.md):
+When the list of modules becomes unmanageably large for a single file, consider using [List Files](./DScript/List-files.md):
 
 ```typescript
 // file:  config.bc

@@ -53,7 +53,7 @@ interface JavaScriptDependency {
 }
 ```
 
-A `JavaScriptProjectSelector` allows for simple strings (as in the example above) as well as regular expressions to capture particular subsets of JavaScript projects. Check the [resolver configuration settings](Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc) for the full definition.
+A `JavaScriptProjectSelector` allows for simple strings (as in the example above) as well as regular expressions to capture particular subsets of JavaScript projects. Check the [resolver configuration settings](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc) for the full definition.
 
 Adding extra dependencies across JavaScript projects is usually not the recommended approach. Consider the most natural way to do this is is the corresponding `package.json` files, the source of truth for package dependencies. The ability to declare additional dependencies is recommended when files or directories are defined in other resolvers. However, there are cases where undeclared dependencies are observed at runtime and adding a dependency in `package.json` files is not possible (e.g. because the package is a third party one and therefore not easy to modify). 
 

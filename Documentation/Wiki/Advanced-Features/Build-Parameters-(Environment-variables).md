@@ -1,19 +1,22 @@
 # Environment variables
 Lots of build systems allow environment variables to leak into the build specifications and the tools they run and allow them to be modified during execution.
-[Other build Systems](#Other-build-systems) have reliability and reproducibility issues because of their lax allowances with regard to environment variables.
+[Other build systems](#Other-build-systems) have reliability and reproducibility issues because of their lax allowances with regard to environment variables.
 
 ## BuildXL pips
 When BuildXL launches a pip it does not inherit any of the environment variables from the process that launches BuildXL. Each process starts in a pristine empty environment. Each OS requires a minimal of environment variables for tools to run properly. On [Windows](#windows-fixed-environment-variables) we have a small set of fixed environment variables we have to set for tools to operate successfully.
 All other environment variables for the pip have to be explicitly declared in the build specs. The user declared environment variables all are part of the fingerprint, so changing any environment variable will cause the tool to rerun properly.
 
 ## DScript
-Sometimes users want to base their build logic on build parameters, for example to turn certain features on or off for the entire build. To do so, DScript allows users access to certain environment variables using the getPathValue function via the `Environment` namepace, e.g. `Environment.getPathValue("BUILDXL_DEPLOY_ROOT")`. The main configuration file can access any environment variable. Projects are only allowed to access environment variables that the config explicity allows via 
+Sometimes users want to base their build logic on build parameters, for example to turn certain features on or off for the entire build. To do so, DScript allows users access to certain environment variables using the `getPathValue` function via the `Environment` namepace, e.g. `Environment.getPathValue("BUILDXL_DEPLOY_ROOT")`. The main configuration file can access any environment variable. Projects are only allowed to access environment variables that [the configuration](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.dsc) explicity allows via 
 
 ```ts
 config({
     allowedEnvironmentVariables: ["x", "y"],
 });
 ```
+
+## Other resolvers 
+The spec writer can define the environment variables visible to the processes in the `environment` property in the [resolver settings](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc). If not defined, the BuildXL process environment is exposed.
 
 ## Command-Line
 Each environment variable can be specified on the command-line using the `/p` option:
@@ -34,8 +37,8 @@ In BuildXL each tool that runs in the engine starts with a basic environment var
 
 });
 ```
-
-Environment variables can be marked as Passthrough, meaning the environment variable value is not considered when fingerprinting the process.
+## Passthrough environment varibales
+Environment variables can be marked as _passthrough_, meaning the environment variable value is not considered when fingerprinting the process. Global passthrough variables, which will be visible to processes and also untracked, may be set via the `/unsafe_GlobalPassthroughEnvVars`. Note this is an unsafe configuration.
 
 ### Windows fixed environment variables.
 | Variable | Value | Note |

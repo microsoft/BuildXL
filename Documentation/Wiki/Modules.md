@@ -5,8 +5,7 @@ A module can import values from another module using `importFrom` or `import` (s
 ## Module size guidelines
 How big should a module be? A module is intended to be roughly equivalent to a solution file: it contains closely related code and its validation. This could mean that one module contains anything from one team's code to an entire (small) product. 
 
-There aren't any hard requirements for module size, but consider the following:
-* If multiple modules have a dependency on a small subset of a module, then consider splitting that subset into its own module. This can free BuildXL to build the subset faster and unblock its dependents sooner.
+There aren't any hard requirements for module size, but if multiple modules have a dependency on a small subset of a module, then consider splitting that subset into its own module. While evaluating the specification to construct the build graph this can free BuildXL to build the subset faster and unblock its dependents sooner.
 
 A set of module-level policies can be specified in order to constrain module dependencies.
 

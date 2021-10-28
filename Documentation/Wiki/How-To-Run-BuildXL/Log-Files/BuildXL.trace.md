@@ -1,0 +1,5 @@
+## BuildXL.trace file
+
+Sometimes there is a need to have high-level picture of how a build looked like. While it is possible to infer all the information from various text log files, this is a somewhat time-consuming exercise. To address this problem, one can use LogTracer feature (controlled via `/logTracer` argument). When enabled, BuildXL will create a `.trace` file in the log directory. The file contains a few views - CPU and  RAM utilization during a build, as well as, executed pips (pips that took less than 30 seconds to execute are discarded for usability purposes).
+
+The file itself is just a JSON blob that has the same format as Chromium's Trace Event Profiling Tool. Because of that, the .trace file is easily viewable in any Chromium-based web browser - for example, in Microsoft Edge, navigate to `edge://tracing`, click Load in the top left corner, and select the produced .trace file.

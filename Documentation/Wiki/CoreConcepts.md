@@ -1,7 +1,8 @@
 # Core concepts
 This document describes the core concepts with which BuildXL models and optimizes a build. This is meant to describe how BuildXL works at a high level.
 
-Refer to the Glossary at the end of the document for terminology.
+## Pips
+A pip (for Primitive Indivisible Process). The smallest unit of work tracked by BuildXL's dependency graph. Generally these are process invocations but may also include other primitives like `WriteFile` or `CopyFile` pips, [Service and IPC Pips](./Service-Pips.md). A pip can also represent coarser-grained operations: for example, in MSBuild and [JavaScript](Frontends/js-onboarding.md) projects a pip encapsulates a project-level call.
 
 ## Build phases:
 A BuildXL build consists of two core phases:
@@ -15,7 +16,7 @@ A BuildXL build consists of two core phases:
 The BuildXL command line supports the `/phase` parameter which controls which phases run. There are technically some more granular phases under the two listed above. By default all phases are run.
 
 ## Build graph
-BuildXL represents a build's dependency information as a directed acyclic graph (DAG). Edges represent the flow of data from one build step to another. Each node in the graph - a **task** (aka 'pip') - produces one or more _artifacts_, files and directories.
+BuildXL represents a build's dependency information as a directed acyclic graph (DAG). Edges represent the flow of data from one build step to another. Each node in the graph represents a task (a pip) and produces one or more _artifacts_, files and directories.
 
 The representation of tools and their dependencies as first-class artifacts is beneficial to reliability as well as the expressive power of specifications:
 
@@ -46,11 +47,3 @@ A cornerstone of BuildXL is reliable caching. This as achieved through an observ
 Sandboxing is limited to observation of the machine local filesystem. Among other things, registry access, communication between processes on the machine, and communication to other machines are not tracked by BuildXL. Build graphs containing processes that access these resources may not be correctly cached by BuildXL since those dependencies are not tracked.
 
 The sandbox implementation varies based on the platform. See the [Sandboxing](../Specs/Sandboxing.md) document for more details.
-
-
-# Glossary 
-* CopyFile - A primitive pip that copies a file from one location to another. The implementation is free to perform an equivalent operation, like hardlinking.
-* Dependency Graph - A Graph that describes the workflow of Pips and their dependencies represented as file accesses
-* Pip - Primitive Indivisible Process. The smallest unit of work tracked by BuildXL's dependency graph. Generally these are process invocations but may also include primitives like WriteFile, CopyFile
-* Sandbox - In BuildXL this refers to a mechanism to observe file accesses to ensure correct caching
-* WriteFile - A primitive Pip that writes content to a file. The content is determined by evaluation, not execution, of the build graph.

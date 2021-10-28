@@ -10,9 +10,6 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Why BuildXL?](Wiki/WhyBuildXL.md)
 * [Demos](../Public/Src/Demos/Demos.md)
 
-# Onboarding 
-* [Onboarding a JavaScript repo](Wiki/Frontends/js-onboarding.md)
-
 # Project Documentation
 * [Release Notes](Wiki/Release-Notes.md)
 * [Installation Instructions](Wiki/Installation.md)
@@ -21,6 +18,9 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Code of Conduct](../CODE_OF_CONDUCT.md)
 * [Security](../SECURITY.md)
 * [Contributing](../CONTRIBUTING.md)
+
+# Onboarding 
+* [Onboarding a JavaScript repo](Wiki/Frontends/js-onboarding.md)
 
 # Product Documentation
 ## Architecture
@@ -70,6 +70,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Log Files](Wiki/How-To-Run-BuildXL/Log-Files.md)
 * [Primary log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.log.md)
 * [Stats log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.stats.md)
+* [Trace file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.trace.md)
 * [Logging Options](Wiki/How-To-Run-BuildXL/Logging-Options.md)
 * [Execution Log](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md)
 * [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) 

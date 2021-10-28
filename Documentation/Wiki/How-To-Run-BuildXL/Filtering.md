@@ -1,6 +1,6 @@
 # Overview
 
-BuildXL builds can be filtered by requesting a subset of the files produced in the build. Based on the files requested, BuildXL will run the minimal set of pips to produce those files.
+BuildXL can be instructed to build only a subset of a graph by providing a custom filter. For example, one can filter a build by requesting a subset of the files produced in that build. Based on the files requested, BuildXL will run the minimal set of pips to produce those files.
 
 # Filtering shorthand
 Here are some filtering shorthands for the bxl.exe command line. Behind the scenes they dynamically generate a full filter expression as described in the Advanced Filtering section.

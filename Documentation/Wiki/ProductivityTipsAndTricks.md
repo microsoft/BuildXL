@@ -24,7 +24,7 @@ Lower level filter for compiling a specific qualifier:
 * Running a specific test method: `.\bxl TestProject.dsc -TestMethod FullyQualifiedTestMethodName`.
 * Running all the tests in a specific class: `.\bxl TestProject.dsc -TestClass FullyQualifiedTestClassName`.
 
-You also can run a test in Visual Studio either from Test Explorer or via ReSharper (see [Browsing source code in Visual Studio](Wiki/DeveloperGuide.md#Browsing-source-code-in-Visual-Studio) for how to generate the solution usable in VS).
+You also can run a test in Visual Studio either from Test Explorer or via ReSharper (see [Browsing source code in Visual Studio](DeveloperGuide.md#Browsing-source-code-in-Visual-Studio) for how to generate the solution usable in VS).
 
 Two very important caveats:
 1. Always specify the spec file that corresponds to to the test project, otherwise the full build would be performed.

@@ -15,6 +15,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Storage;
@@ -44,6 +45,7 @@ namespace BuildXL.Scheduler
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
         private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
         private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
+        private readonly bool m_verifyFileContentOnBuildManifestHashComputation;
         private LoggingContext m_loggingContext;
         // Build manifest requires HistoricMetadataCache. If it's not available, we need to log a warning on the
         // first build manifest API call. 
@@ -68,7 +70,8 @@ namespace BuildXL.Scheduler
             IServerConfig config,
             PipTwoPhaseCache pipTwoPhaseCache,
             Tracing.IExecutionLogTarget executionLog,
-            Tracing.BuildManifestGenerator buildManifestGenerator)
+            Tracing.BuildManifestGenerator buildManifestGenerator,
+            bool verifyFileContentOnBuildManifestHashComputation)
         {
             Contract.Requires(ipcMonikerId != null);
             Contract.Requires(fileContentManager != null);
@@ -85,6 +88,7 @@ namespace BuildXL.Scheduler
             m_pipTwoPhaseCache = pipTwoPhaseCache;
             m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, ContentHash>();
             m_receivedStatistics = new ConcurrentBigMap<string, long>();
+            m_verifyFileContentOnBuildManifestHashComputation = verifyFileContentOnBuildManifestHashComputation;
         }
 
         /// <summary>
@@ -157,7 +161,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private async Task<Possible<ContentHash>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, int retryAttempt = 0)
+        private async Task<Possible<ContentHash>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, ContentHash hash, int retryAttempt = 0)
         {
             if (retryAttempt >= GetBuildManifestHashFromLocalFileRetryLimit)
             {
@@ -175,14 +179,36 @@ namespace BuildXL.Scheduler
             {
                 try
                 {
-                    var hash = await ContentHashingUtilities.HashFileAsync(fullFilePath, ContentHashingUtilities.BuildManifestHashType);
-                    return hash;
+                    ContentHash buildManifestHash;
+                    if (m_verifyFileContentOnBuildManifestHashComputation)
+                    {
+                        using (var fs = FileUtilities.CreateFileStream(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Delete | FileShare.Read, FileOptions.SequentialScan))
+                        {
+                            StreamWithLength stream = fs.AssertHasLength();
+                            using (var hashingStream = ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.BuildManifestHashType).CreateReadHashingStream(stream))
+                            {
+                                var actualHash = await ContentHashingUtilities.HashContentStreamAsync(hashingStream.AssertHasLength());
+                                buildManifestHash = hashingStream.GetContentHash();
+
+                                if (hash != actualHash)
+                                {
+                                    return new Failure<string>($"Unexpected file content during build manifest hash computation. Path: '{fullFilePath}', expected hash '{hash}', actual hash '{actualHash}'.");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        buildManifestHash = await ContentHashingUtilities.HashFileAsync(fullFilePath, ContentHashingUtilities.BuildManifestHashType);
+                    }
+
+                    return buildManifestHash;
                 }
                 catch (Exception ex) when (ex is BuildXLException || ex is IOException)
                 {
                     Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest",
                         $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash. Retry attempt {retryAttempt} out of {GetBuildManifestHashFromLocalFileRetryLimit}. Exception: {ex}");
-                    return await TryGetBuildManifestHashFromLocalFileAsync(fullFilePath, retryAttempt + 1);
+                    return await TryGetBuildManifestHashFromLocalFileAsync(fullFilePath, hash, retryAttempt + 1);
                 }
             }
 
@@ -213,7 +239,7 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath);
+            return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath, buildManifestEntry.Hash);
         }
 
         async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)

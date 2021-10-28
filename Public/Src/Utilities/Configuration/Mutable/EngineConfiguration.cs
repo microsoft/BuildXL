@@ -35,6 +35,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TrackGvfsProjections = false;
             UseFileContentTable = default;
             AllowDuplicateTemporaryDirectory = false;
+            VerifyFileContentOnBuildManifestHashComputation = false;
         }
 
         /// <nodoc />
@@ -76,6 +77,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseFileContentTable = template.UseFileContentTable;
             AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
             UnsafeAllowOutOfMountWrites = template.UnsafeAllowOutOfMountWrites;
+            VerifyFileContentOnBuildManifestHashComputation = template.VerifyFileContentOnBuildManifestHashComputation;
         }
 
         /// <inheritdoc />
@@ -167,5 +169,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? UseFileContentTable { get; set; }
+
+        /// <inheritdoc />
+        public bool VerifyFileContentOnBuildManifestHashComputation { get; set; }
     }
 }

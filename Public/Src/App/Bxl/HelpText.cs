@@ -1237,6 +1237,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_ExitOnNewGraph,
                 HelpLevel.Verbose);
 
+            hw.WriteOption("/buildManifestVerifyFileContentOnHashComputation",
+                Strings.HelpText_DisplayHelp_BuildManifestVerifyFileContentOnHashComputation,
+                HelpLevel.Verbose);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

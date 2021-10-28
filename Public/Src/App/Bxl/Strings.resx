@@ -1081,7 +1081,10 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_DumpFailedPipsWithDynamicData" xml:space="preserve">
     <value>Enable this option to dump observed file accesses and processes with the dump pip lite analyzer (requires /logObservedFileAccesses+ and/or /logProcesses+ to be set as well).</value>
   </data>
-  <data name="HelpText_DisplayHelp_EnforceFullReparsePointsUnderPath" xml:space="preserve">
+    <data name="HelpText_DisplayHelp_EnforceFullReparsePointsUnderPath" xml:space="preserve">
     <value>Enforce that files accessed which begin with the given path will enforce reparse points underneath said path. All transitive reparse points encountered after enforcing and resolving the first one are also enforced, regardless of path.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_BuildManifestVerifyFileContentOnHashComputation" xml:space="preserve">
+    <value>When enabled, ensures that file's content matches the hash provided by the engine before proceeding to compute a build manifest hash for that file.</value>
   </data>
 </root>

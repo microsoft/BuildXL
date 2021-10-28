@@ -244,6 +244,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "buildLockPolling",
                             opt => engineConfiguration.BuildLockPollingIntervalSec = CommandLineUtilities.ParseInt32Option(opt, 15, int.MaxValue)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "buildManifestVerifyFileContentOnHashComputation",
+                            opt => engineConfiguration.VerifyFileContentOnBuildManifestHashComputation = opt),
                         OptionHandlerFactory.CreateOption(
                             "buildWaitTimeout",
                             opt => engineConfiguration.BuildLockWaitTimeoutMins = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),

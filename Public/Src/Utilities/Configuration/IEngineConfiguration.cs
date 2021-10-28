@@ -191,5 +191,19 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to false
         /// </remarks>
         bool? UnsafeAllowOutOfMountWrites { get; }
+
+        /// <summary>
+        /// Whether to check that a file on disk has expected content before computing build manifest hash.
+        /// </summary>
+        /// <remarks>
+        /// When a file is materialized from cache, the engine trusts cache that the file has the correct content.
+        /// In turn, build manifest logic assumes that the provided hash is correct and only computes the build
+        /// manifest hash. In a rare cases, a file placed from cache might be corrupted, and this will lead to
+        /// us adding incorrect "hash to build manifest hash" mapping into historic metadata cache.
+        /// 
+        /// This flag essentially controls whether we need to rehash the file to ensure that its content hash
+        /// matches the one provided by the engine.
+        /// </remarks>
+        bool VerifyFileContentOnBuildManifestHashComputation { get; }
     }
 }

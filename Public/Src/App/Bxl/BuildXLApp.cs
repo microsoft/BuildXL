@@ -846,6 +846,13 @@ namespace BuildXL
 
                 return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: $"{SchedulerLogEventId.ProblematicWorkerExit.ToString()}.{errorName}", BucketMessage: errorMessage);
             }
+            // Failure to compute a build manifest hash will manifest as an IPC pip failure
+            else if (listener.CountsPerEventId((int)SchedulerLogEventId.ErrorApiServerGetBuildManifestHashFromLocalFileFailed) >= 1
+                && listener.InternalErrorDetails.Count > 0
+                && listener.InternalErrorDetails.FirstErrorName == SchedulerLogEventId.PipIpcFailed.ToString())
+            {
+                return (ExitKind: ExitKind.InternalError, ErrorBucket: SchedulerLogEventId.ErrorApiServerGetBuildManifestHashFromLocalFileFailed.ToString(), BucketMessage: string.Empty);
+            }
             else if (listener.InternalErrorDetails.Count > 0)
             {
                 return (ExitKind: ExitKind.InternalError, ErrorBucket: listener.InternalErrorDetails.FirstErrorName, BucketMessage: listener.InternalErrorDetails.FirstErrorMessage);

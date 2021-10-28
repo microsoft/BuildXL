@@ -1507,7 +1507,8 @@ namespace BuildXL.Scheduler
                     },
                     m_pipTwoPhaseCache,
                     ExecutionLog,
-                    m_buildManifestGenerator);
+                    m_buildManifestGenerator,
+                    m_configuration.Engine.VerifyFileContentOnBuildManifestHashComputation);
                 m_apiServer.Start(loggingContext);
             }
 

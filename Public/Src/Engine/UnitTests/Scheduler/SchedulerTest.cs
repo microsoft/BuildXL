@@ -2713,14 +2713,17 @@ namespace Test.BuildXL.Scheduler
 
             string relativePath = "/a/b";
             ContentHash hash0 = ContentHash.Random();
+            var hashes0 = new[] { hash0 };
+
             ContentHash hash1 = ContentHash.Random();
+            var hashes1 = new[] { hash0, hash1 };
 
             List<BuildManifestEntry> targets = new List<BuildManifestEntry>();
-            targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, hash0));     // Will be added
-            targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, hash0));     // Duplicate entry will be ignored
-            targets.Add(new BuildManifestEntry("drop0", relativePath, hash1, hash1));     // Records duplicate entry
-            targets.Add(new BuildManifestEntry("drop1", relativePath, hash0, hash0));     // Will be added
-            targets.Add(new BuildManifestEntry("drop2", relativePath, hash0, hash0));     // Will be added
+            targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, hashes0));     // Will be added
+            targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, new[] { hash0 }));     // Duplicate entry will be ignored
+            targets.Add(new BuildManifestEntry("drop0", relativePath, hash1, hashes1));     // Records duplicate entry
+            targets.Add(new BuildManifestEntry("drop1", relativePath, hash0, hashes0));     // Will be added
+            targets.Add(new BuildManifestEntry("drop2", relativePath, hash0, hashes0));     // Will be added
 
             buildManifestGenerator.RecordFileForBuildManifest(targets);
 
@@ -2736,10 +2739,10 @@ namespace Test.BuildXL.Scheduler
             string dropName = "drop0";
 
             List<BuildManifestEntry> targets = new List<BuildManifestEntry>();
-            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));
-            targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), ContentHash.Random()));
-            targets.Add(new BuildManifestEntry(dropName, "/a/d", ContentHash.Random(), ContentHash.Random()));
-            targets.Add(new BuildManifestEntry(dropName, "/b/c", ContentHash.Random(), ContentHash.Random()));
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));
+            targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), new[] { ContentHash.Random() }));
+            targets.Add(new BuildManifestEntry(dropName, "/a/d", ContentHash.Random(), new[] { ContentHash.Random() }));
+            targets.Add(new BuildManifestEntry(dropName, "/b/c", ContentHash.Random(), new[] { ContentHash.Random() }));
 
             buildManifestGenerator.RecordFileForBuildManifest(targets);
 
@@ -2756,10 +2759,10 @@ namespace Test.BuildXL.Scheduler
             string dropName = "drop0";
 
             List<BuildManifestEntry> targets = new List<BuildManifestEntry>();
-            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));
-            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));      // Register same path with different Hash value
-            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), ContentHash.Random()));      // Register same path with different Hash value
-            targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), ContentHash.Random()));
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));      // Register same path with different Hash value
+            targets.Add(new BuildManifestEntry(dropName, "/a/b", ContentHash.Random(), new[] { ContentHash.Random() }));      // Register same path with different Hash value
+            targets.Add(new BuildManifestEntry(dropName, "/a/c", ContentHash.Random(), new[] { ContentHash.Random() }));
 
             buildManifestGenerator.RecordFileForBuildManifest(targets);
 

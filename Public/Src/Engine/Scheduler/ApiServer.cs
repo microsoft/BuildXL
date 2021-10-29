@@ -43,7 +43,7 @@ namespace BuildXL.Scheduler
         private readonly PipExecutionContext m_context;
         private readonly Tracing.IExecutionLogTarget m_executionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
-        private readonly ConcurrentBigMap<ContentHash, ContentHash> m_inMemoryBuildManifestStore;
+        private readonly ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>> m_inMemoryBuildManifestStore;
         private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
         private readonly bool m_verifyFileContentOnBuildManifestHashComputation;
         private LoggingContext m_loggingContext;
@@ -86,7 +86,7 @@ namespace BuildXL.Scheduler
             m_executionLog = executionLog;
             m_buildManifestGenerator = buildManifestGenerator;
             m_pipTwoPhaseCache = pipTwoPhaseCache;
-            m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, ContentHash>();
+            m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>>();
             m_receivedStatistics = new ConcurrentBigMap<string, long>();
             m_verifyFileContentOnBuildManifestHashComputation = verifyFileContentOnBuildManifestHashComputation;
         }
@@ -128,17 +128,22 @@ namespace BuildXL.Scheduler
             Logger.Log.BulkStatistic(m_loggingContext, m_receivedStatistics.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
         }
 
-        private void StoreBuildManifestHash(ContentHash hash, ContentHash manifestHash)
+        private void StoreBuildManifestHashes(ContentHash hash, IReadOnlyList<ContentHash> manifestHashes)
         {
             using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalHashToHashCacheWriteDuration))
             {
-                ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheWriteCount);
-                m_pipTwoPhaseCache.TryStoreBuildManifestHash(hash, manifestHash);
+                foreach (var manifestHash in manifestHashes)
+                {
+                    ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheWriteCount);
+                    m_pipTwoPhaseCache.TryStoreBuildManifestHash(hash, manifestHash);
+                }
             }
         }
 
-        private ContentHash TryGetBuildManifestHashAsync(ContentHash hash)
+        // TODO : Use an object pool for all these lists that are now flying around?
+        private bool TryGetBuildManifestHashesAsync(ContentHash identifyingHash, out IReadOnlyList<ContentHash> manifestHashes)
         {
+            var manifestHashesMutable = new List<ContentHash>();
             if (Interlocked.CompareExchange(ref m_historicMetadataCacheCheckComplete, 1, 0) == 0)
             {
                 // It's the first time this API is called. We need to check that the historic metadata cache is available.
@@ -155,14 +160,31 @@ namespace BuildXL.Scheduler
 
             using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalHashToHashCacheReadDuration))
             {
-                ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheReadCount);
-                var buildManifestHash = m_pipTwoPhaseCache.TryGetBuildManifestHash(hash);
-                return buildManifestHash;
+                foreach (var hashType in ContentHashingUtilities.BuildManifestHashTypes)
+                {
+                    ManifestCounters.IncrementCounter(BuildManifestCounters.InternalHashToHashCacheReadCount);
+                    var buildManifestHash = m_pipTwoPhaseCache.TryGetBuildManifestHash(identifyingHash, hashType);
+                    if (!buildManifestHash.IsValid)
+                    {
+                        // This means that we will recompute all the hashes if any single one of them is missing.
+                        // Because we always store/retrieve all the hashes simultaneously, either all will be present
+                        // or none, and the TTL of the entries will be in sync.
+                        // If in the future this behavior changes, we probably want to optimize this.
+                        manifestHashes = null;
+                        return false;
+                    }
+                    manifestHashesMutable.Add(buildManifestHash);
+                }
+
+                manifestHashes = manifestHashesMutable;
+                return true;
             }
         }
 
-        private async Task<Possible<ContentHash>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, ContentHash hash, int retryAttempt = 0)
+        private async Task<Possible<IReadOnlyList<ContentHash>>> TryGetBuildManifestHashFromLocalFileAsync(string fullFilePath, ContentHash hash, IList<HashType> requestedTypes, int retryAttempt = 0)
         {
+            Contract.Assert(requestedTypes.Count > 0, "Must request at least one hash type");
+            var result = new List<ContentHash>();
             if (retryAttempt >= GetBuildManifestHashFromLocalFileRetryLimit)
             {
                 string message = $"GetBuildManifestHashFromLocalFileRetryLimit exceeded at path '{fullFilePath}'";
@@ -175,51 +197,72 @@ namespace BuildXL.Scheduler
                 await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * GetBuildManifestHashFromLocalFileRetryMultiplierMs));
             }
 
-            if (File.Exists(fullFilePath))
+            if (!File.Exists(fullFilePath))
             {
-                try
+                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
+                return new Failure<string>($"File doesn't exist: '{fullFilePath}'");
+            }
+            
+            var hashers = new HashingStream[requestedTypes.Count - 1];
+            HashingStream validationStream = null;
+            try
+            {
+                using var fs = FileUtilities.CreateFileStream(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Delete | FileShare.Read, FileOptions.SequentialScan).AssertHasLength();
+
+                // If enabled, create a hashing stream for content validation. Using HashType.Unknown uses the default hashtype
+                validationStream = m_verifyFileContentOnBuildManifestHashComputation ? ContentHashingUtilities.GetContentHasher(HashType.Unknown).CreateReadHashingStream(fs) : null;
+
+                // Create a series of nested ReadHashingStream so we compute all the hashes in parallel
+                StreamWithLength outerStream = validationStream?.AssertHasLength() ?? fs;
+                for (var i = 0; i < hashers.Length; i++)
                 {
-                    ContentHash buildManifestHash;
-                    if (m_verifyFileContentOnBuildManifestHashComputation)
-                    {
-                        using (var fs = FileUtilities.CreateFileStream(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Delete | FileShare.Read, FileOptions.SequentialScan))
-                        {
-                            StreamWithLength stream = fs.AssertHasLength();
-                            using (var hashingStream = ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.BuildManifestHashType).CreateReadHashingStream(stream))
-                            {
-                                var actualHash = await ContentHashingUtilities.HashContentStreamAsync(hashingStream.AssertHasLength());
-                                buildManifestHash = hashingStream.GetContentHash();
-
-                                if (hash != actualHash)
-                                {
-                                    return new Failure<string>($"Unexpected file content during build manifest hash computation. Path: '{fullFilePath}', expected hash '{hash}', actual hash '{actualHash}'.");
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        buildManifestHash = await ContentHashingUtilities.HashFileAsync(fullFilePath, ContentHashingUtilities.BuildManifestHashType);
-                    }
-
-                    return buildManifestHash;
+                    // Hashers has size (requestedTypes.Count - 1)
+                    // requestedTypes[0] will be used to hash+consume the resulting outerStream (see below)
+                    var hashType = requestedTypes[i + 1];
+                    hashers[i] = ContentHashingUtilities.GetContentHasher(hashType).CreateReadHashingStream(outerStream);
+                    outerStream = hashers[i].AssertHasLength();
                 }
-                catch (Exception ex) when (ex is BuildXLException || ex is IOException)
+
+                // Hashing the outermost stream will cause all the nested hashers to also do their processing
+                var firstManifestHash = await ContentHashingUtilities.HashContentStreamAsync(outerStream, requestedTypes[0]);
+                result.Add(firstManifestHash);
+
+                for (int i = 0; i < hashers.Length; i++)
                 {
-                    Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest",
-                        $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash. Retry attempt {retryAttempt} out of {GetBuildManifestHashFromLocalFileRetryLimit}. Exception: {ex}");
-                    return await TryGetBuildManifestHashFromLocalFileAsync(fullFilePath, hash, retryAttempt + 1);
+                    result.Add(hashers[i].GetContentHash());
+                }
+
+                if (m_verifyFileContentOnBuildManifestHashComputation)
+                {
+                    var actualHash = validationStream.GetContentHash();
+                    if (hash != actualHash)
+                    {
+                        return new Failure<string>($"Unexpected file content during build manifest hash computation. Path: '{fullFilePath}', expected hash '{hash}', actual hash '{actualHash}'.");
+                    }
                 }
             }
-
-            Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest", $"Local file not found at path '{fullFilePath}' while computing BuildManifest Hash. Trying other methods to obtain hash.");
-            return new Failure<string>($"File doesn't exist: '{fullFilePath}'");
+            catch (Exception ex) when (ex is BuildXLException || ex is IOException)
+            {
+                Tracing.Logger.Log.ApiServerForwardedIpcServerMessage(m_loggingContext, "BuildManifest",
+                    $"Local file found at path '{fullFilePath}' but threw exception while computing BuildManifest Hash. Retry attempt {retryAttempt} out of {GetBuildManifestHashFromLocalFileRetryLimit}. Exception: {ex}");
+                return await TryGetBuildManifestHashFromLocalFileAsync(fullFilePath, hash, requestedTypes, retryAttempt + 1);
+            }
+            finally
+            {
+                validationStream?.Dispose();
+                for (var i = 0; i < hashers.Length; i++)
+                {
+                    hashers[i]?.Dispose();
+                }
+            }
+            
+            return result;
         }
 
         /// <summary>
         /// Compute the SHA-256 hash for file stored in Cache. Required for Build Manifest generation.
         /// </summary>
-        private async Task<Possible<ContentHash>> ComputeBuildManifestHashFromCacheAsync(BuildManifestEntry buildManifestEntry)
+        private async Task<Possible<IReadOnlyList<ContentHash>>> ComputeBuildManifestHashFromCacheAsync(BuildManifestEntry buildManifestEntry, IList<HashType> requestedTypes)
         {
             if (!File.Exists(buildManifestEntry.FullFilePath))
             {
@@ -239,7 +282,7 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath, buildManifestEntry.Hash);
+            return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath, buildManifestEntry.Hash, requestedTypes);
         }
 
         async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
@@ -442,22 +485,21 @@ namespace BuildXL.Scheduler
             }
 
             // (2) Attempt hash read from cache
-            ContentHash hashFromCache = TryGetBuildManifestHashAsync(buildManifestEntry.Hash);
-            if (hashFromCache.IsValid)
+            if(TryGetBuildManifestHashesAsync(buildManifestEntry.Hash, out var buildManifestHashes))
             {
-                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, hashFromCache);
-                return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, hashFromCache);
+                m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, buildManifestHashes);
+                return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHashes);
             }
 
             // (3) Attempt to compute hash for locally existing file (Materializes non-existing files)
             using (ManifestCounters.StartStopwatch(BuildManifestCounters.InternalComputeHashLocallyDuration))
             {
                 ManifestCounters.IncrementCounter(BuildManifestCounters.InternalComputeHashLocallyCount);
-                var computeHashResult = await ComputeBuildManifestHashFromCacheAsync(buildManifestEntry);
+                var computeHashResult = await ComputeBuildManifestHashFromCacheAsync(buildManifestEntry, requestedTypes: ContentHashingUtilities.BuildManifestHashTypes);
                 if (computeHashResult.Succeeded)
                 {
                     m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, computeHashResult.Result);
-                    StoreBuildManifestHash(buildManifestEntry.Hash, computeHashResult.Result);
+                    StoreBuildManifestHashes(buildManifestEntry.Hash, computeHashResult.Result);
                     return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, computeHashResult.Result);
                 }
 
@@ -465,7 +507,7 @@ namespace BuildXL.Scheduler
             }
 
             ManifestCounters.IncrementCounter(BuildManifestCounters.TotalHashFileFailures);
-            return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, new ContentHash(HashType.Unknown));
+            return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, new[] { new ContentHash(HashType.Unknown) });
         }
 
         /// <summary>

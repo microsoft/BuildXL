@@ -37,9 +37,9 @@ namespace BuildXL.Storage
         private static ContentHash s_zeroHash;
 
         /// <summary>
-        /// HashType used for Build Manifest ContentHash
+        /// HashTypes used in SBOMs
         /// </summary>
-        public static readonly HashType BuildManifestHashType = HashType.SHA256;
+        public static readonly HashType[] BuildManifestHashTypes = new[] { HashType.SHA256, HashType.SHA1 };
 
         private static ConcurrentDictionary<HashType, IContentHasher> s_contentHasherByHashType = new ConcurrentDictionary<HashType, IContentHasher>();
 

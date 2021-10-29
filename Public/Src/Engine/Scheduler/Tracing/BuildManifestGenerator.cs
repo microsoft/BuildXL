@@ -75,8 +75,7 @@ namespace BuildXL.Scheduler.Tracing
                         Logger.Log.RecordFileForBuildManifestAfterGenerateBuildManifestFileList(m_loggingContext,
                             record.DropName,
                             record.RelativePath,
-                            record.AzureArtifactsHash.Serialize(),
-                            record.BuildManifestHash.Serialize());
+                            record.AzureArtifactsHash.Serialize());
                     }
 
                     Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
@@ -88,7 +87,7 @@ namespace BuildXL.Scheduler.Tracing
                     {
                         var existingEntry = BuildManifestEntries.GetOrAdd(
                             (dropNameId, relativePathObj),
-                            new BuildManifestHashes(record.AzureArtifactsHash, record.BuildManifestHash));
+                            new BuildManifestHashes(record.AzureArtifactsHash, record.BuildManifestHashes));
 
                         if (existingEntry.IsFound &&
                             !record.AzureArtifactsHash.Equals(existingEntry.Item.Value.AzureArtifactsHash))
@@ -138,10 +137,9 @@ namespace BuildXL.Scheduler.Tracing
                     .Where(kvp => kvp.Key.DropName == dropStringId)
                     .Select(kvp => (relPathStr: kvp.Key.RelativePath.ToString(m_stringTable), hashes: kvp.Value))
                     .OrderBy(t => t.relPathStr)
-                    .Select(t => ToBuildManifestDataComponent(
-                        t.relPathStr,
-                        t.hashes.AzureArtifactsHash.ToHex(),
-                        t.hashes.BuildManifestHash.ToHex()))
+                    .Select(t => ToBuildManifestDataComponent(t.relPathStr, t.hashes.AzureArtifactsHash.ToHex(),
+                    // TODO: Migrate to the new API first, which lets us pass multiple hashes
+                    t.hashes.Hashes[0].ToHex()))
                     .ToList();
 
                 Logger.Log.GenerateBuildManifestFileListResult(m_loggingContext, dropName, sortedManifestDetailsForDrop.Count);
@@ -177,23 +175,23 @@ namespace BuildXL.Scheduler.Tracing
         public ContentHash AzureArtifactsHash { get; }
 
         /// <nodoc/>
-        public ContentHash BuildManifestHash { get; }
+        public IReadOnlyList<ContentHash> BuildManifestHashes { get; }
 
         /// <nodoc/>
         public BuildManifestEntry(
             string dropName,
             string relativePath,
             ContentHash azureArtifactsHash,
-            ContentHash buildManifestHash)
+            IReadOnlyList<ContentHash> buildManifestHashes)
         {
             DropName = dropName;
             RelativePath = relativePath;
             AzureArtifactsHash = azureArtifactsHash;
-            BuildManifestHash = buildManifestHash;
+            BuildManifestHashes = buildManifestHashes;
         }
 
         /// <nodoc/>
-        public bool IsValid => !string.IsNullOrEmpty(DropName) && !string.IsNullOrEmpty(RelativePath) && AzureArtifactsHash.IsValid && BuildManifestHash.IsValid;
+        public bool IsValid => !string.IsNullOrEmpty(DropName) && !string.IsNullOrEmpty(RelativePath) && AzureArtifactsHash.IsValid && BuildManifestHashes.All(t => t.IsValid);
     }
 
     /// <summary>
@@ -205,13 +203,13 @@ namespace BuildXL.Scheduler.Tracing
         public ContentHash AzureArtifactsHash { get; }
 
         /// <nodoc/>
-        public ContentHash BuildManifestHash { get; }
+        public IReadOnlyList<ContentHash> Hashes { get; }
 
         /// <nodoc/>
-        public BuildManifestHashes(ContentHash azureArtifactsHash, ContentHash buildManifestHash)
+        public BuildManifestHashes(ContentHash azureArtifactsHash, IReadOnlyList<ContentHash> buildManifestHashes)
         {
             AzureArtifactsHash = azureArtifactsHash;
-            BuildManifestHash = buildManifestHash;
+            Hashes = buildManifestHashes;
         }
     }
 

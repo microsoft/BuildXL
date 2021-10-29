@@ -42,7 +42,10 @@ namespace BuildXL.Scheduler.Tracing
             // Need to update the HistoricMetadataCache on the orchestrator (only orchestrator uploads the db to cache)
             foreach (var entry in data.Records)
             {
-                m_pipTwoPhaseCache.TryStoreBuildManifestHash(entry.AzureArtifactsHash, entry.BuildManifestHash);
+                foreach (var manifestHash in entry.BuildManifestHashes)
+                {
+                    m_pipTwoPhaseCache.TryStoreBuildManifestHash(entry.AzureArtifactsHash, manifestHash);
+                }
             }
         }
     }

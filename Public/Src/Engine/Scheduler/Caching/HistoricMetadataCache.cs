@@ -41,7 +41,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// The version for format of <see cref="HistoricMetadataCache"/>
         /// </summary>
-        public const int FormatVersion = 24;
+        public const int FormatVersion = 26;
 
         /// <summary>
         /// Indicates if entries should be purged as soon as there TTL reaches zero versus reaching a limit in percentage expired.
@@ -199,6 +199,7 @@ namespace BuildXL.Scheduler.Cache
             StoreLocation = storeLocation.ToString(context.PathTable);
             LogDirectoryLocation = logDirectoryLocation.HasValue && logDirectoryLocation.Value.IsValid ? logDirectoryLocation.Value.ToString(context.PathTable) : null;
             m_storeAccessor = new Lazy<KeyValueStoreAccessor>(OpenStore);
+            m_hashingPool = new ObjectPool<HashingHelper>(() => new HashingHelper(context.PathTable, recordFingerprintString: false), h => h.Dispose());
             Valid = false;
 
             m_newContentEntries = new ConcurrentBigMap<ContentHash, bool>();
@@ -727,7 +728,7 @@ namespace BuildXL.Scheduler.Cache
 
             StoreAccessor?.Use(database =>
             {
-                using var key = contentHash.ToPooledByteArray();
+                using var key = GetBuildManifestHashKey(contentHash, buildManifestContentHash.HashType);
                 if (!database.TryGetValue(key.Value, out var existingValue, StoreColumnNames.BuildManifestHashes[m_activeBuildManifestHashColumnIndex]))
                 {
                     using var value = buildManifestContentHash.ToPooledByteArray();
@@ -737,8 +738,30 @@ namespace BuildXL.Scheduler.Cache
             });
         }
 
+        private readonly ObjectPool<HashingHelper> m_hashingPool;
+
+        internal static readonly ByteArrayPool BuildManifestKeyArrayPool = new(ContentHash.SerializedLength + 1);
+
+        /// <summary>
+        /// Store the build manifest hashes in the same column but with different keys
+        /// </summary>
+        private ByteArrayPool.PoolHandle GetBuildManifestHashKey(ContentHash contentHash, HashType hashType)
+        {
+            var handle = BuildManifestKeyArrayPool.Get();
+            byte[] buffer = handle.Value;
+
+            // Store the hash type in the first byte
+            unchecked
+            {
+                buffer[0] = (byte)hashType;
+            }
+
+            contentHash.Serialize(buffer, offset: 1);
+            return handle;
+        }
+
         /// <inheritdoc/>
-        public override ContentHash TryGetBuildManifestHash(ContentHash contentHash)
+        public override ContentHash TryGetBuildManifestHash(ContentHash contentHash, HashType hashType)
         {
             EnsureLoadedAsync().GetAwaiter().GetResult();
 
@@ -748,7 +771,7 @@ namespace BuildXL.Scheduler.Cache
             ContentHash foundHash = default;
             StoreAccessor?.Use(database =>
             {
-                using var key = contentHash.ToPooledByteArray();
+                using var key = GetBuildManifestHashKey(contentHash, hashType);
                 Contract.Assert(key.Value != null, $"ByteArray was null for ContentHash");
 
                 // First, check the active column. If the hash is not there, check the other column.
@@ -764,7 +787,10 @@ namespace BuildXL.Scheduler.Cache
                 }
             });
 
-            Contract.Assert(!foundHash.IsValid || foundHash.HashType == ContentHashingUtilities.BuildManifestHashType);
+            if (foundHash.IsValid && foundHash.HashType != hashType)
+            {
+                Contract.Assert(false, $"Mismatched hash retrieval from historic metadata cache. Req: {hashType}. Type: {foundHash.HashType}");
+            }
 
             return foundHash;
         }
@@ -1301,7 +1327,6 @@ namespace BuildXL.Scheduler.Cache
                 hasher.Add("LookupVersion", HistoricMetadataCacheLookupVersion);
                 hasher.Add("PerformanceDataFingerprint", performanceDataFingerprint.Hash);
                 hasher.Add("ExtraFingerprintSalt", extraFingerprintSalt.CalculatedSaltsFingerprint);
-                hasher.Add("BuildManifestHashType", (int)ContentHashingUtilities.BuildManifestHashType);
 
                 var fingerprint = new ContentFingerprint(hasher.GenerateHash());
                 Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Computed historic metadata cache fingerprint: {fingerprint}. Salt: '{EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt.Value}'"));

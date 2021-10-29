@@ -804,7 +804,7 @@ namespace BuildXL.Scheduler.Tracing
                 writer.Write(record.DropName);
                 writer.Write(record.RelativePath);
                 record.AzureArtifactsHash.Serialize(writer);
-                record.BuildManifestHash.Serialize(writer);
+                writer.WriteReadOnlyList(record.BuildManifestHashes, (w,h) => h.Serialize(w));
             }
         }
 
@@ -819,7 +819,7 @@ namespace BuildXL.Scheduler.Tracing
                 string dropName = reader.ReadString();
                 string relativePath = reader.ReadString();
                 ContentHash azureArtifactsHash = new ContentHash(reader);
-                ContentHash buildManifestHash = new ContentHash(reader);
+                var buildManifestHash = reader.ReadReadOnlyList(r => new ContentHash(r));
 
                 Records.Add(new BuildManifestEntry(dropName, relativePath, azureArtifactsHash, buildManifestHash));
             };

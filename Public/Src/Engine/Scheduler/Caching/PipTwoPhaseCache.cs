@@ -484,6 +484,6 @@ namespace BuildXL.Scheduler.Cache
         /// <remarks>
         /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
         /// </remarks>
-        public virtual ContentHash TryGetBuildManifestHash(ContentHash contentHash) => default;
+        public virtual ContentHash TryGetBuildManifestHash(ContentHash contentHash, HashType hashType) => default;
     }
 }

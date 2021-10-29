@@ -646,7 +646,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var result = _keyValueStore.Use(
                 store =>
                 {
-                    using (_metadataLocks[key[0]].AcquireReadLock())
+                    using (_metadataLocks[strongFingerprint.WeakFingerprint[0]].AcquireReadLock())
                     {
                         if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders)
                             && TryGetValue(store, key, out var data, Columns.Metadata))
@@ -704,7 +704,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 {
                     var key = GetMetadataKey(strongFingerprint);
 
-                    using (_metadataLocks[key[0]].AcquireWriteLock())
+                    using (_metadataLocks[strongFingerprint.WeakFingerprint[0]].AcquireWriteLock())
                     {
                         MetadataEntryHeader header = default;
 

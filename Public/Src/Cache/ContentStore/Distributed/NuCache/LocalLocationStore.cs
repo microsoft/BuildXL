@@ -2453,7 +2453,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return _store.GetBulkFromGlobalAsync(context, ClusterState.PrimaryMachineId, contentHashes);
             }
 
-            public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
+            public ValueTask<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
             {
                 return _store.GlobalCacheStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
             }
@@ -2576,5 +2576,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public static long ToLong(this Possible<bool> possibleBoolValue) => possibleBoolValue.Succeeded && possibleBoolValue.Result ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Temporarily keeping this as a separate class to avoid referencing 'System.Threading.Tasks.Extensions' in too many places.
+    /// </summary>
+    internal static class ValueTaskExtensions
+    {
+        /// <summary>
+        /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
+        /// </summary>
+        public static ValueTask<T> ThrowIfFailure<T>(this ValueTask<T> task)
+            where T : ResultBase
+        {
+            if (task.IsCompletedSuccessfully)
+            {
+                return task;
+            }
+
+            return ThrowIfFailureSlow(task);
+        }
+
+        /// <summary>
+        /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
+        /// </summary>
+        private static async ValueTask<T> ThrowIfFailureSlow<T>(this ValueTask<T> task)
+            where T : ResultBase
+        {
+            var result = await task;
+            result.ThrowIfFailure();
+            return result;
+        }
     }
 }

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+
 namespace BuildXL.Cache.Host.Configuration
 {
     using static ContentMetadataStoreModeFlags;
@@ -29,6 +31,7 @@ namespace BuildXL.Cache.Host.Configuration
         Distributed = ReadDistributed | WriteDistributed,
     }
 
+    [Flags]
     public enum ContentMetadataStoreModeFlags
     {
         /// <nodoc />

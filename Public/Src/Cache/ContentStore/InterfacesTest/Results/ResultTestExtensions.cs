@@ -124,6 +124,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             return result;
         }
 
+        public static async ValueTask<TResult> ShouldBeSuccess<TResult>(this ValueTask<TResult> task)
+            where TResult : ResultBase
+        {
+            var result = await task;
+            result.ShouldBeSuccess();
+            return result;
+        }
+
         public static async Task<PinResult> ShouldBeSuccess(this Task<PinResult> task)
         {
             var result = await task;

@@ -74,6 +74,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static readonly Task<BoolResult> SuccessTask = Task.FromResult(Success);
 
         /// <summary>
+        /// Successful value task singleton.
+        /// </summary>
+        public static readonly ValueTask<BoolResult> SuccessValueTask = new ValueTask<BoolResult>(Success);
+
+        /// <summary>
         /// Overloads &amp; operator to behave as AND operator.
         /// </summary>
         public static BoolResult operator &(BoolResult left, BoolResult right)

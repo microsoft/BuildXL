@@ -232,14 +232,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
+        public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
             if (Configuration.DistributedContentConsumerOnly)
             {
-                return BoolResult.SuccessTask;
+                return BoolResult.SuccessValueTask;
             }
 
-            return RegisterLocationAsync(context, contentHashes, machineId);
+            return new ValueTask<BoolResult>(RegisterLocationAsync(context, contentHashes, machineId));
         }
 
         private Task<BoolResult> RegisterLocationAsync(

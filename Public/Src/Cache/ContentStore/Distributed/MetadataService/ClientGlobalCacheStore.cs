@@ -174,24 +174,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             });
         }
 
-        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
+        public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
-            return ExecuteAsync(context, async (context, service) =>
-            {
-                var response = await service.RegisterContentLocationsAsync(new RegisterContentLocationsRequest()
+            return new ValueTask<BoolResult>(
+                ExecuteAsync(context, async (context, service) =>
                 {
-                    ContextId = context.TracingContext.TraceId,
-                    Hashes = contentHashes,
-                    MachineId = machineId,
-                }, context.Token);
+                    var response = await service.RegisterContentLocationsAsync(new RegisterContentLocationsRequest()
+                    {
+                        ContextId = context.TracingContext.TraceId,
+                        Hashes = contentHashes,
+                        MachineId = machineId,
+                    }, context.Token);
 
-                return response.ToBoolResult();
-            },
-            extraEndMessage: _ =>
-            {
-                var csv = string.Join(",", contentHashes.Select(s => s.Hash));
-                return $"MachineId=[{machineId}] Touch=[{touch}] Hashes=[{csv}]";
-            });
+                    return response.ToBoolResult();
+                },
+                extraEndMessage: _ =>
+                {
+                    var csv = string.Join(",", contentHashes.Select(s => s.Hash));
+                    return $"MachineId=[{machineId}] Touch=[{touch}] Hashes=[{csv}]";
+                }));
         }
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)

@@ -587,7 +587,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
-        private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
+        internal static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentLocationDatabase db)
         {
             ContentLocationEntry? result = null;
             using var poolHandle = db.GetKey(hash);

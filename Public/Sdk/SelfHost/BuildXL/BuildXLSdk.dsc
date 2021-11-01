@@ -468,7 +468,7 @@ export function cacheTest(args: TestArguments) : TestResult {
                 exec: {
                     environmentVariables: Environment.hasVariable(envVarNamePrefix + redisConnectionStringEnvVarName) ? [ {name: redisConnectionStringEnvVarName, value: Environment.getStringValue(envVarNamePrefix + redisConnectionStringEnvVarName)}] : []
                 }
-            }
+            },
         },
     }, args);
 
@@ -478,6 +478,13 @@ export function cacheTest(args: TestArguments) : TestResult {
             assemblyBindingRedirects: cacheBindingRedirects()
         }, args);
     }
+
+    // Adding 'Tasks.Extensions' because this assembly is required by all the cache tests.
+    args = Object.merge<Managed.TestArguments>({
+        references: [
+            ...addIf(qualifier.targetFramework === "net472", importFrom("System.Threading.Tasks.Extensions").pkg)
+        ]
+    }, args);
 
     return test(args);
 }
@@ -556,7 +563,15 @@ export function cacheBindingRedirects() {
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.0.5.1",
                 newVersion: "4.0.5.1", // Corresponds to { id: "System.Text.Encodings.Web", version: "4.7.2" },
-            }
+            },
+            {
+                name: "protobuf-net",
+                publicKeyToken: "257b51d87d2e4d67",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-3.0.0.0",
+                newVersion: "3.0.0.0", // Corresponds to { id: "System.Text.Encodings.Web", version: "4.7.2" },
+            },
+
         ];
 }
 

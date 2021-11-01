@@ -3,17 +3,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using ProtoBuf;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService

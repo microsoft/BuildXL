@@ -34,7 +34,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch);
+        /// <remarks>
+        /// Using <see cref="ValueTask{BoolResult}"/> instead of normal tasks because <see cref="GlobalCacheService.RegisterContentLocationsAsync"/> can
+        /// do the registration synchronously, and using <code>ValueTask</code> allows achieving allocation free implementation that is very useful
+        /// because this method can be called a lot at start time of the service.
+        /// </remarks>
+        ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch);
 
         /// <summary>
         /// Puts a blob into the content location store.

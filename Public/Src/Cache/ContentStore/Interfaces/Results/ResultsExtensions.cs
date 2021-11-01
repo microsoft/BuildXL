@@ -340,10 +340,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// Tries to get the value from the result.
         /// </summary>
         /// <returns>Whether the value was gotten successfully.</returns>
-        public static bool TryGetValue<T>(this Result<T> result, [MaybeNull]out T value)
+        public static bool TryGetValue<T>(this Result<T> result, [NotNullWhen(true)]out T? value)
         {
             value = result.Succeeded ? result.Value : default;
-            return result.Succeeded;
+            return value is not null;
         }
 
         /// <summary>

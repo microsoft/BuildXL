@@ -6,18 +6,12 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using ProtoBuf.Grpc;
-using ProtoBuf.Grpc.Server;
-using static Grpc.Core.Server;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -95,16 +89,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             });
         }
 
+        /// <summary>
+        /// An optimized low allocation version of <see cref="RegisterContentLocationsAsync"/>.
+        /// </summary>
+        // TODO: instead of manually doing all of that we should make our helpers more efficient and as allocation free as possible. Work Item: 1883860
+        protected async ValueTask<ValueUnit> RegisterContentLocationsFastAsync(RegisterContentLocationsRequest request)
+        {
+            // This method is called extremely frequently in some cases so to avoid any unnecessary performance penalties
+            // it does not use any helper methods.
+
+            // Intentionally not tracking the shutdown here to avoid extra allocations and extra work that is rarely needed.
+            // Plus this method should not be very long and we can just allow it to fail if the shutdown will cause some errors.
+            // (consider adding a flag if we think it will be needed in the future).
+
+            var tracingContext = new Context(request.ContextId, _startupContext.Logger);
+            var context = new OperationContext(tracingContext);
+
+            try
+            {
+                await _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false).ThrowIfFailure();
+            }
+            catch (Exception e)
+            {
+                // Checking the errors for the synchronous case.
+                Tracer.Info(context, $"Content location registration failed {e}");
+            }
+
+            return ValueUnit.Void;
+        }
+
         /// <inheritdoc />
         public Task<RegisterContentLocationsResponse> RegisterContentLocationsAsync(RegisterContentLocationsRequest request, CallContext callContext = default)
         {
             return ExecuteAsync(request, callContext, context =>
             {
-                return _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false)
+                return _store.RegisterLocationAsync(context, request.MachineId, request.Hashes, touch: false).AsTask()
                     .SelectAsync(_ => new RegisterContentLocationsResponse()
-                    {
-                        PersistRequest = true
-                    });
+                     {
+                         PersistRequest = true
+                     });
             },
             extraEndMessage: r => {
                 var csv = string.Join(",", request.Hashes.Select(h => h.Hash));
@@ -221,20 +244,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         extraStartMessage: extraStartMessage,
                         extraEndMessage: r => string.Join(" ", extraEndMessage?.Invoke(r), request.BlockId?.ToString(), $"Retry=[{r.GetValueOrDefault()?.ShouldRetry}]"));
 
-                        if (result.Succeeded)
+                    if (result.Succeeded)
+                    {
+                        return result.Value;
+                    }
+                    else
+                    {
+                        var response = new TResponse()
                         {
-                            return result.Value;
-                        }
-                        else
-                        {
-                            var response = new TResponse()
-                            {
-                                ErrorMessage = result.ErrorMessage,
-                                Diagnostics = result.Diagnostics
-                            };
+                            ErrorMessage = result.ErrorMessage,
+                            Diagnostics = result.Diagnostics
+                        };
 
-                            return response;
-                        }
+                        return response;
+                    }
                 });
         }
     }

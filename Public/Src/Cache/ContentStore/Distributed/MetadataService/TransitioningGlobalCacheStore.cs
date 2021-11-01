@@ -17,6 +17,7 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Tracing;
+using BoolResult = BuildXL.Cache.ContentStore.Interfaces.Results.BoolResult;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -101,9 +102,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ReadAsync(context, LocationMode, store => store.GetBulkAsync(context, contentHashes));
         }
 
-        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
+        public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
-            return WriteAsync(context, LocationMode, store => store.RegisterLocationAsync(context, machineId, contentHashes, touch));
+            return new ValueTask<BoolResult>(
+                WriteAsync(
+                    context,
+                    LocationMode,
+                    (context, machineId, contentHashes, touch),
+                    static (store, tpl) => store.RegisterLocationAsync(tpl.context, tpl.machineId, tpl.contentHashes, tpl.touch).AsTask()));
         }
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
@@ -143,11 +149,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ExecuteAsync(context, mode, ContentMetadataStoreModeFlags.WriteBoth, executeAsync, caller);
         }
 
-        private async Task<TResult> ExecuteAsync<TResult>(
+        public Task<TResult> WriteAsync<TResult, TState>(OperationContext context, ContentMetadataStoreMode mode, TState state, Func<IGlobalCacheStore, TState, Task<TResult>> executeAsync, [CallerMemberName] string caller = null)
+            where TResult : ResultBase
+        {
+            return ExecuteAsync(context, mode, ContentMetadataStoreModeFlags.WriteBoth, state, executeAsync, caller);
+        }
+
+        private Task<TResult> ExecuteAsync<TResult>(
             OperationContext context,
             ContentMetadataStoreMode mode,
             ContentMetadataStoreModeFlags modeMask,
             Func<IGlobalCacheStore, Task<TResult>> executeAsync,
+            [CallerMemberName] string caller = null)
+            where TResult : ResultBase
+        {
+            return ExecuteAsync(context, mode, modeMask, executeAsync, (store, execute) => execute(store), caller);
+        }
+
+        private async Task<TResult> ExecuteAsync<TResult, TState>(
+            OperationContext context,
+            ContentMetadataStoreMode mode,
+            ContentMetadataStoreModeFlags modeMask,
+            TState state,
+            Func<IGlobalCacheStore, TState, Task<TResult>> executeAsync,
             string caller)
             where TResult : ResultBase
         {
@@ -155,8 +179,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             bool preferRedis, preferDistributed;
             GetFlagsAndPreferences(mode, modeMask, out redisFlags, out distributedFlags, out preferRedis, out preferDistributed);
 
-            var redisTask = MeasuredExecuteAsync(_redisStore, redisFlags, executeAsync);
-            var distributedTask = MeasuredExecuteAsync(_distributedStore, distributedFlags, executeAsync);
+            var redisTask = MeasuredExecuteAsync(_redisStore, redisFlags, state, executeAsync);
+            var distributedTask = MeasuredExecuteAsync(_distributedStore, distributedFlags, state, executeAsync);
 
             string extraEndMessage = null;
             var combinedResultTask = context.PerformOperationAsync(
@@ -197,10 +221,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             preferDistributed = preference.HasAllFlags(ContentMetadataStoreModeFlags.PreferDistributed) || redisFlags == 0;
         }
 
-        private async ValueTask<(TResult result, string message)> MeasuredExecuteAsync<TResult>(
+        private async ValueTask<(TResult result, string message)> MeasuredExecuteAsync<TResult, TState>(
             IGlobalCacheStore store,
             ContentMetadataStoreModeFlags flags,
-            Func<IGlobalCacheStore, Task<TResult>> executeAsync)
+            TState state,
+            Func<IGlobalCacheStore, TState, Task<TResult>> executeAsync)
             where TResult : ResultBase
         {
             if (flags == 0)
@@ -211,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // The Redis tasks have long synchronous parts
             await Task.Yield();
             var sw = StopwatchSlim.Start();
-            var result = await executeAsync(store);
+            var result = await executeAsync(store, state);
             var message = $"[{Math.Round(sw.Elapsed.TotalMilliseconds, 3)}ms, {result.GetStatus()}]";
             return (result, message);
         }

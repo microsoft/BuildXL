@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (result.TryGetValue(out var contentHashWithSize))
             {
                 // Register that the machine now has the content
-                await RegisterContent(context, contentHashWithSize);
+                await RegisterContent(context, contentHashWithSize).ThrowIfFailure();
             }
 
             return result;
@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 async context =>
                 {
                     var startedCopyHash = ComputeStartedCopyHash(hash);
-                    await RegisterContent(context, new ContentHashWithSize(startedCopyHash, -1));
+                    await RegisterContent(context, new ContentHashWithSize(startedCopyHash, -1)).ThrowIfFailure();
 
                     for (int i = 0; i < Configuration.PropagationIterations; i++)
                     {
@@ -211,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (putResult.Succeeded)
             {
                 var contentInfo = new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
-                await RegisterContent(context, contentInfo);
+                await RegisterContent(context, contentInfo).ThrowIfFailure();
 
                 if (isUpload && Configuration.ProactiveCopyCheckpointFiles)
                 {
@@ -253,9 +253,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new ContentHash(HashType, buffer);
         }
 
-        private Task RegisterContent(OperationContext context, params ContentHashWithSize[] contentInfo)
+        private ValueTask<BoolResult> RegisterContent(OperationContext context, params ContentHashWithSize[] contentInfo)
         {
-            return _locationStore.RegisterLocalLocationAsync(context, contentInfo).ThrowIfFailure();
+            return _locationStore.RegisterLocalLocationAsync(context, contentInfo);
         }
 
         internal IReadOnlyList<MachineLocation> TranslateLocations(IReadOnlyList<MachineLocation> locations)
@@ -346,7 +346,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <summary>
             /// Registers content location for current machine
             /// </summary>
-            Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo);
+            ValueTask<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo);
         }
     }
 }

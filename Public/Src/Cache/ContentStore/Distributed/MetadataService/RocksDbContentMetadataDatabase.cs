@@ -26,6 +26,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
+using RocksDbSharp;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 #nullable enable
@@ -572,18 +573,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentMetadataDatabase db)
         {
             ContentLocationEntry? result = null;
-            if (db.TryGetValue(store, db.GetKey(hash), out var data, Columns.Content))
+
+            // TODO: unify with RocksDbContentLocationDatabase
+            using var keyHandle = hash.ToPooledByteArray();
+            if (db.TryGetPinnableValue(store, keyHandle.Value, out var data, Columns.Content))
             {
-                result = db.DeserializeContentLocationEntry(data);
+                result = db.DeserializeContentLocationEntry(data.Value);
             }
 
             return result;
+        }
+
+        private ContentLocationEntry DeserializeContentLocationEntry(RocksDbPinnableSpan span)
+        {
+            // Please do not convert the delegate to a method group, because this code is called many times
+            // and method group allocates a delegate on each conversion to a delegate.
+            using (span)
+            {
+                unsafe
+                {
+                    using var stream = new UnmanagedMemoryStream((byte*)span.ValuePtr.ToPointer(), (long)span.LengthPtr);
+                    return SerializationPool.Deserialize(stream, static reader => ContentLocationEntry.Deserialize(reader));
+                }
+            }
         }
 
         private bool TryGetValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out byte[]? value, Columns columns)
         {
             return store.TryGetValue(key, out value, NameOf(columns))
                 || store.TryGetValue(key, out value, NameOf(columns, GetFormerColumnGroup()));
+        }
+
+        private bool TryGetPinnableValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, Columns columns)
+        {
+            return store.TryGetPinnableValue(key, out value, NameOf(columns))
+                || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup()));
         }
 
         /// <inheritdoc />

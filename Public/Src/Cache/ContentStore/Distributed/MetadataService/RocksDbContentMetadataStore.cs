@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -64,14 +65,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return Task.FromResult(Result.Success<IReadOnlyList<ContentLocationEntry>>(entries));
         }
 
-        public Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
+        public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
-            foreach (var hash in contentHashes)
+            foreach (var hash in contentHashes.AsStructEnumerable())
             {
                 Database.LocationAdded(context, hash.Hash, machineId, hash.Size, updateLastAccessTime: touch);
             }
 
-            return BoolResult.SuccessTask;
+            return BoolResult.SuccessValueTask;
         }
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)

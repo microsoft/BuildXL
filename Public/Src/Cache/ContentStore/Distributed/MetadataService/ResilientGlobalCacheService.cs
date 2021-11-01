@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -176,6 +175,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
+        /// <inheritdoc />
         protected override async Task<Result<TResponse>> ExecuteCoreAsync<TRequest, TResponse>(
             OperationContext context,
             TRequest request,
@@ -184,10 +184,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             if (!request.Replaying && ForceClientRetries(out var reason))
             {
                 return new TResponse()
-                {
-                    ShouldRetry = true,
-                    ErrorMessage = reason
-                };
+                       {
+                           ShouldRetry = true,
+                           ErrorMessage = reason
+                       };
             }
 
             var result = await base.ExecuteCoreAsync(context, request, executeAsync);
@@ -213,10 +213,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 else if (ForceClientRetries(out reason))
                 {
                     return new TResponse()
-                    {
-                        ShouldRetry = true,
-                        ErrorMessage = reason
-                    };
+                           {
+                               ShouldRetry = true,
+                               ErrorMessage = reason,
+                               Diagnostics = !response.Succeeded ? response.Diagnostics : null,
+                           };
                 }
             }
 
@@ -295,56 +296,54 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 request.Replaying = true;
 
-                await DispatchAsync(request);
-            }
-        }
-
-        private async Task<ServiceResponseBase> DispatchAsync(ServiceRequestBase request)
-        {
-            switch (request.MethodId)
-            {
-                case RpcMethodId.RegisterContentLocations:
+                switch (request.MethodId)
                 {
-                    var typedRequest = (RegisterContentLocationsRequest)request;
-                    return await RegisterContentLocationsAsync(typedRequest);
+                    case RpcMethodId.RegisterContentLocations:
+                    {
+                        // This is a hot path, so instead of calling 'RegisterContentLocations' that does
+                        // all the tracing we use a special way more optimized version
+                        // that most likely will complete synchronously.
+                        await RegisterContentLocationsFastAsync((RegisterContentLocationsRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.PutBlob:
+                    {
+                        await PutBlobAsync((PutBlobRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.CompareExchange:
+                    {
+                        await CompareExchangeAsync((CompareExchangeRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.GetContentLocations:
+                    {
+                        await GetContentLocationsAsync((GetContentLocationsRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.GetBlob:
+                    {
+                        await GetBlobAsync((GetBlobRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.GetContentHashList:
+                    {
+                        await GetContentHashListAsync((GetContentHashListRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.GetLevelSelectors:
+                    {
+                        await GetLevelSelectorsAsync((GetLevelSelectorsRequest)request);
+                        break;
+                    }
+                    case RpcMethodId.Heartbeat:
+                    {
+                        await HeartbeatAsync((HeartbeatMachineRequest)request);
+                        break;
+                    }
+                    default:
+                        throw Contract.AssertFailure($"Unhandled method id: {request.MethodId}");
                 }
-                case RpcMethodId.PutBlob:
-                {
-                    var typedRequest = (PutBlobRequest)request;
-                    return await PutBlobAsync(typedRequest);
-                }
-                case RpcMethodId.CompareExchange:
-                {
-                    var typedRequest = (CompareExchangeRequest)request;
-                    return await CompareExchangeAsync(typedRequest);
-                }
-                case RpcMethodId.GetContentLocations:
-                {
-                    var typedRequest = (GetContentLocationsRequest)request;
-                    return await GetContentLocationsAsync(typedRequest);
-                }
-                case RpcMethodId.GetBlob:
-                {
-                    var typedRequest = (GetBlobRequest)request;
-                    return await GetBlobAsync(typedRequest);
-                }
-                case RpcMethodId.GetContentHashList:
-                {
-                    var typedRequest = (GetContentHashListRequest)request;
-                    return await GetContentHashListAsync(typedRequest);
-                }
-                case RpcMethodId.GetLevelSelectors:
-                {
-                    var typedRequest = (GetLevelSelectorsRequest)request;
-                    return await GetLevelSelectorsAsync(typedRequest);
-                }
-                case RpcMethodId.Heartbeat:
-                {
-                    var typedRequest = (HeartbeatMachineRequest)request;
-                    return await HeartbeatAsync(typedRequest);
-                }
-                default:
-                    throw Contract.AssertFailure($"Unhandled method id: {request.MethodId}");
             }
         }
 

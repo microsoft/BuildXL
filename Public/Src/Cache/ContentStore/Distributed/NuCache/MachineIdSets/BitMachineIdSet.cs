@@ -14,6 +14,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public sealed class BitMachineIdSet : MachineIdSet
     {
+        private int _count = -1;
+
         /// <nodoc />
         protected override SetFormat Format => SetFormat.Bits;
 
@@ -67,7 +69,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets the number of machine locations.
         /// </summary>
-        public override int Count => Bits.BitCount(Data, Offset);
+        // Caching the count for performance reasons because we can access it multiple times for the same instance.
+        public override int Count => _count == -1 ? (_count = Bits.BitCount(Data, Offset)) : _count;
 
         /// <summary>
         /// Returns a new instance of <see cref="MachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.

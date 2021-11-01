@@ -18,11 +18,19 @@ namespace Test {
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Test.dll,
+            
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
+                importFrom("microsoft.cloud.instrumentationframework.netstd").pkg,
+                ]),
+
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll
             ),
+        ],
+        runtimeContent: [
+            Library.Deployment.runtimeContent,
         ],
         runTestArgs: {
             skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : []

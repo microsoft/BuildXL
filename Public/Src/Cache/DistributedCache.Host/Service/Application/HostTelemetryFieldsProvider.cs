@@ -13,9 +13,9 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public class HostTelemetryFieldsProvider : ITelemetryFieldsProvider
     {
-        private readonly HostParameters _hostParmeters;
+        private readonly HostParameters _hostParameters;
 
-        public string BuildId => "Unknown";
+        public string BuildId { get; set; }
 
         public string ServiceName { get; set; } = "CacheService";
 
@@ -23,21 +23,18 @@ namespace BuildXL.Cache.Host.Service
 
         public string APCluster => "None";
 
-        public string APMachineFunction => _hostParmeters.MachineFunction;
+        public string APMachineFunction => _hostParameters.MachineFunction;
 
         public string MachineName => Environment.MachineName;
 
         public string ServiceVersion => "None";
 
-        public string Stamp => _hostParmeters.Stamp;
+        public string Stamp => _hostParameters.Stamp;
 
-        public string Ring => _hostParmeters.Ring;
+        public string Ring => _hostParameters.Ring;
 
         public string ConfigurationId { get; set; } = "None";
 
-        public HostTelemetryFieldsProvider(HostParameters hostParameters)
-        {
-            _hostParmeters = hostParameters;
-        }
+        public HostTelemetryFieldsProvider(HostParameters hostParameters) => _hostParameters = hostParameters;
     }
 }

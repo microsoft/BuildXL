@@ -4244,6 +4244,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "microsoft.cloud.instrumentationframework.netstd",
+          "Version": "1.2.1011530001"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "microsoft.dotnet.xunitconsolerunner",
           "Version": "2.5.1-beta.19270.4"
         }

@@ -61,14 +61,12 @@ namespace BuildXL.Cache.ContentStore.App
 
                     var host = new EnvironmentVariableHost();
                     settings.DeploymentParameters.AuthorizationSecret ??= await host.GetPlainSecretAsync(settings.DeploymentParameters.AuthorizationSecretName, _cancellationToken);
-
-                    var arguments = new LoggerFactoryArguments(_logger, host, settings.LoggingSettings)
+                    
+                    var telemetryFieldsProvider = new HostTelemetryFieldsProvider(settings.DeploymentParameters)
                     {
-                        TelemetryFieldsProvider = new HostTelemetryFieldsProvider(settings.DeploymentParameters)
-                        {
-                            ServiceName = "DeploymentLauncher"
-                        }
+                        ServiceName = "DeploymentLauncher"
                     };
+                    var arguments = new LoggerFactoryArguments(_logger, host, settings.LoggingSettings, telemetryFieldsProvider);
 
                     var replacementLogger = LoggerFactory.CreateReplacementLogger(arguments);
                     using (replacementLogger.DisposableToken)

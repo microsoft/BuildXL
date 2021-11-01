@@ -20,6 +20,8 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Tasks;
 
+#nullable enable
+
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
@@ -38,12 +40,13 @@ namespace BuildXL.Cache.Host.Service
             ITelemetryFieldsProvider telemetryFieldsProvider,
             DistributedCacheServiceConfiguration config,
             CancellationToken token,
-            string keyspace = null)
+            string? keyspace = null)
         {
             logger.Info($"CAS log severity set to {config.MinimumLogSeverity}");
            
             var arguments = new DistributedCacheServiceArguments(
                 logger: logger,
+                telemetryFieldsProvider,
                 copier: null,
                 copyRequester: null,
                 host: host,
@@ -53,7 +56,6 @@ namespace BuildXL.Cache.Host.Service
                 configuration: config,
                 keyspace: keyspace)
             {
-                TelemetryFieldsProvider = telemetryFieldsProvider,
                 BuildCopyInfrastructure = logger => BuildCopyInfrastructure(logger, config),
             };
 

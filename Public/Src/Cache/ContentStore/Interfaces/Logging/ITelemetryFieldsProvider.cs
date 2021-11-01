@@ -12,7 +12,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
     /// </remarks>
     public interface ITelemetryFieldsProvider
     {
-        /// <nodoc />
+        /// <summary>
+        /// This property is deprecated and should not be used.
+        /// Instead <see cref="GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey)"/>.
+        /// </summary>
         string BuildId { get; }
 
         /// <nodoc />

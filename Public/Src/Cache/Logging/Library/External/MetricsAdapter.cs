@@ -9,7 +9,7 @@ namespace BuildXL.Cache.Logging.External
 {
     /// <summary>
     ///     Implements an <see cref="IOperationLogger"/> that dispatches <see cref="ILogger"/> functions to a specific
-    ///     instance, and <see cref="IOperationLogger"/>-only operations to a different instance.
+    ///     instance, and <see cref="IOperationLogger"/>-only operationsLogger to a different instance.
     /// </summary>
     /// <remarks>
     ///     The inner loggers are considered to not be owned by the current class. This means we do not dispose them.
@@ -17,17 +17,17 @@ namespace BuildXL.Cache.Logging.External
     public sealed class MetricsAdapter : IOperationLogger, IStructuredLogger
     {
         private readonly IStructuredLogger _logger;
-        private readonly IOperationLogger _operations;
+        private readonly IOperationLogger _operationsLogger;
 
         /// <nodoc />
-        public MetricsAdapter(IStructuredLogger logger, IOperationLogger operations)
+        public MetricsAdapter(IStructuredLogger logger, IOperationLogger operationsLogger)
         {
-            Contract.RequiresNotNull(logger);
-            Contract.RequiresNotNull(operations);
-            Contract.Requires(logger != operations);
+            Contract.Requires(logger != null);
+            Contract.Requires(operationsLogger != null);
+            Contract.Requires(logger != operationsLogger);
 
             _logger = logger;
-            _operations = operations;
+            _operationsLogger = operationsLogger;
         }
 
         /// <inheritdoc />
@@ -88,25 +88,25 @@ namespace BuildXL.Cache.Logging.External
         public void LogOperationFinished(in OperationResult result)
         {
             // Need to call the both loggers, because the first one will write to the file and
-            // will emit telemetry and the operations logger will write to MDM.
+            // will emit telemetry and the operationsLogger logger will write to MDM.
             _logger.LogOperationFinished(result);
-            _operations.OperationFinished(result);
+            _operationsLogger.OperationFinished(result);
         }
 
         /// <inheritdoc />
-        public void OperationFinished(in OperationResult result) => _operations.OperationFinished(result);
+        public void OperationFinished(in OperationResult result) => _operationsLogger.OperationFinished(result);
 
         /// <inheritdoc />
-        public void TrackMetric(in Metric metric) => _operations.TrackMetric(metric);
+        public void TrackMetric(in Metric metric) => _operationsLogger.TrackMetric(metric);
 
         /// <inheritdoc />
-        public void TrackTopLevelStatistic(in Statistic statistic) => _operations.TrackTopLevelStatistic(statistic);
+        public void TrackTopLevelStatistic(in Statistic statistic) => _operationsLogger.TrackTopLevelStatistic(statistic);
 
         /// <inheritdoc />
-        public void RegisterBuildId(string buildId) => _operations.RegisterBuildId(buildId);
+        public void RegisterBuildId(string buildId) => _operationsLogger.RegisterBuildId(buildId);
 
         /// <inheritdoc />
-        public void UnregisterBuildId() => _operations.UnregisterBuildId();
+        public void UnregisterBuildId() => _operationsLogger.UnregisterBuildId();
 
         /// <inheritdoc />
         public void Dispose()

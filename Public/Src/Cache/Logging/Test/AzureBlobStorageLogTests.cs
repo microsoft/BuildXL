@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -11,7 +10,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.Logging;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -79,7 +77,7 @@ namespace BuildXL.Cache.Logging.Test
 
         private class MockTelemetryFieldsProvider : ITelemetryFieldsProvider
         {
-            public string BuildId { get; } = "MockBuildId";
+            public string BuildId => "Unknown";
 
             public string ServiceName { get; } = "MockServiceName";
 

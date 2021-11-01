@@ -5,6 +5,8 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Host.Configuration;
 
+#nullable enable
+
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
@@ -16,25 +18,25 @@ namespace BuildXL.Cache.Host.Service
         public ILogger Logger { get; internal set; }
 
         /// <nodoc />
-        public LoggingSettings LoggingSettings { get; }
+        public LoggingSettings? LoggingSettings { get; }
 
         /// <nodoc />
         public ISecretsProvider SecretsProvider { get; }
 
         /// <nodoc />
-        public ITelemetryFieldsProvider TelemetryFieldsProvider { get; set; }
+        public ITelemetryFieldsProvider TelemetryFieldsProvider { get; }
 
         /// <nodoc />
         public LoggerFactoryArguments(
             ILogger logger,
             ISecretsProvider secretsProvider,
-            LoggingSettings loggingSettings)
+            LoggingSettings? loggingSettings,
+            ITelemetryFieldsProvider telemetryFieldsProvider)
         {
-            Contract.RequiresNotNull(logger);
-
             Logger = logger;
             LoggingSettings = loggingSettings;
             SecretsProvider = secretsProvider;
+            TelemetryFieldsProvider = telemetryFieldsProvider;
         }
     }
 }

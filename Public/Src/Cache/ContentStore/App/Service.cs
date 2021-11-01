@@ -138,6 +138,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var distributedCacheServiceArguments = new DistributedCacheServiceArguments(
                 logger: _logger,
+                telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
                 copier: new DistributedCopier(),
                 copyRequester: null,
                 host: new EnvironmentVariableHost(),
@@ -145,10 +146,7 @@ namespace BuildXL.Cache.ContentStore.App
                 cancellation: cancellationTokenSource.Token,
                 dataRootPath: serverDataRootPath.Path,
                 configuration: distributedCacheServiceConfiguration,
-                keyspace: null)
-            {
-                TelemetryFieldsProvider = new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
-            };
+                keyspace: null);
 
             var runTask = Task.Run(() => DistributedCacheServiceFacade.RunAsync(distributedCacheServiceArguments));
 

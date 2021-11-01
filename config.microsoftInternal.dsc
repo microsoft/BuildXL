@@ -13,6 +13,9 @@ const azureDevopsNugetVersion = "16.194.0-internal202109201";
 export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
+    // Metrics library used by .net core CaSaaS
+    {id: "microsoft.cloud.instrumentationframework.netstd", version: "1.2.1011530001"},
+
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.6" },
@@ -82,7 +85,8 @@ export const resolver = {
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
             f`Private/InternalSdk/PowerShell.Core/module.config.dsc`,
-            f`Private/InternalSdk/Windows.Sdk/module.config.dsc`
+            f`Private/InternalSdk/Windows.Sdk/module.config.dsc`,
+            f`Private/InternalSdk/InstrumentationFramework/module.config.dsc`
         ),
 
         f`Private/InternalSdk/Drop/module.config.dsc`,

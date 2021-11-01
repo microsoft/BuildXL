@@ -26,6 +26,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public AzureBlobStorageLogPublicConfiguration? Configuration { get; set; } = null;
 
+        /// <summary>
+        /// If specified, then this account will be used to write mdm metrics to.
+        /// </summary>
+        [DataMember]
+        public string? MdmAccountName { get; set; }
+
         public LoggingSettings()
         {
         }

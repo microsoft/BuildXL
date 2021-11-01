@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Threading.Tasks;
 using System.Xml;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -43,8 +46,6 @@ namespace BuildXL.Cache.Host.Service
         /// </remarks>
         public static (ILogger Logger, IDisposable DisposableToken) CreateReplacementLogger(LoggerFactoryArguments arguments)
         {
-            Contract.RequiresNotNull(arguments.TelemetryFieldsProvider);
-
             var logger = arguments.Logger;
 
             var loggingSettings = arguments.LoggingSettings;
@@ -63,14 +64,23 @@ namespace BuildXL.Cache.Host.Service
             try
             {
                 var nLogAdapter = CreateNLogAdapter(operationContext, arguments);
+                context = new Context(nLogAdapter);
                 if (arguments.Logger is IOperationLogger operationLogger)
                 {
                     // NOTE(jubayard): the MetricsAdapter doesn't own the loggers, and hence won't dispose them. This
                     // means we don't change the disposableToken.
+                    Tracer.Debug(context, "Creating MetricsAdapter with an existing 'operationLogger'.");
                     var wrapper = new MetricsAdapter(nLogAdapter, operationLogger);
                     return (wrapper, nLogAdapter);
                 }
-
+                // The current implementation now supports the mdm metrics as well.
+                if (!string.IsNullOrEmpty(arguments.LoggingSettings.MdmAccountName))
+                {
+                    Tracer.Debug(context, "Creating MetricsLogger with an in-proc MdmOperationLogger.");
+                    operationLogger = MdmOperationLogger.Create(context, arguments.LoggingSettings.MdmAccountName, GetDefaultDimensions(arguments));
+                    var wrapper = new MetricsAdapter(nLogAdapter, operationLogger);
+                    return (wrapper, nLogAdapter);
+                }
                 return (nLogAdapter, nLogAdapter);
             }
             catch (Exception e)
@@ -78,6 +88,27 @@ namespace BuildXL.Cache.Host.Service
                 Tracer.Error(context, $"Failed to instantiate NLog-based logger with error: {e}");
                 return (logger, null);
             }
+        }
+
+        private static List<DefaultDimension> GetDefaultDimensions(LoggerFactoryArguments arguments)
+        {
+            // This is a set of default dimensions used by all AP services:
+            var fieldsProvider = arguments.TelemetryFieldsProvider;
+            var result = new List<DefaultDimension>
+             {
+                 new ("Machine", fieldsProvider.MachineName),
+                 new ("ProcessName", AppDomain.CurrentDomain.FriendlyName),
+                 new ("Stamp", fieldsProvider.Stamp),
+                 new ("Ring", fieldsProvider.Ring),
+                 new ("Environment", fieldsProvider.APEnvironment),
+                 new ("Cluster", fieldsProvider.APCluster),
+                 new ("ServiceVersion", fieldsProvider.ServiceVersion),
+             };
+
+            return result
+                // Filtering out nulls
+                .Where(d => !string.IsNullOrEmpty(d.Value))
+                .ToList();
         }
 
         private static IStructuredLogger CreateNLogAdapter(OperationContext operationContext, LoggerFactoryArguments arguments)

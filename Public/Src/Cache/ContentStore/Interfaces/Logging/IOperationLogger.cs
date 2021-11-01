@@ -64,6 +64,39 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
     }
 
     /// <summary>
+    /// Extension methods for enums in the logging layer.
+    /// </summary>
+    public static class EnumToStringExtensions
+    {
+        /// <summary>
+        /// Gets a string representation of <paramref name="kind"/> without allocating a string each time.
+        /// </summary>
+        public static string ToStringNoAlloc(this OperationKind kind)
+            => kind switch
+            {
+                OperationKind.None => nameof(OperationKind.None),
+                OperationKind.Startup => nameof(OperationKind.Startup),
+                OperationKind.InProcessOperation => nameof(OperationKind.InProcessOperation),
+                OperationKind.OutOfProcessOperation => nameof(OperationKind.OutOfProcessOperation),
+                _ => kind.ToString()
+            };
+
+        /// <summary>
+        /// Gets a string representation of <paramref name="status"/> without allocating a string each time.
+        /// </summary>
+        public static string ToStringNoAlloc(this OperationStatus status)
+            => status switch
+            {
+                OperationStatus.Success => nameof(OperationStatus.Success),
+                OperationStatus.Failure => nameof(OperationStatus.Failure),
+                OperationStatus.CriticalException => nameof(OperationStatus.CriticalException),
+                OperationStatus.Cancelled => nameof(OperationStatus.Cancelled),
+                OperationStatus.CriticalFailure => nameof(OperationStatus.CriticalFailure),
+                _ => status.ToString()
+            };
+    }
+
+    /// <summary>
     /// Interface that contains the core data about the operation (for both starts and stops).
     /// </summary>
     public interface IOperationInfo

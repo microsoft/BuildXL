@@ -40,10 +40,11 @@ namespace BuildXL.Launcher.Server
             var configuration = GetConfiguration();
 
             var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
-            var arguments = new LoggerFactoryArguments(new Logger(consoleLog), new EnvironmentVariableHost(), configuration.LoggingSettings)
-            {
-                TelemetryFieldsProvider = new HostTelemetryFieldsProvider(HostParameters.FromEnvironment())
-            };
+            var arguments = new LoggerFactoryArguments(
+                new Logger(consoleLog), 
+                new EnvironmentVariableHost(),
+                configuration.LoggingSettings,
+                new HostTelemetryFieldsProvider(HostParameters.FromEnvironment()));
 
             var deploymentService = new DeploymentService(
                 configuration: configuration,

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 #nullable enable
 
@@ -49,6 +50,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
                     _globalInfoTable[key] = value!;
                 }
             }
+
+            // Triggering the event outside of the lock to avoid potential deadlock
+            // if the handler will cause another change of a global state.
+
+            // null sender is a common case for static events.
+            GlobalInfoChanged?.Invoke(sender: null, new GlobalInfoChangedEventArgs(key, value));
         }
 
         /// <summary>
@@ -61,6 +68,38 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
                 _globalInfoTable.TryGetValue(key, out var result);
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Notifies when a global key-value pair changes.
+        /// </summary>
+        /// <remarks>
+        /// This is a static event, so in order to prevent memory leaks
+        /// do not subscribe forever to this even from a non-global types.
+        /// </remarks>
+        public static event EventHandler<GlobalInfoChangedEventArgs>? GlobalInfoChanged; 
+
+        /// <summary>
+        /// Represents a class that contains event data that occurs when the global entry key-value pair changes.
+        /// </summary>
+        public sealed class GlobalInfoChangedEventArgs : EventArgs
+        {
+            /// <nodoc />
+            public GlobalInfoChangedEventArgs(GlobalInfoKey key, string? value)
+            {
+                Key = key;
+                Value = value;
+            }
+
+            /// <summary>
+            /// Represents a key that was changed.
+            /// </summary>
+            public GlobalInfoKey Key { get; }
+
+            /// <summary>
+            /// Represents a new value. <code>null</code> if the value was removed.
+            /// </summary>
+            public string? Value { get; }
         }
     }
 }

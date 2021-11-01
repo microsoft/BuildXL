@@ -10,6 +10,8 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Host.Configuration;
 
+#nullable enable
+
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
@@ -34,13 +36,13 @@ namespace BuildXL.Cache.Host.Service
         /// </summary>
         public Func<ILogger, (
             IRemoteFileCopier Copier,
-            IContentCommunicationManager CopyRequester)> BuildCopyInfrastructure { get; set; } = null;
+            IContentCommunicationManager CopyRequester)>? BuildCopyInfrastructure { get; set; } = null;
 
         /// <nodoc />
-        public IRemoteFileCopier Copier { get; internal set; }
+        public IRemoteFileCopier? Copier { get; internal set; }
 
         /// <nodoc />
-        public IContentCommunicationManager CopyRequester { get; internal set; }
+        public IContentCommunicationManager? CopyRequester { get; internal set; }
 
         /// <nodoc />
         public IDistributedCacheServiceHost Host { get; }
@@ -66,21 +68,22 @@ namespace BuildXL.Cache.Host.Service
         /// <inheritdoc />
         public DistributedCacheServiceArguments(
             ILogger logger,
-            IRemoteFileCopier copier,
-            IContentCommunicationManager copyRequester,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            IRemoteFileCopier? copier,
+            IContentCommunicationManager? copyRequester,
             IDistributedCacheServiceHost host,
             HostInfo hostInfo,
             CancellationToken cancellation,
             string dataRootPath,
             DistributedCacheServiceConfiguration configuration,
-            string keyspace,
-            IAbsFileSystem fileSystem = null)
-            : base(logger, host, configuration.LoggingSettings)
+            string? keyspace,
+            IAbsFileSystem? fileSystem = null)
+            : base(logger, host, configuration.LoggingSettings, telemetryFieldsProvider)
         {
-            Contract.RequiresNotNull(logger);
-            Contract.RequiresNotNull(host);
-            Contract.RequiresNotNull(hostInfo);
-            Contract.RequiresNotNull(configuration);
+            Contract.Requires(logger != null);
+            Contract.Requires(host != null);
+            Contract.Requires(hostInfo != null);
+            Contract.Requires(configuration != null);
 
             Logger = logger;
             Copier = copier;
@@ -95,12 +98,9 @@ namespace BuildXL.Cache.Host.Service
             Keyspace = ComputeKeySpace(hostInfo, configuration, keyspace);
         }
 
-        private static string ComputeKeySpace(HostInfo hostInfo, DistributedCacheServiceConfiguration configuration, string keyspace)
+        private static string ComputeKeySpace(HostInfo hostInfo, DistributedCacheServiceConfiguration configuration, string? keyspace)
         {
-            Contract.RequiresNotNull(hostInfo);
-            Contract.RequiresNotNull(configuration);
-
-            string keySpaceString = keyspace;
+            string? keySpaceString = keyspace;
             if (!string.IsNullOrWhiteSpace(configuration.DistributedContentSettings.KeySpacePrefix))
             {
                 keySpaceString = configuration.DistributedContentSettings.KeySpacePrefix + keySpaceString;

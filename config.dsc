@@ -64,7 +64,7 @@ config({
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
                     "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
-                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json"
+                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
                   },
 
             packages: [

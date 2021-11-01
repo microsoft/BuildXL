@@ -289,6 +289,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var arguments = new DistributedCacheServiceArguments(
                 Logger,
+                new MockTelemetryFieldsProvider(),
                 fileCopier,
                 (IContentCommunicationManager)fileCopier,
                 Host,
@@ -476,6 +477,29 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 _tests._overrideDistributedContentStooreSettings?.Invoke(settings);
             }
+        }
+
+        private class MockTelemetryFieldsProvider : ITelemetryFieldsProvider
+        {
+            public string BuildId => "BuildId";
+            
+            public string ServiceName { get; } = "MockServiceName";
+
+            public string APEnvironment { get; } = "MockAPEnvironment";
+
+            public string APCluster { get; } = "MockAPCluster";
+
+            public string APMachineFunction { get; } = "MockAPMachineFunction";
+
+            public string MachineName { get; } = "MockMachineName";
+
+            public string ServiceVersion { get; } = "MockServiceVersion";
+
+            public string Stamp { get; } = "MockStamp";
+
+            public string Ring { get; } = "MockRing";
+
+            public string ConfigurationId { get; } = "MockConfigurationId";
         }
     }
 }

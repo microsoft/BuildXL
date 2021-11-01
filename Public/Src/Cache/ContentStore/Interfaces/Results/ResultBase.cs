@@ -111,6 +111,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Mark the result as non-critical for tracing purposes.
+        /// </summary>
+        public void MakeNonCritical()
+        {
+            _isCritical = false;
+        }
+
+        /// <summary>
         /// Mark the result as cancelled.
         /// </summary>
         internal void MarkCancelled() => IsCancelled = true;

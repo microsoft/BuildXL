@@ -477,7 +477,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             traceOperationStarted: false, // Tracing only stop messages
                             extraEndMessage: r => $"Hash=[{hash.ToShortString()}] Compression=[{compression}] Size=[{size}] Sender=[{GetSender(callContext)}] ReadTime=[{getFileIoDurationAsString()}]",
                             counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration]);
-                    
+
+                    if (KnownGrpcInvalidOperationError(streamResult.ErrorMessage))
+                    {
+                        // This is not a critical error. Its just a race condition when the stream is closed by the remote host for 
+                        // some reason and we still streaming the content.
+                        streamResult.MakeNonCritical();
+                    }
+
+                    // Cancelling the operation if requested.
+                    operationContext.Token.ThrowIfCancellationRequested();
+
                     streamResult
                         .Then((r, duration) => trackMetrics(r.totalChunksCount, r.totalBytes, duration))
                         .IgnoreFailure(); // The error was already logged.
@@ -701,6 +711,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                 return new BoolResult(e) {IsCancelled = true};
                             }
 
+                            if (e is InvalidOperationException ioe && KnownGrpcInvalidOperationError(ioe.Message))
+                            {
+                                // in some rare cases its still possible to get 'Already finished' error
+                                // even when the tokens are not set.
+                                return new BoolResult($"The connection is closed with '{ioe.Message}' message.") { IsCancelled = true };
+                            }
+
                             // Unknown error occurred.
                             // Sending reply back to the caller.
                             string errorDetails = e is ResultPropagationException rpe ? rpe.Result.ToString() : e.ToString();
@@ -719,6 +736,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     caller: caller)
                 .IgnoreFailure(); // The error was already traced.
         }
+
+        private static bool KnownGrpcInvalidOperationError(string? error) => error?.Contains("Already finished") == true || error?.Contains("Shutdown has already been called") == true;
 
         private async Task TryWriteAsync<TResponse>(OperationContext operationContext, ServerCallContext callContext, IServerStreamWriter<TResponse> writer, TResponse response)
         {

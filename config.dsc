@@ -157,7 +157,6 @@ config({
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "12.0.3" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Data.SQLite.Core", version: "1.0.109.2" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },

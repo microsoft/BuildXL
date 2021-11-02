@@ -2930,15 +2930,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "System.Data.SQLite.Core",
-          "Version": "1.0.109.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "System.Data.SqlClient",
           "Version": "4.3.0"
         }

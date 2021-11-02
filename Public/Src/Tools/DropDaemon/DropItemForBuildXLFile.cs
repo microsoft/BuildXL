@@ -36,10 +36,8 @@ namespace Tool.DropDaemon
         /// </summary>
         public bool IsOutputFile => m_file.IsOutputFile;
 
-        /// <summary>
-        /// Get output file
-        /// </summary>
-        public FileArtifact File => m_file;
+        /// <inheritdoc />
+        public override FileArtifact? Artifact => m_file;
 
         private readonly bool m_chunkDedup;
 

@@ -260,26 +260,16 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Compute the SHA-256 hash for file stored in Cache. Required for Build Manifest generation.
+        /// Compute the hashes for file stored in Cache. Required for Build Manifest generation.
         /// </summary>
         private async Task<Possible<IReadOnlyList<ContentHash>>> ComputeBuildManifestHashFromCacheAsync(BuildManifestEntry buildManifestEntry, IList<HashType> requestedTypes)
         {
-            if (!File.Exists(buildManifestEntry.FullFilePath))
+            // Ensure that the file is materialized.
+            MaterializeFileCommand materializeCommand = new MaterializeFileCommand(buildManifestEntry.Artifact, buildManifestEntry.FullFilePath);
+            IIpcResult materializeResult = await ExecuteMaterializeFileAsync(materializeCommand);
+            if (!materializeResult.Succeeded)
             {
-                // Ensure file is materialized locally
-                if (!AbsolutePath.TryCreate(m_context.PathTable, buildManifestEntry.FullFilePath, out AbsolutePath path))
-                {
-                    return new Failure<string>($"Invalid absolute path: '{buildManifestEntry.FullFilePath}'");
-                }
-
-                // TODO(1859065): Fix the how FileArtifact is created - we cannot blindly assign rewrite count of 1 (it's ok to treat this as an output due to the condition above)
-                // Maybe call materialization on existing files as well? (this will trigger source validation for source files)
-                MaterializeFileCommand materializeCommand = new MaterializeFileCommand(FileArtifact.CreateOutputFile(path), buildManifestEntry.FullFilePath);
-                IIpcResult materializeResult = await ExecuteMaterializeFileAsync(materializeCommand);
-                if (!materializeResult.Succeeded)
-                {
-                    return new Failure<string>($"Unable to materialize file: '{buildManifestEntry.FullFilePath}' with hash: '{buildManifestEntry.Hash.Serialize()}'. Failure: {materializeResult.Payload}");
-                }
+                return new Failure<string>($"Unable to materialize file: '{buildManifestEntry.FullFilePath}' with hash: '{buildManifestEntry.Hash.Serialize()}'. Failure: {materializeResult.Payload}");
             }
 
             return await TryGetBuildManifestHashFromLocalFileAsync(buildManifestEntry.FullFilePath, buildManifestEntry.Hash, requestedTypes);
@@ -439,10 +429,10 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Executes <see cref="RegisterFilesForBuildManifestCommand"/>. Checks if Cache contains SHA-256 Hashes for given <see cref="BuildManifestEntry"/>.
+        /// Executes <see cref="RegisterFilesForBuildManifestCommand"/>. Checks if Cache contains build manifest hashes for given <see cref="BuildManifestEntry"/>.
         /// Else checks if local files exist and computes their ContentHash.
         /// Returns an empty array on success. Any failing BuildManifestEntries are returned for logging.
-        /// If SHA-256 ContentHashes do not exists, the files are materialized using <see cref="ExecuteMaterializeFileAsync"/>, the build manifest hashes are computed and stored into cache.
+        /// If build manifest hashes are not available, the files are materialized using <see cref="ExecuteMaterializeFileAsync"/>, the build manifest hashes are computed and stored into cache.
         /// </summary>
         private async Task<IIpcResult> ExecuteRecordBuildManifestHashesAsync(RegisterFilesForBuildManifestCommand cmd)
         {
@@ -457,7 +447,7 @@ namespace BuildXL.Scheduler
             if (result.Any(value => !value.IsValid))
             {
                 BuildManifestEntry[] failures = result.Where(value => !value.IsValid)
-                    .Select(value => new BuildManifestEntry(value.RelativePath, value.AzureArtifactsHash, "Invalid")) // FullFilePath is unused by the caller
+                    .Select(value => new BuildManifestEntry(value.RelativePath, value.AzureArtifactsHash, "Invalid", FileArtifact.Invalid)) // FullFilePath is unused by the caller
                     .ToArray();
 
                 return IpcResult.Success(cmd.RenderResult(failures));

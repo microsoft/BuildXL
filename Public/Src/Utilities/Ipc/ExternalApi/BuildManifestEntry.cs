@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Utilities;
 
 namespace BuildXL.Ipc.ExternalApi
 {
@@ -27,11 +28,17 @@ namespace BuildXL.Ipc.ExternalApi
         /// </summary>
         public string FullFilePath { get; }
 
+        /// <summary>
+        /// File id.
+        /// </summary>
+        public FileArtifact Artifact { get; }
+
         /// <nodoc/>
         public BuildManifestEntry(
             string relativePath,
             ContentHash hash,
-            string fullFilePath)
+            string fullFilePath,
+            FileArtifact artifact)
         {
             Contract.Requires(!string.IsNullOrEmpty(relativePath));
             Contract.Requires(!string.IsNullOrEmpty(fullFilePath));
@@ -39,6 +46,7 @@ namespace BuildXL.Ipc.ExternalApi
             RelativePath = relativePath;
             Hash = hash;
             FullFilePath = fullFilePath;
+            Artifact = artifact;
         }
 
         internal void Serialize(BinaryWriter writer)
@@ -46,6 +54,8 @@ namespace BuildXL.Ipc.ExternalApi
             writer.Write(RelativePath);
             Hash.Serialize(writer);
             writer.Write(FullFilePath);
+            writer.Write(Artifact.Path.RawValue);
+            writer.Write(Artifact.RewriteCount);
         }
 
         internal static BuildManifestEntry Deserialize(BinaryReader reader)
@@ -53,8 +63,9 @@ namespace BuildXL.Ipc.ExternalApi
             string relativePath = reader.ReadString();
             ContentHash hash = new ContentHash(reader);
             string fullFilePath = reader.ReadString();
+            FileArtifact artifact = new FileArtifact(new AbsolutePath(reader.ReadInt32()), reader.ReadInt32());
 
-            return new BuildManifestEntry(relativePath, hash, fullFilePath);
+            return new BuildManifestEntry(relativePath, hash, fullFilePath, artifact);
         }
     }
 }

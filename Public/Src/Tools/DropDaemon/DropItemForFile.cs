@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -78,6 +79,9 @@ namespace Tool.DropDaemon
 
         /// <inheritdoc />
         public string FullyQualifiedDropName { get; }
+        
+        /// <inheritdoc />
+        public virtual FileArtifact? Artifact => null;
 
         /// <inheritdoc />
         public virtual Task<FileInfo> EnsureMaterialized()

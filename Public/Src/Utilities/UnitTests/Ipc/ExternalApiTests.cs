@@ -109,8 +109,8 @@ namespace Test.BuildXL.Ipc
             string dropName = "DropName";
 
             List<BuildManifestEntry> buildManifestEntries = new List<BuildManifestEntry>();
-            buildManifestEntries.Add(new BuildManifestEntry("/a/b", ContentHash.Random(), X("/x/y/z")));
-            buildManifestEntries.Add(new BuildManifestEntry("/a/c", ContentHash.Random(), X("/w/x/y/z")));
+            buildManifestEntries.Add(new BuildManifestEntry("/a/b", ContentHash.Random(), X("/x/y/z"), FileArtifact.Invalid));
+            buildManifestEntries.Add(new BuildManifestEntry("/a/c", ContentHash.Random(), X("/w/x/y/z"), FileArtifact.Invalid));
 
             using var apiClient = CreateApiClient(ipcOperation =>
             {
@@ -131,7 +131,7 @@ namespace Test.BuildXL.Ipc
             string dropName = "DropName";
 
             List<BuildManifestEntry> buildManifestEntries = new List<BuildManifestEntry>();
-            buildManifestEntries.Add(new BuildManifestEntry("/a/b", ContentHash.Random(), X("/x/y/z")));
+            buildManifestEntries.Add(new BuildManifestEntry("/a/b", ContentHash.Random(), X("/x/y/z"), FileArtifact.Invalid));
 
             using var apiClient = CreateApiClient(ipcOperation =>
             {

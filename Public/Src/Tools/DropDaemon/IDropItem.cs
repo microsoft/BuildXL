@@ -5,6 +5,7 @@ using System.Diagnostics.Contracts;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Pure = System.Diagnostics.Contracts.PureAttribute;
 
@@ -49,6 +50,13 @@ namespace Tool.DropDaemon
         [NotNull]
         [Pure]
         string FullyQualifiedDropName { get; }
+
+        /// <summary>
+        /// (Optional) File id.
+        /// </summary>
+        [CanBeNull]
+        [Pure]
+        FileArtifact? Artifact { get; }
 
         /// <summary>
         /// Full information about the file which is to be added to a drop.  After the completion

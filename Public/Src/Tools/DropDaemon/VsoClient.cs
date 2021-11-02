@@ -340,8 +340,8 @@ namespace Tool.DropDaemon
                 if (m_config.GenerateBuildManifest)
                 {
                     BuildManifestEntry[] buildManifestEntries = dedupedBatch
-                        .Where(dropItem => dropItem.BlobIdentifier != null)
-                        .Select(dropItem => new BuildManifestEntry(dropItem.RelativeDropFilePath, dropItem.BlobIdentifier.ToContentHash(), dropItem.FullFilePath))
+                        .Where(dropItem => dropItem.BlobIdentifier != null && dropItem.FileId.HasValue)
+                        .Select(dropItem => new BuildManifestEntry(dropItem.RelativeDropFilePath, dropItem.BlobIdentifier.ToContentHash(), dropItem.FullFilePath, dropItem.FileId.Value))
                         .ToArray();
 
                     if (buildManifestEntries.Length > 0) // dropItem.BlobIdentifier = null for files generated in the DropDaemon
@@ -581,6 +581,8 @@ namespace Tool.DropDaemon
             internal string RelativeDropFilePath => m_dropItem.RelativeDropPath;
 
             internal BlobIdentifier BlobIdentifier => m_dropItem.BlobIdentifier;
+
+            internal FileArtifact? FileId => m_dropItem.Artifact;
 
             /// <summary>
             /// Optional pre-computed file length. This field is set only for files that have known length

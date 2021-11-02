@@ -1169,7 +1169,6 @@ namespace BuildXL.Scheduler
             PipFingerprintingVersion fingerprintVersion = PipFingerprintingVersion.TwoPhaseV2;
             var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
-                    fingerprintVersion,
                     fingerprintSalt,
                     searchPathToolsHash: directoryMembershipFingerprinterRules?.ComputeSearchPathToolsHash());
 

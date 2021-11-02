@@ -84,7 +84,7 @@ namespace BuildXL.Scheduler.Tracing
                             var fingerprintsLogDirectory = AbsolutePath.Create(newPathTable, fingerprintsLogDirectoryStr);
 
                             var cacheSavePath = fingerprintsLogDirectory.Combine(newPathTable, Scheduler.FingerprintStoreDirectory + "." + key);
-                            var result = await cache.TryRetrieveFingerprintStoreAsync(loggingContext, cacheSavePath, newPathTable, key);
+                            var result = await cache.TryRetrieveFingerprintStoreAsync(loggingContext, cacheSavePath, newPathTable, key, configuration);
                             if (result.Succeeded && result.Result)
                             {
                                 path = cacheSavePath.ToString(newPathTable);

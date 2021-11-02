@@ -11,10 +11,12 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.SinglePhase;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Graph;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -36,14 +38,21 @@ namespace BuildXL.Scheduler.Tracing
         /// Computes a fingerprint for looking up fingerprint store
         /// </summary>
         private static ContentFingerprint ComputeFingerprint(
-            string key)
+            string key,
+            IConfiguration configuration)
         {
+            var extraFingerprintSalts = new ExtraFingerprintSalts(
+                configuration,
+                configuration.Cache.CacheSalt,
+                null);
+
             using (var hasher = new BasicHashingHelper(recordFingerprintString: false))
             {
                 hasher.Add("Type", "FingerprintStoreFingerprint");
                 hasher.Add("FormatVersion", FingerprintStore.FormatVersion.Version.ToString());
                 hasher.Add("LookupVersion", FingerprintStoreLookupVersion);
                 hasher.Add("Key", key);
+                hasher.Add("FingerprintSalt", extraFingerprintSalts.FingerprintSalt);
 
                 var fingerprint = new ContentFingerprint(hasher.GenerateHash());
                 return fingerprint;
@@ -64,9 +73,10 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext loggingContext,
             AbsolutePath path,
             PathTable pathTable,
-            string key)
+            string key,
+            IConfiguration configuration)
         {
-            var fingerprint = ComputeFingerprint(key);
+            var fingerprint = ComputeFingerprint(key, configuration);
             var pathStr = path.ToString(pathTable);
             BoxRef<long> size = 0;
 
@@ -152,9 +162,10 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext loggingContext,
             AbsolutePath path,
             PathTable pathTable,
-            string key)
+            string key,
+            IConfiguration configuration)
         {
-            var fingerprint = ComputeFingerprint(key);
+            var fingerprint = ComputeFingerprint(key, configuration);
             Logger.Log.GettingFingerprintStoreTrace(
                 loggingContext,
                 $"Attempting to fetch fingerprint store from cache: Key='{key}'. Resulting fingerprint='{fingerprint}'");

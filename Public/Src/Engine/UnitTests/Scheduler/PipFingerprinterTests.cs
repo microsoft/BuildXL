@@ -608,7 +608,7 @@ namespace Test.BuildXL.Scheduler
                 Sandbox = sandboxConfig
             };
 
-            var nonDefaultSalts = new ExtraFingerprintSalts(configuration, PipFingerprintingVersion.TwoPhaseV2, null, null);
+            var nonDefaultSalts = new ExtraFingerprintSalts(configuration, null, null);
 
             var nonDefaultFingerprinter = new PipContentFingerprinter(
                 m_context.PathTable,

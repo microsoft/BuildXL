@@ -62,12 +62,10 @@ namespace BuildXL.Pips.Graph
         /// Constructor.
         /// </summary>
         /// <param name="config"> Configuration.</param>
-        /// <param name="fingerprintVersion">The fingerprint version.</param>
         /// <param name="fingerprintSalt">The extra, optional fingerprint salt.</param>
         /// <param name="searchPathToolsHash">The extra, optional salt of path fragments of tool locations for tools using search path enumeration.</param>
         public ExtraFingerprintSalts(
             IConfiguration config,
-            PipFingerprintingVersion fingerprintVersion,
             string fingerprintSalt,
             ContentHash? searchPathToolsHash)
             : this(
@@ -89,7 +87,7 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.NormalizeReadTimestamps,
                 config.Distribution.ValidateDistribution,
                 ArePipWarningsPromotedToErrors(config.Logging),
-                fingerprintVersion,
+                PipFingerprintingVersion.TwoPhaseV2,
                 fingerprintSalt,
                 searchPathToolsHash,
                 requiredKextVersionNumber: s_requiredKextVersionNumber

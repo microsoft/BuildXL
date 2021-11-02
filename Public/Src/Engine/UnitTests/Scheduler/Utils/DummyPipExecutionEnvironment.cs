@@ -122,7 +122,7 @@ namespace Test.BuildXL.Scheduler.Utils
             ContentFingerprinter = new PipContentFingerprinter(
                 Context.PathTable,
                 artifact => State.FileContentManager.GetInputContent(artifact).FileContentInfo,
-                new ExtraFingerprintSalts(config, PipFingerprintingVersion.TwoPhaseV2, fingerprintSalt: null, searchPathToolsHash: null),
+                new ExtraFingerprintSalts(config, fingerprintSalt: null, searchPathToolsHash: null),
                 pathExpander: PathExpander,
                 pipDataLookup: pipDataLookup);
             PipFragmentRenderer = this.CreatePipFragmentRenderer();

@@ -191,7 +191,6 @@ namespace BuildXL.Engine
                         // underbuild.
                         var extraFingerprintSalts = new ExtraFingerprintSalts(
                             config,
-                            PipFingerprintingVersion.TwoPhaseV2,
                             config.Cache.CacheSalt ?? string.Empty,
                             new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
 

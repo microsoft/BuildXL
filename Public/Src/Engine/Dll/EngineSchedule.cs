@@ -616,7 +616,8 @@ namespace BuildXL.Engine
                         loggingContext,
                         configuration.Layout.FingerprintStoreDirectory, // This is where the original execution fingerprint store locates. Save this to cache.
                         Context.PathTable,
-                        storeKey);
+                        storeKey,
+                        configuration);
 
                     if (!storeResult.Succeeded)
                     {

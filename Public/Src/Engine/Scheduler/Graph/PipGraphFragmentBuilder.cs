@@ -77,7 +77,6 @@ namespace BuildXL.Scheduler.Graph
             {
                 var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
-                    PipFingerprintingVersion.TwoPhaseV2,
                     configuration.Cache.CacheSalt,
                     new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
 

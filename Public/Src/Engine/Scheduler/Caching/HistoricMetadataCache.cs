@@ -1316,7 +1316,6 @@ namespace BuildXL.Scheduler.Cache
         {
             var extraFingerprintSalt = new ExtraFingerprintSalts(
                 configuration,
-                PipFingerprintingVersion.TwoPhaseV2,
                 fingerprintSalt: EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt,
                 searchPathToolsHash: null);
 

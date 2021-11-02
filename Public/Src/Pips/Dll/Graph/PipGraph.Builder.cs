@@ -215,7 +215,6 @@ namespace BuildXL.Pips.Graph
 
                 var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
-                    PipFingerprintingVersion.TwoPhaseV2,
                     fingerprintSalt ?? string.Empty,
                     searchPathToolsHash: searchPathToolsHash);
 

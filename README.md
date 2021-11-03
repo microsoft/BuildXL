@@ -1,10 +1,10 @@
-# Microsoft Build Accelerator
+# BuildXL (Microsoft Build Accelerator)
 
 <img alt="BuildXL Icon" src="Public/Src/Branding/BuildXL.png" width=15%>
 
 ## Introduction
 
-Build Accelerator (BuildXL), is a build engine originally developed for large internal teams at Microsoft. Internally at Microsoft, BuildXL runs 150,000+ builds per day on [monorepo](https://en.wikipedia.org/wiki/Monorepo) codebases up to a half-terabyte in size with a half-million process executions per build. It leverages distribution to thousands of data center machines and petabytes of source code, package, and build output caching. Thousands of developers use BuildXL on their desktops for faster builds.
+BuildXL (Microsoft Build Accelerator), is a build engine originally developed for large internal teams at Microsoft. Internally at Microsoft, BuildXL runs 150,000+ builds per day on [monorepo](https://en.wikipedia.org/wiki/Monorepo) codebases up to a half-terabyte in size with a half-million process executions per build. It leverages distribution to thousands of data center machines and petabytes of source code, package, and build output caching. Thousands of developers use BuildXL on their desktops for faster builds.
 
 BuildXL accelerates multiple build languages, including:
 

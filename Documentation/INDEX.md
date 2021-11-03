@@ -1,7 +1,7 @@
-# Microsoft Build Accelerator
+# BuildXL (Microsoft Build Accelerator)
 
 ## Guide to Documentation
-This is the primary documentation for Microsoft Build Accelerator (BuildXL). If you are an internal Microsoft employee, you may also want to visit the [BuildXL Internal](https://aka.ms/buildxl) documentation where you'll find documentation about interactions with systems that are not publicly available.
+This is the primary documentation for BuildXL (Microsoft Build Accelerator). If you are an internal Microsoft employee, you may also want to visit the [BuildXL Internal](https://aka.ms/buildxl) documentation where you'll find documentation about interactions with systems that are not publicly available.
 
 Keep this as the sole primary landing page for documentation and avoid creating nested navigation pages for navigation.
 

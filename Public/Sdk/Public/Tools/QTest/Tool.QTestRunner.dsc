@@ -314,7 +314,10 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestParserType ", args.qTestParserType),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),
-        Cmd.option("--AzureDevOpsLogUploadMode ", args.qTestAzureDevOpsLogUploadMode)
+        Cmd.option("--AzureDevOpsLogUploadMode ", args.qTestAzureDevOpsLogUploadMode),
+        Cmd.flag("--EnableBlameCollector", args.qTestEnableBlameCollector),
+        Cmd.flag("--EnableMsTestTraceLogging", args.qTestEnableMsTestTraceLogging),
+        Cmd.option("--VstestConsoleLoggerOptions ", args.qTestVstestConsoleLoggerOptions)
     ];
 
     if (isJSProject) {
@@ -621,6 +624,12 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestParserType?: string;
     /** Specifies the upload behavior to Azure DevOps for QTest logs. Default mode is OnlyFailedTargets.*/
     qTestAzureDevOpsLogUploadMode?: "AllTargets" | "OnlyFailedTargets" | "None"; 
+    /** When true, additional options are passed to enable blame collector for collecting dmp files.*/
+    qTestEnableBlameCollector?: boolean;
+    /** When true, the DBS.QTest.exe invokes VsTest with diagnostic tracing.*/
+    qTestEnableMsTestTraceLogging?: boolean;
+    /** Allows additional options to be appended to console logger.*/
+    qTestVstestConsoleLoggerOptions?: string; 
     /** Nested tool options */
     tools?: {
         /** 

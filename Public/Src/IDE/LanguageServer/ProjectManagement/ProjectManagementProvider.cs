@@ -18,10 +18,12 @@ namespace BuildXL.Ide.LanguageServer
         public ProjectManagementProvider(GetAppState getAppState, StreamJsonRpc.JsonRpc rpcChannel)
         {
             m_moduleInformationProvider = new ModuleInformationProvider(getAppState);
-            rpcChannel.AddLocalRpcTarget(m_moduleInformationProvider);
+            
+            var options = new StreamJsonRpc.JsonRpcTargetOptions { AllowNonPublicInvocation = true };
+            rpcChannel.AddLocalRpcTarget(m_moduleInformationProvider, options);
 
             m_addSourceFileToProjectProvider = new AddSourceFileToProjectProvider(getAppState);
-            rpcChannel.AddLocalRpcTarget(m_addSourceFileToProjectProvider);
+            rpcChannel.AddLocalRpcTarget(m_addSourceFileToProjectProvider, options);
         }
     }
 }

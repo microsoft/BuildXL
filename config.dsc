@@ -283,8 +283,8 @@ config({
                 { id: "System.Runtime.Analyzers", version: "1.0.1" },
                 { id: "System.Runtime.InteropServices.Analyzers", version: "1.0.1" },
                 { id: "System.Security.Cryptography.Hashing.Algorithms.Analyzers", version: "1.1.0" },
-                { id: "Nerdbank.FullDuplexStream", version: "1.0.9"},
-                { id: "Validation", version: "2.3.7"},
+                { id: "Nerdbank.FullDuplexStream", version: "1.1.12"},
+                { id: "Validation", version: "2.5.42"},
 
                 // VSTS managed API
                 { id: "Microsoft.TeamFoundationServer.Client", version: "15.122.1-preview"},
@@ -313,7 +313,7 @@ config({
                 { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 //{ id: "System.IO.Pipelines", version: "4.7.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "5.0.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },// alias: "System.IO.Pipelines.v5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
+                { id: "System.IO.Pipelines", version: "5.0.1", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },// alias: "System.IO.Pipelines.v5.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work

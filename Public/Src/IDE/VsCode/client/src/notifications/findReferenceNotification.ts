@@ -11,7 +11,7 @@ import * as nls from 'vscode-nls';
 nls.config({ locale: env.language });
 
 import { NotificationType } from 'vscode-jsonrpc';
-import { LanguageClient } from 'vscode-languageclient';
+import { LanguageClient } from 'vscode-languageclient/node';
 
 /**
  * Contains the functionality for writing crucial information to the output window.
@@ -36,7 +36,7 @@ export namespace FindReferenceNotification {
      * The notification type (the method name, the parameter type, and return type) used
      * to configure the JSON RPC layer.
      */
-    export const type : NotificationType<FindReferenceProgressParams, void> = new NotificationType('dscript/findReferenceProgress');
+    export const type : NotificationType<FindReferenceProgressParams> = new NotificationType('dscript/findReferenceProgress');
 
     /**
      * The status bar item that is created to show the find reference progress.

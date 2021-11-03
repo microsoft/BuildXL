@@ -9,7 +9,7 @@ import * as nls from 'vscode-nls';
 import { env, SnippetString, QuickPickItem, ExtensionContext, commands, window, Uri, WorkspaceEdit, Range, workspace } from 'vscode';
 nls.config({ locale: env.language });
 
-import { RequestType, TextEdit, LanguageClient } from 'vscode-languageclient';
+import { RequestType, TextEdit, LanguageClient } from 'vscode-languageclient/node';
 import { DominoModuleTreeItem } from './projectBrowser';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -68,7 +68,7 @@ interface AddProjectRequestParams {
 /**
  *  Create the JSON-RPC request object for retrieving the modules present in the DScript workspace.
  */
-const AddProjectRequest = new RequestType<AddProjectRequestParams, any, any, any>("dscript/addProject");
+const AddProjectRequest = new RequestType<AddProjectRequestParams, any, any>("dscript/addProject");
 
 interface AddProjectConfiguration {
     quickPickLabel: string;

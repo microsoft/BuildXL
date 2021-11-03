@@ -11,7 +11,7 @@ import * as nls from 'vscode-nls';
 nls.config({ locale: env.language });
 
 import { NotificationType } from 'vscode-jsonrpc';
-import { LanguageClient } from 'vscode-languageclient';
+import { LanguageClient } from 'vscode-languageclient/node';
 
 /**
  * Contains the functionality for writing crucial information to the output window.
@@ -38,7 +38,7 @@ export namespace OutputTracer {
      * The notification type (the method name, the parameter type, and return type) used
      * to configure the JSON RPC layer.
      */
-    export const type : NotificationType<LogMessage, void> = new NotificationType('dscript/outputTrace');
+    export const type : NotificationType<LogMessage> = new NotificationType('dscript/outputTrace');
 
     let currentClient: LanguageClient;
     

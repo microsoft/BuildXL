@@ -41,5 +41,6 @@ namespace BxlScriptAnalyzer {
         internalsVisibleTo: [
             "Test.Tool.BxlScriptAnalyzer",
         ],
+        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Collections.Immutable.dll`] }, 
     });
 }

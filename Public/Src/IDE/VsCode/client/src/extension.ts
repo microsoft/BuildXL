@@ -14,7 +14,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { checkForUpdates } from './update';
-import { RequestType, LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient';
+import { RequestType, LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import { OutputTracer } from './notifications/outputTracer';
 import { LogFileLocationNotification } from './notifications/logFileNotification';
 import { WorkspaceLoadingNotification } from './notifications/workspaceLoadingNotification';

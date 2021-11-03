@@ -94,10 +94,7 @@ namespace BuildXL.Ide.LanguageServer
                 Apply(document, ev);
             }
 
-            if (version.HasValue)
-            {
-                document.Version = version.Value;
-            }
+            document.Version = version;
 
             OnChanged(document);
         }
@@ -167,10 +164,7 @@ namespace BuildXL.Ide.LanguageServer
                             Text = changeEvents.Last().Text,
                         };
                         
-                        if (documentIdentifier.Version.HasValue)
-                        {
-                            document.Version = documentIdentifier.Version.Value;
-                        }
+                        document.Version = documentIdentifier.Version;
 
                         document = m_documents.GetOrAdd(path, document);
                         return true;

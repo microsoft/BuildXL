@@ -79,13 +79,13 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
             Assert.Equal(3, parameters.Length);
 
             parameters[0].Label = "a: string";
-            Assert.Null(parameters[0].Documentation.Value);
+            Assert.Null(parameters[0].Documentation);
 
             parameters[1].Label = "b: Definition";
-            Assert.Null(parameters[1].Documentation.Value);
+            Assert.Null(parameters[1].Documentation);
 
             parameters[2].Label = "c: string[]";
-            Assert.Null(parameters[2].Documentation.Value);
+            Assert.Null(parameters[2].Documentation);
         }
     }
 }

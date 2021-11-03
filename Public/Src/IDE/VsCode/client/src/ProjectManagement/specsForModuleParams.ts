@@ -10,7 +10,7 @@ import * as nls from 'vscode-nls';
 nls.config({ locale: env.language });
 
 import { WorkspaceLoadingNotification } from '../notifications/workspaceLoadingNotification';
-import { RequestType, LanguageClient } from 'vscode-languageclient';
+import { RequestType, LanguageClient } from 'vscode-languageclient/node';
 import { ModuleDescriptor } from './modulesForWorkspaceRequest'
 
 /**
@@ -51,4 +51,4 @@ export interface SpecsFromModuleResult {
 /**
  *  Create the JSON-RPC request object for retrieving the specs presint in a module in the DScript workspace.
  */
-export const SpecsForModulesRequest = new RequestType<RequestSpecsForModuleParams, SpecsFromModuleResult, any, any>("dscript/specsForModule");
+export const SpecsForModulesRequest = new RequestType<RequestSpecsForModuleParams, SpecsFromModuleResult, any>("dscript/specsForModule");

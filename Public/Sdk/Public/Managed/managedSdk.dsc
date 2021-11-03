@@ -331,7 +331,16 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
 
     if (args.deploymentStyle === "selfContained")
     {
-        const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
+        const frameworkRuntimeFilenameOverrides = Set.create<PathAtom>(...(args.deploymentOptions && args.deploymentOptions.ignoredSelfContainedRuntimeFilenames || []));
+        let frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
+
+        // Remove from the framework runtime files the ones that are explicitly flagged to be ignored
+        // In this way assemblies in the ignore list which are explicitly provided will take precedence over the
+        // the framework runtime ones
+        if (frameworkRuntimeFilenameOverrides.count() > 0) {
+            frameworkRuntimeFiles = frameworkRuntimeFiles.filter(file => !frameworkRuntimeFilenameOverrides.contains(file.name));
+        }
+
         const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
 
         const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({

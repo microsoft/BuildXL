@@ -108,7 +108,7 @@ export namespace WorkspaceLoadingNotification {
      * The notification type (the method name, the parameter type, and return type) used
      * to configure the JSON RPC layer.
      */
-    export const type : NotificationType<WorkspaceLoadingParams, void> = new NotificationType(`dscript/workspaceLoading`);
+    export const type : NotificationType<WorkspaceLoadingParams> = new NotificationType(`dscript/workspaceLoading`);
     
     /**
      * The status bar item that is created to show the workspace loading status.

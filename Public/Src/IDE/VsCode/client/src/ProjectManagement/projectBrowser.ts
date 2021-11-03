@@ -10,7 +10,7 @@ import * as nls from 'vscode-nls';
 nls.config({ locale: env.language });
 
 import { WorkspaceLoadingNotification } from '../notifications/workspaceLoadingNotification';
-import { TextEdit as VSCodeRpcTextEdit, RequestType, LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, NotificationType } from 'vscode-languageclient';
+import { TextEdit as VSCodeRpcTextEdit, RequestType, LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, NotificationType } from 'vscode-languageclient/node';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -469,10 +469,10 @@ export function createDominoProjectBrowser(langClient : LanguageClient, context:
                     // Update the project directory browser.
                     const moduleDirectoryItem = directoryTreeItems.getOrAddChild(moduleConfigDirname);
                     moduleDirectoryItem.addModule(mod);
-                });
 
-                dominoDirectoryTreeEventEmitter.fire();
-                dominoModuleTreeEventEmitter.fire();
+                    dominoDirectoryTreeEventEmitter.fire(dominoModuleTreeItem);
+                    dominoModuleTreeEventEmitter.fire(dominoModuleTreeItem);
+                });
             })    
         }
     });

@@ -9,7 +9,7 @@ import * as nls from 'vscode-nls';
 import { env, ExtensionContext, commands, window, Uri, WorkspaceEdit, Range, workspace } from 'vscode';
 nls.config({ locale: env.language });
 
-import { RequestType, TextEdit, LanguageClient } from 'vscode-languageclient';
+import { RequestType, TextEdit, LanguageClient } from 'vscode-languageclient/node';
 import { DominoSpecFileTreeItem } from './projectBrowser';
 import * as path from 'path';
 
@@ -31,7 +31,7 @@ interface AddSourceFileToProjectParams {
 /**
  *  Create the JSON-RPC request object for retrieving the modules present in the DScript workspace.
  */
-const AddSourceFileToProjectRequest = new RequestType<AddSourceFileToProjectParams, TextEdit[], any, any>("dscript/addSourceFileToProject");
+const AddSourceFileToProjectRequest = new RequestType<AddSourceFileToProjectParams, TextEdit[], any>("dscript/addSourceFileToProject");
 
 export function configureAddSourceFile(languageClient: LanguageClient, extensionContext: ExtensionContext) {
     // Register the add source file command.

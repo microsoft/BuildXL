@@ -10,7 +10,7 @@ import * as nls from 'vscode-nls';
 nls.config({ locale: env.language });
 
 import { WorkspaceLoadingNotification } from '../notifications/workspaceLoadingNotification';
-import { RequestType, LanguageClient } from 'vscode-languageclient';
+import { RequestType, LanguageClient } from 'vscode-languageclient/node';
 
 /**
  * Represents the parameters for the "dscript/modulesForWorkspace" JSON-RPC request, which, there are none.
@@ -57,4 +57,4 @@ export interface ModulesForWorkspaceResult {
 /**
  *  Create the JSON-RPC request object for retrieving the modules present in the DScript workspace.
  */
-export const ModulesForWorkspaceRequest = new RequestType<ModulesForWorkspaceParams, ModulesForWorkspaceResult, any, any>("dscript/modulesForWorkspace");
+export const ModulesForWorkspaceRequest = new RequestType<ModulesForWorkspaceParams, ModulesForWorkspaceResult, any>("dscript/modulesForWorkspace");

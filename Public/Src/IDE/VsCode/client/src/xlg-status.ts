@@ -4,7 +4,6 @@
 'use strict';
 
 import * as vscode from "vscode";
-import { DocumentColorParams } from "vscode-languageserver-protocol/lib/protocol.colorProvider.proposed";
 
 export const BxlStatusCsvFileNameSuffix = ".csv";
 export const CmdRenderStatus = "XLG.Render.Status";

@@ -12,6 +12,12 @@ export interface Definition {
 
 @@public
 export interface DeploymentOptions {
+    /**
+     * When deploying self-contained dotNetCore executables we prefer to always deploy the binaries that come with
+       the runtime over the ones that come from nuget. A list of runtime filenames to skip are provided here, as a way to
+       override this behavior for selected files.
+     */
+    ignoredSelfContainedRuntimeFilenames?: PathAtom[];
     excludedDeployableItems?: DeployableItem[];
     tags?: string[];
 }

@@ -6,15 +6,15 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.Ide.JsonRpc;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
-using Nerdbank;
+using Nerdbank.Streams;
+using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 using Test.BuildXL.FrontEnd.Core;
-using Newtonsoft.Json.Linq;
-using static BuildXL.Utilities.FormattableStringEx;
 using Xunit.Abstractions;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ide.LanguageServer.UnitTests.Helpers
 {
@@ -61,8 +61,9 @@ package({{
         private int m_documentCount = 0;
 
         private readonly ClientStub m_clientStub = new ClientStub();
-        private Tuple<Stream, Stream> m_streams;
+        private (Stream, Stream) m_streams;
         private JToken m_lastInvocationResult;
+        private readonly StreamJsonRpc.JsonMessageFormatter m_messageFormatter = new JsonMessageFormatter();
 
         /// <summary>
         /// Initial set of document items: main config and prelude
@@ -122,25 +123,28 @@ package({{
         }
 
         /// <nodoc/>
-        public static IntegrationTestHelper CreateApp(ITestOutputHelper output, params TextDocumentItem[] existedDocuments)
+        public static IntegrationTestHelper CreateApp(ITestOutputHelper output, bool forceSynchronousMessages = false, params TextDocumentItem[] existedDocuments)
         {
-            return new IntegrationTestHelper(output, existedDocuments);
+            return new IntegrationTestHelper(output, forceSynchronousMessages, existedDocuments);
         }
 
         /// <summary>
         /// Starts the app and call 'initialize'
         /// </summary>
-        private IntegrationTestHelper(ITestOutputHelper output, params TextDocumentItem[] existedDocuments)
+        private IntegrationTestHelper(ITestOutputHelper output, bool forceSynchronousMessages, params TextDocumentItem[] existedDocuments)
         {
-            m_streams = FullDuplexStream.CreateStreams();
+            m_streams = FullDuplexStream.CreatePair();
+
+            var inOutStream = FullDuplexStream.Splice(m_streams.Item1, m_streams.Item2);
 
             var testContext = new TestContext(
                 existedDocuments.Union(ConfigWithPrelude),
-                forceSynchronousMessages: true,
+                forceSynchronousMessages: forceSynchronousMessages,
                 forceNoRecomputationDelay: true,
                 output.WriteLine);
 
-            m_jsonRpc = new StreamJsonRpc.JsonRpc(m_streams.Item1, m_streams.Item2);
+            m_jsonRpc = new StreamJsonRpc.JsonRpc(inOutStream, inOutStream);
+
             m_app = App.CreateForTesting(m_jsonRpc, testContext);
 
             RegisterLocalTargets();
@@ -150,6 +154,20 @@ package({{
             var init = new InitializeParams { RootUri = new Uri(s_rootPath) };
 
             m_jsonRpc.InvokeWithParameterObjectAsync<object>("initialize", JToken.FromObject(init)).GetAwaiter().GetResult();
+
+        }
+
+        /// <summary>
+        /// Asks the server to shutdown and waits for all local executing RPC targets to finish
+        /// </summary>
+        public IntegrationTestHelper Shutdown()
+        {
+            m_jsonRpc.InvokeWithParameterObjectAsync<object>("shutdown").GetAwaiter().GetResult();
+            var completionTask = m_jsonRpc.DispatchCompletion;
+            m_jsonRpc.Dispose();
+            completionTask.GetAwaiter().GetResult();
+
+            return this;
         }
 
         /// <nodoc/>
@@ -305,7 +323,7 @@ package({{
         private TResult CreateInstanceAndPopulate<TResult>(JToken jtoken)
         {
             var result = Activator.CreateInstance<TResult>();
-            m_jsonRpc.JsonSerializer.Populate(jtoken.CreateReader(), result);
+            m_messageFormatter.JsonSerializer.Populate(jtoken.CreateReader(), result);
 
             return result;
         }
@@ -319,12 +337,12 @@ package({{
 
         private void RegisterLocalTargets()
         {
-            m_jsonRpc.AddLocalRpcTarget(m_app);
             m_jsonRpc.AddLocalRpcMethod("textDocument/publishDiagnostics", new Action<JToken>(param => m_clientStub.PublishDiagnostic(param)));
             m_jsonRpc.AddLocalRpcMethod("window/showMessage", new Action<JToken>(param => m_clientStub.ShowMessage(param)));
             m_jsonRpc.AddLocalRpcMethod("window/showMessageRequest", new Action<JToken>(param => m_clientStub.ShowMessageRequest(param)));
             m_jsonRpc.AddLocalRpcMethod("window/logMessage", new Action<JToken>(param => m_clientStub.LogMessage(param)));
             m_jsonRpc.AddLocalRpcMethod("dscript/workspaceLoading", new Action<JToken>(param => m_clientStub.WorkspaceLoadingMessage(param)));
+            m_jsonRpc.AddLocalRpcMethod("dscript/outputTrace", new Action<JToken>(param => m_clientStub.OutputTrace(param)));
         }
     }
 
@@ -376,9 +394,15 @@ package({{
             LogMessages.Add(@params.ToObject<Microsoft.VisualStudio.LanguageServer.Protocol.LogMessageParams>());
         }
 
+        /// <nodoc/>
         internal void WorkspaceLoadingMessage(JToken @params)
         {
             WorkspaceLoadingMessages.Add(@params.ToObject<WorkspaceLoadingParams>());
+        }
+
+        /// <nodoc/>
+        internal void OutputTrace(JToken @params)
+        {
         }
     }
 }

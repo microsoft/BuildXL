@@ -32,7 +32,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
         public void WorkspaceLoadingCompletes()
         {
             var messages = IntegrationTestHelper
-                .CreateApp(Output)
+                .CreateApp(Output, forceSynchronousMessages: true)
                 .Invoke("exit")
                 .WorkspaceLoadingMessages;
 
@@ -47,6 +47,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                 .NotifyDocumentOpened(
 @"const x = 42; 
 const y = ")
+                .Shutdown()
                 .PublishDiagnostics
                 .Last();
 
@@ -65,7 +66,7 @@ const y = ")
                 "spec2.dsc", "export const y = 42;");
             
             // Create an app with only the first spec.
-            var app = IntegrationTestHelper.CreateApp(Output, spec1);
+            var app = IntegrationTestHelper.CreateApp(Output, forceSynchronousMessages: false, spec1);
 
             var diagnostics = app
                 // Open the second spec
@@ -74,6 +75,7 @@ const y = ")
                 .NotifyDocumentOpened(
                 IntegrationTestHelper.CreateDocument(
                     "spec1.dsc", "export const x = y;"))
+                .Shutdown()
                 .PublishDiagnostics;
 
             Assert.Empty(diagnostics.Where(d => d.Diagnostics.Length != 0));
@@ -130,7 +132,8 @@ const y = x.");
                     "textDocument/completion", completionRequest, out var completionList1)
                 .NotifyDocumentOpened(@"export interface I { b: string }")
                 .Invoke<TextDocumentPositionParams, List<CompletionItem>>(
-                    "textDocument/completion", completionRequest, out var completionList2);
+                    "textDocument/completion", completionRequest, out var completionList2)
+                .Shutdown();
 
             // One single completion item is expected first, with insert text 'a'
             Assert.Equal(1, completionList1.Count);
@@ -200,8 +203,9 @@ namespace StaticLibrary {
                 ProjectSpecFileName = addSourcesCode.Uri.ToString()
             };
 
-            app.NotifyDocumentOpened(addSourcesCode).
-                Invoke<AddSourceFileToProjectParams, List<TextEdit>>("dscript/addSourceFileToProject", addSourceFileParams, out var results);
+            app.NotifyDocumentOpened(addSourcesCode)
+                .Invoke<AddSourceFileToProjectParams, List<TextEdit>>("dscript/addSourceFileToProject", addSourceFileParams, out var results)
+                .Shutdown();
 
             Assert.Equal(1, results.Count);
             Assert.Equal(
@@ -227,8 +231,9 @@ export const x = StaticLibrary.build({
                 ProjectSpecFileName = addSourcesCode.Uri.ToString()
             };
 
-            app.NotifyDocumentOpened(addSourcesCode).
-                Invoke<AddSourceFileToProjectParams, List<TextEdit>>("dscript/addSourceFileToProject", addSourceFileParams, out var results);
+            app.NotifyDocumentOpened(addSourcesCode)
+                .Invoke<AddSourceFileToProjectParams, List<TextEdit>>("dscript/addSourceFileToProject", addSourceFileParams, out var results)
+                .Shutdown();
 
             Assert.Equal(1, results.Count);
             Assert.Equal(@"export const x = StaticLibrary.build({sources: [f`foo.cpp`]});", results[0].NewText);

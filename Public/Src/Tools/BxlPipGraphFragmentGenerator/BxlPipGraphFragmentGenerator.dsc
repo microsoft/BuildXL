@@ -37,5 +37,6 @@ namespace BxlPipGraphFragmentGenerator {
                 importFrom("System.Collections.Immutable").pkg
             ),
         ],
+        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Collections.Immutable.dll`] }, 
     });
 }

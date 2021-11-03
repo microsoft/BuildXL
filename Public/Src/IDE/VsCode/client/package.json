@@ -306,14 +306,14 @@
     "package": "vsce package"
   },
   "devDependencies": {
-    "@types/mocha": "^2.2.33",
-    "@types/node": "^6.0.52",
-    "typescript": "^2.6.1",
-    "vscode": "^1.1.35"
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.11.6",
+    "typescript": "^4.4.4",
+    "@types/vscode": "^1.61.0"
   },
   "dependencies": {
-    "vscode-languageclient": "^3.5.0",
-    "vscode-nls": "^2.0.2"
+    "vscode-languageclient": "^7.0.0",
+    "vscode-nls": "^5.0.0"
   },
   "directories": {
     "bin": "./bin"

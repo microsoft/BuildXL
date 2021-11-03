@@ -20,7 +20,7 @@ export namespace LogFileLocationNotification {
         file: string;
     }
 
-    export const type: NotificationType<LogFileLocationParams, void> = new NotificationType(`dscript/logFileLocation`);
+    export const type: NotificationType<LogFileLocationParams> = new NotificationType(`dscript/logFileLocation`);
 
     export function handler(params: LogFileLocationParams) : void {
         logFileLocation = Uri.file(params.file);

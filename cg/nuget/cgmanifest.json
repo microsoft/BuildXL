@@ -446,6 +446,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "MessagePack",
+          "Version": "2.2.85"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "MessagePack.Annotations",
+          "Version": "2.2.85"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.ApplicationInsights",
           "Version": "2.11.0"
         }
@@ -2004,7 +2022,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.LanguageServer.Protocol",
-          "Version": "16.3.57"
+          "Version": "17.0.4103-g225b54d231"
         }
       }
     },
@@ -2427,7 +2445,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Validation",
-          "Version": "15.3.32"
+          "Version": "16.10.35"
         }
       }
     },
@@ -2508,7 +2526,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Nerdbank.FullDuplexStream",
-          "Version": "1.0.9"
+          "Version": "1.1.12"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Nerdbank.Streams",
+          "Version": "2.6.81"
         }
       }
     },
@@ -2679,7 +2706,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "StreamJsonRpc",
-          "Version": "1.4.128"
+          "Version": "2.8.28"
         }
       }
     },
@@ -3183,7 +3210,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "5.0.0"
+          "Version": "5.0.1"
         }
       }
     },
@@ -4191,7 +4218,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Validation",
-          "Version": "2.3.7"
+          "Version": "2.5.42"
         }
       }
     },

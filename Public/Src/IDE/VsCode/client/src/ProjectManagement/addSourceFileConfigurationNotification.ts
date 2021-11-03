@@ -9,7 +9,7 @@ import * as nls from 'vscode-nls';
 import { env, ExtensionContext, workspace, window } from 'vscode';
 
 nls.config({ locale: env.language });
-import { NotificationType, LanguageClient, ParameterInformation } from 'vscode-languageclient';
+import { NotificationType, LanguageClient, ParameterInformation } from 'vscode-languageclient/node';
 
 import * as path from 'path';
 import * as fs from 'fs';
@@ -64,7 +64,7 @@ interface AddSourceFileConfigurationParams
 /**
 *  Create the JSON-RPC request object for retrieving the specs present in a module in the DScript workspace.
 */
-const AddSourceFileConfigurationNotification = new NotificationType<AddSourceFileConfigurationParams, any>("dscript/sourceFileConfiguration");
+const AddSourceFileConfigurationNotification = new NotificationType<AddSourceFileConfigurationParams>("dscript/sourceFileConfiguration");
 
 export function sendAddSourceFileConfigurationToLanguageServer(languageClient : LanguageClient, extensionContext: ExtensionContext) {
     // Send the add source notification to the language server

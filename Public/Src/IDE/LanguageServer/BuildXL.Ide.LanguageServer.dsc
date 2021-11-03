@@ -28,12 +28,6 @@ namespace LanguageService.Server {
         generateLogs: true,
         skipAssemblySigning: true,
         references: [
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.Microsoft.CSharp.dll,
-                NetFx.System.IO.dll,
-                NetFx.System.Text.RegularExpressions.dll,
-                NetFx.System.Runtime.Serialization.dll
-            ),
             Protocol.dll,
             IDE.Shared.JsonRpc.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
@@ -61,6 +55,14 @@ namespace LanguageService.Server {
             importFrom("System.ComponentModel.Composition").pkg,
             importFrom("Microsoft.VisualStudio.LanguageServer.Protocol").pkg,
         ],
+        runtimeReferences: [
+            importFrom("Nerdbank.Streams").withQualifier({targetFramework:"netstandard2.1"}).pkg,
+            importFrom("System.IO.Pipelines").pkg, 
+            importFrom("System.Collections.Immutable.ForVBCS").pkg, 
+        ],
+        // StreamJsonRpc needs System.Collections.Immutable.dll v5.0.0, which is higher than the one provided
+        // by the .net framework
+        deploymentOptions: { ignoredSelfContainedRuntimeFilenames: [a`System.Collections.Immutable.dll`] }, 
     });
 
     @@public

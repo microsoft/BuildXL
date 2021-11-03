@@ -85,6 +85,8 @@ namespace BuildXL.Ide.LanguageServer
             var jsonRpcChannel = new JsonRpcWithException(clientStream, serverStream, this);
             m_mainRpcChannel = jsonRpcChannel;
 
+            m_mainRpcChannel.AddLocalRpcTarget(this, new JsonRpcTargetOptions { AllowNonPublicInvocation = true });
+
             // We need to create the project management provider before we start listening on the
             // RPC channel as you cannot attach them after it has started listening.
             m_projectManagementProvider = new ProjectManagementProvider(GetAppStateDelegate(), m_mainRpcChannel);
@@ -114,6 +116,9 @@ namespace BuildXL.Ide.LanguageServer
 
             m_testContext = testContext;
             m_mainRpcChannel = mainRpcChannel;
+
+            m_mainRpcChannel.AddLocalRpcTarget(this, new JsonRpcTargetOptions { AllowNonPublicInvocation = true });
+
             m_tracer = new Tracer();
 
             // We need to create the project management provider before we start listening on the

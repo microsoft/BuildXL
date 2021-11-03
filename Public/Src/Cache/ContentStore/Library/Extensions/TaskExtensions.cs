@@ -219,24 +219,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         }
 
         /// <summary>
-        /// Transforms the result of a task
-        /// </summary>
-        public static async Task<T2> ThenAsync<T1, T2>(this Task<T1> first, Func<T1, T2> next)
-        {
-            var result = await first;
-            return next(result);
-        }
-
-        /// <summary>
-        /// Transforms the result of a task
-        /// </summary>
-        public static async Task<T2> ThenAsync<T1, T2>(this Task<T1> first, Func<T1, Task<T2>> next)
-        {
-            var result = await first;
-            return await next(result);
-        }
-
-        /// <summary>
         /// Assuming <paramref name="pendingTask"/> is a non-null Task, will either return the incomplete <paramref name="pendingTask"/> or start a new task constructed by <paramref name="runAsync"/>.
         /// <paramref name="newTaskWasCreated"/> returns whether the function was run or false if the previous task was returned.
         /// </summary>

@@ -122,6 +122,38 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             return new ErrorResult(result).AsResult<TResult>();
         }
 
+        /// <summary>
+        /// Transforms the result of a task
+        /// </summary>
+        public static async Task<TResult> ThenAsync<T, TResult>(this Task<T> first, Func<T, TResult> next)
+            where T : ResultBase
+            where TResult : ResultBase
+        {
+            var result = await first;
+            if (result.Succeeded)
+            {
+                return next(result);
+            }
+
+            return new ErrorResult(result).AsResult<TResult>();
+        }
+
+        /// <summary>
+        /// Transforms the result of a task
+        /// </summary>
+        public static async Task<TResult> ThenAsync<T, TResult>(this Task<T> first, Func<T, Task<TResult>> next)
+            where T : ResultBase
+            where TResult : ResultBase
+        {
+            var result = await first;
+            if (result.Succeeded)
+            {
+                return await next(result);
+            }
+
+            return new ErrorResult(result).AsResult<TResult>();
+        }
+
         /// <nodoc />
         public static void Match<T>(this Result<T> result, Action<T> successAction, Action<Result<T>> failureAction)
         {

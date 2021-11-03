@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
     public class ErrorResultConverterTests
     {
         [Fact]
-        public void TestConverionFromException()
+        public void TestConversionFromException()
         {
             var exception = new Exception("My message");
             var error = new ErrorResult(exception).AsResult<BoolResult>();

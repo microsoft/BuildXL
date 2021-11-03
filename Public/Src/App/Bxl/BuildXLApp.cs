@@ -447,7 +447,11 @@ namespace BuildXL
                 // the statistics because typically these are error cases and the timings will be off. A second motivation
                 // is that telemetry systems typically don't respect the guideline of not throwing exceptions in regular
                 // execution path, so a lot of first chance exceptions are encountered from telemetry when debugging.
-                var remoteTelemetryEnabled = m_configuration.Logging.RemoteTelemetry != RemoteTelemetry.Disabled && !Debugger.IsAttached;
+#if FEATURE_ARIA_TELEMETRY
+                bool remoteTelemetryEnabled = m_configuration.Logging.RemoteTelemetry != RemoteTelemetry.Disabled && !Debugger.IsAttached;
+#else
+                bool remoteTelemetryEnabled = false;
+#endif
                 Stopwatch stopWatch = null;
                 if (remoteTelemetryEnabled)
                 {

@@ -55,6 +55,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DumpFailedPipsLogLimit = 50;
             DumpFailedPipsWithDynamicData = false;
             LogCachedPipOutputs = false;
+            // Telemetry is enabled by default when the build has access to the Aria telemetry client. This is a Microsoft
+            // internal only package so this corresponds to versions of BuildXL used internally within Microsoft. This define
+            // controls whether we attempt to reference the telemetry utilities. It will fail at runtime if that client library
+            // package is not available.
+#if FEATURE_ARIA_TELEMETRY
+            RemoteTelemetry = Configuration.RemoteTelemetry.EnabledAndNotify;
+#endif
         }
 
         /// <nodoc />

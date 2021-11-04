@@ -473,17 +473,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                     var streamResult = await operationContext.PerformOperationAsync(
                             _tracer,
-                            () => streamContent(result.Stream, bufferHandle.Value, secondaryBufferHandle.Value, responseStream, operationContext.Token),
+                            async () =>
+                            {
+                                var streamResult = await streamContent(result.Stream, bufferHandle.Value, secondaryBufferHandle.Value, responseStream, operationContext.Token);
+                                if (!streamResult.Succeeded && IsKnownGrpcInvalidOperationError(streamResult.ToString()))
+                                {
+                                    // This is not a critical error. Its just a race condition when the stream is closed by the remote host for 
+                                    // some reason and we still streaming the content.
+                                    streamResult.MakeNonCritical();
+                                }
+
+                                return streamResult;
+                            },
                             traceOperationStarted: false, // Tracing only stop messages
                             extraEndMessage: r => $"Hash=[{hash.ToShortString()}] Compression=[{compression}] Size=[{size}] Sender=[{GetSender(callContext)}] ReadTime=[{getFileIoDurationAsString()}]",
                             counter: Counters[GrpcContentServerCounters.CopyStreamContentDuration]);
-
-                    if (KnownGrpcInvalidOperationError(streamResult.ErrorMessage))
-                    {
-                        // This is not a critical error. Its just a race condition when the stream is closed by the remote host for 
-                        // some reason and we still streaming the content.
-                        streamResult.MakeNonCritical();
-                    }
 
                     // Cancelling the operation if requested.
                     operationContext.Token.ThrowIfCancellationRequested();
@@ -711,7 +715,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                                 return new BoolResult(e) {IsCancelled = true};
                             }
 
-                            if (e is InvalidOperationException ioe && KnownGrpcInvalidOperationError(ioe.Message))
+                            if (e is InvalidOperationException ioe && IsKnownGrpcInvalidOperationError(ioe.Message))
                             {
                                 // in some rare cases its still possible to get 'Already finished' error
                                 // even when the tokens are not set.
@@ -737,7 +741,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 .IgnoreFailure(); // The error was already traced.
         }
 
-        private static bool KnownGrpcInvalidOperationError(string? error) => error?.Contains("Already finished") == true || error?.Contains("Shutdown has already been called") == true;
+        public static bool IsKnownGrpcInvalidOperationError(string? error) => error?.Contains("Already finished") == true || error?.Contains("Shutdown has already been called") == true;
 
         private async Task TryWriteAsync<TResponse>(OperationContext operationContext, ServerCallContext callContext, IServerStreamWriter<TResponse> writer, TResponse response)
         {

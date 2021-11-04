@@ -162,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if the error is critical.
         /// </summary>
-        public bool IsCritical(bool isCanceled) => isCanceled ? Result.IsCriticalForCancellation(Exception) : Result.IsCritical(Exception);
+        public bool IsCritical(bool isCanceled) => isCanceled ? ResultBase.IsCriticalForCancellation(Exception) : ResultBase.IsCritical(Exception);
 
         private static string NotNullOrEmpty(string str)
         {

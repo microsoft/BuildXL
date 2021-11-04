@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// True if the error is critical (only possible when the error has an exception).
         /// </summary>
-        private bool _isCritical = false;
+        private bool? _isCritical;
         private TimeSpan _duration;
         private string? _successDiagnostics;
 
@@ -170,7 +170,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if the error occurred and the error is a critical (i.e. not-recoverable) exception.
         /// </summary>
-        public bool IsCriticalFailure => _isCritical || Error?.IsCritical(IsCancelled) == true;
+        public bool IsCriticalFailure
+        {
+            get
+            {
+                if (_isCritical != null)
+                {
+                    return _isCritical.Value;
+                }
+
+                return Error?.IsCritical(IsCancelled) == true;
+            }
+        }
 
         /// <summary>
         /// Gets or sets elapsed time of corresponding call.
@@ -302,8 +313,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 return false;
             }
 
-            // InvalidOperationException is not critical during cancellation (because it is possible that the state is not quite right because of natural race conditions).
-            return IsCritical(exception) && !(exception is InvalidOperationException);
+            return IsContractLikeViolation(exception);
         }
 
         /// <summary>
@@ -322,16 +332,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             // OutOfMemoryException is considered critical, because there two types of them:
             // one is recoverable (when a user tries to allocate a very large array) and some of them
             // are not. We try our best for OOM in this case.
-            return exception is NullReferenceException ||
-                   exception is TypeLoadException ||
-                   exception is ArgumentException ||
-                   exception is IndexOutOfRangeException ||
-                   exception is UnauthorizedAccessException ||
-                   exception is OutOfMemoryException ||
-                   exception.GetType().Name == "ContractException" ||
-                   exception is InvalidOperationException ||
-                   exception is DivideByZeroException ||
+            return IsContractLikeViolation(exception) ||
+                   exception is TypeLoadException or UnauthorizedAccessException or OutOfMemoryException or InvalidOperationException or DivideByZeroException ||
                    (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => IsCritical(e)));
+        }
+
+        private static bool IsContractLikeViolation(Exception exception)
+        {
+            return isContractLikeCoreViolation(exception) ||
+                   (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => isContractLikeCoreViolation(e)));
+
+            static bool isContractLikeCoreViolation(Exception exception)
+                => exception is NullReferenceException or ArgumentException or IndexOutOfRangeException || exception.GetType().Name == "ContractException";
         }
 
         /// <summary>

@@ -8,7 +8,7 @@ using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
-    public static class ResultTestExtensions
+    public static class  ResultTestExtensions
     {
         public static TResult ShouldBeError<TResult>(this TResult result, string expectedMessageFragment = null) where TResult : ResultBase
         {

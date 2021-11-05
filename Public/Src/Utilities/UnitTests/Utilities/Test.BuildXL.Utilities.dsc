@@ -17,9 +17,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("Newtonsoft.Json").pkg,
-            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("BuildXL.Utilities").SBOMUtilities.dll),
-            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.SBOMApi").pkg),
+            importFrom("Newtonsoft.Json").pkg
         ],
     });
 }

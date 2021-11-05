@@ -395,7 +395,7 @@ config({
                 { id: "Microsoft.Bcl.HashCode", version: "1.1.0"},
                 { id: "Microsoft.ManifestInterface", version: "1.0.0"},
                 { id: "Microsoft.ManifestGenerator", version: "0.1.4", dependentPackageIdsToIgnore: ["Newtonsoft.Json"]},
-                
+
                 // FsCheck
                 { id: "FsCheck", version: "2.14.3" },
                 { id: "FSharp.Core", version: "4.2.3" },

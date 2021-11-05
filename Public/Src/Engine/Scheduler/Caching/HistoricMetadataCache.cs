@@ -766,11 +766,11 @@ namespace BuildXL.Scheduler.Cache
             EnsureLoadedAsync().GetAwaiter().GetResult();
 
             Contract.Assert(contentHash.IsValid, "ContentHash must be valid");
-            Contract.Assert(m_activeBuildManifestHashColumnIndex >= 0, "Build manifest column is not initialized");
 
             ContentHash foundHash = default;
             StoreAccessor?.Use(database =>
             {
+                Contract.Assert(m_activeBuildManifestHashColumnIndex >= 0, "Build manifest column is not initialized");
                 using var key = GetBuildManifestHashKey(contentHash, hashType);
                 Contract.Assert(key.Value != null, $"ByteArray was null for ContentHash");
 

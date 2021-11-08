@@ -39,7 +39,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
             Assert.True(messages.Any(message => message.Status == WorkspaceLoadingState.Success));
         }
 
-        [Fact (Skip = "Flaky. See bug 1891048")]
+        [Fact]
         public void DiagnosticsAreProvidedOnMalformedSpec()
         {
             var lastDiagnostic = IntegrationTestHelper
@@ -56,7 +56,7 @@ const y = ")
             Assert.Contains(lastDiagnostic.Diagnostics, diag => diag.Message == Errors.Expression_expected.Message);
         }
 
-        [Fact(Skip = "Flaky")]
+        [Fact]
         public void ReferenceTheNewExposedVariableFromTheOldDocumentShouldWork()
         {
             var spec1 = IntegrationTestHelper.CreateDocument(
@@ -81,7 +81,7 @@ const y = ")
             Assert.Empty(diagnostics.Where(d => d.Diagnostics.Length != 0));
         }
 
-        [Fact(Skip = "Flaky")]
+        [Fact]
         public void SimpleCompletion()
         {
             var app = IntegrationTestHelper.CreateApp(Output);
@@ -108,7 +108,7 @@ const y = x.");
             Assert.Equal("a", completionItems.First().InsertText);
         }
 
-        [Fact(Skip = "Flaky")]
+        [Fact]
         public void CompletionOnInterfaceMerging()
         {
             var app = IntegrationTestHelper.CreateApp(Output);
@@ -188,7 +188,7 @@ namespace StaticLibrary {
 
         }
 
-        [Fact(Skip = "Flaky")]
+        [Fact]
         public void AddSourceToNonEmptyList()
         {
             var app = SetupForProjectManagementTests();
@@ -215,7 +215,7 @@ namespace StaticLibrary {
     ]});", results[0].NewText);
         }
 
-        [Fact(Skip = "Flaky")]
+        [Fact]
         public void AddSourceToEmptyList()
         {
             var app = SetupForProjectManagementTests();

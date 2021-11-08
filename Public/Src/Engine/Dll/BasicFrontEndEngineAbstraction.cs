@@ -26,7 +26,7 @@ namespace BuildXL.Engine
         /// <nodoc />
         public void SetMountsTable(MountsTable mountsTable)
         {
-            m_customMountsTable = mountsTable.AllMounts.ToDictionary(mount => mount.Name.ToString(m_pathTable.StringTable), mount => mount);
+            m_customMountsTable = mountsTable.AllMountsSoFar.ToDictionary(mount => mount.Name.ToString(m_pathTable.StringTable), mount => mount);
         }
 
         /// <summary>

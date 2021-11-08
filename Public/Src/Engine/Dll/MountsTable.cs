@@ -37,7 +37,6 @@ namespace BuildXL.Engine
         // State during construction of the mounts table. Null after call to CompleteInitialization;
         private readonly ConcurrentDictionary<AbsolutePath, IMount> m_mountMapBuilder;
         private readonly ConcurrentDictionary<string, IMount> m_mountsByName;
-        private readonly ConcurrentDictionary<IMount, LocationData> m_mountLocationsByMount;
         private readonly ConcurrentDictionary<IMount, PathAtom> m_mountPathIdentifiersByMount;
         private readonly ConcurrentDictionary<AbsolutePath, IMount> m_alternativeRoots;
 
@@ -65,7 +64,6 @@ namespace BuildXL.Engine
             m_mountMapBuilder = new ConcurrentDictionary<AbsolutePath, IMount>();
             m_mountsByName = new ConcurrentDictionary<string, IMount>(StringComparer.OrdinalIgnoreCase);
             m_mountPathIdentifiersByMount = new ConcurrentDictionary<IMount, PathAtom>();
-            m_mountLocationsByMount = new ConcurrentDictionary<IMount, LocationData>();
             m_alternativeRoots = new ConcurrentDictionary<AbsolutePath, IMount>();
             m_moduleDefinedMounts = new ConcurrentBigSet<IMount>();
         }
@@ -224,7 +222,7 @@ namespace BuildXL.Engine
         /// <remarks>
         /// It is not necessary to have called <see cref="CompleteInitialization"/> to call this method, but the resulting mounts might not be exhaustive
         /// </remarks>
-        public IEnumerable<IMount> AllMountsSoFar => m_mountLocationsByMount.Keys;
+        public IEnumerable<IMount> AllMountsSoFar => m_mountPathIdentifiersByMount.Keys;
 
         /// <summary>
         /// Gets mappings from name to mount.

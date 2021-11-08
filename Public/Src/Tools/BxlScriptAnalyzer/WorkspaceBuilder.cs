@@ -68,7 +68,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            return TryBuildWorkspace(
+            return TryBuildWorkspaceInternal(
                 new CommandLineConfiguration() { Startup = { ConfigFile = config } },
                 frontEndContext,
                 engineContext,
@@ -84,6 +84,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     SaveBindingFingerprint = false, // Off for IDE.
                     SkipNuget = skipNuget,
                 },
+                forIDE: true,
                 frontEndEngineAbstraction: frontEndEngineAbstraction,
                 collectMemoryAsSoonAsPossible: false);
         }
@@ -116,7 +117,25 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             FrontEndEngineAbstraction frontEndEngineAbstraction = null,
             bool collectMemoryAsSoonAsPossible = true)
         {
-            Contract.Requires((commandLineConfig.Engine.Phase & (EnginePhases.ParseWorkspace | EnginePhases.AnalyzeWorkspace)) != EnginePhases.None);
+            return TryBuildWorkspaceInternal(commandLineConfig, frontEndContext, engineContext, evaluationFilter, progressHandler, out workspace, out frontEndHostController, out pipGraph, 
+                configuration, forIDE: false, frontEndEngineAbstraction, collectMemoryAsSoonAsPossible);
+        }
+
+        private static bool TryBuildWorkspaceInternal(
+            ICommandLineConfiguration commandLineConfig,
+            FrontEndContext frontEndContext,
+            EngineContext engineContext,
+            EvaluationFilter evaluationFilter,
+            EventHandler<WorkspaceProgressEventArgs> progressHandler,
+            out Workspace workspace,
+            out FrontEndHostController frontEndHostController,
+            out IMutablePipGraph pipGraph,
+            WorkspaceBuilderConfiguration configuration,
+            bool forIDE,
+            FrontEndEngineAbstraction frontEndEngineAbstraction = null,
+            bool collectMemoryAsSoonAsPossible = true)
+        {
+                Contract.Requires((commandLineConfig.Engine.Phase & (EnginePhases.ParseWorkspace | EnginePhases.AnalyzeWorkspace)) != EnginePhases.None);
             Contract.Requires(frontEndContext != null);
             Contract.Requires(engineContext != null);
             Contract.Requires(commandLineConfig.Startup.ConfigFile.IsValid);
@@ -149,9 +168,17 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             frontEndHostController = (FrontEndHostController)controller;
 
-            // If there is an explicit engine abstraction, we set it. This is used by IDE test.
+            // If there is an explicit engine abstraction, we set it. This is used by the IDE.
             if (frontEndEngineAbstraction != null)
             {
+                // The IDE engine typically doesn't have mounts configured. We do it here if they haven't been configured yet.
+                // Observe these are just the default mounts used for config evaluation.
+                if (frontEndEngineAbstraction is BasicFrontEndEngineAbstraction basicEngine && !frontEndEngineAbstraction.GetMountNames("Script", BuildXL.Utilities.ModuleId.Invalid).Any())
+                {
+                    // If this fails we just ignore the failure. Mounts not being properly configured doesn't prevent the IDE plugin from working.
+                    basicEngine.TryPopulateWithDefaultMountsTable(loggingContext, engineContext, mutableCommandlineConfig, mutableCommandlineConfig.Startup.Properties);
+                }
+
                 frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: mutableCommandlineConfig);
             }
             else
@@ -182,12 +209,22 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     // Note that we have an 'empty' store (no hits ever) rather than a normal in memory one.
                     new EmptyTwoPhaseFingerprintStore())))
             {
-                
+
+                var mountsTable = MountsTable.CreateAndRegister(loggingContext, engineContext, config, mutableCommandlineConfig.Startup.Properties);
+
+                // For the IDE case, we want to make sure all config-specific mounts are properly populated
+                if (forIDE && frontEndEngineAbstraction is BasicFrontEndEngineAbstraction languageServiceEngine)
+                {
+                    Contract.AssertNotNull(frontEndEngineAbstraction);
+
+                    AddConfigurationMounts(config, mountsTable);
+                    languageServiceEngine.SetMountsTable(mountsTable);
+                }
+
                 if (frontEndEngineAbstraction == null)
                 {
                     if (mutableCommandlineConfig.Engine.Phase.HasFlag(EnginePhases.Schedule))
                     {
-                        var mountsTable = MountsTable.CreateAndRegister(loggingContext, engineContext, config, mutableCommandlineConfig.Startup.Properties);
                         frontEndEngineAbstraction = new FrontEndEngineImplementation(
                             loggingContext,
                             frontEndContext.PathTable,

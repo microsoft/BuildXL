@@ -65,7 +65,7 @@ export function checkForUpdates() {
         };
     
         // Our build version is in the form of "date.index.minor"
-        const thisExtension = extensions.getExtension("Microsoft.dscript");
+        const thisExtension = extensions.getExtension("buildxl.dscript");
         const thisVersion : string = thisExtension.packageJSON.version;
         const splitVersion = thisVersion.split('.');
         if (splitVersion.length === 3) {

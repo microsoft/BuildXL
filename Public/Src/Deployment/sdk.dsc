@@ -8,7 +8,7 @@ namespace Sdks {
     export declare const qualifier : { configuration: "debug" | "release" };
 
     // Note: Some Sdk's ship with BuildXL. See: /Public/Src/App/Deployment.InBoxSdks.dsc
-    const sdkRoot = d`${Context.getMount("sdkRoot").path}`;
+    const sdkRoot = d`${Context.getMount("SdkRoot").path}`;
 
     /** We copy the sdk's for now. In the future the sdks can contain compiled helpers */
     @@public

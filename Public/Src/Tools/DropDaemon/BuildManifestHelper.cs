@@ -34,6 +34,7 @@ namespace Tool.DropDaemon
         public const string DropCatalogFilePath = ManifestFileDestination + CatalogFilename;
 
         private const int ExecutableMaxRuntimeInMinute = 3;
+        private const string CdfFileName = "manifest.cdf";
 
         /// <summary>
         /// Generates a local catalog file and signs it using EsrpManifestSign.exe from CloudBuild.
@@ -59,8 +60,11 @@ namespace Tool.DropDaemon
             catFileSb.Append($@"{Environment.NewLine}<HASH>{BsiFilename}={bsiFileLocalPath}");
             catFileSb.Append($@"{Environment.NewLine}<HASH>{BsiFilename}ATTR1=0x11010001:File:{BsiFilename}");
 
-            string cdfPath = Path.GetTempFileName();
-            string tempDir = Path.GetDirectoryName(cdfPath);
+            // Create a new temp directory. We cannot place the cat file in the root of temp because this will lead to collisions
+            // if this method is called multiple times from the same process (e.g., single DropDaemon with multiple drops).
+            var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDir);
+            string cdfPath = Path.Combine(tempDir, CdfFileName);
             string catPath = Path.Combine(tempDir, CatalogFilename);
 
             try
@@ -76,23 +80,31 @@ HashAlgorithms=SHA256
 
                 // Run makecat.exe on the CDF to produce a .cat file.
                 var makeCatExecutionResult = await TryExecuteProcessAsync(makeCatToolPath, $@"-v ""{cdfPath}""", tempDir);
-                if (!makeCatExecutionResult.Succeeded || !File.Exists(catPath))
+                if (!makeCatExecutionResult.Succeeded)
                 {
-                    return (false, $"Failure occured during Build Manifest CAT file generation at path '{catPath}'. Failure: {makeCatExecutionResult.Failure.DescribeIncludingInnerFailures()}");
+                    return (false, $"Failure occurred during Build Manifest CAT file generation at path '{catPath}'. Failure: {makeCatExecutionResult.Failure.DescribeIncludingInnerFailures()}");
+                }
+                else if (!File.Exists(catPath))
+                {
+                    return (false, $"The process responsible for creating a Build Manifest CAT file at path '{catPath}' exited cleanly, however the file does not exist.");
                 }
 
                 // Sign the .cat file using EsrpManifestSign.exe from CloudBuild
                 var esrpSignExecutionResult = await TryExecuteProcessAsync(esrpSignToolPath,
                     $@"-s ""{catPath}"" -o ""{tempDir}""",
                     tempDir);
-                if (!esrpSignExecutionResult.Succeeded || !File.Exists(catPath))
+                if (!esrpSignExecutionResult.Succeeded)
                 {
                     return (false, $"Unable to sign Manifest.cat at path '{catPath}' using EsrpManifestSign.exe. Failure: {esrpSignExecutionResult.Failure.DescribeIncludingInnerFailures()}");
+                }
+                else if (!File.Exists(catPath))
+                {
+                    return (false, $"The process responsible for signing a Build Manifest CAT file at path '{catPath}' exited cleanly, however the file does not exist.");
                 }
             }
             catch (IOException e)
             {
-                return (false, $"Exception occured during GenerateSignedCatalogAsync :{e.Message}");
+                return (false, $"Exception occurred during GenerateSignedCatalogAsync :{e.Message}");
             }
             finally
             {

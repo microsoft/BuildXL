@@ -14,8 +14,6 @@ namespace Ipc {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("Microsoft.Bcl.HashCode").pkg,
-            importFrom("Microsoft.ManifestInterface").pkg,
-            importFrom("Microsoft.ManifestGenerator").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...addIf(
                 BuildXLSdk.isFullFramework,

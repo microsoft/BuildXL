@@ -17,7 +17,6 @@ using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using Microsoft.ManifestGenerator;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -386,62 +385,6 @@ namespace Test.BuildXL.Ipc
         public void TestInvalidSealedDirectoryFile(string str)
         {
             XAssert.IsFalse(SealedDirectoryFile.TryParse(str, out _));
-        }
-
-        [Fact]
-        public void TestValidBuildManifestData()
-        {
-            List<BuildManifestFile> outputs = new List<BuildManifestFile>();
-            BuildManifestData data0 = new BuildManifestData("Version", 1598291222, "cbId", "Repo", "branch", "commitId", outputs);
-            XAssert.IsTrue(BuildManifestData.TryParse(data0.ToString(), out var parsedData0));
-            XAssert.AreEqual(data0, parsedData0);
-
-            outputs.Add(new BuildManifestFile("relativePath1", "vsohash", "sha256Hash"));
-            BuildManifestData data1 = new BuildManifestData("Version", 1598291222, "cbId", "Repo", "branch", "commitId", outputs);
-            XAssert.IsTrue(BuildManifestData.TryParse(data1.ToString(), out var parsedData1));
-            XAssert.AreEqual(data1, parsedData1);
-
-            outputs.Add(new BuildManifestFile("relativePath2", "vsohash", "sha256Hash"));
-            BuildManifestData data2 = new BuildManifestData("Version", 1598291222, "cbId", "Repo", "branch", "commitId", outputs);
-            XAssert.IsTrue(BuildManifestData.TryParse(data2.ToString(), out var parsedData2));
-            XAssert.AreEqual(data2, parsedData2);
-        }
-
-        [Fact]
-        public void TestBuildManifestDataHashCodes()
-        {
-            List<BuildManifestFile> outputs0 = new List<BuildManifestFile>();
-            outputs0.Add(new BuildManifestFile("relativePath", "vsohash", "sha256Hash"));
-
-            BuildManifestData data0 = new BuildManifestData("Version", 1598291222, "cbId", "Repo", "branch", "commitId", outputs0);
-            int hashCode0 = data0.GetHashCode();
-
-            List<BuildManifestFile> outputs1 = new List<BuildManifestFile>();
-            outputs1.Add(new BuildManifestFile("relativePath", "vsohash", "sha256Hash"));
-
-            BuildManifestData data1 = new BuildManifestData("Version", 1598291222, "cbId", "Repo", "branch", "commitId", outputs1);
-            int hashCode1 = data1.GetHashCode();
-
-            XAssert.AreEqual(hashCode0, hashCode1);
-            XAssert.AreEqual(data0, data1);
-
-            List<BuildManifestFile> outputs2 = new List<BuildManifestFile>();
-            outputs2.Add(new BuildManifestFile("relativePath2", "vsohash", "sha256Hash"));
-            BuildManifestData data2 = new BuildManifestData("Version", 1598291222, "cbId", "Repo", "branch", "commitId", outputs2);
-
-            XAssert.AreNotEqual(data0, data2);
-        }
-
-        [Fact]
-        public void TestBuildManifestFileHashCodes()
-        {
-            BuildManifestFile file0 = new BuildManifestFile("relativePath", "vsohash", "sha256Hash");
-            BuildManifestFile file1 = new BuildManifestFile("relativePath", "vsohash", "sha256Hash");
-            BuildManifestFile file2 = new BuildManifestFile("relativePath2", "vsohash", "sha256Hash");
-
-            XAssert.AreEqual(file0.GetHashCode(), file1.GetHashCode());
-            XAssert.AreEqual(file0, file1);
-            XAssert.AreNotEqual(file0, file2);
         }
 
         [Theory]

@@ -143,6 +143,15 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Configuration.dll,
 
+            // BuildXL.SBOMUtilities
+            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, 
+                importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).SBOMUtilities.dll,
+                importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).SBOMUtilities.dll,
+                importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).SBOMUtilities.dll,
+                importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).SBOMUtilities.dll,
+                importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).SBOMUtilities.dll
+            ),
+
             // BuildXL.Instrumentation.Common
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net472PackageQualifer).dll,

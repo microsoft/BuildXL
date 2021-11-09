@@ -60,7 +60,7 @@ namespace BuildXL.Pips.Tracing
             (ushort)LogEventId.ExceptionOnAddingFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Engine,
             Message = "[{pipDescription}] An exception occured when adding the pip from fragment '{fragmentName}': {exceptionMessage}")]
         public abstract void ExceptionOnAddingFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription, string exceptionMessage);

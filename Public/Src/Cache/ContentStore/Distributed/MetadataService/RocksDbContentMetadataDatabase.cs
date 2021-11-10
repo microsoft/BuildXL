@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.SymbolStore;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -33,21 +35,40 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
+    public class RocksDbContentMetadataDatabaseConfiguration : RocksDbContentLocationDatabaseConfiguration
+    {
+        public RocksDbContentMetadataDatabaseConfiguration(AbsolutePath storeLocation)
+            : base(storeLocation)
+        {
+        }
+
+        public TimeSpan ContentRotationInterval { get; set; } = TimeSpan.FromHours(6);
+
+        public TimeSpan MetadataRotationInterval { get; set; } = TimeSpan.FromDays(7);
+
+        public TimeSpan BlobRotationInterval { get; set; } = TimeSpan.FromHours(1);
+    }
+
     /// <summary>
     /// RocksDb-based version of <see cref="ContentLocationDatabase"/>.
     /// </summary>
     public sealed class RocksDbContentMetadataDatabase : ContentLocationDatabase
     {
-        private readonly RocksDbContentLocationDatabaseConfiguration _configuration;
+        private readonly RocksDbContentMetadataDatabaseConfiguration _configuration;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(RocksDbContentMetadataDatabase));
 
         private KeyValueStoreGuard _keyValueStore;
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
+
         private StoreSlot _activeSlot = StoreSlot.Slot1;
-        public ColumnGroup ActiveColumnsGroup { get; private set; } = ColumnGroup.One;
-        private string? _storeLocation;
         private readonly string _activeSlotFilePath;
+
+        private Dictionary<Columns, ColumnMetadata> _columnMetadata = EnumTraits<Columns>
+            .EnumerateValues()
+            .ToDictionary(c => c, _ => new ColumnMetadata(group: ColumnGroup.One, lastGcTimeUtc: DateTime.MinValue));
+
+        private string? _storeLocation;
 
         private enum StoreSlot
         {
@@ -63,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         ///
         /// All others are documented below.
         /// </summary>
-        private enum Columns
+        public enum Columns
         {
             Content,
 
@@ -102,15 +123,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private enum GlobalKeys
         {
             StoredEpoch,
-            ActiveColummGroup
+
+            // WARNING: do NOT rename!. Doing so will cause issues in production databases, because the name of the
+            // GlobalKey is used inside the DBs.
+            ActiveColummGroup,
+
+            ActiveColumnGroups,
         }
 
         /// <inheritdoc />
-        public RocksDbContentMetadataDatabase(IClock clock, RocksDbContentLocationDatabaseConfiguration configuration)
+        public RocksDbContentMetadataDatabase(IClock clock, RocksDbContentMetadataDatabaseConfiguration configuration)
             : base(clock, configuration, () => Array.Empty<MachineId>())
         {
-            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep > 0);
-
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
 
@@ -219,29 +243,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     new RocksDbStoreConfiguration(storeLocation)
                     {
                         AdditionalColumns = ColumnNames,
-                        RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : (ulong)"1MB".ToSize(),
-                        RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
-                        RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
+                        RotateLogsMaxFileSizeBytes = 0L,
+                        RotateLogsNumFiles = 60,
+                        RotateLogsMaxAge = TimeSpan.FromHours(12),
                         EnableStatistics = true,
                         FastOpen = true,
-                        // We take the user's word here. This may be completely wrong, but we don't have enough
-                        // information at this point to take a decision here. If a machine is master and demoted to
-                        // worker, EventHub may continue to process events for a little while. If we set this to
-                        // read-only during that checkpoint, those last few events will fail with RocksDbException.
-                        // NOTE: we need to check that the database exists because RocksDb will refuse to open an empty
-                        // read-only instance.
-                        ReadOnly = _configuration.OpenReadOnly && dbAlreadyExists,
-                        // The RocksDb database here is read-only from the perspective of the default column family,
-                        // but read/write from the perspective of the ClusterState (which is rewritten on every
-                        // heartbeat). This means that the database may perform background compactions on the column
-                        // families, possibly triggering a RocksDb corruption "block checksum mismatch" error.
-                        // Since the writes to ClusterState are relatively few, we can make-do with disabling
-                        // compaction here and pretending like we are using a read-only database.
-                        DisableAutomaticCompactions = !IsDatabaseWriteable,
                         LeveledCompactionDynamicLevelTargetSizes = true,
-                        Compression = _configuration.Compression,
-                        UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = _configuration.UseReadOptionsWithSetTotalOrderSeekInDbEnumeration,
-                        UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = _configuration.UseReadOptionsWithSetTotalOrderSeekInGarbageCollection,
+                        Compression = RocksDbSharp.Compression.Zstd,
+                        UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
+                        UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our
@@ -274,17 +284,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     if (oldKeyValueStore == null)
                     {
                         _keyValueStore = new KeyValueStoreGuard(store);
-                        _keyValueStore.UseExclusive((db, state) =>
-                        {
-                            if (db.TryGetValue(nameof(GlobalKeys.ActiveColummGroup), out var activeColumnGroup))
-                            {
-                                ActiveColumnsGroup = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
-                            }
-                            else
-                            {
-                                ActiveColumnsGroup = ColumnGroup.One;
-                            }
 
+                        _keyValueStore.UseExclusive(static (db, @this) =>
+                        {
+                            @this._columnMetadata = @this.LoadColumnGroups(db);
+                            @this.SaveColumnGroups(db, @this._columnMetadata);
                             return true;
                         },
                         this).ThrowOnError();
@@ -292,17 +296,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     else
                     {
                         // Just replace the inner accessor
-                        oldKeyValueStore.Replace(store, db =>
+                        oldKeyValueStore.Replace(store, (db, @this) =>
                         {
-                            if (db.TryGetValue(nameof(GlobalKeys.ActiveColummGroup), out var activeColumnGroup))
-                            {
-                                ActiveColumnsGroup = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
-                            }
-                            else
-                            {
-                                ActiveColumnsGroup = ColumnGroup.One;
-                            }
-                        }).ThrowOnError();
+                            @this._columnMetadata = @this.LoadColumnGroups(db);
+                            @this.SaveColumnGroups(db, @this._columnMetadata);
+                        }, this).ThrowOnError();
                     }
 
                     _activeSlot = activeSlot;
@@ -315,6 +313,116 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 return new BoolResult(ex);
             }
+        }
+
+        private class ColumnMetadata
+        {
+            public ColumnGroup Group { get; set; }
+
+            public DateTime LastGcTimeUtc { get; set; }
+
+            public ColumnMetadata(ColumnGroup group, DateTime lastGcTimeUtc)
+            {
+                Group = group;
+                LastGcTimeUtc = lastGcTimeUtc;
+            }
+        }
+
+        public ColumnGroup GetCurrentColumnGroup(Columns column)
+        {
+            return _columnMetadata[column].Group;
+        }
+
+        private Dictionary<Columns, ColumnMetadata> LoadColumnGroups(RocksDbStore db)
+        {
+            var now = Clock.UtcNow;
+            var defaulted = EnumTraits<Columns>
+                        .EnumerateValues()
+                        .ToDictionary(c => c, _ => new ColumnMetadata(group: ColumnGroup.One, lastGcTimeUtc: now));
+
+            if (db.TryGetValue(nameof(GlobalKeys.ActiveColumnGroups), out var serializedActiveColumnGroups))
+            {
+                // Current version of the DB, has a dictionary of column metadata
+                if (!TryDeserializeColumnMetadata(serializedActiveColumnGroups, out var activeColumnGroups))
+                {
+                    return defaulted;
+                }
+
+                // If we happened to add any new columns in the current version of the code, it is possible they won't
+                // be a part of the currently stored information.
+                foreach (var column in EnumTraits<Columns>.EnumerateValues())
+                {
+                    if (activeColumnGroups.TryGetValue(column, out _))
+                    {
+                        continue;
+                    }
+
+                    activeColumnGroups[column] = new ColumnMetadata(group: ColumnGroup.One, lastGcTimeUtc: now);
+                }
+
+                return activeColumnGroups;
+            }
+            else if (db.TryGetValue(nameof(GlobalKeys.ActiveColummGroup), out var activeColumnGroup))
+            {
+                // Old version of the DB, has column group for all columns at the same version
+                var group = (ColumnGroup)Enum.Parse(typeof(ColumnGroup), activeColumnGroup);
+
+                return EnumTraits<Columns>
+                    .EnumerateValues()
+                    .ToDictionary(c => c, _ => new ColumnMetadata(group: group, lastGcTimeUtc: now));
+            }
+            else
+            {
+                return defaulted;
+            }
+        }
+
+        private bool TryDeserializeColumnMetadata(string activeColumnGroups, [NotNullWhen(true)] out Dictionary<Columns, ColumnMetadata>? output)
+        {
+            try
+            {
+#pragma warning disable CS8762
+                output = new Dictionary<Columns, ColumnMetadata>();
+
+                // We need to do this because System.Text.Json doesn't support non-string keyed dicts
+                var temporary = JsonSerializer.Deserialize<Dictionary<string, ColumnMetadata>>(activeColumnGroups);
+                if (temporary is null)
+                {
+                    return false;
+                }
+
+                foreach (var kvp in temporary!)
+                {
+                    if (!Enum.TryParse<Columns>(kvp.Key, out var column))
+                    {
+                        // Skip columns that no longer exist
+                        continue;
+                    }
+
+                    output[column] = kvp.Value;
+                }
+
+                return true;
+#pragma warning restore CS8762
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (Exception)
+            {
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                output = null;
+                return false;
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+            }
+#pragma warning restore CA1031 // Do not catch general exception types
+        }
+
+        private void SaveColumnGroups(RocksDbStore db, Dictionary<Columns, ColumnMetadata> metadata)
+        {
+            // We need to do this because System.Text.Json doesn't support non-string keyed dicts
+            var temporary = metadata.ToDictionary(kvp => kvp.Key.ToString(), kvp => kvp.Value);
+
+            db.Put(nameof(GlobalKeys.ActiveColumnGroups), JsonSerializer.Serialize(temporary));
+            db.Remove(nameof(GlobalKeys.ActiveColummGroup));
         }
 
         private StoreSlot GetNextSlot(StoreSlot slot)
@@ -360,45 +468,87 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return (_configuration.StoreLocation / slot.ToString()).ToString();
         }
 
-        /// <inheritdoc />
         public override Task<BoolResult> GarbageCollectAsync(OperationContext context)
+        {
+            return GarbageCollectAsync(context, force: false);
+        }
+
+        /// <inheritdoc />
+        public Task<BoolResult> GarbageCollectAsync(OperationContext context, bool force)
         {
             return context.PerformOperationAsync(Tracer,
                () =>
                {
+                   var now = Clock.UtcNow;
+
                    // Get exclusive lock to prevent concurrent access while deleting column families
                    // without this, we might try to read from a column family which does not exist
                    return _keyValueStore.UseExclusive(
-                       (store, db) =>
+                       (store, _) =>
                        {
-                           var otherColumnGroup = db.GetFormerColumnGroup();
-
-                           store.Put(nameof(GlobalKeys.ActiveColummGroup), otherColumnGroup.ToString());
-
                            foreach (var column in EnumTraits<Columns>.EnumerateValues())
                            {
-                               var columnName = db.NameOf(column, otherColumnGroup);
+                               var rotationInterval = column switch
+                               {
+                                   Columns.Content => _configuration.ContentRotationInterval,
+                                   Columns.Metadata => _configuration.MetadataRotationInterval,
+                                   Columns.MetadataHeaders => _configuration.MetadataRotationInterval,
+                                   Columns.Blobs => _configuration.BlobRotationInterval,
+                                   _ => _configuration.GarbageCollectionInterval,
+                               };
 
-                               // Clear the column family by dropping and recreating
-                               store.DropColumnFamily(columnName);
-                               store.CreateColumnFamily(columnName);
+                               var delta = now - _columnMetadata[column].LastGcTimeUtc;
+
+                               if (!force && (rotationInterval <= TimeSpan.Zero || delta < rotationInterval))
+                               {
+                                   Tracer.Info(context, $"Skipping garbage collection for column family {NameOf(column)}. Now=[{now}] LastRotation=[{_columnMetadata[column].LastGcTimeUtc}] RotationInterval=[{rotationInterval}] Delta=[{delta}]");
+                                   continue;
+                               }
+
+                               Tracer.Info(context, $"Garbage collecting column family {NameOf(column)}. Now=[{now}] LastRotation=[{_columnMetadata[column].LastGcTimeUtc}] RotationInterval=[{rotationInterval}] Delta=[{delta}] Force=[{force}]");
+                               garbageCollectColumnFamily(context, store, column);
                            }
 
-                           ActiveColumnsGroup = otherColumnGroup;
                            return BoolResult.SuccessTask;
                        },
                        this).ThrowOnError();
                },
                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent],
-               extraEndMessage: r => $"NewActiveColumnsGroup={ActiveColumnsGroup}",
                isCritical: true);
+
+            void garbageCollectColumnFamily(OperationContext context, RocksDbStore store, Columns column)
+            {
+                var nextGroup = GetFormerColumnGroup(column);
+                var nextName = NameOf(column, nextGroup);
+
+                var msg = $"Column=[{column}] NextGroup=[{nextGroup}] NextName=[{nextName}]";
+
+                context.PerformOperation(Tracer, () =>
+                    {
+                        // Clear the column family by dropping and recreating
+                        store.DropColumnFamily(nextName);
+                        store.CreateColumnFamily(nextName);
+                        _columnMetadata[column] = new ColumnMetadata(group: nextGroup, lastGcTimeUtc: Clock.UtcNow);
+                        SaveColumnGroups(store, _columnMetadata);
+                        return BoolResult.Success;
+                    },
+                    extraStartMessage: msg,
+                    messageFactory: _ => msg,
+                    traceOperationStarted: false,
+                    caller: "GarbageCollectColumnFamily").IgnoreFailure();
+            }
         }
 
-        private ColumnGroup GetFormerColumnGroup()
+        private ColumnGroup GetFormerColumnGroup(Columns columnFamily)
         {
-            return ActiveColumnsGroup == ColumnGroup.One
+            return _columnMetadata[columnFamily].Group == ColumnGroup.One
                 ? ColumnGroup.Two
                 : ColumnGroup.One;
+        }
+
+        private string NameOf(Columns columnFamily, ColumnGroup? group = null)
+        {
+            return ColumnNames[(int)(group ?? _columnMetadata[columnFamily].Group) * EnumTraits<Columns>.ValueCount + (int)columnFamily];
         }
 
         /// <inheritdoc />
@@ -471,11 +621,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return dbFile.Path.EndsWith(".sst", StringComparison.OrdinalIgnoreCase);
         }
 
-        private string NameOf(Columns columns, ColumnGroup? group = null)
-        {
-            return ColumnNames[(int)(group ?? ActiveColumnsGroup) * EnumTraits<Columns>.ValueCount + (int)columns];
-        }
-
         public bool PutBlob(ShortHash key, byte[] value)
         {
             return _keyValueStore.Use(
@@ -501,7 +646,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     {
                         return result;
                     }
-                    else if (store.TryGetValue(state.key, out result, state.db.NameOf(Columns.Blobs, state.db.GetFormerColumnGroup())))
+                    else if (store.TryGetValue(state.key, out result, state.db.NameOf(Columns.Blobs, state.db.GetFormerColumnGroup(Columns.Blobs))))
                     {
                         return result;
                     }
@@ -601,13 +746,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private bool TryGetValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out byte[]? value, Columns columns)
         {
             return store.TryGetValue(key, out value, NameOf(columns))
-                || store.TryGetValue(key, out value, NameOf(columns, GetFormerColumnGroup()));
+                || store.TryGetValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
         }
 
         private bool TryGetPinnableValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, Columns columns)
         {
             return store.TryGetPinnableValue(key, out value, NameOf(columns))
-                || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup()));
+                || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
         }
 
         /// <inheritdoc />
@@ -842,7 +987,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(RocksDbStore store, byte[] key, Columns column)
         {
             return store.PrefixSearch(key, columnFamilyName: NameOf(column))
-                .Concat(store.PrefixSearch(key, columnFamilyName: NameOf(column, GetFormerColumnGroup())));
+                .Concat(store.PrefixSearch(key, columnFamilyName: NameOf(column, GetFormerColumnGroup(column))));
         }
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
@@ -908,7 +1053,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 _killSwitch.Dispose();
             }
 
-            public Possible<Unit> Replace(KeyValueStoreAccessor accessor, Action<RocksDbStore> action)
+            public Possible<Unit> Replace<TState>(KeyValueStoreAccessor accessor, Action<RocksDbStore, TState> action, TState state)
             {
                 _killSwitch.Cancel();
 
@@ -920,7 +1065,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 _killSwitch.Dispose();
                 _killSwitch = new CancellationTokenSource();
 
-                return _accessor.Use(action);
+                return _accessor.Use(static (store, state) =>
+                {
+                    state.action(store, state.state);
+                    return Unit.Void;
+                }, (action, state));
             }
 
             public Possible<TResult> UseExclusive<TState, TResult>(Func<RocksDbStore, TState, TResult> action, TState state)

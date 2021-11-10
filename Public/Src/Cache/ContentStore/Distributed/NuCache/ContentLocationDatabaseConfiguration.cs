@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Configuration type for <see cref="RocksDbContentLocationDatabase"/>.
     /// </summary>
-    public sealed class RocksDbContentLocationDatabaseConfiguration : ContentLocationDatabaseConfiguration
+    public class RocksDbContentLocationDatabaseConfiguration : ContentLocationDatabaseConfiguration
     {
         /// <inheritdoc />
         public RocksDbContentLocationDatabaseConfiguration(AbsolutePath storeLocation) => StoreLocation = storeLocation;

@@ -347,13 +347,15 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private GlobalCacheService CreateGlobalCacheService(AbsolutePath primaryCacheRoot, GlobalCacheServiceConfiguration configuration, CentralStreamStorage centralStreamStorage)
         {
-            var dbConfig = new RocksDbContentLocationDatabaseConfiguration(primaryCacheRoot / "cms")
+            var dbConfig = new RocksDbContentMetadataDatabaseConfiguration(primaryCacheRoot / "cms")
             {
                 // Setting to false, until we have persistence for the db
                 CleanOnInitialize = false
             };
 
-            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => dbConfig.ContentRotationInterval = TimeSpan.FromMinutes(v));
+            dbConfig.BlobRotationInterval = TimeSpan.FromMinutes(_distributedSettings.BlobExpiryTimeMinutes);
+            dbConfig.MetadataRotationInterval = _distributedSettings.ContentMetadataServerMetadataRotationInterval;
 
             var store = new RocksDbContentMetadataStore(
                 _arguments.Overrides.Clock,

@@ -364,11 +364,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <inheritdoc />
-        public void PutMultiple(IEnumerable<(string key, string value, string columnFamilyName)> entries) =>
+        public void PutMultiple(IEnumerable<(string key, string value, string? columnFamilyName)> entries) =>
             PutMultiple(entries.Select(e => (StringToBytes(e.key), StringToBytes(e.value), e.columnFamilyName)));
 
         /// <inheritdoc />
-        public void PutMultiple(IEnumerable<(byte[] key, byte[] value, string columnFamilyName)> entries)
+        public void PutMultiple(IEnumerable<(byte[] key, byte[] value, string? columnFamilyName)> entries)
         {
             using (var writeBatch = new WriteBatch())
             {

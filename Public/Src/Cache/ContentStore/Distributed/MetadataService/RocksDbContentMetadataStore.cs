@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     {
         public long MaxBlobCapacity { get; init; } = 100_000;
 
-        public RocksDbContentLocationDatabaseConfiguration Database { get; init; }
+        public RocksDbContentMetadataDatabaseConfiguration Database { get; init; }
     }
 
     public class RocksDbContentMetadataStore : StartupShutdownComponentBase, IContentMetadataStore
@@ -79,11 +79,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
 
             var capacity = _capacity;
-            if (capacity?.Group != Database.ActiveColumnsGroup)
+            var currentGroup = Database.GetCurrentColumnGroup(RocksDbContentMetadataDatabase.Columns.Blobs);
+            if (capacity?.Group != currentGroup)
             {
                 Interlocked.CompareExchange(ref _capacity, new DatabaseCapacity()
                 {
-                    Group = Database.ActiveColumnsGroup,
+                    Group = currentGroup,
                     Remaining = _configuration.MaxBlobCapacity,
                 },
                 capacity);

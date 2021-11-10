@@ -44,7 +44,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public async Task TestGarbageCollect()
         {
-            var configuration = new RocksDbContentLocationDatabaseConfiguration(_workingDirectory.Path)
+            var configuration = new RocksDbContentMetadataDatabaseConfiguration(_workingDirectory.Path)
             {
                 CleanOnInitialize = false,
             };
@@ -85,12 +85,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 setBlob(db, keys[0]);
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Valid);
 
-                await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+                await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
                 setBlob(db, keys[1]);
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Valid);
                 checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Valid);
 
-                await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+                await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Missing);
                 checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Valid);
 
@@ -109,7 +109,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Missing);
                 checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Valid);
                 checkBlob(db, keys[2]).Should().Be(KeyCheckResult.Valid);
-                await db.GarbageCollectAsync(ctx).ShouldBeSuccess();
+                await db.GarbageCollectAsync(ctx, force: true).ShouldBeSuccess();
 
                 checkBlob(db, keys[0]).Should().Be(KeyCheckResult.Missing);
                 checkBlob(db, keys[1]).Should().Be(KeyCheckResult.Missing);

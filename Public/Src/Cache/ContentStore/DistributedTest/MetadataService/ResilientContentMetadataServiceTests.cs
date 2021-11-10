@@ -159,9 +159,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 volatileEventStorage,
                 persistentEventStorage);
 
-            var rocksDbContentLocationDatabaseConfiguration = new RocksDbContentLocationDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
+            var rocksdbContentMetadataDatabaseConfiguration = new RocksDbContentMetadataDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
             var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, new RocksDbContentMetadataStoreConfiguration() {
-                Database = rocksDbContentLocationDatabaseConfiguration,
+                Database = rocksdbContentMetadataDatabaseConfiguration,
             });
 
             var storage = new MockCentralStorage();

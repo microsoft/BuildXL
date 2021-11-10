@@ -1135,6 +1135,9 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting ContentMetadataPersistInterval { get; set; } = TimeSpan.FromSeconds(5);
 
         [DataMember]
+        public TimeSpanSetting ContentMetadataServerMetadataRotationInterval { get; set; } = TimeSpan.FromDays(3.5);
+
+        [DataMember]
         public TimeSpanSetting ContentMetadataShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         [DataMember]

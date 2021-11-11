@@ -156,6 +156,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             var checkpointState = await CheckpointState.FromJsonStreamAsync(stream, context.Token).ThrowIfFailureAsync();
                             return Result.Success(checkpointState);
                         }
+                        catch (TaskCanceledException) when (context.Token.IsCancellationRequested)
+                        {
+                            // We hit timeout or a proper cancellation.
+                            // Breaking from the loop instead of tracing error for each iteration.
+                            break;
+                        }
                         catch (Exception e)
                         {
                             Tracer.Error(context, e, $"Failed to obtain {nameof(CheckpointState)} from blob `{blob.Name}`. Skipping.");

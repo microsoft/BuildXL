@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="context">The context of the operation.</param>
         /// <param name="copyTaskFactory">Function that will trigger the copy.</param>
         /// <param name="options">An option instance that controls the copy operation and allows getting the progress.</param>
-        /// <param name="getErrorResult">Function to get the result in case of a badwidth timeout</param>
+        /// <param name="getErrorResult">Function to get the result in case of a bandwidth timeout</param>
         public async Task<TResult> CheckBandwidthAtIntervalAsync<TResult>(
             OperationContext context,
             Func<CancellationToken, Task<TResult>> copyTaskFactory,

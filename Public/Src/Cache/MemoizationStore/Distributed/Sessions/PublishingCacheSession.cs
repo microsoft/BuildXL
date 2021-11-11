@@ -95,7 +95,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 
             if (_publishAsynchronously)
             {
-                publishTask.FireAndForget(context, operation: nameof(PublishContentHashListAsync));
+                publishTask.FireAndForget(context, traceErrorResult: true, operation: nameof(PublishContentHashListAsync));
             }
             else
             {
@@ -255,7 +255,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
                     context,
                     operation.StrongFingerprint,
                     operation.ContentHashListWithDeterminism,
-                    ShutdownStartedCancellationToken).FireAndForget(context);
+                    ShutdownStartedCancellationToken).FireAndForget(context, traceErrorResult: true);
             }
 
             return Task.CompletedTask;

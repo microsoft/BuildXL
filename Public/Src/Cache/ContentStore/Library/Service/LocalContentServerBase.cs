@@ -857,7 +857,7 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 // We need to make sure that we don't block the client from shutting down.
                 Tracer.Debug(context, $"{method} closing session by requesting an async shutdown. {DescribeSession(sessionId, sessionHandle)}.");
-                requestAsyncShutdown().FireAndForget(context);
+                requestAsyncShutdown().FireAndForget(context, traceErrorResult: true);
                 return;
             }
 

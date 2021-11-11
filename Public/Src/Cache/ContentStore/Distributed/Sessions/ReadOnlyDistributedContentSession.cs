@@ -1168,7 +1168,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     }
                     else
                     {
-                        task.FireAndForget(operationContext.TracingContext, operation: "AsynchronousCopyOnPin");
+                        task.FireAndForget(operationContext.TracingContext, traceErrorResult: true, operation: "AsynchronousCopyOnPin");
                     }
 
                     // Note: Pin result traces with CpA (copied asynchronously) code is to provide the information that the content is being copied asynchronously, and that replica count is enough but not above async copy threshold.

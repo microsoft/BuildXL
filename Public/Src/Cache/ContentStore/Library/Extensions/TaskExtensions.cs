@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// If the task is given up on, this prevents any unhandled exception from bringing down
         /// the process (if ThrowOnUnobservedTaskException is set) by observing any exception.
         /// </remarks>
-        public static void FireAndForget(this Task<BoolResult> task, Context context, [CallerMemberName]string? operation = null, Severity severityOnException = Severity.Warning)
+        public static void FireAndForget(this Task<BoolResult> task, Context context, bool traceErrorResult = false, [CallerMemberName]string? operation = null, Severity severityOnException = Severity.Warning)
         {
             task.ContinueWith(
                 t =>
@@ -119,8 +119,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                             Component,
                             operation: operation);
                     }
-                    else if (!t.Result.Succeeded)
+                    else if (!t.Result.Succeeded && traceErrorResult)
                     {
+                        // Only tracing the error result if specified, because in many cases the error result is traced anyways with 'PerformOperation'
                         context.Warning($"Unhandled error in fire and forget task for operation '{operation}': {t.Result}", Component, operation: operation);
                     }
                 });

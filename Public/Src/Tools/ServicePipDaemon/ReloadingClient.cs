@@ -83,14 +83,13 @@ namespace Tool.ServicePipDaemon
                 using (CancellationTokenSource timeoutCancellationSource = new CancellationTokenSource())
                 using (CancellationTokenSource innerCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCancellationSource.Token))
                 {
-                    var instance = GetCurrentVersionedValue();
-
                     if (reloadFirst)
                     {
-                        var reloaded = Reloader.Reload(instance.Version);
-                        m_logger.Warning("[{2}] Service client reloaded; new instance created: {0}, new client version: {1}", reloaded, Reloader.CurrentVersion, operationId.Value);
+                        var reloaded = Reloader.Reload(Reloader.CurrentVersion);
+                        m_logger.Warning("[{2}] Service client reloaded; new instance created: {0}, new client version: {1}", reloaded, Reloader.CurrentVersionedValue, operationId.Value);
                     }
 
+                    var instance = GetCurrentVersionedValue();
                     m_logger.Verbose("[{2}] Invoking '{0}' against instance version {1}", operationName, instance.Version, operationId.Value);
                     return await WithTimeoutAsync(fn(instance.Value, innerCancellationSource.Token), timeout.Value, timeoutCancellationSource);
                 }
@@ -104,12 +103,12 @@ namespace Tool.ServicePipDaemon
             {
                 if (e is TimeoutException)
                 {
-                    m_logger.Warning("Timeout ({0}sec) happened while waiting {1}.", timeout.Value.TotalSeconds, operationName);
+                    m_logger.Warning("[{2}] Timeout ({0}sec) happened while waiting {1}.", timeout.Value.TotalSeconds, operationName, operationId.Value);
                 }
 
                 if (retryIntervalEnumerator.MoveNext())
                 {
-                    m_logger.Warning("[{2}] Waiting {1} before retrying on exception: {0}", e.ToString(), retryIntervalEnumerator.Current, operationId.Value);
+                    m_logger.Warning(@"[{2}] Waiting {1:hh\:mm\:ss\:fff} before retrying on exception: {0}", e.ToString(), retryIntervalEnumerator.Current, operationId.Value);
                     await Task.Delay(retryIntervalEnumerator.Current);
                     return await RetryAsync(operationName, fn, cancellationToken, retryIntervalEnumerator, reloadFirst: true, operationId: operationId);
                 }

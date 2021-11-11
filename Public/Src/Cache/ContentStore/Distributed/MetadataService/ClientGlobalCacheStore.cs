@@ -16,22 +16,24 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
-    /// Interface that represents a global content metadata store which routes requests to a remote machine
+    /// A global content metadata store client which routes requests to a remote machine.
     /// </summary>
     public class ClientGlobalCacheStore : StartupShutdownComponentBase, IGlobalCacheStore
     {
         public bool AreBlobsSupported => _configuration.AreBlobsSupported;
 
+        /// <inheritdoc />
         public override bool AllowMultipleStartupAndShutdowns => true;
 
+        /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(ClientGlobalCacheStore));
 
         private readonly IClientAccessor<IGlobalCacheService> _serviceClientFactory;
-
-        private readonly IClusterManagementStore _globalStore;
 
         private readonly IRetryPolicy _retryPolicy;
         private readonly IRetryPolicy _noRetryPolicy;
@@ -39,11 +41,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly ClientContentMetadataStoreConfiguration _configuration;
 
         public ClientGlobalCacheStore(
-            IClusterManagementStore globalStore,
             IClientAccessor<IGlobalCacheService> metadataServiceClientFactory,
             ClientContentMetadataStoreConfiguration configuration)
         {
-            _globalStore = globalStore;
             _serviceClientFactory = metadataServiceClientFactory;
             _configuration = configuration;
             _noRetryPolicy = RetryPolicyFactory.GetLinearPolicy(_ => false, 0, TimeSpan.Zero);
@@ -59,17 +59,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LinkLifetime(_serviceClientFactory);
         }
 
-        private Task<TResult> ExecuteAsync<TResult>(
-            OperationContext context,
+        private async Task<TResult> ExecuteAsync<TResult>(
+            OperationContext originalContext,
             Func<OperationContext, IGlobalCacheService, Task<TResult>> executeAsync,
-            string extraStartMessage = null,
-            Func<TResult, string> extraEndMessage = null,
+            Func<TResult, string?> extraEndMessage,
+            string? extraStartMessage = null,
             bool shouldRetry = true,
-            [CallerMemberName] string caller = null)
+            [CallerMemberName] string caller = null!)
             where TResult : ResultBase
         {
             var attempt = -1;
-            return context.PerformOperationWithTimeoutAsync(
+            using var contextWithShutdown = TrackShutdown(originalContext);
+            var context = contextWithShutdown.Context;
+
+            return await context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 context =>
                 {

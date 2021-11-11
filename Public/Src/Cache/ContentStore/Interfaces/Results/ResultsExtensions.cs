@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>
@@ -346,8 +348,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Gets the value from <paramref name="result"/> if operation succeeded or default value if it did not succeed.
         /// </summary>
-        [return: MaybeNull]
-        public static T GetValueOrDefault<T>(this Result<T> result, T defaultValue = default)
+        public static T? GetValueOrDefault<T>(this Result<T> result, T? defaultValue = default!)
         {
             return result.Succeeded ? result.Value : defaultValue;
         }

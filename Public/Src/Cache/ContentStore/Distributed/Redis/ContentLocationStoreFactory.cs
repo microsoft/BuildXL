@@ -6,10 +6,8 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Stores;
@@ -17,6 +15,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
@@ -184,7 +183,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 var masterClientFactory = new GrpcMasterClientFactory<IGlobalCacheService>(redisStore, GlobalCacheServiceClientFactory!, masterElectionMechanism);
 
                 return new ClientGlobalCacheStore(
-                    redisStore,
                     masterClientFactory,
                     clientConfig);
             }

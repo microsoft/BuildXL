@@ -518,6 +518,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 _lastEvictedEffectiveLastAccessTime = _clock.UtcNow - minEffectiveAge;
             }
 
+            // This method as well as GetHashesInEvictionOrder maybe called
+            // when the startup is not fully finished.
+            // So we need to potentially wait here to make sure that the system is fully initialized to avoid contract violations.
+            WaitForPostInitializationCompletionIfNeeded(context);
+
             return ContentLocationStore.TrimBulkAsync(context, contentHashes, token, UrgencyHint.Nominal);
         }
 

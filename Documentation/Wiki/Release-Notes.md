@@ -1,6 +1,17 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20211105.0 (Release [121386](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=121386)) Released 11/10/2021
+-  Telemetry is enabled by default for Microsoft internal developer builds
+-  Update DSCript VSCode plugin to the latest VSCode infrastructure
+-  Various bug fixes and perf improvements
+
+# 0.1.0-20211029.3 (Release [120929](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=120929)) Released 11/3/2021
+-  Improved cache miss analysis in dev cache builds
+-  Allow fingerprint augmentation for QTest pips
+-  Documentation updates
+-  Various bug fixes
+
 # 0.1.0-20211022.4 (Release [120385](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=120385&_a=release-pipeline-progress)) Released 10/27/2021
 - New packed execution logging framework.
 - Object cache to fingerprint store for optimized access of the store.

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Collections;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
 namespace BuildXL.Cache.Host.Service
@@ -151,15 +153,45 @@ namespace BuildXL.Cache.Host.Service
 
             public void Start(OperationContext context)
             {
+                // Using nagle queues to "batch" messages together and to avoid writing them to the logs one by one.
+                var outputMessagesNagleQueue = NagleQueue<string>.Create(
+                    messages =>
+                        {
+                            _tracer.Debug(context, $"Service Output: {string.Join(Environment.NewLine, messages)}");
+                            return Task.CompletedTask;
+                        },
+                    maxDegreeOfParallelism: 1, interval: TimeSpan.FromSeconds(10), batchSize: 1024);
+
+                var errorMessagesNagleQueue = NagleQueue<string>.Create(
+                    messages =>
+                    {
+                        _tracer.Error(context, $"Service Error: {string.Join(Environment.NewLine, messages)}");
+                        return Task.CompletedTask;
+                    },
+                    maxDegreeOfParallelism: 1, interval: TimeSpan.FromSeconds(10), batchSize: 1024);
+
                 _process.OutputDataReceived += (s, e) =>
                 {
-                    _tracer.Debug(context, "Service Output: " + e.Data);
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        outputMessagesNagleQueue.Enqueue(e.Data);
+                    }
                 };
 
                 _process.ErrorDataReceived += (s, e) =>
                 {
-                    _tracer.Error(context, "Service Error: " + e.Data);
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        errorMessagesNagleQueue.Enqueue(e.Data);
+                    }
                 };
+
+                _process.Exited += (sender, args) =>
+                                   {
+                                       // Dispose will drain all the existing items from the message queues.
+                                       outputMessagesNagleQueue.Dispose();
+                                       errorMessagesNagleQueue.Dispose();
+                                   };
 
                 _process.Start();
 

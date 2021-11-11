@@ -274,6 +274,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Security.Cryptography.Xml", version: "4.5.0" },
                 { id: "System.Text.Encodings.Web", version: "4.7.2" },
+                { id: "System.Text.Encodings.Web", version: "5.0.1", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"], alias: "System.Text.Encodings.Web.v5.0.1" },
                 { id: "System.Security.Permissions", version: "4.5.0" },
                 { id: "System.Security.Cryptography.Pkcs", version: "4.5.0" },
 
@@ -390,11 +391,6 @@ config({
                 { id: "Microsoft.Azure.Management.Fluent", version: "1.33.0" },
                 { id: "Microsoft.Azure.Management.Monitor.Fluent", version: "1.33.0" },
                 { id: "Microsoft.Azure.Management.Monitor", version: "0.25.0-preview" },
-
-                // Build Manifest generation and validation packages
-                { id: "Microsoft.Bcl.HashCode", version: "1.1.0"},
-                { id: "Microsoft.ManifestInterface", version: "1.0.0"},
-                { id: "Microsoft.ManifestGenerator", version: "0.1.4", dependentPackageIdsToIgnore: ["Newtonsoft.Json"]},
                 
                 // FsCheck
                 { id: "FsCheck", version: "2.14.3" },

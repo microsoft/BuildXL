@@ -25,8 +25,6 @@ namespace Tool.DropDaemon
         /// <nodoc/>
         public const string ManifestFileDestination = "/_manifest/";
         /// <nodoc/>
-        public const string DropBuildManifestPath = ManifestFileDestination + BuildManifestFilename;
-        /// <nodoc/>
         public const string DropBsiPath = ManifestFileDestination + BsiFilename;
         /// <nodoc/>
         public const string CatalogFilename = "manifest.cat";
@@ -39,23 +37,22 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Generates a local catalog file and signs it using EsrpManifestSign.exe from CloudBuild.
         /// </summary>
-        /// <param name="makeCatToolPath"></param>
-        /// <param name="esrpSignToolPath"></param>
-        /// <param name="buildManifestLocalPath"></param>
-        /// <param name="bsiFileLocalPath"></param>
         /// <returns>Payload contains errorMessage if !Success, else contains local path to cat file</returns>
         public async static Task<(bool Success, string Payload)> GenerateSignedCatalogAsync(
             string makeCatToolPath,
             string esrpSignToolPath,
-            string buildManifestLocalPath,
+            IList<(string Path, string FileName)> buildManifestLocalFiles,
             string bsiFileLocalPath)
         {
             // Details about the [CatalogFiles] section: https://stackoverflow.com/questions/52285385/makecat-failure-no-members-found/53205550#53205550
             var catFileSb = Pools.StringBuilderPool.GetInstance().Instance;
             catFileSb.Append("[CatalogFiles]");
 
-            catFileSb.Append($@"{Environment.NewLine}<HASH>{BuildManifestFilename}={buildManifestLocalPath}");
-            catFileSb.Append($@"{Environment.NewLine}<HASH>{BuildManifestFilename}ATTR1=0x11010001:File:{BuildManifestFilename}");
+            foreach (var file in buildManifestLocalFiles)
+            {
+                catFileSb.Append($@"{Environment.NewLine}<HASH>{file.FileName}={file.Path}");
+                catFileSb.Append($@"{Environment.NewLine}<HASH>{file.FileName}ATTR1=0x11010001:File:{file.FileName}");
+            }
 
             catFileSb.Append($@"{Environment.NewLine}<HASH>{BsiFilename}={bsiFileLocalPath}");
             catFileSb.Append($@"{Environment.NewLine}<HASH>{BsiFilename}ATTR1=0x11010001:File:{BsiFilename}");

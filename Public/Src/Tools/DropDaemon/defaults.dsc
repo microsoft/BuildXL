@@ -19,3 +19,13 @@ export const exe = BuildXLSdk.isDropToolingEnabled ? DropDaemon.exe : undefined;
 export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
     return BuildXLSdk.isDropToolingEnabled ? DropDaemon.selectDeployment(evaluationOnly) : undefined;
 } 
+
+@@public
+export function dropDaemonBindingRedirects() {
+    return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonBindingRedirects() : undefined;
+} 
+
+@@public
+export function dropDaemonRuntimeContentToSkip() {
+    return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonRuntimeContentToSkip() : undefined;
+} 

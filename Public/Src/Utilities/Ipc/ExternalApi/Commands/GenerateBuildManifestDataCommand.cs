@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.Utilities;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Hashing;
+using System.Linq;
+using System.Text;
 
 namespace BuildXL.Ipc.ExternalApi.Commands
 {
@@ -90,24 +93,24 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         public string RelativePath { get; }
 
         /// <nodoc/>
-        public string AzureArtifactsHash { get; }
+        public ContentHash AzureArtifactsHash { get; }
 
         /// <nodoc/>
-        public string BuildManifestHash { get; }
+        public IReadOnlyList<ContentHash> BuildManifestHashes { get; }
 
         /// <nodoc/>
         public BuildManifestFileInfo(
             string relativePath,
-            string azureArtifactsHash,
-            string buildManifestHash)
+            ContentHash azureArtifactsHash,
+            IReadOnlyList<ContentHash> buildManifestHashes)
         {
             Contract.Requires(!string.IsNullOrEmpty(relativePath));
-            Contract.Requires(!string.IsNullOrEmpty(azureArtifactsHash));
-            Contract.Requires(!string.IsNullOrEmpty(buildManifestHash));
+            Contract.Requires(azureArtifactsHash.IsValid);
+            Contract.Requires(buildManifestHashes.All(h => h.IsValid));
 
             RelativePath = relativePath;
             AzureArtifactsHash = azureArtifactsHash;
-            BuildManifestHash = buildManifestHash;
+            BuildManifestHashes = buildManifestHashes;
         }
 
         /// <summary>
@@ -118,14 +121,26 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// <summary>
         /// Number of fields to be serialized within BuildManifestFileInfo
         /// </summary>
-        private const int FieldCount = 3;
+        private const int MinFieldCount = 3;
 
         /// <summary>
         /// String representation format: RelativePath | AzureArtifactsHash | BuildManifestHash
         /// </summary>
         public override string ToString() 
         {
-            return $"{RelativePath}{BuildManifestFileInfo.Separator}{AzureArtifactsHash}{BuildManifestFileInfo.Separator}{BuildManifestHash}";
+            return $"{RelativePath}{BuildManifestFileInfo.Separator}{AzureArtifactsHash}{SerializeHashes(BuildManifestHashes)}";
+        }
+
+        private string SerializeHashes(IReadOnlyList<ContentHash> buildManifestHashes)
+        {
+            var sb = new StringBuilder();
+            foreach (var hash in buildManifestHashes)
+            {
+                sb.Append(Separator);
+                sb.Append(hash.ToString());
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>
@@ -135,17 +150,41 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         {
             fileInfo = null;
 
-            string[] splits = val.Split(BuildManifestFileInfo.Separator);
+            var splits = val.Split(Separator);
 
-            if (splits.Length != FieldCount)
+            if (splits.Length < MinFieldCount)
             {
                 return false;
             }
 
+            var relativePath = splits[0];
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                return false;
+            }
+
+            if (!ContentHash.TryParse(splits[1], out var azureArtifactsHash))
+            {
+                return false;
+            }
+
+            var manifestHashes = new List<ContentHash>(splits.Length - 2);
+            foreach (var serializedHash in splits.Skip(2))
+            {
+                if (ContentHash.TryParse(serializedHash, out var hash))
+                {
+                    manifestHashes.Add(hash);
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
             fileInfo = new BuildManifestFileInfo(
-                splits[0],
-                splits[1],
-                splits[2]);
+                relativePath,
+                azureArtifactsHash,
+                manifestHashes);
 
             return true;
         }
@@ -155,7 +194,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         {
             return string.Equals(RelativePath, other?.RelativePath) &&
                 string.Equals(AzureArtifactsHash, other?.AzureArtifactsHash) &&
-                string.Equals(BuildManifestHash, other?.BuildManifestHash);
+                BuildManifestHashes.SequenceEqual(other?.BuildManifestHashes);
         }
     }
 }

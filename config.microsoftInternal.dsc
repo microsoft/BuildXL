@@ -72,18 +72,12 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.16.27034", osSkip: [ "macOS", "unix" ] },    
 
     // SBOM Generation
-    { id: "Microsoft.SBOMApi", version: "0.3.324", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"]},
-    { id: "AutoMapper", version: "10.1.1" },
-    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection", version: "2021.10.27.710" },
-    { id: "PackageUrl", version: "1.0.0" },
-    { id: "Mono.Posix.NETStandard", version: "1.0.0" },
-    { id: "Ninject", version: "3.3.4" },
-    { id: "ninject.extensions.conventions", version: "3.3.0" },
-    { id: "Ninject.Extensions.Factory", version: "3.3.2" },
-    { id: "PowerArgs", version: "3.6.0" },
-    { id: "Serilog.Sinks.Console", version: "4.0.0" },
-    { id: "Serilog", version: "2.10.0" },
-    { id: "Castle.Core", version: "4.2.0" },    
+    { id: "Microsoft.SBOMCore", version: "1.2.5" },
+    { id: "Microsoft.Parsers.ManifestGenerator", version: "1.2.5", dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
+    { id: "Microsoft.Parsers.SPDX22SBOMParser", version: "1.2.5" },
+    { id: "Microsoft.ManifestInterface", version: "1.2.5", dependentPackageIdsToSkip: ["System.Text.Json"] },
+    { id: "Microsoft.SBOMApi", version: "1.2.5" },
+    { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 ] : [
 
     // Artifact packages and dependencies in OSS

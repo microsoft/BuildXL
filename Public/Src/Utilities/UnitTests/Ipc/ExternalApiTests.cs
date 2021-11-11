@@ -168,7 +168,7 @@ namespace Test.BuildXL.Ipc
 
             for (int i = 0; i < count; i++)
             {
-                expectedData.Add(new BuildManifestFileInfo($"/path/to/{i}", $"VSO{i}", $"SHA{i}"));
+                expectedData.Add(new BuildManifestFileInfo($"/path/to/{i}", new ContentHash(HashType.Vso0), new[] { new ContentHash(HashType.SHA1) }));
             }
 
             using var apiClient = CreateApiClient(ipcOperation =>
@@ -186,8 +186,8 @@ namespace Test.BuildXL.Ipc
         [Fact]
         public void TestBuildManifestFileInfoParsing()
         {
-            BuildManifestFileInfo info1 = new BuildManifestFileInfo("/path/a", "VSOa", "SHAa");
-            BuildManifestFileInfo info2 = new BuildManifestFileInfo("/path/x", "VSOx", "SHAx");
+            BuildManifestFileInfo info1 = new BuildManifestFileInfo("/path/a", new ContentHash(HashType.Vso0), new[] { new ContentHash(HashType.SHA1), new ContentHash(HashType.SHA256) });
+            BuildManifestFileInfo info2 = new BuildManifestFileInfo("/path/x", new ContentHash(HashType.Vso0), new[] { new ContentHash(HashType.SHA1) });
 
             string str1 = info1.ToString();
             string str2 = info2.ToString();
@@ -198,13 +198,11 @@ namespace Test.BuildXL.Ipc
             XAssert.AreEqual(info1, parsedInfo1);
             XAssert.AreEqual(info2, parsedInfo2);
 
-            XAssert.IsFalse(BuildManifestFileInfo.TryParse("123|123|123|", out _));
-            XAssert.IsFalse(BuildManifestFileInfo.TryParse("123|123", out _));
+            XAssert.IsFalse(BuildManifestFileInfo.TryParse("123|VSO:123|SHA1:123", out _));
+            XAssert.IsFalse(BuildManifestFileInfo.TryParse("123|VSO:123|SHA1:123|", out _));
+            XAssert.IsFalse(BuildManifestFileInfo.TryParse("123|VSO:123", out _));
             XAssert.IsFalse(BuildManifestFileInfo.TryParse("123", out _));
-
-            XAssert.IsTrue(ThrowsException(() => BuildManifestFileInfo.TryParse("|123|123", out _)));
-            XAssert.IsTrue(ThrowsException(() => BuildManifestFileInfo.TryParse("123||123", out _)));
-            XAssert.IsTrue(ThrowsException(() => BuildManifestFileInfo.TryParse("123|123|", out _)));
+            XAssert.IsFalse(BuildManifestFileInfo.TryParse("|123", out _));
         }
 
         [Fact]
@@ -223,7 +221,7 @@ namespace Test.BuildXL.Ipc
 
             sb.Clear();
             sb.AppendLine($"1");
-            sb.AppendLine($"/path/a|VSO|SHA");
+            sb.AppendLine($"/path/a|VSO0:000000000000000000000000000000000000000000000000000000000000000000|SHA1:000000000000000000000000000000000beef000|SHA256:000000000000000000000000000000000000000000cafe000000000000000000");
             XAssert.IsTrue(cmd.TryParseResult(sb.ToString(), out _));
         }
 

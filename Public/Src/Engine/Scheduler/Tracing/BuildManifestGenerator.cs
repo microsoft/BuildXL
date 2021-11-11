@@ -137,9 +137,7 @@ namespace BuildXL.Scheduler.Tracing
                     .Where(kvp => kvp.Key.DropName == dropStringId)
                     .Select(kvp => (relPathStr: kvp.Key.RelativePath.ToString(m_stringTable), hashes: kvp.Value))
                     .OrderBy(t => t.relPathStr)
-                    .Select(t => ToBuildManifestDataComponent(t.relPathStr, t.hashes.AzureArtifactsHash.ToHex(),
-                    // TODO: Migrate to the new API first, which lets us pass multiple hashes
-                    t.hashes.Hashes[0].ToHex()))
+                    .Select(t => ToBuildManifestDataComponent(t.relPathStr, t.hashes.AzureArtifactsHash, t.hashes.Hashes))
                     .ToList();
 
                 Logger.Log.GenerateBuildManifestFileListResult(m_loggingContext, dropName, sortedManifestDetailsForDrop.Count);
@@ -150,12 +148,12 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        private BuildManifestFileInfo ToBuildManifestDataComponent(string relativePath, string azureArtifactsHash, string buildManifestHash)
+        private BuildManifestFileInfo ToBuildManifestDataComponent(string relativePath, ContentHash azureArtifactsHash, IReadOnlyList<ContentHash> buildManifestHashes)
         {
             return new BuildManifestFileInfo(
                 relativePath.Replace('\\', '/').Replace("//", "/"),
                 azureArtifactsHash,
-                buildManifestHash
+                buildManifestHashes
             );
         }
     }

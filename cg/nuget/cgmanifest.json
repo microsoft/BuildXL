@@ -59,15 +59,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "AutoMapper",
-          "Version": "10.1.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Azure.Core",
           "Version": "1.14.0"
         }
@@ -196,15 +187,6 @@
         "NuGet": {
           "Name": "CLAP-DotNetCore",
           "Version": "4.6"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Castle.Core",
-          "Version": "4.2.0"
         }
       }
     },
@@ -1068,7 +1050,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.HashCode",
-          "Version": "1.1.0"
+          "Version": "1.1.1"
         }
       }
     },
@@ -1544,17 +1526,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.ManifestGenerator",
-          "Version": "0.1.4"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.ManifestInterface",
-          "Version": "1.0.0"
+          "Version": "1.2.5"
         }
       }
     },
@@ -1859,6 +1832,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Parsers.ManifestGenerator",
+          "Version": "1.2.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Parsers.SPDX22SBOMParser",
+          "Version": "1.2.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Rest.ClientRuntime",
           "Version": "2.3.21"
         }
@@ -1887,7 +1878,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SBOMApi",
-          "Version": "0.3.324"
+          "Version": "1.2.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.SBOMCore",
+          "Version": "1.2.5"
         }
       }
     },
@@ -2167,15 +2167,6 @@
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
           "Version": "16.194.0-internal202109201"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection",
-          "Version": "2021.10.27.710"
         }
       }
     },
@@ -2543,15 +2534,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Mono.Posix.NETStandard",
-          "Version": "1.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "NETStandard.Library",
           "Version": "2.0.3"
         }
@@ -2606,24 +2588,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Ninject",
-          "Version": "3.3.4"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Ninject.Extensions.Factory",
-          "Version": "3.3.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Npm.OnCloudBuild",
           "Version": "3.1.0"
         }
@@ -2660,15 +2624,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "PackageUrl",
-          "Version": "1.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Pipelines.Sockets.Unofficial",
           "Version": "2.2.0"
         }
@@ -2689,15 +2644,6 @@
         "NuGet": {
           "Name": "Polly.Contrib.WaitAndRetry",
           "Version": "1.1.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "PowerArgs",
-          "Version": "3.6.0"
         }
       }
     },
@@ -2761,24 +2707,6 @@
         "NuGet": {
           "Name": "RuntimeContracts.Analyzer",
           "Version": "0.3.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Serilog",
-          "Version": "2.10.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Serilog.Sinks.Console",
-          "Version": "4.0.0"
         }
       }
     },
@@ -4091,8 +4019,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Text.Encodings.Web",
+          "Version": "5.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Text.Json",
           "Version": "4.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Text.Json",
+          "Version": "5.0.0"
         }
       }
     },
@@ -4372,15 +4318,6 @@
         "NuGet": {
           "Name": "microsoft.dotnet.xunitconsolerunner",
           "Version": "2.5.1-beta.19270.4"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "ninject.extensions.conventions",
-          "Version": "3.3.0"
         }
       }
     },

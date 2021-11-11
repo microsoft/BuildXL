@@ -14,7 +14,7 @@ export namespace DropDaemon {
         assemblyName: "DropDaemon",
         rootNamespace: "Tool.DropDaemon",
         appConfig: f`DropDaemon.exe.config`,
-        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
+        assemblyBindingRedirects: dropDaemonBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
         embeddedResources: [
             {
@@ -30,6 +30,7 @@ export namespace DropDaemon {
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").SBOMUtilities.dll,
             importFrom("BuildXL.Tools").ServicePipDaemon.dll,
             importFrom("ArtifactServices.App.Shared").pkg,
             importFrom("ArtifactServices.App.Shared.Cache").pkg,
@@ -51,18 +52,19 @@ export namespace DropDaemon {
             // because of the way that runtime assemblies are loaded into memory.
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg, 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            
-            importFrom("Microsoft.Bcl.HashCode").pkg,
-            importFrom("Microsoft.ManifestInterface").pkg,
-            importFrom("Microsoft.ManifestGenerator").pkg,
+            importFrom("Microsoft.SBOMApi").pkg,
+            importFrom("Microsoft.SBOMCore").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             ...addIf(
                 BuildXLSdk.isFullFramework,
                 NetFx.Netstandard.dll
-            )
+            ),
+            importFrom("System.Text.Json.v5.0.0").pkg,
+            importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",
-        ]
+        ],
+        runtimeContentToSkip: dropDaemonRuntimeContentToSkip()
     });
 
     const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
@@ -125,5 +127,34 @@ export namespace DropDaemon {
     @@public
     export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
         return evaluationOnly? evaluationOnlyDeployment : deployment;
+    }
+
+    @@public 
+    export function dropDaemonBindingRedirects() {
+        return [
+            ...BuildXLSdk.cacheBindingRedirects(),
+            {
+                name: "System.Text.Json",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.0.0.0",
+                newVersion: "5.0.0.0",
+            },
+            {
+                name: "System.Text.Encodings.Web",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.0.0.1",
+                newVersion: "5.0.0.1", // Corresponds to { id: "System.Text.Encodings.Web", version: "4.7.2" },
+            }
+        ];
+    }
+
+    @@public
+    export function dropDaemonRuntimeContentToSkip() {
+        return [
+            importFrom("System.Text.Json").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Text.Encodings.Web").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+        ];
     }
 }

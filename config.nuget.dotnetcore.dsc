@@ -217,6 +217,10 @@ export const pkgs = [
     { id: "System.Text.Json", version: pkgVersionNext,
         dependentPackageIdsToSkip: ["System.Memory", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces"],
     },
+    { id: "System.Text.Json", version: pkgVersion5,
+        dependentPackageIdsToSkip: ["System.Memory", "System.Buffers", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces", "System.Text.Encodings.Web"],
+        alias: "System.Text.Json.v5.0.0"
+    },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
 
     // Non-standard version ones

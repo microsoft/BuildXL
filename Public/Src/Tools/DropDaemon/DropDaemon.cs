@@ -8,11 +8,15 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Native.IO;
+using BuildXL.SBOMUtilities;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
@@ -20,12 +24,14 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using Microsoft.ManifestGenerator;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SBOMApi.Contracts;
+using SBOMApi.Contracts.Entities;
+using SBOMApi.Contracts.Enums;
+using SBOMCore;
 using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
@@ -56,6 +62,11 @@ namespace Tool.DropDaemon
         internal static readonly List<Option> ConfigOptions = new();
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
+
+        /// SBOM Generation
+        private readonly SBOMApi.ISBOMGenerator m_sbomGenerator;
+        private BsiMetadataExtractor m_bsiMetadataExtractor;
+        private readonly string m_sbomGenerationOutputDirectory;
 
         /// <summary>
         /// Cached content of sealed directories.
@@ -521,6 +532,10 @@ namespace Tool.DropDaemon
                    client)
         {
             DropServiceConfig = serviceConfig;
+            // TODO: Logger - note we are still logging any errors in the generation
+            // as the generation result object provides them
+            m_sbomGenerator = new SBOMGenerator(logger: null);
+            m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath(); 
         }
 
         internal static void EnsureCommandsInitialized()
@@ -690,38 +705,63 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
             }
 
-            List<BuildManifestFile> manifestFileListForDrop = bxlResult.Result
-                .Select(fileInfo => new BuildManifestFile(fileInfo.RelativePath, fileInfo.AzureArtifactsHash, fileInfo.BuildManifestHash))
+            List<SBOMFile> manifestFileList = bxlResult.Result
+                .Select(fileInfo => ToSbomFile(fileInfo))
                 .ToList();
 
-            BuildManifestData buildManifestData = new BuildManifestData(
-                CloudBuildManifestV1.ManifestInfoV1.Version,
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                DropServiceConfig.CloudBuildId,
-                DropServiceConfig.Repo,
-                DropServiceConfig.Branch,
-                DropServiceConfig.CommitId,
-                manifestFileListForDrop);
-
-            string localFilePath;
-            string buildManifestJsonStr = BuildManifestData.GenerateBuildManifestJsonString(buildManifestData);
-
+            string sbomGenerationRootDirectory = null;
             try
             {
-                localFilePath = Path.GetTempFileName();
-                System.IO.File.WriteAllText(localFilePath, buildManifestJsonStr);
+                if (m_bsiMetadataExtractor == null)
+                {
+                    m_bsiMetadataExtractor = new BsiMetadataExtractor(DropServiceConfig.BsiFileLocation);
+                }
+
+                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(FullyQualifiedDropName(dropConfig));
+                
+                // Create a temporary directory to be the root path of SBOM generation 
+                // We should create a different directory for each drop, so we use the drop name as part of the path.
+                sbomGenerationRootDirectory = Path.Combine(m_sbomGenerationOutputDirectory, dropConfig.Name);
+                FileUtilities.CreateDirectory(sbomGenerationRootDirectory);
+
+                var result = await m_sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, manifestFileList, Array.Empty<SBOMPackage>(), metadata);
+                if (!result.IsSuccessful)
+                {
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"Errors were encountered during SBOM generation. Details: {GetSbomGenerationErrorDetails(result.Errors)}");
+                }
             }
             catch (Exception ex)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Exception while trying to store Build Manifest locally before drop upload: {ex}");
+                return new IpcResult(IpcResultStatus.ExecutionError, $"Exception while generating an SBOM locally before drop upload: {ex}");
             }
 
-            var dropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), localFilePath, relativeDropPath: BuildManifestHelper.DropBuildManifestPath);
-            var buildManifestUploadResult = await AddFileAsync(dropItem);
+            // Drop all generated files
+            // TODO: The API will provide the paths of the generated files in the result in a future version 
+            IList<IDropItem> dropItems = new List<IDropItem>();
+            IList<(string Path, string FileName)> filesToSign = new List<(string, string)>();
+            FileUtilities.EnumerateFiles(sbomGenerationRootDirectory, recursive: true, pattern: "*",
+                 (directory, fileName, _, _) =>
+                 {
+                     // Use same directory structure as in the generated directory
+                     var filePath = Path.Combine(directory, fileName);
+                     if (!filePath.StartsWith(sbomGenerationRootDirectory, StringComparison.OrdinalIgnoreCase))
+                     {
+                         throw new InvalidOperationException($"The path {filePath} is not under {sbomGenerationRootDirectory}");
+                     }
+                     var relativeDropPath = filePath.Substring(sbomGenerationRootDirectory.Length);
+                     var dropItem = new DropItemForFile(FullyQualifiedDropName(dropConfig), filePath, relativeDropPath);
+                     dropItems.Add(dropItem);
+                     filesToSign.Add((filePath, fileName));
+                 });
 
-            if (!buildManifestUploadResult.Succeeded)
+            foreach (var item in dropItems)
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occurred during Build Manifest upload: {buildManifestUploadResult.Payload}");
+
+                var buildManifestUploadResult = await AddFileAsync(item);
+                if (!buildManifestUploadResult.Succeeded)
+                {
+                    return new IpcResult(IpcResultStatus.ExecutionError, $"Failure occurred during Build Manifest upload: {buildManifestUploadResult.Payload}");
+                }
             }
 
             if (!dropConfig.SignBuildManifest)
@@ -730,18 +770,59 @@ namespace Tool.DropDaemon
             }
 
             var startTime = DateTime.UtcNow;
-            var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(dropConfig, localFilePath);
+            var signManifestResult = await GenerateAndSignBuildManifestCatalogFileAsync(dropConfig, filesToSign);
             long signTimeMs = (long)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
             Logger.Info($"Build Manifest signing via EsrpManifestSign completed in {signTimeMs} ms. Succeeded: {signManifestResult.Succeeded}");
 
             return signManifestResult;
         }
 
+        private string GetSbomGenerationErrorDetails(IList<EntityError> errors)
+        {
+            var sb = new StringBuilder();
+            foreach (var error in errors)
+            {
+                sb.AppendLine($"Error of type {error.ErrorType} for entity {(error.Entity as FileEntity)?.Path ?? error.Entity.Id} of type {error.Entity.EntityType}:");
+                sb.AppendLine(error.Details);
+            }
+
+            return sb.ToString();
+        }
+
+        private SBOMFile ToSbomFile(BuildXL.Ipc.ExternalApi.Commands.BuildManifestFileInfo fileInfo)
+        {
+            return new()
+            {
+                
+                Checksum = new[] { fileInfo.AzureArtifactsHash }.Union(fileInfo.BuildManifestHashes).Select(h =>
+                {
+                    return new Checksum()
+                    {
+                        Algorithm = mapHashType(h.HashType),
+                        ChecksumValue = h.ToHex()
+                    };
+                }),
+                Path = fileInfo.RelativePath
+            };
+
+            static AlgorithmName mapHashType(HashType hashType)
+            {
+                return hashType switch
+                {
+                    HashType.SHA1 => AlgorithmName.SHA1,
+                    HashType.SHA256 => AlgorithmName.SHA256,
+                    HashType.Vso0 => AlgorithmName.VSO,
+                    _ => throw new InvalidOperationException($"Unsupported hash type {hashType} requested in SBOM generation"),
+                };
+            }
+        }
+        
+
         /// <summary>
         /// Generates and uploads a catalog file for <see cref="BuildManifestHelper.BuildManifestFilename"/> and <see cref="BuildManifestHelper.BsiFilename"/>
         /// Should be called only when DropConfig.GenerateBuildManifest is true and DropConfig.SignBuildManifest is true.
         /// </summary>
-        private async Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropConfig dropConfig, string buildManifestLocalPath)
+        private async Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropConfig dropConfig, IList<(string Path, string FileName)> buildManifestLocalFiles)
         {
             Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though Build Manifest Generation is Disabled in DropConfig");
             Contract.Requires(dropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");
@@ -749,7 +830,7 @@ namespace Tool.DropDaemon
             var generateCatalogResult = await BuildManifestHelper.GenerateSignedCatalogAsync(
                 DropServiceConfig.MakeCatToolPath,
                 DropServiceConfig.EsrpManifestSignToolPath,
-                buildManifestLocalPath,
+                buildManifestLocalFiles,
                 DropServiceConfig.BsiFileLocation);
 
             if (!generateCatalogResult.Success)

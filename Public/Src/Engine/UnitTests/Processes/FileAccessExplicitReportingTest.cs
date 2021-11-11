@@ -147,9 +147,7 @@ namespace Test.BuildXL.Processes
                 .ToHashSet();
             XAssert.Contains(accesses, new[]
             {
-                "ld.so", "libc.so", "libdl.so", "libm.so", "libpthread.so", "librt.so",
-                "libclrjit.so", "libcoreclr.so", "libcoreclrtraceptprovider.so",
-                "libhostfxr.so", "libhostpolicy.so", "libmscordaccore.so", "libmscordbi.so",
+                "libhostfxr.so", "libhostpolicy.so", "libclrjit.so", "libcoreclr.so"
             });
 
             XAssert.ContainsNot(accesses, new[] { "libDetours.so" });

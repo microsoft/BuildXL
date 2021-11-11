@@ -14,6 +14,16 @@ export interface FullFrameworkQualifier extends Qualifier {
 }
 
 /**
+ * Qualifier that only supports .net standard
+ */
+@@public
+export interface NetStandardQualifier extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "netstandard2.0" | "netcoreapp3.1";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
  * Qualifier for projects that support DotNetCore
  */
 @@public

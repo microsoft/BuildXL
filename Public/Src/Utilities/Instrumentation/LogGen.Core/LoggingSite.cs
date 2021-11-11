@@ -10,12 +10,12 @@ using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.CodeAnalysis;
 using EventGenerators = BuildXL.Utilities.Instrumentation.Common.Generators;
 
-namespace BuildXL.LogGen
+namespace BuildXL.LogGen.Core
 {
     /// <summary>
     /// Logging site that needs to have a corresponding partial method generated
     /// </summary>
-    internal sealed class LoggingSite
+    public sealed class LoggingSite
     {
         /// <summary>
         /// The method for the logging site
@@ -168,7 +168,7 @@ namespace BuildXL.LogGen
         /// <summary>
         /// A type and its address
         /// </summary>
-        internal sealed class AddressedType
+        public sealed class AddressedType
         {
             /// <summary>
             /// Address to an item possibly deeply nested within a LoggingSite's payload

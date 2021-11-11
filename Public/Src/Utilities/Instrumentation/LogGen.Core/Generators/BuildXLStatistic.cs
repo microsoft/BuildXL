@@ -3,13 +3,14 @@
 
 using System;
 using Microsoft.CodeAnalysis;
+using BuildXL.LogGen.Core;
 
 namespace BuildXL.LogGen.Generators
 {
     /// <summary>
     /// Logs all numeric members of the payload as BuildXL StatisticWithoutTelemetry events
     /// </summary>
-    internal sealed class BuildXLStatistic : GeneratorBase
+    public sealed class BuildXLStatistic : GeneratorBase
     {
         /// <inheritdoc/>
         public override void GenerateLogMethodBody(LoggingSite site, Func<string> getMessageExpression)
@@ -44,7 +45,7 @@ namespace BuildXL.LogGen.Generators
             }
         }
 
-        public static string ComputeKeyPrefix(LoggingSite site)
+        private static string ComputeKeyPrefix(LoggingSite site)
         {
             if (!site.Method.Name.Equals("BulkStatistic", StringComparison.OrdinalIgnoreCase))
             {

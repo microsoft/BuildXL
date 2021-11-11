@@ -10,8 +10,7 @@ namespace CodeGenerationHelper {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.Linq.dll
-            ),
-            $.dll
+            )
         ],
     });
 }

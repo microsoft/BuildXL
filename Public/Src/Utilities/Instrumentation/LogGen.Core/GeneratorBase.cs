@@ -8,12 +8,12 @@ using System.Linq;
 using BuildXL.Utilities.CodeGenerationHelper;
 using Microsoft.CodeAnalysis;
 
-namespace BuildXL.LogGen
+namespace BuildXL.LogGen.Core
 {
     /// <summary>
     /// Base class for Logging Generators
     /// </summary>
-    internal abstract class GeneratorBase
+    public abstract class GeneratorBase
     {
         /// <summary>
         /// Global namespace for the assembly

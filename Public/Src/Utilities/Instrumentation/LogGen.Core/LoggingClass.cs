@@ -5,12 +5,12 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.LogGen
+namespace BuildXL.LogGen.Core
 {
     /// <summary>
     /// Logging class that contains the logging sites
     /// </summary>
-    internal sealed class LoggingClass
+    public sealed class LoggingClass
     {
         /// <nodoc />
         public ISymbol Symbol { get; }

@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.LogGen.Core;
 using Microsoft.CodeAnalysis;
 
 namespace BuildXL.LogGen.Generators
@@ -11,7 +12,7 @@ namespace BuildXL.LogGen.Generators
     /// <summary>
     /// ETW event source which generates a proper manifest and logs self describing events.
     /// </summary>
-    internal sealed class InspectableEventSourceGenerator : GeneratorBase
+    public sealed class InspectableEventSourceGenerator : GeneratorBase
     {
         /// <summary>
         /// Current event source generator allows to inspect (i.e., intersect) every logger invocation

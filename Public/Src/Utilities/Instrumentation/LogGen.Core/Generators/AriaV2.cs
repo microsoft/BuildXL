@@ -4,17 +4,19 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
+using BuildXL.LogGen.Core;
 
 namespace BuildXL.LogGen.Generators
 {
     /// <summary>
     /// Aria V2 logger
     /// </summary>
-    internal sealed class AriaV2 : GeneratorBase
+    public sealed class AriaV2 : GeneratorBase
     {
         private const string GlobalInstrumentationNamespaceCommon = "global::BuildXL.Utilities.Instrumentation.Common";
         private const string GlobalTracing = "global::BuildXL.Tracing";
 
+        /// <inheritdoc/>
         public override void GenerateLogMethodBody(LoggingSite site, Func<string> getMessageExpression)
         {
             m_codeGenerator.Ln("if ({0}.AriaV2StaticState.IsEnabled)", GlobalInstrumentationNamespaceCommon);
@@ -46,6 +48,7 @@ namespace BuildXL.LogGen.Generators
             }
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<Tuple<string, string>> ConsumedNamespaces
         {
             get

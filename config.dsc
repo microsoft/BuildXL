@@ -122,7 +122,7 @@ config({
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0", alias: "Microsoft.CodeAnalysis.VisualBasic.Old" },
 
                 // Roslyn Analyzers
-                { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.0.0" },
+                { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.3.1" },
                 { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },

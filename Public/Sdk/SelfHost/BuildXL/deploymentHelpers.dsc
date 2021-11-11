@@ -12,15 +12,13 @@ namespace DeploymentHelpers {
     export function deploy(args: {
         definition: Deployment.Definition,
         targetLocation: RelativePath,
-        deploymentOptions?: Deployment.DeploymentOptions,
+        deploymentOptions?: Managed.Deployment.FlattenOptions,
     }) : Deployment.OnDiskDeployment {
 
         const deploymentOptions = Object.merge<Deployment.DeploymentOptions>(
-             
                 <Managed.Deployment.FlattenOptions>{
                     skipXml: true,
                 },
-            
             args.deploymentOptions);
 
         const deployedToDisk = Deployment.deployToDisk({

@@ -7,7 +7,6 @@ namespace Sdk {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.Sdk",
-
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
         references: [

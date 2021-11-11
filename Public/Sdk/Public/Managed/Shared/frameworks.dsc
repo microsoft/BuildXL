@@ -120,6 +120,13 @@ namespace TargetFrameworks {
         }
 
         @@public
+        export interface CurrentWithStandard extends Qualifier {
+            configuration: "debug" | "release";
+            targetFramework: "netcoreapp3.1" | "net5.0" | "netstandard2.0",
+            targetRuntime: "win-x64" | "osx-x64" | "linux-x64",
+        }
+
+        @@public
         export const current : Current = {
             configuration: qualifier.configuration,
             // Switch to .net5 once the migration is over.

@@ -7,15 +7,15 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Linq;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.LogGen.Core;
 using Microsoft.CodeAnalysis;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.LogGen.Generators
 {
     /// <summary>
     /// ETW event source which generates a proper manifest and logs self describing events.
     /// </summary>
-    internal sealed class ManifestedEventSource : GeneratorBase
+    public sealed class ManifestedEventSource : GeneratorBase
     {
        /// <inheritdoc/>
         public override void GenerateLogMethodBody(LoggingSite site, Func<string> getMessageExpression)
@@ -24,8 +24,8 @@ namespace BuildXL.LogGen.Generators
             using (m_codeGenerator.Br)
             {
                 var relatedActivityIdArg = site.EventOpcode == (int)EventOpcode.Start ?
-                    I($"{site.LoggingContextParameterName}.ParentActivityId") :
-                    I($"{site.LoggingContextParameterName}.Session.RelatedActivityId");
+                    $"{site.LoggingContextParameterName}.ParentActivityId" :
+                    $"{site.LoggingContextParameterName}.Session.RelatedActivityId";
 
                 m_codeGenerator.Ln(
                     "{0}.ETWLogger.Log.{1}({2}{3}{4});",

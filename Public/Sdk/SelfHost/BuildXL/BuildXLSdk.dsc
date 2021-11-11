@@ -23,6 +23,7 @@ import * as ScriptSdkTestRunner from "Sdk.TestRunner";
 import * as Contracts from "Tse.RuntimeContracts";
 import * as BinarySigner from "BuildXL.Tools.BinarySigner";
 import * as NativeSdk from "Sdk.Native";
+import * as Json from "Sdk.Json";
 
 @@public
 export * from "Sdk.Managed";
@@ -61,6 +62,15 @@ export interface Arguments extends Managed.Arguments {
     /** Whether to run LogGen. */
     generateLogs?: boolean;
 
+    /** Whether to generate logs during the compilation process. */
+    generateLogsInProc?: boolean;
+
+    /**
+     * Specify whether to emit compiler generated file to disk.
+     * The compiler will write one file per generator and the file name depends on the type of the generator.
+     * */
+    emitCompilerGeneratedFiles?: boolean;
+
     /** If the log generation needs external references, one can explicitly declare them. */
     generateLogBinaryRefs?: Managed.Binary[];
 
@@ -71,7 +81,7 @@ export interface Arguments extends Managed.Arguments {
     contractsLevel?: Contracts.ContractsLevel;
 
     /** The assemblies that are internal visible for this assembly */
-    internalsVisibleTo?: (string|InternalsVisibleToArguments)[];
+    internalsVisibleTo?: (string | InternalsVisibleToArguments)[];
 
     /**
      * Whether to use the compiler's strict mode or not.
@@ -256,6 +266,14 @@ namespace Flags {
      */
     @@public
     export const reportAnalyzer = Environment.getFlag("[Sdk.BuildXL]reportAnalyzer");
+
+    /**
+     * Enable in-proc log generation globally.
+     * If the project was using logs (i.e. generateLogs argument is true) then instead of using separate log-gen proccess
+     * in-process log generation based on the C# compiler will be used.
+     */
+    @@public
+    export const useInProcLogGen = Environment.getFlag("[Sdk.BuildXL]useInProcLogGen");
 }
 
 @@public
@@ -618,13 +636,25 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         args = args.merge<Managed.Arguments>({embedPdbs: true});
     }
 
+    if (Flags.useInProcLogGen && args.generateLogs === true) {
+        // If the global flag is set, using in-proc log generation instead of using the external one.
+        args = args.merge<Managed.Arguments>({generateLogs: false, generateLogsInProc: true});
+    }
+
     let embedSources = args.embedSources !== false && Flags.embedSources === true;
+
+    let sourceGenerators = args.sourceGenerators || [];
 
     let analyzers = [
         ...getAnalyzers(args), 
         ...(args.sourceGenerators !== undefined ? args.sourceGenerators.mapMany(s => getAnalyzerDlls(s.contents)) : []),
         ...(args.analyzers !== undefined ? args.analyzers.mapMany(s => getAnalyzerDlls(s.contents)) : [])
         ];
+
+    if (args.generateLogsInProc) {
+        // We use custom-built source generators for in-proc log gen that requires special logic here.
+        analyzers = [...analyzers, ...getInProcLogGenerators()];
+    }
 
     args = Object.merge<Arguments>(
         {
@@ -651,7 +681,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                         NetFx.System.Threading.Tasks.dll,
                     ]),
                     importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-                    ...(args.generateLogs ? [
+                    ...(args.generateLogs || args.generateLogsInProc ? [
                         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
                     ] : []),
                     ...addIf(qualifier.targetFramework === "net462",
@@ -659,7 +689,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     ),
                 ]),
             ],
-            allowUnsafeBlocks: args.allowUnsafeBlocks || args.generateLogs, // When we generate logs we must add /unsafe since we generate unsafe code
+            // TODO ST: the source gen can emit spans for .net core to avoid having unsafe
+            allowUnsafeBlocks: args.allowUnsafeBlocks || args.generateLogs || args.generateLogsInProc, // When we generate logs we must add /unsafe since we generate unsafe code
             tools: {
                 csc: {
                     noWarnings: [1701, 1702],
@@ -677,6 +708,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     shared: Flags.useManagedSharedCompilation,
                     embed: embedSources,
                     reportAnalyzer: Flags.reportAnalyzer,
+                    emitCompilerGeneratedFiles: args.emitCompilerGeneratedFiles,
                 }
             },
             runCrossgenIfSupported: Flags.enableCrossgen,
@@ -705,7 +737,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         });
     }
 
-    if (args.generateLogs) {
+    if (args.generateLogs || args.generateLogsInProc) {
         let compileClosure = args.generateLogBinaryRefs !== undefined
             ? [
                 ...args.generateLogBinaryRefs,
@@ -716,25 +748,51 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ];
         
-        // $TODO: We have some ugglyness here in that there is not a good way to do a 'under' path check from the sdk
-        // without the caller passing in the path. BuildXL.Tracing doesn't follow the proper loggen pattern either with
-        // subfolders hence the ugly logic here for now.
-        let sources = args.sources.filter(f => f.parent.name === a`Tracing` || f.parent.parent.name === a`Tracing`);
+        if (args.generateLogs) {
+            // $TODO: We have some ugglyness here in that there is not a good way to do a 'under' path check from the sdk
+            // without the caller passing in the path. BuildXL.Tracing doesn't follow the proper loggen pattern either with
+            // subfolders hence the ugly logic here for now.
+            let sources = args.sources.filter(f => f.parent.name === a`Tracing` || f.parent.parent.name === a`Tracing`);
 
-        let extraSourceFile = LogGenerator.generate({
-            references: compileClosure,
-            sources: sources,
-            outputFile: "log.g.cs",
-            generationNamespace: rootNamespace,
-            defines: args.defineConstants,
-            aliases: brandingDefines,
-            targetFramework: qualifier.targetFramework,
-            targetRuntime: qualifier.targetRuntime,
-        });
-        
-        args = args.merge({
-            sources: [extraSourceFile],
-        });
+            let extraSourceFile = LogGenerator.generate({
+                references: compileClosure,
+                sources: sources,
+                outputFile: "log.g.cs",
+                generationNamespace: rootNamespace,
+                defines: args.defineConstants,
+                aliases: brandingDefines,
+                targetFramework: qualifier.targetFramework,
+                targetRuntime: qualifier.targetRuntime,
+            });
+            
+            args = args.merge({
+                sources: [extraSourceFile],
+            });
+        }
+        else {
+            // generateInPocLogs case
+            // Need to create a configuration file to pass required data to the source-based log generator.
+            const logGenConfigFolder = Context.getNewOutputDirectory("LogGenConfig");
+            const logGenConfig = p`${logGenConfigFolder}/logGen.config`;
+
+            const config = {
+                "aliases": brandingDefines,
+                "generationNamespace": rootNamespace,
+                "targetFramework": qualifier.targetFramework,
+                "targetRuntime": qualifier.targetRuntime,
+            };
+            
+            const logGenFile = Json.write(logGenConfig, config, '"');
+
+            args = args.merge({
+                tools: {
+                    csc: {
+                            additionalFiles: [logGenFile]
+                    }
+                }
+            });
+        }
+
     }
 
     // Add the file with non-nullable attributes for non-dotnet core projects
@@ -781,6 +839,20 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     }
 
     return args;
+}
+
+function getInProcLogGenerators() {
+    const sourceLogGen = importFrom("BuildXL.Utilities.Instrumentation").LogGenerator.withQualifier({targetFramework: "netstandard2.0"}).deployed;
+    return getRootContent(sourceLogGen.contents);
+}
+
+function getRootContent(contents: StaticDirectory): Managed.Binary[] {
+    // Getting only the dlls from the root of static directory.
+    const root = contents.root.path;
+    return contents
+        .getContent()
+        .filter(file => file.extension === a`.dll` && file.parent === root)
+        .map(file => Managed.Factory.createBinary(contents, file));
 }
 
 /** Generates a csharp file with an attribute that turns on BuildXL-specific Xunit extension. */

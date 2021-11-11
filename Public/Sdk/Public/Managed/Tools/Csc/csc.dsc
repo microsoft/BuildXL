@@ -63,6 +63,14 @@ export function compile(inputArgs: Arguments) : Result {
         : undefined;
     const outputDocPath = args.doc && p`${outputDirectory}/${args.doc}`;
     const outputRefPath = args.emitReferenceAssembly ? p`${outputDirectory}/ref/${args.out}` : undefined;
+    
+    // Using 'outputDirectory' as an output folder to make the error analysis simpler.
+    // If we use a subfolder for generated files, the compiler will write the generated files there
+    // but the emitted error/warning will be based on the outputDirectory only.
+    // But because all the generated files are placed into the subfolder based on the generator's full type anyways,
+    // its ok to not use a dedicated subfolder anyway.
+    let outputGenPath: Path = args.emitCompilerGeneratedFiles ? outputDirectory.path : undefined;
+
     const dirSep = Context.getCurrentHost().os === "win" ? "\\" : "/";
 
     let cscArguments: Argument[] = [
@@ -79,6 +87,8 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.option("/target:",      args.targetType ? args.targetType.toString() : undefined),
         Cmd.option("/platform:",    args.platform ? args.platform.toString() : undefined),
         Cmd.option("/refout:",      Artifact.output(outputRefPath)),
+        Cmd.option(
+            "/generatedfilesout:", outputGenPath),
 
         Cmd.option("/langversion:", args.languageVersion),
 
@@ -208,6 +218,17 @@ export function compile(inputArgs: Arguments) : Result {
             }
         });
     }
+
+    // The compiler creates a subfolder for every source generator depending on its type.
+    // We have to add the entire folder to avoid violations.
+    if (args.emitCompilerGeneratedFiles) {
+        cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
+            tool: { 
+                untrackedDirectoryScopes: [outputDirectory]
+            }
+        });
+    }
+
     let executeResult = Transformer.execute(cscExecuteArgs);
 
     // Compose result object
@@ -400,6 +421,14 @@ export interface Arguments extends Transformer.RunnerArguments{
     pathMap?: PathMapEntry[];
     /** Enables shared compilation via VBCSCompiler service. This is an experimental flag.*/
     shared?: boolean;
+
+    /**
+     * Specify whether to emit compiler generated file to disk.
+     * The compiler will write one file per generator and the file name depends on the type of the generator.
+     * By default this flag should be 'false' (or undefined), because we don't want/need generating files emitted by 
+     * the compiler because it affects performance.
+     * */
+    emitCompilerGeneratedFiles?: boolean;
 }
 
 @@public

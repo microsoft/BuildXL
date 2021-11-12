@@ -274,7 +274,6 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Security.Cryptography.Xml", version: "4.5.0" },
                 { id: "System.Text.Encodings.Web", version: "4.7.2" },
-                { id: "System.Text.Encodings.Web", version: "5.0.1", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"], alias: "System.Text.Encodings.Web.v5.0.1" },
                 { id: "System.Security.Permissions", version: "4.5.0" },
                 { id: "System.Security.Cryptography.Pkcs", version: "4.5.0" },
 
@@ -409,7 +408,11 @@ config({
                 },
 
                 // For C++ testing
-                { id: "boost", version: "1.71.0.0" }
+                { id: "boost", version: "1.71.0.0" },
+
+                // Needed for SBOM Generation
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "6.0.0", alias: "Microsoft.Extensions.Logging.Abstractions.v6.0.0", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"] },
+                { id: "System.Text.Encodings.Web", version: "5.0.1", dependentPackageIdsToSkip: ["System.Buffers", "System.Memory"], alias: "System.Text.Encodings.Web.v5.0.1" },
             ],
 
             doNotEnforceDependencyVersions: true,

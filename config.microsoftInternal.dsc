@@ -5,6 +5,7 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 
 const artifactNugetVersion = "18.194.31720-buildid16023539";
 const azureDevopsNugetVersion = "16.194.0-internal202109201";
+const sbomApiVersion = "1.2.21";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -72,11 +73,11 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.16.27034", osSkip: [ "macOS", "unix" ] },    
 
     // SBOM Generation
-    { id: "Microsoft.SBOMCore", version: "1.2.5" },
-    { id: "Microsoft.Parsers.ManifestGenerator", version: "1.2.5", dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
-    { id: "Microsoft.Parsers.SPDX22SBOMParser", version: "1.2.5" },
-    { id: "Microsoft.ManifestInterface", version: "1.2.5", dependentPackageIdsToSkip: ["System.Text.Json"] },
-    { id: "Microsoft.SBOMApi", version: "1.2.5" },
+    { id: "Microsoft.SBOMCore", version: sbomApiVersion, dependentPackageIdsToSkip: ["Microsoft.Extensions.Logging.Abstractions"] },
+    { id: "Microsoft.Parsers.ManifestGenerator", version: sbomApiVersion, dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
+    { id: "Microsoft.Parsers.SPDX22SBOMParser", version: sbomApiVersion },
+    { id: "Microsoft.ManifestInterface", version: sbomApiVersion, dependentPackageIdsToSkip: ["System.Text.Json"] },
+    { id: "Microsoft.SBOMApi", version: sbomApiVersion },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 ] : [
 

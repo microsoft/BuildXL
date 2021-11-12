@@ -24,6 +24,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
@@ -532,9 +533,7 @@ namespace Tool.DropDaemon
                    client)
         {
             DropServiceConfig = serviceConfig;
-            // TODO: Logger - note we are still logging any errors in the generation
-            // as the generation result object provides them
-            m_sbomGenerator = new SBOMGenerator(logger: null);
+            m_sbomGenerator = new SBOMGenerator(logger: new SBOMLoggingWrapper(Logger));
             m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath(); 
         }
 

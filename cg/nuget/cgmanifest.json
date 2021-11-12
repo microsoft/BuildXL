@@ -1418,6 +1418,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Abstractions",
+          "Version": "6.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.MemoryPool",
           "Version": "1.0.0-rc1-final"
         }
@@ -1527,7 +1536,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ManifestInterface",
-          "Version": "1.2.5"
+          "Version": "1.2.21"
         }
       }
     },
@@ -1833,7 +1842,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Parsers.ManifestGenerator",
-          "Version": "1.2.5"
+          "Version": "1.2.21"
         }
       }
     },
@@ -1842,7 +1851,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Parsers.SPDX22SBOMParser",
-          "Version": "1.2.5"
+          "Version": "1.2.21"
         }
       }
     },
@@ -1878,7 +1887,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SBOMApi",
-          "Version": "1.2.5"
+          "Version": "1.2.21"
         }
       }
     },
@@ -1887,7 +1896,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SBOMCore",
-          "Version": "1.2.5"
+          "Version": "1.2.21"
         }
       }
     },

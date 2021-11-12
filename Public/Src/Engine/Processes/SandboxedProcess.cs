@@ -313,50 +313,59 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
         {
-            if (!IsDetouredProcessUsable)
+            try
             {
-                return null;
-            }
-
-            ulong lastPeakWorkingSet = 0;
-            ulong lastPeakCommitSize = 0;
-            ulong lastWorkingSet = 0;
-            ulong lastCommitSize = 0;
-            bool isCollectedData = false;
-
-            var visitResult = TryVisitJobObjectProcesses((processHandle, _) =>
-            {
-                var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
-                if (memoryUsage != null)
+                if (!IsDetouredProcessUsable)
                 {
-                    isCollectedData = true;
-                    lastPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
-                    lastPeakCommitSize += memoryUsage.PeakPagefileUsage;
-                    lastWorkingSet += memoryUsage.WorkingSetSize;
-                    lastCommitSize += memoryUsage.PagefileUsage;
+                    return null;
                 }
-            });
 
-            if (visitResult != VisitJobObjectResult.Success)
+                ulong lastPeakWorkingSet = 0;
+                ulong lastPeakCommitSize = 0;
+                ulong lastWorkingSet = 0;
+                ulong lastCommitSize = 0;
+                bool isCollectedData = false;
+
+                var visitResult = TryVisitJobObjectProcesses((processHandle, _) =>
+                {
+                    var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                    if (memoryUsage != null)
+                    {
+                        isCollectedData = true;
+                        lastPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
+                        lastPeakCommitSize += memoryUsage.PeakPagefileUsage;
+                        lastWorkingSet += memoryUsage.WorkingSetSize;
+                        lastCommitSize += memoryUsage.PagefileUsage;
+                    }
+                });
+
+                if (visitResult != VisitJobObjectResult.Success)
+                {
+                    return null;
+                }
+
+                if (isCollectedData)
+                {
+                    m_peakWorkingSet.RegisterSample(lastPeakWorkingSet);
+                    m_peakCommitSize.RegisterSample(lastPeakCommitSize);
+
+                    m_workingSet.RegisterSample(lastWorkingSet);
+                    m_commitSize.RegisterSample(lastCommitSize);
+                }
+
+                return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                    lastPeakWorkingSet,
+                    lastWorkingSet,
+                    Convert.ToUInt64(m_workingSet.Average),
+                    lastPeakCommitSize,
+                    lastCommitSize);
+            }
+            catch (NullReferenceException ex)
             {
+                // Somewhere above there is a NRE but the stack doesn't match a line number and there is no obvious bug.
+                BuildXL.Tracing.UnexpectedCondition.Log(m_loggingContext, "Null reference exception when collecting MemoryCountersSnapshot: " + ex.ToString());
                 return null;
             }
-
-            if (isCollectedData)
-            {
-                m_peakWorkingSet.RegisterSample(lastPeakWorkingSet);
-                m_peakCommitSize.RegisterSample(lastPeakCommitSize);
-
-                m_workingSet.RegisterSample(lastWorkingSet);
-                m_commitSize.RegisterSample(lastCommitSize);
-            }
-
-            return ProcessMemoryCountersSnapshot.CreateFromBytes(
-                lastPeakWorkingSet,
-                lastWorkingSet,
-                Convert.ToUInt64(m_workingSet.Average),
-                lastPeakCommitSize,
-                lastCommitSize);
         }
 
         private bool IsDetouredProcessUsable => m_detouredProcess != null && m_detouredProcess.IsRunning;

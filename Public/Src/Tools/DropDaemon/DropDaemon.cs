@@ -723,7 +723,10 @@ namespace Tool.DropDaemon
                 sbomGenerationRootDirectory = Path.Combine(m_sbomGenerationOutputDirectory, dropConfig.Name);
                 FileUtilities.CreateDirectory(sbomGenerationRootDirectory);
 
+                Logger.Verbose("Starting SBOM Generation");
                 var result = await m_sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, manifestFileList, Array.Empty<SBOMPackage>(), metadata);
+                Logger.Verbose("Finished SBOM Generation");
+
                 if (!result.IsSuccessful)
                 {
                     return new IpcResult(IpcResultStatus.ExecutionError, $"Errors were encountered during SBOM generation. Details: {GetSbomGenerationErrorDetails(result.Errors)}");

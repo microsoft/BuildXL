@@ -7,6 +7,9 @@ namespace TestUtilities.XUnit {
         assemblyName: "Test.BuildXL.TestUtilities.XUnit",
         sources: globR(d`.`, "*.cs"),
         references: [
+            ...addIf(BuildXLSdk.isFullFramework,
+                BuildXLSdk.NetFx.System.Reflection.dll
+            ),
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Ipc.dll,

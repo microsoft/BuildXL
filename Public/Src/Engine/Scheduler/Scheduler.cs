@@ -5092,16 +5092,13 @@ namespace BuildXL.Scheduler
 
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.ChooseWorkerCpuDuration))
             {
-                var runnableProcess = runnablePip as ProcessRunnablePip;
-                // If there is no historic perf data associated with the process,
+                // Only if there is no historic perf data associated with the process,
                 // lookup the historic perf data table.
-                if (runnableProcess != null && runnableProcess.HistoricPerfData == null)
+                if (runnablePip is ProcessRunnablePip runnableProcess && runnableProcess.HistoricPerfData == null)
                 {
-                    var perfData = HistoricPerfDataTable[runnableProcess.Process.SemiStableHash];
+                    var perfData = HistoricPerfDataTable[runnableProcess];    
                     if (perfData != ProcessPipHistoricPerfData.Empty)
                     {
-                        runnableProcess.HistoricPerfData = perfData;
-
                         var memoryCounters = perfData.MemoryCounters;
                         if (memoryCounters.AverageWorkingSetMb == 0 || memoryCounters.PeakWorkingSetMb == 0)
                         {
@@ -5116,6 +5113,11 @@ namespace BuildXL.Scheduler
                     {
                         Interlocked.Increment(ref m_historicPerfDataMisses);
                     }
+
+                    // Update even if it's a miss (so the data will be Empty rather than null):
+                    // We don't want to keep checking the HistoricPerfDataTable if we can't acquire the worker
+                    // in the subsequent logic and we have to retry later.
+                    runnableProcess.HistoricPerfData = perfData;
                 }
 
                 // Find the estimated setup time for the pip on each builder.
@@ -5787,12 +5789,13 @@ namespace BuildXL.Scheduler
             UpdateCriticalPath(runnablePip, performance);
 
             ProcessPipExecutionPerformance processPerf = performance as ProcessPipExecutionPerformance;
-            if (pip.PipType == PipType.Process &&
+            if (runnablePip is ProcessRunnablePip processRunnablePip &&
                 performance.ExecutionLevel == PipExecutionLevel.Executed &&
                 processPerf != null)
             {
-                HistoricPerfDataTable[pip.SemiStableHash] = new ProcessPipHistoricPerfData(processPerf);
-                runnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
+                
+                HistoricPerfDataTable[processRunnablePip] = new ProcessPipHistoricPerfData(processPerf);
+                processRunnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
             }
 
             if (ExecutionLog != null && performance != null)

@@ -169,59 +169,91 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Access the runtime data. This indexer tracks the access to the table.
+        /// </summary>
+        /// <remarks>
+        /// We use a different indexer for process pips for more accurate statistics
+        /// </remarks>
+        public ProcessPipHistoricPerfData this[ProcessRunnablePip runnablePip]
+        {
+            get 
+            {
+                Contract.Assert(runnablePip.HistoricPerfData == null, "Historic perf data shouldn't be queried multiple times for the same pip");
+                return Get(runnablePip.Process.SemiStableHash, trackAccess: true); 
+            }
+            set => Set(runnablePip.Process.SemiStableHash, value, trackAccess: true);
+        }
+
+
+        /// <summary>
         /// Access the runtime data
         /// </summary>
         public ProcessPipHistoricPerfData this[long semiStableHash]
         {
-            get
+            get => Get(semiStableHash, trackAccess: false);
+            set => Set(semiStableHash, value, trackAccess: false);
+        }
+
+        private ProcessPipHistoricPerfData Get(long semistableHash, bool trackAccess)
+        {
+            ProcessPipHistoricPerfData ret;
+            if (m_table.TryGetValue(semistableHash, out ret))
             {
-                ProcessPipHistoricPerfData ret;
-                if (m_table.TryGetValue(semiStableHash, out ret))
+                if (trackAccess)
                 {
                     Interlocked.Increment(ref m_numHits);
-
-                    if (ret.IsFresh)
-                    {
-                        return ret;
-                    }
-
-                    ProcessPipHistoricPerfData freshRet = ret.MakeFresh();
-                    m_table[semiStableHash] = freshRet;
-
-                    return freshRet;
                 }
-                else
+
+                if (ret.IsFresh)
+                {
+                    return ret;
+                }
+
+                ProcessPipHistoricPerfData freshRet = ret.MakeFresh();
+                m_table[semistableHash] = freshRet;
+
+                return freshRet;
+            }
+            else
+            {
+                if (trackAccess)
                 {
                     Interlocked.Increment(ref m_numMisses);
-                    return default(ProcessPipHistoricPerfData);
                 }
+
+                return ProcessPipHistoricPerfData.Empty;
             }
+        }
 
-            set
+        private void Set(long semiStableHash, ProcessPipHistoricPerfData value, bool trackAccess)
+        {
+            var result = m_table.AddOrUpdate(
+                semiStableHash,
+                value,
+                (key, val) => val,
+                (key, val, oldValue) => val.Merge(oldValue));
+
+            if (result.IsFound)
             {
-                var result = m_table.AddOrUpdate(
-                    semiStableHash,
-                    value,
-                    (key, val) => val,
-                    (key, val, oldValue) => val.Merge(oldValue));
+                uint oldMilliseconds = result.OldItem.Value.DurationInMs;
+                uint milliseconds = Math.Max(value.DurationInMs, 1);
 
-                if (result.IsFound)
-                {
-                    uint oldMilliseconds = result.OldItem.Value.DurationInMs;
-                    uint milliseconds = Math.Max(value.DurationInMs, 1); 
-
-                    var difference = milliseconds > oldMilliseconds ? milliseconds - oldMilliseconds : oldMilliseconds - milliseconds;
-                    long relativeDeviation = (long)(difference * (100.0 / Math.Max(milliseconds, oldMilliseconds)));
-                    Interlocked.Add(ref m_sumRelativeRunningTimeDeviation, relativeDeviation);
-                    Interlocked.Increment(ref m_numRunningTimeUpdated);
-                    Tracing.Logger.Log.HistoricPerfDataUpdated(m_loggingContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);
-                }
-                else
+                var difference = milliseconds > oldMilliseconds ? milliseconds - oldMilliseconds : oldMilliseconds - milliseconds;
+                long relativeDeviation = (long)(difference * (100.0 / Math.Max(milliseconds, oldMilliseconds)));
+                Interlocked.Add(ref m_sumRelativeRunningTimeDeviation, relativeDeviation);
+                Interlocked.Increment(ref m_numRunningTimeUpdated);
+                Tracing.Logger.Log.HistoricPerfDataUpdated(m_loggingContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);
+            }
+            else
+            {
+                if (trackAccess)
                 {
                     Interlocked.Increment(ref m_numRunningTimeAdded);
-                    Tracing.Logger.Log.HistoricPerfDataAdded(m_loggingContext, semiStableHash, value.DurationInMs);
                 }
+
+                Tracing.Logger.Log.HistoricPerfDataAdded(m_loggingContext, semiStableHash, value.DurationInMs);
             }
+
         }
 
         /// <summary>

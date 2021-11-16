@@ -815,18 +815,19 @@ namespace BuildXL.Engine
 
             var sidebandExaminer = new SidebandExaminer(loggingContext, scheduler, configuration, filter);
             var computeExtraneousSidebandFiles = true; // TODO: no need to do it if we got graph cache hit
-            var sidebandExaminationResult = sidebandExaminer.Examine(computeExtraneousSidebandFiles);
-            if (sidebandExaminationResult.ShouldPostponeDeletion)
+            var sidebandState = sidebandExaminer.Examine(computeExtraneousSidebandFiles);
+            scheduler.SetSidebandState(sidebandState);
+
+            if (sidebandState.ShouldPostponeDeletion)
             {
                 Logger.Log.PostponingDeletionOfSharedOpaqueOutputs(loggingContext);
-                scheduler.SetLazyDeletionOfSharedOpaqueOutputsEnabled();
 
                 // must still delete all files recorded in all extraneous sideband files though
-                if (sidebandExaminationResult.ExtraneousSidebandFiles.Count > 0)
+                if (sidebandState.ExtraneousSidebandFiles.Count > 0)
                 {
                     Logger.Log.DeletingOutputsFromExtraneousSidebandFilesStarted(loggingContext);
-                    scrubber.DeleteFiles(sidebandExaminer.TryReadAllRecordedWrites(sidebandExaminationResult.ExtraneousSidebandFiles));
-                    scrubber.DeleteFiles(sidebandExaminationResult.ExtraneousSidebandFiles, logDeletedFiles: false);
+                    scrubber.DeleteFiles(sidebandExaminer.TryReadAllRecordedWrites(sidebandState.ExtraneousSidebandFiles));
+                    scrubber.DeleteFiles(sidebandState.ExtraneousSidebandFiles, logDeletedFiles: false);
                 }
             }
             else
@@ -871,7 +872,7 @@ namespace BuildXL.Engine
             // TODO: we can consider conflating these two scrubbing passes (first one is optional) into one call to DirectoryScrubber to
             // avoid enumerating the disk twice. But this involves some refactoring of the scrubber, where each path to scrub needs its own
             // isPathInBuild, mountPathExpander being on/off, etc. Revisit if two passes become a perf problem.
-            if (!sidebandExaminationResult.ShouldPostponeDeletion && sharedOpaqueDirectories.Count() > 0)
+            if (!sidebandState.ShouldPostponeDeletion && sharedOpaqueDirectories.Count() > 0)
             {
                 // Add the set of exclusion to the collection of non-scrubbable paths: it is safe to not scrub under those since there are no
                 // shared opaque outputs produced under exclusions by construction

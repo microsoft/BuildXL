@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.FileSystem;
@@ -105,12 +106,14 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether lazy deletion of shared opaque outputs is enabled;
         /// </summary>
-        public bool LazyDeletionOfSharedOpaqueOutputsEnabled { get; }
+        public bool LazyDeletionOfSharedOpaqueOutputsEnabled => SidebandState?.ShouldPostponeDeletion == true;
 
         /// <summary>
         /// Cache used to hold alien file enumerations per directory
         /// </summary>
         public ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> AlienFileEnumerationCache { get; }
+        
+        public SidebandState SidebandState { get; }
 
         /// <summary>
         /// Class constructor
@@ -128,9 +131,9 @@ namespace BuildXL.Scheduler
             IUnsafeSandboxConfiguration unsafeConfiguration,
             PreserveOutputsInfo preserveOutputsSalt,
             FileSystemView fileSystemView,
-            bool lazyDeletionOfSharedOpaqueOutputsEnabled,
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
-            ServiceManager serviceManager = null)
+            ServiceManager serviceManager = null,
+            SidebandState sidebandState = null)
         {
             Contract.Requires(fileContentManager != null);
             Contract.Requires(directoryMembershipFingerprinter != null);
@@ -151,8 +154,8 @@ namespace BuildXL.Scheduler
             FileSystemView = fileSystemView;
             m_unsafeConfiguration = unsafeConfiguration;
             m_preserveOutputsSalt = preserveOutputsSalt;
-            LazyDeletionOfSharedOpaqueOutputsEnabled = lazyDeletionOfSharedOpaqueOutputsEnabled;
             AlienFileEnumerationCache = alienFileEnumerationCache;
+            SidebandState = sidebandState;
 
             if (fileSystemView != null)
             {

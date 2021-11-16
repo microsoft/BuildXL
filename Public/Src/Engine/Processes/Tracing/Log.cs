@@ -1087,8 +1087,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "[{pipDescription}] Lazily deleted shared opaque output files recorded in '{sidebandFile}':{files}.")]
-        public abstract void SharedOpaqueOutputsDeletedLazily(LoggingContext context, string pipDescription, string sidebandFile, string files);
+            Message = "[{pipDescription}] Lazily deleted {count} shared opaque output files recorded in '{sidebandFile}':{files}.")]
+        public abstract void SharedOpaqueOutputsDeletedLazily(LoggingContext context, string pipDescription, string sidebandFile, string files, int count);
 
         [GeneratedEvent(
             (ushort)LogEventId.CannotReadSidebandFileError,

@@ -747,7 +747,6 @@ namespace Test.BuildXL.Scheduler
                             unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
                             preserveOutputsSalt: default,
                             fileSystemView: null,
-                            lazyDeletionOfSharedOpaqueOutputsEnabled: false,
                             new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>()),
                         moduleId: ModuleId.UnsafeCreate(2, "Test"),
                         ifPreserveOutputs: false);
@@ -1267,7 +1266,7 @@ namespace Test.BuildXL.Scheduler
                 preserveOutputsSalt: new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
                 directoryMembershipFinterprinterRuleSet: parentRuleSet,
-                lazyDeletionOfSharedOpaqueOutputsEnabled: false, 
+                sidebandState: null, 
                 alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>());
             PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 

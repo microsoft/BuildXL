@@ -211,7 +211,7 @@ namespace Test.BuildXL.Processes
                 makeOutputPrivate: null,
                 semanticPathExpander: SemanticPathExpander.Default,
                 pipEnvironment: new PipEnvironment(loggingContext),
-                isLazySharedOpaqueOutputDeletionEnabled: false,
+                sidebandState: null,
                 tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty);
             return pipExecutor.RunAsync();

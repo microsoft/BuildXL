@@ -18,8 +18,6 @@ using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using JetBrains.Annotations;
-
 namespace BuildXL.Engine
 {
     /// <summary>
@@ -72,51 +70,15 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// The result of the <see cref="Examine"/> call.
+        /// Examines the state of the sideband files and returns all relevant information packaged up in a <see cref="SidebandState"/> object.
         /// </summary>
-        public sealed class Result
-        {
-            /// <summary>
-            /// Final decision about whether or not to postpone deletion of shared opaque outputs.
-            /// </summary>
-            public bool ShouldPostponeDeletion { get; }
-
-            /// <summary>
-            /// List of sideband files that are present on disk but whose corresponding pips are not found in the pip graph.
-            /// This value is only set when <see cref="ShouldPostponeDeletion"/> is true.
-            /// </summary>
-            public IReadOnlyList<string> ExtraneousSidebandFiles { get; }
-
-            /// <nodoc />
-            internal Result(bool shouldPostponeDeletion, [CanBeNull] IReadOnlyList<string> extraneousSidebandFiles)
-            {
-                Contract.Requires(shouldPostponeDeletion == (extraneousSidebandFiles != null));
-                Contract.Ensures(ExtraneousSidebandFiles != null);
-                Contract.Ensures(ShouldPostponeDeletion || ExtraneousSidebandFiles.Count == 0);
-
-                ShouldPostponeDeletion = shouldPostponeDeletion;
-                ExtraneousSidebandFiles = extraneousSidebandFiles ?? CollectionUtilities.EmptyArray<string>();
-            }
-
-            /// <nodoc />
-            internal static Result CreateForEagerDeletion() 
-                => new Result(shouldPostponeDeletion: false, extraneousSidebandFiles: null);
-
-            /// <nodoc />
-            internal static Result CreateForLazyDeletion(IReadOnlyList<string> extraneousSidebandFiles)
-                => new Result(shouldPostponeDeletion: true, extraneousSidebandFiles);
-        }
-
-        /// <summary>
-        /// Examines the state of the sideband files and returns all relevant information packaged up in a <see cref="Result"/> object.
-        /// </summary>
-        public Result Examine(bool computeExtraneousSidebandFiles)
+        public SidebandState Examine(bool computeExtraneousSidebandFiles)
         {
             try
             {
                 if (!Configuration.Schedule.UnsafeLazySODeletion || !SidebandRootDir.IsValid)
                 {
-                    return Result.CreateForEagerDeletion();
+                    return SidebandState.CreateForEagerDeletion();
                 }
 
                 // find relevant process pips (i.e., those with SOD outputs and not filtered out by RootFilter
@@ -124,13 +86,12 @@ namespace BuildXL.Engine
                     .ToArray()
                     .AsParallel(Context)
                     .Select(nodeId => (Process)Scheduler.PipGraph.GetPipFromPipId(nodeId.ToPipId()))
-                    .Where(process => process.HasSharedOpaqueDirectoryOutputs)
-                    .ToArray();
+                    .Where(process => process.HasSharedOpaqueDirectoryOutputs);
 
                 // check validity of their sideband files
-                if (!processesWithSharedOpaqueDirectoryOutputs.All(process => ValidateSidebandFileForProcess(process)))
+                if (!TryGetSidebandEntries(processesWithSharedOpaqueDirectoryOutputs, out var sidebandEntries))
                 {
-                    return Result.CreateForEagerDeletion();
+                    return SidebandState.CreateForEagerDeletion();
                 }
 
                 // find extraneous sideband files and return
@@ -145,13 +106,31 @@ namespace BuildXL.Engine
                         .ToArray();
                 }
 
-                return Result.CreateForLazyDeletion(extraneousSidebandFiles);
+                return SidebandState.CreateForLazyDeletion(sidebandEntries, extraneousSidebandFiles);
             }
             catch (Exception ex) when (ex is IOException || ex is OperationCanceledException)
             {
                 Logger.Log.SidebandFileIntegrityCheckThrewException(LoggingContext, ex.ToString());
-                return Result.CreateForEagerDeletion();
+                return SidebandState.CreateForEagerDeletion();
             }
+        }
+
+        private bool TryGetSidebandEntries(IEnumerable<Process> processes, out IReadOnlyDictionary<long, IReadOnlyCollection<AbsolutePath>> sidebandState)
+        {
+            var mutableSidebandState = new Dictionary<long, IReadOnlyCollection<AbsolutePath>>();
+            foreach (var process in processes)
+            {
+                if (!TryGetAndValidateSidebandStateForProcess(process, out var state))
+                {
+                    sidebandState = null;
+                    return false;
+                }
+
+                mutableSidebandState[process.SemiStableHash] = state;
+            }
+
+            sidebandState = mutableSidebandState;
+            return true;
         }
 
         private string GetSidebandFile(Process process)
@@ -194,10 +173,12 @@ namespace BuildXL.Engine
         ///   - a sideband file for a given process exists
         ///   - the sideband file is not corrupt (its checksum checks out)
         ///   - the process metadata recorded in the sideband file matches the metadata expected for this process
+        /// Returns true on success and the sideband state in the out parameter
         /// </summary>
-        private bool ValidateSidebandFileForProcess(Process process)
+        private bool TryGetAndValidateSidebandStateForProcess(Process process, out IReadOnlyCollection<AbsolutePath> paths)
         {
             var sidebandFile = GetSidebandFile(process);
+            paths = null;
             if (!FileUtilities.FileExistsNoFollow(sidebandFile))
             {
                 return failed(SidebandIntegrityCheckFailReason.FileNotFound);
@@ -217,6 +198,7 @@ namespace BuildXL.Engine
                     return failed(SidebandIntegrityCheckFailReason.MetadataMismatch, $"Expected: {expected}.  Actual: {metadata}");
                 }
 
+                paths = reader.ReadRecordedPaths().Select(p => AbsolutePath.Create(Context.PathTable, p)).ToHashSet();
                 return true;
             }
 
@@ -238,7 +220,15 @@ namespace BuildXL.Engine
             {
                 return sidebandFiles
                     .AsParallel(Context)
-                    .SelectMany(tryReadSidebandFile)
+                    .SelectMany(f => 
+                    {
+                        if (!TryReadSidebandFile(f, out _, out var paths))
+                        {
+                            return CollectionUtilities.EmptyArray<string>();
+                        }
+
+                        return paths;
+                    })
                     .ToArray();
             }
             catch (OperationCanceledException)
@@ -246,18 +236,24 @@ namespace BuildXL.Engine
                 // No specific handling needed for cancellations. Build session will terminate
                 return CollectionUtilities.EmptyArray<string>();
             }
+        }
 
-            IEnumerable<string> tryReadSidebandFile(string filename)
+        private bool TryReadSidebandFile(string filename, out SidebandMetadata metadata, out IEnumerable<string> paths)
+        {
+            try
             {
-                try
-                {
-                    return SidebandReader.ReadSidebandFile(filename, ignoreChecksum: true);
-                }
-                catch (Exception e) when (e is BuildXLException || e is IOException || e is OperationCanceledException)
-                {
-                    Processes.Tracing.Logger.Log.CannotReadSidebandFileWarning(LoggingContext, filename, e.Message);
-                    return CollectionUtilities.EmptyArray<string>();
-                }
+                // We ignore the checksum because even when the sideband file is compromised, 
+                // it is possible to call <see cref="ReadRecordedPaths"/> which will then try to recover 
+                // as many recorded paths as possible. 
+                (paths, metadata) = SidebandReader.ReadSidebandFile(filename, ignoreChecksum: true);
+                return true;
+            }
+            catch (Exception e) when (e is BuildXLException || e is IOException || e is OperationCanceledException)
+            {
+                Processes.Tracing.Logger.Log.CannotReadSidebandFileWarning(LoggingContext, filename, e.Message);
+                metadata = null;
+                paths = null;
+                return false;
             }
         }
     }

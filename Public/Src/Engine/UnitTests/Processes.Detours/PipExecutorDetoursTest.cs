@@ -161,7 +161,7 @@ namespace Test.BuildXL.Processes.Detours
                 null,
                 null,
                 SemanticPathExpander.Default,
-                isLazySharedOpaqueOutputDeletionEnabled: false,
+                sidebandState: null,
                 pipEnvironment: new PipEnvironment(loggingContext),
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty,
                 buildEngineDirectory: binDirectory,

@@ -2372,7 +2372,7 @@ namespace Test.BuildXL.Processes.Detours
                 process.AllowPreserveOutputs ? dummyMakeOutputPrivate : null,
                 expander,
                 new PipEnvironment(loggingContext),
-                isLazySharedOpaqueOutputDeletionEnabled: false,
+                sidebandState: null,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 processIdListener: processIdListener,

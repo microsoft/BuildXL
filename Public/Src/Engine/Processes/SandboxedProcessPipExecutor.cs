@@ -168,7 +168,7 @@ namespace BuildXL.Processes
 
         private readonly int m_remainingUserRetryCount;
 
-        private readonly bool m_isLazySharedOpaqueOutputDeletionEnabled;
+        private readonly SidebandState m_sidebandState;
 
         private readonly ITempCleaner m_tempDirectoryCleaner;
 
@@ -246,7 +246,7 @@ namespace BuildXL.Processes
             PipEnvironment pipEnvironment,
             IDirectoryArtifactContext directoryArtifactContext,
             ITempCleaner tempDirectoryCleaner,
-            bool isLazySharedOpaqueOutputDeletionEnabled,
+            SidebandState sidebandState,
             ISandboxedProcessLogger logger = null,
             Action<int> processIdListener = null,
             PipFragmentRenderer pipDataRenderer = null,
@@ -368,8 +368,7 @@ namespace BuildXL.Processes
             m_loggingConfiguration = configuration.Logging;
             m_remainingUserRetryCount = remainingUserRetryCount;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
-            m_isLazySharedOpaqueOutputDeletionEnabled = isLazySharedOpaqueOutputDeletionEnabled;
-
+            m_sidebandState = sidebandState;
             m_sharedOpaqueDirectoryRoots = m_pip.DirectoryOutputs
                 .Where(directory => directory.IsSharedOpaque)
                 .ToDictionary(directory => directory.Path, directory => directory);
@@ -909,6 +908,9 @@ namespace BuildXL.Processes
             && m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
             // Windows only.
             && !OperatingSystemHelper.IsUnixOS;
+
+        private bool IsLazySharedOpaqueOutputDeletionEnabled 
+            => m_sidebandState?.ShouldPostponeDeletion == true && m_pip.HasSharedOpaqueDirectoryOutputs;
 
         private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
             SandboxedProcessInfo info,
@@ -3195,13 +3197,9 @@ namespace BuildXL.Processes
                     }
                 }
 
-                if (m_isLazySharedOpaqueOutputDeletionEnabled && !DeleteSharedOpaqueOutputsRecordedInSidebandFile())
-                {
-                    return false;
-                }
+                // Delete shared opaque outputs if enabled
+                return !IsLazySharedOpaqueOutputDeletionEnabled || DeleteSharedOpaqueOutputsRecordedInSidebandFile();
             }
-
-            return true;
         }
 
         private void PrepareStandardDirectory(HashSet<AbsolutePath> outputDirectories)
@@ -3217,12 +3215,15 @@ namespace BuildXL.Processes
 
         private bool DeleteSharedOpaqueOutputsRecordedInSidebandFile()
         {
+            Contract.AssertNotNull(m_sidebandState, "DeleteSharedOpaqueOutputsRecordedInSidebandFile can't be called without a sideband state");
             var sidebandFile = SidebandWriter.GetSidebandFileForProcess(m_context.PathTable, m_layoutConfiguration.SharedOpaqueSidebandDirectory, m_pip);
+
             try
             {
                 var start = DateTime.UtcNow;
-                var sharedOpaqueOutputsToDelete = SidebandReader.ReadSidebandFile(sidebandFile, ignoreChecksum: false);
+                var sharedOpaqueOutputsToDelete = m_sidebandState[m_pip.SemiStableHash];
                 var deletionResults = sharedOpaqueOutputsToDelete // TODO: possibly parallelize file deletion
+                    .Select(p => p.ToString(m_pathTable))
                     .Where(FileUtilities.FileExistsNoFollow)
                     .Select(path => FileUtilities.TryDeleteFile(path)) // TODO: what about deleting directories?
                     .ToArray();
@@ -3244,8 +3245,9 @@ namespace BuildXL.Processes
                 }
 
                 // log deleted files
-                var deletedFiles = string.Join(string.Empty, deletionResults.Where(r => r.Succeeded).Select(r => $"{Environment.NewLine}  {r.Result}"));
-                Tracing.Logger.Log.SharedOpaqueOutputsDeletedLazily(m_loggingContext, m_pip.FormattedSemiStableHash, sidebandFile, deletedFiles);
+                var actuallyDeleted = deletionResults.Where(r => r.Succeeded);
+                var deletedFiles = string.Join(string.Empty, actuallyDeleted.Select(r => $"{Environment.NewLine}  {r.Result}"));
+                Tracing.Logger.Log.SharedOpaqueOutputsDeletedLazily(m_loggingContext, m_pip.FormattedSemiStableHash, sidebandFile, deletedFiles, actuallyDeleted.Count());
 
                 // delete the sideband file itself
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(sidebandFile));

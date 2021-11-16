@@ -385,6 +385,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         // We do this by examining the Existence of the pathContentInfo which will be set by the FileContentManager to see if the path represents
                         // a directory
                         ObservedInputType type;
+
                         if (pathContentInfo.HasValue && pathContentInfo.Value.Existence != PathExistence.ExistsAsDirectory)
                         {
                             // Path content info may be an absent file, for example, a sealed directory includes a non-existent file.
@@ -1635,6 +1636,30 @@ namespace BuildXL.Scheduler.Fingerprints
                 return PathExistence.Nonexistent;
             }
 
+            if (IsRecordedDynamicOutputForPip(pipInfo, path))
+            {
+                // We can safely report this path as absent because if the path is in the sideband file:
+                //  (1) If the file is an actual output of the pip, then we won't care about this observation
+                //      (i.e., it is not included in the execution result).
+                //  (2) If the file isn't an output of the pip in this run, then
+                //      the file will be / will have been scrubbed, so it should be an absent path probe.
+                //
+                //  The split into (1) and (2) is because the pip can be non-deterministic about its outputs,
+                //  and the sideband only holds the information of the latest run we observed, which may have different outputs
+                //  than the ones produced the next time the pip actually runs.
+                //
+                // See LazySharedOpaqueOutputDeletionTests.SidebandPathsAreConsideredAbsentByInputProcessor
+                // for a scenario where not having this reclassification would make the engine crash.
+                //
+                // This is becasue with lazy scrubbing of shared opaques we can get confused because:
+                //  1. the actual existence of the file at cache lookup time is "Present",
+                //  2. the file will be absent at execution time due to scrubbing (and potentially not produced!).
+                //
+                // Because path existence is recorded at cache-lookup time, we will decide that the file is present
+                // when it actually wasn't, and we will crash (see bug #1838467).
+                return PathExistence.Nonexistent;
+            }
+
             // PathExistence gets cached for the duration of the build. This is acceptable because:
             // 1. PathExistence checks not only look at the filesystem but also at files that will eventually be produced
             //      by other pips in the build.
@@ -1649,7 +1674,6 @@ namespace BuildXL.Scheduler.Fingerprints
             //     the consuming pip to rerun
             // In general, these issues are acceptable since querying the filesystem every time wouldn't necessarily produce
             // better results. There'd still be an inherent race.
-
             Possible<PathExistence> existence;
 
             // Check if path will be eventually produced as a file/directory by querying 'output file system'
@@ -1715,6 +1739,18 @@ namespace BuildXL.Scheduler.Fingerprints
 
             // Return the real file system existence
             return existence;
+        }
+        
+        /// <summary>
+        /// Returns true if we have a recorded entry for this path in 
+        /// the sideband file for the pip, i.e. if this path is an observed
+        /// dynamic output of the pip in a shared opaque directory.
+        /// </summary>
+        private bool IsRecordedDynamicOutputForPip(PipInfo pipInfo, AbsolutePath path)
+        {
+            return m_state.SidebandState?.Entries != null 
+                && m_state.SidebandState.Entries.TryGetValue(pipInfo.SemiStableHash, out var state) 
+                && state.Contains(path);
         }
 
         /// <inheritdoc />

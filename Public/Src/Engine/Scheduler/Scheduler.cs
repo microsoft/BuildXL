@@ -67,6 +67,7 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
+using BuildXL.Processes.Sideband;
 
 namespace BuildXL.Scheduler
 {
@@ -1014,9 +1015,9 @@ namespace BuildXL.Scheduler
         private CriticalPathStats m_criticalPathStats;
 
         /// <summary>
-        /// <see cref="PipExecutionState.LazyDeletionOfSharedOpaqueOutputsEnabled"/>
+        /// <see cref="PipExecutionState.SidebandState"/>
         /// </summary>
-        private bool m_lazyDeletionOfSharedOpaqueOutputsEnabled = false;
+        private SidebandState m_sidebandState;
 
         /// <summary>
         /// Gets counters for the details of pip execution and cache interaction.
@@ -6098,7 +6099,7 @@ namespace BuildXL.Scheduler
                     fileContentManager: m_fileContentManager,
                     unsafeConfiguration: m_configuration.Sandbox.UnsafeSandboxConfiguration,
                     preserveOutputsSalt: m_previousInputsSalt,
-                    lazyDeletionOfSharedOpaqueOutputsEnabled: m_lazyDeletionOfSharedOpaqueOutputsEnabled,
+                    sidebandState: m_sidebandState,
                     serviceManager: m_serviceManager,
                     alienFileEnumerationCache: m_alienFileEnumerationCache);
             }
@@ -7812,9 +7813,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// <see cref="PipExecutionState.LazyDeletionOfSharedOpaqueOutputsEnabled"/>
         /// </summary>
-        internal void SetLazyDeletionOfSharedOpaqueOutputsEnabled()
+        internal void SetSidebandState(SidebandState sidebandState)
         {
-            m_lazyDeletionOfSharedOpaqueOutputsEnabled = true;
+            m_sidebandState = sidebandState;
         }
     }
 }

@@ -1696,9 +1696,6 @@ namespace BuildXL.Scheduler
 
             var processMonitoringLogger = new ProcessExecutionMonitoringLogger(operationContext, pip, context, environment.State.ExecutionLog);
 
-            // Delete shared opaque outputs if enabled
-            var isLazySharedOpaqueOutputDeletionEnabled = environment.State.LazyDeletionOfSharedOpaqueOutputsEnabled && pip.HasSharedOpaqueDirectoryOutputs;
-
             // Inner cancellation token source for tracking cancellation time
             using (var innerResourceLimitCancellationTokenSource = new CancellationTokenSource())
             using (var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(innerResourceLimitCancellationTokenSource.Token, environment.SchedulerCancellationToken))
@@ -1757,7 +1754,7 @@ namespace BuildXL.Scheduler
                         makeInputPrivate,
                         makeOutputPrivate,
                         semanticPathExpander,
-                        isLazySharedOpaqueOutputDeletionEnabled: isLazySharedOpaqueOutputDeletionEnabled,
+                        sidebandState: environment.State.SidebandState,
                         pipEnvironment: environment.State.PipEnvironment,
                         directoryArtifactContext: new DirectoryArtifactContext(environment),
                         logger: processMonitoringLogger,
@@ -3429,8 +3426,8 @@ namespace BuildXL.Scheduler
                 configuration,
                 environment.RootMappings,
                 environment.ProcessInContainerManager,
-                isLazySharedOpaqueOutputDeletionEnabled: false,
                 pipEnvironment: environment.State.PipEnvironment,
+                sidebandState: environment.State.SidebandState,
                 directoryArtifactContext: new DirectoryArtifactContext(environment),
                 allowlist: null,
                 makeInputPrivate: null,

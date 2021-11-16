@@ -174,36 +174,9 @@ HashAlgorithms=SHA256
         {
             if (dropConfig.GenerateBuildManifest)
             {
-                List<string> missingFields = new List<string>();
-
-                if (string.IsNullOrEmpty(serviceConfig.Repo))
-                {
-                    missingFields.Add("repo");
-                }
-
-                if (string.IsNullOrEmpty(serviceConfig.Branch))
-                {
-                    missingFields.Add("branch");
-                }
-
-                if (string.IsNullOrEmpty(serviceConfig.CommitId))
-                {
-                    missingFields.Add("commitId");
-                }
-
-                if (string.IsNullOrEmpty(serviceConfig.CloudBuildId))
-                {
-                    missingFields.Add("cloudBuildId");
-                }
-
                 if (string.IsNullOrEmpty(serviceConfig.BsiFileLocation))
                 {
-                    missingFields.Add("BsiFileLocation");
-                }
-
-                if (missingFields.Count != 0)
-                {
-                    error = $"GenerateBuildManifest = true, but the following required fields are missing: {string.Join(", ", missingFields)}";
+                    error = $"GenerateBuildManifest = true, but the following required fields are missing: BsiFileLocation";
                     return false;
                 }
 

@@ -507,11 +507,7 @@ namespace Tool.DropDaemon
         /// </summary>        
         public static DropServiceConfig CreateDropServiceConfig(ConfiguredCommand conf)
         {
-            return new DropServiceConfig(repo: conf.Get(Repo),
-                branch: conf.Get(Branch),
-                commitId: conf.Get(CommitId),
-                cloudBuildId: conf.Get(CloudBuildId),
-                bsiFileLocation: conf.Get(BsiFileLocation),
+            return new DropServiceConfig(bsiFileLocation: conf.Get(BsiFileLocation),
                 makeCatToolPath: conf.Get(MakeCatToolPath),
                 esrpManifestSignToolPath: conf.Get(EsrpManifestSignToolPath));
         }

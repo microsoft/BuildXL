@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace BuildXL.Processes.Remoting
@@ -33,6 +33,8 @@ namespace BuildXL.Processes.Remoting
         /// Shim -> AnyBuild string message prefix that runs a process. The following string is a null character
         /// delimited set of fields in the following order:
         ///
+        /// * ProcessId - int.ToString() of the process ID of the shimmed process.
+        /// * ParentProcessId - int.ToString() of the parent process ID of the shimmed process.
         /// * Command - the fully qualified path to the command to run.
         /// * Args - the argument string for the command.
         /// * WorkingDir - the working directory in which to run the command.
@@ -43,7 +45,7 @@ namespace BuildXL.Processes.Remoting
         /// * ShimCallStartTimeTicks - a long.ToString() of the UTC tick count when the shim process started.
         ///
         /// Example:
-        /// Rc:\windows\system32\cmd.exe\0/k\0c:\foo\06337782663572\0PATH=c:\windows\0SOMEENV=SomeVal\0\07785\06337782668997\0
+        /// R123\0456\0c:\windows\system32\cmd.exe\0/k\0c:\foo\06337782663572\0PATH=c:\windows\0SOMEENV=SomeVal\0\07785\06337782668997\0
         /// .
         /// </summary>
         public const char RunProcessMessagePrefix = 'R';

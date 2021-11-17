@@ -59,7 +59,7 @@ param(
     [string]$CacheNamespace = "BuildXLSelfhost",
 
     [Parameter(HelpMessage = "Build queue")]
-    [string]$Queue = "BuildXL_Internal_Buddy",
+    [string]$Queue = "BuildXL_Internal_PR",
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$BuildXLArguments = ""

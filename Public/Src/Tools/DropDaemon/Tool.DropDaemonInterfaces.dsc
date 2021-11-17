@@ -119,7 +119,13 @@ export interface DropOperationArguments extends CommonArguments {
  * Arguments for the 'dropd create' operation.
  */
 @@public
-export interface DropCreateArguments extends DropSettings, DaemonSettings, DropOperationArguments {}
+export interface DropCreateArguments extends DropSettings, DaemonSettings, DropOperationArguments {
+    /** Should build manifests (SBOMs) be created for this drop. */
+    generateBuildManifest?: boolean;
+ 
+    /** Should the generated SBOMs be signed. */
+    signBuildManifest?: boolean;
+}
 
 /**
  * Result for the 'dropd create' operation.

@@ -453,16 +453,14 @@ export namespace DropDaemonRunner {
                     Artifact.input(args.dropServiceConfigFile)
                 ),
                 Cmd.option("--domainId ", args.dropDomainId),
-                // --generateBuildManifest Needs to be set after --dropServiceConfigFile to overwrite the bool set by json config
-                // Used to enable ABTesting Build Manifest via BXL ENV var, safe to remove after complete feature rollout
                 ...addIf(
                     command === "create",
-                    Cmd.flag("--generateBuildManifest", 
-                            Environment.getFlag("BuildXLEnableBuildManifestGeneration") === true 
-                            && Environment.getFlag("BuildXLDisableBuildManifestGeneration") !== true),
-                    Cmd.flag("--signBuildManifest", 
-                        Environment.getFlag("BuildXLEnableBuildManifestSigning") === true 
-                        && Environment.getFlag("BuildXLDisableBuildManifestSigning") !== true)
+                    Cmd.flag("--generateBuildManifest", args.generateBuildManifest),
+                    Cmd.flag("--signBuildManifest", args.signBuildManifest),
+                    // Add option to suppress SBOM through env variables 
+                    // Do this last to override previous options (which may come from args or from the config file).
+                    Cmd.option("--generateBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestGeneration")),
+                    Cmd.option("--signBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestSigning"))
                 ),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),

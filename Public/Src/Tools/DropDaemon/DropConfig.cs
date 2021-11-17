@@ -105,10 +105,10 @@ namespace Tool.DropDaemon
         public static bool DefaultEnableChunkDedup { get; } = false;
 
         /// <nodoc/>
-        public static bool DefaultGenerateBuildManifest { get; } = false;
+        public static bool DefaultGenerateBuildManifest { get; } = true;
 
         /// <nodoc/>
-        public static bool DefaultSignBuildManifest { get; } = false;
+        public static bool DefaultSignBuildManifest { get; } = true;
         #endregion
 
         // ==================================================================================================

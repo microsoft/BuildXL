@@ -286,6 +286,8 @@ private:
 
     // CanonicalPath does not canonicalize trailing slashes for directories
     // But the cache structures need exact string matching, so we do it here
+    // Normalization also removes NT/local device prefix from path because callers may not guarantee that,
+    // and methods inside tree, like _wsplitpath relies on the fact that the path does not have such prefixes.
     inline std::wstring Normalize(const std::wstring& path)
     {
         if (path.size() > 0 && IsDirectorySeparator(path.back()))
@@ -294,7 +296,7 @@ private:
             return normal;
         }
 
-        return path;
+        return GetPathWithoutPrefix(path.c_str());
     }
 
     ResolvedPathCacheLock m_lock;

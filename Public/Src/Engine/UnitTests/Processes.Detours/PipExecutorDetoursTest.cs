@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
+using BuildXL.Native.IO.Windows;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
@@ -6405,6 +6406,70 @@ namespace Test.BuildXL.Processes.Detours
                             (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Denied)
                         });
                 }
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task ReadNtPrefixedSymlinks(bool ignoreFullReparsePointResolving)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string target = tempFiles.GetFileName("Target");
+                string targetWithNtPrefix = FileSystemWin.LongPathPrefix + target;
+                WriteFile(target, string.Empty);
+
+                string intermediateSymlink = tempFiles.GetFileName("Intermediate.lnk");
+                string intermediateSymlinkWithNtPrefix = FileSystemWin.LongPathPrefix + intermediateSymlink;
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(intermediateSymlinkWithNtPrefix, targetWithNtPrefix, isTargetFile: true));
+
+                string symlinkSource = tempFiles.GetFileName("SourceOfSymLink.link");
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkSource, intermediateSymlinkWithNtPrefix, isTargetFile: true));
+
+                AbsolutePath targetPath = AbsolutePath.Create(pathTable, target);
+                AbsolutePath intermediatePath = AbsolutePath.Create(pathTable, intermediateSymlink);
+                AbsolutePath sourcePath = AbsolutePath.Create(pathTable, symlinkSource);
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDetouredFileCreateThatAccessesChainOfSymlinks",
+                    inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(new FileArtifact[]
+                    {
+                        FileArtifact.CreateSourceFile(sourcePath),
+                        FileArtifact.CreateSourceFile(intermediatePath),
+                        FileArtifact.CreateSourceFile(targetPath),
+                    }),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString;
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    context: context,
+                    pip: process,
+                    ignoreFullReparsePointResolving: ignoreFullReparsePointResolving,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(context, result.AllReportedFileAccesses, new[]
+                {
+                    (sourcePath, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (intermediatePath, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (targetPath, RequestedAccess.Read, FileAccessStatus.Allowed),
+                });
             }
         }
 

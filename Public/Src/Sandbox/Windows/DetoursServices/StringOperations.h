@@ -259,4 +259,8 @@ std::wstring PathCombine(const std::wstring& fragment1, const std::wstring& frag
 // to normalize the path.
 __declspec( dllexport )
 std::wstring NormalizePath(const std::wstring& path);
+
+// Removes NT or local device prefix from path.
+__declspec(dllexport)
+PCPathChar GetPathWithoutPrefix(PCPathChar path);
 #endif

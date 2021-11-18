@@ -439,6 +439,16 @@ size_t GetRootLength(PCPathChar path)
     return i;
 }
 
+PCPathChar GetPathWithoutPrefix(PCPathChar path)
+{
+    return HasPrefix(path, NT_LONG_PATH_PREFIX)
+        || HasPrefix(path, NT_PATH_PREFIX)
+        || HasPrefix(path, LONG_UNC_PATH_PREFIX)
+        || HasPrefix(path, L"\\\\.\\")
+        ? path + 4
+        : path;
+}
+
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements)
 {

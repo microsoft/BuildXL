@@ -1250,6 +1250,11 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     std::shared_ptr<vector<wstring>> order = std::make_shared<vector<wstring>>();
     std::shared_ptr< map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>> resolvedPaths = std::make_shared<map<wstring, ResolvedPathType, CaseInsensitiveStringLessThan>>();
 
+    auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
+    auto directory = std::make_unique<wchar_t[]>(_MAX_EXTENDED_DIR_LENGTH);
+    auto file_name = std::make_unique<wchar_t[]>(_MAX_FNAME);
+    auto extension = std::make_unique<wchar_t[]>(_MAX_EXT);
+
     // levelToEnforceReparsePointParsingFrom is only valid for the path associated with policyResult.
     // Once we follow that symlink, the next path has to be checked at each level.
     bool first = true;
@@ -1257,13 +1262,8 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     size_t levelToEnforceReparsePointParsingFrom = GetLevelToEnableFullReparsePointParsing(policyResult);
     while (true)
     {
-        auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
-        auto directory = std::make_unique<wchar_t[]>(_MAX_EXTENDED_DIR_LENGTH);
-        auto file_name = std::make_unique<wchar_t[]>(_MAX_FNAME);
-        auto extension = std::make_unique<wchar_t[]>(_MAX_EXT);
-
         errno_t err = _wsplitpath_s(
-            input,
+            GetPathWithoutPrefix(input),
             drive.get(),     _MAX_DRIVE,
             directory.get(), _MAX_EXTENDED_DIR_LENGTH,
             file_name.get(), _MAX_FNAME,

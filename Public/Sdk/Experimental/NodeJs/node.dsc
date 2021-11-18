@@ -72,13 +72,13 @@ namespace Node {
         
         switch (host.os) {
             case "win":
-                pkgContents = importFrom("NodeJs.win-x64").extracted;
+                pkgContents = <OpaqueDirectory>importFrom("NodeJs.win-x64").extracted;
                 break;
             case "macOS": 
-                pkgContents = importFrom("NodeJs.osx-x64").extracted;
+                pkgContents = <OpaqueDirectory>importFrom("NodeJs.osx-x64").extracted;
                 break;
             case "unix": 
-                pkgContents = importFrom("NodeJs.linux-x64").extracted;
+                pkgContents = <OpaqueDirectory>importFrom("NodeJs.linux-x64").extracted;
                 break;
             default:
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);

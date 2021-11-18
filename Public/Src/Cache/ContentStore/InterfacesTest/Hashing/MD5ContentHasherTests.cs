@@ -11,6 +11,7 @@ using MD5Cng = System.Security.Cryptography.MD5CryptoServiceProvider;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
     public class MD5ContentHasherTests : ContentHasherTests<MD5Cng>
     {
         [Fact]
@@ -22,4 +23,5 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
     }
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 }

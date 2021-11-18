@@ -12,13 +12,24 @@ namespace Native {
     export const securityDlls = BuildXLSdk.isDotNetCoreBuild ? [
         // In netCoreApp2.2 accesscontrol is missing enum: System.Security.AccessControl.AccessControlType
         importFrom("System.IO.Pipes.AccessControl").pkg,
-        BuildXLSdk.withWinRuntime(importFrom("System.Security.AccessControl").pkg, r`runtimes/win/lib/netcoreapp2.0`),
+        
         BuildXLSdk.withWinRuntime(importFrom("System.Threading.AccessControl").pkg, r`runtimes/win/lib/netstandard2.0`),
-        BuildXLSdk.withWinRuntime(importFrom("System.IO.FileSystem.AccessControl").pkg, r`runtimes/win/lib/netstandard2.0`),
 
-        BuildXLSdk.isTargetRuntimeOsx
-            ? Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/unix/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
-            : Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/win/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
+        ...addIf(qualifier.targetFramework !== 'net6.0', 
+            BuildXLSdk.withWinRuntime(importFrom("System.Security.AccessControl").pkg, r`runtimes/win/lib/netcoreapp2.0`),
+            BuildXLSdk.withWinRuntime(importFrom("System.IO.FileSystem.AccessControl").pkg, r`runtimes/win/lib/netstandard2.0`)
+        ),
+
+        ...addIf(qualifier.targetFramework === 'net6.0',
+            BuildXLSdk.withWinRuntime(importFrom("System.IO.FileSystem.AccessControl.v6.0.0").pkg, r`runtimes/win/lib/netstandard2.0`),
+            BuildXLSdk.withWinRuntime(importFrom("System.Security.AccessControl.v6.0.0").pkg, r`runtimes/win/lib/netstandard2.0`),
+            BuildXLSdk.withWinRuntime(importFrom("System.Security.Principal.Windows.v6.0.0").pkg, r`runtimes/win/lib/netstandard2.0`)
+        ),
+        
+        ...addIf(qualifier.targetFramework !== 'net6.0', 
+            BuildXLSdk.isTargetRuntimeOsx
+                ? Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/unix/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
+                : Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/win/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`))
     ] : [];
 
     @@public

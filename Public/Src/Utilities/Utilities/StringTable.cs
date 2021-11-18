@@ -1372,7 +1372,6 @@ namespace BuildXL.Utilities
         protected static SerializedState ReadSerializationState(BuildXLReader reader)
         {
             Contract.RequiresNotNull(reader);
-
             SerializedState result = new SerializedState();
             result.NextId = reader.ReadInt32();
 
@@ -1476,7 +1475,6 @@ namespace BuildXL.Utilities
                     writer.Write(NullMarker);
                 }
             }
-
             
             if (state.OverflowBuffers == null)
             {

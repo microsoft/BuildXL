@@ -17,7 +17,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.RemoteWorker;
-#if NET_COREAPP_31
+#if NET_COREAPP
 using Grpc.Net.Client;
 #endif
 
@@ -166,7 +166,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 return;
             }
 
-#if NET_COREAPP_31
+#if NET_COREAPP
             var channelOptions = new GrpcChannelOptions
             {
                 MaxSendMessageSize = int.MaxValue,
@@ -191,7 +191,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 #endif
         }
 
-#if NET_COREAPP_31
+#if NET_COREAPP
         private void SetupChannelOptionsForEncryption(GrpcChannelOptions channelOptions)
         {
             var handler = new SocketsHttpHandler

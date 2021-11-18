@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
-
+import * as Shared       from "Sdk.Managed.Shared";
 import * as Managed      from "Sdk.Managed";
 import * as Qtest        from "BuildXL.Tools.QTest";
 
@@ -166,8 +166,12 @@ function runTest(args : TestRunArguments) : File[] {
     
     let qTestRuntimeDependencies = undefined;
     let qTestEnvironmentVariables = undefined;
-    if (isDotNetCore) {
-        const dotNetTool = importFrom("Sdk.Managed.Frameworks").Helpers.getDotNetToolTemplate(/*isDotNet5*/qualifier.targetFramework === "net5.0");
+
+    // Extracting a variable, because the type checker can't analyze a dotted names properly.
+    const targetFramework = qualifier.targetFramework;
+
+    if (Shared.isDotNetCore(targetFramework)) {
+        const dotNetTool = importFrom("Sdk.Managed.Frameworks").Helpers.getDotNetToolTemplate(targetFramework);
         qTestRuntimeDependencies = [
             ...dotNetTool.dependencies
         ];

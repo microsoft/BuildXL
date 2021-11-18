@@ -37,7 +37,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     SHA-1 Content hasher
         /// </summary>
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private sealed class SHA1ContentHasher : ContentHasher<SHA1Managed>
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
         {
             /// <summary>
             ///     Initializes a new instance of the <see cref="SHA1ContentHasher" /> class.

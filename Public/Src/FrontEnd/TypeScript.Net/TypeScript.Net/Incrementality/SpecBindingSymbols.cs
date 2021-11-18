@@ -101,7 +101,9 @@ namespace TypeScript.Net.Incrementality
         [SuppressMessage("Microsoft.Cryptography", "CA5350:DoNotUseWeakCryptographicAlgorithms", Justification = "Encryption is not required to be secure here.")]
         private static string ComputeFingerprint(byte[] data, int size)
         {
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
             using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
             {
                 return Convert.ToBase64String(sha1.ComputeHash(data, 0, size));
             }

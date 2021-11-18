@@ -169,6 +169,11 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <nodoc />
         ~TrackingFileStream()
         {
+            if (string.IsNullOrEmpty(Path))
+            {
+                return;
+            }
+            
             Interlocked.Increment(ref Leaked);
             // Saving the last leaked path for potential tracing purposes.
             LastLeakedFilePath = Path;

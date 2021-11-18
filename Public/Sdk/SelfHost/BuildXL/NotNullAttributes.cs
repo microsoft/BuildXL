@@ -101,7 +101,7 @@ namespace System.Diagnostics.CodeAnalysis
 
 #endif
 
-#if !NET_COREAPP_50
+#if (!NET_COREAPP_50 && !NET_COREAPP_60)
     /// <summary>Specifies that the method or property will ensure that the listed field and property members have not-null values.</summary>
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property, Inherited = false, AllowMultiple = true)]
     internal sealed class MemberNotNullAttribute : Attribute

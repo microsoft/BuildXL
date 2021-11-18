@@ -60,7 +60,12 @@ namespace BuildXL.Scheduler.Tracing
             var serializerOptions = new JsonSerializerOptions
             {
                 WriteIndented = true,
-                IgnoreNullValues = true
+#if (NET_COREAPP_50 || NET_COREAPP_60)
+// .NET 5 and 6 have a different way of dealing with null values
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+#else
+                IgnoreNullValues = true,
+#endif
             };
 
             try

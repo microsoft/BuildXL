@@ -3,9 +3,13 @@
 
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
+const core60Version = "6.0.0";
+
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
 const pkgVersion5 = "5.0.0";
+const pkgVersion6 = "6.0.0";
+const pkgVersion6Preview = "6.0.0-preview.5.21301.5";
 
 export const pkgs = [
 
@@ -40,6 +44,7 @@ export const pkgs = [
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
 
+    // .NET 5
 
     // .NET Core 5.0 Dependencies
     { id: "Microsoft.NETCore.App.Ref", version: core50Version, alias: "Microsoft.NETCore.App.Ref50" },
@@ -70,6 +75,38 @@ export const pkgs = [
     { id: "Microsoft.NETCore.App.Host.linux-x64", version: core50Version, alias: "Microsoft.NETCore.App.Host.linux-x64.5.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core50Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.5.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core50Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.5.0" },
+
+    // .NET 6
+
+    // .NET Core 6.0 Dependencies
+    { id: "Microsoft.NETCore.App.Ref", version: core60Version, alias: "Microsoft.NETCore.App.Ref60" },
+
+    { id: "Microsoft.NETCore.Platforms", version: core60Version, alias: "Microsoft.NETCore.Platforms.6.0" },
+    
+    // .NET Core Self-Contained Deployment
+    { id: "Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "Microsoft.NETCore.DotNetHostResolver.6.0" },
+
+    { id: "Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "Microsoft.NETCore.DotNetHostPolicy.6.0" },
+
+    { id: "Microsoft.NETCore.DotNetAppHost", version: core60Version, alias: "Microsoft.NETCore.DotNetAppHost.6.0" },
+
+    // .NET Core win-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.6.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.6.0" },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },
+
+    // .NET Core osx-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core60Version, alias: "Microsoft.NETCore.App.Host.osx-x64.6.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core60Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.6.0"},
+    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
+    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },
+
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core60Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.6.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core60Version, alias: "Microsoft.NETCore.App.Host.linux-x64.6.0" },
+    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
+    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },    
 
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },
@@ -213,6 +250,7 @@ export const pkgs = [
     { id: "System.Security.AccessControl", version: pkgVersionNext,
         dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
     { id: "System.Security.Principal.Windows", version: pkgVersionNext },
+    
     { id: "System.Security.Principal.Windows", version: pkgVersion5, alias: "System.Security.Principal.Windows.v5.0.0" },
     { id: "System.Text.Json", version: pkgVersionNext,
         dependentPackageIdsToSkip: ["System.Memory", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces"],
@@ -222,6 +260,10 @@ export const pkgs = [
         alias: "System.Text.Json.v5.0.0"
     },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
+
+    { id: "System.IO.FileSystem.AccessControl", version: pkgVersion6Preview, alias: "System.IO.FileSystem.AccessControl.v6.0.0" },
+    { id: "System.Security.AccessControl", version: pkgVersion6, alias: "System.Security.AccessControl.v6.0.0" },
+    { id: "System.Security.Principal.Windows", version: pkgVersion6Preview, alias: "System.Security.Principal.Windows.v6.0.0" },
 
     // Non-standard version ones
     { id: "Microsoft.NETCore.Targets", version: "2.0.0" },

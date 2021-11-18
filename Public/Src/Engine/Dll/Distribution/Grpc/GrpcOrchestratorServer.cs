@@ -5,7 +5,7 @@ using System;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-#if NET_COREAPP_31
+#if NET_COREAPP
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 #endif
@@ -31,7 +31,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             if (EngineEnvironmentSettings.GrpcKestrelServerEnabled)
             {
-#if NET_COREAPP_31
+#if NET_COREAPP
                 Action<object> configure = (endpoints) => ((IEndpointRouteBuilder)endpoints).MapGrpcService<GrpcOrchestrator>();
                 _ = StartKestrel(port, configure);
 #endif

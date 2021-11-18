@@ -124,10 +124,10 @@ export interface InternalsVisibleToArguments {
  * Returns if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net5.0";
+export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net5.0" || qualifier.targetFramework === "net6.0";
 
 @@public
-export const isDotNetCoreApp : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0";
+export const isDotNetCoreApp : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0" || qualifier.targetFramework === "net6.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472" || qualifier.targetFramework === "net462";
@@ -158,7 +158,7 @@ export const targetFrameworkMatchesCurrentHost =
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***
@@ -797,7 +797,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     // Add the file with non-nullable attributes for non-dotnet core projects
     // if nullable flag is set, but a special flag is false.
-    if (args.addNotNullAttributeFile !== false && qualifier.targetFramework !== "net5.0") {
+    if (args.addNotNullAttributeFile !== false && (qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net6.0")) {
         if ( (args.nullable || args.addNotNullAttributeFile === true)) {
             args = args.merge({
                 sources: [notNullAttributesFile],
@@ -805,9 +805,12 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         }
     }
 
-    args = args.merge({
-        sources: [isExternalInit],
-    });
+    // Adding 'IsExternalInit.cs' file but only for the older .net versions.
+    if (qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net6.0") {
+        args = args.merge({
+            sources: [isExternalInit],
+        });
+    }
     
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {
@@ -866,7 +869,7 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && !(qualifier.targetFramework === "net5.0")          // Disable QTest for .net 5 for now.
+        && !(qualifier.targetFramework === "net5.0" || qualifier.targetFramework === "net6.0")          // Disable QTest for .net 5 & 6 for now.
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

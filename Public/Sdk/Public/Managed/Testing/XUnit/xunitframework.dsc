@@ -3,12 +3,11 @@
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 
+import {isDotNetCore, DotNetCoreVersion, Framework} from "Sdk.Managed.Shared";
 import * as Managed      from "Sdk.Managed";
 import * as Deployment   from "Sdk.Deployment";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
-
-const isDotNetCore = qualifier.targetFramework.startsWith("netcoreapp") || qualifier.targetFramework === "net5.0";
 
 @@public
 export const framework : Managed.TestFramework = {
@@ -35,7 +34,7 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                 importFrom("Microsoft.TestPlatform.TestHost").pkg,
             ],
         },
-        isDotNetCore
+        isDotNetCore(qualifier.targetFramework)
             ? {
                 deployRuntimeConfigFile: true,
                 deploymentStyle: "selfContained",
@@ -44,11 +43,9 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         args);
 }
 
-function getXunitConsoleRuntimeConfigNetCoreApp31Files(): File[] {
+function getXunitConsoleRuntimeConfigNetCoreAppFiles(): File[] {
     return Managed.RuntimeConfigFiles.createFiles(
-        qualifier.targetFramework === "netcoreapp3.1" 
-            ? importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework 
-            : importFrom("Sdk.Managed.Frameworks.Net5.0").withQualifier({targetFramework: "net5.0"}).framework,
+        getTargetFramework(),
         "frameworkDependent",
         "xunit.console",
         "xunit.console.dll",
@@ -58,19 +55,28 @@ function getXunitConsoleRuntimeConfigNetCoreApp31Files(): File[] {
     );
 }
 
+function getTargetFramework(): Framework {
+    switch (qualifier.targetFramework) {
+        case "netcoreapp3.1": return importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework;
+        case "net5.0": return importFrom("Sdk.Managed.Frameworks.Net5.0").withQualifier({targetFramework: "net5.0"}).framework;
+        case "net6.0": return importFrom("Sdk.Managed.Frameworks.Net6.0").withQualifier({targetFramework: "net6.0"}).framework;
+        default: Contract.fail(`Unknown targetFramework version '${qualifier.targetFramework}'.`);
+    } 
+}
+
 @@public
-export const additionalNetCoreRuntimeContent = 
+export const additionalNetCoreRuntimeContent = isDotNetCore(qualifier.targetFramework) ?
     [
         // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and package it
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
-        ...(getXunitConsoleRuntimeConfigNetCoreApp31Files()),
+        ...(getXunitConsoleRuntimeConfigNetCoreAppFiles()),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
         xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
-    ];
+    ] : [];
     
 // For the DotNetCore run we need to copy a bunch more files:
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
-    return isDotNetCore ? additionalNetCoreRuntimeContent : [];
+    return isDotNetCore(qualifier.targetFramework) ? additionalNetCoreRuntimeContent : [];
 }
 
 function runTest(args : TestRunArguments) : File[] {

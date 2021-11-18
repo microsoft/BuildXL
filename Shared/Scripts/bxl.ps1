@@ -42,9 +42,9 @@ Uses the LKG deployment to update the Dev deployment with Debug binaries
 .EXAMPLE
 
 
-.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net5.0"
+.\bxl -DeployDev -DeployConfig "release" -DeployRuntime "net6.0"
 
-Uses the LKG deployment to update the Dev deployment with net5.0 release binaries 
+Uses the LKG deployment to update the Dev deployment with net6.0 release binaries 
 
 .EXAMPLE
 
@@ -72,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "net5.0", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "net5.0", "net6.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory=$false)]
@@ -347,10 +347,11 @@ function New-Deployment {
 
     $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $DeployRuntime)
 
-    if ($DeployRuntime -eq "net5.0") {
+    if ($DeployRuntime -eq "net5.0" -or $DeployRuntime -eq "net6.0") {
         # Handling .net 5 differently, because the old scheme is not suitable for having dev deployments with different qualifiers.
+        $framework = $DeployRuntime;
         $DeployRuntime = "win-x64";
-        $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, "net5.0", $DeployRuntime)
+        $buildRelativeDir = [io.path]::combine($DeploymentRoot, $DeployConfig, $framework, $DeployRuntime)
     }
 
     return @{
@@ -539,6 +540,9 @@ if ($DeployConfig -eq "Release") {
     elseif ($DeployRuntime -eq "net5.0") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNet5"
     }
+    elseif ($DeployRuntime -eq "net6.0") {
+        $AdditionalBuildXLArguments += "/q:ReleaseDotNet6"
+    }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
     }
@@ -551,6 +555,9 @@ if ($DeployConfig -eq "Release") {
     }
     elseif ($DeployRuntime -eq "net5.0") {
         $AdditionalBuildXLArguments += "/q:DebugDotNet5"
+    }
+    elseif ($DeployRuntime -eq "net6.0") {
+        $AdditionalBuildXLArguments += "/q:DebugDotNet6"
     }
     elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"
@@ -591,7 +598,7 @@ if ($useDeployment.EnableServerMode) {
 
 if ($shouldDeploy) {
     $deployDeployment = Get-Deployment $Deploy;
-    Log "The newly-built BuildXL will be deployed as the $($deployDeployment.description) version.";
+    Log "The newly-built BuildXL will be deployed as the $($deployDeployment.description) version at $($deployDeployment.buildDir).";
 }
 
 if ($Minimal) {

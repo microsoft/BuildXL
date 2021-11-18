@@ -4,6 +4,7 @@
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
+import {isDotNetCore} from "Sdk.Managed.Shared";
 
 export const xunitConsolePackage = importFrom("xunit.runner.console").Contents.all;
 
@@ -28,7 +29,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
     let testDeployment = args.testDeployment;
 
     const tool : Transformer.ToolDefinition = Managed.Factory.createTool({
-        exe: qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0"
+        exe: isDotNetCore(qualifier.targetFramework)
             ? testDeployment.contents.getFile(r`xunit.console.dll`)
             // Using xunit executable from different folders depending on the target framework.
             // This allow us to actually to run tests targeting different frameworks.
@@ -106,8 +107,10 @@ export function runConsoleTest(args: TestRunArguments): Result {
         });
     }
 
-    if (qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "net5.0") {
-        execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(/*isDotNet5*/qualifier.targetFramework === "net5.0", execArguments);
+    // Extracting a local variable to help the typechecker to narrow the type.
+    const targetFramework = qualifier.targetFramework;
+    if (isDotNetCore(targetFramework)) {
+        execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(targetFramework, execArguments);
     }
 
     execArguments = Managed.TestHelpers.applyTestRunExecutionArgs(execArguments, args);

@@ -29,6 +29,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         private static HashInfo GetBuiltInHashInfo(Type algorithmType)
         {
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
             if (algorithmType == typeof(SHA1Managed))
             {
                 return SHA1HashInfo.Instance;
@@ -67,7 +68,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             {
                 return Dedup1024KHashInfo.Instance;
             }
-
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
+            
             throw new ArgumentException(algorithmType.FullName + " is not a built-in hash type.");
         }
 

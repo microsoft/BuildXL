@@ -53,7 +53,8 @@ namespace Test.MsBuild {
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net5.0"}).deployment,
             {
                 subfolder: "dotnet",
-                contents: Frameworks.Helpers.getDotNetToolTemplate(qualifier.targetFramework === "net5.0").dependencies
+                // Still need to use netcoreapp3.1 because this is the version that dotnet core msbuild will be run against.
+                contents: Frameworks.Helpers.getDotNetToolTemplate('netcoreapp3.1').dependencies
             },
             {
                 subfolder: a`tools`,

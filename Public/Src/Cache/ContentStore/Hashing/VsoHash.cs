@@ -30,7 +30,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
         private static readonly Pool<List<byte>> PoolLocalPageIdsBuffer = new Pool<List<byte>>(factory: () => new List<byte>(PagesPerBlock), reset: list => list.Clear());
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private static readonly Pool<SHA256CryptoServiceProvider> PoolSHA256CryptoServiceProvider = new Pool<SHA256CryptoServiceProvider>(() => new SHA256CryptoServiceProvider());
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 
         static VsoHash()
         {

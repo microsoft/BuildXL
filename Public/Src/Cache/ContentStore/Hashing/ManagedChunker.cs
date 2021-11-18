@@ -54,7 +54,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
     internal sealed class ManagedChunkerNonDeterministic : INonDeterministicChunker
     {
         public ChunkerConfiguration Configuration { get; }
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private readonly SHA512 _shaHasher = new SHA512CryptoServiceProvider();
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 
         public ManagedChunkerNonDeterministic(ChunkerConfiguration configuration)
         {

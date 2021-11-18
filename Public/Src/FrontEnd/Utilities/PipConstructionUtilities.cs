@@ -21,7 +21,9 @@ namespace BuildXL.FrontEnd.Utilities
     /// </summary>
     public class PipConstructionUtilities
     {
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private static readonly SHA256 s_hashManager = SHA256Managed.Create();
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 
         /// <summary>
         /// Returns a string that will be valid for constructing a symbol by replacing all invalid characters

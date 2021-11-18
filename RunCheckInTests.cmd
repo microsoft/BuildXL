@@ -236,7 +236,7 @@ endlocal && exit /b 0
 
         set BUILDXL_BIN_DIRECTORY=%~dp0out\Bin\release\win-x64
         set BUILDXL_TEST_BIN_DIRECTORY=%~dp0out\Bin\release\tools\DistributedBuildRunner\win-x64
-
+        
         set start=!time!
         set stepName=Building Test Project Distributed
         call :StatusMessage !stepName!

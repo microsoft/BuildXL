@@ -173,8 +173,10 @@ namespace BuildXL.SandboxedProcessExecutor
             if (pingHost != null && pingHost.IsAlive)
             {
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
+#pragma warning disable SYSLIB0006 // 'Thread.Abort()' is obsolete: 'Thread.Abort is not supported and throws PlatformNotSupportedException.'
                 try { pingHost.Abort(); }
-                catch (Exception) { }       // Ignoring Exceptions since Thread abort is not supported in .net
+                catch (Exception) { }       // Ignoring Exceptions since Thread abort is not supported in .net core
+#pragma warning restore SYSLIB0021 // 'Thread.Abort()' is obsolete: 'Thread.Abort is not supported and throws PlatformNotSupportedException.'
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
 
             }

@@ -728,7 +728,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On success, <see cref="Unit.Void"/>;
         /// on failure, a <see cref="Failure"/>.
         /// </returns>
+#if !NET_COREAPP_60 // Not supported in .net 6.
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
+#endif
         public Possible<TResult> Use<TState, TResult>(Func<RocksDbStore, TState, TResult> use, TState state)
         {
             using (m_rwl.AcquireReadLock())
@@ -768,7 +770,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On success, <see cref="Unit.Void"/>;
         /// on failure, a <see cref="Failure"/>.
         /// </returns>
+#if !NET_COREAPP_60 // Not supported in .net 6.
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
+#endif
         public Possible<TResult> Use<TResult>(Func<RocksDbStore, TResult> use)
         {
             return Use(
@@ -786,7 +790,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On success, <see cref="Unit.Void"/>;
         /// on failure, a <see cref="Failure"/>.
         /// </returns>
+#if !NET_COREAPP_60 // Not supported in .net 6.
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
+#endif
         public Possible<Unit> Use(Action<RocksDbStore> use)
         {
             return Use(

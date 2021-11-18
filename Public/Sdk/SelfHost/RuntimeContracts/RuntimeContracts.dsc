@@ -2,10 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import {TargetFrameworks} from "Sdk.Managed.Shared";
 
 export declare const qualifier: {
     configuration: "debug" | "release";
-    targetFramework: "netcoreapp3.1" | "net5.0" | "netstandard2.0" | "net462" | "net472";
+    targetFramework: TargetFrameworks.AllFrameworks;
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 };
 

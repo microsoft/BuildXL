@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace BuildXL.Utilities.Collections
 {
-#if !NET_COREAPP_50
+#if (!NET_COREAPP_50 && !NET_COREAPP_60)
     /// <summary>
     /// Readonly view of a set.
     /// </summary>

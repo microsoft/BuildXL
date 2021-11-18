@@ -128,7 +128,7 @@ namespace Tools {
 
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
-            targetLocation: qualifier.targetFramework === "net5.0"
+            targetLocation: (qualifier.targetFramework === "net5.0" || qualifier.targetFramework === "net6.0")
             ? r`${qualifier.targetFramework}/${qualifier.configuration}/tools/DistributedBuildRunner/${qualifier.targetRuntime}`
             : r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}`
         });

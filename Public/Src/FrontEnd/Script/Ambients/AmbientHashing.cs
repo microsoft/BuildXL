@@ -16,7 +16,9 @@ namespace BuildXL.FrontEnd.Script.Ambients
     public sealed class AmbientHashing : AmbientDefinitionBase
     {
         /*used to handling sha256 hashing of strings*/
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private static readonly SHA256 s_hashManager = SHA256Managed.Create();
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 
         /// <nodoc />
         public AmbientHashing(PrimitiveTypes knownTypes) 

@@ -9,6 +9,12 @@ namespace Core {
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
+        runTestArgs: {
+            // These tests require Detours to run itself, so we won't detour the test runner process itself
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
+        },
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities").dll,

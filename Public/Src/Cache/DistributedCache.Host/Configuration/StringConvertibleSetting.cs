@@ -39,7 +39,7 @@ namespace BuildXL.Cache.Host.Configuration
             _converter = (IStringConvertibleSetting)Activator.CreateInstance(type)!;
         }
 
-        public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+        public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
         {
             if (destinationType == typeof(string))
             {
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.Host.Configuration
             return base.CanConvertTo(context, destinationType);
         }
 
-        public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+        public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
         {
             if (sourceType == typeof(string))
             {
@@ -59,9 +59,9 @@ namespace BuildXL.Cache.Host.Configuration
             return base.CanConvertFrom(context, sourceType);
         }
 
-        public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+        public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
         {
-            if (destinationType == typeof(string))
+            if (destinationType == typeof(string) && value is not null)
             {
                 return ((IStringConvertibleSetting)value).ConvertToString();
             }
@@ -69,7 +69,7 @@ namespace BuildXL.Cache.Host.Configuration
             return base.ConvertTo(context, culture, value, destinationType);
         }
 
-        public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+        public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
         {
             if (value is string s)
             {

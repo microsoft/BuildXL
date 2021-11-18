@@ -97,7 +97,7 @@ namespace Context {
     /**
      * Exposes information about the current host that is running the build.
      */
-    interface CurrentHostInformation {
+    export interface CurrentHostInformation {
         /** The current Os type */
         os: OsType;
         /** The current cpu architecture  */

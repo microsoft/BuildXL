@@ -88,6 +88,18 @@ namespace BuildXL.Utilities
         public int Depth => m_starts.Count;
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// <code>base.Read</code> method calls <see cref="Stream.Read(byte[],int,int)"/> method that may return early without reading
+        /// all the requested bytes. I.e. the result of this method can be less then <paramref name="count"/> even if the stream
+        /// does have enough data.
+        /// This maybe surprising and cause deserialization issues when a stream (like DeflateStream in .NET6) will have the aforementioned behavior.
+        /// </remarks>
+        public override int Read(byte[] buffer, int index, int count)
+        {
+            return this.TryReadAll(buffer, index, count);
+        }
+
+        /// <inheritdoc/>
         public override string ReadString()
         {
             Start<string>();
@@ -107,7 +119,7 @@ namespace BuildXL.Utilities
             return unchecked((uint)value);
         }
 
-        /// <summary>
+       /// <summary>
         /// Reads an Int32Compact
         /// </summary>
         public int ReadInt32Compact()

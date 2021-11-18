@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             // Try to create a new hash algorithm to use
             SafeCapiHashHandle? newHashAlgorithm = null;
-#if !NET_COREAPP_50
+#if (!NET_COREAPP_50 && !NET_COREAPP_60)
             RuntimeHelpers.PrepareConstrainedRegions();
 #endif
             try

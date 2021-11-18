@@ -15,7 +15,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
     {
         private static readonly byte[] EmptyArray = new byte[0];
 
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private readonly SHA512 _hasher = new SHA512CryptoServiceProvider();
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 
         /// <nodoc />
         public DedupChunkHashAlgorithm()

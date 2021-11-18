@@ -420,14 +420,11 @@ config({
 
         importFile(f`config.microsoftInternal.dsc`).resolver,
 
-        {
-            kind: "SourceResolver",
-            modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`],
-        },
-        {
-            kind: "SourceResolver",
-            modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-5-External\module.config.dsc`],
-        },
+        // .NET Runtimes.
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-5-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
+
         {
             kind: "Download",
             downloads: [
@@ -456,6 +453,26 @@ config({
                     moduleName: "Apple.Darwin.Xnu",
                     url: "https://github.com/apple/darwin-xnu/archive/xnu-4903.221.2.tar.gz",
                     hash: "VSO0:D6D26AEECA99240D2D833B6B8B811609B9A6E3516C0EE97A951B64F9AA4F90F400",
+                    archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 6.0
+                {
+                    moduleName: "DotNet-Runtime.win-x64.6.0.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/6b96c97d-9b8c-4141-a32a-5848d3369dbf/9972321cb7af5938fecdee2d8ebd72bb/dotnet-runtime-6.0.0-win-x64.zip",
+                    hash: "VSO0:348EDC89870A606AA3D6F54A739F0AF2FA419F2C53CAAC68A67C164F71B6783100",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.6.0.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d88f74a5-05d2-46cb-886a-a62fd698009d/67f5f05e9c029d284c309f0f712fc99f/dotnet-runtime-6.0.0-osx-x64.tar.gz",
+                    hash: "VSO0:EA9C0CA099E14C45F979B6A3336A609EB50EE1AB20D2A7AD27C22CDADF94775400",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.6.0.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/0ce1c34f-0d9e-4d9b-964e-da676c8e605a/7a6c353b36477fa84f85b2821f2350c2/dotnet-runtime-6.0.0-linux-x64.tar.gz",
+                    hash: "VSO0:CD73230C70E54FA5F9AF8B65174CF6AD07995ACADCF7D5DCD0A02F6601FF4EE200",
                     archiveType: "tgz",
                 },
 
@@ -532,7 +549,7 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            // Ones the migration to net5 is done the next line needs to be changed to net5.0
+            // Once the migration to net6 is done the next line needs to be changed to net5.0
             targetFramework: "netcoreapp3.1",
             targetRuntime:
                 Context.getCurrentHost().os === "win" ? "win-x64" :
@@ -557,6 +574,11 @@ config({
             DebugDotNet5: {
                 configuration: "debug",
                 targetFramework: "net5.0",
+                targetRuntime: "win-x64",
+            },
+            DebugDotNet6: {
+                configuration: "debug",
+                targetFramework: "net6.0",
                 targetRuntime: "win-x64",
             },
             DebugDotNetCoreMac: {
@@ -590,7 +612,12 @@ config({
                 configuration: "release",
                 targetFramework: "net5.0",
                 targetRuntime: "win-x64",
-            },            
+            },  
+            ReleaseDotNet6: {
+                configuration: "release",
+                targetFramework: "net6.0",
+                targetRuntime: "win-x64",
+            },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
                 targetFramework: "netcoreapp3.1",

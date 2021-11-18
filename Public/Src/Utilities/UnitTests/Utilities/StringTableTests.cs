@@ -5,9 +5,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Serialization;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -95,9 +97,11 @@ namespace Test.BuildXL.Utilities
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task SizeMixParallel(bool asciiOnly)
+        [InlineData(true, true)]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        [InlineData(false, false)]
+        public async Task SizeMixParallel(bool asciiOnly, bool useDeflateStream)
         {
             var harness = new StringTableTestHarness();
             var st = harness.StringTable;
@@ -471,15 +475,20 @@ namespace Test.BuildXL.Utilities
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public Task Serialization(bool includeOverflowBuffers)
-        {
-            var st = new StringTableTestHarness(includeOverflowBuffers ? 3 : 0);
-            var string1 = "asdf";
-            var string2 = "jkl";
-            var stringId1 = st.AddString(string1);
-            var stringId2 = st.AddString(string2);
+        [InlineData(true, true)]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        [InlineData(false, false)]
+        public Task Serialization(bool includeOverflowBuffers, bool useDeflateStream)
+{
+            var st = new StringTableTestHarness(includeOverflowBuffers ? 3 : 0, useDeflateStream);
+            // Adding a lot of strings to check a weird case that was happening with deflated strings in .NET6.
+            int count = 10_000;
+            for (int i = 0; i < count; i++)
+            {
+                var guid = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+                st.AddString(guid);
+            }
 
             return st.RunCommonTestsAsync();
         }
@@ -519,14 +528,17 @@ namespace Test.BuildXL.Utilities
 
         private class StringTableTestHarness
         {
+            private readonly bool m_useDeflateStream;
+
             public StringTable StringTable { get; }
 
             public Dictionary<StringId, string> AddedStrings = new Dictionary<StringId, string>();
 
             public long MaxSize = 0;
 
-            public StringTableTestHarness(int? overflowBufferCount = null) 
+            public StringTableTestHarness(int? overflowBufferCount = null, bool useDeflateStream = false)
             {
+                m_useDeflateStream = useDeflateStream;
                 StringTable = new StringTable(overflowBufferCount: overflowBufferCount);
             }
 
@@ -548,20 +560,24 @@ namespace Test.BuildXL.Utilities
                 StringTable deserializedStringTable = null;
                 using (MemoryStream ms = new MemoryStream())
                 {
-                    using (BuildXLWriter writer = new BuildXLWriter(true, ms, true, logStats: true))
+                    using (Stream stream = createWrapperStream(ms, compress: true))
                     {
-                        StringTable.Serialize(writer);
+                        using (BuildXLWriter writer = new BuildXLWriter(true, stream, true, logStats: true))
+                        {
+                            StringTable.Serialize(writer);
+                        }
+
+                        if (MaxSize < StringTable.BytesPerBuffer)
+                        {
+                            XAssert.IsTrue(stream.Position < StringTable.BytesPerBuffer,
+                                "Small StringTable should not serialize a full empty byte buffer.");
+                        }
                     }
 
-                    if (MaxSize < StringTable.BytesPerBuffer)
-                    {
-                        XAssert.IsTrue(ms.Position < StringTable.BytesPerBuffer,
-                            "Small StringTable should not serialize a full empty byte buffer.");
-                    }
-
-                    ms.Position = 0;
-
-                    using (BuildXLReader reader = new BuildXLReader(true, ms, true))
+                    // We can't set a position on a wrapper stream, setting it for the memory stream that contains the data.
+                    using (MemoryStream ms2 = new MemoryStream(ms.ToArray()))
+                    using (Stream readStream = createWrapperStream(ms2, compress: false))
+                    using (BuildXLReader reader = new BuildXLReader(true, readStream, true))
                     {
                         deserializedStringTable = await StringTable.DeserializeAsync(reader);
                     }
@@ -569,7 +585,6 @@ namespace Test.BuildXL.Utilities
 
                 foreach (var entry in AddedStrings)
                 {
-
                     // Test deserialization behaviors
                     XAssert.AreEqual(entry.Value.Length, deserializedStringTable.GetLength(entry.Key));
                     XAssert.AreEqual(entry.Value.Length, deserializedStringTable.GetBinaryString(entry.Key).Length);
@@ -581,6 +596,22 @@ namespace Test.BuildXL.Utilities
                     XAssert.AreEqual(entry.Value.Length, StringTable.GetLength(entry.Key));
                     XAssert.AreEqual(entry.Value.Length, StringTable.GetBinaryString(entry.Key).Length);
                     XAssert.AreEqual(entry.Value, StringTable.GetString(entry.Key));
+                }
+                
+                Stream createWrapperStream(MemoryStream memoryStream, bool compress)
+                {
+                    if (m_useDeflateStream)
+                    {
+                        return new TrackedStream(
+                            new BufferedStream(
+                                compress ? new DeflateStream(memoryStream, CompressionLevel.Fastest, leaveOpen: true)
+                                : new DeflateStream(memoryStream, CompressionMode.Decompress, leaveOpen: true),
+                                bufferSize: 64 << 10),
+                            // Need to close the underlying stream to flush the content.
+                            leaveOpen: false);
+                    }
+
+                    return memoryStream;
                 }
             }
         }

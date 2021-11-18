@@ -40,7 +40,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #if NET_FRAMEWORK
         private sealed class MD5ContentHasher : ContentHasher<MD5Cng>
 #else
+#pragma warning disable SYSLIB0021 // Type or member is obsolete. Temporarily suppressing the warning for .net 6. Work item: 1885580
         private sealed class MD5ContentHasher : ContentHasher<MD5CryptoServiceProvider>
+#pragma warning restore SYSLIB0021 // Type or member is obsolete
 #endif
         {
             /// <summary>

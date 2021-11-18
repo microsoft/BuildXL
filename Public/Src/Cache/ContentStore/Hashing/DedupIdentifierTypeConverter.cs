@@ -9,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 {
     public class DedupIdentifierTypeConverter: TypeConverter
     {
-        public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+        public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
         {
             if (sourceType == typeof(string))
             {
@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         // Overrides the ConvertFrom method of TypeConverter.
-        public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+        public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
         {
             if (value is string valueAsString)
             {
@@ -31,9 +31,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         // Overrides the ConvertTo method of TypeConverter.
-        public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+        public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
         {
-            if (destinationType == typeof(string))
+            if (destinationType == typeof(string) && value is not null)
             {
                 return ((DedupIdentifier)value).ValueString;
             }

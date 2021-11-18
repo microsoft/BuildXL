@@ -73,15 +73,26 @@ export type ApplicationDeploymentStyle = "frameworkDependent" | "selfContained";
 @@public
 export type RuntimeVersion = "win-x64" | "osx-x64" | "linux-x64";
 
+@@public
+export type DotNetCoreVersion = "netcoreapp3.1" | "net5.0" | "net6.0";
+
+@@public
+export function isDotNetCore(targetFramework: TargetFrameworks.AllFrameworks) : targetFramework is DotNetCoreVersion {
+    return targetFramework === 'netcoreapp3.1' || targetFramework === 'net5.0' || targetFramework === 'net6.0';
+}
+
 namespace TargetFrameworks {
     @@public
     export type DesktopTargetFrameworks = "net451" | "net461" | "net462" | "net472";
 
     @@public
-    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.1" | "net5.0";
+    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.1" | "net5.0" | "net6.0";
 
     @@public
     export type StandardTargetFrameworks = "netstandard2.0";
+
+    @@public
+    export type AllFrameworks = DesktopTargetFrameworks | CoreClrTargetFrameworks | StandardTargetFrameworks;
 
     @@public
     export interface ConfigurationQualifier extends Qualifier {
@@ -105,7 +116,7 @@ namespace TargetFrameworks {
 
     @@public
     export interface All extends BaseQualifier, Qualifier {
-        targetFramework: DesktopTargetFrameworks | CoreClrTargetFrameworks | StandardTargetFrameworks;
+        targetFramework: AllFrameworks;
     }
 
     /** Current Machine qualifier that respect current configuration */

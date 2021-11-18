@@ -81,7 +81,9 @@ export function getSystemTextJson(includeNetStandard: boolean) : Managed.Managed
         ] : [
         ]),
 
-        ...(qualifier.targetFramework === "net5.0" ? [] : [importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg]),
+        ...addIf(
+            qualifier.targetFramework !== "net5.0" && qualifier.targetFramework !== "net6.0",
+            importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg),
     ];
 }
 

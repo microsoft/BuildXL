@@ -245,7 +245,9 @@ namespace Tool.Download
             {
                 try
                 {
+                    #pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
                     process?.WaitForExit();
+                    #pragma warning restore AsyncFixer02
                 }
                 catch (Exception e) when (e is SystemException || e is Win32Exception)
                 {

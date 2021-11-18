@@ -3,10 +3,11 @@
 
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Managed from "Sdk.Managed";
+import {TargetFrameworks} from "Sdk.Managed.Shared";
 import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: {
-    targetFramework: "netcoreapp3.1" | "net5.0" | "net462" | "net472" | "netstandard2.0";
+    targetFramework: TargetFrameworks.AllFrameworks;
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
     configuration: "debug" | "release";
 };

@@ -1,34 +1,17 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
+import {DotNetCoreVersion} from "Sdk.Managed.Shared";
 
-namespace Helpers
-{
+namespace Helpers {
     export declare const qualifier : {};
 
     @@public
-    export function getDotNetCoreToolTemplate(isDotNet5: boolean) : Transformer.ExecuteArgumentsComposible {
+    export function getDotNetCoreToolTemplate(version: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
         const host = Context.getCurrentHost();
         
         Contract.assert(host.cpuArchitecture === "x64", "The current DotNetCore Runtime package only has x64 version of Node. Ensure this runs on a 64-bit OS -or- update PowerShell.Core package to have other architectures embedded and fix this logic");
 
-        let executable : RelativePath = undefined;
-        let pkgContents : StaticDirectory = undefined;
-
-        switch (host.os) {
-            case "win":
-                pkgContents = isDotNet5 ? importFrom("DotNet-Runtime-5.win-x64").extracted : importFrom("DotNet-Runtime.win-x64").extracted;
-                executable = r`dotnet.exe`;
-                break;
-            case "macOS":
-                pkgContents = isDotNet5 ? importFrom("DotNet-Runtime-5.osx-x64").extracted : importFrom("DotNet-Runtime.osx-x64").extracted;
-                executable = r`dotnet`;
-                break;
-            case "unix":
-                pkgContents = isDotNet5 ? importFrom("DotNet-Runtime-5.linux-x64").extracted : importFrom("DotNet-Runtime.linux-x64").extracted;
-                executable = r`dotnet`;
-                break;
-            default:
-                Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Esure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
-        }
+        const executable = host.os === 'win' ? r`dotnet.exe` : r`dotnet`;
+        const pkgContents  = getRuntimePackagesContent(version, host);
 
         return {
             tool: {
@@ -50,20 +33,77 @@ namespace Helpers
         };
     }
 
-    @@public
-    export function getDotNetToolTemplate(isDotNet5: boolean) : Transformer.ExecuteArgumentsComposible {
-        return getDotNetCoreToolTemplate(isDotNet5);
+    function getRuntimePackagesContent(version: DotNetCoreVersion, host: Context.CurrentHostInformation) : StaticDirectory {
+        if (version === 'netcoreapp3.1')
+        {
+            switch (host.os) {
+                case "win":
+                    return importFrom("DotNet-Runtime.win-x64").extracted;
+                case "macOS":
+                    return importFrom("DotNet-Runtime.osx-x64").extracted;
+                case "unix":
+                    return importFrom("DotNet-Runtime.linux-x64").extracted;
+                default:
+                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
+            }
+        }
+        
+        if (version === 'net5.0')
+        {
+            switch (host.os) {
+                case "win":
+                    return importFrom("DotNet-Runtime-5.win-x64").extracted;
+                case "macOS":
+                    return importFrom("DotNet-Runtime-5.osx-x64").extracted;
+                case "unix":
+                    return importFrom("DotNet-Runtime-5.linux-x64").extracted;
+                default:
+                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
+            }
+        }
+        
+        if (version === 'net6.0')
+        {
+            switch (host.os) {
+                case "win":
+                    return importFrom("DotNet-Runtime-6.win-x64").extracted;
+                case "macOS":
+                    return importFrom("DotNet-Runtime-6.osx-x64").extracted;
+                case "unix":
+                    return importFrom("DotNet-Runtime-6.linux-x64").extracted;
+                default:
+                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
+            }
+        }
+        
+        Contract.fail(`Unsupport .NET Core version ${version}.`);
     }
 
-    const toolTemplate = getDotNetCoreToolTemplate(/*isDotNet5*/false);
+    @@public
+    export function getDotNetToolTemplate(version: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
+        return getDotNetCoreToolTemplate(version);
+    }
 
-    const tool5Template = getDotNetCoreToolTemplate(/*isDotNet5*/true);
+    const toolTemplate = getDotNetCoreToolTemplate("netcoreapp3.1");
+
+    const tool5Template = getDotNetCoreToolTemplate("net5.0");
+
+    const tool6Template = getDotNetCoreToolTemplate("net6.0");
+
+    function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) {
+        switch (dotNetCoreVersion) {
+            case "netcoreapp3.1": return toolTemplate;
+            case "net5.0": return tool5Template;
+            case "net6.0": return tool6Template;
+            default: Contract.fail(`Unknown .NET Core version '${dotNetCoreVersion}'.`);
+        }
+    }
 
     @@public
-    export function wrapInDotNetExeForCurrentOs(isDotNet5: boolean, args: Transformer.ExecuteArguments) : Transformer.ExecuteArguments {
+    export function wrapInDotNetExeForCurrentOs(dotNetCoreVersion: DotNetCoreVersion, args: Transformer.ExecuteArguments) : Transformer.ExecuteArguments {
         return Object.merge<Transformer.ExecuteArguments>(
             args,
-            isDotNet5 ? tool5Template : toolTemplate,
+            getCachedDotNetCoreToolTemplate(dotNetCoreVersion),
             {
                 arguments: [
                     Cmd.argument(Artifact.input(args.tool.exe))

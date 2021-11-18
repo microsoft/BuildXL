@@ -194,7 +194,7 @@ export function compile(inputArgs: Arguments) : Result {
     };
 
     if (!isCurrentHostOsWindows) {
-        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(isDotNet5(cscExecuteArgs), cscExecuteArgs);
+        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(getDotNetCoreVersion(cscExecuteArgs), cscExecuteArgs);
         cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
             tool: { 
                 // Conceptually, we want to set 'dependsOnCurrentHostOSDirectories' to true and not specify 'untrackedDirectoryScopes' here;
@@ -249,12 +249,24 @@ export function compile(inputArgs: Arguments) : Result {
 }
 
 /**
- * The function returns true if the target framework is .NET 5
+ * The function returns .net core version, like 'netcoreapp3.1', 'net5.0' or 'net6.0'.
  * 
  * The function looks into the defined constants because this module is qualifier agnostic.
  */
-export function isDotNet5(cscArguments: Arguments): boolean {
-    return cscArguments.defines && cscArguments.defines.some(e => e === "NET_COREAPP_50");
+export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCoreVersion {
+    if (!cscArguments.defines) {
+        return "netcoreapp3.1";
+    }
+    
+    if (cscArguments.defines.some(e => e === "NET_COREAPP_50")) {
+        return "net5.0";
+    }
+
+    if (cscArguments.defines.some(e => e === "NET_COREAPP_60")) {
+        return "net6.0";
+    }
+
+    return "netcoreapp3.1";
 }
 
 /**

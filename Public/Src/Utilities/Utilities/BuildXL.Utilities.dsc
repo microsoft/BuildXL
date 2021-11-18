@@ -23,8 +23,13 @@ export const dll = BuildXLSdk.library({
         Collections.dll,
         Interop.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
-            importFrom("Microsoft.Win32.Registry").pkg,
+        
+        // Don't need to add the dependency for .net 6
+        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild && qualifier.targetFramework !== 'net6.0', () => [            
+            importFrom("Microsoft.Win32.Registry").pkg
+        ]),
+        
+        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [            
             SysMng.pkg.override<Shared.ManagedNugetPackage>({
                     runtime: Context.getCurrentHost().os === "win" ? [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))

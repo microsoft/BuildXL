@@ -46,7 +46,7 @@ if ERRORLEVEL 1 (
 
 REM Install DotNetCore
 echo === Downloading and installing .NET Core
-powershell -NoProfile -ExecutionPolicy unrestricted -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; &([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://dot.net/v1/dotnet-install.ps1'))) -channel LTS -installdir c:\dotnet"
+powershell -NoProfile -ExecutionPolicy unrestricted -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; &([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://dot.net/v1/dotnet-install.ps1'))) -channel 3.1 -installdir c:\dotnet"
 if ERRORLEVEL 1 (
     echo "**** [WARNING] Could not install .NET Core; continuing hoping for the best"
 )

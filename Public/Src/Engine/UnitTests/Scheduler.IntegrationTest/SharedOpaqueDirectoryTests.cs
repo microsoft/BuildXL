@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -921,10 +922,11 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
-                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
+            var signaligFile = CreateSourceFile();
+            File.Delete(signaligFile.Path.ToString(Context.PathTable));
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
@@ -940,6 +942,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                                    {
+                                                       Operation.WaitUntilFileExists(signaligFile),
                                                        forceDependency
                                                            ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
                                                            : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that writing to 'absentFile' happens after pipA
@@ -948,6 +951,18 @@ namespace IntegrationTest.BuildXL.Scheduler
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             builderB.AddUntrackedFile(pipAoutput);
             var pipB = SchedulePipBuilder(builderB);
+
+            // We want to force the Pips to complete in a particular order so we utilze an external signaling file to delay
+            // the second process until the first has completed writing its output.
+            Thread t = new Thread(() =>
+            {
+                while (!File.Exists(dummyOut.Path.ToString(Context.PathTable)))
+                {
+                    Thread.Sleep(20);
+                }
+                File.WriteAllText(signaligFile.Path.ToString(Context.PathTable), "signaled");
+            });
+            t.Start();
 
             if (forceDependency)
             {
@@ -962,14 +977,17 @@ namespace IntegrationTest.BuildXL.Scheduler
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
+
+            t.Join();
         }
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
-                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
         public void DynamicWriteFollowedByAbsentPathFileProbeIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
+            var signaligFile = CreateSourceFile();
+            File.Delete(signaligFile.Path.ToString(Context.PathTable));
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
@@ -990,6 +1008,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Probe the absent file. Even though it was deleted by the previous pip, we should get a absent file probe violation
             var builderB = CreatePipBuilder(new Operation[]
                                             {
+                                                Operation.WaitUntilFileExists(signaligFile),
                                                 forceDependency
                                                     ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
                                                     : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that probing 'absentFile' happens after pipA
@@ -1002,6 +1021,18 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             FileUtilities.DeleteFile(pipAoutput.Path.ToString(Context.PathTable));
 
+            // We want to force the Pips to complete in a particular order so we utilze an external signaling file to delay
+            // the second process until the first has completed writing its output.
+            Thread t = new Thread(() =>
+            {
+                while (!File.Exists(dummyOut.Path.ToString(Context.PathTable)))
+                {
+                    Thread.Sleep(20);
+                }
+                File.WriteAllText(signaligFile.Path.ToString(Context.PathTable), "signaled");
+            });
+            t.Start();
+
             if (forceDependency)
             {
                 RunScheduler().AssertSuccess();
@@ -1009,11 +1040,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             else
             {
                 RunScheduler().AssertFailure();
-
                 // We are expecting a write on an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
+            t.Join();
         }
 
         [Fact]

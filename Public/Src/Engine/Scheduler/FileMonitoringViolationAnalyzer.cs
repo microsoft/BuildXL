@@ -2004,7 +2004,8 @@ namespace BuildXL.Scheduler
                             violator.Provenance.Token.Path.ToString(Context.PathTable),
                             GetProcessWorkingDirectory(violator),
                             path.ToString(Context.PathTable),
-                            related.GetDescription(Context));
+                            related.GetDescription(Context),
+                            processPath.ToString(Context.PathTable));
                     }
 
                     break;

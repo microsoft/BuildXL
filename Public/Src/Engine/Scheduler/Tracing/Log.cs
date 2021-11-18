@@ -2136,7 +2136,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
-                "Write on an absent path probe: This pip writes path '{4}', but '{5}' probed it when the path was not yet created. " +
+                "Write on an absent path probe: This pip writes path '{path}' via process tree parent: '{processTreeParent}, but '{producingPipDescription}' probed it when the path was not yet created. " +
                 "However, the probe is not guaranteed to always be absent and may introduce non-deterministic behaviors in the build. " +
                 "Please declare an explicit dependency between these pips so the probe always happens after the path is written.")]
         public abstract void DependencyViolationWriteOnAbsentPathProbe(
@@ -2146,7 +2146,10 @@ namespace BuildXL.Scheduler.Tracing
             string pipSpecPath,
             string pipWorkingDirectory,
             string path,
-            string producingPipDescription);
+            string producingPipDescription,
+            // The codepaths that create this violation don't have information about the process that performed
+            // the access so they just attribute it to the parent process.
+            string processTreeParent);
 
         [GeneratedEvent(
             (int)LogEventId.DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory,

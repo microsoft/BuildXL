@@ -92,38 +92,39 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public LoggingContext LoggingContext { get; }
 
-        private readonly Task<RuntimeCacheMissAnalyzer> m_runtimeCacheMissAnalyzerTask;
+        private readonly Task m_runtimeCacheMissAnalyzerTask;
 
-        private bool m_runtimeCacheMissAnalyzerCalled;
+        private bool m_runtimeCacheMissAnalyzerInitialized;
+        /// <summary>
+        /// Backing field for <see cref="RuntimeCacheMissAnalyzer"/>. Do not interact with this except for during initialization.
+        /// </summary>
         private RuntimeCacheMissAnalyzer m_runtimeCacheMissAnalyzer;
+        private readonly object m_setRuntimeCacheMissAnalyzerAndStartProcessingLock = new object();
 
+        private void SetRuntimeCacheMissAnalyzerAndStartProcessing(RuntimeCacheMissAnalyzer analyzer)
+        {
+            lock(m_setRuntimeCacheMissAnalyzerAndStartProcessingLock)
+            {
+                // If the analyzer has already been initialized (potentially with null), abandon the results of this initialization
+                if (!m_runtimeCacheMissAnalyzerInitialized)
+                {
+                    m_runtimeCacheMissAnalyzer = analyzer;
+                    m_runtimeCacheMissAnalyzerInitialized = true;
+
+                    // The first one to initialize also needs to start the processor, regardless of whether it is initialized to null or not
+                    m_fingerprintStoreEventProcessor.StartProcessing();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Accessor for RuntimeCacheMissAnalyzer
+        /// </summary>
         private RuntimeCacheMissAnalyzer RuntimeCacheMissAnalyzer
         {
             get
             {
-                if (m_runtimeCacheMissAnalyzerCalled)
-                {
-                    return m_runtimeCacheMissAnalyzer;
-                }
-
-                if (m_runtimeCacheMissAnalyzerTask.Status == TaskStatus.RanToCompletion)
-                {
-                    m_runtimeCacheMissAnalyzer = m_runtimeCacheMissAnalyzerTask.Result;
-                }
-                else if (m_testHooks != null)
-                {
-                    // For unit tests, synchronously wait for loading runtimeCacheMissAnalyzer.
-                    m_runtimeCacheMissAnalyzer = m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
-                }
-                else
-                {
-                    // If we do not load the fingerprintstore by the time when we call RuntimeCacheMissAnalyzer,
-                    // Log a message and give up.
-                    Logger.Log.GettingFingerprintStoreTrace(LoggingContext, "FingerprintStore loading took very long, so the build will continue without cache miss results.");
-                    m_runtimeCacheMissAnalyzer = null;
-                }
-
-                m_runtimeCacheMissAnalyzerCalled = true;
+                Contract.Assert(m_runtimeCacheMissAnalyzerInitialized, "RuntimeCacheMissAnalyzer should not be interacted with before its initialization task has finished.");
                 return m_runtimeCacheMissAnalyzer;
             }
         }
@@ -276,18 +277,25 @@ namespace BuildXL.Scheduler.Tracing
             m_pipCacheMissesQueue = new ConcurrentQueue<PipCacheMissInfo>();
             Counters = counters;
             m_configuration = configuration;
-            m_runtimeCacheMissAnalyzerTask = RuntimeCacheMissAnalyzer.TryCreateAsync(
-                this,
-                loggingContext,
-                context,
-                configuration,
-                cache,
-                graph,
-                runnablePipPerformance,
-                testHooks: testHooks);
-
             m_testHooks = testHooks;
             m_fingerprintStoreEventProcessor = new FingerprintStoreEventProcessor(Environment.ProcessorCount);
+            m_runtimeCacheMissAnalyzerTask = RuntimeCacheMissAnalyzer.TryCreateAsync(
+                  this,
+                  loggingContext,
+                  context,
+                  configuration,
+                  cache,
+                  graph,
+                  runnablePipPerformance,
+                  testHooks: testHooks)
+                .ContinueWith((tryCreateResult) => SetRuntimeCacheMissAnalyzerAndStartProcessing(tryCreateResult.GetAwaiter().GetResult()));
+
+            if (m_testHooks != null)
+            {
+                // For unit tests, synchronously wait for loading runtimeCacheMissAnalyzer.
+                m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
+            }
+
             m_weakFingerprintSerializationTransientCache = new ConcurrentDictionary<PipId, string>();
             m_augmentedWeakFingerprintsToOriginalWeakFingeprints = new ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint>();
         }
@@ -689,10 +697,7 @@ namespace BuildXL.Scheduler.Tracing
                 return;
             }
 
-            // Unlike ProcessFingerprintComputationEventData, processing PipCacheMissEventData is cheap and synchronous
-            // and thus we still maintain the proper order needed by runtime cache miss analysis, i.e.,
-            // we know that fingerprints will be processed afterwards.
-            ProcessCacheMissData(data);
+            m_fingerprintStoreEventProcessor.Enqueue(data.PipId, () => ProcessCacheMissData(data));
         }
 
         private void ProcessFingerprintComputationData(ProcessFingerprintComputationEventData data)
@@ -862,6 +867,17 @@ namespace BuildXL.Scheduler.Tracing
                 // Store the ordered pip cache miss list as one blob
                 ExecutionFingerprintStore.PutCacheMissList(m_pipCacheMissesQueue.ToList());
 
+                if (m_runtimeCacheMissAnalyzerTask.Status != TaskStatus.RanToCompletion)
+                {
+                    Logger.Log.GettingFingerprintStoreTrace(LoggingContext, "FingerprintStore loading took very long, so the build will continue without cache miss results.");
+
+                    // Runtime cache miss anlalysis and adding fingerprint data for the current build are fairly intertwined.
+                    // Even if we weren't able to perform runtime cache miss analysis we still want to release the
+                    // FingerprintStore processing queue so those events can be written.
+                    SetRuntimeCacheMissAnalyzerAndStartProcessing(null);
+                }
+
+                // Complete and drain all work from the processing queue
                 using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreAwaitingEventProcessorTime))
                 {
                     m_fingerprintStoreEventProcessor.Complete();
@@ -870,7 +886,7 @@ namespace BuildXL.Scheduler.Tracing
                 // We should first dispose the fingerprintStore in the RunCacheMissAnalyzer
                 // because that might be the snapshot version of FingerprintStore
                 // in case cache miss analysis is in the local-mode.
-                RuntimeCacheMissAnalyzer?.Dispose();
+                m_runtimeCacheMissAnalyzer?.Dispose();
 
                 // For performance, cancel garbage collect for builds with no cache misses
                 if (!m_fingerprintComputedForExecution)
@@ -896,6 +912,9 @@ namespace BuildXL.Scheduler.Tracing
         {
             private readonly ActionBlockSlim<Action>[] m_actionBlocks;
 
+            private bool m_completed = false;
+            private bool m_hasStarted = false;
+
             public FingerprintStoreEventProcessor(int degreeOfParallelism)
             {
                 Contract.Requires(degreeOfParallelism > 0);
@@ -908,7 +927,25 @@ namespace BuildXL.Scheduler.Tracing
                 m_actionBlocks = new ActionBlockSlim<Action>[degreeOfParallelism];
                 for (int i = 0; i < degreeOfParallelism; ++i)
                 {
-                    m_actionBlocks[i] = new ActionBlockSlim<Action>(1, a => a());
+                    // Initially we start each action block with a parallelism of 0 so they are in a paused state.
+                    // Processing is started once the RuntimeCacheMissAnalyzer is available via its initialization task completing.
+                    m_actionBlocks[i] = new ActionBlockSlim<Action>(0, a => a());
+                }
+            }
+
+            public void StartProcessing()
+            {
+                lock (m_actionBlocks)
+                {
+                    if (!m_completed && !m_hasStarted)
+                    {
+                        foreach (var actionBlock in m_actionBlocks)
+                        {
+                            actionBlock.IncreaseConcurrencyTo(maxDegreeOfParallelism: 1);
+                        }
+                        
+                        m_hasStarted = true;
+                    }
                 }
             }
 
@@ -919,14 +956,18 @@ namespace BuildXL.Scheduler.Tracing
 
             public void Complete()
             {
-                for (int i = 0; i < m_actionBlocks.Length; ++i)
+                lock (m_actionBlocks)
                 {
-                    m_actionBlocks[i].Complete();
-                }
+                    m_completed = true;
+                    for (int i = 0; i < m_actionBlocks.Length; ++i)
+                    {
+                        m_actionBlocks[i].Complete();
+                    }
 
-                for (int i = 0; i < m_actionBlocks.Length; ++i)
-                {
-                    m_actionBlocks[i].CompletionAsync().Wait();
+                    for (int i = 0; i < m_actionBlocks.Length; ++i)
+                    {
+                        m_actionBlocks[i].CompletionAsync().Wait();
+                    }
                 }
             }
         }

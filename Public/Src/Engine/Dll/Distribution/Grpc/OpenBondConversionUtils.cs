@@ -24,6 +24,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 MaxProcesses = message.MaxProcesses,
                 MaxMaterialize = message.MaxMaterialize,
                 MaxCacheLookup = message.MaxCacheLookup,
+                MaxLightProcesses = message.MaxLightProcesses,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.Data.ToByteString(),
             };
         }
@@ -33,12 +34,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             return new OpenBond.AttachCompletionInfo()
             {
                 WorkerId = message.WorkerId,
-                
+
                 AvailableRamMb = message.AvailableRamMb,
                 AvailableCommitMb = message.AvailableCommitMb,
                 MaxProcesses = message.MaxProcesses,
                 MaxMaterialize = message.MaxMaterialize,
                 MaxCacheLookup = message.MaxCacheLookup,
+                MaxLightProcesses = message.MaxLightProcesses,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
             };
         }

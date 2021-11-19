@@ -1159,6 +1159,7 @@ namespace BuildXL.Engine.Distribution
             TotalProcessSlots = attachCompletionInfo.MaxProcesses;
             TotalCacheLookupSlots = attachCompletionInfo.MaxCacheLookup;
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;
+            TotalLightSlots = attachCompletionInfo.MaxLightProcesses;
             TotalRamMb = attachCompletionInfo.AvailableRamMb;
             TotalCommitMb = attachCompletionInfo.AvailableCommitMb;
 

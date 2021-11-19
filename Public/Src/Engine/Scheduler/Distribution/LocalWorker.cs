@@ -77,6 +77,7 @@ namespace BuildXL.Scheduler.Distribution
         {
             TotalProcessSlots = scheduleConfig.MaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;
+            TotalLightSlots = scheduleConfig.MaxLightProcesses;
             TotalMaterializeInputSlots = scheduleConfig.MaxMaterialize;
             m_detoursListener = detoursListener;
             m_pipQueue = pipQueue;

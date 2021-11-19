@@ -1445,7 +1445,9 @@ namespace BuildXL.Engine
                 UpdateStatusIntervalMs,
                 "SchedulerUpdateStatus");
 
-            m_updateStatusAction.Start();
+            // For remote workers, we need to make sure that UpdateStatus method is executed when updateStatusAction is started. 
+            // Because UpdateStatus sets available memory for the workers, we need to have that info before we send it to the orchestrator. 
+            m_updateStatusAction.Start(syncStart: workerService != null);
 
             if (workerService != null)
             {

@@ -81,10 +81,10 @@ namespace BuildXL.Pips.Operations
         /// The number of units for a normalized percentage resource
         /// </summary>
         /// <remarks>
-        /// We use 10000 instead of 100 for percent to get finer granularity of resource usage
-        /// 85% is therefore represented as 8500
+        /// We use 100000 instead of 100 for percent to get finer granularity of resource usage
+        /// 85% is therefore represented as 85000
         /// </remarks>
-        public const int PercentageResourceLimit = 10000;
+        public const int PercentageResourceLimit = 100000;
 
         /// <summary>
         /// Gets a resource normalized to a percentage capping out the the total specified

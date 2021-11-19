@@ -2242,6 +2242,7 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used PostProcess Slots"), _ => worker.AcquiredPostProcessSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total Light Slots"), _ => worker.TotalLightSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Light Slots"), _ => worker.AcquiredLightSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);

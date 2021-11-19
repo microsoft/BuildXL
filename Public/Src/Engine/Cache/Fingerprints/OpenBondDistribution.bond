@@ -236,12 +236,15 @@ struct AttachCompletionInfo
     // The maximum number of simultaneous cachelookups for the worker
     4: int32 MaxCacheLookup;
 
+    // The maximum number of simultaneous light process executions for the worker
+    5: int32 MaxLightProcesses;
+
 	/// The content hash of the workers unique content
-    5: BuildXL.Engine.Cache.Fingerprints.BondContentHash WorkerCacheValidationContentHash;
+    6: BuildXL.Engine.Cache.Fingerprints.BondContentHash WorkerCacheValidationContentHash;
 
 	/// The available RAM on the worker
-	6: nullable<int32> AvailableRamMb;
+	7: nullable<int32> AvailableRamMb;
 
     /// The available commit on the worker
-	7: nullable<int32> AvailableCommitMb;
+	8: nullable<int32> AvailableCommitMb;
 }

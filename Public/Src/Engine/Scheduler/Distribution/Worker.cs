@@ -138,6 +138,24 @@ namespace BuildXL.Scheduler.Distribution
             }
         }
 
+        private int m_totalLightSlots;
+
+        /// <summary>
+        /// The total amount of slots for light pips (i.e., max degree of pip parallelism)
+        /// </summary>
+        public int TotalLightSlots
+        {
+            get
+            {
+                return Volatile.Read(ref m_totalLightSlots);
+            }
+
+            protected set
+            {
+                Volatile.Write(ref m_totalLightSlots, value);
+            }
+        }
+
         /// <summary>
         /// The total amount of slots for materialize input
         /// </summary>
@@ -526,6 +544,12 @@ namespace BuildXL.Scheduler.Distribution
 
                 if (runnablePip.PipType == PipType.Ipc)
                 {
+                    if (!TryAcquireLightSlots(loadFactor))
+                    {
+                        limitingResource = WorkerResource.AvailableLightSlots;
+                        return false;
+                    }
+
                     Interlocked.Increment(ref m_acquiredLightSlots);
                     runnablePip.AcquiredResourceWorker = this;
                     limitingResource = null;
@@ -567,6 +591,12 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     if (processRunnablePip.IsLight)
                     {
+                        if (!TryAcquireLightSlots(loadFactor))
+                        {
+                            limitingResource = WorkerResource.AvailableLightSlots;
+                            return false;
+                        }
+
                         Interlocked.Increment(ref m_acquiredLightSlots);
                     }
                     else
@@ -611,6 +641,10 @@ namespace BuildXL.Scheduler.Distribution
             }
         }
 
+        private bool TryAcquireLightSlots(double loadFactor)
+        {
+            return m_acquiredLightSlots + 1 <= (TotalLightSlots * loadFactor);
+        }
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess, ProcessMemoryCounters expectedMemoryCounters)
         {
             using (var semaphoreInfoListWrapper = s_semaphoreInfoListPool.GetInstance())

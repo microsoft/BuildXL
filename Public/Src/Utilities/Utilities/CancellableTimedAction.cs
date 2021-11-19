@@ -17,6 +17,7 @@ namespace BuildXL.Utilities
         private readonly CancellationTokenSource m_cancellationTokenSource;
         private int m_started = 0;
         private readonly Thread m_thread;
+        private readonly Action m_callback;
 
         /// <summary>
         /// Creates an instance of <see cref="CancellableTimedAction"/>.
@@ -24,6 +25,7 @@ namespace BuildXL.Utilities
         public CancellableTimedAction(Action callback, int intervalMs, string name = null)
         {
             m_cancellationTokenSource = new CancellationTokenSource();
+            m_callback = callback;
             m_thread = new Thread(() => Loop(callback, intervalMs, m_cancellationTokenSource.Token));
             if (name != null)
             {
@@ -34,10 +36,18 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Starts the thread.
         /// </summary>
-        public bool Start()
+        /// <param name="syncStart">
+        /// Whether the first call to callback method is synchronous. Default is set to false.
+        /// </param>
+        public bool Start(bool syncStart = false)
         {
             if (Interlocked.CompareExchange(ref m_started, 1, 0) == 0)
             {
+                if (syncStart)
+                {
+                    m_callback();
+                }
+
                 m_thread.Start();
                 return true;
             }

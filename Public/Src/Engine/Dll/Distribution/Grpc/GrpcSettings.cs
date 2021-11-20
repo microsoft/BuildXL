@@ -2,16 +2,17 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Engine.Tracing;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
     internal static class GrpcSettings
     {
-        public const int MaxRetry = 3;
+        /// <summary>
+        /// How many retry attempts when a grpc message is failed to send in the given <see cref="CallTimeout"/>
+        /// </summary>
+        public static int MaxAttempts => EngineEnvironmentSettings.GrpcMaxAttempts;
 
         /// <summary>
         /// Maximum time for a Grpc call (both orchestrator->worker and worker->orchestrator)

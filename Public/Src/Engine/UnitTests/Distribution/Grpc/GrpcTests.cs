@@ -90,7 +90,7 @@ namespace Test.BuildXL.Distribution
             // Attachment will result in timeout
             var attachResult = await remoteWorker.AttachAsync();
             Assert.False(attachResult.Succeeded);
-            Assert.Equal(GrpcSettings.MaxRetry, (int)attachResult.Attempts);
+            Assert.Equal(GrpcSettings.MaxAttempts, (int)attachResult.Attempts);
 
             // The worker should be still alive
             Assert.False(remoteWorker.ClientConnectionFailure.HasValue);
@@ -129,7 +129,7 @@ namespace Test.BuildXL.Distribution
             var callResult = await remoteWorker.SendBuildRequestAsync();
 
             // Call failed after every attempt
-            Assert.Equal(GrpcSettings.MaxRetry, (int)callResult.Attempts);
+            Assert.Equal(GrpcSettings.MaxAttempts, (int)callResult.Attempts);
             Assert.False(callResult.Succeeded);
 
             // The connection should have failed and terminated

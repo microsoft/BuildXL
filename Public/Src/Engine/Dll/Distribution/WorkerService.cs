@@ -333,7 +333,7 @@ namespace BuildXL.Engine.Distribution
            
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
-            Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxRetry));
+            Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxAttempts));
             ExitAsync("Connection failure", isUnexpected: true).Forget();
         }
 

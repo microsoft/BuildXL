@@ -161,7 +161,8 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ?? DefaultWorkerAttachTimeout);
 
         /// <nodoc/>
-        public static readonly TimeSpan DefaultDistributionConnectTimeout = TimeSpan.FromMinutes(5);
+        public static readonly TimeSpan DefaultDistributionConnectTimeout = TimeSpan.FromMinutes(10);
+
         /// <summary>
         /// Maximum time to wait while establishing a connection to the remote machine (both orchestrator->worker and worker->orchestrator)
         /// </summary>
@@ -174,6 +175,14 @@ namespace BuildXL.Utilities.Configuration
         /// Default enabled
         /// </remarks>
         public static readonly Setting<bool> GrpcKeepAliveEnabled = CreateSetting("BuildXLGrpcKeepAliveEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
+
+        /// <summary>
+        /// How many retry attempts when a grpc message is failed to send in the given deadline period.
+        /// </summary>
+        /// <remarks>
+        /// Default 2
+        /// </remarks>
+        public static readonly Setting<int> GrpcMaxAttempts = CreateSetting("BuildXLGrpcMaxAttempts", value => ParseInt32(value) ?? 2);
 
         /// <summary>
         /// Maximum time waiting for a pip to be executed remotely. If this timeout is hit the worker is disconnected, so this number should be conservative

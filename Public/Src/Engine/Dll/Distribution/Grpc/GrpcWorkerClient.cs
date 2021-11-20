@@ -60,7 +60,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             return m_connectionManager.CallAsync(
                async (callOptions) => await m_client.ExecutePipsAsync(grpcMessage, options: callOptions),
-               GetExecuteDescription(semiStableHashes));
+               GetExecuteDescription(semiStableHashes, message.Hashes.Count));
         }
 
         public Task<RpcCallResult<Unit>> ExitAsync(OpenBond.BuildEndData message, CancellationToken cancellationToken)

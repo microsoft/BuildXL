@@ -377,7 +377,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             int numRetries = 0;
             bool connectionSucceeded = false;
 
-            while (numRetries < GrpcSettings.MaxRetry)
+            while (numRetries < GrpcSettings.MaxAttempts)
             {
                 numRetries++;
 
@@ -453,7 +453,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             uint numTry = 0;
             var timeouts = 0;
-            while (numTry < GrpcSettings.MaxRetry)
+            while (numTry < GrpcSettings.MaxAttempts)
             {
                 numTry++;
                 watch.Restart();
@@ -529,12 +529,12 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 return new RpcCallResult<Unit>(Unit.Void, attempts: numTry, duration: totalCallDuration, waitForConnectionDuration: waitForConnectionDuration);
             }
-            else if (m_attached && timeouts == GrpcSettings.MaxRetry)
+            else if (m_attached && timeouts == GrpcSettings.MaxAttempts)
             {
                 // We assume the worker is lost if we timed out every time
                 OnConnectionFailureAsync?.Invoke(this,
                     new ConnectionFailureEventArgs(ConnectionFailureType.CallDeadlineExceeded,
-                    $"Timed out on a call to the worker. Assuming the worker is dead. Call timeout: {GrpcSettings.CallTimeout.TotalMinutes} min. Retries: {GrpcSettings.MaxRetry}"));
+                    $"Timed out on a call to the worker. Assuming the worker is dead. Call timeout: {GrpcSettings.CallTimeout.TotalMinutes} min. Retries: {GrpcSettings.MaxAttempts}"));
             }
 
             return new RpcCallResult<Unit>(

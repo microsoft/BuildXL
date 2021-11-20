@@ -98,13 +98,14 @@ namespace BuildXL.Engine.Distribution
             return string.Format(CultureInfo.InvariantCulture, "{0}::{1}", ipAddress, port);
         }
 
-        internal static string GetExecuteDescription(IList<long> semiStableHashes)
+        internal static string GetExecuteDescription(IList<long> semiStableHashes, int hashListLength)
         {
             using (var sbPool = Pools.GetStringBuilder())
             {
                 var sb = sbPool.Instance;
 
                 sb.Append("ExecutePips: ");
+                sb.Append($"{semiStableHashes.Count} pips, {hashListLength} file hashes, ");
                 AppendSemiStableHashes(sb, semiStableHashes);
 
                 return sb.ToString();

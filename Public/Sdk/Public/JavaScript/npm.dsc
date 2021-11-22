@@ -92,11 +92,7 @@ namespace Npm {
         // real user profile folder
         const localUserProfile = Context.getNewOutputDirectory("userprofile");
 
-        const environment = args.environment || [
-            {name: "PATH", separator: ";", value: [args.nodeTool.exe.parent]},
-            {name: "USERPROFILE", value: localUserProfile},
-            {name: "NO_UPDATE_NOTIFIER", value: "1"}, // Prevent npm from checking for the latest version online and write to the user folder with the check information
-        ];
+        const environment = getEnvironment(localUserProfile, d`${args.nodeTool.exe.parent}`, args.environment);
 
         const npmInstallArgs : Transformer.ExecuteArguments ={
             tool: args.npmTool,
@@ -124,4 +120,98 @@ namespace Npm {
         const result = Transformer.execute(Object.merge(defaults, npmInstallArgs));
         return result;
     } 
+
+    function getEnvironment(userProfile: Directory, nodeExeDirectory: Directory, environment: Transformer.EnvironmentVariable[]) {
+        return environment || [
+            {name: "PATH", separator: ";", value: [nodeExeDirectory]},
+            {name: "USERPROFILE", value: userProfile},
+            {name: "NO_UPDATE_NOTIFIER", value: "1"}, // Prevent npm from checking for the latest version online and write to the user folder with the check information
+        ];
+    }
+
+    /**
+     * Arguments for calling npm version
+     */
+    @@public
+    export interface NpmVersionArguments extends InstallArgumentsCommon {
+        npmTool: Transformer.ToolDefinition,
+        packageJson: File,
+        version: string,
+    }
+
+    /**
+     * Runs npm version against a specified package.json file
+     */
+    @@public
+    export function version(args: NpmVersionArguments) : File {
+        
+        const arguments: Argument[] = [
+            Cmd.argument("version"),
+            Cmd.argument(args.version),
+        ];
+
+        // Redirect the user profile to an output directory to avoid npm from polluting the
+        // real user profile folder
+        const localUserProfile = Context.getNewOutputDirectory("userprofile");
+
+        const environment = getEnvironment(localUserProfile, d`${args.nodeTool.exe.parent}`, args.environment);
+
+        const versionArgs : Transformer.ExecuteArguments ={
+            tool: args.npmTool,
+            arguments: arguments,
+            workingDirectory: d`${args.packageJson.parent}`,
+            outputs: [
+                args.packageJson,
+            ],
+            environmentVariables: environment,
+            dependencies: [...args.additionalDependencies || [], args.packageJson],
+            unsafe: {
+                passThroughEnvironmentVariables: defaultPassthroughVariables,
+            },
+        };
+
+        const result = Transformer.execute(Object.merge(defaults, versionArgs));
+        return result.getOutputFile(args.packageJson.path);
+    }
+
+    /**
+     * Arguments for calling npm pack
+     */
+    @@public
+    export interface NpmPackArguments extends InstallArgumentsCommon {
+        npmTool: Transformer.ToolDefinition,
+        targetDirectory: Directory,
+    }
+
+    /**
+     * Runs npm pack against the target directory
+     */
+    @public
+    export function pack(args: NpmPackArguments) : OpaqueDirectory {
+        const arguments: Argument[] = [
+            Cmd.argument("pack"),
+        ];
+
+        // Redirect the user profile to an output directory to avoid npm from polluting the
+        // real user profile folder
+        const localUserProfile = Context.getNewOutputDirectory("userprofile");
+        const environment = getEnvironment(localUserProfile, d`${args.nodeTool.exe.parent}`, args.environment);
+
+        const versionArgs : Transformer.ExecuteArguments ={
+            tool: args.npmTool,
+            arguments: arguments,
+            workingDirectory: d`${args.targetDirectory}`,
+            outputs: [
+                {directory: args.targetDirectory, kind: "shared"}
+            ],
+            environmentVariables: environment,
+            dependencies: args.additionalDependencies || [],
+            unsafe: {
+                passThroughEnvironmentVariables: defaultPassthroughVariables,
+            },
+        };
+
+        const result = Transformer.execute(Object.merge(defaults, versionArgs));
+        return result.getOutputDirectory(args.targetDirectory);
+    }
 }

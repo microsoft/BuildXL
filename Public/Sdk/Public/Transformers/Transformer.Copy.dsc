@@ -17,6 +17,7 @@ namespace Transformer {
         dependencies?: StaticDirectory[];
         pattern?: string;
         recursive?: boolean;
+        keepOutputsWritable?: boolean
     }
     
     /**
@@ -52,7 +53,8 @@ namespace Transformer {
                 dependencies: arguments.dependencies || [],
                 outputs: [
                     { directory: arguments.targetDir, kind: "shared" }
-                ]
+                ],
+                keepOutputsWritable: arguments.keepOutputsWritable
             }
             : <Transformer.ExecuteArguments>{
                 tool: {
@@ -71,7 +73,8 @@ namespace Transformer {
                 dependencies: arguments.dependencies || [],
                 outputs: [
                     { directory: arguments.targetDir, kind: "shared" }
-                ]
+                ],
+                keepOutputsWritable: arguments.keepOutputsWritable
             };
 
         const result = Transformer.execute(args);

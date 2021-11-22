@@ -148,6 +148,31 @@ namespace Node {
         return pkgContents.assertExistence(executable);
     }
 
+    /**
+     * The tool definition representing npm
+     */
+    @@public
+    export function getNpmTool() : Transformer.ToolDefinition {
+        const host = Context.getCurrentHost();
+        let executable : RelativePath = undefined;
+
+        switch (host.os) {
+            case "win":
+                executable = r`${nodeWinDir}/npm.cmd`;
+                break;
+            case "macOS": 
+                executable = r`${nodeOsxDir}/bin/npm`;
+                break;
+            case "unix": 
+                executable = r`${nodeLinuxDir}/bin/npm`;
+                break;
+            default:
+                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
+        }
+       
+        return Npm.getNpmTool(getNodePackage(), executable);
+    }
+
     @@public 
     export function runNpmInstall(
         targetFolder: Directory, 

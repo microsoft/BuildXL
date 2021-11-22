@@ -65,6 +65,9 @@ export interface DeployToDiskArguments {
 
     /** A set of options specific to the deployment. deployToDisk just dumbly passes it along to the flatten method of the Deployable interface. */
     deploymentOptions?: DeploymentOptions;
+
+    /** Whether the deployment should be kept writable. Turning this on also has the side effect of avoiding hardlinks. */
+    keepOutputsWritable?: boolean;
 }
 
 @@public
@@ -184,12 +187,13 @@ export function copyFileIntoSharedOpaqueDirectory(source: File, target: Path, ta
  * allows for the case where there are opaque directories under the given root, which is sometimes the case of a deployment on disk
  */
 @@public
-export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory, opaqueDirDeps?: OpaqueDirectory[]): SharedOpaqueDirectory {
+export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory, opaqueDirDeps?: OpaqueDirectory[], keepOutputsWritable?: boolean): SharedOpaqueDirectory {
     return Transformer.copyDirectory({
         sourceDir: sourceDir,
         targetDir: targetDir,
         dependencies: [sourceDirDep, ...(opaqueDirDeps || [])],
         recursive: true,
+        keepOutputsWritable: keepOutputsWritable
     });
 }
 
@@ -209,7 +213,10 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
         const targetPath = rootDir.combine(relativeTarget);
         // data.file can be missing, for instance, if pdbs are embedded or pdb generation is skipped.
         // So we ignore these entries completely.
-        return Transformer.copyFile(data.file, targetPath, args.tags);
+        // If the source and target are the same, then we assume the file is already deployed. Otherwise, we copy it.
+        return data.file.path === targetPath 
+            ? data.file
+            : Transformer.copyFile(data.file, targetPath, args.tags, /*description*/ undefined, args.keepOutputsWritable);
     });
 
     const targetOpaques = flattened.flattenedOpaques.toArray().map(tuple => {
@@ -218,7 +225,7 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
         const opaqueSub = tuple[1].subDirectory || r`.`;
 
         const targetDir = d`${rootDir}/${relativeTarget}`;
-        return copyDirectory(d`${opaque}/${opaqueSub}`, targetDir, opaque);
+        return copyDirectory(d`${opaque}/${opaqueSub}`, targetDir, opaque, /*opaqueDirDeps*/ [], args.keepOutputsWritable);
     });
 
     // TODO: We lack the ability to combine files and OpaqueDirectories into a new OpaqueDirectory (unless we write a single process that would do all the copies)

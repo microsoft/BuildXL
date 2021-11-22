@@ -743,7 +743,7 @@ namespace Tool.DropDaemon
                 var specs = new List<SBOMSpecification>() { new("SPDX", "2.2") };
                 if (!m_disableCloudBuildManifest)
                 {
-                    specs.Add(new("CloudBuildManifest", "1.1.0"));
+                    specs.Add(new("CloudBuildManifest", "1.0.0"));
                 }
 
                 Logger.Verbose("Starting SBOM Generation");

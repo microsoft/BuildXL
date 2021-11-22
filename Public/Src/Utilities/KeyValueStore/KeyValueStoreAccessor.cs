@@ -61,7 +61,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
     /// <summary>
     /// Result of IterateDbContent
     /// </summary>
-    public record IterateDbContentResult
+    public record struct IterateDbContentResult
     {
         /// <summary>
         /// Whether the database iteration was canceled or not.

@@ -1779,7 +1779,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.Compilers",
-          "Version": "3.8.0"
+          "Version": "4.0.1"
         }
       }
     },
@@ -1941,7 +1941,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Net.Compilers",
-          "Version": "3.8.0"
+          "Version": "4.0.1"
         }
       }
     },

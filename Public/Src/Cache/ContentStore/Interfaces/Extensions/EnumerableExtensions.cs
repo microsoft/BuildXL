@@ -58,11 +58,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// Gets the item with the max key given the optional key comparer.
         /// </summary>
         [return: MaybeNull]
-        public static T MaxByOrDefault<T, TKey>(this IEnumerable<T> items, Func<T, TKey> keySelector, IComparer<TKey>? keyComparer = null)
+        public static T? MaxByOrDefault<T, TKey>(this IEnumerable<T> items, Func<T, TKey> keySelector, IComparer<TKey>? keyComparer = null)
         {
             keyComparer ??= Comparer<TKey>.Default;
-            T maxItem = default;
-            TKey maxKey = default;
+            T? maxItem = default;
+            TKey? maxKey = default;
             bool isFirst = true;
 
             foreach (var item in items)

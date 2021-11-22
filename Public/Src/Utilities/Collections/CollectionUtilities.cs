@@ -304,7 +304,7 @@ namespace BuildXL.Utilities.Collections
             Contract.RequiresNotNull(dictionary);
             Contract.RequiresNotNull(addValueFactory);
 
-            if (!dictionary.TryGetValue(key, out TValue result))
+            if (!dictionary.TryGetValue(key, out TValue? result))
             {
                 result = addValueFactory(key);
                 dictionary[key] = result;
@@ -322,12 +322,12 @@ namespace BuildXL.Utilities.Collections
         /// <param name="key">the key of the value to find</param>
         /// <param name="defaultValue">the default value if the key is not present</param>
         /// <returns>the value matching the key in the read-only dictionary, or the default value for TValue if no key is found</returns>
-        [return:MaybeNull]
-        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue = default(TValue)) where TKey : notnull
+        [return: MaybeNull]
+        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key, TValue? defaultValue = default(TValue)) where TKey : notnull
         {
             Contract.RequiresNotNull(dictionary);
 
-            if (!dictionary.TryGetValue(key, out TValue value))
+            if (!dictionary.TryGetValue(key, out TValue? value))
             {
                 value = defaultValue;
             }
@@ -456,7 +456,7 @@ namespace BuildXL.Utilities.Collections
             Contract.RequiresNotNull(dictionary, "dictionary != null");
             Contract.RequiresNotNull(valueFactory);
 
-            if (dictionary.TryGetValue(key, out TValue resultingValue))
+            if (dictionary.TryGetValue(key, out TValue? resultingValue))
             {
                 return resultingValue;
             }

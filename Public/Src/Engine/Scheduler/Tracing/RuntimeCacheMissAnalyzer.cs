@@ -338,7 +338,10 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        internal void AddCacheMiss(PipCacheMissInfo cacheMissInfo) => m_pipCacheMissesDict.Add(cacheMissInfo.PipId, cacheMissInfo);
+        /// <summary>
+        /// Consider we may get multiple cache miss info for the same pip id when cache lookup fails/timeouts and it is retried
+        /// </summary>
+        internal void AddCacheMiss(PipCacheMissInfo cacheMissInfo) => m_pipCacheMissesDict[cacheMissInfo.PipId] = cacheMissInfo;
 
         internal void AnalyzeForCacheLookup(FingerprintStoreEntry newEntry, Process pip) => Analyze(newEntry, pip, fromCacheLookup: true);
 

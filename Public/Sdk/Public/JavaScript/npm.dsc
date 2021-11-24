@@ -121,7 +121,7 @@ namespace Npm {
         return result;
     } 
 
-    function getEnvironment(userProfile: Directory, nodeExeDirectory: Directory, environment: Transformer.EnvironmentVariable[]) {
+    function getEnvironment(userProfile: Directory, nodeExeDirectory: Directory, environment: Transformer.EnvironmentVariable[]) : Transformer.EnvironmentVariable[] {
         return environment || [
             {name: "PATH", separator: ";", value: [nodeExeDirectory]},
             {name: "USERPROFILE", value: userProfile},

@@ -11,6 +11,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 
@@ -72,8 +73,8 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Constructor
         /// </summary>
-        public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener)
-            : base(workerId: 0, name: "#0 (Local)")
+        public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener, PipExecutionContext context)
+            : base(workerId: 0, name: "#0 (Local)", context: context)
         {
             TotalProcessSlots = scheduleConfig.MaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;

@@ -376,7 +376,7 @@ namespace BuildXL.Scheduler
                 IExecutionLogTarget workerExecutionLogTarget = worker.IsLocal ?
                     ExecutionLog :
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
-
+                
                 worker.TrackStatusOperation(m_workersStatusOperation);
                 worker.Initialize(PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
                 worker.StatusChanged += OnWorkerStatusChanged;
@@ -385,7 +385,7 @@ namespace BuildXL.Scheduler
 
             m_workersSetupResultsTask = TaskUtilities.SafeWhenAll(RemoteWorkers.Select(static w => w.SetupCompletionTask));
 
-            m_allWorker = new AllWorker(m_workers.ToArray());
+            m_allWorker = new AllWorker(m_workers.ToArray(), Context);
 
             ExecutionLog?.WorkerList(new WorkerListEventData { Workers = m_workers.SelectArray(w => w.Name) });
         }
@@ -1284,7 +1284,7 @@ namespace BuildXL.Scheduler
             }
 
             m_testHooks = testHooks;
-            LocalWorker = new LocalWorker(m_scheduleConfiguration, pipQueue, m_testHooks?.DetoursListener);
+            LocalWorker = new LocalWorker(m_scheduleConfiguration, pipQueue, m_testHooks?.DetoursListener, Context);
             m_workers = new List<Worker> { LocalWorker };
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;

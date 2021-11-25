@@ -5,6 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -21,8 +22,8 @@ namespace BuildXL.Scheduler.Distribution
         public override int TotalProcessSlots => m_workers.Sum(a => a.TotalProcessSlots);
 
         /// <nodoc />
-        public AllWorker(Worker[] workers)
-            : base(workerId: Id, name: "All Workers")
+        public AllWorker(Worker[] workers, PipExecutionContext context)
+            : base(workerId: Id, name: "All Workers", context: context)
         {
             Contract.Requires(workers.Length > 0);
 

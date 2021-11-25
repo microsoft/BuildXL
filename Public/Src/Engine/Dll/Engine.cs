@@ -320,7 +320,7 @@ namespace BuildXL.Engine
 
             if (IsDistributedOrchestrator)
             {
-                m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedInvocationId);
+                m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedInvocationId, Context);
                 m_distributionService = m_orchestratorService;
             }
             else if (IsDistributedWorker)

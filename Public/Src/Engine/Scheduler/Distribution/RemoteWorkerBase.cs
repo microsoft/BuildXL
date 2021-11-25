@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -14,8 +15,8 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Constructor
         /// </summary>
-        protected RemoteWorkerBase(uint workerId, string name)
-            : base(workerId, name)
+        protected RemoteWorkerBase(uint workerId, string name, PipExecutionContext context)
+            : base(workerId, name, context)
         {
             Contract.Ensures(IsRemote);
         }

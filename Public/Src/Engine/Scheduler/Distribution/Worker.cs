@@ -20,6 +20,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Distribution
@@ -250,14 +251,14 @@ namespace BuildXL.Scheduler.Distribution
         {
             get
             {
-                if (TotalCommitMb == null || m_ramSemaphoreIndex < 0)
+                if (TotalCommitMb == null || m_commitSemaphoreIndex < 0)
                 {
                     return 0;
                 }
 
-                var availablePercentFactor = ProcessExtensions.PercentageResourceLimit - m_workerSemaphores.GetUsage(m_ramSemaphoreIndex);
+                var availablePercentFactor = ProcessExtensions.PercentageResourceLimit - m_workerSemaphores.GetUsage(m_commitSemaphoreIndex);
 
-                return (int)(((long)availablePercentFactor * TotalRamMb.Value) / ProcessExtensions.PercentageResourceLimit);
+                return (int)(((long)availablePercentFactor * TotalCommitMb.Value) / ProcessExtensions.PercentageResourceLimit);
             }
         }
 
@@ -351,7 +352,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Constructor
         /// </summary>
-        protected Worker(uint workerId, string name)
+        protected Worker(uint workerId, string name, PipExecutionContext context)
         {
             WorkerId = workerId;
             Name = name;
@@ -361,6 +362,7 @@ namespace BuildXL.Scheduler.Distribution
 
             m_workerOperationKind = OperationKind.Create("Worker " + Name);
             DrainCompletion = TaskSourceSlim.Create<bool>();
+            InitSemaphores(context);
         }
 
         /// <summary>
@@ -369,6 +371,15 @@ namespace BuildXL.Scheduler.Distribution
         public virtual void Start()
         {
             Status = WorkerNodeStatus.Running;
+        }
+
+        private void InitSemaphores(PipExecutionContext context)
+        {
+            m_ramSemaphoreNameId = context.StringTable.AddString(RamSemaphoreName);
+            m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+
+            m_commitSemaphoreNameId = context.StringTable.AddString(CommitSemaphoreName);
+            m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
         }
 
         /// <summary>
@@ -544,7 +555,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 if (runnablePip.PipType == PipType.Ipc)
                 {
-                    if (!TryAcquireLightSlots(loadFactor))
+                    if (!HasAvailableLightSlots(loadFactor))
                     {
                         limitingResource = WorkerResource.AvailableLightSlots;
                         return false;
@@ -570,7 +581,15 @@ namespace BuildXL.Scheduler.Distribution
                 // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
                 // processes running (the number of acquired slots is 0)
                 // Light processes do not acquire process slots as they are not CPU-bound.
-                if (!processRunnablePip.IsLight)
+                if (processRunnablePip.IsLight)
+                {
+                    if (!HasAvailableLightSlots(loadFactor))
+                    {
+                        limitingResource = WorkerResource.AvailableLightSlots;
+                        return false;
+                    }
+                }
+                else
                 {
                     if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (TotalProcessSlots * loadFactor))
                     {
@@ -587,16 +606,11 @@ namespace BuildXL.Scheduler.Distribution
 
                 StringId limitingResourceName = StringId.Invalid;
                 var expectedMemoryCounters = GetExpectedMemoryCounters(processRunnablePip);
+
                 if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip, expectedMemoryCounters), out limitingResourceName))
                 {
                     if (processRunnablePip.IsLight)
                     {
-                        if (!TryAcquireLightSlots(loadFactor))
-                        {
-                            limitingResource = WorkerResource.AvailableLightSlots;
-                            return false;
-                        }
-
                         Interlocked.Increment(ref m_acquiredLightSlots);
                     }
                     else
@@ -641,10 +655,11 @@ namespace BuildXL.Scheduler.Distribution
             }
         }
 
-        private bool TryAcquireLightSlots(double loadFactor)
+        private bool HasAvailableLightSlots(double loadFactor)
         {
             return m_acquiredLightSlots + 1 <= (TotalLightSlots * loadFactor);
         }
+
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess, ProcessMemoryCounters expectedMemoryCounters)
         {
             using (var semaphoreInfoListWrapper = s_semaphoreInfoListPool.GetInstance())
@@ -667,12 +682,6 @@ namespace BuildXL.Scheduler.Distribution
                     return semaphores.ToArray();
                 }
 
-                if (!m_ramSemaphoreNameId.IsValid)
-                {
-                    m_ramSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(RamSemaphoreName);
-                    m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
-                }
-
                 bool enableLessAggresiveMemoryProjection = runnableProcess.Environment.Configuration.Schedule.EnableLessAggresiveMemoryProjection;
                 var ramSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
                         m_ramSemaphoreNameId,
@@ -683,12 +692,6 @@ namespace BuildXL.Scheduler.Distribution
 
                 if (runnableProcess.Environment.Configuration.Schedule.EnableHistoricCommitMemoryProjection)
                 {
-                    if (!m_commitSemaphoreNameId.IsValid)
-                    {
-                        m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
-                        m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
-                    }
-
                     var commitSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
                         m_commitSemaphoreNameId,
                         usage: enableLessAggresiveMemoryProjection ? expectedMemoryCounters.AverageCommitSizeMb : expectedMemoryCounters.PeakCommitSizeMb,

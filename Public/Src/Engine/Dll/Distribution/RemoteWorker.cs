@@ -123,8 +123,9 @@ namespace BuildXL.Engine.Distribution
             LoggingContext appLoggingContext,
             uint workerId,
             OrchestratorService orchestratorService,
-            ServiceLocation serviceLocation)
-            : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"))
+            ServiceLocation serviceLocation,
+            PipExecutionContext context)
+            : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"), context: context)
         {
             m_appLoggingContext = appLoggingContext;
             m_orchestratorService = orchestratorService;

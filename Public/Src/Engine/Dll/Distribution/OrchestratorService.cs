@@ -70,7 +70,7 @@ namespace BuildXL.Engine.Distribution
         /// Class constructor
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "RemoteWorker disposes the workerClient")]
-        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, DistributedInvocationId invocationId) : base(invocationId)
+        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, DistributedInvocationId invocationId, PipExecutionContext context) : base(invocationId)
         {
             Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
             Contract.Ensures(m_remoteWorkers != null);
@@ -86,7 +86,7 @@ namespace BuildXL.Engine.Distribution
                 var configWorker = config.BuildWorkers[i];
                 var workerId = i + 1; // 0 represents the local worker.
                 var serviceLocation = new ServiceLocation { IpAddress = configWorker.IpAddress, Port = configWorker.BuildServicePort };
-                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation);
+                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context);
             }
 
             m_orchestratorServer = new Grpc.GrpcOrchestratorServer(loggingContext, this, invocationId);

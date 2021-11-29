@@ -13,5 +13,8 @@
     "scripts": {
         "build": "tsc",
         "start": "tsc --watch"
+    },
+    "publishConfig": {
+        "registry": "https://pkgs.dev.azure.com/1esSharedAssets/_packaging/BuildXL/npm/registry/"
     }
 }

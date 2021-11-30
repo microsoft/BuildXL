@@ -17,9 +17,9 @@ namespace npmPackages {
      **/
      @@public
     export const deployed = BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win"
-        ? deploy(
-            {contents:[createBxlInternalNpmPackage()]},
-            r`${qualifier.configuration}/npm`)
+        ? BuildXLSdk.DeploymentHelpers.deploy({
+            definition: {contents:[createBxlInternalNpmPackage()]},
+            targetLocation: r`${qualifier.configuration}/npm`})
         : undefined;
 
     function getPackageDeployment() : Deployment.OnDiskDeployment {

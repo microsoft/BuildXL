@@ -31,6 +31,16 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
             public TimeSpan MinimumWaitTimeBetweenFailedStateReports { get; set; } = TimeSpan.FromMinutes(15);
         }
 
+        private const string RequiredAttemptDescription = @"Please follow these steps on the affected instance(s):
+1. Look for the Redis instance name in Azure Portal on the CBProd subscription. The Redis team will attempt to automatically fix the instance, and it might fix itself. If it is trying to do so, you will see the Status column as 'Scale failed - Recovering'; it might self-recover after a while. If this doesn't work, see (2).
+2. On your SAW, attempt to follow the fast mitigation steps in https://eng.ms/docs/cloud-ai-platform/devdiv/devdiv-azure-service-dmitryr/azure-devex-philon/redis-cache/azure-cache-for-redis-tsgs/troubleshooting/scalefailures/using-recoverscalefailure . Skip directly to the 'Mitigation Steps' section within 'Possible Causes'. If this doesn't work, see (3).
+3. **FOR >=Sev2 DURING BUSINESS HOURS ONLY** Contact alfantp@microsoft.com via Teams. If this doesn't work, see (4).
+4. Open an ICM against the Windows Azure Cache team (https://aka.ms/redisicm) for support. If this is a Sev2, the incident you create should be a Sev2 as well. If this is a Sev3, please create a single Sev3 pooling all instances currently in failed state. After creating the incident, link this incident to theirs, and mark this incident as mitigated. After they mitigate the incident you create, mark this incident as resolved.";
+
+        private const string TwoFailedInstancesDescription = $"Both instances fell into a failed state, permanently blocking autoscaling for their corresponding stamp. {RequiredAttemptDescription}";
+
+        private const string SingleFailedInstanceDescription = $"Instance fell into a failed state. {RequiredAttemptDescription}";
+
         private readonly Configuration _configuration;
 
         private readonly RedisAutoscalingAgent _redisAutoscalingAgent;
@@ -119,7 +129,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                     await EmitIcmAsync(
                         severity: _configuration.Environment.IsProduction() ? 2 : 3,
                         title: $"Redis instances {_primaryRedisInstance.Name} and {_secondaryRedisInstance.Name} are in a failed state",
-                        description: "Both instances fell into a failed state, permanently blocking autoscaling for their corresponding stamp. Please monitor it and open a Sev 2 IcM against the Windows Azure Cache team (https://aka.ms/redisicm) for support. After creating the incident, mark the current incident as mitigated. After they mitigate the incident you create, mark the current incident as resolved.",
+                        description: TwoFailedInstancesDescription,
                         machines: null,
                         correlationIds: null,
                         cacheTimeToLive: _configuration.IcmIncidentCacheTtl);
@@ -166,7 +176,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Autoscaling
                 await EmitIcmAsync(
                     severity: 3,
                     title: $"{instance.Name} is in a failed state",
-                    description: "Instance fell into a failed state. Please monitor it and open a Sev 2 IcM against the Windows Azure Cache team (https://aka.ms/redisicm) for support if needed.",
+                    description: SingleFailedInstanceDescription,
                     machines: null,
                     correlationIds: null,
                     cacheTimeToLive: _configuration.IcmIncidentCacheTtl);

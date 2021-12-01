@@ -93,7 +93,7 @@ namespace BuildXL.Cache.Monitor.App.Rules.Kusto
                 table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
                 | where Role == 'Master'
-                | where Operation == 'CreateCheckpointAsync' and isnotempty(Duration)
+                | where Operation == 'CreateCheckpointAsync' and Component == 'CheckpointManager' and isnotempty(Duration)
                 | where Result == '{Constants.ResultCode.Success}'
                 | project PreciseTimeStamp, Message, Stamp
                 | parse Message with * 'SizeMb=[' SizeMb:double ']' *

@@ -53,8 +53,12 @@ export namespace DropDaemon {
             // because of the way that runtime assemblies are loaded into memory.
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg, 
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
-            importFrom("Microsoft.SBOMApi").pkg,
+
+            // SBOM related
             importFrom("Microsoft.SBOMCore").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.SBOMApi").pkg,
+            // TODO: Uncomment this and remove SBOMApi once newer versions are stable
+            //importFrom("Microsoft.Sbom.Contracts").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
             ...addIf(
                 BuildXLSdk.isFullFramework,
                 NetFx.Netstandard.dll
@@ -67,24 +71,6 @@ export namespace DropDaemon {
         ],
         runtimeContentToSkip: dropDaemonRuntimeContentToSkip()
     });
-
-    // const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
-    // const temporaryDropDaemonTool : Transformer.ToolDefinition = {
-    //     exe: f`${temporarySdkDropNextToEngineFolder}/DropDaemon.exe`,
-    //     runtimeDirectoryDependencies: [
-    //         Transformer.sealSourceDirectory({
-    //             root: temporarySdkDropNextToEngineFolder,
-    //             include: "allDirectories",
-    //         }), 
-    //     ],
-    //     untrackedDirectoryScopes: [
-    //         Context.getUserHomeDirectory(),
-    //         d`${Context.getMount("ProgramData").path}`,
-    //     ],
-    //     dependsOnWindowsDirectories: true,
-    //     dependsOnAppDataDirectory: true,
-    //     prepareTempDirectory: true,
-    // };
 
     @@public
     export const tool = !BuildXLSdk.isDropToolingEnabled 

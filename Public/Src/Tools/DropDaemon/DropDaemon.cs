@@ -28,14 +28,16 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
-using Newtonsoft.Json.Linq;
 using SBOMApi.Contracts;
 using SBOMApi.Contracts.Entities;
 using SBOMApi.Contracts.Enums;
 using SBOMCore;
+using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
+using BuildXL.Utilities.SBOMUtilities;
+using BuildXL.Utilities.Tracing;
 
 namespace Tool.DropDaemon
 {
@@ -82,6 +84,14 @@ namespace Tool.DropDaemon
         /// A mapping between a fully-qualified drop name and a corresponding dropConfig/VsoClient
         /// </summary>
         private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<string, (DropConfig dropConfig, Lazy<Task<IDropClient>> lazyVsoClientTask)> m_vsoClients = new();
+
+        private readonly CounterCollection<DropDaemonCounter> m_counters = new CounterCollection<DropDaemonCounter>();
+
+        private enum DropDaemonCounter
+        {
+            [CounterType(CounterType.Stopwatch)]
+            BuildManifestComponentConversionDuration
+        }
 
         #region Options and commands
 
@@ -720,9 +730,8 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, $"GenerateBuildManifestData API call failed for Drop: {dropConfig.Name}. Failure: {bxlResult.Failure.DescribeIncludingInnerFailures()}");
             }
 
-            List<SBOMFile> manifestFileList = bxlResult.Result
-                .Select(fileInfo => ToSbomFile(fileInfo))
-                .ToList();
+            IEnumerable<SBOMFile> manifestFileList = bxlResult.Result
+                .Select(fileInfo => ToSbomFile(fileInfo));
 
             string sbomGenerationRootDirectory = null;
             try
@@ -746,8 +755,15 @@ namespace Tool.DropDaemon
                     specs.Add(new("CloudBuildManifest", "1.0.0"));
                 }
 
+                IEnumerable<SBOMPackage> packages;
+
+                using (m_counters.StartStopwatch(DropDaemonCounter.BuildManifestComponentConversionDuration))
+                {
+                    packages = GetSbomPackages();
+                }
+
                 Logger.Verbose("Starting SBOM Generation");
-                var result = await m_sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, manifestFileList, Array.Empty<SBOMPackage>(), metadata, specs);
+                var result = await m_sbomGenerator.GenerateSBOMAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
                 Logger.Verbose("Finished SBOM Generation");
 
                 if (!result.IsSuccessful)
@@ -843,7 +859,46 @@ namespace Tool.DropDaemon
                 };
             }
         }
-        
+
+        /// <summary>
+        /// Tries to convert output from component detection to a list of <see cref="SBOMPackage"/>.
+        /// </summary>
+        /// <returns>
+        /// A converted list of <see cref="SBOMPackage"/> if successful.
+        /// If partially succesful, a partial list of packages are returned and errors messages will be logged.
+        /// If conversion is unsuccessful, an empty list is returned and errors are logged.
+        /// </returns>
+        private IEnumerable<SBOMPackage> GetSbomPackages()
+        {
+            // Read Path for bcde output from environment, this should already be set by Cloudbuild
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
+
+            if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
+            {
+                // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
+                // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
+                Logger.Info($"The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
+                return new List<SBOMPackage>();
+            }
+            else if (!System.IO.File.Exists(bcdeOutputJsonPath))
+            {
+                Logger.Warning($"Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
+                return new List<SBOMPackage>();
+            }
+
+            var sbomLogger = new SBOMConverterLogger(
+                m => Logger.Info(m),
+                m => Logger.Warning(m),
+                m => Logger.Warning(m)); // TODO: Change this to an error once testing is complete
+            var result = ComponentDetectionConverter.TryConvert(bcdeOutputJsonPath, sbomLogger, out var packages);
+
+            if (!result)
+            {
+                Logger.Warning($"ComponentDetectionConverter did not complete successfully.");
+            }
+
+            return packages ?? new List<SBOMPackage>();
+        }
 
         /// <summary>
         /// Generates and uploads a catalog file for <see cref="BuildManifestHelper.BuildManifestFilename"/> and <see cref="BuildManifestHelper.BsiFilename"/>
@@ -990,7 +1045,8 @@ namespace Tool.DropDaemon
 
         private async Task ReportStatisticsAsync()
         {
-            var stats = new Dictionary<string, long>();
+            var stats = m_counters.AsStatistics("DropDaemon");
+
             foreach (var (dropConfig, lazyVsoClientTask) in m_vsoClients.Values)
             {
                 try

@@ -26,6 +26,10 @@ namespace Core {
             importFrom("Newtonsoft.Json").pkg,
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("BuildXL.Utilities").SBOMUtilities.dll),
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.SBOMApi").pkg),
-        ],
+            ...addIf(
+                BuildXLSdk.isFullFramework,
+                BuildXLSdk.withQualifier({targetFramework: qualifier.targetFramework}).NetFx.Netstandard.dll
+            ),
+        ]
     });
 }

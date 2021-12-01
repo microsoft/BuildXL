@@ -2318,6 +2318,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts",
+          "Version": "0.2010.80"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
           "Version": "16.194.0-internal202109201"
         }
@@ -2761,6 +2770,15 @@
         "NuGet": {
           "Name": "NuGet.Versioning",
           "Version": "4.6.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "PackageUrl",
+          "Version": "1.0.0"
         }
       }
     },
@@ -3652,6 +3670,15 @@
         "NuGet": {
           "Name": "System.Private.Uri",
           "Version": "4.3.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reactive",
+          "Version": "4.4.1"
         }
       }
     },

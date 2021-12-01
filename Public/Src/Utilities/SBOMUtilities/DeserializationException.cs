@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using Newtonsoft.Json;
-using SBOMApi.Contracts;
 
 namespace BuildXL.SBOMUtilities
 {

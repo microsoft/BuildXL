@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using Newtonsoft.Json;
 using SBOMApi.Contracts;

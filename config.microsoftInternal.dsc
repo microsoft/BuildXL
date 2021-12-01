@@ -79,6 +79,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.ManifestInterface", version: sbomApiVersion, dependentPackageIdsToSkip: ["System.Text.Json"] },
     { id: "Microsoft.SBOMApi", version: sbomApiVersion },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
+    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts", version: "0.2010.80" },
 ] : [
 
     // Artifact packages and dependencies in OSS

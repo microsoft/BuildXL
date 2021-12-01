@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Host.Configuration;
@@ -19,15 +20,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// Filters out <see cref="NamedCacheSettings"/> entries whose capability demands are not met by the host.
         /// Also filters out entries pointing to e physical drive that doesn't exist.
         /// </summary>
-        /// <param name="this"></param>
-        /// <param name="hostCapabilities">Capabilities provided by the host</param>
-        /// <param name="logger"></param>
-        /// <param name="driveExistenceOverride">For testing purposes</param>
-        /// <returns></returns>
         public static LocalCasSettings FilterUnsupportedNamedCaches(
-            this LocalCasSettings @this, IEnumerable<string> hostCapabilities, ILogger logger, Predicate<string> driveExistenceOverride = null)
+            this LocalCasSettings @this, IEnumerable<string> hostCapabilities, ILogger logger)
         {
-            Predicate<string> checkDriveExists = driveExistenceOverride ?? Directory.Exists;
+            Predicate<string> checkDriveExists = Directory.Exists;
 
             var result = new LocalCasSettings
             {
@@ -38,8 +34,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var filteredCaches = new Dictionary<string, NamedCacheSettings>(@this.CacheSettingsByCacheName.Comparer);
 
-            foreach (KeyValuePair<string, NamedCacheSettings> kvp
-                in @this.CacheSettingsByCacheName)
+            foreach (KeyValuePair<string, NamedCacheSettings> kvp in @this.CacheSettingsByCacheName)
             {
                 // check that the stamp has the capabilities required by the named cache.
                 if (kvp.Value.RequiredCapabilities != null && kvp.Value.RequiredCapabilities.Count > 0)
@@ -56,15 +51,18 @@ namespace BuildXL.Cache.Host.Service.Internal
                     }
                 }
 
-                // check that machine the drive required by named cache.
-                // TODO: Should remove this, after measuring this doesn't happens.  If the drive layout doesn't match capability 
-                //       we'd rather fail.
                 AbsolutePath rootPath = @this.GetCacheRootPathWithScenario(kvp.Key);
                 string root = rootPath.GetPathRoot();
 
                 if (!checkDriveExists(root))
                 {
-                    logger.Error(
+                    // Currently it's totally fine to have, for instance, both D and K drives configured for the entire stamp,
+                    // even though only some machines in the stamp have both.
+                    // For instance, GlobalCache machines usually do have K drive and that drive is preferred if available,
+                    // but D drive should be used for CommandAgent machines.
+
+                    // The next trace used to be an error, but in the current state this situation is happening on all CmdAgent machines almost everywhere.
+                    logger.Debug(
                         "Named cache '{0}' was discarded since the drive required by {1} does not exist or is inaccessible on the machine.",
                         kvp.Key, rootPath);
 
@@ -77,22 +75,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             result.CacheSettingsByCacheName = filteredCaches;
             result.DrivePreferenceOrder = GetSupportedDrivePreferenceOrder(@this.DrivePreferenceOrder, filteredCaches, logger);
 
-            return result;
-        }
+            if (result.CacheSettingsByCacheName.Count == 0)
+            {
+                // It seems that all the cache configs were filtered out. This is bad and the system can't work like that!
+                string message = $"All ({@this.CacheSettingsByCacheName.Count}) cache configs were discarded due to lack of capabilities. The cache service can't start without valid cache settings.";
+                throw new CacheException(message);
+            }
 
-        /// <summary>
-        /// Variant of <see cref="FilterUnsupportedNamedCaches"/> which does not log. 
-        /// For us in UTs and ConfigCop, where the logging is not plumbed anywhere. (And ommiting the type simplify assembly dependencies)
-        /// </summary>
-        /// <param name="this"></param>
-        /// <param name="hostCapabilities"></param>
-        /// <param name="driveExistenceOverride"></param>
-        /// <returns></returns>
-        public static LocalCasSettings FilterUnsupportedNamedCachesNoLogging(
-            this LocalCasSettings @this, IEnumerable<string> hostCapabilities, Predicate<string> driveExistenceOverride = null)
-        {
-            return FilterUnsupportedNamedCaches(
-                @this, hostCapabilities, BuildXL.Cache.ContentStore.Logging.NullLogger.Instance, driveExistenceOverride);
+            return result;
         }
 
         private static List<string> GetSupportedDrivePreferenceOrder(
@@ -102,6 +92,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 return null;
             }
+
             var finalPreferenceOrder = new List<string>();
 
             foreach (string drive in drivePreferenceOrder)

@@ -268,7 +268,7 @@ namespace BuildXL.FrontEnd.Download
             var spec = $@"
                 export declare const qualifier: {{}};
             
-                const downloadTool  = {CreateToolDefinition(pathToDownloader)}
+                const downloadTool  = {CreateToolDefinition(pathToDownloader, dependsOnAppDataDirectory: true)}
                 const downloadResult = {CreateDownloadPip(downloadData)}
                 @@public export const {downloadData.DownloadedValueName} : File = downloadResult.getOutputFile(p`{downloadData.DownloadedFilePath.ToString(m_context.PathTable)}`);";
 
@@ -288,9 +288,9 @@ namespace BuildXL.FrontEnd.Download
             return Task.FromResult<Possible<ISourceFile>>(sourceFile);
         }
 
-        private string CreateToolDefinition(AbsolutePath pathToTool)
+        private string CreateToolDefinition(AbsolutePath pathToTool, bool dependsOnAppDataDirectory = false)
         {
-            return $"{{exe: f`{pathToTool.ToString(m_context.PathTable)}`, dependsOnCurrentHostOSDirectories: true, prepareTempDirectory: true}};";
+            return $"{{exe: f`{pathToTool.ToString(m_context.PathTable)}`, dependsOnCurrentHostOSDirectories: true, dependsOnAppDataDirectory: {(dependsOnAppDataDirectory ? "true" : "false")}, prepareTempDirectory: true}};";
         }
 
         private string CreateDownloadPip(DownloadData data)

@@ -71,7 +71,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     serverCreds = new SslServerCredentials(
                         new List<KeyCertificatePair> { new KeyCertificatePair(publicCertificate, privateKey) },
                         null,
-                        SslClientCertificateRequestType.RequestAndRequireButDontVerify);
+                        SslClientCertificateRequestType.DontRequest);
 
                     Logger.Log.GrpcAuthTrace(m_loggingContext, $"Server-side SSL credentials is enabled.");
                 }

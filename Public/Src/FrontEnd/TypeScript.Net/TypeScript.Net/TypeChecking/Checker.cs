@@ -1801,7 +1801,6 @@ namespace TypeScript.Net.TypeChecking
         [NotNull]
         private ISymbol ResolveAlias([NotNull]ISymbol symbol, bool resolveAliasRecursively = true)
         {
-            Contract.Ensures(Contract.Result<ISymbol>() != null);
             Contract.Assert((symbol.Flags & SymbolFlags.Alias) != SymbolFlags.None, "Should only get Alias here.");
 
             // Current implementation is relying on a thread local "custom stack" for cycle detection.
@@ -14178,8 +14177,6 @@ namespace TypeScript.Net.TypeChecking
         [NotNull]
         public ISignature GetResolvedSignature([NotNull]/*HINT: CallLikeExpression*/INode nodeArg)
         {
-            Contract.Ensures(Contract.Result<ISignature>() != null);
-
             // To avoid StackOverflow, need to keep auxiliary thread-local data structure
             // that keeps information about node under resolution.
             if (m_resolvedSignatureSet.Value.Contains(nodeArg))

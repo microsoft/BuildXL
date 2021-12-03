@@ -115,7 +115,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(atom);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)atom, out result);
         }
@@ -131,7 +130,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult parseResult = TryCreate(table, atom, out result, out _);
             return parseResult == ParseResult.Success;
@@ -148,7 +146,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult validationResult = Validate(atom, out characterWithError);
             result = validationResult == ParseResult.Success ? new PathAtom(table.AddString(atom)) : default(PathAtom);
@@ -166,7 +163,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(atom);
             Contract.Requires(atom.Length > 0);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return Create(table, (StringSegment)atom);
         }
@@ -182,7 +178,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.Requires(atom.Length > 0);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             bool pathAtomCreated = TryCreate(table, atom, out PathAtom result);
 
@@ -202,7 +197,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(addition.IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             StringId newId = table.Concat(StringId, addition.StringId);
             return new PathAtom(newId);
@@ -218,7 +212,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             if (extension.IsValid)
             {
@@ -237,7 +230,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             StringId newId = table.RemoveExtension(StringId);
             return new PathAtom(newId);

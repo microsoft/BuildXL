@@ -43,7 +43,6 @@ namespace BuildXL.Utilities
         public static TokenText Create(TokenTextTable table, StringSegment text)
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<TokenText>().IsValid);
 
             return new TokenText(table.AddString(text));
         }
@@ -55,7 +54,6 @@ namespace BuildXL.Utilities
         public static TokenText Create(TokenTextTable table, CharArraySegment text)
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<TokenText>().IsValid);
 
             return new TokenText(table.AddString(text));
         }
@@ -67,7 +65,6 @@ namespace BuildXL.Utilities
         public static TokenText Create(TokenTextTable table, StringBuilderSegment text)
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<TokenText>().IsValid);
 
             return new TokenText(table.AddString(text));
         }

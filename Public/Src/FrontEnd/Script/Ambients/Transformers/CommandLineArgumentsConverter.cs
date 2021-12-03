@@ -75,7 +75,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private static CommandLineArgumentsConverter GetInstance(StringTable stringTable)
         {
             Contract.Requires(stringTable != null);
-            Contract.Ensures(Contract.Result<CommandLineArgumentsConverter>() != null);
 
             return new CommandLineArgumentsConverter(stringTable);
         }

@@ -123,7 +123,6 @@ namespace BuildXL.Processes
             get
             {
                 Contract.Requires(!HasException);
-                Contract.Ensures(Contract.Result<Encoding>() != null);
                 return m_encoding;
             }
         }
@@ -135,7 +134,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(fileName != null);
             Contract.Requires(encodingName != null);
-            Contract.Ensures(Contract.Result<SandboxedProcessOutput>() != null);
 
             BuildXLException exception = null;
             Encoding encoding;
@@ -274,7 +272,6 @@ namespace BuildXL.Processes
             get
             {
                 Contract.Requires(IsSaved);
-                Contract.Ensures(Contract.Result<string>() != null);
                 return m_fileName;
             }
         }
@@ -285,8 +282,6 @@ namespace BuildXL.Processes
         /// <exception cref="BuildXLException">Thrown if a recoverable error occurs while opening the stream.</exception>
         public TextReader CreateReader()
         {
-            Contract.Ensures(Contract.Result<TextReader>() != null);
-
             if (m_exception != null)
             {
                 throw m_exception;

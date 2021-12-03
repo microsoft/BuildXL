@@ -129,8 +129,6 @@ namespace BuildXL.Utilities.Collections
 
         private void GetEntry(TKey key, out uint index, out int modifiedHashCode, out Entry entry)
         {
-            Contract.Ensures(Contract.ValueAtReturn<int>(out modifiedHashCode) != 0);
-
             modifiedHashCode = m_comparer.GetHashCode(key);
 
             GetEntry(ref modifiedHashCode, out index, out entry);
@@ -138,8 +136,6 @@ namespace BuildXL.Utilities.Collections
 
         private void GetEntry(ref int modifiedHashCode, out uint index, out Entry entry)
         {
-            Contract.Ensures(Contract.ValueAtReturn<int>(out modifiedHashCode) != 0);
-
             // Zero is reserved hash code for unset entries
             if (modifiedHashCode == 0)
             {

@@ -519,9 +519,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             out List<IWorkspaceModuleResolver> resolvers,
             out IEnumerable<Failure> failures)
         {
-            Contract.Ensures(Contract.Result<List<IWorkspaceModuleResolver>>() != null);
-            Contract.EnsuresForAll(Contract.Result<List<IWorkspaceModuleResolver>>(), r => r != null);
-
             resolvers = new List<IWorkspaceModuleResolver>(configuration.ResolverSettings.Count + (addBuiltInPreludeResolver ? 1 : 0));
 
             var resolverFailures = new List<Failure>();

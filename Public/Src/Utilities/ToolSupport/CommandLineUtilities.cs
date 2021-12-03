@@ -60,8 +60,6 @@ namespace BuildXL.ToolSupport
         {
             get
             {
-                Contract.Ensures(Contract.Result<IEnumerable<Option>>() != null);
-
                 foreach (string iteratorArg in m_args)
                 {
                     string arg = iteratorArg;
@@ -100,8 +98,6 @@ namespace BuildXL.ToolSupport
         {
             get
             {
-                Contract.Ensures(Contract.Result<IEnumerable<string>>() != null);
-
                 foreach (string iteratorArg in m_args)
                 {
                     string arg = iteratorArg;
@@ -121,7 +117,6 @@ namespace BuildXL.ToolSupport
         {
             get
             {
-                Contract.Ensures(Contract.Result<IReadOnlyCollection<string>>() != null);
                 return m_args;
             }
         }

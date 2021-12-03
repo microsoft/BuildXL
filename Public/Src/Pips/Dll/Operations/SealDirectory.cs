@@ -153,7 +153,6 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(artifact.Path == DirectoryRoot);
             Contract.Requires(!IsInitialized || Directory.Equals(artifact));
-            Contract.Ensures(IsInitialized);
             m_partialSealId = artifact.PartialSealId;
         }
 

@@ -221,10 +221,7 @@ namespace BuildXL.FrontEnd.Script.Values
             Contract.Requires(pathTable != null);
             Contract.Requires(stringTable != null);
             Contract.Requires(loggingContext != null);
-#if DEBUG
-            Contract.Ensures(Contract.ValueAtReturn(out qualifierValue) == null || Contract.Result<bool>() == true, "expected 'qualifierValue' to be set to null when return value is 'false'");
-            Contract.Ensures(Contract.ValueAtReturn(out qualifierValue) != null || Contract.Result<bool>() == false, "expected 'qualifierValue' to be set to non-null when return value is 'true'");
-#endif
+            
             qualifierValue = null;
 
             if (targetQualifierSpaceId == qualifierTable.EmptyQualifierSpaceId)

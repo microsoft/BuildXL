@@ -1220,7 +1220,6 @@ namespace BuildXL
         private static string GetExpandedCmdLine(IReadOnlyCollection<string> rawArgs)
         {
             Contract.RequiresNotNull(rawArgs, "rawArgs must not be null.");
-            Contract.Ensures(Contract.Result<string>() != null, "Result of the method can't be null.");
 
             var cl = new CommandLineUtilities(rawArgs);
 

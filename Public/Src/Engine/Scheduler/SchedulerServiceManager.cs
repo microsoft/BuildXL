@@ -65,7 +65,6 @@ namespace BuildXL.Scheduler
         internal void Start(LoggingContext loggingContext, OperationTracker operationTracker)
         {
             Contract.Requires(!IsStarted);
-            Contract.Ensures(IsStarted);
 
             m_executePhaseLoggingContext = loggingContext;
             m_operationTracker = operationTracker;

@@ -143,7 +143,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             Contract.Requires(IsSingleCaseEnum(scope), "Scope should have just once bit enabled!");
             Contract.Requires((int)syntaxKind >= 0 && (int)syntaxKind <= (int)TypeScript.Net.Types.SyntaxKind.Count);
-            Contract.Ensures(Contract.Result<IReadOnlyList<NodeHandler>>() != null);
 
             return m_handlersesRepository.GetHandlers(scope, (int)syntaxKind);
         }

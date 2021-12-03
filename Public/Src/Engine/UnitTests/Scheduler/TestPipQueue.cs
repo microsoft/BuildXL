@@ -203,7 +203,6 @@ namespace Test.BuildXL.Scheduler
         public TestPipQueue Unpause()
         {
             Contract.Requires(Paused);
-            Contract.Ensures(!Paused);
 
             Queue<Action> pausedQueueActions;
             lock (m_lock)

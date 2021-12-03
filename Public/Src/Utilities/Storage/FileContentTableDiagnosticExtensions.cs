@@ -82,8 +82,6 @@ namespace BuildXL.Storage.Diagnostics
         {
             Contract.Requires(fileContentTable != null);
             Contract.Requires(accessor != null);
-            Contract.Ensures(Contract.Result<List<IncorrectFileContentEntry>>() != null);
-            Contract.Ensures(Contract.ForAll(Contract.Result<List<IncorrectFileContentEntry>>(), e => e != null));
 
             var badEntries = new List<IncorrectFileContentEntry>();
             fileContentTable.VisitKnownFiles(

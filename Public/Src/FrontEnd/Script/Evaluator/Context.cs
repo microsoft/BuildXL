@@ -187,7 +187,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             {
                 Contract.RequiresDebug(!IsDisposed);
                 Contract.RequiresDebug(CallStackSize > 0);
-                Contract.Ensures(Contract.Result<StackEntry>() != null);
 
                 return m_callStack;
             }

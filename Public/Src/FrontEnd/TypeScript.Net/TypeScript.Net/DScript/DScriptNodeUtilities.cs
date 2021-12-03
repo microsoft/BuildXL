@@ -535,8 +535,6 @@ namespace TypeScript.Net.Parsing
             bool allowMultipleLiterals,
             out List<IObjectLiteralExpression> literals, out string failureReason)
         {
-            Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn(out literals).Any());
-
             literals = new List<IObjectLiteralExpression>();
             failureReason = string.Empty;
 

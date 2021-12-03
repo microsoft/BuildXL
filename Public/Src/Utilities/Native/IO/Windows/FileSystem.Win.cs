@@ -1261,7 +1261,6 @@ namespace BuildXL.Native.IO.Windows
         {
             Contract.Requires(volumeHandle != null);
             Contract.Requires(buffer != null && buffer.Length > 0);
-            Contract.Ensures(Contract.Result<ReadUsnJournalResult>() != null);
 
             var readOptions = new ReadUsnJournalData
                               {
@@ -1400,7 +1399,6 @@ namespace BuildXL.Native.IO.Windows
         public QueryUsnJournalResult TryQueryUsnJournal(SafeFileHandle volumeHandle)
         {
             Contract.Requires(volumeHandle != null);
-            Contract.Ensures(Contract.Result<QueryUsnJournalResult>() != null);
 
             var data = new QueryUsnJournalData();
 
@@ -2223,7 +2221,6 @@ namespace BuildXL.Native.IO.Windows
                 get
                 {
                     Contract.Requires(Status == IOCompletionPortDequeueStatus.Succeeded);
-                    Contract.Ensures(Contract.Result<FileAsyncIOResult>().Status != FileAsyncIOStatus.Pending);
                     return m_completedIO;
                 }
             }
@@ -2507,8 +2504,6 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public List<Tuple<VolumeGuidPath, ulong>> ListVolumeGuidPathsAndSerials()
         {
-            Contract.Ensures(Contract.Result<List<Tuple<VolumeGuidPath, ulong>>>().Count > 0);
-            Contract.Ensures(Contract.ForAll(Contract.Result<List<Tuple<VolumeGuidPath, ulong>>>(), t => t.Item1.IsValid));
 
             var volumeList = new List<Tuple<VolumeGuidPath, ulong>>();
 

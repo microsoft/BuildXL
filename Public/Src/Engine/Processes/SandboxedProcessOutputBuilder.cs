@@ -77,7 +77,6 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_textWriter")]
         public void Dispose()
         {
-            Contract.Ensures(IsFrozen);
             ReleaseTextWriter();
             ReleaseStringBuilder();
             IsFrozen = true;
@@ -86,8 +85,6 @@ namespace BuildXL.Processes
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public bool AppendLine(string data)
         {
-            Contract.Ensures(data != null || IsFrozen);
-
             if (m_exception != null)
             {
                 return true;
@@ -177,9 +174,6 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessOutput Freeze()
         {
-            Contract.Ensures(Contract.Result<SandboxedProcessOutput>() != null);
-            Contract.Ensures(IsFrozen);
-
             ReleaseTextWriter();
             IsFrozen = true;
             return new SandboxedProcessOutput(

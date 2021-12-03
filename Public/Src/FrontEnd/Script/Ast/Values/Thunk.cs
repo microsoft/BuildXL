@@ -217,8 +217,6 @@ namespace BuildXL.FrontEnd.Script.Values
             EvaluationStackFrame args,
             ref MutableContextFactory factory)
         {
-            // Contract.Ensures(Contract.Result<object>() != null && !(Contract.Result<object>() is Evaluation));
-
             // do we have a real value yet?
             var currentValue = Volatile.Read(ref value);
             var currentEvaluation = currentValue as Evaluation;

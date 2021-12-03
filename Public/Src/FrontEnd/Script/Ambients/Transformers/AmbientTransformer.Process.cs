@@ -1412,9 +1412,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)
         {
-            Contract.Ensures(Contract.Result<Pip>() != null);
-            Contract.Ensures(!Contract.Result<Pip>().PipId.IsValid);
-
             var tool = Converter.ExtractObjectLiteral(obj, m_executeTool, allowUndefined: true);
             var moniker = Converter.ExtractRef<IIpcMoniker>(obj, m_ipcSendMoniker, allowUndefined: true);
 

@@ -709,7 +709,6 @@ namespace BuildXL.Native.IO.Unix
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             return CreateFileStream(
                 path,
@@ -732,7 +731,6 @@ namespace BuildXL.Native.IO.Unix
             bool allowExcludeFileShareDelete = false)
         {
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             return m_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
         }

@@ -164,9 +164,6 @@ namespace BuildXL.Storage
         public static Possible<VersionedFileIdentity, Failure<IdentityUnavailabilityReason>> TryQuery(SafeFileHandle handle)
         {
             Contract.Requires(handle != null);
-            Contract.Ensures(
-                !Contract.Result<Possible<VersionedFileIdentity, Failure<IdentityUnavailabilityReason>>>().Succeeded
-                || Contract.Result<Possible<VersionedFileIdentity, Failure<IdentityUnavailabilityReason>>>().Result.Kind == IdentityKind.WeakUsn);
 
             (FileIdAndVolumeId fileIdentity, Usn usn)? versionedFileIdentity = FileUtilities.TryGetVersionedFileIdentityByHandle(handle);
 
@@ -200,10 +197,6 @@ namespace BuildXL.Storage
             SafeFileHandle handle,
             bool flush = false)
         {
-            Contract.Ensures(
-                !Contract.Result<Possible<VersionedFileIdentity, Failure<IdentityUnavailabilityReason>>>().Succeeded
-                || Contract.Result<Possible<VersionedFileIdentity, Failure<IdentityUnavailabilityReason>>>().Result.Kind == IdentityKind.StrongUsn);
-
             (FileIdAndVolumeId fileIdentity, Usn usn)? versionedFileIdentity = FileUtilities.TryEstablishVersionedFileIdentityByHandle(handle, flush);
 
             if (!versionedFileIdentity.HasValue)

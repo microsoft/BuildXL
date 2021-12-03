@@ -198,8 +198,6 @@ namespace BuildXL.Pips
 
         internal Pip InternalGetOrSetPip(PipTable table, PipId pipId, PipQueryContext context, Func<PipTable, PipId, PageableStoreId, PipQueryContext, Pip> creator)
         {
-            Contract.Ensures(Contract.Result<Pip>() != null);
-
             lock (this)
             {
                 Pip pip;

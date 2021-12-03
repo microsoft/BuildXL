@@ -98,7 +98,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(atom);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)atom, out result);
         }
@@ -114,7 +113,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult parseResult = TryCreate(table, atom, out result, out _);
             return parseResult == ParseResult.Success;
@@ -131,7 +129,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult validationResult = Validate(atom, out characterWithError);
             result = validationResult == ParseResult.Success ? new SymbolAtom(table.AddString(atom)) : default(SymbolAtom);
@@ -149,7 +146,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(atom);
             Contract.Requires(atom.Length > 0);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             return Create(table, (StringSegment)atom);
         }
@@ -165,7 +161,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.Requires(atom.Length > 0);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             bool identifierAtomCreated = TryCreate(table, atom, out SymbolAtom result);
 
@@ -189,7 +184,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(atom);
             Contract.Requires(atom.Length > 0);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             return CreateUnchecked(table, (StringSegment)atom);
         }
@@ -205,7 +199,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.Requires(atom.Length > 0);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             StringId id = table.AddString(atom);
             return new SymbolAtom(id);
@@ -219,7 +212,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(addition.IsValid);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             StringId newId = table.Concat(StringId, addition.StringId);
             return new SymbolAtom(newId);

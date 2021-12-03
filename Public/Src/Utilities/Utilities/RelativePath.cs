@@ -73,7 +73,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(relativePath);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)relativePath, out result);
         }
@@ -86,7 +85,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult parseResult = TryCreate(table, relativePath, out result, out _);
             return parseResult == ParseResult.Success;
@@ -115,7 +113,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             using (var wrap = Pools.GetStringIdList())
             {
@@ -242,7 +239,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(relativePath);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return Create(table, (StringSegment)relativePath);
         }
@@ -257,7 +253,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             bool f = TryCreate(table, relativePath, out RelativePath result);
             if (!f)
@@ -274,7 +269,6 @@ namespace BuildXL.Utilities
         public static RelativePath Create(PathAtom atom)
         {
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return new RelativePath(atom.StringId);
         }
@@ -286,7 +280,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             var components = new StringId[atoms.Length];
             int count = 0;
@@ -313,7 +306,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             var components = new StringId[Components.Length + path.Components.Length];
             int count = 0;
@@ -337,7 +329,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             var components = new StringId[Components.Length + 1];
             int count = 0;
@@ -359,7 +350,6 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid);
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             var components = new StringId[Components.Length + 2];
             int count = 0;
@@ -382,7 +372,6 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid);
             Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             var components = new StringId[Components.Length + atoms.Length];
             int count = 0;
@@ -411,7 +400,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.Requires(addition.IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             StringId changed = new PathAtom(Components[Components.Length - 1]).Concat(table, addition).StringId;
 
@@ -435,7 +423,6 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             if (extension.IsValid)
             {
@@ -468,7 +455,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             if (Components.Length == 0)
             {
@@ -503,7 +489,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return new RelativePath(Components[0]);
         }
@@ -518,7 +503,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             var components = new StringId[Components.Length - 1];
             for (int i = 0; i < Components.Length - 1; i++)
@@ -539,7 +523,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return new PathAtom(Components[Components.Length - 1]);
         }

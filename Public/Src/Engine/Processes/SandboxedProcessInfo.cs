@@ -345,7 +345,6 @@ namespace BuildXL.Processes
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return m_maxLengthInMemory;
             }
 

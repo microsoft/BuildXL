@@ -41,7 +41,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(partialSymbol);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)partialSymbol, out result);
         }
@@ -54,7 +53,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             int characterWithError;
             ParseResult parseResult = TryCreate(table, partialSymbol, out result, out characterWithError);
@@ -69,7 +67,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             using (var wrap = Pools.GetStringIdList())
             {
@@ -167,7 +164,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table);
             Contract.RequiresNotNull(partialSymbol);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             return Create(table, (StringSegment)partialSymbol);
         }
@@ -182,7 +178,6 @@ namespace BuildXL.Utilities
             where T : struct, ICharSpan<T>
         {
             Contract.RequiresNotNull(table);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             PartialSymbol result;
             bool f = TryCreate(table, partialSymbol, out result);
@@ -196,7 +191,6 @@ namespace BuildXL.Utilities
         public static PartialSymbol Create(SymbolAtom atom)
         {
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             return new PartialSymbol(atom.StringId);
         }
@@ -208,7 +202,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             var components = new StringId[atoms.Length];
             int count = 0;
@@ -235,7 +228,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(identifier.IsValid);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             var components = new StringId[m_components.Length + identifier.m_components.Length];
             int count = 0;
@@ -259,7 +251,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             var components = new StringId[m_components.Length + 1];
             int count = 0;
@@ -281,7 +272,6 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid);
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             var components = new StringId[m_components.Length + 2];
             int count = 0;
@@ -304,7 +294,6 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid);
             Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             var components = new StringId[m_components.Length + atoms.Length];
             int count = 0;
@@ -333,7 +322,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table);
             Contract.Requires(addition.IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             StringId changed = new SymbolAtom(m_components[m_components.Length - 1]).Concat(table, addition).StringId;
 
@@ -358,7 +346,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             var components = new StringId[m_components.Length - 1];
             for (int i = 0; i < m_components.Length - 1; i++)
@@ -379,7 +366,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             return new SymbolAtom(m_components[m_components.Length - 1]);
         }

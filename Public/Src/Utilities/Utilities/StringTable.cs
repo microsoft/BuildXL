@@ -228,7 +228,6 @@ namespace BuildXL.Utilities
         public void Invalidate()
         {
             Contract.Requires(IsValid());
-            Contract.Ensures(!IsValid());
 
             Freeze();
             m_sizeInBytes = SizeInBytes;
@@ -518,7 +517,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(id.IsValid);
             Contract.Requires(IsValid());
-            Contract.Ensures(Contract.Result<int>() >= 0);
 
             GetBytesCore(id, out _, out _, length: out int length);
             Contract.Assume(length >= 0);
@@ -534,7 +532,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(value);
             Contract.Requires(IsValid());
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             return AddString((StringSegment)value);
         }
@@ -542,7 +539,6 @@ namespace BuildXL.Utilities
         internal StringId AddString<T>(T value) where T : struct, ICharSpan<T>
         {
             Contract.Requires(IsValid());
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             var getOrAddResult = m_stringSet.GetOrAddItem(new SoughtSetString<T>(this, value));
             Contract.Assert(getOrAddResult.IsFound || !m_isSerializationInProgress, "StringTable is being serialized. No new entry can be added.");
@@ -554,7 +550,6 @@ namespace BuildXL.Utilities
         private StringId AddStringToBuffer<T>(T seg) where T : struct, ICharSpan<T>
         {
             Contract.Requires(IsValid());
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             // Not in the set, so get some space to hold the string
             //
@@ -966,7 +961,6 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid());
             Contract.Requires(id.IsValid);
             Contract.Requires(extension.IsValid);
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             int originalLength = GetLength(id);
             int extLength = GetLength(extension);
@@ -1032,7 +1026,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid());
             Contract.Requires(id.IsValid);
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             int originalLength = GetLength(id);
             using (var wrapper = Pools.GetCharArray(originalLength))
@@ -1075,7 +1068,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(id1.IsValid);
             Contract.Requires(id2.IsValid);
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             int len1 = GetLength(id1);
             int len2 = GetLength(id2);

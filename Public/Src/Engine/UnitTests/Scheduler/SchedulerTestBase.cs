@@ -52,7 +52,6 @@ namespace Test.BuildXL.Scheduler
         private bool TryCreateDirectoryPath(string directoryPath, out AbsolutePath path)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
-            Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn(out path).IsValid);
 
             path = AbsolutePath.Invalid;
             bool result = false;
@@ -231,8 +230,6 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         protected FileContentTable CreateFileContentTable()
         {
-            Contract.Ensures(Contract.Result<FileContentTable>() != null);
-
             return FileContentTable.CreateNew(LoggingContext);
         }
 

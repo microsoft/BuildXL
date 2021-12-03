@@ -19,8 +19,6 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static TimeSpan MillisecondsToTimeSpan(this uint milliseconds)
         {
-            Contract.Ensures(Contract.Result<TimeSpan>().TotalMilliseconds == milliseconds);
-
             // TimeSpan.TicksPerMillisecond is a long, and it equals 10000.
             // Thus, the computation below yields a long, and never overflows.
             long ticks = TimeSpan.TicksPerMillisecond * milliseconds;
@@ -35,8 +33,6 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static TimeSpan MillisecondsToTimeSpan(this int milliseconds)
         {
-            Contract.Ensures(Contract.Result<TimeSpan>().TotalMilliseconds == milliseconds);
-
             // TimeSpan.TicksPerMillisecond is a long, and it equals 10000.
             // Thus, the computation below yields a long, and never overflows.
             long ticks = TimeSpan.TicksPerMillisecond * milliseconds;

@@ -98,8 +98,6 @@ namespace Tool.ServicePipDaemon
 
         private VersionedValue CreateAndPushNewInstance()
         {
-            Contract.Ensures(Contract.Result<VersionedValue>().Version == CurrentVersion);
-
             var instance = new VersionedValue(m_stackOfValues.Count + 1, m_constructor());
             m_stackOfValues.Push(instance);
             return instance;

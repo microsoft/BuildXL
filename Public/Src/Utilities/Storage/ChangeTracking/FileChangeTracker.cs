@@ -148,7 +148,6 @@ namespace BuildXL.Storage.ChangeTracking
         private FileChangeTracker(LoggingContext loggingContext)
         {
             Contract.Requires(loggingContext != null);
-            Contract.Ensures(TrackingState == FileChangeTrackingState.DisabledSinceTrackingIsIncomplete);
 
             m_loggingContext = loggingContext;
             m_volumeMap = null;
@@ -176,7 +175,6 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(loggingContext != null);
             Contract.Requires(volumeMap != null);
             Contract.Requires(journal != null);
-            Contract.Ensures(Contract.Result<FileChangeTracker>().TrackingState == FileChangeTrackingState.BuildingInitialChangeTrackingSet);
 
             var tracker = new FileChangeTracker(
                 loggingContext,
@@ -216,7 +214,6 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(journal != null);
             Contract.Requires(previousChangeTrackingSet != null);
             Contract.Requires(fileEnvelopeId.IsValid);
-            Contract.Ensures(Contract.Result<FileChangeTracker>().TrackingState == FileChangeTrackingState.TrackingChanges);
 
             return new FileChangeTracker(
                 loggingContext,
@@ -247,12 +244,6 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(volumeMap != null);
             Contract.Requires(journal != null);
             Contract.Requires(path != null);
-            Contract.Ensures(Contract.Result<LoadingTrackerResult>() != null);
-            Contract.Ensures(Contract.ValueAtReturn(out tracker) != null);
-            Contract.Ensures(
-                (Contract.Result<LoadingTrackerResult>().Succeeded && Contract.ValueAtReturn(out tracker).IsTrackingChanges)
-                || (!Contract.Result<LoadingTrackerResult>().Succeeded && Contract.ValueAtReturn(out tracker).TrackingState ==
-                    FileChangeTrackingState.BuildingInitialChangeTrackingSet));
 
             using (var pm = BuildXL.Tracing.PerformanceMeasurement.StartWithoutStatistic(
                 loggingContext,
@@ -479,7 +470,6 @@ namespace BuildXL.Storage.ChangeTracking
         public static FileChangeTracker CreateDisabledTracker(LoggingContext loggingContext)
         {
             Contract.Requires(loggingContext != null);
-            Contract.Ensures(Contract.Result<FileChangeTracker>().TrackingState == FileChangeTrackingState.DisabledSinceTrackingIsIncomplete);
 
             return new FileChangeTracker(loggingContext);
         }

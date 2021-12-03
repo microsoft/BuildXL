@@ -90,8 +90,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
         internal static IReadOnlyList<BreakpointRecord> UpdateBreakpointRecords(IReadOnlyList<ISourceBreakpoint> newBreakpoints, IReadOnlyList<BreakpointRecord> currentBreakpoints)
         {
             Contract.Requires(newBreakpoints != null);
-            Contract.Ensures(Contract.Result<IReadOnlyList<BreakpointRecord>>() != null);
-            Contract.Ensures(Contract.Result<IReadOnlyList<BreakpointRecord>>().Count == newBreakpoints.Count);
 
             // convert to BreakpointRecord
             var breakpoints = newBreakpoints.Select(b => new BreakpointRecord(b)).ToArray();

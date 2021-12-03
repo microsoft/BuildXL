@@ -109,7 +109,6 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(context != null);
             Contract.Requires(context.StringTable != null);
-            Contract.Ensures(Contract.Result<PipProvenance>() != null);
 
             return new PipProvenance(
                 new System.Random().Next(),
@@ -139,7 +138,6 @@ namespace BuildXL.Pips.Operations
         internal static PipProvenance Deserialize(PipReader reader)
         {
             Contract.Requires(reader != null);
-            Contract.Ensures(Contract.Result<PipProvenance>() != null);
 
             long semiStableHash = reader.ReadInt64();
             ModuleId moduleId = reader.ReadModuleId();

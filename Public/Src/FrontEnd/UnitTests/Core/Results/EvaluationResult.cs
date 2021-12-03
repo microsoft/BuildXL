@@ -46,7 +46,6 @@ namespace Test.BuildXL.FrontEnd.Core
             get
             {
                 Contract.Requires(name != null);
-                Contract.Ensures(Contract.Result<object>() != null);
 
                 object result;
                 if (!m_expressionNameToValueMap.TryGetValue(name, out result))

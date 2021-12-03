@@ -2246,7 +2246,6 @@ namespace Test.BuildXL.Scheduler
             private static PropertyInfo GetPropertyInfo<TResult>(Expression<Func<TPip, TResult>> expr)
             {
                 Contract.Requires(expr != null);
-                Contract.Ensures(Contract.Result<PropertyInfo>() != null);
 
                 var memberExpr = expr.Body as MemberExpression;
                 Contract.Assume(memberExpr != null, "Expressions given to Vary must be simple member accesses. Don't compute anything.");

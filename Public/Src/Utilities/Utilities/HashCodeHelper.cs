@@ -441,7 +441,6 @@ namespace BuildXL.Utilities
         public static int GetGreaterOrEqualPrime(int minValue)
         {
             Contract.Requires(minValue >= 0);
-            Contract.Ensures(Contract.Result<int>() > 0);
 
             for (int i = 0; i < s_primes.Length; i++)
             {

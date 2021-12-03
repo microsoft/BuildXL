@@ -241,7 +241,6 @@ namespace BuildXL.Scheduler
             get
             {
                 // TODO: not needed? Contract.Requires((int) state <= PipStateRange.MaxValue && (int) state >= PipStateRange.MinValue);
-                Contract.Ensures(Contract.Result<long>() >= 0);
                 return m_counters[(int) state - PipStateRange.MinValue];
             }
         }
@@ -276,7 +275,6 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(counters.Length == PipStateRange.Range);
             Contract.RequiresForAll(counters, i => i >= 0);
-            Contract.Ensures(Contract.Result<long[]>().Length == PipStateRange.Range);
 
             long[] swap = m_counters;
             m_counters = counters;

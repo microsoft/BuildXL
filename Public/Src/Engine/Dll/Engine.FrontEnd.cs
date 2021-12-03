@@ -386,8 +386,6 @@ namespace BuildXL.Engine
             JournalState journalState,
             EngineState engineState)
         {
-            Contract.Ensures(Contract.Result<GraphReuseResult>() != null);
-
             GraphCacheCheckStatistics cacheGraphStats = CheckGraphCacheReuse(
                 outerLoggingContext,
                 maxDegreeOfParallelism,
@@ -677,7 +675,6 @@ namespace BuildXL.Engine
             get
             {
                 Contract.Requires(IsFullReuse);
-                Contract.Ensures(Contract.Result<EngineSchedule>() != null);
                 return m_engineSchedule;
             }
         }
@@ -691,7 +688,6 @@ namespace BuildXL.Engine
             get
             {
                 Contract.Requires(IsPartialReuse);
-                Contract.Ensures(Contract.Result<PipGraph>() != null);
                 return m_pipGraph;
             }
         }
@@ -702,8 +698,6 @@ namespace BuildXL.Engine
         /// </summary>
         internal static GraphReuseResult CreateForNoReuse([CanBeNull] InputTracker.InputChanges inputChanges)
         {
-            Contract.Ensures(Contract.Result<GraphReuseResult>().IsNoReuse);
-
             return new GraphReuseResult(
                 pipGraph: null,
                 engineSchedule: null,
@@ -717,7 +711,6 @@ namespace BuildXL.Engine
         internal static GraphReuseResult CreateForFullReuse(EngineSchedule engineSchedule, [CanBeNull] InputTracker.InputChanges inputChanges)
         {
             Contract.Requires(engineSchedule != null);
-            Contract.Ensures(Contract.Result<GraphReuseResult>().IsFullReuse);
 
             return new GraphReuseResult(
                 pipGraph: null,
@@ -734,7 +727,6 @@ namespace BuildXL.Engine
             Contract.Requires(pipGraph != null);
             Contract.Requires(inputChanges != null);
             Contract.Requires(inputChanges.ChangedPaths.Any());
-            Contract.Ensures(Contract.Result<GraphReuseResult>().IsPartialReuse);
 
             return new GraphReuseResult(
                 pipGraph: pipGraph,

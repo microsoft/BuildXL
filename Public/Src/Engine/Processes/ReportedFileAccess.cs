@@ -604,7 +604,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(context != null);
             Contract.Requires(pip != null);
-            Contract.Ensures(Contract.ValueAtReturn(out parsedPath).IsValid == Contract.Result<bool>());
 
             const int ErrorInvalidName = 0x7B; // ERROR_INVALID_NAME
 

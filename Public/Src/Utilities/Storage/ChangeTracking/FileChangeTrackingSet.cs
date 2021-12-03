@@ -410,8 +410,6 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public ScanningJournalResult TryProcessChanges(IChangeJournalAccessor journalAccessor, TimeSpan? timeLimitForJournalScanning)
         {
-            Contract.Ensures(Contract.Result<ScanningJournalResult>().Status != ScanningJournalStatus.NotChecked);
-
             var result = ScanningJournalResult.NotChecked;
             foreach (var volumeSerial in TrackedVolumes)
             {

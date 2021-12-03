@@ -1175,8 +1175,6 @@ namespace BuildXL
             /// </summary>
             public bool TryWaitForStartupComplete(TryStartServer startup, TimeSpan timeout, out ServerModeCannotStart? failureToStart)
             {
-                Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<ServerModeCannotStart?>(out failureToStart).HasValue);
-
                 bool eventIsNew;
                 using (
                     var startupCompletedEvent = new EventWaitHandle(

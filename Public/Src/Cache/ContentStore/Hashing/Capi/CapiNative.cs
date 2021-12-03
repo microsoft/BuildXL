@@ -213,10 +213,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                                                  CryptAcquireContextFlags flags,
                                                  bool throwPlatformException)
         {
-            Contract.Ensures(Contract.Result<SafeCspHandle>() != null &&
-                             !Contract.Result<SafeCspHandle>().IsInvalid &&
-                             !Contract.Result<SafeCspHandle>().IsClosed);
-
             if (!UnsafeNativeMethods.CryptAcquireContext(out SafeCspHandle? cspHandle,
                                                          keyContainer,
                                                          providerName,
@@ -248,7 +244,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.Requires(hashHandle != null);
             Contract.Requires(CapiNative.HashParameter.AlgorithmId <= parameter && parameter <= CapiNative.HashParameter.HashSize);
-            Contract.Ensures(Contract.Result<byte[]>() != null);
 
             //
             // Determine the maximum size of the parameter and retrieve it

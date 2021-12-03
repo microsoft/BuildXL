@@ -710,7 +710,6 @@ namespace BuildXL.FrontEnd.Core
             Contract.Requires(!string.IsNullOrEmpty(friendlyName));
             Contract.Requires(!string.IsNullOrEmpty(url));
             Contract.Requires(!string.IsNullOrEmpty(targetFilePath));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var sourceUri))
             {

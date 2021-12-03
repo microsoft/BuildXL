@@ -40,7 +40,6 @@ namespace BuildXL.Utilities
         public static FileArtifact CreateSourceFile(AbsolutePath path)
         {
             Contract.Requires(path != AbsolutePath.Invalid);
-            Contract.Ensures(Contract.Result<FileArtifact>().IsValid);
 
             return new FileArtifact(path);
         }
@@ -51,7 +50,6 @@ namespace BuildXL.Utilities
         public static FileArtifact CreateOutputFile(AbsolutePath path)
         {
             Contract.Requires(path != AbsolutePath.Invalid);
-            Contract.Ensures(Contract.Result<FileArtifact>().IsValid);
 
             return new FileArtifact(path, 1);
         }
@@ -70,7 +68,6 @@ namespace BuildXL.Utilities
         public FileArtifact CreateNextWrittenVersion()
         {
             Contract.Requires(IsValid);
-            Contract.Ensures(Contract.Result<FileArtifact>().IsValid);
 
             int newCount = checked(1 + m_rewriteCount);
             return new FileArtifact(Path, newCount);

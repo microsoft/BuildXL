@@ -142,7 +142,6 @@ namespace Test.BuildXL.TestUtilities
         /// <returns>The log as written so far</returns>
         public string GetLog()
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             var logBuilder = new StringBuilder();
             lock (m_logMessagesLock)
             {

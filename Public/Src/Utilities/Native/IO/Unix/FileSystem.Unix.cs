@@ -81,8 +81,6 @@ namespace BuildXL.Native.IO.Unix
             out SafeFileHandle handle)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
-            Contract.Ensures(Contract.Result<OpenFileResult>().Succeeded == (Contract.ValueAtReturn(out handle) != null));
-            Contract.Ensures(!Contract.Result<OpenFileResult>().Succeeded || !Contract.ValueAtReturn(out handle).IsInvalid);
 
             return TryOpenDirectory(directoryPath, desiredAccess, shareMode, FileMode.Open, flagsAndAttributes, out handle);
         }
@@ -110,8 +108,6 @@ namespace BuildXL.Native.IO.Unix
         public OpenFileResult TryOpenDirectory(string directoryPath, FileShare shareMode, out SafeFileHandle handle)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
-            Contract.Ensures(Contract.Result<OpenFileResult>().Succeeded == (Contract.ValueAtReturn(out handle) != null));
-            Contract.Ensures(!Contract.Result<OpenFileResult>().Succeeded || !Contract.ValueAtReturn(out handle).IsInvalid);
 
             return TryOpenDirectory(directoryPath, FileDesiredAccess.None, shareMode, FileFlagsAndAttributes.None, out handle);
         }

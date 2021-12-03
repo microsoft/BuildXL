@@ -73,7 +73,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             get
             {
                 Contract.Requires(IsAbsolutePath);
-                Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
                 return m_absolutePath;
             }
         }
@@ -84,7 +83,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             get
             {
                 Contract.Requires(IsPackageRelative);
-                Contract.Ensures(Contract.Result<RelativePath>().IsValid);
                 return m_packageRelativePath;
             }
         }
@@ -98,7 +96,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             get
             {
                 Contract.Requires(IsFileRelative);
-                Contract.Ensures(Contract.Result<RelativePath>().IsValid);
                 return m_fileRelativePath;
             }
         }
@@ -111,7 +108,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return m_parentCount;
             }
         }

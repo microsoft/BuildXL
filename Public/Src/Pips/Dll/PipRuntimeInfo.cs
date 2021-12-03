@@ -82,7 +82,6 @@ namespace BuildXL.Pips
         {
             get
             {
-                Contract.Ensures(ContractUtilities.Static(((int)Contract.Result<PipState>() & PreCommitStateBit) == 0));
                 return (PipState)(Volatile.Read(ref m_state) & CommittedStateMask);
             }
         }

@@ -142,7 +142,6 @@ namespace Tool.DropDaemon
         private static BlobIdentifier DeserializeBlobIdentifierFromHash(string serializedVsoHash)
         {
             Contract.Requires(serializedVsoHash != null);
-            Contract.Ensures(Contract.Result<BlobIdentifier>() != null);
 
             BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash;
             if (!BuildXL.Cache.ContentStore.Hashing.ContentHash.TryParse(serializedVsoHash, out contentHash))

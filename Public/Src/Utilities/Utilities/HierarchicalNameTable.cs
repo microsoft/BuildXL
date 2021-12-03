@@ -1013,7 +1013,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.RequiresNotNull(components);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out hierarchicalNameId).IsValid);
 
             return TryGetName(HierarchicalNameId.Invalid, components, out hierarchicalNameId);
         }
@@ -1025,7 +1024,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.RequiresNotNull(components);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out hierarchicalNameId).IsValid);
 
             int componentIndex = 0;
             HierarchicalNameId currentNode = parent;
@@ -1058,7 +1056,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(component.IsValid);
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out hierarchicalNameId).IsValid);
 
             var findResult = m_nodeMap.GetOrAddItem(new NodePendingItem(m_equalityComparer, parent, component), allowAdd: false);
 
@@ -1517,7 +1514,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<Node>().Component.IsValid);
 
             int index = GetIndexFromId(name);
             return m_nodes[index];
@@ -1543,10 +1539,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != null));
-            Contract.Ensures(
-                name.IsValid || Contract.Result<bool>(),
-                "TryExpandNameRelativeToAnother should always succeed when the limit is the null path.");
 
             if (TryExpandNameRelativeToAnother(root, name, out char[] chars, expander, separator))
             {
@@ -1573,10 +1565,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != null));
-            Contract.Ensures(
-                name.IsValid || Contract.Result<bool>(),
-                "TryExpandNameRelativeToAnother should always succeed when the limit is the null path.");
 
             if (TryExpandNameRelativeToAnother(root, name, out char[] chars, expander, separator))
             {
@@ -1608,10 +1596,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != null));
-            Contract.Ensures(
-                name.IsValid || Contract.Result<bool>(),
-                "TryExpandNameRelativeToAnother should always succeed when the limit is the null path.");
 
             expander = expander ?? DefaultExpander;
 
@@ -1779,7 +1763,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<StringId>().IsValid);
 
             Node node = GetNode(name);
             return node.Component;

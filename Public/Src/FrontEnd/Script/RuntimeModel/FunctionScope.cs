@@ -176,8 +176,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         {
             get
             {
-                Contract.Ensures(Contract.Result<BlockScope>() != null);
-
                 return m_scopedVarsStack.Peek();
             }
         }

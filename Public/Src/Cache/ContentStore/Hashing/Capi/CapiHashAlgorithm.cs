@@ -30,8 +30,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             Contract.Requires(!string.IsNullOrEmpty(provider));
             Contract.Requires((CapiNative.AlgorithmClass)((uint)algorithm & (uint)CapiNative.AlgorithmClass.Hash) == CapiNative.AlgorithmClass.Hash);
-            Contract.Ensures(m_cspHandle != null && !m_cspHandle.IsInvalid && !m_cspHandle.IsClosed);
-            Contract.Ensures(m_hashHandle != null && !m_hashHandle.IsInvalid && !m_hashHandle.IsClosed);
 
             m_algorithmId = algorithm;
             m_cspHandle = CapiNative.AcquireCsp(null,
@@ -54,7 +52,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public SafeCapiHashHandle Initialize()
         {
-            Contract.Ensures(m_hashHandle != null && !m_hashHandle.IsInvalid && !m_hashHandle.IsClosed);
             Contract.Assert(m_cspHandle != null);
 
             // Try to create a new hash algorithm to use
@@ -142,7 +139,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public byte[] HashFinal()
         {
-            Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Assert(m_hashHandle != null);
 
             return CapiNative.GetHashParameter(m_hashHandle, CapiNative.HashParameter.HashValue);

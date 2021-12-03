@@ -68,8 +68,6 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public static TrackedFileContentInfo CreateUntracked(FileContentInfo fileContentInfo, PathAtom fileName = default)
         {
-            Contract.Ensures(!Contract.Result<TrackedFileContentInfo>().IsTracked);
-
             return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName);
         }
 
@@ -79,8 +77,6 @@ namespace BuildXL.Storage.ChangeTracking
         /// </summary>
         public static TrackedFileContentInfo CreateUntrackedWithUnknownLength(ContentHash hash, PathExistence? existence = null)
         {
-            Contract.Ensures(!Contract.Result<TrackedFileContentInfo>().IsTracked);
-
             return new TrackedFileContentInfo(FileContentInfo.CreateWithUnknownLength(hash, existence), FileChangeTrackingSubscription.Invalid, PathAtom.Invalid);
         }
 

@@ -96,7 +96,6 @@ namespace BuildXL.Utilities.Qualifier
             Contract.Requires(IsValidQualifierId(qualifierId));
             Contract.RequiresNotNull(key);
             Contract.RequiresNotNull(value);
-            Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
             return CreateQualifierWithValue(qualifierId, StringId.Create(StringTable, key), StringId.Create(StringTable, value));
         }
@@ -109,7 +108,6 @@ namespace BuildXL.Utilities.Qualifier
             Contract.Requires(IsValidQualifierId(qualifierId));
             Contract.Requires(key.IsValid);
             Contract.Requires(value.IsValid);
-            Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
             Qualifier qualifier = GetQualifier(qualifierId);
             Qualifier newQualifier = qualifier.CreateQualifierWithValue(StringTable, key, value);
@@ -123,7 +121,6 @@ namespace BuildXL.Utilities.Qualifier
         {
             Contract.RequiresNotNull(keyValuePairs);
             Contract.RequiresForAll(keyValuePairs, pair => pair.Item1 != null && pair.Item2 != null);
-            Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
             var keyValuePairIds =
                 keyValuePairs.Select(
@@ -138,7 +135,6 @@ namespace BuildXL.Utilities.Qualifier
         {
             Contract.RequiresNotNull(keyValuePairs);
             Contract.RequiresForAll(keyValuePairs, pair => pair.Item1.IsValid && pair.Item2.IsValid);
-            Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
             Qualifier qualifier = Qualifier.CreateQualifier(StringTable, keyValuePairs);
             return GetOrAddQualifier(qualifier);
@@ -161,7 +157,6 @@ namespace BuildXL.Utilities.Qualifier
         {
             Contract.RequiresNotNull(keyValueMap);
             Contract.RequiresForAll(keyValueMap, kvp => kvp.Key != null && kvp.Value != null);
-            Contract.Ensures(IsValidQualifierId(Contract.Result<QualifierId>()));
 
             var keyValuePairIds =
                 keyValueMap.Select(
@@ -198,7 +193,6 @@ namespace BuildXL.Utilities.Qualifier
                 Contract.ForAll(
                     keyValuesPairs,
                     pair => pair.Item1 != null && pair.Item2 != null && pair.Item2.Length > 0 && Contract.ForAll(pair.Item2, value => value != null)));
-            Contract.Ensures(IsValidQualifierSpaceId(Contract.Result<QualifierSpaceId>()));
 
             var keyValuesPairIds = new QualifierSpaceEntry[keyValuesPairs.Length];
 
@@ -228,7 +222,6 @@ namespace BuildXL.Utilities.Qualifier
                 Contract.ForAll(
                     keyValuesMap,
                     kvp => kvp.Key != null && kvp.Value != null && kvp.Value.Count > 0 && Contract.ForAll(kvp.Value, value => value != null)));
-            Contract.Ensures(IsValidQualifierSpaceId(Contract.Result<QualifierSpaceId>()));
 
             var keyValuesPairIds = new QualifierSpaceEntry[keyValuesMap.Count];
 
@@ -260,7 +253,6 @@ namespace BuildXL.Utilities.Qualifier
             Contract.RequiresForAll(keyValuesPairs, e => e.IsValid);
 #endif
 
-            Contract.Ensures(IsValidQualifierSpaceId(Contract.Result<QualifierSpaceId>()));
 
             QualifierSpace qualifierSpace = QualifierSpace.CreateQualifierSpace(StringTable, keyValuesPairs);
             return GetOrAddQualifierSpace(qualifierSpace);
@@ -286,7 +278,6 @@ namespace BuildXL.Utilities.Qualifier
             Contract.Requires(IsValidQualifierId(qualifierId));
             Contract.Requires(qualifierSpaceId.IsValid);
             Contract.Requires(IsValidQualifierSpaceId(qualifierSpaceId), "Id " + qualifierSpaceId.Id + " is not valid.");
-            Contract.Ensures(!Contract.Result<bool>() || IsValidQualifierId(Contract.ValueAtReturn(out resultingQualifierId)));
 #endif
 
             Qualifier qualifier = GetQualifier(qualifierId);

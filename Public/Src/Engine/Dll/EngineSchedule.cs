@@ -747,8 +747,6 @@ namespace BuildXL.Engine
             IConfiguration configuration,
             out RootFilter rootFilter)
         {
-            Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn<RootFilter>(out rootFilter) != null);
-
             return TryGetPipFilter(
                 loggingContext,
                 context,
@@ -1093,8 +1091,6 @@ namespace BuildXL.Engine
             FilterParser.TryGetPathByMountName mountResolver,
             out RootFilter rootFilter)
         {
-            Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn<RootFilter>(out rootFilter) != null);
-
             rootFilter = null;
             FilterParserError error;
 

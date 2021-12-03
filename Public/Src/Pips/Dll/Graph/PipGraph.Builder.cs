@@ -3297,7 +3297,6 @@ namespace BuildXL.Pips.Graph
 
             private PipProvenance GetDummyProvenance()
             {
-                Contract.Ensures(Contract.Result<PipProvenance>() != null);
                 return m_dummyProvenance = m_dummyProvenance ?? PipProvenance.CreateDummy(Context);
             }
 

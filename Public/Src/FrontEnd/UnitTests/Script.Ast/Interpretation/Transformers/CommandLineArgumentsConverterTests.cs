@@ -429,8 +429,6 @@ namespace Test.DScript.Ast.Interpretation.Transformers
 
         private object ParseObjectLiteral(string spec)
         {
-            Contract.Ensures(Contract.Result<object>() != null);
-
             // Please, use 'export const x' in a spec sample. Otherwise the test will fail.
             var result = EvaluateExpressionsWithNoErrors(spec, "x");
 
@@ -440,8 +438,6 @@ namespace Test.DScript.Ast.Interpretation.Transformers
 
         private ArrayLiteral ParseArrayLiteral(string spec)
         {
-            Contract.Ensures(Contract.Result<ArrayLiteral>() != null);
-
             // Please, use 'export const x' in a spec sample. Otherwise the test will fail.
             var result = EvaluateExpressionsWithNoErrors(spec, "x");
 

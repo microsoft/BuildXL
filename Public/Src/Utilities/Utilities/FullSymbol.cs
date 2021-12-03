@@ -70,7 +70,6 @@ namespace BuildXL.Utilities
         public static ParseResult TryCreate(SymbolTable table, StringSegment fullSymbol, out FullSymbol result, out int characterWithError)
         {
             Contract.RequiresNotNull(table, "table != null");
-            Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             StringId[] components;
             ParseResult parseRes = TryGetComponents(table, fullSymbol, out components, out characterWithError);
@@ -99,7 +98,6 @@ namespace BuildXL.Utilities
         private static ParseResult TryGetComponents(SymbolTable table, StringSegment fullSymbol, out StringId[] components, out int characterWithError)
         {
             Contract.RequiresNotNull(table, "table != null");
-            Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == (Contract.ValueAtReturn(out components) != null));
 
             PartialSymbol relIdentifier;
             PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, fullSymbol, out relIdentifier, out characterWithError);
@@ -124,7 +122,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             return AddIdentifierComponent(table, Invalid, atom.StringId);
         }
@@ -163,7 +160,6 @@ namespace BuildXL.Utilities
         public static FullSymbol Create(SymbolTable table, StringSegment fullSymbol)
         {
             Contract.RequiresNotNull(table, "table != null");
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol result;
             ParseResult parseResult = TryCreate(table, fullSymbol, out result, out _);
@@ -188,7 +184,6 @@ namespace BuildXL.Utilities
         public FullSymbol Combine(SymbolTable table, StringSegment relativeId)
         {
             Contract.RequiresNotNull(table, "table != null");
-            Contract.Ensures(Contract.Result<FullSymbol>() != FullSymbol.Invalid);
             PartialSymbol relIdentifier;
             PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, relativeId, out relIdentifier, out _);
             if (parseResult != PartialSymbol.ParseResult.Success)
@@ -207,7 +202,6 @@ namespace BuildXL.Utilities
         public static bool TryGet(SymbolTable table, StringSegment fullSymbol, out FullSymbol result)
         {
             Contract.RequiresNotNull(table, "table != null");
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != FullSymbol.Invalid));
 
             StringId[] components;
             int characterWithError;
@@ -234,7 +228,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(component.IsValid);
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != FullSymbol.Invalid));
 
             HierarchicalNameId child;
             var found = table.TryGetName(Value, component.StringId, out child);
@@ -251,7 +244,6 @@ namespace BuildXL.Utilities
         public bool TryGet(SymbolTable table, PartialSymbol relativeId, out FullSymbol result)
         {
             Contract.RequiresNotNull(table, "table != null");
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != FullSymbol.Invalid));
 
             if (relativeId.IsEmpty)
             {
@@ -291,7 +283,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(identifier.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             return AddIdentifierComponents(table, this, identifier.Components);
         }
@@ -304,7 +295,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             return AddIdentifierComponent(table, this, atom.StringId);
         }
@@ -318,7 +308,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol r1 = AddIdentifierComponent(table, this, atom1.StringId);
             return AddIdentifierComponent(table, r1, atom2.StringId);
@@ -333,7 +322,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table, "table != null");
             Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol absIdentifier = this;
             for (int i = 0; i < atoms.Length; i++)
@@ -362,7 +350,6 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
             Contract.Requires(addition.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol parent = GetParent(table);
             SymbolAtom newName = GetName(table).Concat(table.StringTable, addition);
@@ -393,7 +380,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             return new SymbolAtom(table.GetFinalComponent(Value));
         }
@@ -405,7 +391,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
-            Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
             FullSymbol current = this;
             FullSymbol parent = current.GetParent(table);
@@ -487,7 +472,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(destination.IsValid);
-            Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             return Relocate(table, GetParent(table), destination);
         }

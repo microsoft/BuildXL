@@ -544,7 +544,6 @@ namespace BuildXL.Scheduler.Distribution
         internal bool TryAcquire(RunnablePip runnablePip, out WorkerResource? limitingResource, double loadFactor = 1, bool moduleAffinityEnabled = false)
         {
             Contract.Requires(runnablePip.PipType == PipType.Ipc || runnablePip.PipType == PipType.Process);
-            Contract.Ensures(Contract.Result<bool>() == (limitingResource == null), "Must set a limiting resource when resources cannot be acquired");
             using (EarlyReleaseLock.AcquireReadLock())
             {
                 if (!IsAvailable)

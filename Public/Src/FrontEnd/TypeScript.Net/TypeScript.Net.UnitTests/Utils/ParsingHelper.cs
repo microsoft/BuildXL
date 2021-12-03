@@ -31,7 +31,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static List<IStatement> ParseStatementsFrom(string code, bool roundTripTesting = true, ParsingOptions parsingOptions = null)
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<List<IStatement>>() != null);
 
             var sourceFile = roundTripTesting
                 ? ParseSourceFileWithRoundTrip(code, parsingOptions)
@@ -49,7 +48,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static TNode ParseFirstStatementFrom<TNode>(string code, bool roundTripTesting = true, ParsingOptions parsingOptions = null) where TNode : INode
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<TNode>() != null);
 
             var result = (TNode)ParseStatementsFrom(code, roundTripTesting, parsingOptions).First();
             return result;
@@ -65,7 +63,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static TNode ParseSecondStatementFrom<TNode>(string code, bool roundTripTesting = true, ParsingOptions parsingOptions = null) where TNode : INode
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<TNode>() != null);
 
             return (TNode)ParseStatementsFrom(code, roundTripTesting, parsingOptions).Skip(1).First();
         }
@@ -80,7 +77,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static TNode ParseExpressionStatement<TNode>(string code, bool roundTripTesting = true, ParsingOptions parsingOptions = null) where TNode : class, INode
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<TNode>() != null);
 
             return ((IExpressionStatement)ParseStatementsFrom(code, roundTripTesting, parsingOptions).First()).Expression.Cast<TNode>();
         }
@@ -91,7 +87,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static IReadOnlyList<Diagnostic> ParseAndGetDiagnostics(string code, ParsingOptions parsingOptions = null)
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<IReadOnlyList<Diagnostic>>() != null);
 
             var parser = new Parser();
 
@@ -107,7 +102,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static ISourceFile ParseSourceFile(string code, string fileName = "fakeFileName.dsc", ParsingOptions parsingOptions = null, Parser parser = null)
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<ISourceFile>() != null);
 
             parser = parser ?? new Parser();
 
@@ -143,7 +137,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static ISourceFile ParsePotentiallyBrokenSourceFile(string code, string fileName = "fakeFileName.ts", ParsingOptions parsingOptions = null)
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<ISourceFile>() != null);
 
             var parser = new Parser();
 
@@ -165,7 +158,6 @@ namespace TypeScript.Net.UnitTests.Utils
         public static ISourceFile ParseSourceFileWithRoundTrip(string code, ParsingOptions parsingOptions = null)
         {
             Contract.Requires(code != null);
-            Contract.Ensures(Contract.Result<ISourceFile>() != null);
 
             var sourceFile = ParseSourceFile(code);
             var sourceFileAsText = sourceFile.GetFormattedText();

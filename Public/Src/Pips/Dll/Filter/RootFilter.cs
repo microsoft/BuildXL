@@ -76,8 +76,6 @@ namespace BuildXL.Pips.Filter
 
         private IReadOnlyList<FullSymbol> ComputeValuesToResolve()
         {
-            Contract.Ensures(Contract.Result<IReadOnlyList<FullSymbol>>() != null);
-
             // If dependents are selected, we must resolve all values to create the full graph
             if (!m_allowValueShortCircuiting)
             {
@@ -102,8 +100,6 @@ namespace BuildXL.Pips.Filter
 
         private IReadOnlyList<AbsolutePath> ComputePathsRootsToResolve()
         {
-            Contract.Ensures(Contract.Result<IReadOnlyList<AbsolutePath>>() != null);
-
             // If dependents are selected, we must resolve all values to create the full graph
             if (!m_allowValueShortCircuiting)
             {
@@ -128,8 +124,6 @@ namespace BuildXL.Pips.Filter
 
         private IReadOnlyList<StringId> ComputeModulesToResolve()
         {
-            Contract.Ensures(Contract.Result<IReadOnlyList<StringId>>() != null);
-
             // If dependents are selected, we must resolve all values to create the full graph
             if (!m_allowValueShortCircuiting)
             {

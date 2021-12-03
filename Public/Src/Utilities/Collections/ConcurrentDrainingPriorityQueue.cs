@@ -92,7 +92,6 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= -1);
                 return m_maxDegreeOfParallelism;
             }
 
@@ -111,7 +110,6 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return Volatile.Read(ref m_priorityQueued);
             }
         }
@@ -123,7 +121,6 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return Volatile.Read(ref m_semaphoreQueued);
             }
         }
@@ -135,7 +132,6 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return Volatile.Read(ref m_running);
             }
         }
@@ -147,7 +143,6 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= 0);
                 return Volatile.Read(ref m_maxRunning);
             }
         }

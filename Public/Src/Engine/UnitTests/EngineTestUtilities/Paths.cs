@@ -71,7 +71,6 @@ namespace Test.BuildXL.TestUtilities
         public AbsolutePath CreateAbsolutePath(string absolutePath)
         {
             Contract.Requires(absolutePath != null);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return AbsolutePath.Create(m_pathTable, absolutePath);
         }
@@ -83,7 +82,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(original.IsValid);
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return original.Combine(m_pathTable, path);
         }
@@ -95,7 +93,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(original.IsValid);
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return original.Combine(m_pathTable, atom);
         }
@@ -110,7 +107,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(original.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(atom));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return CreateAbsolutePath(original, CreatePathAtom(atom));
         }
@@ -123,7 +119,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return original.Combine(m_pathTable, atom1, atom2);
         }
@@ -139,7 +134,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(atom1));
             Contract.Requires(!string.IsNullOrEmpty(atom2));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return CreateAbsolutePath(original, CreatePathAtom(atom1), CreatePathAtom(atom2));
         }
@@ -152,7 +146,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(atoms != null);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return original.Combine(m_pathTable, atoms);
         }
@@ -168,7 +161,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(atoms != null);
             Contract.RequiresForAll(atoms, a => !string.IsNullOrEmpty(a));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return CreateAbsolutePath(original, ToPathAtomArray(atoms));
         }
@@ -182,7 +174,6 @@ namespace Test.BuildXL.TestUtilities
         public RelativePath CreateRelativePath(string relativePath)
         {
             Contract.Requires(relativePath != null);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return RelativePath.Create(m_stringTable, relativePath);
         }
@@ -195,7 +186,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(original.IsValid);
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return original.Combine(path);
         }
@@ -208,7 +198,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(original.IsValid);
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return original.Combine(atom);
         }
@@ -223,7 +212,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(original.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(atom));
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return CreateRelativePath(original, CreatePathAtom(atom));
         }
@@ -237,7 +225,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return original.Combine(atom1, atom2);
         }
@@ -253,7 +240,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(atom1));
             Contract.Requires(!string.IsNullOrEmpty(atom2));
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return CreateRelativePath(original, CreatePathAtom(atom1), CreatePathAtom(atom2));
         }
@@ -267,7 +253,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(atoms != null);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return original.Combine(atoms);
         }
@@ -283,7 +268,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(original.IsValid);
             Contract.Requires(atoms != null);
             Contract.RequiresForAll(atoms, a => !string.IsNullOrEmpty(a));
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return CreateRelativePath(original, ToPathAtomArray(atoms));
         }
@@ -296,7 +280,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(atoms != null);
             Contract.RequiresForAll(atoms, a => a.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return RelativePath.Create(atoms);
         }
@@ -311,7 +294,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(atoms != null);
             Contract.RequiresForAll(atoms, a => !string.IsNullOrEmpty(a));
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return RelativePath.Create(ToPathAtomArray(atoms));
         }
@@ -352,7 +334,6 @@ namespace Test.BuildXL.TestUtilities
         public PathAtom CreatePathAtom(string atom)
         {
             Contract.Requires(!string.IsNullOrEmpty(atom));
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return PathAtom.Create(m_stringTable, atom);
         }
@@ -396,7 +377,6 @@ namespace Test.BuildXL.TestUtilities
         public AbsolutePath GetParent(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return path.GetParent(m_pathTable);
         }
@@ -407,7 +387,6 @@ namespace Test.BuildXL.TestUtilities
         public AbsolutePath GetRoot(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return path.GetRoot(m_pathTable);
         }
@@ -418,7 +397,6 @@ namespace Test.BuildXL.TestUtilities
         public PathAtom GetName(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return path.GetName(m_pathTable);
         }
@@ -430,7 +408,6 @@ namespace Test.BuildXL.TestUtilities
         public PathAtom GetName(RelativePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return path.GetName();
         }
@@ -459,7 +436,6 @@ namespace Test.BuildXL.TestUtilities
         public AbsolutePath ChangeExtension(AbsolutePath path, PathAtom extension)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return path.ChangeExtension(m_pathTable, extension);
         }
@@ -476,7 +452,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(extension));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return ChangeExtension(path, CreatePathAtom(extension));
         }
@@ -489,7 +464,6 @@ namespace Test.BuildXL.TestUtilities
         public RelativePath ChangeExtension(RelativePath path, PathAtom extension)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return path.ChangeExtension(m_stringTable, extension);
         }
@@ -506,7 +480,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(extension));
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return ChangeExtension(path, CreatePathAtom(extension));
         }
@@ -519,7 +492,6 @@ namespace Test.BuildXL.TestUtilities
         public PathAtom ChangeExtension(PathAtom atom, PathAtom extension)
         {
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return atom.ChangeExtension(m_stringTable, extension);
         }
@@ -536,7 +508,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(atom.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(extension));
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return ChangeExtension(atom, CreatePathAtom(extension));
         }
@@ -550,7 +521,6 @@ namespace Test.BuildXL.TestUtilities
         public AbsolutePath RemoveExtension(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return path.RemoveExtension(m_pathTable);
         }
@@ -564,7 +534,6 @@ namespace Test.BuildXL.TestUtilities
         public RelativePath RemoveExtension(RelativePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return path.RemoveExtension(m_stringTable);
         }
@@ -578,7 +547,6 @@ namespace Test.BuildXL.TestUtilities
         public PathAtom RemoveExtension(PathAtom atom)
         {
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return atom.RemoveExtension(m_stringTable);
         }
@@ -590,7 +558,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(addition.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return path.Concat(m_pathTable, addition);
         }
@@ -605,7 +572,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(addition));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return Concat(path, CreatePathAtom(addition));
         }
@@ -617,7 +583,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(addition.IsValid);
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return path.Concat(m_stringTable, addition);
         }
@@ -632,7 +597,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(addition));
-            Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return Concat(path, CreatePathAtom(addition));
         }
@@ -644,7 +608,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(atom.IsValid);
             Contract.Requires(addition.IsValid);
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return atom.Concat(m_stringTable, addition);
         }
@@ -659,7 +622,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(atom.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(addition));
-            Contract.Ensures(Contract.Result<PathAtom>().IsValid);
 
             return Concat(atom, CreatePathAtom(addition));
         }
@@ -698,7 +660,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(source.IsValid);
             Contract.Requires(destination.IsValid);
             Contract.Requires(IsPathWithinPath(entry, source));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return entry.Relocate(m_pathTable, source, destination, newExtension);
         }
@@ -734,7 +695,6 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(source.IsValid);
             Contract.Requires(destination.IsValid);
             Contract.Requires(IsPathWithinPath(entry, source));
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return entry.Relocate(m_pathTable, source, destination);
         }
@@ -768,7 +728,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(entry.IsValid);
             Contract.Requires(destination.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return entry.Relocate(m_pathTable, destination, newExtension);
         }
@@ -799,7 +758,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(entry.IsValid);
             Contract.Requires(destination.IsValid);
-            Contract.Ensures(Contract.Result<AbsolutePath>().IsValid);
 
             return entry.Relocate(m_pathTable, destination);
         }
@@ -844,7 +802,6 @@ namespace Test.BuildXL.TestUtilities
         public string Expand(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<string>() != null);
 
             return path.ToString(m_pathTable);
         }
@@ -855,7 +812,6 @@ namespace Test.BuildXL.TestUtilities
         public string Expand(RelativePath path)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.Result<string>() != null);
 
             return path.ToString(m_stringTable);
         }
@@ -866,7 +822,6 @@ namespace Test.BuildXL.TestUtilities
         public string Expand(PathAtom atom)
         {
             Contract.Requires(atom.IsValid);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
 
             return atom.ToString(m_stringTable);
         }

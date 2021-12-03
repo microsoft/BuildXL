@@ -1180,8 +1180,6 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(text != null);
             Contract.Requires(encoding != null);
 
-            // TODO: EnsuresOnThrow rewriting does a bad thing to some methods returning Task. Following up with mbarnett.
-            // Contract.EnsuresOnThrow<BuildXLException>(true);
             byte[] bytes = encoding.GetBytes(text);
             return WriteAllBytesAsync(filePath, bytes);
         }
@@ -1250,9 +1248,6 @@ namespace BuildXL.Native.IO.Windows
         {
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
-
-            // TODO: EnsuresOnThrow rewriting does a bad thing to some methods returning Task. Following up with mbarnett.
-            // Contract.EnsuresOnThrow<BuildXLException>(true);
 
             // TODO: Should log (source, destination, size) and an end marker.
             return ExceptionUtilities.HandleRecoverableIOExceptionAsync(
@@ -1341,7 +1336,6 @@ namespace BuildXL.Native.IO.Windows
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             return CreateFileStream(
                 path,
@@ -1364,7 +1358,6 @@ namespace BuildXL.Native.IO.Windows
             bool allowExcludeFileShareDelete = false)
         {
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             return m_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
         }

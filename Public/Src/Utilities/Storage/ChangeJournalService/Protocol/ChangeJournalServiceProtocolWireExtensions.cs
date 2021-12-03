@@ -99,7 +99,6 @@ namespace BuildXL.Storage.ChangeJournalService.Protocol
         public static VolumeGuidPath ReadVolumeGuidPath(this ChangeJournalServiceProtocolReader reader)
         {
             Contract.Requires(reader != null);
-            Contract.Ensures(Contract.Result<VolumeGuidPath>().IsValid);
 
             string maybePath = reader.ReadString();
             VolumeGuidPath path;

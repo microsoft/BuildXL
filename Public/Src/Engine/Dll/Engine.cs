@@ -1715,10 +1715,6 @@ namespace BuildXL.Engine
         private BuildXLEngineResult DoRunAndVerifyEngineState(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
         {
             Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
-            Contract.Ensures(
-                Contract.Result<BuildXLEngineResult>().IsSuccess != loggingContext.ErrorWasLogged,
-                I($"Mismatched {nameof(DoRun)} and logged error(s): Success: '{Contract.Result<BuildXLEngineResult>().IsSuccess}' | Logged error(s): {loggingContext.ErrorWasLogged}"));
-            Contract.Ensures(EngineState.CorrectEngineStateTransition(engineState, Contract.Result<BuildXLEngineResult>().EngineState, out var message), message);
 
             BuildXLEngineResult result = DoRun(loggingContext, engineState, disposeFrontEnd);
 
@@ -1728,7 +1724,6 @@ namespace BuildXL.Engine
 
             return result;
         }
-
 
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
         private BuildXLEngineResult DoRun(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
@@ -2486,8 +2481,6 @@ namespace BuildXL.Engine
         [SuppressMessage("Microsoft.Interoperability", "CA1404:CallGetLastErrorImmediatelyAfterPInvoke", Justification = "Intentionally wrapping GetLastWin32Error")]
         private bool LogAndValidateConfiguration(LoggingContext loggingContext)
         {
-            Contract.Ensures(Contract.Result<bool>() || loggingContext.ErrorWasLogged);
-
             LogExperimentalOptions(loggingContext, Configuration);
 
             var artificialCacheMissOptions = Configuration.Cache.ArtificialCacheMissOptions;
@@ -2774,14 +2767,6 @@ namespace BuildXL.Engine
             out RootFilter rootFilter)
         {
             Contract.Requires(maxDegreeOfParallelism > 0, "maxDegreeOfParallelism > 0");
-            Contract.Ensures(
-                Contract.Result<ConstructScheduleResult>() == ConstructScheduleResult.Failure ||
-                !Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule) ||
-                Contract.ValueAtReturn(out engineSchedule) != null);
-            Contract.Ensures(
-                Contract.Result<ConstructScheduleResult>() == ConstructScheduleResult.Failure ||
-                !Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule) ||
-                Contract.ValueAtReturn(out rootFilter) != null || Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker);
 
             engineSchedule = null;
             rootFilter = null;

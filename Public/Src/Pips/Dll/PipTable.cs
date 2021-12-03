@@ -403,7 +403,6 @@ namespace BuildXL.Pips
             Contract.Requires(pip != null);
             Contract.Requires(nodeIdValue > 0);
             Contract.Requires(!pip.PipId.IsValid);
-            Contract.Ensures(Contract.Result<PipId>().IsValid);
 
             var pipId = new PipId(nodeIdValue);
             pip.PipId = pipId;
@@ -452,7 +451,6 @@ namespace BuildXL.Pips
         internal MutablePipState GetMutable(PipId pipId)
         {
             Contract.Requires(IsValid(pipId));
-            Contract.Ensures(Contract.Result<MutablePipState>() != null);
 
             MutablePipState mutable = m_mutables[pipId.Value];
             Contract.Assume(mutable != null);
@@ -636,7 +634,6 @@ namespace BuildXL.Pips
         {
             Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
-            Contract.Ensures(Contract.Result<Pip>() != null);
 
             if (pipId == PipId.DummyHashSourceFilePipId)
             {

@@ -159,7 +159,6 @@ namespace BuildXL.Storage.ChangeJournalService.Protocol
         {
             get
             {
-                Contract.Ensures(Contract.Result<VolumeGuidPath>().IsValid);
                 return m_volumeGuidPath;
             }
         }
@@ -246,7 +245,6 @@ namespace BuildXL.Storage.ChangeJournalService.Protocol
         {
             get
             {
-                Contract.Ensures(Contract.Result<VolumeGuidPath>().IsValid);
                 return m_volumeGuidPath;
             }
         }

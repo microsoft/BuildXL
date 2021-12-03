@@ -179,7 +179,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(stream);
             Contract.Requires(stream.Position == 0);
-            Contract.Ensures(Contract.Result<FileEnvelopeId>().IsValid);
 
             var result = TryReadHeader(stream, ignoreChecksum: false);
             if (!result.Succeeded)

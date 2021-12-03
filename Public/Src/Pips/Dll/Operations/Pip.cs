@@ -154,7 +154,6 @@ namespace BuildXL.Pips.Operations
         internal static Pip Deserialize(PipReader reader)
         {
             Contract.Requires(reader != null);
-            Contract.Ensures(Contract.Result<Pip>() != null);
             var b = reader.ReadByte();
             Contract.Assert(b <= (int)PipType.SealDirectory);
             var pipType = (PipType)b;
@@ -243,7 +242,6 @@ namespace BuildXL.Pips.Operations
         public string GetDescription(PipExecutionContext context)
         {
             Contract.Requires(context != null);
-            Contract.Ensures(Contract.Result<string>() != null);
 
             var stringTable = context.StringTable;
             var pathTable = context.PathTable;

@@ -152,8 +152,6 @@ namespace BuildXL.Pips.Operations
         [Pure]
         public static bool IndicatesFailure(this PipState current)
         {
-            Contract.Ensures(ContractUtilities.Static(IsTerminal(current)));
-
             switch (current)
             {
                 case PipState.Ignored:

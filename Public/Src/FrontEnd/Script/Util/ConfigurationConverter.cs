@@ -71,7 +71,6 @@ namespace BuildXL.FrontEnd.Script.Util
             // Contract.Requires(
             //    typeof(T).Assembly == typeof(IConfiguration).Assembly,
             //    "Currently this class supports only IValues defined in the same assembly as IConfiguration itself.");
-            Contract.Ensures(Contract.Result<T>() != null);
 
             return
                 (T)new ConfigurationConverter(context).ConvertAny(
@@ -94,7 +93,6 @@ namespace BuildXL.FrontEnd.Script.Util
         {
             Contract.Requires(context != null);
             Contract.Requires(objectLiteral != null);
-            Contract.Ensures(Contract.Result<IConfiguration>() != null);
             
             return Convert<ConfigurationImpl>(context, objectLiteral);
         }
@@ -111,7 +109,6 @@ namespace BuildXL.FrontEnd.Script.Util
             Contract.Requires(context != null);
             Contract.Requires(configLiteral != null);
             Contract.Requires(cmdLineConfiguration != null);
-            Contract.Ensures(Contract.Result<IConfiguration>() != null);
 
             var targetInstance = new ConfigurationImpl(cmdLineConfiguration);
             return Convert(context, configLiteral, targetInstance);
@@ -245,8 +242,6 @@ namespace BuildXL.FrontEnd.Script.Util
         /// <returns>Corresponding DScript field name.</returns>
         private static string ToTargetPropertyName(string propName)
         {
-            Contract.Ensures(!string.IsNullOrWhiteSpace(Contract.Result<string>()));
-
             return propName[0].ToUpperInvariantFast() + propName.Substring(1);
         }
 
@@ -285,7 +280,6 @@ namespace BuildXL.FrontEnd.Script.Util
         {
             Contract.Requires(type.IsInterface);
             Contract.Requires(type.Name.ToCharArray()[0] == 'I');
-            Contract.Ensures(Contract.Result<Type>() != null);
             Analysis.IgnoreArgument(objectLiteral); // TODO: Why do we even pass in this argument?
 
             var assemblyName = type.GetTypeInfo().Assembly.FullName;

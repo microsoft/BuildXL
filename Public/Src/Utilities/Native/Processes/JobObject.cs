@@ -296,8 +296,6 @@ namespace BuildXL.Processes
         /// </summary>
         private bool TryGetProcessIds(LoggingContext loggingContext, uint length, out uint[] processIds, out uint requiredLength)
         {
-            Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn(out processIds) != null);
-
             requiredLength = 0;
 
             // Allocate buffer with 8-byte alignment (sufficient for aligned 64-bit pointers).

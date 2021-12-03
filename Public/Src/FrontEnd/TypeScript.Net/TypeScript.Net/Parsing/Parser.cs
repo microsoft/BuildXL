@@ -240,7 +240,6 @@ namespace TypeScript.Net.Parsing
         public ISourceFile ParseSourceFileContent(TextSource sourceText)
         {
             Contract.Requires(sourceText != null);
-            Contract.Ensures(Contract.Result<ISourceFile>() != null);
 
             return ParseSourceFileContent("FakeSourceFile.tsc", sourceText, new TextSourceProvider(sourceText), ParsingOptions.DefaultParsingOptions);
         }
@@ -254,7 +253,6 @@ namespace TypeScript.Net.Parsing
         {
             Contract.Requires(sourceText != null);
             Contract.Requires(sourceTextProvider != null);
-            Contract.Ensures(Contract.Result<ISourceFile>() != null);
 
             m_sourceTextProvider = sourceTextProvider;
 
@@ -1123,8 +1121,6 @@ namespace TypeScript.Net.Parsing
          * */
         private NodeArray<T> ParseDelimitedList<T>(Parser parser, ParsingContext kind, Func<Parser, T> parseElement, bool considerSemicolonAsDelimeter = false) where T : INode
         {
-            Contract.Ensures(Contract.Result<NodeArray<T>>() != null);
-
             var saveParsingContext = m_parsingContext;
             m_parsingContext |= (ParsingContext)(1 << (int)kind);
             var result = new NodeArray<T>();
@@ -1218,8 +1214,6 @@ namespace TypeScript.Net.Parsing
 
         private NodeArray<IHeritageClause> ParseHeritageClauses(bool isClassHeritageClause)
         {
-            Contract.Ensures(Contract.Result<NodeArray<IHeritageClause>>() != null);
-
             // ClassTail[Yield,Await] : (Modified) See 14.5
             //      ClassHeritage[?Yield,?Await]opt { ClassBody[?Yield,?Await]opt }
             if (IsHeritageClause())
@@ -3412,8 +3406,6 @@ namespace TypeScript.Net.Parsing
         // This modification is added for performance reasons, so an extra traversal is avoided.
         private NodeArray<T> ParseListAndFindFirstMatch<T>(Parser parser, ParsingContext kind, Func<Parser, T> parseElement, Func<Parser, T, bool> condition, out INode firstMatch) where T : INode
         {
-            Contract.Ensures(Contract.Result<NodeArray<T>>() != null);
-
             firstMatch = null;
 
             var saveParsingContext = m_parsingContext;
@@ -6111,8 +6103,6 @@ namespace TypeScript.Net.Parsing
 
         private NodeArray<T> ParseBracketedList<T>(Parser parser, ParsingContext kind, Func<Parser, T> parseElement, SyntaxKind open, SyntaxKind close) where T : INode
         {
-            Contract.Ensures(Contract.Result<NodeArray<T>>() != null);
-
             var posIncludingStartToken = m_scanner.TokenPos;
 
             // throw PlaceHolder.NotImplemented();

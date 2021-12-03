@@ -26,7 +26,6 @@ namespace BuildXL.Pips.Operations
 
         public virtual Pip ReadPip()
         {
-            Contract.Ensures(Contract.Result<Pip>() != null);
             Start<Pip>();
             Pip value = Pip.Deserialize(this);
             End();
@@ -35,7 +34,6 @@ namespace BuildXL.Pips.Operations
 
         public virtual PipProvenance ReadPipProvenance()
         {
-            Contract.Ensures(Contract.Result<PipProvenance>() != null);
             Start<PipProvenance>();
             PipProvenance value = PipProvenance.Deserialize(this);
             End();

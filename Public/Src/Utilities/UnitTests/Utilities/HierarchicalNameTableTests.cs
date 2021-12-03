@@ -611,7 +611,6 @@ namespace Test.BuildXL.Utilities
         public static bool TryGetName(this HierarchicalNameTable table, string name, out HierarchicalNameId hierarchicalNameId)
         {
             Contract.Requires(name != null);
-            Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out hierarchicalNameId) != HierarchicalNameId.Invalid));
 
             string[] components = GetComponents(table, name);
 
@@ -627,7 +626,6 @@ namespace Test.BuildXL.Utilities
         public static HierarchicalNameId AddName(this HierarchicalNameTable table, string name)
         {
             Contract.Requires(name != null);
-            Contract.Ensures(Contract.Result<HierarchicalNameId>() != HierarchicalNameId.Invalid);
 
             string[] components = GetComponents(table, name);
             var componentIds = new StringId[components.Length];
@@ -642,8 +640,6 @@ namespace Test.BuildXL.Utilities
         private static string[] GetComponents(this HierarchicalNameTable table, string name)
         {
             Contract.Requires(name != null);
-            Contract.Ensures(Contract.Result<string[]>() != null);
-            Contract.Ensures(Contract.ForAll(Contract.Result<string[]>(), c => !string.IsNullOrEmpty(c)));
 
             var components = name.Split(new char[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 

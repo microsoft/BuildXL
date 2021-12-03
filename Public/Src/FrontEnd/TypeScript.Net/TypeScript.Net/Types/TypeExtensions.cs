@@ -40,7 +40,6 @@ namespace TypeScript.Net.Types
         public static T Cast<T>(this IType type) where T : class, IType
         {
             Contract.Requires(type != null);
-            Contract.Ensures(Contract.Result<T>() != null);
 
             // TODO: switch checks. Use direct cast first and then check union case. But measure first.
             // var union = node.As<IUnionNode>();

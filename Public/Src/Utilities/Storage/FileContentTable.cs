@@ -106,8 +106,6 @@ namespace BuildXL.Storage
         /// </summary>
         public static FileContentTable CreateStub(LoggingContext loggingContext)
         {
-            Contract.Ensures(Contract.Result<FileContentTable>() != null);
-
             return new FileContentTable(loggingContext, isStub: true);
         }
 
@@ -850,7 +848,6 @@ namespace BuildXL.Storage
         private void SaveInternal(string fileContentTablePath)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             ExceptionUtilities.HandleRecoverableIOException(
                 () =>

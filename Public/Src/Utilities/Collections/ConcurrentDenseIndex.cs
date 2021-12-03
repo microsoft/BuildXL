@@ -47,8 +47,6 @@ namespace BuildXL.Utilities.Collections
 
         private TItem[] GetBuffer(uint index)
         {
-            Contract.Ensures((index & BufferMask) < (uint)Contract.Result<TItem[]>().Length);
-
             // The lock-free path is safe:
             // - We grow under the lock and allocate buffers under the lock, so those operations are serialized and no new buffers can be lost.
             // - We only allocate any buffer once, so if it is there - use it! no need to lock.

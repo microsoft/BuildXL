@@ -211,11 +211,6 @@ namespace BuildXL.Pips
         [Pure]
         public static bool IndicatesExecution(this PipResultStatus result)
         {
-            Contract.Ensures(ContractUtilities.Static(
-                   !Contract.Result<bool>() ||
-                   result == PipResultStatus.UpToDate || result == PipResultStatus.NotMaterialized || result == PipResultStatus.DeployedFromCache ||
-                   result == PipResultStatus.Succeeded || result == PipResultStatus.Failed || result == PipResultStatus.Canceled));
-
             return result == PipResultStatus.UpToDate || result == PipResultStatus.NotMaterialized || result == PipResultStatus.DeployedFromCache ||
                    result == PipResultStatus.Succeeded || result == PipResultStatus.Failed || result == PipResultStatus.Canceled;
         }

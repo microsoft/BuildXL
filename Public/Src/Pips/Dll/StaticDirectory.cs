@@ -98,7 +98,6 @@ namespace BuildXL.Pips
         public bool TryGetFileArtifact(AbsolutePath path, out FileArtifact artifact)
         {
             Contract.Requires(path.IsValid);
-            Contract.Ensures(Contract.ValueAtReturn(out artifact).IsValid == Contract.Result<bool>());
 
             FileArtifact search = FileArtifact.CreateSourceFile(path);
             int maybeIndex = Contents.BinarySearch(search, 0, Contents.Length);

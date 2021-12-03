@@ -73,7 +73,6 @@ namespace BuildXL.Engine.Distribution
         public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, DistributedInvocationId invocationId, PipExecutionContext context) : base(invocationId)
         {
             Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
-            Contract.Ensures(m_remoteWorkers != null);
 
             // Create all remote workers
             m_buildServicePort = config.BuildServicePort;

@@ -44,8 +44,6 @@ namespace Test.BuildXL.Scheduler.Utils
         {
             get
             {
-                Contract.Ensures(Contract.Result<IEnumerable<FileArtifactWithAttributes>>() != null);
-
                 return m_attributedOutputs ?? (m_regularOutputs ?? Enumerable.Empty<FileArtifact>()).Select(a => a.WithAttributes());
             }
         }

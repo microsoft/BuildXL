@@ -119,8 +119,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// </summary>
         public ThreadState GetThreadState(int threadId)
         {
-            Contract.Ensures(Contract.Result<ThreadState>() != null);
-
             var ans = GetThreadStateOrDefault(threadId);
             if (ans == null)
             {

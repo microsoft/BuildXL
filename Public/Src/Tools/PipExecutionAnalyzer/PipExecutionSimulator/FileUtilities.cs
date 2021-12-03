@@ -100,7 +100,6 @@ namespace BuildXL.Storage
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             return CreateFileStream(
                 path,
@@ -143,7 +142,6 @@ namespace BuildXL.Storage
             bool allowExcludeFileShareDelete = false)
         {
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
-            Contract.EnsuresOnThrow<BuildXLException>(true);
 
             // The bufferSize of 4096 bytes is the default as used by the other FileStream constructors 
             // http://index/mscorlib/system/io/filestream.cs.html

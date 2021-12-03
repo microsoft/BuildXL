@@ -34,7 +34,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             // This method should have this precondition, but to avoid additional wasteful work, this precondition is missing, but assumed.
             // Contract.Requires(ValidateRootConfiguration(sourceFile));
-            Contract.Ensures(Contract.Result<IObjectLiteralExpression>() != null);
 
             var configurationStatement = sourceFile.Statements[0];
 
@@ -89,8 +88,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             // This method should have this precondition, but to avoid additional wasteful work, this precondition is missing, but assumed.
             // Contract.Requires(ValidateRootConfiguration(sourceFile));
-            Contract.Ensures(Contract.Result<IReadOnlyList<IObjectLiteralExpression>>() != null);
-            Contract.Ensures(Contract.Result<IReadOnlyList<IObjectLiteralExpression>>().Count != 0);
 
             return sourceFile.Statements.Select(
                         s => s.AsCallExpression().Arguments[0].As<IObjectLiteralExpression>())

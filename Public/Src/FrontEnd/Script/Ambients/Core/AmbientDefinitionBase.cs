@@ -206,7 +206,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
         protected static Parameter[] RequiredParameters(Type type, params Type[] types)
         {
             Contract.Requires(types != null);
-            Contract.Ensures(Contract.Result<Parameter[]>() != null);
 
             var parameters = new Parameter[types.Length + 1];
             parameters[0] = new Parameter(type, ParameterKind.Required, default(LineInfo));
@@ -245,7 +244,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
         protected static Parameter[] OptionalParameters(params Type[] types)
         {
             Contract.Requires(types != null);
-            Contract.Ensures(Contract.Result<Parameter[]>() != null);
 
             var parameters = new Parameter[types.Length];
             for (var i = 0; i < types.Length; ++i)
@@ -265,8 +263,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
             Type restParameterType = null,
             Type returnType = null)
         {
-            Contract.Ensures(Contract.Result<CallSignature>() != null);
-
             var parameters = new List<Parameter>();
 
             if (required != null)

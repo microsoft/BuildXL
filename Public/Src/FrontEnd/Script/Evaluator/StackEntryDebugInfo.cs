@@ -67,8 +67,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// </summary>
         public static IReadOnlyList<ILocalVar> ComputeCurrentLocals(StackEntry stackEntry)
         {
-            Contract.Ensures(Contract.Result<IReadOnlyList<ILocalVar>>().All(lvar => lvar.Name.IsValid));
-
             var debugInfo = stackEntry?.DebugInfo;
             if (debugInfo == null)
             {

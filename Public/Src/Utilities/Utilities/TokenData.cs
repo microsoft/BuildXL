@@ -72,7 +72,6 @@ namespace BuildXL.Utilities
         internal static TokenData Deserialize(BuildXLReader reader)
         {
             Contract.RequiresNotNull(reader);
-            Contract.Ensures(Contract.Result<TokenData>().IsValid);
             var line = reader.ReadInt32Compact();
             var path = reader.ReadAbsolutePath();
             var text = reader.ReadTokenText();

@@ -363,8 +363,6 @@ namespace BuildXL.Scheduler
 
         private void StartWorkers(LoggingContext loggingContext)
         {
-            Contract.Ensures(m_workersSetupResultsTask != null);
-
             m_workersStatusOperation = OperationTracker.StartOperation(Worker.WorkerStatusParentOperationKind, loggingContext);
 
             // The first of the workers must be local and all others must be remote.
@@ -5860,7 +5858,6 @@ namespace BuildXL.Scheduler
             Contract.Requires(loggingContext != null);
             Contract.Assert(!IsInitialized);
             Contract.Assert(!IsDistributedWorker);
-            Contract.Ensures(HasFailed || m_workersSetupResultsTask != null);
 
             using (var pm = PerformanceMeasurement.Start(
                     loggingContext,
@@ -7033,7 +7030,6 @@ namespace BuildXL.Scheduler
 
         private PipProvenance GetDummyProvenance()
         {
-            Contract.Ensures(Contract.Result<PipProvenance>() != null);
             return m_dummyProvenance = m_dummyProvenance ?? PipProvenance.CreateDummy(Context);
         }
 

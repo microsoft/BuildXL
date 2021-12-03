@@ -46,8 +46,6 @@ namespace BuildXL.Storage.Fingerprints
         /// </summary>
         public static Fingerprint CreateRandom()
         {
-            Contract.Ensures(Contract.Result<Fingerprint>().Length == FingerprintLength, UnexpectedLengthContractViolationMessage);
-
             return Fingerprint.Random(FingerprintLength);
         }
 
@@ -71,7 +69,6 @@ namespace BuildXL.Storage.Fingerprints
         {
             Contract.Requires(value != null);
             Contract.Requires(value.Length == FingerprintLength);
-            Contract.Ensures(Contract.Result<Fingerprint>().Length == FingerprintLength, UnexpectedLengthContractViolationMessage);
 
             return new Fingerprint(value);
         }
@@ -82,7 +79,6 @@ namespace BuildXL.Storage.Fingerprints
         public static Fingerprint CreateFrom(ArraySegment<byte> value)
         {
             Contract.Requires(value.Count == FingerprintLength);
-            Contract.Ensures(Contract.Result<Fingerprint>().Length == FingerprintLength, UnexpectedLengthContractViolationMessage);
 
             return new Fingerprint(buffer: value.Array, length: value.Count, offset: value.Offset);
         }
@@ -95,8 +91,6 @@ namespace BuildXL.Storage.Fingerprints
         /// </remarks>
         public static Fingerprint CreateFrom(BinaryReader reader)
         {
-            Contract.Ensures(Contract.Result<Fingerprint>().Length == FingerprintLength, UnexpectedLengthContractViolationMessage);
-
             return new Fingerprint(FingerprintLength, reader);
         }
 
@@ -116,7 +110,6 @@ namespace BuildXL.Storage.Fingerprints
         public static Fingerprint Hash(string content)
         {
             Contract.Requires(content != null);
-            Contract.Ensures(Contract.Result<Fingerprint>().Length == FingerprintLength, UnexpectedLengthContractViolationMessage);
 
             return Hash(Encoding.UTF8.GetBytes(content));
         }
@@ -135,7 +128,6 @@ namespace BuildXL.Storage.Fingerprints
         public static byte[] HashCore(byte[] content)
         {
             Contract.Requires(content != null);
-            Contract.Ensures(Contract.Result<Fingerprint>().Length == FingerprintLength, UnexpectedLengthContractViolationMessage);
 
             using (var hasherWrapper = s_hashers.GetInstance())
             {

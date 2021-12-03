@@ -29,8 +29,6 @@ namespace BuildXL.Utilities.Collections
         public BitSet(int initialCapacity = 0)
         {
             Contract.Requires(initialCapacity >= 0 && IsValidBitCount(initialCapacity));
-            Contract.Ensures(Capacity == initialCapacity);
-            Contract.Ensures(Length == 0);
 
             int initialCapacityInEntries = GetEntryCount(initialCapacity);
             m_entries = new long[initialCapacityInEntries];
@@ -66,7 +64,6 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                Contract.Ensures(Contract.Result<int>() >= Length && Contract.Result<int>() >= 0);
                 return GetBitCount(m_entries.Length);
             }
         }

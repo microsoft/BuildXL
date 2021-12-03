@@ -489,8 +489,6 @@ namespace BuildXL.Storage.Fingerprints
 
         private void Flush()
         {
-            Contract.Ensures(m_position == 0);
-
             if (m_position > 0)
             {
                 m_engine.TransformBlock(m_buffer, 0, m_position, null, 0);

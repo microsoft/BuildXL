@@ -235,7 +235,6 @@ namespace BuildXL.Utilities
             {
                 Contract.RequiresNotNull(store);
                 Contract.Requires(store.CanWrite);
-                Contract.Ensures(CanWrite);
                 Contract.Assume(
                     store.m_initialBufferSize > 0,
                     "Initial buffer size for store was 0. This implies an attempt to write to a non-writable store.");
@@ -385,7 +384,6 @@ namespace BuildXL.Utilities
         public PageableStoreId Write(Action<BuildXLWriter> serializer)
         {
             Contract.RequiresNotNull(serializer);
-            Contract.Ensures(Contract.Result<PageableStoreId>().IsValid);
 
             PageStreamBase writablePageStream;
             if (!m_availableWritablePageStreams.TryPop(out writablePageStream))

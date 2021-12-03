@@ -112,7 +112,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(pipFragmentRenderer != null);
             Contract.Requires(pip != null);
-            Contract.Ensures(Contract.Result<IBuildParameters>() != null);
             Contract.Requires(currentUserRetryCount >= 0);
 
             var trackedEnv = pip.EnvironmentVariables.Where(envVar => !envVar.IsPassThrough);
@@ -152,7 +151,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(pip != null);
-            Contract.Ensures(Contract.Result<IBuildParameters>() != null);
 
             return GetEffectiveEnvironmentVariables(pip, new PipFragmentRenderer(pathTable), currentUserRetryCount: 0);
         }

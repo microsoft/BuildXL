@@ -18,7 +18,6 @@ namespace BuildXL.Scheduler.Distribution
         protected RemoteWorkerBase(uint workerId, string name, PipExecutionContext context)
             : base(workerId, name, context)
         {
-            Contract.Ensures(IsRemote);
         }
 
         /// <summary>

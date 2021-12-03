@@ -381,8 +381,6 @@ namespace BuildXL.Storage
             out SafeFileHandle fileHandle)
         {
             Contract.Requires(!Disposed);
-            Contract.Ensures((Contract.Result<OpenFileByIdResult>() == OpenFileByIdResult.Succeeded) == (Contract.ValueAtReturn(out fileHandle) != null));
-            Contract.Ensures((Contract.Result<OpenFileByIdResult>() != OpenFileByIdResult.Succeeded) || !Contract.ValueAtReturn(out fileHandle).IsInvalid);
 
             SafeFileHandle volumeRootHandle = TryGetVolumeRoot(volumeSerial);
 
@@ -430,8 +428,6 @@ namespace BuildXL.Storage
         /// </summary>
         public void Dispose()
         {
-            Contract.Ensures(Disposed);
-
             if (Disposed)
             {
                 return;
@@ -565,8 +561,6 @@ namespace BuildXL.Storage
         /// </summary>
         public void Dispose()
         {
-            Contract.Ensures(Disposed);
-
             if (Disposed)
             {
                 return;

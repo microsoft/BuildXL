@@ -99,9 +99,6 @@ namespace BuildXL.Pips.Filter
         /// <returns>true if parsing was successful</returns>
         public bool TryParse(out RootFilter rootFilter, out FilterParserError error)
         {
-            Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<RootFilter>(out rootFilter) == null);
-            Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<FilterParserError>(out error) != null);
-
             rootFilter = null;
 
             if (string.IsNullOrEmpty(m_expression))

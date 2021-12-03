@@ -298,14 +298,12 @@ namespace TypeScript.Net.Types
         /// <nodoc/>
         public IIdentifier AsIdentifier()
         {
-            Contract.Ensures(Contract.Result<IIdentifier>() != null);
             return Identifier;
         }
 
         /// <nodoc/>
         public IQualifiedName AsQualifiedName()
         {
-            Contract.Ensures(Contract.Result<IQualifiedName>() != null);
             return QualifiedName;
         }
 

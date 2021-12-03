@@ -1519,7 +1519,6 @@ namespace BuildXL.Processes
             {
                 Contract.Requires(owner != null);
                 Contract.Requires(path.IsValid);
-                Contract.Ensures(Contract.Result<Node>() != null);
 
                 StringId fragment = path.GetName(owner.PathTable).StringId;
 
@@ -1572,7 +1571,6 @@ namespace BuildXL.Processes
             {
                 Contract.Requires(owner != null);
                 Contract.Requires(path.IsValid);
-                Contract.Ensures(Contract.Result<Node>() != null);
 
                 var container = path.GetParent(owner.PathTable);
                 var node = container.IsValid ? AddPath(owner, container) : this;

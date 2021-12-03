@@ -225,7 +225,6 @@ namespace BuildXL.Pips.Graph
             // the following 2 preconditions are equivalent to `sealDirectory.IsInitialized == IsPatching`, but are split into 2 to give user friendly messages
             Contract.Requires(!sealDirectory.IsInitialized || IsPatching, "An initialized seal directory may only be added while IsPatching is true");
             Contract.Requires(!IsPatching || sealDirectory.IsInitialized, "During patching, only initialized seal directory may be added");
-            Contract.Ensures(Contract.Result<DirectoryArtifact>().Path == sealDirectory.DirectoryRoot);
 
             if (sealDirectory.IsInitialized)
             {
@@ -272,9 +271,6 @@ namespace BuildXL.Pips.Graph
         public void StartPatching()
         {
             Contract.Requires(PatchingNeverStarted, "Multiple patching sessions not allowed");
-            Contract.Ensures(IsPatching);
-            Contract.Ensures(!PatchingNeverStarted);
-            Contract.Ensures(!DonePatching);
             m_patchingState = true;
         }
 
@@ -289,9 +285,6 @@ namespace BuildXL.Pips.Graph
         public void FinishPatching()
         {
             Contract.Requires(IsPatching);
-            Contract.Ensures(DonePatching);
-            Contract.Ensures(!PatchingNeverStarted);
-            Contract.Ensures(!IsPatching);
             m_patchingState = false;
             m_priorSealIndex = m_seals.Count > 0
                 ? m_seals.Keys.Max(dir => dir.PartialSealId)

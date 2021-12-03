@@ -215,7 +215,6 @@ namespace BuildXL.Utilities
         public static implicit operator StringSegment(string value)
         {
             Contract.RequiresNotNull(value);
-            Contract.Ensures(Contract.Result<StringSegment>().Length == value.Length);
 
             return new StringSegment(value);
         }
@@ -352,7 +351,6 @@ namespace BuildXL.Utilities
         {
             Contract.RequiresNotNull(value);
             Contract.Requires(Range.IsValid(index, count, value.Length));
-            Contract.Ensures(Contract.Result<StringSegment>().Length == count);
 
             return new StringSegment(value, index, count);
         }

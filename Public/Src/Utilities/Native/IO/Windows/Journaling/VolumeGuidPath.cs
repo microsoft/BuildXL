@@ -65,8 +65,6 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         public static bool TryCreate(string path, out VolumeGuidPath parsed)
         {
-            Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out parsed).IsValid);
-
             if (!IsValidVolumeGuidPath(path))
             {
                 parsed = Invalid;
@@ -93,7 +91,6 @@ namespace BuildXL.Native.IO.Windows
         [Pure]
         public static bool IsValidVolumeGuidPath(string path)
         {
-            Contract.Ensures(!Contract.Result<bool>() || !string.IsNullOrEmpty(path));
             const string VolumePrefix = @"\\?\Volume{";
 
             if (string.IsNullOrEmpty(path))

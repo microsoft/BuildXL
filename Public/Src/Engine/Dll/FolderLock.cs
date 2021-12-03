@@ -53,8 +53,6 @@ namespace BuildXL.Engine
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Stream is held by lock who is responsible for disposing.")]
         public static FolderLock Take(LoggingContext loggingContext, string path, int retryDelayInSeconds, int totalWaitTimeMins)
         {
-            Contract.Ensures(Contract.Result<FolderLock>().SuccessfullyCreatedLock || loggingContext.ErrorWasLogged);
-
             string lockPath = GetLockPath(path);
             try
             {

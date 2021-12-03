@@ -22,8 +22,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public SHA256CryptoServiceProvider()
         {
-            Contract.Ensures(m_hashAlgorithm != null);
-
             m_hashAlgorithm = new CapiHashAlgorithm(CapiNative.ProviderNames.MicrosoftEnhancedRsaAes,
                                                     CapiNative.ProviderType.RsaAes,
                                                     CapiNative.AlgorithmId.Sha256);

@@ -488,10 +488,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(!string.IsNullOrEmpty(pattern));
 
-            Contract.Ensures((Contract.Result<SerializableRegex>().Regex.Options & RegexOptions.Compiled) != 0);
-            Contract.Ensures((Contract.Result<SerializableRegex>().Regex.Options & RegexOptions.IgnoreCase) != 0);
-            Contract.Ensures((Contract.Result<SerializableRegex>().Regex.Options & RegexOptions.CultureInvariant) != 0);
-
             return new SerializableRegex(pattern, RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         }
 

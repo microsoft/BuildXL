@@ -111,8 +111,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
         private IDecorator<EvaluationResult> CreateDecorator()
         {
-            Contract.Ensures(Contract.Result<IDecorator<EvaluationResult>>() != null);
-
             var debugger = m_debugger.Result;
             return debugger != null
                 ? (IDecorator<EvaluationResult>)new EvaluationDecorator(debugger, ((DebugSession)debugger?.Session).State, m_breakOnFinish)

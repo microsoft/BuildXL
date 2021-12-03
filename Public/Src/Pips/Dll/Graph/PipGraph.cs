@@ -796,7 +796,6 @@ namespace BuildXL.Pips.Graph
         internal Pip GetProducingPip(FileArtifact fileArtifact)
         {
             Contract.Requires(fileArtifact.IsValid);
-            Contract.Ensures(Contract.Result<Pip>() != null);
 
             NodeId producerNodeId;
 
@@ -1087,8 +1086,6 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn)
         {
-            Contract.Ensures(Contract.ValueAtReturn(out filteredIn) != null);
-
             var matchingNodes = new RangedNodeSet();
 
             // We would use NodeRange here but that (due to other usages) acquires the global exclusive lock, which is not recursive.

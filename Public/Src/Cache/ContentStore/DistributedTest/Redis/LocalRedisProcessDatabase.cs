@@ -261,7 +261,7 @@ namespace ContentStoreTest.Distributed.Redis
 
             _logger.Debug("Starting a redis server.");
 
-            var redisName = OperatingSystemHelper.IsWindowsOS ? "redis-server.exe" : "redis-server";
+            var redisName = OperatingSystemHelper.IsWindowsOS ? "memurai.exe" : "redis-server";
             string redisServerPath = Path.GetFullPath(Path.Combine("redisServer", redisName));
             if (!File.Exists(redisServerPath))
             {

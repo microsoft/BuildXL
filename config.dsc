@@ -254,7 +254,13 @@ config({
                 { id: "System.Linq.Async", version: "4.0.0"},
                 { id: "Polly", version: "7.2.1" },
                 { id: "Polly.Contrib.WaitAndRetry", version: "1.1.1" },
-                { id: "Redis-64", version: "3.0.503", osSkip: [ "macOS", "unix" ] },
+
+                // It turns out Redis-64 ( https://www.nuget.org/packages/redis-64/ ) was deprecated several years 
+                // ago, and so we can't even build with it due to component governance. We don't actually care about 
+                // this package because we only use it for local dev testing, so any drop-in replacement will do.
+                // Instead, we use MemuraiDeveloper ( https://www.nuget.org/packages/MemuraiDeveloper/ ) which is a
+                // drop-in replacement here.
+                { id: "MemuraiDeveloper", version: "2.0.3", osSkip: [ "macOS", "unix" ] },
                 { id: "Redis-osx-x64", version: "1.0.0", osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                     ? [ "win" ]
                     : [ "win", "macOS", "unix" ] },

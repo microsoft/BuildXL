@@ -52,7 +52,6 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Converts current instance to key value pair.
         /// </summary>
-        [Pure]
         public KeyValuePair<StringId, EvaluationResult> AsKeyValuePair()
         {
             return new KeyValuePair<StringId, EvaluationResult>(new StringId(NameId), Value);
@@ -61,7 +60,6 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Evals current value and produces new value.
         /// </summary>
-        [Pure]
         public NamedValue Eval(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             if (!IsValid)

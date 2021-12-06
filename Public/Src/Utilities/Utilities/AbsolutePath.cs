@@ -340,14 +340,12 @@ namespace BuildXL.Utilities
             Win32NtPrefixed,
         }
 
-        [Pure]
         private static bool IsAbsolutePath<T>(T path)
             where T : struct, ICharSpan<T>
         {
             return ClassifyPath(path, out _) != AbsolutePathType.Invalid;
         }
 
-        [Pure]
         private static AbsolutePathType ClassifyPath<T>(T path, out int prefixLength)
             where T : struct, ICharSpan<T>
         {
@@ -494,7 +492,6 @@ namespace BuildXL.Utilities
         /// without any '..' backtracking.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public bool TryGetRelative(PathTable table, AbsolutePath proposedRelativePath, out RelativePath result)
         {
             Contract.RequiresNotNull(table);
@@ -511,7 +508,6 @@ namespace BuildXL.Utilities
         /// (possibly empty) relative path that represents traversal between the two paths (without any .. backtracking).
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public string ExpandRelative(PathTable table, AbsolutePath descendantPath)
         {
             Contract.RequiresNotNull(table);
@@ -528,7 +524,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Extends an absolute path with new path components.
         /// </summary>
-        [Pure]
         public AbsolutePath Combine(PathTable table, RelativePath path)
         {
             Contract.RequiresNotNull(table);
@@ -954,7 +949,6 @@ namespace BuildXL.Utilities
         /// return value is false.
         /// This method is thread-safe without the need for any locking.
         /// </remarks>
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public bool IsWithin(PathTable table, AbsolutePath potentialContainer)
         {
@@ -971,7 +965,6 @@ namespace BuildXL.Utilities
         /// <remarks>
         /// AbsolutePath is a structure whose default initial state is invalid.
         /// </remarks>
-        [Pure]
         public bool IsValid => this != Invalid;
 
         /// <summary>
@@ -1100,7 +1093,6 @@ namespace BuildXL.Utilities
         /// <param name="pathFormat">Optional path format indicator.</param>
         /// <param name="nameExpander">the name expander to use for expanding path segments</param>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public string ToString(PathTable table, PathFormat pathFormat = PathFormat.HostOs, NameExpander nameExpander = null)
         {
             Contract.RequiresNotNull(table);
@@ -1145,7 +1137,6 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode",
             Justification = "Nothing is private to the debugger.")]
         [ExcludeFromCodeCoverage]
-        [Pure]
         internal string ToDebuggerDisplay()
         {
             if (this == Invalid)

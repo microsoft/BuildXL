@@ -24,7 +24,6 @@ namespace BuildXL.Engine.Cache.Fingerprints
     public static class BondExtensions
     {
         /// <nodoc />
-        [Pure]
         public static BondContentHash ToBondContentHash(in this ContentHash contentHash)
         {
             var bondHash = new BondContentHash
@@ -45,7 +44,6 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <nodoc />
-        [Pure]
         public static BondFingerprint ToBondFingerprint(in this Fingerprint fingerprint)
         {
             var bondFingerprint = new BondFingerprint
@@ -112,7 +110,6 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <nodoc />
-        [Pure]
         public static BondFileMaterializationInfo ToBondFileMaterializationInfo(in this FileMaterializationInfo info, PathTable pathTable)
         {
             return new BondFileMaterializationInfo()

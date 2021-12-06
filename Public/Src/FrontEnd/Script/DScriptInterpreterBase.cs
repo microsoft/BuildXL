@@ -247,7 +247,6 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <nodoc />
-        [Pure]
         protected bool IsConfigFile(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);

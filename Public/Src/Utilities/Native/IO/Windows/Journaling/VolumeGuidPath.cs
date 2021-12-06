@@ -88,7 +88,6 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// Validates that the given string is a volume guid PATH.
         /// </summary>
-        [Pure]
         public static bool IsValidVolumeGuidPath(string path)
         {
             const string VolumePrefix = @"\\?\Volume{";

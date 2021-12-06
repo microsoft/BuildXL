@@ -142,7 +142,6 @@ namespace BuildXL.Pips.Operations
         /// <see cref="PipDataEntryType.NestedDataHeader" /> or <see cref="PipDataEntryType.IpcMoniker" />.
         /// </remarks>
         /// <returns>Value as string id</returns>
-        [Pure]
         public StringId GetStringValue()
         {
             Contract.Requires(

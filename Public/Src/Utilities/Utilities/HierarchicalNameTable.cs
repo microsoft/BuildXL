@@ -1075,7 +1075,6 @@ namespace BuildXL.Utilities
         /// <remarks>
         /// This method is thread-safe without the need for any locking.
         /// </remarks>
-        [Pure]
         public bool IsWithin(HierarchicalNameId potentialContainer, HierarchicalNameId value)
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");

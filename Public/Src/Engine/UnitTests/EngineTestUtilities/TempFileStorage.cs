@@ -273,7 +273,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Checks if a directory exists in this file storage.
         /// </summary>
-        [Pure]
         public bool ExistsDirectory(string directoryPath)
         {
             if (string.IsNullOrWhiteSpace(directoryPath))

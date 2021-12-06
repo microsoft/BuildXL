@@ -59,7 +59,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
             /// <summary>
             /// Check if a string is a Guid
             /// </summary>
-            [Pure]
             public static bool StringIsGuid(string s)
             {
                 return Guid.TryParse(s, out _);
@@ -188,32 +187,27 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// True if an error was logged in this context or parent contexts.
         /// </summary>
-        [Pure]
         public long TotalErrorsLogged => Volatile.Read(ref GetRootContext().m_errorsLogged);
 
 
         /// <summary>
         /// True if an error was logged in this context or parent contexts.
         /// </summary>
-        [Pure]
         public bool ErrorWasLogged => TotalErrorsLogged > 0;
 
         /// <summary>
         /// True if an warning was logged in this context or parent contexts.
         /// </summary>
-        [Pure]
         public long TotalWarningsLogged => Volatile.Read(ref GetRootContext().m_warningsLogged);
 
         /// <summary>
         /// True if an warning was logged in this context or parent contexts.
         /// </summary>
-        [Pure]
         public bool WarningWasLogged => TotalWarningsLogged > 0;
 
         /// <summary>
         /// True if an warning was logged in this context.
         /// </summary>
-        [Pure]
         public bool WarningWasLoggedByThisLogger => Volatile.Read(ref m_warningsLogged) > 0;
 
         /// <summary>

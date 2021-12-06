@@ -338,7 +338,6 @@ namespace BuildXL.Utilities.Qualifier
         /// <summary>
         /// Checks if a qualifier id is valid with respect to this qualifier table.
         /// </summary>
-        [Pure]
         public bool IsValidQualifierId(QualifierId qualifierId)
         {
             return qualifierId.IsValid && qualifierId.Id < m_qualifiers.Count;
@@ -347,7 +346,6 @@ namespace BuildXL.Utilities.Qualifier
         /// <summary>
         /// Checks if a qualifier space id is valid with respect to this qualifier table.
         /// </summary>
-        [Pure]
         public bool IsValidQualifierSpaceId(QualifierSpaceId qualifierSpaceId)
         {
             return qualifierSpaceId.IsValid && qualifierSpaceId.Id < m_qualifierSpaces.Count;
@@ -485,7 +483,6 @@ namespace BuildXL.Utilities.Qualifier
             /// <summary>
             /// Checks if a qualifier id is valid with respect to this qualifier table.
             /// </summary>
-            [Pure]
             public bool IsValidId(TId id)
             {
                 lock (m_lock)

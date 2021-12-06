@@ -69,7 +69,6 @@ namespace BuildXL.FrontEnd.Script.Values
         /// If the other module id has the form (Path, Package, Name), and
         /// the given name is M.N.O, then the resulting module id is (Path, Package, M.N.O).
         /// </remarks>
-        [Pure]
         public ModuleLiteralId WithName(FullSymbol name)
         {
             return new ModuleLiteralId(Path, name);

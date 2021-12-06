@@ -153,7 +153,6 @@ namespace BuildXL.Utilities.CLI
         ///     Calling <see cref="Config.Validate"/> beforehand ensures that all specified options have valid
         ///     values, and thus, this method won't fail.
         /// </remarks>
-        [Pure]
         public TValue GetValue(Config conf)
         {
             var values = conf.ConfiguredOptionValues[this];
@@ -168,7 +167,8 @@ namespace BuildXL.Utilities.CLI
         /// <remarks>
         ///     See remarks for <see cref="GetValue(Config)"/> for exceptions that can possibly be thrown.
         /// </remarks>
-        [Pure]
+        
+        
         public IEnumerable<TValue> GetValues(Config conf)
         {
             return conf.ConfiguredOptionValues[this].Select(val => Converter(val));
@@ -177,7 +177,8 @@ namespace BuildXL.Utilities.CLI
         /// <summary>
         ///     Returns whether the <paramref name="value"/> string represents a valid value for this option.
         /// </summary>
-        [Pure]
+        
+        
         public override bool TryConvertValue(string value)
         {
             try
@@ -194,14 +195,16 @@ namespace BuildXL.Utilities.CLI
         }
 
         /// <inheritdoc />
-        [Pure]
+        
+        
         public override string Validate(string value)
         {
             return Validator?.Invoke(Converter(value));
         }
 
         /// <inheritdoc />
-        [Pure]
+        
+        
         public override Type ValueType => typeof(TValue);
     }
 

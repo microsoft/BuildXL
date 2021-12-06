@@ -27,25 +27,21 @@ namespace BuildXL.Ipc.Common
         /// <summary>
         /// Whether the call succeeded.
         /// </summary>
-        [Pure]
         public bool Succeeded => m_exitCode == IpcResultStatus.Success;
 
         /// <summary>
         /// Whether the call failed (the opposite of <see cref="Succeeded"/>).
         /// </summary>
-        [Pure]
         public bool Failed => !Succeeded;
 
         /// <summary>
         /// Exit code.
         /// </summary>
-        [Pure]
         public IpcResultStatus ExitCode => m_exitCode;
 
         /// <summary>
         /// Optional payload.
         /// </summary>
-        [Pure]
         public string Payload => m_payload;
 
         /// <nodoc />

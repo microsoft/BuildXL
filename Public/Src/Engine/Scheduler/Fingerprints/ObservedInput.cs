@@ -280,7 +280,6 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Gets whether the observed input type represents a type which has a predefined hash
         /// </summary>
-        [Pure]
         public static bool HasPredefinedHash(ObservedInputType type)
         {
             switch (type)

@@ -61,7 +61,6 @@ namespace TypeScript.Net
         /// <summary>
         /// Returns string representation of the range based on the <paramref name="source"/>.
         /// </summary>
-        [Pure]
         public string GetText(string source)
         {
             return source.Substring(Start, Length);
@@ -70,7 +69,6 @@ namespace TypeScript.Net
         /// <summary>
         /// Returns string representation of the range based on the <paramref name="source"/>.
         /// </summary>
-        [Pure]
         public string GetText(TextSource source)
         {
             return source.Substring(Start, Length);
@@ -79,7 +77,6 @@ namespace TypeScript.Net
         /// <summary>
         /// Returns true if a given <paramref name="position"/> is within a current range.
         /// </summary>
-        [Pure]
         public bool Contains(int position)
         {
             return Start <= position && position < End;
@@ -88,7 +85,6 @@ namespace TypeScript.Net
         /// <summary>
         /// Returns true if the given <paramref name="other"/> range intersects with a current instance.
         /// </summary>
-        [Pure]
         public bool Intersects(TextRange other)
         {
             if (other.Length == 0)
@@ -119,7 +115,6 @@ namespace TypeScript.Net
         /// <summary>
         /// Creates new text range based on the current start index and a give length.
         /// </summary>
-        [Pure]
         public TextRange WithLength(int length) => FromLength(Start, length);
 
         /// <inheritdoc />

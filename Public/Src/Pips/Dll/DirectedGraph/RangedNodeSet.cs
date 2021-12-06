@@ -132,7 +132,6 @@ namespace BuildXL.Pips.DirectedGraph
         /// Indicates if this set contains the given node. If the given node is not in <see cref="Range"/>,
         /// then <c>false</c> will definitely be returned.
         /// </summary>
-        [Pure]
         public bool Contains(NodeId node)
         {
             if (!Range.Contains(node))

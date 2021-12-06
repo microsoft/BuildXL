@@ -198,7 +198,6 @@ namespace BuildXL.Utilities
         /// Looks for a identifier in the table and returns it if found.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public static bool TryGet(SymbolTable table, StringSegment fullSymbol, out FullSymbol result)
         {
             Contract.RequiresNotNull(table, "table != null");
@@ -223,7 +222,6 @@ namespace BuildXL.Utilities
         /// Looks for a identifier in the table and returns it if found.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public bool TryGet(SymbolTable table, SymbolAtom component, out FullSymbol result)
         {
             Contract.RequiresNotNull(table, "table != null");
@@ -240,7 +238,6 @@ namespace BuildXL.Utilities
         /// Looks for a identifier relative to the current identifier in the table and returns it if found.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public bool TryGet(SymbolTable table, PartialSymbol relativeId, out FullSymbol result)
         {
             Contract.RequiresNotNull(table, "table != null");
@@ -263,7 +260,6 @@ namespace BuildXL.Utilities
         /// (possibly empty) relative identifier that represents traversal between the two identifiers (without any .. backtracking).
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public bool TryGetRelative(SymbolTable table, FullSymbol proposedRelativeId, out PartialSymbol result)
         {
             Contract.RequiresNotNull(table, "table != null");
@@ -486,7 +482,6 @@ namespace BuildXL.Utilities
         /// return value is false.
         /// This method is thread-safe without the need for any locking.
         /// </remarks>
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public bool IsWithin(SymbolTable table, FullSymbol potentialContainer)
         {
@@ -500,7 +495,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Determines whether an absolute identifier is valid or not.
         /// </summary>
-        [Pure]
         public bool IsValid => this != Invalid;
 
         /// <summary>
@@ -590,7 +584,6 @@ namespace BuildXL.Utilities
         /// </summary>
         /// <param name="symbolTable">The identifier table used when creating the FullSymbol.</param>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public string ToString(SymbolTable symbolTable)
         {
             if (!IsValid)

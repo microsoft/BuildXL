@@ -67,7 +67,6 @@ namespace BuildXL.Utilities
         /// The rules for a valid path atom are that the input string may not
         /// be empty and must only contain characters reported as valid by IsValidPathAtomChar.
         /// </remarks>
-        [Pure]
         public static bool Validate<T>(T prospectiveAtom)
             where T : struct, ICharSpan<T>
         {
@@ -82,7 +81,6 @@ namespace BuildXL.Utilities
         /// The rules for a valid path atom are that the input string may not
         /// be empty and must only contain characters reported as valid by IsValidPathAtomChar.
         /// </remarks>
-        [Pure]
         public static ParseResult Validate<T>(T prospectiveAtom, out int characterWithError)
             where T : struct, ICharSpan<T>
         {
@@ -327,7 +325,6 @@ namespace BuildXL.Utilities
         /// Returns a string representation of the path atom.
         /// </summary>
         /// <param name="table">The string table used when creating the atom.</param>
-        [Pure]
         public string ToString(StringTable table)
         {
             Contract.RequiresNotNull(table);

@@ -87,7 +87,6 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates if there is a valid state transition from <paramref name="current"/> to <paramref name="target"/>.
         /// </summary>
-        [Pure]
         public static bool CanTransitionTo(this PipState current, PipState target)
         {
             switch (target)
@@ -126,7 +125,6 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates if <paramref name="current"/> is a terminal state (there are no valid transitions out of it).
         /// </summary>
-        [Pure]
         public static bool IsTerminal(this PipState current)
         {
             switch (current)
@@ -149,7 +147,6 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates if <paramref name="current"/> is a terminal state which indicates that a pip has failed.
         /// </summary>
-        [Pure]
         public static bool IndicatesFailure(this PipState current)
         {
             switch (current)

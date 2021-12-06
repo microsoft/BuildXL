@@ -61,55 +61,46 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Number of nodes in the graph.
         /// </summary>
-        [Pure]
         public int NodeCount { get; }
 
         /// <summary>
         /// Immutable set of nodes (all consecutive numbers from 0 to and not including <see cref="NodeCount"/>).
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<int> Nodes => Enumerable.Range(0, NodeCount).ToList();
 
         /// <summary>
         /// Immutable set of edges.
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<Edge> Edges { get; }
 
         /// <summary>
         /// Number of edges in the graph.
         /// </summary>
-        [Pure]
         public int EdgeCount => Edges.Count;
 
         /// <summary>
         /// Identity Node -> Node relation (represented as a set of edges).
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<Edge> Identity { get; }
 
         /// <summary>
         /// Returns the transitive closure of all edges in the graph.
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<Edge> TransitiveClosure => m_transitiveClosureLazy.Value;
 
         /// <summary>
         /// Returns the reflexive transitive closure of all edges in the graph.
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<Edge> ReflexiveTransitiveClosure => TransitiveClosure.Union(Identity).ToList();
 
         /// <summary>
         /// The inverse of <see cref="TransitiveClosure"/>.
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<Edge> TransitiveClosureInverse => m_transitiveClosureInverseLazy.Value;
 
         /// <summary>
         /// The inverse of <see cref="ReflexiveTransitiveClosure"/>.
         /// </summary>
-        [Pure]
         public IReadOnlyCollection<Edge> ReflexiveTransitiveClosureInverse => TransitiveClosureInverse.Union(Identity).ToList();
 
         [ContractInvariantMethod]
@@ -143,7 +134,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Returns whether this graph is a DAG (i.e., whether it has no cycles).
         /// </summary>
-        [Pure]
         public bool IsDAG() => !TransitiveClosure.Intersect(Identity).Any();
 
         /// <summary>
@@ -151,14 +141,12 @@ namespace Test.BuildXL.TestUtilities
         /// <paramref name="nodes"/> by following the reverse edges of this graph.  The result does not include the
         /// nodes in <paramref name="nodes"/>.
         /// </summary>
-        [Pure]
         public IEnumerable<int> ComputeDownstream(IEnumerable<int> nodes) => Join(nodes, TransitiveClosureInverse);
 
         /// <summary>
         /// Computes the reflexive 'downstream' of <paramref name="nodes"/>, i.e., the nodes returned by
         /// <see cref="ComputeDownstream(IEnumerable{int})"/> union <paramref name="nodes"/>.
         /// </summary>
-        [Pure]
         public IEnumerable<int> ComputeReflexiveDownstream(IEnumerable<int> nodes) => Join(nodes, ReflexiveTransitiveClosureInverse);
 
         /// <summary>
@@ -166,45 +154,38 @@ namespace Test.BuildXL.TestUtilities
         /// <paramref name="nodes"/> by following the edges of this graph.  The result does not include the
         /// nodes in <paramref name="nodes"/>.
         /// </summary>
-        [Pure]
         public IEnumerable<int> ComputeUpstream(IEnumerable<int> nodes) => Join(nodes, TransitiveClosure);
 
         /// <summary>
         /// Computes the reflexive 'upstream' of <paramref name="nodes"/>, i.e., the nodes returned by
         /// <see cref="ComputeUpstream(IEnumerable{int})"/> union <paramref name="nodes"/>.
         /// </summary>
-        [Pure]
         public IEnumerable<int> ComputeReflexiveUpstream(IEnumerable<int> nodes) => Join(nodes, ReflexiveTransitiveClosure);
 
         /// <summary>
         /// Returns whether all edges are unique.
         /// </summary>
-        [Pure]
         public static bool NoParallelEdges(IEnumerable<Edge> edges) => edges.Count() == edges.Distinct().Count();
 
         /// <summary>
         /// Returns whether both <see cref="Edge.Src"/> and <see cref="Edge.Dest"/> of an <see cref="Edge"/> are
         /// between 0 (inclusive) and <paramref name="upperBound"/> (exclusive).
         /// </summary>
-        [Pure]
         public static bool InRange(Edge e, int upperBound) => InRange(e.Src, upperBound) && InRange(e.Dest, upperBound);
 
         /// <summary>
         /// Returns all edges in this graph whose destination node (<see cref="Edge.Dest"/>) is equal to <paramref name="node"/>.
         /// </summary>
-        [Pure]
         public IEnumerable<Edge> IncomingEdges(int node) => Edges.Where(e => e.Dest == node);
 
         /// <summary>
         /// Returns all edges in this graph whose source node (<see cref="Edge.Src"/>) is equal to <paramref name="node"/>.
         /// </summary>
-        [Pure]
         public IEnumerable<Edge> OutgoingEdges(int node) => Edges.Where(e => e.Src == node);
 
         /// <summary>
         /// Renders this graph's edges that can be passed as 'value' to the <see cref="Parse"/> method.
         /// </summary>
-        [Pure]
         public string Render()
         {
             return string.Join(
@@ -224,7 +205,6 @@ namespace Test.BuildXL.TestUtilities
         ///
         /// Example value for <paramref name="value"/>: 1 -&gt; 2, 2 &lt;- 3, 2 -&gt; 5
         /// </summary>
-        [Pure]
         public static SimpleGraph Parse(int numNodes, string value)
         {
             Contract.Requires(numNodes >= 0);
@@ -270,7 +250,6 @@ namespace Test.BuildXL.TestUtilities
         /// <see cref="IsDAG"/> returns <code>false</code>, throws <see cref="ArgumentException"/>, otherwise
         /// returns the graph.
         /// </summary>
-        [Pure]
         public static SimpleGraph ParseDAG(int numNodes, string value)
         {
             Contract.Requires(numNodes > 0);
@@ -284,7 +263,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Standard relational closure operator.
         /// </summary>
-        [Pure]
         public static IReadOnlyCollection<Edge> Closure(IReadOnlyCollection<Edge> relation)
         {
             var oldSize = 0;
@@ -301,7 +279,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Standard relational join operator between 2 binary relations.
         /// </summary>
-        [Pure]
         public static IReadOnlyCollection<Edge> Join(IEnumerable<Edge> lhs, IEnumerable<Edge> rhs)
         {
             return lhs.Join(
@@ -314,7 +291,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Standard relational join operator between a set and a binary relation.
         /// </summary>
-        [Pure]
         public static IReadOnlyCollection<int> Join(IEnumerable<int> lhs, IEnumerable<Edge> rhs)
         {
             return lhs.Join(
@@ -335,7 +311,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Standard relational inverse operator.
         /// </summary>
-        [Pure]
         public static IReadOnlyCollection<Edge> Inverse(IEnumerable<Edge> relation)
         {
             return relation.Select(e => new Edge(src: e.Dest, dest: e.Src)).ToList();
@@ -344,13 +319,10 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Creates an identity binary relation which contains all '(i, i)' tuples, where 0 &lt;= i &lt; numNodes
         /// </summary>
-        [Pure]
         public static IReadOnlyCollection<Edge> IdentityRelation(int numNodes) => Enumerable.Range(0, numNodes).Select(i => new Edge(i, i)).ToList();
 
-        [Pure]
         private IReadOnlyCollection<Edge> ComputeEdgeClosure() => Closure(Edges);
 
-        [Pure]
         private static bool InRange(int i, int upperBound) => i >= 0 && i < upperBound;
 
         private static void Check(bool condition, string errorMessage)

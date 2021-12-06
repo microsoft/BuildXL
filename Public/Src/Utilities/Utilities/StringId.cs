@@ -119,7 +119,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Converts the StringId to a string for logging
         /// </summary>
-        [Pure]
         public string ToString(StringTable stringTable)
         {
             return stringTable.GetString(this);
@@ -147,7 +146,6 @@ namespace BuildXL.Utilities
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "Nothing is private to the debugger.")]
         [ExcludeFromCodeCoverage]
-        [Pure]
         public string ToDebuggerDisplay()
         {
 #if DebugStringTable

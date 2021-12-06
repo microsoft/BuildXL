@@ -22,13 +22,11 @@ namespace BuildXL.Ipc.Common
         /// <summary>
         /// Whether this is a synchronous operation.
         /// </summary>
-        [Pure]
         public bool ShouldWaitForServerAck { get; }
 
         /// <summary>
         /// Payload of the operation, to be transmitted to the other end as is.
         /// </summary>
-        [Pure]
         public string Payload { get; }
 
         /// <nodoc />

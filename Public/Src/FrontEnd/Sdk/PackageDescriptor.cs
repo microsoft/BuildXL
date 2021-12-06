@@ -82,7 +82,6 @@ namespace BuildXL.FrontEnd.Sdk
     public static class PackageDescriptorExtensions
     {
         /// <nodoc />
-        [Pure]
         public static NameResolutionSemantics NameResolutionSemantics(this IPackageDescriptor packageDescriptor)
         {
             return packageDescriptor.NameResolutionSemantics ?? BuildXL.Utilities.Configuration.NameResolutionSemantics.ExplicitProjectReferences;

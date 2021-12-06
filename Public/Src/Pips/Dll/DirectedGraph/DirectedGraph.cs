@@ -115,14 +115,12 @@ namespace BuildXL.Pips.DirectedGraph
         }
 
         /// <inheritdoc/>
-        [Pure]
         public bool ContainsNode(NodeId node)
         {
             return node.Value > NodeId.Invalid.Value && node.Value <= m_lastNodeId;
         }
 
         /// <inheritdoc/>
-        [Pure]
         public bool IsSourceNode(NodeId node)
         {
             Contract.Requires(ContainsNode(node), "Argument node must be a valid node id");
@@ -130,7 +128,6 @@ namespace BuildXL.Pips.DirectedGraph
         }
 
         /// <inheritdoc/>
-        [Pure]
         public bool IsSinkNode(NodeId node)
         {
             Contract.Requires(ContainsNode(node), "Argument node must be a valid node id");
@@ -261,7 +258,6 @@ namespace BuildXL.Pips.DirectedGraph
         #region Enumeration
 
         /// <inheritdoc/>
-        [Pure]
         public IEnumerable<NodeId> Nodes
         {
             get
@@ -275,7 +271,6 @@ namespace BuildXL.Pips.DirectedGraph
         }
 
         /// <inheritdoc/>
-        [Pure]
         public IEnumerable<NodeId> ReversedNodes
         {
             get
@@ -334,7 +329,6 @@ namespace BuildXL.Pips.DirectedGraph
         #region Helpers
 
         /// <inheritdoc/>
-        [Pure]
         public bool IsValidNodeId(NodeId node)
         {
             return node.Value > NodeId.Invalid.Value && node.Value <= m_lastNodeId;

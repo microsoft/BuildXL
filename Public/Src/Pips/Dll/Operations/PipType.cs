@@ -82,7 +82,6 @@ namespace BuildXL.Pips.Operations
     /// <summary>
     /// Extension methods for PipType
     /// </summary>
-    [Pure]
     public static class PipTypeExtensions
     {
         /// <summary>

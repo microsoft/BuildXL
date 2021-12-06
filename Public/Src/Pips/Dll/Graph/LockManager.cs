@@ -647,7 +647,6 @@ namespace BuildXL.Pips.Graph
             /// </summary>
             /// <param name="path">the accessed path</param>
             /// <returns>true if read access is available for the path</returns>
-            [Pure]
             public bool HasReadAccess(AbsolutePath path)
             {
                 // NOTE: We don't check the access type since write access also includes read access
@@ -659,7 +658,6 @@ namespace BuildXL.Pips.Graph
             /// </summary>
             /// <param name="path">the accessed path</param>
             /// <returns>true if write access is available for the path</returns>
-            [Pure]
             public bool HasWriteAccess(AbsolutePath path)
             {
                 AccessType accessType;

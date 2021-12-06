@@ -264,7 +264,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// The length of the segment
         /// </summary>
-        [Pure]
         public int Length
         {
             get { return m_length; }

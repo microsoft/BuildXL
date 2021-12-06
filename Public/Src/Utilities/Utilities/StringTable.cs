@@ -238,7 +238,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Checks if the table is valid
         /// </summary>
-        [Pure]
         public bool IsValid()
         {
             return m_byteBuffers != null;

@@ -63,7 +63,6 @@ namespace BuildXL.Utilities.Collections
         /// Searches for the given value with <see cref="Array.BinarySearch(System.Array,object)"/>
         /// (note that a negative value returned encodes an upper-bound index; i.e., first element greater than <paramref name="value"/>)
         /// </summary>
-        [Pure]
         public int BinarySearch(TValue value, int start, int length)
         {
             Contract.Requires(IsValid);
@@ -77,7 +76,6 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Indicates if the given element is contained in this array (via binary search).
         /// </summary>
-        [Pure]
         public bool Contains(TValue value)
         {
             Contract.Requires(IsValid);
@@ -102,7 +100,6 @@ namespace BuildXL.Utilities.Collections
         /// since the number of extras is (m - n) i.e., |x|, we then have <c>O(n + lg (m - n))</c> in that nice case.
         /// In short, this operation should be very fast for a 'small' number of possibly very large 'others'.
         /// </remarks>
-        [Pure]
         public SortedReadOnlyArray<TValue, TComparer> ExceptWith(params SortedReadOnlyArray<TValue, TComparer>[] others)
         {
             Contract.Requires(IsValid);
@@ -268,7 +265,6 @@ namespace BuildXL.Utilities.Collections
         /// <c>foreach (T item in array)</c> where 'array' has not been boxed as <see cref="IEnumerable"/>
         /// already, the compiler should target this implementation and avoid an allocation.
         /// </remarks>
-        [Pure]
         public ReadOnlyArray<TValue>.Enumerator GetEnumerator()
         {
             return m_array.GetEnumerator();

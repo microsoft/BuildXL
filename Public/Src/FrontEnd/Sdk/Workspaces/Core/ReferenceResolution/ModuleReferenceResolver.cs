@@ -152,7 +152,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Returns true if the module specifier is valid.
         /// </summary>
-        [Pure]
         public static bool IsValidModuleReference(ILiteralExpression specifier)
         {
             // Invalid specifiers are possible for IDE scenarios.

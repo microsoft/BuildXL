@@ -140,7 +140,6 @@ namespace BuildXL.Pips.Graph
             private bool m_isValidConstructedGraph = true;
 
             /// <inheritdoc />
-            [Pure]
             public bool IsImmutable => m_immutablePipGraph != null || !m_isValidConstructedGraph;
 
             private readonly PipGraphStaticFingerprints m_pipStaticFingerprints = new PipGraphStaticFingerprints();

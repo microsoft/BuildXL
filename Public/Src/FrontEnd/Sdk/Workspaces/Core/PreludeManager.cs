@@ -84,7 +84,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// before we parse and convert the config file we don't know know where the user-specified
         /// prelude module resides.
         /// </remarks>
-        [Pure]
         private async Task<Possible<ParsedModule>> CreatePreludeModuleAsync()
         {
             var moduleName = FrontEndHost.PreludeModuleName;

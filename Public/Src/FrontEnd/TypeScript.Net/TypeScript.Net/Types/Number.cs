@@ -140,7 +140,6 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns <see cref="long"/> representation of the numeric value.
         /// </summary>
-        [Pure]
         public long AsInt64()
         {
             return (long)m_value;
@@ -149,7 +148,6 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns <see cref="int"/> representation of the numeric value.
         /// </summary>
-        [Pure]
         public int AsInt32()
         {
             return (int)m_value;
@@ -166,7 +164,6 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns <see cref="uint"/> representation of the numeric value.
         /// </summary>
-        [Pure]
         public uint AsUInt32()
         {
             return (uint)m_value;
@@ -184,7 +181,6 @@ namespace TypeScript.Net.Types
         /// bool b = n.AsInt64() == n.Increment().AsInt64(); // this could be true!
         /// </code>
         /// </remarks>
-        [Pure]
         public Number Increment()
         {
             // This potentially can lead to issues, because m_value is double!

@@ -34,42 +34,36 @@ namespace BuildXL.FrontEnd.Script.Util
             });
 
         /// <nodoc />
-        [Pure]
         public static bool IsNullOrUndefined(object value)
         {
             return value == null || value == UndefinedValue.Instance || value == UndefinedLiteral.Instance;
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsNumberType(this RuntimeTypeHandle type)
         {
             return s_primitiveTypes.Contains(type);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsUnitType(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(UnitValue).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsBooleanType(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(bool).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsEnumType(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(bool).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public static bool IsPrimitiveOrEnum(this TypeInfo type)
         {
@@ -77,70 +71,60 @@ namespace BuildXL.FrontEnd.Script.Util
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsString(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(string).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsFullSymbol(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(FullSymbol).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsFileArtifact(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(FileArtifact).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsDirectoryArtifact(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(DirectoryArtifact).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsPathAtom(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(PathAtom).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsRelativePath(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(RelativePath).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsUnionType(this TypeInfo type)
         {
             return typeof(DiscriminatingUnion).IsAssignableFrom(type);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsLazyEval(this TypeInfo type)
         {
             return typeof(ILazyEval).IsAssignableFrom(type);
         }
 
         /// <nodoc />
-        [Pure]
         public static bool IsAbsolutePath(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(AbsolutePath).TypeHandle);
         }
 
         /// <nodoc />
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public static bool IsListOfT(this TypeInfo type)
         {
@@ -148,7 +132,6 @@ namespace BuildXL.FrontEnd.Script.Util
         }
 
         /// <nodoc />
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public static bool IsReadOnlyListOfT(this TypeInfo type)
         {
@@ -156,7 +139,6 @@ namespace BuildXL.FrontEnd.Script.Util
         }
 
         /// <nodoc />
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public static bool IsDictionaryOfT(this TypeInfo type)
         {
@@ -164,7 +146,6 @@ namespace BuildXL.FrontEnd.Script.Util
         }
 
         /// <nodoc />
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public static bool IsReadOnlyDictionaryOfT(this TypeInfo type)
         {

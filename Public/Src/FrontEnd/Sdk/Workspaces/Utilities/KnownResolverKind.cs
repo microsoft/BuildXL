@@ -53,7 +53,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Returns whether a given string is a valid resolver kind.
         /// </summary>
-        [Pure]
         public static bool IsValid(string value)
         {
             return

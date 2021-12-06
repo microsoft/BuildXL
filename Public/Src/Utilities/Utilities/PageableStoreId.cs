@@ -370,7 +370,6 @@ namespace BuildXL.Utilities
             }
         }
 
-        [Pure]
         public bool Contains(PageableStoreId id)
         {
             Contract.Requires(id.IsValid);

@@ -58,7 +58,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Returns the value if this Optional has a value, or the specified alternative if this is the empty Optional
         /// </summary>
-        [Pure]
         public T ValueOrElse(T alternativeValue)
         {
             return HasValue ? m_value : alternativeValue;
@@ -68,7 +67,6 @@ namespace BuildXL.Utilities
         /// Returns the value if this Optional has a value, or calls the producer if this is the empty Optional
         /// </summary>
         /// <remarks>The producer of the alternative value is only called if this Optional is empty</remarks>
-        [Pure]
         public T ValueOrElse(Func<T> alternativeProducer)
         {
             return HasValue ? m_value : alternativeProducer();
@@ -78,7 +76,6 @@ namespace BuildXL.Utilities
         /// Returns a new Optional applying the binder if this Optional has a value; 
         /// otherwise returns the empty Optional.
         /// </summary>
-        [Pure]
         public Optional<T2> Then<T2>(Func<T, Optional<T2>> binder)
         {
             Contract.RequiresNotNull(binder);
@@ -89,7 +86,6 @@ namespace BuildXL.Utilities
         /// Returns a new Optional applying the specified function to the value if this Optional has a value; 
         /// otherwise returns the empty Optional.
         /// </summary>
-        [Pure]
         public Optional<T2> Then<T2>(Func<T, T2> then)
         {
             Contract.RequiresNotNull(then);

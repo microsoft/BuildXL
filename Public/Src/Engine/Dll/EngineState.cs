@@ -167,7 +167,6 @@ namespace BuildXL.Engine
         /// <summary>
         /// Whether this instance got disposed.
         /// </summary>
-        [Pure]
         public bool IsDisposed { get; private set; }
 
         private EngineState(

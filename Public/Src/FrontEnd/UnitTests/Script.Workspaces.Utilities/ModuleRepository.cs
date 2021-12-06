@@ -119,21 +119,18 @@ namespace Test.DScript.Workspaces.Utilities
         }
 
         /// <nodoc/>
-        [Pure]
         public bool ContainsModule(ModuleDescriptor module)
         {
             return m_backingDictionary.ContainsKey(module);
         }
 
         /// <nodoc/>
-        [Pure]
         public IEnumerable<ModuleDescriptor> GetAllModules()
         {
             return m_backingDictionary.Keys;
         }
 
         /// <nodoc/>
-        [Pure]
         public IReadOnlyCollection<string> GetSpecsForModule(ModuleDescriptor module)
         {
             return m_backingDictionary[module].Select(pair => pair.SpecContent).ToList();
@@ -180,7 +177,6 @@ namespace Test.DScript.Workspaces.Utilities
         /// If a <param name="path"/> points to a valid module and spec. The path is assumed to be obtained with
         /// <see cref="GetPathToModuleAndSpec"/> or <see cref="GetAllPathsForModule"/>
         /// </summary>
-        [Pure]
         public bool ContainsSpec(AbsolutePath path)
         {
             return FindSpec(path) != null;

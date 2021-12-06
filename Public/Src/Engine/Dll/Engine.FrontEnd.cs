@@ -635,7 +635,6 @@ namespace BuildXL.Engine
         /// When this is true, the entire <see cref="EngineSchedule"/> is available; subsequently,
         /// the engine can use the <see cref="EngineSchedule"/> and skip all the front-end phases.
         /// </summary>
-        [Pure]
         internal bool IsFullReuse => m_engineSchedule != null;
 
         /// <summary>
@@ -645,13 +644,11 @@ namespace BuildXL.Engine
         /// still run the front-end phases, but it should also try to reuse the previous pip
         /// graph and enable graph patching (if so configured).
         /// </summary>
-        [Pure]
         internal bool IsPartialReuse => m_pipGraph != null;
 
         /// <summary>
         /// 'NoReuse' means that nothing from the engine cache could be reused.
         /// </summary>
-        [Pure]
         internal bool IsNoReuse => !IsFullReuse && !IsPartialReuse;
 
         [ContractInvariantMethod]
@@ -663,13 +660,11 @@ namespace BuildXL.Engine
             Contract.Invariant(IsPartialReuse == (m_pipGraph != null));
         }
 
-        [Pure]
         internal InputTracker.InputChanges InputChanges { get; }
 
         /// <summary>
         /// May only be called when <see cref="IsFullReuse"/>.
         /// </summary>
-        [Pure]
         internal EngineSchedule EngineSchedule
         {
             get
@@ -682,7 +677,6 @@ namespace BuildXL.Engine
         /// <summary>
         /// May only be called when <see cref="IsPartialReuse"/>.
         /// </summary>
-        [Pure]
         internal PipGraph PipGraph
         {
             get
@@ -745,7 +739,6 @@ namespace BuildXL.Engine
         }
 
         [SuppressMessage("Microsoft.Performance", "CA1811:NoUpstreamCallers", Justification = "It has upstream callers, see method 'Invariant'")]
-        [Pure]
         private static int Bool2Int(bool b) => b ? 1 : 0;
     }
 }

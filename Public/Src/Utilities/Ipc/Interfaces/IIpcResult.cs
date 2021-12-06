@@ -55,19 +55,16 @@ namespace BuildXL.Ipc.Interfaces
         /// <summary>
         /// Whether the call succeeded.
         /// </summary>
-        [Pure]
         bool Succeeded { get; }
 
         /// <summary>
         /// Exit code.
         /// </summary>
-        [Pure]
         IpcResultStatus ExitCode { get; }
 
         /// <summary>
         /// Optional payload.
         /// </summary>
-        [Pure]
         string Payload { get; }
 
         /// <nodoc/>

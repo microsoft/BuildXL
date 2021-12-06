@@ -1250,7 +1250,6 @@ namespace BuildXL.FrontEnd.Core
             return location;
         }
 
-        [Pure]
         private List<IResolverSettings> GetSourceResolverSettingsWithDefaults(IConfiguration configuration)
         {
             bool existExplicitDefaultSourceResolver = false;
@@ -1580,7 +1579,6 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Creates a default source resolver from the build extent specified in the configuration.
         /// </summary>
-        [Pure]
         private IInternalDefaultDScriptResolverSettings CreateDefaultSourceResolverSettings(AbsolutePath configFilePath, IConfiguration configObject)
         {
             Contract.Requires(configFilePath.IsValid);

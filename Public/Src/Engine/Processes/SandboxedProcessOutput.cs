@@ -214,7 +214,6 @@ namespace BuildXL.Processes
         /// <summary>
         /// Checks whether the file has been saved to disk
         /// </summary>
-        [Pure]
         public bool IsSaved => Volatile.Read(ref m_fileName) != null;
 
         /// <summary>

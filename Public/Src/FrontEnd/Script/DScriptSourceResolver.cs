@@ -381,7 +381,6 @@ namespace BuildXL.FrontEnd.Script
                 TimeSpan.FromSeconds(FrontEndConfiguration.CycleDetectorStartupDelay()));
         }
 
-        [Pure]
         private bool IsPackageConfigFile(AbsolutePath path)
         {
             Contract.Requires(path.IsValid);

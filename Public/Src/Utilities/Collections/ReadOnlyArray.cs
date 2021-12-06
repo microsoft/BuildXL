@@ -160,7 +160,6 @@ namespace BuildXL.Utilities.Collections
         /// <c>foreach (T item in array)</c> where 'array' has not been boxed as <see cref="IEnumerable"/>
         /// already, the compiler should target this implementation and avoid an allocation.
         /// </remarks>
-        [Pure]
         public Enumerator GetEnumerator()
         {
             Contract.Requires(IsValid);

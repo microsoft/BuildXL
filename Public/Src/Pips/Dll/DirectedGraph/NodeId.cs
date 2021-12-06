@@ -69,7 +69,6 @@ namespace BuildXL.Pips.DirectedGraph
         /// Indicates if this Node ID and the one given represent the same underlying value. Note that it is only meaningful
         /// to compare Node IDs generated from the same NodeTable, but that condition is not enforced.
         /// </summary>
-        [Pure]
         public bool Equals(NodeId other)
         {
             return other.Value == Value;

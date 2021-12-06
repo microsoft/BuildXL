@@ -116,7 +116,6 @@ namespace BuildXL.Pips.DirectedGraph
         /// <summary>
         /// Checks if graph contains an edge.
         /// </summary>
-        [Pure]
         public bool ContainsEdge(NodeId source, NodeId target, bool isLight = false)
         {
             Contract.Requires(ContainsNode(source), "Argument source must be a valid node id");

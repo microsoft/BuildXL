@@ -1490,7 +1490,6 @@ namespace BuildXL.Native.IO.Windows
         /// Indicates if the extended (128-bit) file ID type is supported on this running OS.
         /// http://msdn.microsoft.com/en-us/library/windows/desktop/aa364227(v=vs.85).aspx
         /// </summary>
-        [Pure]
         private static bool IsExtendedFileIdSupported()
         {
             return s_runningWindows8OrAbove;

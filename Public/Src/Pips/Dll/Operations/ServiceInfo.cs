@@ -28,25 +28,21 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Whether and how this pip is related to service pips.
         /// </summary>
-        [Pure]
         public ServicePipKind Kind { get; }
 
         /// <summary>
         /// Service pip dependencies.
         /// </summary>
-        [Pure]
         public ReadOnlyArray<PipId> ServicePipDependencies { get; }
 
         /// <summary>
         /// A process to execute in order to gracefully kill this process.
         /// </summary>
-        [Pure]
         public PipId ShutdownPipId { get; }
 
         /// <summary>
         /// Finalization Pip Ids.
         /// </summary>
-        [Pure]
         public ReadOnlyArray<PipId> FinalizationPipIds { get; }
 
         /// <summary>
@@ -55,13 +51,11 @@ namespace BuildXL.Pips.Operations
         /// <remarks>
         /// Currently is used by ServicePipTracker to compute the overhang of service pips.
         /// </remarks>
-        [Pure]
         public StringId TagToTrack { get; }
 
         /// <summary>
         /// Print-friendly name for the trackable tag.
         /// </summary>
-        [Pure]
         public StringId DisplayNameForTrackableTag { get; }
 
         /// <nodoc />
@@ -122,7 +116,6 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <nodoc />
-        [Pure]
         public bool IsStartOrShutdownKind => Kind.IsStartOrShutdown();
 
         internal static ServiceInfo Service(PipId shutdownPipId)
@@ -136,7 +129,6 @@ namespace BuildXL.Pips.Operations
         }
 
         #region Serialization
-        [Pure]
         internal static ServiceInfo InternalDeserialize(BuildXLReader reader)
         {
             var kind = (ServicePipKind)reader.ReadByte();

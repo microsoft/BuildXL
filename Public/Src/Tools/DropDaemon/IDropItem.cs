@@ -21,41 +21,35 @@ namespace Tool.DropDaemon
         /// physically present on disk before <see cref="EnsureMaterialized"/> is called.
         /// </summary>
         [NotNull]
-        [Pure]
         string FullFilePath { get; }
 
         /// <summary>
         /// Relative path under which to associate the file with a drop.
         /// </summary>
         [NotNull]
-        [Pure]
         string RelativeDropPath { get; }
 
         /// <summary>
         /// (Optional) Pre-computed blob identifier.
         /// </summary>
         [CanBeNull]
-        [Pure]
         BlobIdentifier BlobIdentifier { get; }
 
         /// <summary>
         /// (Optional) Pre-computed file length.
         /// </summary>
-        [Pure]
         long FileLength { get; }
 
         /// <summary>
         /// Fully qualified name (endpoint + drop name) of a drop
         /// </summary>
         [NotNull]
-        [Pure]
         string FullyQualifiedDropName { get; }
 
         /// <summary>
         /// (Optional) File id.
         /// </summary>
         [CanBeNull]
-        [Pure]
         FileArtifact? Artifact { get; }
 
         /// <summary>

@@ -93,7 +93,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Erases the specific failure type of this instance.
         /// </summary>
-        [Pure]
         public Possible<TResult> WithGenericFailure()
         {
             return Succeeded ? new Possible<TResult>(m_result) : new Possible<TResult>(m_failure);
@@ -109,7 +108,6 @@ namespace BuildXL.Utilities
         /// Possible<int> maybeInt = maybeString.Then(s => TryParse(s));
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2, TFailure> Then<TResult2>(Func<TResult, Possible<TResult2, TFailure>> binder)
         {
             Contract.RequiresNotNull(binder);
@@ -119,7 +117,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Async version of <c>Then{TResult2}</c>
         /// </summary>
-        [Pure]
         public Task<Possible<TResult2, TFailure>> ThenAsync<TResult2>(Func<TResult, Task<Possible<TResult2, TFailure>>> binder)
         {
             Contract.RequiresNotNull(binder);
@@ -137,7 +134,6 @@ namespace BuildXL.Utilities
         /// Possible<int, BetaFailure> maybeInt = maybeString.Then<int, BetaFailure>(s => TryParse(s), f => new BetaFailure(...));
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2, TFailure2> Then<TResult2, TFailure2>(
             Func<TResult, Possible<TResult2, TFailure2>> resultBinder,
             Func<TFailure, Possible<TResult2, TFailure2>> failureBinder)
@@ -158,7 +154,6 @@ namespace BuildXL.Utilities
         /// Possible<int> maybeInt = maybeString.Then(s => s.Length);
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2, TFailure> Then<TResult2>(Func<TResult, TResult2> thenFunc)
         {
             Contract.RequiresNotNull(thenFunc);

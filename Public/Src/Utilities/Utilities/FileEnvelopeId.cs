@@ -23,7 +23,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Whether this instance is valid
         /// </summary>
-        [Pure]
         public bool IsValid => Value != null;
 
         /// <summary>
@@ -146,7 +145,6 @@ namespace BuildXL.Utilities
         /// <remarks>
         /// Only readable ASCII characters are accepted which have a trivial UTF8 encoding.
         /// </remarks>
-        [Pure]
         public static bool IsValidIdentifier(string id)
         {
             return

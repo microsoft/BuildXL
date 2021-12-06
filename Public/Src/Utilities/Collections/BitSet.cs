@@ -217,20 +217,17 @@ namespace BuildXL.Utilities.Collections
         /// Indicates if the given integer range size (as a bit count) is representable.
         /// The bit count must be some multiple of the underlying 64-bit entry size.
         /// </summary>
-        [Pure]
         public static bool IsValidBitCount(int bitCount)
         {
             return bitCount % 64 == 0;
         }
 
-        [Pure]
         private static int GetEntryCount(int bitCount)
         {
             Contract.RequiresDebug(IsValidBitCount(bitCount));
             return bitCount / 64;
         }
 
-        [Pure]
         private static int GetBitCount(int entryCount)
         {
             var result = checked(entryCount * 64);

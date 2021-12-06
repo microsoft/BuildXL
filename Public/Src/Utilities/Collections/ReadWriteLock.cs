@@ -26,7 +26,6 @@ namespace BuildXL.Utilities.Threading
         /// <summary>
         /// Indicates if the lock is valid
         /// </summary>
-        [Pure]
         public bool IsValid => m_locker != null;
 
         private ReadWriteLock(Locker locker)
@@ -46,7 +45,6 @@ namespace BuildXL.Utilities.Threading
         /// <summary>
         /// Acquires a read lock that can be disposed to release the lock
         /// </summary>
-        [Pure]
         public ReadLock AcquireReadLock()
         {
             EnterReadLock();
@@ -61,7 +59,6 @@ namespace BuildXL.Utilities.Threading
         /// can be triggered later by calling <see cref="ExcludeReads()"/>
         /// </remarks>
         /// <param name="allowReads">indicates whether the write lock allows reads to continue during write</param>
-        [Pure]
         public WriteLock AcquireWriteLock(bool allowReads = false)
         {
             EnterWriteLock(allowReads);
@@ -77,7 +74,6 @@ namespace BuildXL.Utilities.Threading
         /// </remarks>
         /// <param name="allowReads">indicates whether the write lock allows reads to continue during write</param>
         /// <returns>A valid write lock if the write lock was acquired. Otherwise, invalid write lock.</returns>
-        [Pure]
         public WriteLock TryAcquireWriteLock(bool allowReads = false)
         {
             bool acquired = TryEnterWriteLock(allowReads);
@@ -88,7 +84,6 @@ namespace BuildXL.Utilities.Threading
         /// Indicates if the lock has exclusive write access in which reader
         /// are excluded
         /// </summary>
-        [Pure]
         public bool HasExclusiveAccess => IsValid && m_locker.HasExclusiveAccess;
 
         /// <summary>
@@ -291,7 +286,6 @@ namespace BuildXL.Utilities.Threading
         /// <summary>
         /// Indicates if the lock is a properly initialized
         /// </summary>
-        [Pure]
         public bool IsValid => m_lock.IsValid;
 
         /// <summary>
@@ -331,14 +325,12 @@ namespace BuildXL.Utilities.Threading
         /// <summary>
         /// Indicates if the lock is a properly initialized
         /// </summary>
-        [Pure]
         public bool IsValid => m_lock.IsValid;
 
         /// <summary>
         /// Indicates if the lock has exclusive write access in which reader
         /// are excluded
         /// </summary>
-        [Pure]
         public bool HasExclusiveAccess => IsValid && m_lock.HasExclusiveAccess;
 
         /// <summary>

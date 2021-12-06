@@ -59,7 +59,6 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether this instance got disposed.
         /// </summary>
-        [Pure]
         public bool IsDisposed { get; private set; }
 
         /// <summary>

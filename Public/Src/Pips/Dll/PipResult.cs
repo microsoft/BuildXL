@@ -217,7 +217,6 @@ namespace BuildXL.Pips
         /// Converts this result to a value indicating execution vs. cache status.
         /// The result must indicate execution (see <see cref="IndicatesExecution"/>).
         /// </summary>
-        [Pure]
         public static PipExecutionLevel ToExecutionLevel(this PipResultStatus result)
         {
             Contract.Requires(result.IndicatesExecution());

@@ -293,7 +293,6 @@ namespace BuildXL.Storage
         ///    - Zero length is valid only for the "empty file" hash
         ///    - A special hash turns any length into an invalid length
         /// </summary>
-        [Pure]
         public static bool IsValidLength(long length, ContentHash hash)
         {
             if (length < 0

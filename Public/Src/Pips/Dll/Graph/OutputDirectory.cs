@@ -27,7 +27,6 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         /// <param name="directory">Directory to be checked.</param>
         /// <returns>True if <paramref name="directory" /> is an output directory.</returns>
-        [Pure]
         public static bool IsOutputDirectory(this DirectoryArtifact directory)
         {
             return (directory.IsValid && directory.PartialSealId == 0) || 

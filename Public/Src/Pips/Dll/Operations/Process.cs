@@ -372,7 +372,6 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Whether this Process is a start or shutdown pip for a service
         /// </summary>
-        [Pure]
         public bool IsStartOrShutdownKind => ServiceInfo != null && ServiceInfo.IsStartOrShutdownKind;
 
         /// <summary>

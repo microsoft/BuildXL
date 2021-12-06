@@ -765,7 +765,6 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Returns true if the given absolute path lies within (under) another path.
         /// </summary>
-        [Pure]
         public bool IsPathWithinPath(AbsolutePath path, AbsolutePath potentialContainer)
         {
             return path.IsWithin(m_pathTable, potentialContainer);

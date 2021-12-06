@@ -368,7 +368,6 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the command line, comprised of the executable file name and the arguments.
         /// </summary>
-        [Pure]
         public string GetCommandLine()
         {
             m_commandLine = m_commandLine ?? CommandLineEscaping.EscapeAsCreateProcessApplicationName(FileName) + " " + Arguments;
@@ -379,7 +378,6 @@ namespace BuildXL.Processes
         /// Gets the root mappings as a unicode block.
         /// Format: ((drive letter unicode character)(null terminated target path string))* (null character)
         /// </summary>
-        [Pure]
         public string GetUnicodeRootMappingBlock()
         {
             IReadOnlyDictionary<string, string> rootMappings = RootMappings;
@@ -413,7 +411,6 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the current environment variables, if any, as a unicode environment block
         /// </summary>
-        [Pure]
         public byte[] GetUnicodeEnvironmentBlock()
         {
             return m_environmentBlock ?? (m_environmentBlock = ProcessUtilities.SerializeEnvironmentBlock(EnvironmentVariables?.ToDictionary()));

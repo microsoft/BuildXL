@@ -68,7 +68,6 @@ namespace BuildXL.Pips.DirectedGraph
         /// <summary>
         /// Indicates if this range contains the specified node.
         /// </summary>
-        [Pure]
         public bool Contains(NodeId node)
         {
             Contract.Requires(node.IsValid);

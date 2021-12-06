@@ -430,7 +430,6 @@ namespace BuildXL.Pips
         /// <summary>
         /// Whether a Pip id is valid in this table.
         /// </summary>
-        [Pure]
         public bool IsValid(PipId pipId)
         {
             return (pipId.Value > 0 && pipId.Value <= m_lastId && m_mutables[pipId.Value] != null) || pipId == PipId.DummyHashSourceFilePipId;

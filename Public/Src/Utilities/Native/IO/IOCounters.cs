@@ -154,7 +154,6 @@ namespace BuildXL.Native.IO
         /// Computes the aggregate I/O performed (sum of the read, write, and other counters).
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        [Pure]
         public IOTypeCounters GetAggregateIO()
         {
             ulong operationsCount;

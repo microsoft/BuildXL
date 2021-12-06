@@ -13,7 +13,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Validates components of a range specification.
         /// </summary>
-        [Pure]
         public static bool IsValid(int index, int count, int available)
         {
             Contract.Requires(available >= 0);
@@ -35,7 +34,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Validates components of a range specification.
         /// </summary>
-        [Pure]
         public static bool IsValid(int index, int count)
         {
             Contract.Requires(count >= 0);

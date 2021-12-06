@@ -18,7 +18,6 @@ namespace BuildXL.Ipc.Interfaces
         /// <summary>
         /// Task to wait on for the completion of this object.
         /// </summary>
-        [Pure]
         Task Completion { get; }
 
         /// <summary>

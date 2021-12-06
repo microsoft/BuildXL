@@ -30,7 +30,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Return true if <paramref name="value"/> is a regular path and not a path atom or path fragment.
         /// </summary>
-        [Pure]
         public static bool IsRegularPath(StringSegment value)
         {
             return !IsPathAtom(value) && !IsPathFragment(value);
@@ -51,7 +50,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Returns true if <paramref name="value"/> starts with @
         /// </summary>
-        [Pure]
         public static bool IsPathAtom(StringSegment value)
         {
             if (value.Length == 0)
@@ -79,7 +77,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Returns true if <paramref name="value"/> starts with #
         /// </summary>
-        [Pure]
         public static bool IsPathFragment(StringSegment value)
         {
             if (value.Length == 0)

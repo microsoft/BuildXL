@@ -45,7 +45,6 @@ namespace BuildXL.FrontEnd.Script.Values
         /// Please use this to check if something is an error rather than comparing values to the <see cref="ErrorValue.InternalInstance"/> property.
         /// This will aid in debugging since we can place a breakpoint in the body of the Instance property to find when an error is reported first.
         /// </remarks>
-        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsErrorValue(this object o)
         {

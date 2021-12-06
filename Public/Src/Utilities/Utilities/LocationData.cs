@@ -24,7 +24,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Determines whether token data is valid or not.
         /// </summary>
-        [Pure]
         public bool IsValid => Path.IsValid;
 
         /// <summary>

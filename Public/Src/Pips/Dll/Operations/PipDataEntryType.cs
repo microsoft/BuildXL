@@ -119,7 +119,6 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Whether the enum constant is one of the 3 Vso values.
         /// </summary>
-        [Pure]
         public static bool IsVsoHash(this PipDataEntryType entryType)
         {
             return

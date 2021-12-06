@@ -235,7 +235,6 @@ namespace BuildXL.Storage
         /// Demotes this identity to be weak. This is useful for strength-independent comparisons.
         /// The identity must be <see cref="IdentityKind.WeakUsn"/> or <see cref="IdentityKind.StrongUsn"/>
         /// </summary>
-        [Pure]
         public VersionedFileIdentity ToWeakIdentity()
         {
             Contract.Requires(Kind.IsWeakOrStrong());

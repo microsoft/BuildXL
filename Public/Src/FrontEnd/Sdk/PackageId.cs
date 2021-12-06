@@ -111,7 +111,6 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Gets the string representation.
         /// </summary>
-        [Pure]
         public string ToString(StringTable stringTable)
         {
             if (stringTable == null)

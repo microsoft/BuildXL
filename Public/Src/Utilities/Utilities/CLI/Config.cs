@@ -96,10 +96,8 @@ namespace BuildXL.Utilities.CLI
         /// <summary>See <see cref="IParser.Render(Config)"/>.</summary>
         public string Render() => Parser.Render(this);
 
-        [Pure]
         private static string ToStr(List<IGrouping<Option, string>> grps) => string.Join(", ", grps.Select(grp => grp.Key.LongName));
 
-        [Pure]
         private static string ToStr(List<Option> opts) => string.Join(", ", opts.Select(o => o.LongName));
 
         private static ILookup<Option, string> ParseOptions(Queue<string> argsQueue, IParser parser,
@@ -170,13 +168,11 @@ namespace BuildXL.Utilities.CLI
                 FindNode(node.Next, longName);
         }
 
-        [Pure]
         private static string PrintDiagnostics(List<string> diagnostics)
         {
             return string.Join(Environment.NewLine, diagnostics.Select(s => " *** " + s));
         }
 
-        [Pure]
         private static IEnumerable<ParsedOption> SafeExpand(Option matchedOption, ParsedOption parsedOption, IParser parser, List<string> diagnostics)
         {
             try
@@ -190,7 +186,6 @@ namespace BuildXL.Utilities.CLI
             }
         }
 
-        [Pure]
         private static void CreateIndexes(IEnumerable<Option> confOptions, StringComparer comparer, out Dictionary<string, Option> longNameIndex, out Dictionary<string, Option> shortNameIndex)
         {
             longNameIndex = new Dictionary<string, Option>(comparer);
@@ -210,7 +205,6 @@ namespace BuildXL.Utilities.CLI
             }
         }
 
-        [Pure]
         private static TV LookUp<TK, TV>(TK key, params Dictionary<TK, TV>[] indexes)
         {
             foreach (var index in indexes)

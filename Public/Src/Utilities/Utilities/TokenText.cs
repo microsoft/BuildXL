@@ -72,7 +72,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Gets the length in character of a token text string.
         /// </summary>
-        [Pure]
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public int GetLength(TokenTextTable table)
         {
@@ -84,7 +83,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Determines whether an instance is valid or not.
         /// </summary>
-        [Pure]
         public bool IsValid => this != Invalid;
 
         /// <summary>
@@ -166,7 +164,6 @@ namespace BuildXL.Utilities
         /// </summary>
         /// <param name="table">The path table used when creating the TokenText.</param>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        [Pure]
         public string ToString(TokenTextTable table)
         {
             Contract.RequiresNotNull(table);

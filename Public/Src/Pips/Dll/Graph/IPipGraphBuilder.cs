@@ -15,7 +15,6 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Indicates whether the pip graph has been finalized such that further modifications are not allowed.
         /// </summary>
-        [Pure]
         bool IsImmutable { get; }
 
         /// <summary>

@@ -269,7 +269,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// The length of the segment
         /// </summary>
-        [Pure]
         public int Length => m_isAscii ? m_value.Length : m_value.Length / 2;
 
         /// <summary>

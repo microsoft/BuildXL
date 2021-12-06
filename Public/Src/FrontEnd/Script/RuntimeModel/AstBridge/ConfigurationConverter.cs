@@ -18,7 +18,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
     /// </summary>
     internal static class ConfigurationConverter
     {
-        [Pure]
         public static bool IsConfigurationDeclaration(this IStatement statement)
         {
             Contract.Requires(statement != null);

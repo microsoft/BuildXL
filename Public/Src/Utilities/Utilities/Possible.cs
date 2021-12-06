@@ -129,7 +129,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Erases the specific failure type of this instance.
         /// </summary>
-        [Pure]
         public Possible<TResult, Failure> WithGenericFailure()
         {
             return this;
@@ -145,7 +144,6 @@ namespace BuildXL.Utilities
         /// Possible<int> maybeInt = maybeString.Then(s => TryParse(s));
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2> Then<TResult2>(Func<TResult, Possible<TResult2>> binder)
         {
             Contract.Requires(binder != null);
@@ -155,7 +153,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Async version of <c>Then{TResult2}</c>
         /// </summary>
-        [Pure]
         public Task<Possible<TResult2>> ThenAsync<TResult2>(Func<TResult, Task<Possible<TResult2>>> binder)
         {
             Contract.Requires(binder != null);
@@ -173,7 +170,6 @@ namespace BuildXL.Utilities
         /// Possible<int, BetaFailure> maybeInt = maybeString.Then<int, BetaFailure>(s => TryParse(s), f => new BetaFailure(...));
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2, TFailure2> Then<TResult2, TFailure2>(
             Func<TResult, Possible<TResult2, TFailure2>> resultBinder,
             Func<Failure, Possible<TResult2, TFailure2>> failureBinder)
@@ -194,7 +190,6 @@ namespace BuildXL.Utilities
         /// Possible<int> maybeInt = maybeString.Then(s => s.Length);
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2> Then<TResult2>(Func<TResult, TResult2> thenFunc)
         {
             Contract.Requires(thenFunc != null);
@@ -211,7 +206,6 @@ namespace BuildXL.Utilities
         /// Possible<int> maybeInt = maybeString.Then(s => s.Length);
         /// ]]>
         /// </example>
-        [Pure]
         public Possible<TResult2> Then<TData, TResult2>(TData data, Func<TData, TResult, TResult2> thenFunc)
         {
             Contract.Requires(thenFunc != null);

@@ -76,7 +76,6 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// Checks whether a character may represent a drive letter
         /// </summary>
-        [Pure]
         public static bool IsDriveLetter(char driveLetter) => char.IsLetter(driveLetter) && driveLetter > 64 && driveLetter < 123;
 
         /// <inheritdoc />

@@ -138,7 +138,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
         }
 
-        [Pure]
         public List<NodeHandler> GetHandlers(RuleAnalysisScope scope, TypeScript.Net.Types.SyntaxKind syntaxKind)
         {
             Contract.Requires(IsSingleCaseEnum(scope), "Scope should have just once bit enabled!");
@@ -154,7 +153,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// In some cases this analysis is critical because it simplifies a lot an implementation logic and lead to more efficient implementation.
         /// This method is public only due to Code Contracts requirements.
         /// </remarks>
-        [Pure]
         public static bool IsSingleCaseEnum(RuleAnalysisScope scope)
         {
             return NumberOfSetBits((int)scope) == 1;

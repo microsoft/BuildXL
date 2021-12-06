@@ -68,7 +68,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Gets whether flags exist for all bits set in the integral value of the enum
         /// </summary>
-        [Pure]
         public static bool AreFlagsDefined(ulong value)
         {
             return (s_allFlags & value) == value;

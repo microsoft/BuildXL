@@ -94,7 +94,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Determines whether a name id is valid or not.
         /// </summary>
-        [Pure]
         public bool IsValid => this != Invalid;
     }
 }

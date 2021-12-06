@@ -59,7 +59,6 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Unique identifier for a graph, established at creation time. This ID is durable under serialization and deserialization.
         /// </summary>
-        [Pure]
         public Guid GraphId { get; }
 
         /// <summary>
@@ -74,7 +73,6 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Gets the range of node IDs valid in the current graph.
         /// </summary>
-        [Pure]
         public NodeRange NodeRange => DataflowGraph.NodeRange;
 
         /// <summary>
@@ -546,7 +544,6 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Checks if a number is a valid numeric representation of a pip
         /// </summary>
-        [Pure]
         public bool CanGetPipFromUInt32(uint value)
         {
             var nodeId = new NodeId(value);

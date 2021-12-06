@@ -161,7 +161,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Returns corresponding <see cref="BuildXL.Utilities.FileArtifact"/> with the same path and write count.
         /// </summary>
-        [Pure]
         public FileArtifact ToFileArtifact()
         {
             if (!IsValid)

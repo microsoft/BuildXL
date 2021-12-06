@@ -41,7 +41,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     This is an overload for <see cref="Equals{T}" /> that prevents bad calls.
         ///     Without it, one could use a value type for the right-hand-side and accidentally box it.
         /// </summary>
-        [ContractVerification(false)]
         public static bool Equals<TLeft, TRight>(TLeft left, TRight right)
             where TLeft : struct
             where TRight : struct

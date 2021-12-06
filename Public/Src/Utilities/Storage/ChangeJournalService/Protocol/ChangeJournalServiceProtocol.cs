@@ -154,7 +154,6 @@ namespace BuildXL.Storage.ChangeJournalService.Protocol
         /// <summary>
         /// Volume GUID path for the volume from which to query journal state.
         /// </summary>
-        [ContractVerification(false)] // TODO: cccheck bug?
         public VolumeGuidPath VolumeGuidPath
         {
             get
@@ -240,7 +239,6 @@ namespace BuildXL.Storage.ChangeJournalService.Protocol
         /// <summary>
         /// Volume GUID path for the volume from which to read changes.
         /// </summary>
-        [ContractVerification(false)] // TODO: cccheck bug?
         public VolumeGuidPath VolumeGuidPath
         {
             get

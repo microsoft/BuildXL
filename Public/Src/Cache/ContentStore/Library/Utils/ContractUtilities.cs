@@ -18,9 +18,6 @@ namespace BuildXL.Cache.ContentStore.Utils
         ///     default if all enum values have cases). For informing the C# compiler, this function
         ///     allegedly returns an exception. This allows e.g. <code>throw ContractUtilities.AssertFailure("Oh no!");</code>
         /// </summary>
-        /// <remarks>ContractVerification(false) is required here due to the unsatisfiable Requires(false) precondition.</remarks>
-        [ContractVerification(false)]
-
         // ReSharper disable once UnusedParameter.Global
         // ReSharper disable once UnusedMethodReturnValue.Global
         public static Exception AssertFailure([Localizable(false)] string message)

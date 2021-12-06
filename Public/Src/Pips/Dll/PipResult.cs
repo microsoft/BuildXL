@@ -187,7 +187,6 @@ namespace BuildXL.Pips
         /// <summary>
         /// Indicates if a pip's result indicates that it failed.
         /// </summary>
-        [Pure]
         public static bool IndicatesFailure(this PipResultStatus result)
         {
             // Note: Skipped pips are not considered failures because they do not by themselves cause a build to fail.
@@ -208,7 +207,6 @@ namespace BuildXL.Pips
         /// <summary>
         /// Indicates if a pip's result indications some level of execution, though possibly just an up-to-date check (i.e., not skipped entirely).
         /// </summary>
-        [Pure]
         public static bool IndicatesExecution(this PipResultStatus result)
         {
             return result == PipResultStatus.UpToDate || result == PipResultStatus.NotMaterialized || result == PipResultStatus.DeployedFromCache ||
@@ -220,7 +218,6 @@ namespace BuildXL.Pips
         /// The result must indicate execution (see <see cref="IndicatesExecution"/>).
         /// </summary>
         [Pure]
-        [ContractVerification(false)]
         public static PipExecutionLevel ToExecutionLevel(this PipResultStatus result)
         {
             Contract.Requires(result.IndicatesExecution());

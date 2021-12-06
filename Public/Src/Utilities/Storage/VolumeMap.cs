@@ -58,7 +58,6 @@ namespace BuildXL.Storage
         /// Creates a map of local volumes. In the event of a collision which prevents constructing a serial -> path mapping,
         /// a warning is logged and those volumes are excluded from the map. On failure, returns null.
         /// </summary>
-        [ContractVerification(false)]
         public static VolumeMap CreateMapOfAllLocalVolumes(
             LoggingContext loggingContext,
             IReadOnlyList<string> junctionRoots = null,

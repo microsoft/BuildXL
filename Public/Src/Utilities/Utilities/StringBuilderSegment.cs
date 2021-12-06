@@ -141,7 +141,6 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc/>
-        [ContractVerification(false)]
         public override int GetHashCode()
         {
             uint hash = 5381;
@@ -224,7 +223,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Checks if the segment only contains valid characters for a path atom.
         /// </summary>
-        [ContractVerification(false)]
         public bool CheckIfOnlyContainsValidPathAtomChars(out int characterWithError)
         {
             int end = m_index + Length;
@@ -244,7 +242,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Checks if the segment only contains valid characters for an identifier atom.
         /// </summary>
-        [ContractVerification(false)]
         public bool CheckIfOnlyContainsValidIdentifierAtomChars(out int characterWithError)
         {
             int end = m_index + Length;
@@ -274,7 +271,6 @@ namespace BuildXL.Utilities
         /// Note that this considers 0 as non-ASCII for the sake of the StringTable which treats character 0
         /// as a special marker.
         /// </remarks>
-        [ContractVerification(false)]
         public bool OnlyContains8BitChars
         {
             get

@@ -16,8 +16,6 @@ namespace BuildXL.Utilities
         /// <example>
         /// Contract.Requires(ContractUtilities.Static(ExpensiveCheckIsTrue()));
         /// </example>
-        [ContractVerification(false)]
-        [ContractRuntimeIgnored]
         [Pure]
         public static bool Static(bool expression)
         {

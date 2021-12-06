@@ -77,7 +77,6 @@ namespace BuildXL.Pips
         /// This property is changed by the scheduler to reflect the pip's current state. The initial
         /// state is <see cref="PipState.Ignored" /> (until the pip is chosen for execution).
         /// </remarks>
-        [ContractVerification(false)]
         public PipState State
         {
             get

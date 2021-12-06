@@ -86,7 +86,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Compares this segment to a 8-bit character array starting at some index
         /// </summary>
-        [ContractVerification(false)]
         public bool Equals8Bit(byte[] buffer, int index)
         {
             for (int i = 0; i < Length; i++)
@@ -104,7 +103,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Compares this segment to a 16-bit characters drawn from a byte array starting at some index
         /// </summary>
-        [ContractVerification(false)]
         public bool Equals16Bit(byte[] buffer, int index)
         {
             for (int i = 0; i < Length; i++)
@@ -126,7 +124,6 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc/>
-        [ContractVerification(false)]
         public override int GetHashCode()
         {
             uint hash = 5381;
@@ -192,7 +189,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Copy the content of this segment to a byte buffer, assuming the segment only contains ASCII characters.
         /// </summary>
-        [ContractVerification(false)]
         public void CopyAs8Bit(byte[] buffer, int index)
         {
             if (m_isAscii)
@@ -212,7 +208,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Copy the content of this segment to a byte buffer, assuming the segment only contains ASCII characters.
         /// </summary>
-        [ContractVerification(false)]
         public void CopyAs16Bit(byte[] buffer, int index)
         {
             if (m_isAscii)
@@ -233,7 +228,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Checks if the segment only contains valid characters for a path atom.
         /// </summary>
-        [ContractVerification(false)]
         public bool CheckIfOnlyContainsValidPathAtomChars(out int characterWithError)
         {
             for (int i = 0; i < Length; i++)
@@ -252,7 +246,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Checks if the segment only contains valid characters for an identifier atom.
         /// </summary>
-        [ContractVerification(false)]
         public bool CheckIfOnlyContainsValidIdentifierAtomChars(out int characterWithError)
         {
             for (int i = 0; i < Length; i++)
@@ -286,7 +279,6 @@ namespace BuildXL.Utilities
         /// Note that this considers 0 as non-ASCII for the sake of the StringTable which treats character 0
         /// as a special marker.
         /// </remarks>
-        [ContractVerification(false)]
         public bool OnlyContains8BitChars => m_isAscii;
     }
 }

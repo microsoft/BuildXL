@@ -40,7 +40,6 @@ namespace BuildXL.Utilities
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "left")]
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "right")]
-        [ContractVerification(false)]
         public static bool Equals<TLeft, TRight>(TLeft left, TRight right) where TLeft : struct where TRight : struct
         {
             Contract.Requires(false, "Don't call StructUtilities.Equals with a value type on the right! That makes silly boxes.");

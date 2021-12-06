@@ -199,7 +199,6 @@ namespace BuildXL.Pips.Operations
         /// You can only call this function for instances where Type is equal to PipDataFragmentType.NestedFragment.
         /// </remarks>
         /// <returns>Value as string</returns>
-        [ContractVerification(false)]
         public PipData GetNestedFragmentValue()
         {
             Contract.Requires(FragmentType == PipFragmentType.NestedFragment);

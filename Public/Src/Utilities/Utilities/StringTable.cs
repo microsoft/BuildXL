@@ -546,7 +546,6 @@ namespace BuildXL.Utilities
             return getOrAddResult.Item;
         }
 
-        [ContractVerification(false)]
         private StringId AddStringToBuffer<T>(T seg) where T : struct, ICharSpan<T>
         {
             Contract.Requires(IsValid());
@@ -761,7 +760,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Copies a string from this table into a char[].
         /// </summary>
-        [ContractVerification(false)]
         internal int CopyString(StringId id, char[] destination, int destinationIndex, bool isEndIndex = false)
         {
             return CopyString(id, ref destination, destinationIndex, isEndIndex: isEndIndex, allowResizeBuffer: false);
@@ -770,7 +768,6 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Copies a string from this table into a char[].
         /// </summary>
-        [ContractVerification(false)]
         internal int CopyString(StringId id, ref char[] destination, int destinationIndex, bool isEndIndex = false, bool allowResizeBuffer = true)
         {
             Contract.Requires(IsValid());

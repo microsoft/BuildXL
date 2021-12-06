@@ -18,7 +18,14 @@ namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
     /// </summary>
     internal sealed class MultiplexingSocketBasedIpcProvider : IIpcProvider
     {
-        private readonly ConcurrentDictionary<string, string> m_moniker2connectionString = new ConcurrentDictionary<string, string>();
+        /// <summary>
+        /// 'GetOrAdd(key, valueFactory)' guarantees that all concurrent callers receive the same result per key, but it doesn't guarantee
+        /// that the 'valueFactory' function is executed only once per key.  To ensure that our 'valueFactory' function
+        /// (which calls GetUnusedPortNumber(), which can unnecessarily put a strain on system resources)
+        /// is called at most once per key, we wrap the value in a Lazy object, because the 'Lazy.Value' getter
+        /// does provide that guarantee when concurrent readers are present.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Lazy<string>> m_moniker2connectionString = new ConcurrentDictionary<string, Lazy<string>>();
 
         /// <summary>
         /// Creates and returns a new moniker tied to an arbitrary free port.
@@ -42,7 +49,11 @@ namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
         /// </summary>
         string IIpcProvider.RenderConnectionString(IIpcMoniker moniker)
         {
-            return m_moniker2connectionString.GetOrAdd(moniker.Id, (mId) => Utils.GetUnusedPortNumber().ToString(CultureInfo.InvariantCulture));
+            return m_moniker2connectionString
+                .GetOrAdd(
+                    moniker.Id,
+                    valueFactory: (mId) => new Lazy<string>(() => Utils.GetUnusedPortNumber().ToString(CultureInfo.InvariantCulture)))
+                .Value;
         }
 
         IClient IIpcProvider.GetClient(string connectionString, IClientConfig config)

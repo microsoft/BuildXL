@@ -25,7 +25,6 @@ namespace BuildXL.Utilities.Tasks
         /// Returns a faulted task containing the given exception.
         /// This is the failure complement of <see cref="Task.FromResult{TResult}" />.
         /// </summary>
-        [ContractOption("runtime", "checking", false)]
         public static Task<T> FromException<T>(Exception ex)
         {
             Contract.RequiresNotNull(ex);

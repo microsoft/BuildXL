@@ -231,7 +231,7 @@ namespace BuildXL.Utilities.Collections
         private static int GetBitCount(int entryCount)
         {
             var result = checked(entryCount * 64);
-            Contract.AssertDebug(IsValidBitCount(Contract.Result<int>()));
+            Contract.AssertDebug(IsValidBitCount(result));
             return result;
         }
 
@@ -242,7 +242,7 @@ namespace BuildXL.Utilities.Collections
         public static int RoundToValidBitCount(int unroundedBitCount)
         {
             var result = checked(unroundedBitCount + 63) & ~63;
-            Contract.AssertDebug(IsValidBitCount(Contract.Result<int>()));
+            Contract.AssertDebug(IsValidBitCount(result));
             return result;
         }
 

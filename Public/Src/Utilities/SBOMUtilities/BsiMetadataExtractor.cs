@@ -6,7 +6,7 @@ using System.IO;
 using Newtonsoft.Json;
 using SBOMApi.Contracts;
 
-namespace BuildXL.SBOMUtilities
+namespace BuildXL.Utilities.SBOMUtilities
 {
     /// <summary>
     /// Utility class to produce entities of the SBOM API object model from a CloudBuild BuildSessionInfo file.

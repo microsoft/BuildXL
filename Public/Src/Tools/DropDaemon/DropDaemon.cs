@@ -16,7 +16,6 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
-using BuildXL.SBOMUtilities;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
@@ -70,6 +69,10 @@ namespace Tool.DropDaemon
         private readonly SBOMApi.ISBOMGenerator m_sbomGenerator;
         private BsiMetadataExtractor m_bsiMetadataExtractor;
         private readonly string m_sbomGenerationOutputDirectory;
+        /// <summary>
+        /// If set to 1, SBOMPackages will be added from component detection data to the SBOM.
+        /// </summary>
+        private const string m_enableSBOMPackageConversion = "__ENABLE_SBOM_PACKAGE_CONVERSION";
 
         // This field should be removed once this SBOM format is deprecated
         // Related work item: #1895958.
@@ -870,34 +873,40 @@ namespace Tool.DropDaemon
         /// </returns>
         private IEnumerable<SBOMPackage> GetSbomPackages()
         {
-            // Read Path for bcde output from environment, this should already be set by Cloudbuild
-            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
-
-            if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
+            var shouldConvertPackages = Environment.GetEnvironmentVariable(m_enableSBOMPackageConversion);
+            if (shouldConvertPackages != null && shouldConvertPackages == "1")
             {
-                // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
-                // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
-                Logger.Info($"The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
-                return new List<SBOMPackage>();
-            }
-            else if (!System.IO.File.Exists(bcdeOutputJsonPath))
-            {
-                Logger.Warning($"Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
-                return new List<SBOMPackage>();
+                // Read Path for bcde output from environment, this should already be set by Cloudbuild
+                var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
+
+                if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
+                {
+                    // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
+                    // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
+                    Logger.Info($"The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
+                    return new List<SBOMPackage>();
+                }
+                else if (!System.IO.File.Exists(bcdeOutputJsonPath))
+                {
+                    Logger.Warning($"Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
+                    return new List<SBOMPackage>();
+                }
+
+                var sbomLogger = new SBOMConverterLogger(
+                    m => Logger.Info(m),
+                    m => Logger.Warning(m),
+                    m => Logger.Warning(m)); // TODO: Change this to an error once testing is complete
+                var result = ComponentDetectionConverter.TryConvert(bcdeOutputJsonPath, sbomLogger, out var packages);
+
+                if (!result)
+                {
+                    Logger.Warning($"ComponentDetectionConverter did not complete successfully.");
+                }
+
+                return packages ?? new List<SBOMPackage>();
             }
 
-            var sbomLogger = new SBOMConverterLogger(
-                m => Logger.Info(m),
-                m => Logger.Warning(m),
-                m => Logger.Warning(m)); // TODO: Change this to an error once testing is complete
-            var result = ComponentDetectionConverter.TryConvert(bcdeOutputJsonPath, sbomLogger, out var packages);
-
-            if (!result)
-            {
-                Logger.Warning($"ComponentDetectionConverter did not complete successfully.");
-            }
-
-            return packages ?? new List<SBOMPackage>();
+            return new List<SBOMPackage>();
         }
 
         /// <summary>

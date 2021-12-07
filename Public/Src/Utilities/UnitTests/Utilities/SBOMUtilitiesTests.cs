@@ -3,7 +3,7 @@
 
 #if MICROSOFT_INTERNAL
 using System.IO;
-using BuildXL.SBOMUtilities;
+using BuildXL.Utilities.SBOMUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using SBOMApi.Contracts;

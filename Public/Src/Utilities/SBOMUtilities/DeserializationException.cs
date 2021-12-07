@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace BuildXL.SBOMUtilities
+namespace BuildXL.Utilities.SBOMUtilities
 {
     /// <summary>
     /// Exception thrown when encountering errors during a deserialization operation.

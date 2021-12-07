@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: windows-latest
 
 steps:
 - script: echo Hello, world!
@@ -26,4 +26,8 @@ steps:
     echo "##[debug]Debug text"
     echo "##[command]Command-line being run"
     echo "##[endgroup]"
+    echo
+    echo
+    echo "##vso[task.logIssue type=error;sourcepath=B:\config.dsc;linenumber=0;columnnumber=0;code=DX0287;]F:\src\BuildXL.Internal.mpysson\config.dsc(0,0): Unable to create file access allowlist entry"
+    echo "##vso[task.logIssue type=error;sourcepath=B:\config.dsc;code=DX0287;]F:\src\BuildXL.Internal.mpysson\config.dsc(0,0): Unable to create file access allowlist entry"
   displayName: 'Run a multi-line script'

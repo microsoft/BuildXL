@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SBOMConverter;
-using SBOMApi.Contracts;
+using Microsoft.Sbom.Contracts;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;

@@ -12,9 +12,7 @@ namespace SBOMUtilities {
                 BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll
             ),
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("Microsoft.SBOMApi").pkg,
-            // TODO: Uncomment this and remove SBOMApi once newer versions are stable
-            //importFrom("Microsoft.Sbom.Contracts").pkg,
+            importFrom("Microsoft.Sbom.Contracts").pkg,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Utilities",

@@ -4,7 +4,8 @@
 using System;
 using System.IO;
 using Newtonsoft.Json;
-using SBOMApi.Contracts;
+using Microsoft.Sbom.Contracts;
+using Microsoft.Sbom.Contracts.Enums;
 
 namespace BuildXL.Utilities.SBOMUtilities
 {
@@ -62,13 +63,14 @@ namespace BuildXL.Utilities.SBOMUtilities
         {
             return new SBOMMetadata()
             {
-                BuildEnvironmentName = "CloudBuild",    // TODO: The API will provide an enum with this as a well-known value
+                BuildEnvironmentName = BuildEnvironmentName.BuildXL,
                 BuildName = m_backingBsi.BuildQueue,
                 BuildId = m_backingBsi.UniqueSessionId,
                 CommitId = m_backingBsi.ChangeSummary?.ChangeId,
                 Branch = m_backingBsi.BranchName,
                 RepositoryUri = GetWellFormedRepositoryUri(m_backingBsi),
-                PackageName = packageName
+                PackageName = packageName,
+                PackageVersion = "1.0",
             };
         }
 

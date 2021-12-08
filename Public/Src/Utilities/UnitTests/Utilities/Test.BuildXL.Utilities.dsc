@@ -25,7 +25,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("BuildXL.Utilities").SBOMUtilities.dll),
-            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.SBOMApi").pkg),
+            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.Sbom.Contracts").pkg),
             ...addIf(
                 BuildXLSdk.isFullFramework,
                 BuildXLSdk.withQualifier({targetFramework: qualifier.targetFramework}).NetFx.Netstandard.dll

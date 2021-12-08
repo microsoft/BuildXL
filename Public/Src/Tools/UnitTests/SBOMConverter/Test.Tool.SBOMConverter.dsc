@@ -5,15 +5,13 @@ namespace Test.Tool.SBOMConverter {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
-    export const dll = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.test({
+    export const dll = !(BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.test({
         assemblyName: "Test.Tool.SBOMConverter",
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Tools").SBOMConverter.exe,
-            importFrom("Microsoft.SBOMApi").pkg,
-            // TODO: Uncomment this and remove SBOMApi once newer versions are stable
-            //importFrom("Microsoft.Sbom.Contracts").pkg,
+            importFrom("Microsoft.Sbom.Contracts").pkg,
         ]
     });
 }

@@ -8,7 +8,7 @@ namespace SBOMConverter {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
-    export const exe = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.executable({
+    export const exe = !(BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.executable({
         assemblyName: "SBOMConverter",
         rootNamespace: "Tool.SBOMConverter",
         sources: globR(d`.`, "*.cs"),
@@ -17,9 +17,7 @@ namespace SBOMConverter {
             importFrom("Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
             importFrom("PackageUrl").pkg,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
-            importFrom("Microsoft.SBOMApi").pkg,
-            // TODO: Uncomment this and remove SBOMApi once newer versions are stable
-            //importFrom("Microsoft.Sbom.Contracts").pkg,
+            importFrom("Microsoft.Sbom.Contracts").pkg,
         ],
         tools: {
             csc: {

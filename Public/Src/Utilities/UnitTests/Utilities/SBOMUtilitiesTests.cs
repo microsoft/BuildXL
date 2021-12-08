@@ -6,9 +6,10 @@ using System.IO;
 using BuildXL.Utilities.SBOMUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using SBOMApi.Contracts;
+using Microsoft.Sbom.Contracts;
 using Xunit.Abstractions;
 using System;
+using Microsoft.Sbom.Contracts.Enums;
 
 namespace Test.BuildXL.Utilities
 {
@@ -38,7 +39,7 @@ namespace Test.BuildXL.Utilities
                 metadata = bsiHelper.ProduceSbomMetadata(packageName);
             }
 
-            XAssert.AreEqual("CloudBuild", metadata.BuildEnvironmentName);
+            XAssert.AreEqual(BuildEnvironmentName.BuildXL, metadata.BuildEnvironmentName);
             XAssert.AreEqual(packageName, metadata.PackageName);
             XAssert.AreEqual(SampleBranch, metadata.Branch);
             XAssert.AreEqual(SampleBuildQueueName, metadata.BuildName);
@@ -67,7 +68,7 @@ namespace Test.BuildXL.Utilities
             var path = Path.GetTempFileName();
             File.WriteAllText(path, "{ }");
             var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, "packageName");
-            XAssert.AreEqual("CloudBuild", metadata.BuildEnvironmentName);
+            XAssert.AreEqual(BuildEnvironmentName.BuildXL, metadata.BuildEnvironmentName);
             XAssert.AreEqual("packageName", metadata.PackageName);
             XAssert.IsNull(metadata.Branch);
             XAssert.IsNull(metadata.BuildName);

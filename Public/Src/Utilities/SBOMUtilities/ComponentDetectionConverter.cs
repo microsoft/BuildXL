@@ -8,7 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using SBOMApi.Contracts;
+using Microsoft.Sbom.Contracts;
 using Newtonsoft.Json;
 
 namespace BuildXL.Utilities.SBOMUtilities

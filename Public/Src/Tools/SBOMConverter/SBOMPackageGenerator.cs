@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using SBOMApi.Contracts;
-using SBOMApi.Contracts.Enums;
+using Microsoft.Sbom.Contracts;
+using Microsoft.Sbom.Contracts.Enums;
 using Microsoft.VisualStudio.Services.Governance.ComponentDetection;
 
 namespace SBOMConverter
@@ -90,7 +90,7 @@ namespace SBOMConverter
             {
                 new Checksum()
                 {
-                    //Algorithm = AlgorithmName.MD5, //Not supported on older versions on SBOMApi, uncomment after upgrading
+                    //Algorithm = AlgorithmName.MD5, // Uncomment when MD5 is added in a future release
                     ChecksumValue = c.MD5
                 },
             };

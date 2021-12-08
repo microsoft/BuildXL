@@ -56,9 +56,7 @@ export namespace DropDaemon {
 
             // SBOM related
             importFrom("Microsoft.SBOMCore").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("Microsoft.SBOMApi").pkg,
-            // TODO: Uncomment this and remove SBOMApi once newer versions are stable
-            //importFrom("Microsoft.Sbom.Contracts").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
+            importFrom("Microsoft.Sbom.Contracts").withQualifier({ targetFramework: "netstandard2.1" }).pkg,
             ...addIf(
                 BuildXLSdk.isFullFramework,
                 NetFx.Netstandard.dll

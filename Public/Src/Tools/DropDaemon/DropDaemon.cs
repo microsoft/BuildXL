@@ -27,9 +27,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
-using SBOMApi.Contracts;
-using SBOMApi.Contracts.Entities;
-using SBOMApi.Contracts.Enums;
+using Microsoft.Sbom.Contracts;
+using Microsoft.Sbom.Contracts.Entities;
+using Microsoft.Sbom.Contracts.Enums;
 using SBOMCore;
 using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
@@ -66,7 +66,7 @@ namespace Tool.DropDaemon
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
         /// SBOM Generation
-        private readonly SBOMApi.ISBOMGenerator m_sbomGenerator;
+        private readonly ISBOMGenerator m_sbomGenerator;
         private BsiMetadataExtractor m_bsiMetadataExtractor;
         private readonly string m_sbomGenerationOutputDirectory;
         /// <summary>

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using SBOMApi.Contracts;
+using Microsoft.Sbom.Contracts;
 using Microsoft.VisualStudio.Services.Governance.ComponentDetection.BcdeModels;
 using Newtonsoft.Json;
 

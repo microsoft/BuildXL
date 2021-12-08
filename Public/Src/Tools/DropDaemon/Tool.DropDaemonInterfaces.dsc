@@ -190,6 +190,18 @@ export interface DropDirectoryInfo extends DropArtifactInfoBase {
      */
     contentFilter?: string;
 
+    /**
+     * Whether to apply content filter to file's relative path instead of the full path.
+     * Defaults to 'false'.
+     * 
+     * Note: relative path does not start with directory separator character, i.e., given 
+     * a directory "C:\a\" and a file "C:\a\b.txt", the provided regex will be matched
+     * against "b.txt" and not "\b.txt".
+     * 
+     * If set to true, use \G anchor instead of ^ anchor to match the beginning of a relative path.
+     */
+    applyContentFilterToRelativePath?: boolean;
+
     /** 
      * Optional relative path replace arguments.
      * 
@@ -254,6 +266,12 @@ export interface DirectoryInfo extends ArtifactInfo {
      * (The filter is applied to the original file name)
      */
     contentFilter?: string;
+
+    /**
+     * Whether to apply content filter to file's relative path instead of the full path.
+     * Defaults to 'false'.
+     */
+    applyContentFilterToRelativePath?: boolean;
 
     /** Optional relative path replace arguments. */
     relativePathReplacementArguments?: RelativePathReplacementArguments; 

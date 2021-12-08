@@ -621,7 +621,7 @@ namespace Tool.ServicePipDaemon
                 var initializedFilters = filters.Select(
                     filter => filter == IncludeAllFilter
                         ? null
-                        : new Regex(filter, RegexOptions.IgnoreCase));
+                        : new Regex(filter, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)));
 
                 return initializedFilters.ToArray();
             }

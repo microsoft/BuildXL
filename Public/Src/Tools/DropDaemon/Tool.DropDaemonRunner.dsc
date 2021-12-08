@@ -127,7 +127,8 @@ export namespace DropDaemonRunner {
             directory: directoryInfo.directory, 
             dropPath: directoryInfo.dropPath,
             contentFilter: directoryInfo.contentFilter,
-            relativePathReplacementArguments: directoryInfo.relativePathReplacementArguments
+            relativePathReplacementArguments: directoryInfo.relativePathReplacementArguments,
+            applyContentFilterToRelativePath: directoryInfo.applyContentFilterToRelativePath
         }; 
     }
     
@@ -241,7 +242,7 @@ export namespace DropDaemonRunner {
         return addArtifactsToDrop(
             createResult, 
             args, 
-            directoryInfos.map(di => <DropDirectoryInfo>{ directory: di.directory, contentFilter: di.contentFilter, dropPath: di.dropPath, kind: "directory" }));
+            directoryInfos.map(di => directoryInfoToDropDirectoryInfo(di)));
     }
 
     function addArtifactsToDrop(createResult: DropCreateResult, args: DropOperationArguments, artifactInfos: DropArtifactInfo[]): Result {
@@ -290,6 +291,7 @@ export namespace DropDaemonRunner {
                 Cmd.options("--directoryId ", directoryInfos.map(di => Artifact.directoryId(di.directory))),
                 Cmd.options("--directoryDropPath ", directoryInfos.map(di => toString(di.dropPath))),
                 Cmd.options("--directoryFilter ", directoryInfos.map(di => di.contentFilter || ".*")),
+                Cmd.options("--directoryFilterUseRelativePath ", directoryInfos.map(di => optionalBooleanToString(di.applyContentFilterToRelativePath))),
                 Cmd.options("--directoryRelativePathReplace ", directoryInfos.map(di => serializeRelativePathReplace(di.relativePathReplacementArguments))),
               ]
             : [];
@@ -586,4 +588,13 @@ export namespace DropDaemonRunner {
 
         return `${delim}${delim}`;
     }
+
+    function optionalBooleanToString(value?: boolean): string {
+        if (value === undefined) {
+            return "false";
+        }
+
+        return value.toString();
+    }
+
 }

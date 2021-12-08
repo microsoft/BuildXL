@@ -509,7 +509,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ##",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -577,7 +577,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .* --directoryRelativePathReplace ##",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .* --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
@@ -672,7 +672,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ##",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
                             
@@ -701,6 +701,53 @@ namespace Test.Tool.DropDaemon
         {
             var replacementArgs = new global::Tool.DropDaemon.DropDaemon.RelativePathReplacementArguments(oldValue, newValue);
             XAssert.ArePathEqual(expectedPath, global::Tool.DropDaemon.DropDaemon.GetRelativePath(root, filePath, replacementArgs));
+        }
+
+        [Fact]
+        public void TestFilterDirectoryContent()
+        {
+            const string DirPath = @"c:\a";
+            var files = new List<SealedDirectoryFile>
+            {
+                new SealedDirectoryFile(@"c:\a\1.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+                new SealedDirectoryFile(@"c:\a\dir\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+                new SealedDirectoryFile(@"c:\a\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+            };
+
+            var regex = new Regex(@".*\.txt", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+            var expectedResult = new List<SealedDirectoryFile>
+            {
+                new SealedDirectoryFile(@"c:\a\1.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+                new SealedDirectoryFile(@"c:\a\dir\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+                new SealedDirectoryFile(@"c:\a\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+            };
+
+            var result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
+            XAssert.AreSetsEqual(expectedResult, result, true);
+            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
+            XAssert.AreSetsEqual(expectedResult, result, true);
+
+            regex = new Regex(@"c:\\a\\1\.txt", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+            expectedResult = new List<SealedDirectoryFile>
+            {
+                new SealedDirectoryFile(@"c:\a\1.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+            };
+
+            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
+            XAssert.AreSetsEqual(expectedResult, result, true);
+            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
+            XAssert.AreSetsEqual(expectedResult, result, false);
+
+            regex = new Regex(@"\Gfoo.txt", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+            expectedResult = new List<SealedDirectoryFile>
+            {
+                new SealedDirectoryFile(@"c:\a\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
+            };
+
+            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
+            XAssert.AreSetsEqual(expectedResult, result, false);
+            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
+            XAssert.AreSetsEqual(expectedResult, result, true);
         }
 
         [Theory]
@@ -767,7 +814,7 @@ namespace Test.Tool.DropDaemon
                         (daemon, etwListener, dropConfig) =>
                         {
                             var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
-                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {dropPath} --directoryFilter .* --directoryRelativePathReplace {serializeReplaceArgument(replaceOldValue, replaceNewValue)}",
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {dropPath} --directoryFilter .* --directoryRelativePathReplace {serializeReplaceArgument(replaceOldValue, replaceNewValue)} --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 

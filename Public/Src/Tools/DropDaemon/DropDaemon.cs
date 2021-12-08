@@ -312,6 +312,15 @@ namespace Tool.DropDaemon
             IsMultiValue = true,
         };
 
+        internal static readonly BoolOption DirectoryFilterUseRelativePath = new BoolOption("directoryFilterUseRelativePath")
+        {
+            ShortName = "dfurp",
+            HelpText = "Whether to apply regex to file's relative path instead of a full path.",
+            DefaultValue = false,
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
         internal static readonly StrOption DirectoryRelativePathReplace = new StrOption("directoryRelativePathReplace")
         {
             ShortName = "drpr",
@@ -513,7 +522,7 @@ namespace Tool.DropDaemon
         internal static readonly Command AddArtifactsToDropCmd = RegisterCommand(
             name: "addartifacts",
             description: "[RPC] invokes the 'addartifacts' operation.",
-            options: ConfigOptions.Union(new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryRelativePathReplace }),
+            options: ConfigOptions.Union(new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath, Directory, DirectoryId, RelativeDirectoryDropPath, DirectoryContentFilter, DirectoryFilterUseRelativePath, DirectoryRelativePathReplace }),
             clientAction: SyncRPCSend,
             serverAction: async (conf, dropDaemon) =>
             {
@@ -1282,13 +1291,18 @@ namespace Tool.DropDaemon
             var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
             var directoryDropPaths = RelativeDirectoryDropPath.GetValues(conf.Config).ToArray();
             var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
+            var directoryFilterUseRelativePath = DirectoryFilterUseRelativePath.GetValues(conf.Config).ToArray();
             var directoryRelativePathsReplaceSerialized = DirectoryRelativePathReplace.GetValues(conf.Config).ToArray();
 
-            if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryDropPaths.Length || directoryPaths.Length != directoryFilters.Length || directoryPaths.Length != directoryRelativePathsReplaceSerialized.Length)
+            if (directoryPaths.Length != directoryIds.Length 
+                || directoryPaths.Length != directoryDropPaths.Length 
+                || directoryPaths.Length != directoryFilters.Length 
+                || directoryPaths.Length != directoryFilterUseRelativePath.Length
+                || directoryPaths.Length != directoryRelativePathsReplaceSerialized.Length)
             {
                 return new IpcResult(
                     IpcResultStatus.GenericError,
-                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}, #directoryRelativePathReplace = {directoryRelativePathsReplaceSerialized.Length}"));
+                    I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #dropPaths = {directoryDropPaths.Length}, #directoryFilters = {directoryFilters.Length}, #directoryApplyFilterToRelativePath = {directoryFilterUseRelativePath.Length}, #directoryRelativePathReplace = {directoryRelativePathsReplaceSerialized.Length}"));
             }
 
             var possibleFilters = InitializeFilters(directoryFilters);
@@ -1331,6 +1345,7 @@ namespace Tool.DropDaemon
                 directoryIds,
                 directoryDropPaths,
                 possibleFilters.Result,
+                directoryFilterUseRelativePath,
                 possibleRelativePathReplacementArguments.Result);
 
             if (error != null)
@@ -1398,6 +1413,7 @@ namespace Tool.DropDaemon
             string directoryId,
             string dropPath,
             Regex contentFilter,
+            bool applyFilterToRelativePath,
             RelativePathReplacementArguments relativePathReplacementArgs)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
@@ -1422,8 +1438,8 @@ namespace Tool.DropDaemon
 
             if (contentFilter != null)
             {
-                var filteredContent = directoryContent.Where(file => contentFilter.IsMatch(file.FileName)).ToList();
-                daemon.Logger.Verbose("[dirId='{0}'] Filter '{1}' excluded {2} file(s) out of {3}", directoryId, contentFilter, directoryContent.Count - filteredContent.Count, directoryContent.Count);
+                var filteredContent = FilterDirectoryContent(directoryPath, directoryContent, contentFilter, applyFilterToRelativePath);
+                daemon.Logger.Verbose("[dirId='{0}'] Filter '{1}' (applied to relative paths: '{4}') excluded {2} file(s) out of {3}", directoryId, contentFilter, directoryContent.Count - filteredContent.Count, directoryContent.Count, applyFilterToRelativePath);
                 directoryContent = filteredContent;
             }
 
@@ -1451,6 +1467,16 @@ namespace Tool.DropDaemon
             }
 
             return (dropItemForBuildXLFiles.ToArray(), null);
+        }
+
+        internal static List<SealedDirectoryFile> FilterDirectoryContent(string directoryPath, List<SealedDirectoryFile> directoryContent, Regex contentFilter, bool applyFilterToRelativePath)
+        {
+            var endsWithSlash = directoryPath[directoryPath.Length - 1] == Path.DirectorySeparatorChar || directoryPath[directoryPath.Length - 1] == Path.AltDirectorySeparatorChar;
+            var startPosition = applyFilterToRelativePath ? (directoryPath.Length + (endsWithSlash ? 0 : 1)) : 0;
+            // Note: if startPosition is not 0, and a regular expression uses ^ anchor to match the beginning of a relative path, no files will be matched.
+            // In such cases, one must use \G anchor instead.
+            // https://docs.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex.match
+            return directoryContent.Where(file => contentFilter.IsMatch(file.FileName, startPosition)).ToList();
         }
 
         internal static string GetRelativePath(string root, string file, RelativePathReplacementArguments pathReplacementArgs)
@@ -1484,6 +1510,7 @@ namespace Tool.DropDaemon
             string[] directoryIds,
             string[] dropPaths,
             Regex[] contentFilters,
+            bool[] applyFilterToRelativePath,
             RelativePathReplacementArguments[] relativePathsReplacementArgs)
         {
             Contract.Requires(directoryPaths != null);
@@ -1493,12 +1520,13 @@ namespace Tool.DropDaemon
             Contract.Requires(directoryPaths.Length == directoryIds.Length);
             Contract.Requires(directoryPaths.Length == dropPaths.Length);
             Contract.Requires(directoryPaths.Length == contentFilters.Length);
+            Contract.Requires(directoryPaths.Length == applyFilterToRelativePath.Length);
             Contract.Requires(directoryPaths.Length == relativePathsReplacementArgs.Length);
 
             var createDropItemsTasks = Enumerable
                 .Range(0, directoryPaths.Length)
                 .Select(i => CreateDropItemsForDirectoryAsync(
-                    daemon, fullyQualifiedDropName, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], relativePathsReplacementArgs[i]))
+                    daemon, fullyQualifiedDropName, directoryPaths[i], directoryIds[i], dropPaths[i], contentFilters[i], applyFilterToRelativePath[i], relativePathsReplacementArgs[i]))
                 .ToArray();
 
             var createDropItemsResults = await TaskUtilities.SafeWhenAll(createDropItemsTasks);

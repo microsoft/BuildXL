@@ -98,6 +98,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool UseContextualEntryOperationLogging { get; set; } = false;
 
         /// <summary>
+        /// Specifies whether the context operation guid is used when logging entry operations
+        /// </summary>
+        public bool TraceOperations { get; set; } = true;
+
+        /// <summary>
         /// Specifies whether to trace touches or not.
         /// Tracing touches is expensive in terms of the amount of traffic to Kusto and in terms of memory traffic.
         /// </summary>

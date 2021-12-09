@@ -109,6 +109,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <nodoc />
         protected bool _isCritical;
 
+        private bool _isConfigured = false;
+
         private readonly Func<TResult, ResultBase>? _resultBaseFactory;
 
         /// <summary>
@@ -171,36 +173,38 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <nodoc />
         protected void TraceOperationStarted(string caller)
         {
-            var traceOperationStarted = _traceOperationStarted;
-            var traceErrorsOnly = _traceErrorsOnly;
+            Configure(caller);
 
-            var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
-            if (configuration is not null)
-            {
-                traceOperationStarted = configuration.StartMessage ?? traceOperationStarted;
-                traceErrorsOnly = configuration.ErrorsOnly ?? traceErrorsOnly;
-            }
-
-            if (traceOperationStarted && !traceErrorsOnly)
+            if (_traceOperationStarted && !_traceErrorsOnly)
             {
                 _tracer.OperationStarted(_context, caller, enabled: true, additionalInfo: _extraStartMessage);
             }
         }
 
-        /// <nodoc />
-        protected void TraceOperationFinished(TResult result, TimeSpan duration, string caller)
+        private void Configure(string caller)
         {
-            var traceOperationFinished = _traceOperationFinished;
-            var traceErrorsOnly = _traceErrorsOnly;
+            if (_isConfigured)
+            {
+                return;
+            }
 
             var configuration = LogManager.GetConfiguration(_tracer.Name, caller);
             if (configuration is not null)
             {
-                traceOperationFinished = configuration.StopMessage ?? traceOperationFinished;
-                traceErrorsOnly = configuration.ErrorsOnly ?? traceErrorsOnly;
+                _traceOperationStarted = configuration.StartMessage ?? _traceOperationStarted;
+                _traceErrorsOnly = configuration.ErrorsOnly ?? _traceErrorsOnly;
+                _traceOperationFinished = configuration.StopMessage ?? _traceOperationFinished;
             }
 
-            if (traceOperationFinished || duration > _silentOperationDurationThreshold)
+            _isConfigured = true;
+        }
+
+        /// <nodoc />
+        protected void TraceOperationFinished(TResult result, TimeSpan duration, string caller)
+        {
+            Configure(caller);
+
+            if (_traceOperationFinished || duration > _silentOperationDurationThreshold)
             {
                 string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
@@ -218,7 +222,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                     message,
                     caller,
                     // Ignoring _traceErrorsOnly flag if the operation is too long.
-                    traceErrorsOnly: duration > _silentOperationDurationThreshold ? false : traceErrorsOnly);
+                    traceErrorsOnly: duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly);
             }
         }
 
@@ -486,13 +490,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             try
             {
                 return await TaskUtilities.WithTimeoutAsync(async ct =>
-                                               {
-                                                   // If the operation does any synchronous work before returning the task, our timeout mechanism
-                                                   // will never kick in. This yield is here to prevent that from happening.
-                                                   await Task.Yield();
-                                                   var nestedContext = new OperationContext(context.TracingContext, ct);
-                                                   return await operation(nestedContext);
-                                               },
+                {
+                    // If the operation does any synchronous work before returning the task, our timeout mechanism
+                    // will never kick in. This yield is here to prevent that from happening.
+                    await Task.Yield();
+                    var nestedContext = new OperationContext(context.TracingContext, ct);
+                    return await operation(nestedContext);
+                },
                     timeout.Value,
                     context.Token);
             }

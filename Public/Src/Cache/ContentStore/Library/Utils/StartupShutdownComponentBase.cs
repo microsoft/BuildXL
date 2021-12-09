@@ -1,14 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Tasks;
 
 #nullable disable
 
@@ -28,6 +31,17 @@ namespace BuildXL.Cache.ContentStore.Utils
             Contract.Requires(!StartupStarted, "Nested components must be linked before startup");
             Contract.RequiresNotNull(nestedComponent);
             _nestedComponents.Add(nestedComponent);
+        }
+
+        /// <summary>
+        /// Runs the requested operation in background.
+        /// NOTE: Must be called before Startup.
+        /// </summary>
+        protected void RunInBackground(string operationName, Func<OperationContext, Task<BoolResult>> operation, bool fireAndForget = false)
+        {
+            LinkLifetime(new BackgroundOperation($"{Tracer.Name}.{operationName}", fireAndForget
+                ? c => operation(c).IgnoreErrorsAndReturnCompletion().WithResultAsync(BoolResult.Success)
+                : operation));
         }
 
         /// <inheritdoc />

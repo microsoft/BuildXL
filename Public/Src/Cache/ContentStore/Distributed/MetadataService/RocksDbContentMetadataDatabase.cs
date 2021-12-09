@@ -9,6 +9,7 @@ using System.Diagnostics.SymbolStore;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public RocksDbContentMetadataDatabaseConfiguration(AbsolutePath storeLocation)
             : base(storeLocation)
         {
+            TraceOperations = false;
         }
 
         public TimeSpan ContentRotationInterval { get; set; } = TimeSpan.FromHours(6);
@@ -524,14 +526,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 var msg = $"Column=[{column}] NextGroup=[{nextGroup}] NextName=[{nextName}]";
 
                 context.PerformOperation(Tracer, () =>
-                    {
-                        // Clear the column family by dropping and recreating
-                        store.DropColumnFamily(nextName);
-                        store.CreateColumnFamily(nextName);
-                        _columnMetadata[column] = new ColumnMetadata(group: nextGroup, lastGcTimeUtc: Clock.UtcNow);
-                        SaveColumnGroups(store, _columnMetadata);
-                        return BoolResult.Success;
-                    },
+                {
+                    // Clear the column family by dropping and recreating
+                    store.DropColumnFamily(nextName);
+                    store.CreateColumnFamily(nextName);
+                    _columnMetadata[column] = new ColumnMetadata(group: nextGroup, lastGcTimeUtc: Clock.UtcNow);
+                    SaveColumnGroups(store, _columnMetadata);
+                    return BoolResult.Success;
+                },
                     extraStartMessage: msg,
                     messageFactory: _ => msg,
                     traceOperationStarted: false,
@@ -548,7 +550,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private string NameOf(Columns columnFamily, ColumnGroup? group = null)
         {
-            return ColumnNames[(int)(group ?? _columnMetadata[columnFamily].Group) * EnumTraits<Columns>.ValueCount + (int)columnFamily];
+            return NameOf(columnFamily, out _, group);
+        }
+
+        private string NameOf(Columns columnFamily, out ColumnGroup resolvedGroup, ColumnGroup? group = null)
+        {
+            resolvedGroup = group ?? _columnMetadata[columnFamily].Group;
+            return ColumnNames[(int)resolvedGroup * EnumTraits<Columns>.ValueCount + (int)columnFamily];
         }
 
         /// <inheritdoc />
@@ -755,6 +763,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 || store.TryGetPinnableValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
         }
 
+        private bool TryGetValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out byte[]? value, [NotNullWhen(true)] out ColumnGroup resolvedGroup, Columns columns)
+        {
+            return store.TryGetValue(key, out value, NameOf(columns, out resolvedGroup))
+                || store.TryGetValue(key, out value, NameOf(columns, out resolvedGroup, GetFormerColumnGroup(columns)));
+        }
+
         /// <inheritdoc />
         internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry? entry)
         {
@@ -818,7 +832,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     using (_metadataLocks[strongFingerprint.WeakFingerprint[0]].AcquireReadLock())
                     {
                         if (TryGetValue(store, key, out var headerData, Columns.MetadataHeaders)
-                            && TryGetValue(store, key, out var data, Columns.Metadata))
+                            && TryGetValue(store, key, out var data, out var dataGroup, Columns.Metadata))
                         {
                             var header = DeserializeMetadataEntryHeader(headerData);
 
@@ -826,7 +840,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                             header.LastAccessTimeUtc = Clock.UtcNow;
 
                             using var serializedHeader = SerializeMetadataEntryHeader(header);
-                            store.Put(key.AsSpan(), serializedHeader, NameOf(Columns.MetadataHeaders));
+
+                            // Ensure updated header goes to same group as data so there is not a case where
+                            // data comes from different group than metadata
+                            store.Put(key.AsSpan(), serializedHeader, NameOf(Columns.MetadataHeaders, dataGroup));
 
                             return new SerializedMetadataEntry()
                             {

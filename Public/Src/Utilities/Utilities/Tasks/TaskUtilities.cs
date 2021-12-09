@@ -316,6 +316,22 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
+        /// Asynchronously acquire a semaphore
+        /// </summary>
+        /// <param name="semaphore">The semaphore to acquire</param>
+        /// <param name="timeout">The timeout for acquiring the semaphore</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns>A disposable which will release the semaphore when it is disposed.</returns>
+        public static async Task<SemaphoreReleaser> AcquireAsync(this SemaphoreSlim semaphore, TimeSpan timeout, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            Contract.Requires(semaphore != null);
+
+            var stopwatch = StopwatchSlim.Start();
+            var acquired = await semaphore.WaitAsync(timeout, cancellationToken);
+            return new SemaphoreReleaser(acquired ? semaphore : null, stopwatch.Elapsed);
+        }
+
+        /// <summary>
         /// Synchronously acquire a semaphore
         /// </summary>
         /// <param name="semaphore">The semaphore to acquire</param>
@@ -520,7 +536,6 @@ namespace BuildXL.Utilities.Tasks
             /// </remarks>
             internal SemaphoreReleaser(SemaphoreSlim semaphore, TimeSpan lockAcquisitionDuration)
             {
-                Contract.RequiresNotNull(semaphore);
                 m_semaphore = semaphore;
                 LockAcquisitionDuration = lockAcquisitionDuration;
             }
@@ -530,7 +545,7 @@ namespace BuildXL.Utilities.Tasks
             /// </summary>
             public void Dispose()
             {
-                m_semaphore.Release();
+                m_semaphore?.Release();
             }
 
             /// <summary>
@@ -541,7 +556,7 @@ namespace BuildXL.Utilities.Tasks
             /// <summary>
             /// Gets the number of threads that will be allowed to enter the semaphore.
             /// </summary>
-            public int CurrentCount => m_semaphore.CurrentCount;
+            public int CurrentCount => m_semaphore?.CurrentCount ?? -1;
         }
 
         /// <summary>

@@ -158,7 +158,6 @@ void Dbg(PCWSTR format, ...)
     if (!WriteFile(g_reportFileHandle, buffer, (DWORD)bufferLength, &bytesWritten, &overlapped))
     {
         DWORD error = GetLastError();
-        Dbg(L"Failed to write Dbg diagnostics line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_2);
         wprintf(L"Error: Failed to write Dbg diagnostics line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_2);
         fwprintf(stderr, L"Error: Failed to write Dbg diagnostics line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_2);
         HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_2, L"Failure writing message to pipe: exit(-44).", DETOURS_WINDOWS_LOG_MESSAGE_2);

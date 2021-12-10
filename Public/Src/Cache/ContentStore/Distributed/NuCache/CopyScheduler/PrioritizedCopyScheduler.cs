@@ -65,6 +65,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private readonly PrioritizedCopySchedulerConfiguration _configuration;
 
         private readonly IProducerConsumerCollection<CopyTask>[] _pending;
+        // Storing the traversal order in an array to avoid computing it on each scheduling cycle to avoid excessive memory allocations.
+        private readonly int[] _priorityTraversalOrder;
 
         private int _numPending;
         private readonly int[] _numPendingByPriority;
@@ -119,12 +121,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     throw new NotImplementedException($"Unsupported {nameof(SemaphoreOrder)} value {configuration.QueuePopOrder}");
             }
 
+            _priorityTraversalOrder = computePriorityTraversalOrder().ToArray();
+
             _createdMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Created_P{n}").ToArray();
             _throttledMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Throttled_P{n}").ToArray();
             _failedAddMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_FailedAdd_P{n}").ToArray();
             _timeoutMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Timeout_P{n}").ToArray();
             _enqueuedMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Enqueued_P{n}").ToArray();
             _executedMetricNames = Enumerable.Range(0, _assigner.MaxPriority + 1).Select(n => $"CopyScheduler_Executed_P{n}").ToArray();
+
+            IEnumerable<int> computePriorityTraversalOrder()
+            {
+                switch (_configuration.PriorityQuotaStrategy)
+                {
+                    case PriorityQuotaStrategy.Even:
+                        return Enumerable.Range(0, _pending.Length);
+                    default:
+                        return Enumerable.Range(0, _pending.Length).Reverse();
+                }
+            }
         }
 
         /// <inheritdoc />
@@ -205,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             // There's two kinds of copies that we need to deal with here:
             //  1. Inflight. These have already started, and are handled by the cancellation token that's passed into them.
             //  2. Pending. These are currently enqueued, and are waiting on the task source. We need to cancel them
-            foreach (var priority in ComputePriorityTraversalOrder())
+            foreach (var priority in _priorityTraversalOrder)
             {
                 var candidates = _pending[priority];
                 while (candidates.TryTake(out var pending))
@@ -274,7 +289,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
 
             // Traverse through each list of candidates, and dispatch as many copies as we can from each candidate
             // list by decreasing priority.
-            foreach (var priority in ComputePriorityTraversalOrder())
+            foreach (var priority in _priorityTraversalOrder)
             {
                 if (state.CycleLeftover <= 0)
                 {
@@ -411,17 +426,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             }
 
             return (int)Math.Ceiling(availableQuota * (1.0 - _configuration.ReservedCapacityPerCycleRate));
-        }
-
-        public IEnumerable<int> ComputePriorityTraversalOrder()
-        {
-            switch (_configuration.PriorityQuotaStrategy)
-            {
-                case PriorityQuotaStrategy.Even:
-                    return Enumerable.Range(0, _pending.Length);
-                default:
-                    return Enumerable.Range(0, _pending.Length).Reverse();
-            }
         }
 
         // TODO: test this function

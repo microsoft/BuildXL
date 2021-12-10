@@ -69,6 +69,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
         private readonly int[] _priorityTraversalOrder;
 
         private int _numPending;
+
+        /// <summary>
+        /// WARNING: ConcurrentStack and ConcurrentQueue can't be asked for their length too frequently, because doing
+        /// so freezes the data structure, which can cause performance and memory issues. That's why we have this array
+        /// here.
+        /// </summary>
         private readonly int[] _numPendingByPriority;
 
         private int _numInflight;
@@ -331,14 +337,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
                     if (request is OutboundPullCopy outboundPullRequest)
                     {
                         Execute(
-                            context,
                             candidate,
                             (nestedContext) => outboundPullRequest.PerformOperationAsync(new OutboundPullArguments(nestedContext, summary)));
                     }
                     else if (request is OutboundPushCopyBase outboundPushRequestBase)
                     {
                         Execute(
-                            context,
                             candidate,
                             (nestedContext) => outboundPushRequestBase.PerformOperationInternalAsync(new OutboundPushArguments(nestedContext, summary)));
                     }
@@ -360,54 +364,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling
             return state;
         }
 
-        private void Execute<T>(OperationContext context, CopyTask candidate, Func<OperationContext, Task<T>> taskFactory)
+        private void Execute<T>(CopyTask candidate, Func<OperationContext, Task<T>> taskFactory)
         {
+            // Order is important in the increments and decrements here. These guarantee that the number of inflight
+            // is always an overestimate w.r.t. inflight by priority.
+            Interlocked.Decrement(ref _numPendingByPriority[candidate.Priority]);
+            Interlocked.Decrement(ref _numPending);
+
+            // WARNING: the number of inflight operations MUST BE an overestimate of the number of copies that are
+            // actually happening in the system. If it isn't, we can call Task.Run on way more copies than we actually
+            // intend to run at the time. The number of tasks we can potentially create is arbitrarily high, and that
+            // can (and HAS) cause thread pool exhaustion.
+            Interlocked.Increment(ref _numInflight);
+
             // We do it this way in order to avoid blocking the scheduler's thread with any synchronous part the
             // task factory may have.
-            Task.Run(() =>
+
+            Task<T> copyTask;
+            try
             {
-                var priority = candidate.Priority;
-                var nestedContext = new OperationContext(candidate.Request.Context, candidate.CancelToken);
-
-                Task<T>? copyTask = null;
-                Exception? factoryException = null;
-                try
+                copyTask = Task.Run(async () =>
                 {
-                    copyTask = taskFactory(nestedContext);
+                    var nestedContext = new OperationContext(candidate.Request.Context, candidate.CancelToken);
+
+                    return await taskFactory(nestedContext);
+                }, candidate.CancelToken);
+            }
+            catch (Exception exception)
+            {
+                // This will only happen if the task was cancelled before we even got to execute the ContinueWith (for
+                // example, if we have a thread pool issue)
+                completeCopy(candidate, sourceTask: null, exception);
+                return;
+            }
+
+            copyTask.ContinueWith(antecedent =>
+            {
+                completeCopy(candidate, antecedent, exception: null);
+            });
+
+            void completeCopy(CopyTask candidate, Task<T>? sourceTask, Exception? exception)
+            {
+                Interlocked.Decrement(ref _numInflight);
+
+                // This must happen at this point in order to ensure that we don't recompute quota without taking into
+                // consideration that this particular copy completed
+                _copyCompletedEvent.Set();
+
+                if (sourceTask is not null)
+                {
+                    candidate.TaskSource.TrySetFromTask(sourceTask, result => result!);
                 }
-                catch (Exception e)
+                else
                 {
-                    factoryException = e;
+                    candidate.TaskSource.TrySetException(exception);
                 }
-
-                // Order is important in the increments and decrements here. These guarantee that the number of inflight
-                // is always an overestimate w.r.t. inflight by priority.
-                Interlocked.Decrement(ref _numPendingByPriority[priority]);
-                Interlocked.Decrement(ref _numPending);
-
-                if (copyTask is null)
-                {
-                    // It may happen that the externally-provided task factory throws. In such a case, we'll fail the copy
-                    // with this exception, which should be re-thrown when the user awaits for the copy to complete.
-                    candidate.TaskSource.TrySetException(factoryException);
-                    return;
-                }
-
-                // WARNING: the number if inflight operations is always an underestimate of the real number of inflight
-                // operations, the reason being that there is no way to force the task's execution to start after this
-                Interlocked.Increment(ref _numInflight);
-
-                copyTask.ContinueWith(antecedent =>
-                {
-                    Interlocked.Decrement(ref _numInflight);
-
-                    // This must happen at this point in order to ensure that we don't recompute quota without taking into
-                    // consideration that this particular copy completed
-                    _copyCompletedEvent.Set();
-
-                    candidate.TaskSource.TrySetFromTask(antecedent, result => result!);
-                }).FireAndForget(context);
-            }, context.Token).FireAndForget(context);
+            }
         }
 
         private int ComputeCycleQuota()

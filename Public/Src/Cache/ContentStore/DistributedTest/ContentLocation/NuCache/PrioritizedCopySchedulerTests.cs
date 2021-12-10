@@ -148,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                      // This should never happen
                      true.Should().BeFalse();
                  }
-                 catch (NotImplementedException)
+                 catch (AggregateException e) when (e.InnerException is NotImplementedException)
                  {
                  }
              });

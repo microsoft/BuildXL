@@ -157,8 +157,8 @@ namespace BuildXL.Utilities.Tasks
                 return CancellationTokenAwaitable.NonCancellableAwaitable;
             }
 
-            var tcs = new TaskCompletionSource<object>();
-            var registration = token.Register(static tcs => ((TaskCompletionSource<object>)tcs).SetResult(null), tcs);
+            var tcs = TaskSourceSlim.Create<object>();
+            var registration = token.Register(static tcs => ((TaskSourceSlim<object>)tcs).SetResult(null), tcs);
             return new CancellationTokenAwaitable(tcs.Task, registration);
         }
 
@@ -175,7 +175,7 @@ namespace BuildXL.Utilities.Tasks
             }
 
             /// <nodoc />
-            public static CancellationTokenAwaitable NonCancellableAwaitable { get; } = new CancellationTokenAwaitable(new TaskCompletionSource<object>().Task, registration: null);
+            public static CancellationTokenAwaitable NonCancellableAwaitable { get; } = new CancellationTokenAwaitable(TaskSourceSlim.Create<object>().Task, registration: null);
 
             /// <nodoc />
             public Task CompletionTask { get; }

@@ -5,7 +5,7 @@ namespace Test.Tool.SBOMConverter {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
-    export const dll = !(BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.test({
+    export const dll = !(BuildXLSdk.isDropToolingEnabled && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.test({
         assemblyName: "Test.Tool.SBOMConverter",
         sources: globR(d`.`, "*.cs"),
         references: [

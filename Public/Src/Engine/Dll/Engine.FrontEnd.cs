@@ -651,15 +651,6 @@ namespace BuildXL.Engine
         /// </summary>
         internal bool IsNoReuse => !IsFullReuse && !IsPartialReuse;
 
-        [ContractInvariantMethod]
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic", Justification = "Method is not empty only when CONTRACTS_LIGHT_INVARIANTS symbol is defined.")]
-        private void Invariant()
-        {
-            Contract.Invariant(Bool2Int(IsFullReuse) + Bool2Int(IsPartialReuse) + Bool2Int(IsNoReuse) == 1, "Exactly one of IsFullReload, IsPartialReload, and IsNoReload must be true");
-            Contract.Invariant(IsFullReuse == (m_engineSchedule != null));
-            Contract.Invariant(IsPartialReuse == (m_pipGraph != null));
-        }
-
         internal InputTracker.InputChanges InputChanges { get; }
 
         /// <summary>
@@ -735,7 +726,14 @@ namespace BuildXL.Engine
             InputChanges = inputChanges;
 
             // Calling invariant method explicitely because this is the only way to check it at least once.
-            Invariant();
+            CheckInvariants();
+        }
+
+        private void CheckInvariants()
+        {
+            Contract.Assert(Bool2Int(IsFullReuse) + Bool2Int(IsPartialReuse) + Bool2Int(IsNoReuse) == 1, "Exactly one of IsFullReload, IsPartialReload, and IsNoReload must be true");
+            Contract.Assert(IsFullReuse == (m_engineSchedule != null));
+            Contract.Assert(IsPartialReuse == (m_pipGraph != null));
         }
 
         [SuppressMessage("Microsoft.Performance", "CA1811:NoUpstreamCallers", Justification = "It has upstream callers, see method 'Invariant'")]

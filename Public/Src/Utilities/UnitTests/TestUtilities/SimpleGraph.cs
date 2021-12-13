@@ -103,16 +103,6 @@ namespace Test.BuildXL.TestUtilities
         /// </summary>
         public IReadOnlyCollection<Edge> ReflexiveTransitiveClosureInverse => TransitiveClosureInverse.Union(Identity).ToList();
 
-        [ContractInvariantMethod]
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic", Justification = "Method is not empty only when CONTRACTS_LIGHT_INVARIANTS symbol is defined.")]
-        private void Invariant()
-        {
-            Contract.Invariant(NodeCount > 0);
-            Contract.Invariant(Edges != null);
-            Contract.Invariant(Contract.ForAll(Edges, e => InRange(e, NodeCount)));
-            Contract.Invariant(NoParallelEdges(Edges), "Multigraph not allowed");
-        }
-
         /// <nodoc/>
         public SimpleGraph(int numNodes, IEnumerable<Edge> edges)
         {
@@ -128,7 +118,15 @@ namespace Test.BuildXL.TestUtilities
             m_transitiveClosureInverseLazy = Lazy.Create(() => Inverse(TransitiveClosure));
 
             // Calling invariant method explicitely because this is the only way to check it at least once.
-            Invariant();
+            CheckInvariants();
+        }
+
+        private void CheckInvariants()
+        {
+            Contract.Assert(NodeCount > 0);
+            Contract.Assert(Edges != null);
+            Contract.Assert(Contract.ForAll(Edges, e => InRange(e, NodeCount)));
+            Contract.Assert(NoParallelEdges(Edges), "Multigraph not allowed");
         }
 
         /// <summary>

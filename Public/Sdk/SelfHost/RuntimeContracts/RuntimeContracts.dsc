@@ -61,11 +61,11 @@ export function getContractsSymbols(level: ContractsLevel, enableContractsQuanti
     }
 
     if (hasFlag(level, ContractsLevel.ensures)) {
-        // Postconditions are not supported yet.
+        // Postconditions are not supported.
     }
 
     if (hasFlag(level, ContractsLevel.invariants)) {
-        result = result.push("CONTRACTS_LIGHT_INVARIANTS");
+        // Invariants are not supported and should be checked explicitly.
     }
 
     if (hasFlag(level, ContractsLevel.assertions)) {

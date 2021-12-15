@@ -147,7 +147,9 @@ param(
     [string[]]$DominoArguments,
 
     [Parameter(Mandatory=$false)]
-    [switch]$NoQTest = $false
+    [switch]$NoQTest = $false,
+
+    [switch]$NoSubst = $false
 )
 
 $ErrorActionPreference = "Stop";
@@ -476,6 +478,14 @@ function Run-ProcessWithNormalizedPath {
     };
 }
 
+function Run-ProcessWithoutNormalizedPath {
+    param([string]$executable, [string[]]$processArgs);
+    Write-Host -ForegroundColor Green $executable $processArgs;
+    $p = Start-Process -FilePath $executable -ArgumentList $processArgs -WorkingDirectory (pwd).Path -NoNewWindow -PassThru;
+    Wait-Process -InputObject $p;
+    return $p.ExitCode;
+}
+
 function Log {
     param([switch]$NoNewline, [string]$message)
 
@@ -574,7 +584,7 @@ $Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_C
 
 $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH";
 
-$GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
+$GenerateCgManifestFilePath = "$enlistmentRoot\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";
 $AdditionalBuildXLArguments += Get-CacheMissArgs;
 
@@ -698,8 +708,13 @@ if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
 [string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })
 [string[]]$DominoArguments = $AdditionalBuildXLArguments + $DominoArguments;
 
-
-$bxlExitCode = Run-ProcessWithNormalizedPath $useDeployment.dominoRunner $useDeployment.domino $DominoArguments;
+if ($NoSubst) 
+{
+    $bxlExitCode = Run-ProcessWithoutNormalizedPath $useDeployment.domino $DominoArguments;
+} else 
+{
+    $bxlExitCode = Run-ProcessWithNormalizedPath $useDeployment.dominoRunner $useDeployment.domino $DominoArguments;
+}
 $bxlSuccess = ($bxlExitCode -eq 0);
 
 if ($bxlSuccess) {

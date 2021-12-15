@@ -222,4 +222,7 @@
   <data name="InputTracker_MountRemoved" xml:space="preserve">
     <value>Mount '{0}' has been removed, it was previously defined as '{1}'</value>
   </data>
+  <data name="Layout_NormalizedBuildEngineDirectoryName" xml:space="preserve">
+    <value>BuildEngineDirectory</value>
+  </data>
 </root>

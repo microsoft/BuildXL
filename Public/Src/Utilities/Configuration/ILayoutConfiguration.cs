@@ -63,6 +63,16 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath BuildEngineDirectory { get; set; }
 
         /// <summary>
+        /// A layout normalized equivalent of <see cref="BuildEngineDirectory"/>.
+        /// </summary>
+        /// <remarks>
+        /// The normalization aims to make this path consistent across environments. This way tools bundled with the
+        /// build engine can be accessed via paths that are consistent and thus have matching fingerprints.
+        /// Will always be set by the engine.
+        /// </remarks>
+        AbsolutePath NormalizedBuildEngineDirectory { get; set; }
+
+        /// <summary>
         /// Path to file containing known hashes for files.
         /// </summary>
         AbsolutePath FileContentTableFile { get; }

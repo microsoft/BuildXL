@@ -29,6 +29,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EngineCacheDirectory = pathRemapper.Remap(template.EngineCacheDirectory);
             TempDirectory = pathRemapper.Remap(template.TempDirectory);
             BuildEngineDirectory = pathRemapper.Remap(template.BuildEngineDirectory);
+            NormalizedBuildEngineDirectory = pathRemapper.Remap(template.NormalizedBuildEngineDirectory);
             FileContentTableFile = pathRemapper.Remap(template.FileContentTableFile);
             SchedulerFileChangeTrackerFile = pathRemapper.Remap(template.SchedulerFileChangeTrackerFile);
             IncrementalSchedulingStateFile = pathRemapper.Remap(template.IncrementalSchedulingStateFile);
@@ -68,6 +69,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath BuildEngineDirectory { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath NormalizedBuildEngineDirectory { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath FileContentTableFile { get; set; }

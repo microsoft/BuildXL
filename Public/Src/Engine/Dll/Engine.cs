@@ -668,6 +668,11 @@ namespace BuildXL.Engine
                 layout.BuildEngineDirectory = AbsolutePath.Create(pathTable, assemblyLocation).GetParent(pathTable);
             }
 
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                layout.NormalizedBuildEngineDirectory = layout.EngineCacheDirectory.Combine(pathTable, Strings.Layout_NormalizedBuildEngineDirectoryName);
+            }
+
             if (!layout.FileContentTableFile.IsValid)
             {
                 layout.FileContentTableFile = layout.EngineCacheDirectory.Combine(pathTable, Strings.Layout_DefaultFileContentTableFileName);
@@ -2413,6 +2418,14 @@ namespace BuildXL.Engine
                 }
 
                 locker.CreateAndPreventDeletion(m_moveDeleteTempDirectory);
+                if (Configuration.Layout.NormalizedBuildEngineDirectory.IsValid)
+                {
+                    locker.CreateRedirectionAndPreventDeletion(
+                        layout.NormalizedBuildEngineDirectory.ToString(pathTable),
+                        layout.BuildEngineDirectory.ToString(pathTable),
+                        deleteExisting: true,
+                        deleteOnClose: false);
+                }
 
                 success = true;
             }

@@ -260,8 +260,9 @@ namespace BuildXL.FrontEnd.Download
             string exeExtension = OperatingSystemHelper.IsWindowsOS ? ".exe" : string.Empty;
 
             // CODESYNC: keep in sync with Public\Src\Tools\FileDownloader\Tool.FileDownloader.dsc deployment
-            var pathToDownloader = m_host.Configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Downloader" + exeExtension));
-            var pathToExtractor = m_host.Configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Extractor" + exeExtension));
+            AbsolutePath toolRootPath = m_host.Configuration.Layout.NormalizedBuildEngineDirectory.IsValid ? m_host.Configuration.Layout.NormalizedBuildEngineDirectory : m_host.Configuration.Layout.BuildEngineDirectory;
+            var pathToDownloader = toolRootPath.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Downloader" + exeExtension));
+            var pathToExtractor = toolRootPath.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, "/tools/FileDownloader/Extractor" + exeExtension));
 
             // Create a spec file that schedules two pips: a download one followed by an extract one. The latter only if extraction is specified
             // CODESYNC: tools arguments and behavior defined in Public\Src\Tools\FileDownloader\Downloader.cs and \Public\Src\Tools\FileDownloader\Extractor.cs
@@ -290,7 +291,9 @@ namespace BuildXL.FrontEnd.Download
 
         private string CreateToolDefinition(AbsolutePath pathToTool, bool dependsOnAppDataDirectory = false)
         {
-            return $"{{exe: f`{pathToTool.ToString(m_context.PathTable)}`, dependsOnCurrentHostOSDirectories: true, dependsOnAppDataDirectory: {(dependsOnAppDataDirectory ? "true" : "false")}, prepareTempDirectory: true}};";
+            return $"{{exe: f`{pathToTool.ToString(m_context.PathTable)}`, dependsOnCurrentHostOSDirectories: true, dependsOnAppDataDirectory: {(dependsOnAppDataDirectory ? "true" : "false")}, prepareTempDirectory: true, " +
+                // These tools are bundled with the build engine so we trust that their behavior does not change except for when their command line changes.
+                $"untrackedDirectoryScopes: [d`{pathToTool.GetParent(m_context.PathTable).ToString(m_context.PathTable)}`]}};";
         }
 
         private string CreateDownloadPip(DownloadData data)

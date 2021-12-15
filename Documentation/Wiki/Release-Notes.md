@@ -1,6 +1,15 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+ # 0.1.0-20211203.5 (Release [123327](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=123327)) Released 12/08/2021
+- Add SBOM packages to SBOM generation step in DropDaemon
+- Light process pips are fully supported by scheduler
+- Add .net6.0 support 
+- Disambiguate AbsentPathProbe DFA logging 
+- Allow RuntimeCacheMissAnalyzer until the build ends to potentially load
+- Generate SBOMs by default and add the options to the Drop SDK
+- Various bug fixes
+
  # 0.1.0-20211112.2 (Release [121971](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=121971)) Released 11/18/2021
 -	Address SBOM API scaling issues
 -	Mount table is properly populated for DScript VSCode extension

@@ -204,37 +204,17 @@ namespace BuildXL
                 builder.Append("##vso[task.logIssue type=");
                 builder.Append(eventType);
 
+                int dxCode = eventData.EventId;
                 var message = eventData.Message;
                 var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
                 string body;
-
-                // see if this event provides provenance info
-                if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
-                {
-                    Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
-
-                    // file
-                    builder.Append(";sourcepath=");
-                    builder.Append(args[0]);
-
-                    //line
-                    builder.Append(";linenumber=");
-                    builder.Append(args[1]);
-
-                    //column
-                    builder.Append(";columnnumber=");
-                    builder.Append(args[2]);
-
-                    //code
-                    builder.Append(";code=DX");
-                    builder.Append(eventData.EventId.ToString("D4"));
-                }
 
                 var newArgs = args;
                 // construct a short message for ADO console
                 if ((eventData.EventId == (int)LogEventId.PipProcessError)
                     || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError && (int)args[1] == (int)LogEventId.PipProcessError))
                 {
+                    dxCode = (int)LogEventId.PipProcessError;
                     var pipProcessError = new PipProcessErrorEventFields(eventData.Payload, eventData.EventId != (int)LogEventId.PipProcessError);
                     args[0] = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
                     args[1] = pipProcessError.ShortPipDescription;
@@ -253,6 +233,11 @@ namespace BuildXL
 
                 body = string.Format(CultureInfo.CurrentCulture, message, args);
                 builder.Append(";]");
+                
+                // DX code
+                builder.Append("DX");
+                builder.Append(dxCode.ToString("D4"));
+                builder.Append(' ');
 
                 // substitute newlines in the message
                 var encodedBody = body.Replace("\r\n", $"%0D%0A##[{eventType}]")

@@ -133,7 +133,7 @@ namespace Test.BuildXL
                     "my pip");
 
                 var processedOutputToLog = "Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
-                result.ExpectingConsoleLog = @$"##vso[task.logIssue type=error;][Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{pipProcessError.MessageAboutPathsToLog}%0D%0A##[error]{pipProcessError.PathsToLog}";
+                result.ExpectingConsoleLog = @$"##vso[task.logIssue type=error;]DX0064 [Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{pipProcessError.MessageAboutPathsToLog}%0D%0A##[error]{pipProcessError.PathsToLog}";
                 result.PipProcessError = pipProcessError;
                 result.Console = new MockConsole();
                 result.ViewModel = new BuildViewModel();

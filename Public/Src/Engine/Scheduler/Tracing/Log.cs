@@ -3492,6 +3492,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void GettingFingerprintStoreTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.FingerprintStoreDirectoryDeletionFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "/saveFingerprintStoreToLogs- is passed, but FingerprintStore directory could not get deleted: '{0}'. {1}")]
+        public abstract void FingerprintStoreDirectoryDeletionFailed(LoggingContext context, string path, string error);
+
+        [GeneratedEvent(
             (int)LogEventId.SuccessLoadFingerprintStoreToCompare,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

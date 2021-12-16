@@ -899,7 +899,19 @@ namespace BuildXL.Scheduler.Tracing
 
                 if (!m_configuration.Logging.SaveFingerprintStoreToLogs.GetValueOrDefault())
                 {
-                    FileUtilities.DeleteDirectoryContents(m_configuration.Logging.FingerprintsLogDirectory.ToString(m_context.PathTable), true);
+                    string dirPath = m_configuration.Logging.FingerprintsLogDirectory.ToString(m_context.PathTable);
+
+                    try
+                    {
+                        FileUtilities.DeleteDirectoryContents(dirPath, true);
+                    }
+                    catch (BuildXLException ex)
+                    {
+                        Logger.Log.FingerprintStoreDirectoryDeletionFailed(
+                            LoggingContext,
+                            dirPath,
+                            ex.LogEventMessage);
+                    }
                 }
             }
 

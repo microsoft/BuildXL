@@ -14,16 +14,16 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "3CCA66C420D15BBD0051F984"
-               BuildableName = "BuildXLSandbox.kext"
-               BlueprintName = "BuildXLSandbox"
-               ReferencedContainer = "container:Sandbox.xcodeproj">
+               BlueprintIdentifier = "3C91D2BC276118FB00DD6CE6"
+               BuildableName = "BuildXLSandboxDaemon"
+               BlueprintName = "BuildXLSandboxDaemon"
+               ReferencedContainer = "container:BuildXL.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
-      buildConfiguration = "debug"
+      buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
@@ -31,46 +31,49 @@
       </Testables>
    </TestAction>
    <LaunchAction
-      buildConfiguration = "debug"
+      buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      debugAsWhichUser = "root"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3CCA66C420D15BBD0051F984"
-            BuildableName = "BuildXLSandbox.kext"
-            BlueprintName = "BuildXLSandbox"
-            ReferencedContainer = "container:Sandbox.xcodeproj">
+            BlueprintIdentifier = "3C91D2BC276118FB00DD6CE6"
+            BuildableName = "BuildXLSandboxDaemon"
+            BlueprintName = "BuildXLSandboxDaemon"
+            ReferencedContainer = "container:BuildXL.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
-      buildConfiguration = "release"
+      buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3CCA66C420D15BBD0051F984"
-            BuildableName = "BuildXLSandbox.kext"
-            BlueprintName = "BuildXLSandbox"
-            ReferencedContainer = "container:Sandbox.xcodeproj">
+            BlueprintIdentifier = "3C91D2BC276118FB00DD6CE6"
+            BuildableName = "BuildXLSandboxDaemon"
+            BlueprintName = "BuildXLSandboxDaemon"
+            ReferencedContainer = "container:BuildXL.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
-      buildConfiguration = "debug">
+      buildConfiguration = "Debug">
    </AnalyzeAction>
    <ArchiveAction
-      buildConfiguration = "release"
+      buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>

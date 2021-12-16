@@ -58,7 +58,7 @@ public:
     }
 };
 
-typedef struct {
+typedef struct arg_ {
     const char *Name;
     const type_info *Type;
     const char *Default;

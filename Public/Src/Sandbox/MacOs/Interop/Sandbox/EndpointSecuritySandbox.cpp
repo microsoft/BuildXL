@@ -64,13 +64,14 @@ EndpointSecuritySandbox::EndpointSecuritySandbox(pid_t host_pid, process_callbac
                 }
                 else if (type == XPC_TYPE_ERROR)
                 {
+                    const char *desc = xpc_copy_description(message);
                     if (message == XPC_ERROR_CONNECTION_INTERRUPTED)
                     {
-
+                        log_error("Connection interrupted: %{public}s", desc);
                     }
                     else if (message == XPC_ERROR_CONNECTION_INVALID)
                     {
-
+                        log_error("Connection invalid: %{public}s", desc);
                     }
                 }
             });
@@ -101,9 +102,13 @@ EndpointSecuritySandbox::EndpointSecuritySandbox(pid_t host_pid, process_callbac
         status = xpc_dictionary_get_uint64(response, "response");
         log_debug("Successfully initialized the EndpointSecurity sandbox backend - status (%lld).", status);
     }
+    else
+    {
+        const char *desc = xpc_copy_description(response);
+        log_error("Error setting up ES connection: %{public}s", desc);
+    }
 
     xpc_release(response);
-
     if (status != xpc_response_success)
     {
         throw BuildXLException("Could not connect to sandbox XPC bridge, aborting - status:" + std::to_string(status));

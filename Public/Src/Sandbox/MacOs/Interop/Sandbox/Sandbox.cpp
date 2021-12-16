@@ -111,10 +111,10 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
         xpc_type_t type = xpc_get_type(message);
         if (type == XPC_TYPE_ERROR)
         {
-
+            log_error("xpc_bridge error received: %{public}s", xpc_copy_description(message));
         }
     });
-    xpc_connection_activate(xpc_bridge_);
+    xpc_connection_resume(xpc_bridge_);
 
     hybird_event_queue_ = dispatch_queue_create("com.microsoft.buildxl.interop.hybrid_events", dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
@@ -285,7 +285,7 @@ bool Sandbox::TrackChildProcess(pid_t childPid, const char *childExecutable, std
 
 error:
 
-    log_debug("Failed tracking child entry %d -> %d, PipId: %#llX, Tree size: %d, Code: %d",
+    log_error("Failed tracking child entry %d -> %d, PipId: %#llX, Tree size: %d, Code: %d",
               childPid, pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize(), getOrAddResult);
 
     childProcess.reset();

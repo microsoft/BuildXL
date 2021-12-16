@@ -33,8 +33,11 @@ reported by BuildXLSandbox.
 Whether or not to attempt to load BuildXLSandbox kernel extension prior to running the build.  When neither
 is specified, the default is not to automatically load BuildXLSandbox.
 .TP
+.BI --install-daemon
+Whether to attempt to install the BuildXLESSandbox daemon prior to running the build.
+.TP
 .BI --cache-config-file " cache-config-file"
-Path to file which specifies characteristics of the cache. If not specified, defaults to 
+Path to file which specifies characteristics of the cache. If not specified, defaults to
 'DefaultCacheConfig.json' inside the BuildXL binary directory.
 .TP
 .IB buildxl-arguments

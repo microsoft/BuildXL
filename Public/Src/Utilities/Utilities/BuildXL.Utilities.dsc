@@ -11,7 +11,7 @@ export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Utilities",
     allowUnsafeBlocks: true,
     embeddedResources: [{resX: f`Strings.resx`, generatedClassMode: "implicitPublic"}],
-    sources: globR(d`.`, "*.cs"), 
+    sources: globR(d`.`, "*.cs"),
     addNotNullAttributeFile: true,
     references: [
         ...addIf(BuildXLSdk.isFullFramework,
@@ -23,17 +23,17 @@ export const dll = BuildXLSdk.library({
         Collections.dll,
         Interop.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-        
+
         // Don't need to add the dependency for .net 6
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild && qualifier.targetFramework !== 'net6.0', () => [            
+        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild && qualifier.targetFramework !== 'net6.0', () => [
             importFrom("Microsoft.Win32.Registry").pkg
         ]),
-        
-        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [            
+
+        ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
             SysMng.pkg.override<Shared.ManagedNugetPackage>({
-                    runtime: Context.getCurrentHost().os === "win" ? [
+                    runtime: [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))
-                    ] : []
+                    ]
             })
         ]),
         ...BuildXLSdk.tplPackages,

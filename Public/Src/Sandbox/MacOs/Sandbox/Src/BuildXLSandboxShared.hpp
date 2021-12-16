@@ -166,14 +166,14 @@ typedef struct {
     double size;
 } CountAndSize;
 
-typedef struct {
+typedef struct mcas_ {
     int64_t totalAllocatedBytes;
     CountAndSize fastNodes;
     CountAndSize lightNodes;
     CountAndSize cacheRecords;
 } MemoryCountsAndSizes;
 
-typedef struct {
+typedef struct ac_ {
     DurationCounter findTrackedProcess;
     DurationCounter setLastLookedUpPath;
     DurationCounter checkPolicy;
@@ -189,7 +189,7 @@ typedef struct {
     Counter numCacheMisses;
 } AllCounters;
 
-typedef struct _rth {
+typedef struct rt_ {
     percent cpuUsageBlock;
     percent cpuUsageWakeup;
     uint minAvailableRamMB;

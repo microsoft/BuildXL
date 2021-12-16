@@ -18,16 +18,7 @@
 
 #include "IOEvent.hpp"
 
-#define log(format, ...) os_log(logger, "[[ %s ]] %s: " #format "\n", "com_microsoft_buildxl_detours", __func__, __VA_ARGS__)
 #define DETOURS_BUNDLE_IDENTIFIER "com.microsoft.buildxl.detours"
-
-static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
-
-#if DEBUG
-#define log_debug(format, ...) log(format, __VA_ARGS__)
-#else
-#define log_debug(format, ...)
-#endif
 
 #define DYLD_INTERPOSE(_replacment,_replacee) \
     __attribute__ ((used)) static struct{ const void* replacment; const void* replacee; } _interpose_##_replacee \

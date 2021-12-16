@@ -23,7 +23,8 @@ void start_xpc_server(void)
         xpc_type_t type = xpc_get_type(peer);
         if (type == XPC_TYPE_ERROR)
         {
-            NSLog(@"%@", peer);
+            const char *desc = xpc_copy_description(peer);
+            NSLog(@"%s", desc);
             exit(EXIT_FAILURE);
         }
     });
@@ -38,7 +39,7 @@ void start_xpc_server(void)
                const char *msg = xpc_dictionary_get_string(message, "IOEvent");
                const uint64_t msg_length = xpc_dictionary_get_uint64(message, "IOEvent::Length");
 
-               printf("%.*s\n",(int)msg_length, msg);
+               NSLog(@"%.*s\n",(int)msg_length, msg);
 
                xpc_object_t reply = xpc_dictionary_create_reply(message);
                xpc_dictionary_set_uint64(reply, "response", xpc_response_success);
@@ -47,15 +48,16 @@ void start_xpc_server(void)
            }
            else if (type == XPC_TYPE_ERROR)
            {
+               const char *desc = xpc_copy_description(message);
+               
                if (message == XPC_ERROR_CONNECTION_INTERRUPTED)
                {
-                   NSLog(@"Connection interrupted: %@", peer);
+                   NSLog(@"Connection interrupted: %s", desc);
                    exit(EXIT_FAILURE);
                }
                else if (message == XPC_ERROR_CONNECTION_INVALID)
                {
-                   NSLog(@"Connection invalid: %@", peer);
-                   exit(EXIT_FAILURE);
+                   NSLog(@"Client disconnected: %s", desc);
                }
            }
        });
@@ -79,6 +81,6 @@ void start_xpc_server(void)
         exit(EXIT_FAILURE);
     }
 
-    // Won't exit - in test mode BuildXL has to be force quit
+    // Won't exit - in xpc test mode BuildXL has to be force quit
     dispatch_main();
 }

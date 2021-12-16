@@ -21,9 +21,9 @@ namespace Processes {
             ),
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
                 SysMng.pkg.override<Shared.ManagedNugetPackage>({
-                    runtime: Context.getCurrentHost().os === "win" ? [
+                    runtime: [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))
-                    ] : []
+                    ]
                 })
             ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
@@ -48,6 +48,9 @@ namespace Processes {
         runtimeContent: [
             ...addIfLazy(Context.getCurrentHost().os === "win" && qualifier.targetRuntime === "win-x64", () => [
                 importFrom("BuildXL.Sandbox.Windows").Deployment.detours,
+            ]),
+            ...addIfLazy(Context.getCurrentHost().os === "macOS" && qualifier.targetRuntime === "osx-x64", () => [
+                MacServices.Deployment.bxlESDaemon,
             ]),
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                 MacServices.Deployment.kext,

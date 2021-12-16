@@ -15,7 +15,7 @@ ESClient *exit_client = nullptr;
 ESClient *write_client = nullptr;
 ESClient *read_client = nullptr;
 ESClient *probe_client = nullptr;
-ESClient *lookup_client = nullptr;
+ESClient *spammy_client = nullptr;
 
 #define CREATE_HIGH_PRIORITY_QUEUE(name, identifier) \
     dispatch_queue_t name = dispatch_queue_create(identifier, dispatch_queue_attr_make_with_qos_class( \
@@ -33,13 +33,12 @@ ESClient *lookup_client = nullptr;
 int main(void)
 {
     // One consumer queue per event bucket and client
-
     CREATE_HIGH_PRIORITY_QUEUE(es_lifetime_event_queue, "com.microsoft.buildxl.sandbox.es_liftime_events")
     CREATE_HIGH_PRIORITY_QUEUE(es_exit_event_queue, "com.microsoft.buildxl.sandbox.es_exit_events")
     CREATE_HIGH_PRIORITY_QUEUE(es_write_event_queue, "com.microsoft.buildxl.sandbox.es_write_events")
     CREATE_HIGH_PRIORITY_QUEUE(es_read_event_queue, "com.microsoft.buildxl.sandbox.es_read_events")
     CREATE_HIGH_PRIORITY_QUEUE(es_probe_event_queue, "com.microsoft.buildxl.sandbox.es_probe_events")
-    CREATE_HIGH_PRIORITY_QUEUE(es_lookup_event_queue, "com.microsoft.buildxl.sandbox.es_lookup_events")
+    CREATE_HIGH_PRIORITY_QUEUE(es_spammy_event_queue, "com.microsoft.buildxl.sandbox.es_lookup_events")
 
     dispatch_queue_t xpc_queue = dispatch_queue_create("com.microsoft.buildxl.sandbox.xpc_queue", dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
@@ -89,8 +88,15 @@ int main(void)
                                     INIT(exit_client, es_exit_event_queue, es_exit_events_)
                                     INIT(write_client, es_write_event_queue, es_write_events_)
                                     INIT(read_client, es_read_event_queue, es_read_events_)
+/*
+ 
+ When testing the ES sandbox on the CI VM's only two cores are available and hence a maximum of four ES clients can be instantiated (OS constraint).
+ To reduce backpressure, more clients should be created and the events bucketed by their 'amount reported', this needs to be dynamically encoded
+ depending on the host CPU configuration.
+ 
                                     INIT(probe_client, es_probe_event_queue, es_probe_events_)
-                                    INIT(lookup_client, es_lookup_event_queue, es_lookup_events_)
+                                    INIT(spammy_client, es_spammy_event_queue, es_spammy_events_)
+ */
                                 }
 
                                 xpc_object_t reply = xpc_dictionary_create_reply(message);
@@ -100,25 +106,29 @@ int main(void)
                                 break;
                             }
                             case xpc_kill_detours_connection:
+                            {
+                                detours_endpoint = nullptr;
+                                break;
+                            }
                             case xpc_kill_es_connection:
                             {
-                                if (command == xpc_kill_detours_connection)
-                                {
-                                    detours_endpoint = nullptr;
-                                }
-                                else
-                                {
-                                    xpc_object_t reply = xpc_dictionary_create_reply(message);
+                                xpc_object_t reply = xpc_dictionary_create_reply(message);
 
-                                    TEAR_DOWN(lifetime_client)
-                                    TEAR_DOWN(exit_client)
-                                    TEAR_DOWN(write_client)
-                                    TEAR_DOWN(read_client)
-                                    TEAR_DOWN(probe_client)
-                                    TEAR_DOWN(lookup_client)
-
-                                    es_endpoint = nullptr;
-                                }
+                                TEAR_DOWN(lifetime_client)
+                                TEAR_DOWN(exit_client)
+                                TEAR_DOWN(write_client)
+                                TEAR_DOWN(read_client)
+/*
+ 
+ When testing the ES sandbox on the CI VM's only two cores are available and hence a maximum of four ES clients can be instantiated (OS constraint).
+ To reduce backpressure, more clients should be created and the events bucketed by their 'amount reported', this needs to be dynamically encoded
+ depending on the host CPU configuration.
+ 
+                                TEAR_DOWN(probe_client)
+                                TEAR_DOWN(spammy_client)
+ */
+                                
+                                es_endpoint = nullptr;
                                 break;
                             }
                         }
@@ -126,7 +136,9 @@ int main(void)
                 }
                 else if (type == XPC_TYPE_ERROR)
                 {
-                    // TODO: Get ESClient mappings implemented to do proper cleanup
+                    const char *desc = xpc_copy_description(message);
+                    log_error("Error setting up connection: %{public}s", desc);
+                    // TODO: Get ESClient mappings implemented to do proper cleanup, also an invalidated connection error is the default when the client exits.
                 }
             });
 
@@ -134,10 +146,12 @@ int main(void)
         }
         else
         {
-            // NOOP
+            const char *desc = xpc_copy_description(peer);
+            log_error("Error in outer XPC broker setup: %{public}s", desc);
         }
     });
 
     xpc_connection_activate(sandbox);
+    log_debug("Launching XPC broker (%{public}s) for detours and ES sandbox clients...", xpc_broker_version);
     [[NSRunLoop currentRunLoop] run];
 }

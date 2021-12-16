@@ -124,7 +124,7 @@ void TeardownProcessDumps()
     TeardownProcessDumpsInternal(true);
 }
 
-void DumpThreadState()
+void DumpThreadState(void)
 {
     if (dump_config == NULL)
     {

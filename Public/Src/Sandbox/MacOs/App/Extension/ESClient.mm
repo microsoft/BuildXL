@@ -28,7 +28,20 @@ ESClient::ESClient(dispatch_queue_t event_queue, pid_t host_pid, xpc_endpoint_t 
     });
 
     xpc_connection_resume(build_host_);
-
+    
+    /*
+        Remark: XPC Event transfer happens within the ES callback here, this adds latency. The ES documentation mentions that an
+                event message can be processed asynchronously through instantly responding (allowing it) and then copying them out
+                using es_retain_message(), to then store and sort them using the appropriate event sequence number `seq_num` -
+                maintaining order is important. This could help alleviate losing events due to ES backpressure!
+     
+                Additionally, ES now offers es_mute_path(...) and a path blacklist could be created that mutes events from processes
+                from this list on setup to avoid tons of events being captured if the system is subscribed to a lot of events, e.g.
+                    - launchd and other apple daemons
+                    - browsers
+                    - etc.
+    */
+    
     es_new_client_result_t result = es_new_client(&client_, ^(es_client_t *c, const es_message_t *message)
     {
         pid_t pid = audit_token_to_pid(message->process->audit_token);
@@ -75,59 +88,77 @@ ESClient::ESClient(dispatch_queue_t event_queue, pid_t host_pid, xpc_endpoint_t 
             if (xpc_type == XPC_TYPE_DICTIONARY)
             {
                 status = xpc_dictionary_get_uint64(response, "response");
-            }
-
-            switch (status)
-            {
-                case xpc_response_mute_process:
-                    if (client_) es_mute_process(client_, event.GetProcessAuditToken());
-                    break;
-                case xpc_response_auth:
+                switch (status)
                 {
-                    if (client_)
+                    case xpc_response_mute_process:
+                    case xpc_response_auth:
                     {
-                        switch(message->event_type)
+                        if (client_)
                         {
-                            case ES_EVENT_TYPE_AUTH_OPEN:
-                                es_respond_flags_result(client_,message, 0x7fffffff, false);
-                                break;
-                            default:
-                                es_respond_auth_result(client_, message, ES_AUTH_RESULT_ALLOW, false);
-                                break;
+                            switch(message->event_type)
+                            {
+                                case ES_EVENT_TYPE_AUTH_OPEN:
+                                    es_respond_flags_result(client_,message, 0x7fffffff, false);
+                                    break;
+                                default:
+                                    es_respond_auth_result(client_, message, ES_AUTH_RESULT_ALLOW, false);
+                                    break;
+                            }
+                            
+                            if (status == xpc_response_mute_process)
+                            {
+                                es_mute_process(client_, event.GetProcessAuditToken());
+                            }
+                            
+                            break;
                         }
+                        break;
                     }
-                    break;
+                    case xpc_response_error:
+                    case xpc_response_failure:
+                    {
+                        log_error("%s", "XPC event processing error - sandboxing is no longer reliable!\n");
+                        // If we can't guarantee conistent event reporting, we forcefully exit and abort the build.
+                        exit(EXIT_FAILURE);
+                        break;
+                    }
                 }
-                case xpc_response_error:
-                case xpc_response_failure:
+            }
+            else
+            {
+                // Ignore cases when BuildXL quits and invalidates / interrupts the XPC connection.
+                if (response != XPC_ERROR_CONNECTION_INTERRUPTED && response != XPC_ERROR_CONNECTION_INVALID)
                 {
-                    log_error("%s", "XPC event processing error - sandboxing is no longer reliable!\n");
+                    const char *desc = xpc_copy_description(response);
+                    log_error("Non-recoverable error in ES client message parsing queue: %{public}s", desc);
                     exit(EXIT_FAILURE);
-                    break;
                 }
             }
         });
     });
 
     /*
-        TODO: Calling exit() within the system extension causes it to be killed and restarted, in general we have to
-              implement a nicer way to indicate errors and recover from them.
+        TODO: Calling exit() within the system extension / daemon causes it to be killed and restarted, in general we have to
+              implement a nicer way to indicate errors and recover from them; currently we log and exit only!
      */
 
     if (result != ES_NEW_CLIENT_RESULT_SUCCESS)
     {
+        log_error("Failed creating an EndpointSecurity client: %d", result);
         exit(EXIT_FAILURE);
     }
 
     es_clear_cache_result_t clear_result = es_clear_cache(client_);
     if (clear_result != ES_CLEAR_CACHE_RESULT_SUCCESS)
     {
+        log_error("Failed cleaning the EndpointSecurity client cache: %d", clear_result);
         exit(EXIT_FAILURE);
     }
 
     es_return_t subscribe_result = es_subscribe(client_, (es_event_type_t *)events, event_count);
     if (subscribe_result != ES_RETURN_SUCCESS)
     {
+        log_error("Failed subscribing to the EndpointSecurity backend: %d", subscribe_result);
         exit(EXIT_FAILURE);
     }
 
@@ -141,14 +172,14 @@ int ESClient::TearDown(xpc_object_t remote, xpc_object_t reply)
         es_return_t result = es_unsubscribe_all(client_);
         if (result != ES_RETURN_SUCCESS)
         {
-            log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!\n");
+            log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!");
             return ES_RETURN_ERROR;
         }
 
         result = es_delete_client(client_);
         if (result != ES_RETURN_SUCCESS)
         {
-            log_error("%s", "Failed deleting the EndpointSecurity client!\n");
+            log_error("%s", "Failed deleting the EndpointSecurity client!");
             return ES_RETURN_ERROR;
         }
 

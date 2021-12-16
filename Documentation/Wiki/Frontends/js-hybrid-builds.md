@@ -1,7 +1,7 @@
 # Integrating JavaScript with other technologies
 BuildXL has multi-resolver architecture, where JavaScript [resolvers](../Frontends.md) can coexist with other kind of resolvers. All defined resolvers can collaborate to define a single build where each piece of work being executed may have a different provenance.
 
-Each resolver can decide to expose a collection of modules, where each module contains values that can be references across resolvers. For details, check [DScript](../DScript/Introduction.md) section. 
+Each resolver can decide to expose a collection of modules, where each module contains values that can be references across resolvers. For details, check [DScript](../DScript/Introduction.md) section.
 
 
 ## Exports
@@ -23,7 +23,7 @@ config({
   ]
 });
 ```
-Here each symbol will instruct the resolver to expose a public value with the corresponding name containing the outputs of the selected projects. In addition to those, there is always an implicit exported name `all` that contains the outputs of all projects in the build. 
+Here each symbol will instruct the resolver to expose a public value with the corresponding name containing the outputs of the selected projects. In addition to those, there is always an implicit exported name `all` that contains the outputs of all projects in the build.
 
 The type of each exposed value is `StaticDirectory[]` containing all the outputs of the selected projects, grouped by directory.
 
@@ -73,10 +73,10 @@ Let's see how this can be achieved. A scheduling callback can be specified that 
 config({
   resolvers: [
       {
-        kind: "Rush",
-        moduleName: "sp-client",
+        kind: "Rush",
+        moduleName: "sp-client",
         ...
-        customScheduling: {module: "test-telemetry", schedulingFunction: "runJestWithTelemetry"}
+        customScheduling: {module: "test-telemetry", schedulingFunction: "runJestWithTelemetry"}
       }
       {
           kind: "DScript",

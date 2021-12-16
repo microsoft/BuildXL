@@ -48,13 +48,14 @@ DetoursSandbox::DetoursSandbox(pid_t host_pid, process_callback callback, void *
                 }
                 else if (type == XPC_TYPE_ERROR)
                 {
+                    const char *desc = xpc_copy_description(message);
                     if (message == XPC_ERROR_CONNECTION_INTERRUPTED)
                     {
-
+                        log_debug("XPC connection interrupted: %{public}s", desc);
                     }
                     else if (message == XPC_ERROR_CONNECTION_INVALID)
                     {
-
+                        log_debug("XPC connection invalid: %{public}s", desc);
                     }
                 }
             });
@@ -111,4 +112,6 @@ DetoursSandbox::~DetoursSandbox()
     }
 
     eventCallback_ = nullptr;
+    
+    log_debug("%s", "Successfully shut-down Detours sandbox subsystem.");
 }

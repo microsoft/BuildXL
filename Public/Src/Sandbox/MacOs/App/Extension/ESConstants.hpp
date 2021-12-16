@@ -19,6 +19,8 @@ static os_log_t logger = os_log_create("com.microsoft.buildxl.sandbox", "Logger"
 #define log_debug(format, ...)
 #endif
 
+static const char* xpc_broker_version = "1.0.0";
+
 /*
 
  Currently the following events are not hooked up, maybe useful for later:
@@ -58,25 +60,34 @@ const es_event_type_t es_write_events_[] =
     ES_EVENT_TYPE_AUTH_SETFLAGS,
     ES_EVENT_TYPE_AUTH_SETMODE,
     ES_EVENT_TYPE_AUTH_SETOWNER,
-    ES_EVENT_TYPE_AUTH_SETACL
+    ES_EVENT_TYPE_AUTH_SETACL,
 };
 
 const es_event_type_t es_read_events_[] =
 {
     ES_EVENT_TYPE_AUTH_OPEN,
-    ES_EVENT_TYPE_NOTIFY_ACCESS,
-    ES_EVENT_TYPE_AUTH_READLINK
+//    ES_EVENT_TYPE_NOTIFY_ACCESS,
+//    ES_EVENT_TYPE_AUTH_READLINK,
 };
+
+/*
+ 
+ When testing the ES sandbox on the CI VM's only two cores are available and hence a maximum of four ES clients can be instantiated
+ (OS constraint). To reduce backpressure, more clients should be created and the events bucketed by their 'amount reported', this
+ needs to be dynamically encoded depending on the host CPU configuration. Hence the following structure should be used (uncommented
+ and clients re-enabled in main.c).
+ 
+*/
 
 const es_event_type_t es_probe_events_[] =
 {
-    ES_EVENT_TYPE_NOTIFY_STAT,
-    ES_EVENT_TYPE_AUTH_GETATTRLIST,
-    ES_EVENT_TYPE_AUTH_GETEXTATTR,
-    ES_EVENT_TYPE_AUTH_LISTEXTATTR
+//    ES_EVENT_TYPE_NOTIFY_STAT,
+//    ES_EVENT_TYPE_AUTH_GETATTRLIST,
+//    ES_EVENT_TYPE_AUTH_GETEXTATTR,
+//    ES_EVENT_TYPE_AUTH_LISTEXTATTR
 };
 
-const es_event_type_t es_lookup_events_[] =
+const es_event_type_t es_spammy_events_[] =
 {
 //    ES_EVENT_TYPE_NOTIFY_LOOKUP
 };

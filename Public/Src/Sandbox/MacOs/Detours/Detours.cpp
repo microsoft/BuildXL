@@ -41,20 +41,21 @@ int setup_xpc()
         xpc_type_t type = xpc_get_type(message);
         if (type == XPC_TYPE_ERROR)
         {
-            log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", (char *)message);
+            const char *desc = xpc_copy_description(message);
+            fprintf(stderr, "Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s\n", desc);
             abort();
         }
     });
 
     xpc_connection_resume(xpc_connection);
-
+    
     xpc_object_t xpc_payload = xpc_dictionary_create(NULL, NULL, 0);
     xpc_dictionary_set_uint64(xpc_payload, "command", xpc_get_detours_connection);
     xpc_object_t response = xpc_connection_send_message_with_reply_sync(xpc_connection, xpc_payload);
 
     xpc_type_t type = xpc_get_type(response);
     uint64_t status = xpc_response_error;
-
+    
     if (type == XPC_TYPE_DICTIONARY)
     {
         status = xpc_dictionary_get_uint64(response, "response");
@@ -67,7 +68,8 @@ int setup_xpc()
                 xpc_type_t type = xpc_get_type(message);
                 if (type == XPC_TYPE_ERROR)
                 {
-                    log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", (char *)message);
+                    const char *desc = xpc_copy_description(message);
+                    fprintf(stderr, "Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s\n", desc);
                     abort();
                 }
             });
@@ -76,6 +78,16 @@ int setup_xpc()
             xpc_connection_resume(bxl_connection);
             xpc_connection_suspend(xpc_connection);
         }
+        else
+        {
+            const char *desc = xpc_copy_description(response);
+            fprintf(stderr, "Error from XPC response: %s\n", desc);
+        }
+    }
+    else
+    {
+        const char *desc = xpc_copy_description(response);
+        fprintf(stderr, "Error parsing connection response payload: %s\n", desc);
     }
 
     xpc_release(response);
@@ -143,7 +155,7 @@ inline void send_to_sandbox(IOEvent &event, es_event_type_t type = ES_EVENT_TYPE
 
     if (status != xpc_response_success)
     {
-        log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed - status(%lld)", status);
+        fprintf(stderr, "Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed - status(%lld)\n", status);
         abort();
     }
 }

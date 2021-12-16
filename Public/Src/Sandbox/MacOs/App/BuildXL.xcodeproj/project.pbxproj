@@ -10,6 +10,12 @@
 		3C44029C24336AEB008CACDD /* SystemExtensionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C44029B24336AEB008CACDD /* SystemExtensionManager.m */; };
 		3C4402A424336AEC008CACDD /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C4402A324336AEC008CACDD /* main.mm */; };
 		3C4402CE243378EE008CACDD /* coreruncommon.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C4402CD243378EE008CACDD /* coreruncommon.mm */; };
+		3C5814112767EDF00010321A /* com.microsoft.buildxl.sandbox.plist in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3C5814102767EDC60010321A /* com.microsoft.buildxl.sandbox.plist */; };
+		3C91D2C42761191D00DD6CE6 /* ESClient.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C794F522448993200EF72E5 /* ESClient.mm */; };
+		3C91D2C52761191D00DD6CE6 /* IOEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFB2E4424F0288B00A5198F /* IOEvent.cpp */; };
+		3C91D2C62761191D00DD6CE6 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E16424475CF4004D2734 /* main.mm */; };
+		3C91D2C72761193F00DD6CE6 /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */; };
+		3C91D2C82761194400DD6CE6 /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402B924336C3F008CACDD /* libbsm.tbd */; };
 		3C9991A52449CBFC00CEB33E /* XPCTester.h in Sources */ = {isa = PBXBuildFile; fileRef = 3C9991A42449CBFC00CEB33E /* XPCTester.h */; };
 		3C9E56A324F0022400BD7D34 /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4402BB24336C47008CACDD /* libEndpointSecurity.tbd */; };
 		3C9E56AB24F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension in Embed System Extension */ = {isa = PBXBuildFile; fileRef = 3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -48,6 +54,16 @@
 			name = "Embed System Extension";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3C91D2BB276118FB00DD6CE6 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 12;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				3C5814112767EDF00010321A /* com.microsoft.buildxl.sandbox.plist in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -63,11 +79,14 @@
 		3C4402CC2433788D008CACDD /* coreruncommon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = coreruncommon.h; sourceTree = "<group>"; };
 		3C4402CD243378EE008CACDD /* coreruncommon.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = coreruncommon.mm; sourceTree = "<group>"; };
 		3C4402CF24337A3B008CACDD /* coreclrhost.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = coreclrhost.h; sourceTree = "<group>"; };
+		3C5814102767EDC60010321A /* com.microsoft.buildxl.sandbox.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = com.microsoft.buildxl.sandbox.plist; sourceTree = SOURCE_ROOT; };
 		3C794F522448993200EF72E5 /* ESClient.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ESClient.mm; sourceTree = "<group>"; };
 		3C794F532448993200EF72E5 /* ESClient.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ESClient.hpp; sourceTree = "<group>"; };
+		3C91D2BD276118FB00DD6CE6 /* BuildXLSandboxDaemon */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = BuildXLSandboxDaemon; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C9991A42449CBFC00CEB33E /* XPCTester.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; path = XPCTester.h; sourceTree = "<group>"; };
 		3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = com.microsoft.buildxl.extension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C9E56A724F0022400BD7D34 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3CB1B12627625AA700EFBE67 /* Daemon.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Daemon.entitlements; sourceTree = "<group>"; };
 		3CB3E14C24475736004D2734 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = XPCConstants.hpp; sourceTree = "<group>"; };
 		3CB3E159244758DB004D2734 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		3CB3E16024475B96004D2734 /* ESConstants.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ESConstants.hpp; sourceTree = "<group>"; };
@@ -85,6 +104,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C91D2BA276118FB00DD6CE6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C91D2C82761194400DD6CE6 /* libbsm.tbd in Frameworks */,
+				3C91D2C72761193F00DD6CE6 /* libEndpointSecurity.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +143,7 @@
 			children = (
 				3C44029724336AEB008CACDD /* BuildXL.app */,
 				3C9E56A224F0022400BD7D34 /* com.microsoft.buildxl.extension.systemextension */,
+				3C91D2BD276118FB00DD6CE6 /* BuildXLSandboxDaemon */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -122,8 +151,9 @@
 		3C44029924336AEB008CACDD /* BuildXL */ = {
 			isa = PBXGroup;
 			children = (
-				3C4402D024337A4A008CACDD /* CoreCLR */,
 				3C4402A524336AEC008CACDD /* BuildXL.entitlements */,
+				3C5814102767EDC60010321A /* com.microsoft.buildxl.sandbox.plist */,
+				3C4402D024337A4A008CACDD /* CoreCLR */,
 				3C4402A224336AEC008CACDD /* Info.plist */,
 				3C4402A324336AEC008CACDD /* main.mm */,
 				3C44029A24336AEB008CACDD /* SystemExtensionManager.h */,
@@ -157,12 +187,13 @@
 		3C9E56A424F0022400BD7D34 /* Extension */ = {
 			isa = PBXGroup;
 			children = (
+				3CB1B12627625AA700EFBE67 /* Daemon.entitlements */,
 				3CFB2E4824F02A4500A5198F /* EndpointSecurity */,
-				3CFB2E4124F0286300A5198F /* External */,
-				3CFB2E4924F02A7800A5198F /* XPC */,
 				3C4402B624336B7B008CACDD /* Extension.entitlements */,
-				3CB3E16424475CF4004D2734 /* main.mm */,
+				3CFB2E4124F0286300A5198F /* External */,
 				3C9E56A724F0022400BD7D34 /* Info.plist */,
+				3CB3E16424475CF4004D2734 /* main.mm */,
+				3CFB2E4924F02A7800A5198F /* XPC */,
 			);
 			path = Extension;
 			sourceTree = "<group>";
@@ -220,6 +251,23 @@
 			productReference = 3C44029724336AEB008CACDD /* BuildXL.app */;
 			productType = "com.apple.product-type.application";
 		};
+		3C91D2BC276118FB00DD6CE6 /* BuildXLSandboxDaemon */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C91D2C3276118FB00DD6CE6 /* Build configuration list for PBXNativeTarget "BuildXLSandboxDaemon" */;
+			buildPhases = (
+				3C91D2B9276118FB00DD6CE6 /* Sources */,
+				3C91D2BA276118FB00DD6CE6 /* Frameworks */,
+				3C91D2BB276118FB00DD6CE6 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BuildXLSandboxDaemon;
+			productName = exttester;
+			productReference = 3C91D2BD276118FB00DD6CE6 /* BuildXLSandboxDaemon */;
+			productType = "com.apple.product-type.tool";
+		};
 		3C9E56A124F0022400BD7D34 /* Extension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3C9E56AC24F0022400BD7D34 /* Build configuration list for PBXNativeTarget "Extension" */;
@@ -249,6 +297,9 @@
 					3C44029624336AEB008CACDD = {
 						CreatedOnToolsVersion = 11.4;
 					};
+					3C91D2BC276118FB00DD6CE6 = {
+						CreatedOnToolsVersion = 13.1;
+					};
 					3C9E56A124F0022400BD7D34 = {
 						CreatedOnToolsVersion = 12.0;
 					};
@@ -269,6 +320,7 @@
 			targets = (
 				3C44029624336AEB008CACDD /* BuildXL */,
 				3C9E56A124F0022400BD7D34 /* Extension */,
+				3C91D2BC276118FB00DD6CE6 /* BuildXLSandboxDaemon */,
 			);
 		};
 /* End PBXProject section */
@@ -323,6 +375,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3C91D2B9276118FB00DD6CE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C91D2C42761191D00DD6CE6 /* ESClient.mm in Sources */,
+				3C91D2C52761191D00DD6CE6 /* IOEvent.cpp in Sources */,
+				3C91D2C62761191D00DD6CE6 /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3C9E569E24F0022400BD7D34 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -351,7 +413,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		3C4402A624336AEC008CACDD /* Debug */ = {
+		3C4402A624336AEC008CACDD /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -408,9 +470,9 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C4402A724336AEC008CACDD /* Release */ = {
+		3C4402A724336AEC008CACDD /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -460,50 +522,78 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
 			};
-			name = Release;
+			name = release;
 		};
-		3C4402A924336AEC008CACDD /* Debug */ = {
+		3C4402A924336AEC008CACDD /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = BuildXL/BuildXL.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = UBF8T346G9;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = BuildXL/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C4402AA24336AEC008CACDD /* Release */ = {
+		3C4402AA24336AEC008CACDD /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = BuildXL/BuildXL.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = UBF8T346G9;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = BuildXL/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Release;
+			name = release;
 		};
-		3C9E56AD24F0022400BD7D34 /* Debug */ = {
+		3C91D2C1276118FB00DD6CE6 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CODE_SIGN_ENTITLEMENTS = "$(PROJECT_DIR)/Extension/Daemon.entitlements";
+				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = debug;
+		};
+		3C91D2C2276118FB00DD6CE6 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CODE_SIGN_ENTITLEMENTS = "$(PROJECT_DIR)/Extension/Daemon.entitlements";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = release;
+		};
+		3C9E56AD24F0022400BD7D34 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Extension/Extension.entitlements;
-				CODE_SIGN_IDENTITY = "Mac Developer";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UBF8T346G9;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -511,23 +601,24 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MARKETING_VERSION = 2;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.extension;
 				PRODUCT_NAME = "$(inherited)";
-				PROVISIONING_PROFILE_SPECIFIER = "BuildXL System Extension Development";
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C9E56AE24F0022400BD7D34 /* Release */ = {
+		3C9E56AE24F0022400BD7D34 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Extension/Extension.entitlements;
-				CODE_SIGN_IDENTITY = "Mac Developer";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UBF8T346G9;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Extension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -535,14 +626,15 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MARKETING_VERSION = 2;
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.extension;
 				PRODUCT_NAME = "$(inherited)";
-				PROVISIONING_PROFILE_SPECIFIER = "BuildXL System Extension Development";
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Release;
+			name = release;
 		};
 /* End XCBuildConfiguration section */
 
@@ -550,29 +642,38 @@
 		3C44029224336AEB008CACDD /* Build configuration list for PBXProject "BuildXL" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C4402A624336AEC008CACDD /* Debug */,
-				3C4402A724336AEC008CACDD /* Release */,
+				3C4402A624336AEC008CACDD /* debug */,
+				3C4402A724336AEC008CACDD /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 		3C4402A824336AEC008CACDD /* Build configuration list for PBXNativeTarget "BuildXL" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C4402A924336AEC008CACDD /* Debug */,
-				3C4402AA24336AEC008CACDD /* Release */,
+				3C4402A924336AEC008CACDD /* debug */,
+				3C4402AA24336AEC008CACDD /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
+		};
+		3C91D2C3276118FB00DD6CE6 /* Build configuration list for PBXNativeTarget "BuildXLSandboxDaemon" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C91D2C1276118FB00DD6CE6 /* debug */,
+				3C91D2C2276118FB00DD6CE6 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = release;
 		};
 		3C9E56AC24F0022400BD7D34 /* Build configuration list for PBXNativeTarget "Extension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C9E56AD24F0022400BD7D34 /* Debug */,
-				3C9E56AE24F0022400BD7D34 /* Release */,
+				3C9E56AD24F0022400BD7D34 /* debug */,
+				3C9E56AE24F0022400BD7D34 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 /* End XCConfigurationList section */
 	};

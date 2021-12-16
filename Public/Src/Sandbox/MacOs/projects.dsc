@@ -76,6 +76,11 @@ namespace Sandbox {
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
 
+    const bxlAppXcodeproj = Transformer.sealDirectory({
+        root: d`App/BuildXL.xcodeproj`,
+        files: globR(d`App/BuildXL.xcodeproj`, "*")
+    });
+
     const detoursXcodeproj = Transformer.sealDirectory({
         root: d`Detours/Detours.xcodeproj`,
         files: globR(d`Detours/Detours.xcodeproj`, "*")
@@ -106,6 +111,17 @@ namespace Sandbox {
     });
 
     @@public
+    export const bxlESDaemon = isMacOs && build({
+        project: bxlAppXcodeproj,
+        scheme: "BuildXLSandboxDaemon",
+        outFiles: [
+            a`BuildXLSandboxDaemon`,
+            a`com.microsoft.buildxl.sandbox.plist`
+        ],
+        xcconfig: bundleInfoXCConfig
+    }).outFiles;
+
+    @@public
     export const libAria = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : isMacOs && build({
         project: interopXcodeproj,
         scheme: "AriaLibrary",
@@ -123,7 +139,7 @@ namespace Sandbox {
         xcconfig: bundleInfoXCConfig
     }).outFiles[0];
 
-    @@public 
+    @@public
     export const libDetours = isMacOs && build({
         project: detoursXcodeproj,
         scheme: "DetoursLibrary",

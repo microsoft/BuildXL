@@ -12,7 +12,7 @@ namespace Tools {
 
     namespace Helpers {
         export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
-        
+
         export function getTargetLocation(toolName: string) : RelativePath {
             if (qualifier.targetFramework === "netcoreapp3.1") {
                 // Keeping the old behavior for backward compatibility of existing scripts relying on the layout.

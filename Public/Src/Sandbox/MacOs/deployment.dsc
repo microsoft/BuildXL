@@ -10,9 +10,9 @@ namespace Deployment {
     const pkgPath = d`${importFrom("runtime.osx-x64.BuildXL").Contents.all.root}/runtimes/osx-x64/native`;
 
     @@public
-    export const macBinaryUsage = Context.getCurrentHost().os === "macOS"
-        ? (BuildXLSdk.Flags.isValidatingOsxRuntime ? "package" : "build")
-        : (BuildXLSdk.Flags.isMicrosoftInternal    ? "package" : "none");
+    export const macBinaryUsage = Context.getCurrentHost().os === "macOS"
+        ? (BuildXLSdk.Flags.isValidatingOsxRuntime ? "package" : "build")
+        : (BuildXLSdk.Flags.isMicrosoftInternal    ? "package" : "none");
 
     @@public
     export const kext: SdkDeployment.Definition = {
@@ -116,5 +116,13 @@ namespace Deployment {
                 ? Sandbox.coreDumpTester
                 : f`${pkgPath}/${qualifier.configuration}/CoreDumpTester`
         ]
+    };
+
+    @@public
+    export const bxlESDaemon: SdkDeployment.Definition = {
+        contents: [{
+            subfolder: r`native/MacOS/`,
+            contents: Sandbox.bxlESDaemon
+        }]
     };
 }

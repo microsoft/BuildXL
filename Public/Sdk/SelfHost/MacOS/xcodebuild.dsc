@@ -34,7 +34,7 @@ export namespace Xcode {
     export interface Arguments {
         /** Indicates if llbuild or the legacy build engine should be used */
         useModernBuildSystem: boolean;
-        
+
         /** Location where the outputs go */
         derivedDataPath: Directory;
 
@@ -93,7 +93,7 @@ export namespace Xcode {
         Contract.requires(args.derivedDataPath !== undefined);
 
         const wd = Context.getNewOutputDirectory("xcodebuild");
-        
+
         const customSystemHeaderSearchPaths = (args.headerSearchPaths || []).filter(hp => hp.type === "system").map(hp => p`${hp.directory.path}/${hp.recursive ? '**' : ''}`);
         const customUserHeaderSearchPaths = (args.headerSearchPaths || []).filter(hp => hp.type === "user").map(hp => p`${hp.directory.path}/${hp.recursive ? '**' : ''}`);
 
@@ -103,6 +103,8 @@ export namespace Xcode {
                 dependsOnCurrentHostOSDirectories: true,
                 untrackedDirectories: [
                     d`${Context.getUserHomeDirectory().path}/.ssh/`,
+                    d`${Context.getUserHomeDirectory().path}/.swiftpm/`,
+                    d`${Context.getUserHomeDirectory().path}/Library/Caches/org.swift.swiftpm/`,
                 ],
                 untrackedFiles: [
                     f`/Users/${userName}/Library/Developer/Xcode/UserData/IDEEditorInteractivityHistory`
@@ -121,7 +123,7 @@ export namespace Xcode {
                 Cmd.option("-arch ", args.arch),
                 Cmd.option("-derivedDataPath ", Artifact.output(args.derivedDataPath)),
                 Cmd.option("-xcconfig ", Artifact.input(args.xcconfig)),
-                
+
                 Cmd.option("SYSTEM_HEADER_SEARCH_PATHS=", Cmd.join(" ", customSystemHeaderSearchPaths)),
                 Cmd.option("HEADER_SEARCH_PATHS=", Cmd.join(" ", customUserHeaderSearchPaths)),
                 Cmd.option("-UseModernBuildSystem=", modernBuildSystemIndicatorToString(args.useModernBuildSystem))

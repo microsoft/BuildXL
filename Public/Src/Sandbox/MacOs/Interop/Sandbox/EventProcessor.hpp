@@ -124,11 +124,7 @@ static ProcessCallbackResult _process_event(Sandbox *sandbox, const IOEvent &eve
         {
             case IOEventBacking::EndpointSecurity:
             {
-                if (event.GetActionType() == ES_ACTION_TYPE_AUTH)
-                {
-                    return ProcessCallbackResult::Auth;
-                }
-
+                log_debug("Muting process PID(%d), PPID(%d) %{public}s", event.GetPid(), event.GetParentPid(), event.GetExecutablePath());
                 return ProcessCallbackResult::MuteSource;
                 break;
             }

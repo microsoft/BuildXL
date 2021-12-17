@@ -350,7 +350,8 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
 
         const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({
             binary: cscResult.binary.binary,
-            targetRuntimeVersion: qualifier.targetRuntime
+            // Workaround an evaluation issue that is happening for mac builds when qualifier.targetRuntime is passed.
+            targetRuntimeVersion: Context.getCurrentHost().os === "win" ? qualifier.targetRuntime : Shared.TargetFrameworks.MachineQualifier.current.targetRuntime
         });
 
         runtimeContent = [

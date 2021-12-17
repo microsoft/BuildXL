@@ -54,6 +54,7 @@ namespace NugetPackages {
     const buildXLCacheHashingIdentity = { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion};
     const buildXLCacheInterfacesIdentity = { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion};
     const buildXLCacheLibrariesIdentity = { id: `${packageNamePrefix}.Cache.Libraries`, version: Branding.Nuget.packageVersion};
+    const buildXLCacheServiceIdentity = { id: `${packageNamePrefix}.Cache.Service`, version: Branding.Nuget.packageVersion};
 
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`
@@ -307,6 +308,35 @@ namespace NugetPackages {
         ]
     });
 
+    const cacheServiceDeployment : Deployment.Definition = {
+        contents: [
+            {
+                subfolder: r`tools`,
+                // CacheService is a .NET CORE-only application.
+                contents: [
+                    {
+                        subfolder: r`netcoreapp3.1`,
+                        contents: [ importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" }).LauncherServer.exe ]
+                    },
+                    {
+                        subfolder: r`net6.0`,
+                        contents: [importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net6.0", targetRuntime: "win-x64" }).LauncherServer.exe]
+                    }
+                ]
+            }
+        ],
+    };
+
+    const cacheService = !canBuildAllPackagesOnThisHost ? undefined : pack({
+        id: `${packageNamePrefix}.CacheService.win-x64`,
+        deployment: cacheServiceDeployment,
+        // deployment: Cache.withQualifier({
+        //     targetFramework: "netcoreapp3.1",
+        //     targetRuntime: "win-x64"
+        // }).cacheServiceDeployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
+
     const cacheTools = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Tools`,
         deployment: Cache.NugetPackages.tools,
@@ -439,6 +469,7 @@ namespace NugetPackages {
                 cacheTools,
                 cacheLibraries,
                 cacheInterfaces,
+                cacheService,
                 cacheHashing,
                 xldblibrary,
                 utilities,

@@ -91,6 +91,11 @@ function getQCodeCoverageEnumType(coverageOption: CoverageOptions): string {
 
 function qTestTypeToString(args: QTestArguments) : string {
     switch (args.qTestType) {
+        case QTestType.msTest_retail:
+            if (args.qTestMsTestPlatformRootPath)
+                return "MsTest_Retail";
+            else
+                Contract.fail("qTestMsTestPlatformRootPath must be set for msTest_retail type.");
         case QTestType.msTest_latest:
             return args.useVsTest150 ? "MsTest_150" : "MsTest_Latest";
         case QTestType.Gradle:
@@ -317,7 +322,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--AzureDevOpsLogUploadMode ", args.qTestAzureDevOpsLogUploadMode),
         Cmd.flag("--EnableBlameCollector", args.qTestEnableBlameCollector),
         Cmd.flag("--EnableMsTestTraceLogging", args.qTestEnableMsTestTraceLogging),
-        Cmd.option("--VstestConsoleLoggerOptions ", args.qTestVstestConsoleLoggerOptions)
+        Cmd.option("--VstestConsoleLoggerOptions ", args.qTestVstestConsoleLoggerOptions),
+        Cmd.option("--msBuildToolsRoot ", Artifact.input(args.qTestMsTestPlatformRootPath))
     ];
 
     if (isJSProject) {
@@ -496,7 +502,10 @@ export const enum QTestType {
     @@Tool.option("--runner Gradle")
     Gradle = 2,
     @@Tool.option("--runner Console")
-    Console = 3
+    Console = 3,
+    /** Uses vstest from the provided Microsoft.TestPlatform package to execute tests. Microsoft.TestPlatform above 15.0.0 is supported. */
+    @@Tool.option("--runner MsTest_Retail")
+    msTest_retail = 4
 }
 
 /**
@@ -629,7 +638,9 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** When true, the DBS.QTest.exe invokes VsTest with diagnostic tracing.*/
     qTestEnableMsTestTraceLogging?: boolean;
     /** Allows additional options to be appended to console logger.*/
-    qTestVstestConsoleLoggerOptions?: string; 
+    qTestVstestConsoleLoggerOptions?: string;
+    /** Specifies the path for tools/net451 directory from Microsoft.TestPlatform package used to acquire vstest.console.exe */
+    qTestMsTestPlatformRootPath?: StaticDirectory;
     /** Nested tool options */
     tools?: {
         /** 

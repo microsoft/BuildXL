@@ -497,6 +497,108 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
         }
 
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public void SucceedFastPipsShouldNotCauseOverSchedule(bool useSucceedFast, bool enableStopOnDirtySucceedFast)
+        {
+            Configuration.Schedule.StopDirtyOnSucceedFastPips = enableStopOnDirtySucceedFast;
+            var inputA = CreateSourceFile();
+            var outputX = CreateOutputFileArtifact();
+            var pipBuilderA = CreatePipBuilder(new[] {
+                Operation.ReadFile(inputA),
+                Operation.WriteFile(outputX),
+                Operation.SucceedWithExitCode(useSucceedFast ? 3 : 0)},
+                tags: null,
+                description: null,
+                environmentVariables: null,
+                succeedFastExitCodes: useSucceedFast ? new int[] { 3 } : null);
+            var processA = SchedulePipBuilder(pipBuilderA).Process;
+
+            var outputY = CreateOutputFileArtifact();
+            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(outputX), Operation.WriteFile(outputY) });
+            var processB = SchedulePipBuilder(pipBuilderB).Process;
+
+            var schedulerResult = RunScheduler();
+            schedulerResult.AssertCacheMiss(processA.PipId);
+
+            // If useSucceedFast is set, since processA returns the succeed fast code of 3, the build exits before getting to process B.
+            if (useSucceedFast)
+            {
+                schedulerResult.AssertPipResultStatus((processB.PipId, PipResultStatus.Skipped));
+            }
+            else
+            {
+                schedulerResult.AssertCacheMiss(processB.PipId);
+            }
+
+            // The succeed fast pip is now cached, so it can continue on and run process B.
+            schedulerResult = RunScheduler();
+            schedulerResult.AssertCacheHit(processA.PipId);
+
+            if (useSucceedFast)
+            {
+                schedulerResult.AssertCacheMiss(processB.PipId);
+            }
+            else
+            {
+                schedulerResult.AssertCacheHit(processB.PipId);
+            }
+
+
+            // Modifying f should make A scheduled, but B should not be scheduled because stopDirtyOnSucceedFast is set.
+            ModifyFile(inputA);
+
+            schedulerResult = RunScheduler();
+            schedulerResult.AssertScheduled(processA.PipId);
+            schedulerResult.AssertCacheMiss(processA.PipId);
+
+            if (useSucceedFast && enableStopOnDirtySucceedFast)
+            {
+                schedulerResult.AssertNotScheduled(processB.PipId);
+            }
+            else
+            {
+                schedulerResult.AssertScheduled(processB.PipId);
+            }
+
+            schedulerResult = RunScheduler();
+
+            // If use succeed fast and not stop on dirty pips, pip B is run this time, meaning pip A is scheduled and cache hit.
+            if (useSucceedFast && !enableStopOnDirtySucceedFast)
+            {
+                schedulerResult.AssertScheduled(processA.PipId);
+                schedulerResult.AssertCacheHit(processA.PipId);
+                schedulerResult.AssertScheduled(processB.PipId);
+                schedulerResult.AssertCacheMiss(processB.PipId);
+            }
+            else
+            {
+                schedulerResult.AssertNotScheduled(processA.PipId);
+            }
+
+            // Run scheduler so incremental scheduling is up to date.
+            schedulerResult = RunScheduler();
+            schedulerResult.AssertNotScheduled(processA.PipId);
+            schedulerResult.AssertNotScheduled(processB.PipId);
+
+            // Test changing the flag to make sure it can switch properly
+            Configuration.Schedule.StopDirtyOnSucceedFastPips = !enableStopOnDirtySucceedFast;
+
+            ModifyFile(inputA);
+            schedulerResult = RunScheduler();
+            schedulerResult.AssertScheduled(processA.PipId);
+
+            // Change from not stopping to stopping or vice versa
+            if (useSucceedFast && !enableStopOnDirtySucceedFast)
+            {
+                schedulerResult.AssertNotScheduled(processB.PipId);
+            }
+            else
+            {
+                schedulerResult.AssertScheduled(processB.PipId);
+            }
+        }
+
         [Fact]
         public void ModifyingProbedDynamicInputDoesNotCauseRescheduled()
         {

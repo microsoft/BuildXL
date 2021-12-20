@@ -614,6 +614,11 @@ namespace BuildXL.Pips.Graph
             }
         }
 
+        /// <summary>
+        /// Checks if a pip id belongs to a pip with succeed-fast property.
+        /// </summary>
+        public bool IsSucceedFast(PipId pipId) => PipTable.GetMutable(pipId) is ProcessMutablePipState mps && mps.IsSucceedFast;
+
         #endregion Queries
 
         #region IPipScheduleTraversal Members

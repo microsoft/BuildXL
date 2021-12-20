@@ -905,7 +905,7 @@ ENDLOCAL && EXIT /b 1
             File.WriteAllText(pathToNewFile, content ?? Guid.NewGuid().ToString());
             return pathToNewFile;
         }
-        
+
         private IIncrementalSchedulingState CreateNewState(FileEnvelopeId token, PipGraph pipGraph)
         {
             var factory = new IncrementalSchedulingStateFactory(LoggingContext);
@@ -950,14 +950,113 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsTrue(scanningJournalResult.Succeeded);
         }
 
-        private void IncrementalSchedulingSetup(bool enableLazyOutputMaterialization = true)
+        private void IncrementalSchedulingSetup(bool enableLazyOutputMaterialization = true, bool stopDirtyOnSucceedFastPips = false)
         {
             Setup(
                 enableJournal: true, 
                 enableIncrementalScheduling: true,
-                disableLazyOutputMaterialization: !enableLazyOutputMaterialization);
+                disableLazyOutputMaterialization: !enableLazyOutputMaterialization,
+                stopDirtyOnSucceedFastPips: stopDirtyOnSucceedFastPips);
 
             IgnoreWarnings();
+        }
+
+        public void TransistiveNotDirtyUsingSucceedFast()
+        {
+            IncrementalSchedulingSetup();
+
+            PipProvenance sharedProvenance = CreateProvenance();
+
+            //
+            //           s1        s2
+            //           |         |
+            //           p1(sf)    p2
+            //           |         |
+            //           o1        o2
+            //           |         |
+            //           p3--------
+            //           |
+            //           o3
+            //
+            //
+            // Modifying s1 should not dirty p3 because s1 is succeed fast.
+            // Modifying s2 should dirty p3 because p2 is not succeed fast and p3 is downstream of p2
+            //
+            ///
+
+            Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
+            FileArtifact s1 = CreateSourceFile();
+            FileArtifact s2 = CreateSourceFile();
+
+            FileArtifact o1 = CreateOutputFileArtifact();
+            FileArtifact o2 = CreateOutputFileArtifact();
+            FileArtifact o3 = CreateOutputFileArtifact();
+
+            Process p1 = CreateProcess(dependencies: new[] { s1 }, outputs: new[] { o1 }, tags: new[] { "P1" }, provenance: sharedProvenance, succeedFastExitCodes: new int[] { 3 });
+            PipGraphBuilder.AddProcess(p1);
+            Process p2 = CreateProcess(dependencies: new[] { s2 }, outputs: new[] { o2 }, tags: new[] { "P2" }, provenance: sharedProvenance);
+            PipGraphBuilder.AddProcess(p2);
+            Process p3 = CreateProcess(dependencies: new[] { o1, o2 }, outputs: new[] { o3 }, tags: new[] { "P3" }, provenance: sharedProvenance);
+            PipGraphBuilder.AddProcess(p3);
+
+            if (nodes != null)
+            {
+                nodes["S1"] = PipGraphBuilder.GetProducerNode(s1);
+                nodes["S2"] = PipGraphBuilder.GetProducerNode(s2);
+                nodes["P1"] = p1.PipId.ToNodeId();
+                nodes["P2"] = p2.PipId.ToNodeId();
+                nodes["P3"] = p3.PipId.ToNodeId();
+            }
+
+            var pipGraph = PipGraphBuilder.Build();
+            IIncrementalSchedulingState iss = CreateNewState(FileEnvelopeId.Create(), pipGraph);
+
+            // Clear all nodes
+            foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
+            {
+                iss.DirtyNodeTracker.MarkNodeClean(n);
+            }
+
+            XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
+            XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+
+            foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
+            {
+                iss.DirtyNodeTracker.MarkNodeClean(n);
+            }
+
+            XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeDirty(nodes["S2"]);
+            XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+
+            // Now that StopDirtyOnSucceedFastPips, invalidating S1 should not invalidate P3.
+            m_configuration.Schedule.StopDirtyOnSucceedFastPips = true;
+
+            foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
+            {
+                iss.DirtyNodeTracker.MarkNodeClean(n);
+            }
+
+            XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeDirty(nodes["S1"]);
+            XAssert.AreEqual(1, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P1"]));
+
+            foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
+            {
+                iss.DirtyNodeTracker.MarkNodeClean(n);
+            }
+
+            XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+            iss.DirtyNodeTracker.MarkNodeDirty(nodes["S2"]);
+            XAssert.AreEqual(2, iss.DirtyNodeTracker.AllDirtyNodes.Intersect(nodes.Values).Count());
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+            XAssert.IsFalse(iss.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
         }
 
         /// <summary>

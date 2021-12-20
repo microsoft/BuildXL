@@ -237,9 +237,40 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Class for controlling node traversal that <see cref="DirtyNodeTracker"/> performs.
+        /// </summary>
+        public class TraversalController
+        {
+            /// <summary>
+            /// When the function is non-null and returns true, then node traversal must stop on the node argument.
+            /// </summary>
+            private readonly Func<NodeId, bool> m_shouldStopOnNode;
+
+            /// <summary>
+            /// Creates a new TraversalController
+            /// </summary>
+            public TraversalController(Func<NodeId, bool> shouldStopOnNode = null) => m_shouldStopOnNode = shouldStopOnNode;
+
+            /// <summary>
+            /// Check if traversal should stop on a node.
+            /// </summary>
+            public bool ShouldStopOnNode(NodeId node) => m_shouldStopOnNode != null && m_shouldStopOnNode(node);
+        }
+
+        /// <summary>
+        /// Singleton default controller.
+        /// </summary>
+        public static readonly TraversalController DefaultController = new ();
+
+        /// <summary>
         /// Pending updated state.
         /// </summary>
         public readonly PendingUpdatedState PendingUpdates = new PendingUpdatedState();
+
+        /// <summary>
+        /// Traversal controller.
+        /// </summary>
+        private readonly TraversalController m_traversalController;
 
         /// <summary>
         /// Creates an instence of <see cref="DirtyNodeTracker"/>.
@@ -249,7 +280,14 @@ namespace BuildXL.Scheduler
         /// <param name="perpetualDirtyNodes">the set of nodes that stay dirty even after execution or running from cache.</param>
         /// <param name="dirtyNodesChanged">flag indicating whether dirty nodes have changed</param>
         /// <param name="materializedNodes">the set of nodes that have materialized their outputs</param>
-        public DirtyNodeTracker(IReadonlyDirectedGraph graph, RangedNodeSet dirtyNodes, RangedNodeSet perpetualDirtyNodes, bool dirtyNodesChanged, RangedNodeSet materializedNodes)
+        /// <param name="traversalController">traversal controller</param>
+        public DirtyNodeTracker(
+            IReadonlyDirectedGraph graph,
+            RangedNodeSet dirtyNodes,
+            RangedNodeSet perpetualDirtyNodes,
+            bool dirtyNodesChanged,
+            RangedNodeSet materializedNodes,
+            TraversalController traversalController = null)
         {
             Contract.Requires(graph != null);
             Contract.Requires(dirtyNodes != null);
@@ -261,13 +299,20 @@ namespace BuildXL.Scheduler
             PerpetualDirtyNodes = perpetualDirtyNodes;
             DirtyNodesChanged = dirtyNodesChanged;
             MaterializedNodes = materializedNodes;
+            m_traversalController = traversalController ?? DefaultController;
         }
 
         /// <summary>
         /// Creates an instence of <see cref="DirtyNodeTracker"/>.
         /// </summary>
-        public DirtyNodeTracker(IReadonlyDirectedGraph graph, DirtyNodeTrackerSerializedState dirtyNodeTrackerSerializedState)
-            : this(graph, dirtyNodeTrackerSerializedState.DirtyNodes, dirtyNodeTrackerSerializedState.PerpetualDirtyNodes, false, dirtyNodeTrackerSerializedState.MaterializedNodes)
+        public DirtyNodeTracker(IReadonlyDirectedGraph graph, DirtyNodeTrackerSerializedState dirtyNodeTrackerSerializedState, TraversalController traversalController = null)
+            : this(
+                  graph,
+                  dirtyNodeTrackerSerializedState.DirtyNodes,
+                  dirtyNodeTrackerSerializedState.PerpetualDirtyNodes,
+                  false,
+                  dirtyNodeTrackerSerializedState.MaterializedNodes,
+                  traversalController)
         {
             Contract.Requires(graph != null);
             Contract.Requires(dirtyNodeTrackerSerializedState != null);
@@ -479,14 +524,19 @@ namespace BuildXL.Scheduler
 
                 action?.Invoke(node);
 
-                foreach (var edge in Graph.GetOutgoingEdges(node))
-                {
-                    NodeId dependent = edge.OtherNode;
+                bool shouldContinue = !m_traversalController.ShouldStopOnNode(node);
 
-                    if (!DirtyNodes.Contains(dependent))
+                if (shouldContinue)
+                {
+                    foreach (var edge in Graph.GetOutgoingEdges(node))
                     {
-                        nodesToDirty.Enqueue(dependent);
-                        DirtyNodes.Add(dependent);
+                        NodeId dependent = edge.OtherNode;
+
+                        if (!DirtyNodes.Contains(dependent))
+                        {
+                            nodesToDirty.Enqueue(dependent);
+                            DirtyNodes.Add(dependent);
+                        }
                     }
                 }
             }

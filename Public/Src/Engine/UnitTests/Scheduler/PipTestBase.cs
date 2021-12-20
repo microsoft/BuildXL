@@ -191,10 +191,16 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null, ProcessBuilder builder = null)
+        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null, IEnumerable<int> succeedFastExitCodes = null, ProcessBuilder builder = null)
         {
             builder ??= ProcessBuilder.CreateForTesting(Context.PathTable);
             builder.Executable = TestProcessExecutable;
+            if (succeedFastExitCodes != null)
+            {
+                builder.SucceedFastExitCodes = ReadOnlyArray<int>.From(succeedFastExitCodes);
+                builder.SuccessExitCodes = ReadOnlyArray<int>.From(succeedFastExitCodes);
+            }
+
             builder.AddInputFile(TestProcessExecutable);
             AddUntrackedWindowsDirectories(builder);
 

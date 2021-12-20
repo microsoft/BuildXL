@@ -163,18 +163,17 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets pip description for debugging purpose.
         /// </summary>
-        protected virtual string GetDescription(NodeId node)
-        {
-            return string.Empty;
-        }
+        protected virtual string GetDescription(NodeId node) => string.Empty;
 
         /// <summary>
         /// Checks if the output of a node is rewritten.
         /// </summary>
-        protected virtual bool IsRewrittenPip(NodeId node)
-        {
-            return false;
-        }
+        protected virtual bool IsRewrittenPip(NodeId node) => false;
+
+        /// <summary>
+        /// Checks if the node represents a process pip that has succeed-fast property.
+        /// </summary>
+        protected virtual bool IsSucceedFast(NodeId node) => false;
 
         #endregion
 

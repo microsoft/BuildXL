@@ -90,7 +90,8 @@ namespace Test.BuildXL.Scheduler
             bool scheduleMetaPips = false,
             int maxProcesses = 1,
             bool enableJournal = false,
-            bool enableIncrementalScheduling = false)
+            bool enableIncrementalScheduling = false,
+            bool stopDirtyOnSucceedFastPips = false)
         {
             m_fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
@@ -110,6 +111,7 @@ namespace Test.BuildXL.Scheduler
             m_configuration.Sandbox.FileAccessIgnoreCodeCoverage = true;
             m_configuration.Cache.DeterminismProbe = enableDeterminismProbe;
             m_configuration.Schedule.ScheduleMetaPips = scheduleMetaPips;
+            m_configuration.Schedule.StopDirtyOnSucceedFastPips = stopDirtyOnSucceedFastPips;
 
             if (enableIncrementalScheduling)
             {
@@ -1389,7 +1391,8 @@ namespace Test.BuildXL.Scheduler
             IEnumerable<FileArtifact> directoryOutputsToProduce = null,
             AbsolutePath workingDirectory = default(AbsolutePath),
             IEnumerable<EnvironmentVariable> environmentVariables = null,
-            Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null)
+            Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null,
+            IEnumerable<int> succeedFastExitCodes = null)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
@@ -1407,7 +1410,9 @@ namespace Test.BuildXL.Scheduler
                 directoryOutputsToProduce,
                 workingDirectory,
                 environmentVariables,
-                resultingSealedOutputDirectories);
+                resultingSealedOutputDirectories,
+                semaphores: null,
+                succeedFastExitCodes);
         }
 
         private PipData CreateArguments(
@@ -1526,7 +1531,8 @@ namespace Test.BuildXL.Scheduler
             AbsolutePath workingDirectory = default(AbsolutePath),
             IEnumerable<EnvironmentVariable> environmentVariables = null,
             Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null,
-            IEnumerable<ProcessSemaphoreInfo> semaphores = null)
+            IEnumerable<ProcessSemaphoreInfo> semaphores = null,
+            IEnumerable<int> succeedFastExitCodes = null)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
@@ -1601,11 +1607,12 @@ namespace Test.BuildXL.Scheduler
                         ? ReadOnlyArray<StringId>.From(tags.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)))
                         : ReadOnlyArray<StringId>.Empty,
 
-                    ReadOnlyArray<int>.Empty,
+                    succeedFastExitCodes != null ? ReadOnlyArray<int>.From(succeedFastExitCodes) : ReadOnlyArray<int>.Empty,
                     ReadOnlyArray<ProcessSemaphoreInfo>.From(semaphores ?? ReadOnlyArray<ProcessSemaphoreInfo>.Empty),
                     provenance ?? CreateProvenance(),
                     toolDescription: StringId.Invalid,
-                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                    succeedFastExitCodes: succeedFastExitCodes != null ? ReadOnlyArray<int>.From(succeedFastExitCodes) : ReadOnlyArray<int>.Empty);
 
             return process;
         }

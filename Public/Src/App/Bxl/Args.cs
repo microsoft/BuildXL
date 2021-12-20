@@ -1038,6 +1038,10 @@ namespace BuildXL
                             sign =>
                             sandboxConfiguration.PreserveOutputsForIncrementalTool = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "stopDirtyOnSucceedFastPips",
+                            sign =>
+                            schedulingConfiguration.StopDirtyOnSucceedFastPips = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableMemoryMappedBasedFileHashing",
                             sign => {
 #if NET_COREAPP

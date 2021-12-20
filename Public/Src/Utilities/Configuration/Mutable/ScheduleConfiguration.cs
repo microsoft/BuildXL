@@ -169,6 +169,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatAbsentDirectoryAsExistentUnderOpaque = template.TreatAbsentDirectoryAsExistentUnderOpaque;
             MaxWorkersPerModule = template.MaxWorkersPerModule;
             UseHistoricalCpuUsageInfo = template.UseHistoricalCpuUsageInfo;
+            StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
         }
 
         /// <inheritdoc />
@@ -179,6 +180,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MaxMaterialize { get; set; }
+
+        /// <inheritdoc/>
+        public bool StopDirtyOnSucceedFastPips { get; set; }
 
         /// <inheritdoc />
         public int MaxCacheLookup { get; set; }

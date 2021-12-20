@@ -611,9 +611,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc/>
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null)
+        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null, IEnumerable<int> succeedFastExitCodes = null)
         {
-            return CreatePipBuilder(processOperations, tags, description, environmentVariables, ProcessBuilder.CreateForTesting(Context.PathTable, Configuration));
+            return CreatePipBuilder(processOperations, tags, description, environmentVariables, succeedFastExitCodes, ProcessBuilder.CreateForTesting(Context.PathTable, Configuration));
         }
 
         private Possible<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap map)

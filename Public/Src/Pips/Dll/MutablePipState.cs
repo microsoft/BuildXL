@@ -80,7 +80,8 @@ namespace BuildXL.Pips
                         pipAsProcess.Executable.Path, 
                         pipAsProcess.Priority,
                         pipAsProcess.Provenance.ModuleId,
-                        pipAsProcess.PreserveOutputsTrustLevel);
+                        preserveOutputsTrustLevel: pipAsProcess.PreserveOutputsTrustLevel,
+                        isSucceedFast: pipAsProcess.SucceedFastExitCodes.Length > 0);
                     break;
                 case PipType.CopyFile:
                     var pipAsCopy = (CopyFile)pip;
@@ -228,6 +229,7 @@ namespace BuildXL.Pips
         internal readonly RewritePolicy RewritePolicy;
         internal readonly AbsolutePath ExecutablePath;
         internal readonly ModuleId ModuleId;
+        internal readonly bool IsSucceedFast;
 
         internal ProcessMutablePipState(
             PipType pipType,
@@ -239,7 +241,8 @@ namespace BuildXL.Pips
             AbsolutePath executablePath,
             int priority,
             ModuleId moduleId,
-            int? preserveOutputsTrustLevel = null)
+            int preserveOutputsTrustLevel = 0,
+            bool isSucceedFast = false)
             : base(pipType, semiStableHash, storeId)
         {
             ServiceInfo = serviceInfo;
@@ -247,8 +250,9 @@ namespace BuildXL.Pips
             RewritePolicy = rewritePolicy;
             ExecutablePath = executablePath;
             Priority = priority;
-            PreserveOutputTrustLevel = preserveOutputsTrustLevel ?? 0;
+            PreserveOutputTrustLevel = preserveOutputsTrustLevel;
             ModuleId = moduleId;
+            IsSucceedFast = isSucceedFast;
         }
 
         /// <summary>
@@ -271,6 +275,7 @@ namespace BuildXL.Pips
             writer.Write(Priority);
             writer.Write(PreserveOutputTrustLevel);
             writer.Write(ModuleId);
+            writer.Write(IsSucceedFast);
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
@@ -282,7 +287,20 @@ namespace BuildXL.Pips
             int priority = reader.ReadInt32();
             int preserveOutputTrustLevel = reader.ReadInt32();
             ModuleId moduleId = reader.ReadModuleId();
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, rewritePolicy, executablePath, priority, moduleId, preserveOutputTrustLevel);
+            bool isSucceedFast = reader.ReadBoolean();
+
+            return new ProcessMutablePipState(
+                pipType,
+                semiStableHash,
+                storeId,
+                serviceInfo,
+                (Process.Options)options,
+                rewritePolicy,
+                executablePath,
+                priority,
+                moduleId,
+                preserveOutputsTrustLevel: preserveOutputTrustLevel,
+                isSucceedFast: isSucceedFast);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;

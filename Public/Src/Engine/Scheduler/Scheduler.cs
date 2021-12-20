@@ -7618,50 +7618,26 @@ namespace BuildXL.Scheduler
                 return possibleProbeResult.Succeeded && possibleProbeResult.Result == PathExistence.ExistsAsFile;
             }
 
-            protected override ReadOnlyArray<DirectoryArtifact> GetDirectoryDependencies(Process process)
-            {
-                return process.DirectoryDependencies;
-            }
+            protected override ReadOnlyArray<DirectoryArtifact> GetDirectoryDependencies(Process process) => process.DirectoryDependencies;
 
-            protected override ReadOnlyArray<FileArtifact> GetFileDependencies(Process process)
-            {
-                return process.Dependencies;
-            }
+            protected override ReadOnlyArray<FileArtifact> GetFileDependencies(Process process) => process.Dependencies;
 
-            protected override AbsolutePath GetPath(FileArtifact file)
-            {
-                return file.Path;
-            }
+            protected override AbsolutePath GetPath(FileArtifact file) => file.Path;
 
-            protected override string GetPathString(AbsolutePath path)
-            {
-                return path.ToString(m_scheduler.Context.PathTable);
-            }
+            protected override string GetPathString(AbsolutePath path) => path.ToString(m_scheduler.Context.PathTable);
 
-            protected override PipType GetPipType(NodeId node)
-            {
-                return m_scheduler.m_pipTable.GetPipType(node.ToPipId());
-            }
+            protected override PipType GetPipType(NodeId node) => m_scheduler.m_pipTable.GetPipType(node.ToPipId());
 
-            protected override Process GetProcess(NodeId node)
-            {
-                return (Process)m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild);
-            }
+            protected override Process GetProcess(NodeId node) =>
+                (Process)m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild);
 
-            protected override FileArtifact GetCopyFile(NodeId node)
-            {
-                return ((CopyFile)m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild)).Source;
-            }
+            protected override FileArtifact GetCopyFile(NodeId node) =>
+                ((CopyFile)m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild)).Source;
 
-            protected override DirectoryArtifact GetSealDirectoryArtifact(NodeId node)
-            {
-                return ((SealDirectory)m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild)).Directory;
-            }
+            protected override DirectoryArtifact GetSealDirectoryArtifact(NodeId node) =>
+                ((SealDirectory)m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild)).Directory;
 
-            protected override ReadOnlyArray<FileArtifact> ListSealedDirectoryContents(DirectoryArtifact directory)
-            {
-                return m_scheduler.PipGraph.ListSealedDirectoryContents(directory);
-            }
+            protected override ReadOnlyArray<FileArtifact> ListSealedDirectoryContents(DirectoryArtifact directory) => m_scheduler.PipGraph.ListSealedDirectoryContents(directory);
 
             protected override bool IsFileRequiredToExist(FileArtifact file)
             {
@@ -7670,30 +7646,16 @@ namespace BuildXL.Scheduler
                 return !file.IsSourceFile;
             }
 
-            protected override NodeId GetProducer(FileArtifact file)
-            {
-                return m_scheduler.PipGraph.GetProducerNode(file);
-            }
+            protected override NodeId GetProducer(FileArtifact file) => m_scheduler.PipGraph.GetProducerNode(file);
 
-            protected override NodeId GetProducer(DirectoryArtifact directory)
-            {
-                return m_scheduler.PipGraph.GetSealedDirectoryNode(directory);
-            }
+            protected override NodeId GetProducer(DirectoryArtifact directory) => m_scheduler.PipGraph.GetSealedDirectoryNode(directory);
 
-            protected override bool IsDynamicKindDirectory(NodeId node)
-            {
-                return m_scheduler.m_pipTable.GetSealDirectoryKind(node.ToPipId()).IsDynamicKind();
-            }
+            protected override bool IsDynamicKindDirectory(NodeId node) => m_scheduler.m_pipTable.GetSealDirectoryKind(node.ToPipId()).IsDynamicKind();
 
-            protected override SealDirectoryKind GetSealedDirectoryKind(NodeId node)
-            {
-                return m_scheduler.m_pipTable.GetSealDirectoryKind(node.ToPipId());
-            }
+            protected override SealDirectoryKind GetSealedDirectoryKind(NodeId node) => m_scheduler.m_pipTable.GetSealDirectoryKind(node.ToPipId());
 
-            protected override ModuleId GetModuleId(NodeId node)
-            {
-                return m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild).Provenance?.ModuleId ?? ModuleId.Invalid;
-            }
+            protected override ModuleId GetModuleId(NodeId node) =>
+                m_scheduler.m_pipTable.HydratePip(node.ToPipId(), PipQueryContext.SchedulerAreInputsPresentForSkipDependencyBuild).Provenance?.ModuleId ?? ModuleId.Invalid;
 
             protected override string GetModuleName(ModuleId moduleId)
             {
@@ -7717,10 +7679,9 @@ namespace BuildXL.Scheduler
                 return pip.GetDescription(m_scheduler.Context) + " - Module: " + GetModuleName(moduleId);
             }
 
-            protected override bool IsRewrittenPip(NodeId node)
-            {
-                return m_scheduler.PipGraph.IsRewrittenPip(node.ToPipId());
-            }
+            protected override bool IsRewrittenPip(NodeId node) => m_scheduler.PipGraph.IsRewrittenPip(node.ToPipId());
+
+            protected override bool IsSucceedFast(NodeId node) => m_scheduler.m_pipTable.GetMutable(node.ToPipId()) is ProcessMutablePipState ps && ps.IsSucceedFast;
         }
 
         /// <summary>

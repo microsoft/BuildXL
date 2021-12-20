@@ -111,6 +111,11 @@ namespace BuildXL.Utilities.Configuration
         bool UseHistoricalPerformanceInfo { get; }
 
         /// <summary>
+        /// If True, dirtying a succeed fast pip doesn't automatically dirty downstream pips.
+        /// </summary>
+        bool StopDirtyOnSucceedFastPips { get; }
+
+        /// <summary>
         /// Ensures historic performance information is loaded from cache
         /// </summary>
         bool ForceUseEngineInfoFromCache { get; }

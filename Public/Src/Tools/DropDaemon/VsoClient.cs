@@ -106,7 +106,7 @@ namespace Tool.DropDaemon
 
         private static IAppTraceSource Tracer => DropAppTraceSource.SingleInstance;
 
-        private static CacheContext CacheContext => null; // not needed for anything but "get", which we don't do
+        private static CacheContextBase CacheContext => null; // not needed for anything but "get", which we don't do
 
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
@@ -700,7 +700,7 @@ namespace Tool.DropDaemon
                 return new VsoCredentialHelper(loggerAction).GetPATCredentials(credentialHelperResult.Pat);
             }
 
-            return new VsoCredentialHelper(loggerAction).GetCredentials(serviceUri: m_config.Service, useAad: true, existingAadTokenCacheBytes: null, pat: null, promptBehavior: PromptBehavior.Never);
+            return new VsoCredentialHelper(loggerAction).GetAADCredentials(new VsoAadAuthority(loggerAction), new UserCredential(Environment.UserName));
         }
     }
 }

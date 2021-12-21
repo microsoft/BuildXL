@@ -165,19 +165,19 @@ export const restrictTestRunToSomeQualifiers =
 * Whether service pip daemon tooling is included with the BuildXL deployment
 */
 @@public
-export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isFullFramework;
+export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isDotNetCoreBuild;
 
 /***
 * Whether drop tooling is included with the BuildXL deployment
 */
 @@public
-export const isDropToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosoftInternal && isFullFramework;
+export const isDropToolingEnabled = isDaemonToolingEnabled;
 
 /***
 * Whether symbol tooling is included with the BuildXL deployment
 */
 @@public
-export const isSymbolToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosoftInternal && isFullFramework;
+export const isSymbolToolingEnabled = isDaemonToolingEnabled;
 
 namespace Flags {
     export declare const qualifier: {};

@@ -8,7 +8,7 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import { NetFx } from "Sdk.BuildXL";
 
-export declare const qualifier : BuildXLSdk.FullFrameworkQualifier;
+export declare const qualifier : BuildXLSdk.NetCoreAppQualifier;
 
 const symstoreX64Libs : Deployment.DeployableItem[] = getSymstoreX64Libs();
 
@@ -29,19 +29,18 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Utilities").Collections.dll,
         importFrom("BuildXL.Tools").ServicePipDaemon.dll,
-
         importFrom("ItemStore.Shared").pkg,
         importFrom("ArtifactServices.App.Shared").pkg,
         importFrom("ArtifactServices.App.Shared.Cache").pkg,
         importFrom("Microsoft.ApplicationInsights").pkg,
         importFrom("Microsoft.AspNet.WebApi.Client").pkg,
         importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-        ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
+        importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+        importFrom("Microsoft.Azure.Storage.Common").pkg,
         importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
         importFrom("Newtonsoft.Json").pkg,
-
         importFrom("Symbol.App.Core").pkg,
         importFrom("Symbol.Client").pkg,
         importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").pkg,
@@ -63,8 +62,10 @@ function getSymstoreX64Libs() : File[] {
     }
     
     switch (qualifier.targetFramework)
-    {       
-        case "net472":
+    {
+        case "netcoreapp3.1":
+        case "net5.0":
+        case "net6.0":
             return importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").Contents.all.getFiles(
                 [
                     "lib/native/x64/dbgcore.dll",
@@ -73,6 +74,6 @@ function getSymstoreX64Libs() : File[] {
                     "lib/native/x64/SymStore.dll",
                 ]);
         default:
-            Contract.fail("Unsupported target framework for x64 Symstore libraries.");
+            Contract.fail(`Unsupported target framework '${qualifier.targetFramework}' for x64 Symstore libraries.`);
     }
 }

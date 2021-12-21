@@ -5,4 +5,4 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import { NetFx } from "Sdk.BuildXL";
 
 export {BuildXLSdk, NetFx};
-export declare const qualifier: BuildXLSdk.FullFrameworkQualifier;
+export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;

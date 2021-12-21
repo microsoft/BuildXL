@@ -4,7 +4,7 @@
 import {Cmd} from "Sdk.Transformers";
 
 namespace Test.Tool.DropDaemon {
-    export const dll = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.test({
+    export const dll = !(BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.test({
         assemblyName: "Test.Tool.DropDaemon",
         sources: globR(d`.`, "*.cs"),
         appConfig: f`Test.Tool.DropDaemon.dll.config`,
@@ -26,7 +26,8 @@ namespace Test.Tool.DropDaemon {
             importFrom("Drop.App.Core").pkg,
             importFrom("Drop.Client").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
-            ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
+            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            importFrom("Microsoft.Azure.Storage.Common").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,

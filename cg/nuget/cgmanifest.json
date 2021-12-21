@@ -2661,7 +2661,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Windows.Debuggers.SymstoreInterop",
-          "Version": "1.0.1"
+          "Version": "1.0.1-netstandard2.0"
         }
       }
     },

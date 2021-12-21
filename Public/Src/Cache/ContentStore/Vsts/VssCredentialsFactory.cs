@@ -173,16 +173,29 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             try
             {
+#if NET_CORE
+                if (useAad)
+                {
+                    return await Task.Run(() => CreateVssCredentialsForUserName(baseUri));
+                }
+                else
+                {
+                    return await Task.Run(() => _helper.GetPATCredentials(_pat));
+                }
+#else
                 // We potentially can be running this code for the full framework when the code is compiled for .net standard.
                 // Trying to call the method and fail with a better error message if the method doesn't exist.
                 return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null).ConfigureAwait(false);
+#endif //NET_CORE
             }
             catch (MissingMethodException e)
             {
                 throw new CacheException("Can't use credentials helper because its not supported by the current platform.", e);
             }
+
         }
-#else
+#else //PLATFORM_WIN
+
         /// <summary>
         /// Creates a VssCredentials object and returns it.
         /// </summary>
@@ -195,6 +208,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             throw new CacheException("CoreCLR on non-windows platforms only allows PAT based VSTS authentication!");
         }
-#endif
+#endif //PLATFORM_WIN
     }
 }

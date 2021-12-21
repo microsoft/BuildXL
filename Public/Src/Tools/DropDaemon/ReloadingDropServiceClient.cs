@@ -125,7 +125,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> ListFilePagesAsync(
+        public Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> ListFilePagesAsync(
             string dropName,
             bool tryToRetrieveFromLocalCache,
             CancellationToken cancellationToken,
@@ -197,7 +197,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IAsyncEnumerator<IEnumerable<DropItem>>> ListStreamedAsync(
+        public Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<DropItem>>> ListStreamedAsync(
             string dropNamePrefix,
             PathOptions pathOptions,
             CancellationToken cancellationToken,

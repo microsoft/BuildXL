@@ -484,7 +484,7 @@ namespace Tool.SymbolDaemon
                 return new VsoCredentialHelper(loggerAction).GetPATCredentials(credentialHelperResult.Pat);
             }
 
-            return new VsoCredentialHelper(loggerAction).GetCredentials(serviceUri: m_config.Service, useAad: true, existingAadTokenCacheBytes: null, pat: null, promptBehavior: PromptBehavior.Never);
+            return new VsoCredentialHelper(loggerAction).GetAADCredentials(new VsoAadAuthority(loggerAction), new UserCredential(Environment.UserName));
         }
 
         /// <summary>

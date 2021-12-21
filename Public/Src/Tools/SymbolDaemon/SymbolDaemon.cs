@@ -586,7 +586,7 @@ namespace Tool.SymbolDaemon
                         daemon.Logger.Verbose("Symbol metadata file - {0}{1}{2}",
                             symbolMetadataFile,
                             Environment.NewLine,
-                            System.IO.File.ReadAllText(symbolMetadataFile));
+                            await System.IO.File.ReadAllTextAsync(symbolMetadataFile));
 
                         return new IpcResult(
                             IpcResultStatus.GenericError,

@@ -234,7 +234,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<IAsyncEnumerator<IEnumerable<DropItem>>> IDropServiceClient.ListStreamedAsync(string dropNamePrefix, PathOptions pathOptions, CancellationToken cancellationToken, DropItemFilterOptions filterOptions, DropItemPaginationOptions paginationOptions)
+        Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<DropItem>>> IDropServiceClient.ListStreamedAsync(string dropNamePrefix, PathOptions pathOptions, CancellationToken cancellationToken, DropItemFilterOptions filterOptions, DropItemPaginationOptions paginationOptions)
         {
             throw new NotImplementedException();
         }
@@ -244,7 +244,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> IDropServiceClient.ListFilePagesAsync(string dropName, bool tryToRetrieveFromLocalCache, CancellationToken cancellationToken, bool allowPartial, IEnumerable<string> directories, bool recursive, bool getDownloadUris)
+        Task<Microsoft.VisualStudio.Services.Content.Common.IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> IDropServiceClient.ListFilePagesAsync(string dropName, bool tryToRetrieveFromLocalCache, CancellationToken cancellationToken, bool allowPartial, IEnumerable<string> directories, bool recursive, bool getDownloadUris)
         {
             throw new NotImplementedException();
         }

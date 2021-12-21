@@ -46,6 +46,12 @@ namespace Test.Tool.DropDaemon
             AssemblyName name = new AssemblyName(args.Name);
             if (name.Name.Equals("Newtonsoft.Json", StringComparison.OrdinalIgnoreCase))
             {
+                if (name.Version.Major == 11 && name.Version.Minor == 0)
+                {
+                    // Already version 11 - we don't know how to resolve it if the runtime couldn't.
+                    return null;
+                }
+
                 name.Version = new Version(11, 0);
                 return Assembly.Load(name);
             }
@@ -57,7 +63,7 @@ namespace Test.Tool.DropDaemon
                 return Assembly.Load(name);
             }
 
-            return Assembly.Load(args.Name);
+            return null;
         }
 
         public MockDropClient(

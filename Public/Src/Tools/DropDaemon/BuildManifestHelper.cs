@@ -66,7 +66,7 @@ namespace Tool.DropDaemon
 
             try
             {
-                File.WriteAllText(cdfPath, $@"
+                await File.WriteAllTextAsync(cdfPath, $@"
 [CatalogHeader]
 Name={CatalogFilename}
 CatalogVersion=2

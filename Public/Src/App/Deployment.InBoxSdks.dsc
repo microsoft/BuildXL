@@ -4,17 +4,20 @@
 const sdkRoot = Context.getMount("SdkRoot").path;
 
 @@public
-export const inBoxSdks = createSdkDeploymentDefinition(false, false);
+export function inBoxSdks(minimalDev: boolean) : Deployment.Definition {
+    return createSdkDeploymentDefinition(false, minimalDev, false);
+}
+
 @@public
-export const inBoxServerSdks = createSdkDeploymentDefinition(true, false);
+export const inBoxServerSdks = createSdkDeploymentDefinition(true, false, false);
 
 /**
  * Basic sdks without the binary tools, for evaluation purposes only
  */
 @@public
-export const evaluationOnlySdks = createSdkDeploymentDefinition(false, true);
+export const evaluationOnlySdks = createSdkDeploymentDefinition(false, false, true);
 
-function createSdkDeploymentDefinition(serverDeployment: boolean, evaluationOnly: boolean) : Deployment.Definition {
+function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeployment: boolean, evaluationOnly: boolean) : Deployment.Definition {
     return {
         contents: [
             {
@@ -40,33 +43,36 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, evaluationOnly
                                 importFrom("BuildXL.Tools.QTest").selectDeployment(evaluationOnly)
                             ]
                         },
-                        {
-                            subfolder: "Sdk.Drop",
-                            contents: [ 
-                                importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                    targetFramework: "net6.0",
-                                    targetRuntime: "win-x64"
-                                }).selectDeployment(evaluationOnly)
-                            ]
-                        },
-                        {
-                            subfolder: "Sdk.Symbols",
-                            contents: [
-                                     importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                        // Daemon tools are not included in the minimal deployment
+                        ...addIf(!minimalDeployment, 
+                            {
+                                subfolder: "Sdk.Drop",
+                                contents: [ 
+                                    importFrom("BuildXL.Tools.DropDaemon").withQualifier({
                                         targetFramework: "net6.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
-                            ]
-                        },
-                        {
-                            subfolder: "Sdk.Materialization",
-                            contents: [
-                                importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                    targetFramework: "net6.0",
-                                    targetRuntime: "win-x64"
-                                }).selectDeployment(evaluationOnly)
-                            ]
-                        },
+                                ]
+                            },
+                            {
+                                subfolder: "Sdk.Symbols",
+                                contents: [
+                                        importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                                            targetFramework: "net6.0",
+                                            targetRuntime: "win-x64"
+                                        }).selectDeployment(evaluationOnly)
+                                ]
+                            },
+                            {
+                                subfolder: "Sdk.Materialization",
+                                contents: [
+                                    importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
+                                        targetFramework: "net6.0",
+                                        targetRuntime: "win-x64"
+                                    }).selectDeployment(evaluationOnly)
+                                ]
+                            }
+                        ),
                         {
                             subfolder: "Sdk.JavaScript",
                             contents: [ 

@@ -18,7 +18,7 @@ export function addDeploymentManifestFile(deployment: Deployment.Definition, man
     return {contents: [deployment, manifest]};
 }
 
-function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Definition {
+function createDeployment(isServerDeployment: boolean, isMinimal: boolean) : Deployment.Definition {
     return {
         contents: [
             // Use the operating system specific BuildXL binary for deployments
@@ -37,7 +37,7 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
                 MacServices.Deployment.buildXLScripts,
             ]),
 
-            isServerDeployment ? inBoxServerSdks : inBoxSdks
+            isServerDeployment ? inBoxServerSdks : inBoxSdks(isMinimal)
         ],
     };
 }
@@ -47,8 +47,16 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
  * the manifestName parameter of addDeploymentManifestFile must match either of those string constants!
  */
 @@public
-export const deployment = addDeploymentManifestFile(createDeploymentManifest(false), "BuildXL.Deployment.manifest");
+export const deployment = addDeploymentManifestFile(createDeployment(false, false), "BuildXL.Deployment.manifest");
 
 /** This manifest file gets processed by the logic in App\Bxl\ServerDeployment.cs */
 @@public
-export const serverDeployment = addDeploymentManifestFile(createDeploymentManifest(true), "BuildXL.ServerDeployment.manifest");
+export const serverDeployment = addDeploymentManifestFile(createDeployment(true, false), "BuildXL.ServerDeployment.manifest");
+
+/** 
+ * Minimal deployment meant for local builds, does not deploy daemon sdks/tooling.
+ * The intention is to minimize package size of the distribution 
+ * (specifically, to avoid hitting npm package size limitations)
+ */
+@@public
+export const minimalDeployment = addDeploymentManifestFile(createDeployment(false, true), "BuildXL.Deployment.manifest");

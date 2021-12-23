@@ -13,6 +13,26 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Utilities.ParallelAlgorithms
 {
     /// <summary>
+    /// An exception is thrown when the <see cref="ActionBlockSlim{T}"/> is full and can't accept new items.
+    /// </summary>
+    public sealed class ActionBlockIsFullException : InvalidOperationException
+    {
+        /// <nodoc />
+        public int ConcurrencyLimit { get; }
+
+        /// <nodoc />
+        public int CurrentCount { get; }
+
+        /// <nodoc />
+        public ActionBlockIsFullException(string message, int concurrencyLimit, int currentCount)
+            : base(message)
+        {
+            ConcurrencyLimit = concurrencyLimit;
+            CurrentCount = currentCount;
+        }
+    }
+
+    /// <summary>
     /// Light-weight version of a non-dataflow block that invokes a provided <see cref="Action{T}"/> delegate for every data element received in parallel with limited concurrency.
     /// </summary>
     public sealed class ActionBlockSlim<T>
@@ -23,6 +43,9 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         private bool m_schedulingCompleted;
 
         private int m_pending;
+        
+        // TODO ST: Add tests to check the capacity limiting logic.
+        private readonly int? m_capacityLimit;
 
         private readonly SemaphoreSlim m_semaphore;
 
@@ -34,34 +57,40 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         private readonly TaskSourceSlim<object> m_schedulingCompletedTcs = TaskSourceSlim.Create<object>();
 
         /// <summary>
+        /// Returns the number of pending items.
+        /// </summary>
+        public int PendingWorkItems => m_pending;
+
+        /// <summary>
         /// Creates an instance of the action block.
         /// </summary>
         /// <remarks>
         /// Please use this constructor only for CPU intensive (non-asynchronous) callbacks.
         /// If you need to control the concurrency for asynchronous operations, please use <see cref="CreateWithAsyncAction"/> helper.
         /// </remarks>
-        public ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction)
+        public ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction, int? capacityLimit = null)
             : this(degreeOfParallelism, t =>
             {
                 processItemAction(t);
                 return Task.CompletedTask;
-            })
+            }, capacityLimit: capacityLimit)
         {
         }
 
         /// <nodoc />
-        public static ActionBlockSlim<T> CreateWithAsyncAction(int degreeOfParallelism, Func<T, Task> processItemAction)
+        public static ActionBlockSlim<T> CreateWithAsyncAction(int degreeOfParallelism, Func<T, Task> processItemAction, int? capacityLimit = null)
         {
-            return new ActionBlockSlim<T>(degreeOfParallelism, processItemAction);
+            return new ActionBlockSlim<T>(degreeOfParallelism, processItemAction, capacityLimit);
         }
 
         /// <nodoc />
-        private ActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction)
+        private ActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction, int? capacityLimit = null)
         {
             Contract.Requires(degreeOfParallelism >= -1);
             Contract.RequiresNotNull(processItemAction);
 
             m_processItemAction = processItemAction;
+            m_capacityLimit = capacityLimit;
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
             
             m_queue = new ConcurrentQueue<T>();
@@ -81,11 +110,19 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Add a given <paramref name="item"/> to a processing queue.
         /// </summary>
+        /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
         public void Post(T item)
         {
             AssertNotCompleted();
 
-            Interlocked.Increment(ref m_pending);
+            var currentCount = Interlocked.Increment(ref m_pending);
+            if (m_capacityLimit != null && currentCount > m_capacityLimit.Value)
+            {
+                Interlocked.Decrement(ref m_pending);
+
+                throw new ActionBlockIsFullException(
+                    $"Can't add new item because the queue is full. Capacity is '{m_capacityLimit.Value}'. CurrentCount is '{currentCount}'.", m_capacityLimit.Value, currentCount);
+            }
 
             // NOTE: Enqueue MUST happen before releasing the semaphore
             // to ensure WaitAsync below never returns when there is not

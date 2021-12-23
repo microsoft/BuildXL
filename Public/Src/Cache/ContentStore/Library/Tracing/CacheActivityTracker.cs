@@ -44,6 +44,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// Tracks the number of bytes pushed when copying files to other machines.
         /// </summary>
         PushBytes,
+
+        /// <summary>
+        /// Tracks the number of requests processed by the metadata service.
+        /// </summary>
+        ProcessedMetadataRequests,
     }
 
     /// <summary>

@@ -13,6 +13,25 @@ namespace Test.BuildXL.Utilities
     public class ActionBlockSlimTests
     {
         [Fact]
+        public async Task ExceptionIsThrownWhenTheBlockIsFull()
+        {
+            var tcs = new TaskCompletionSource<object>();
+            var actionBlock = ActionBlockSlim<int>.CreateWithAsyncAction(42, n => tcs.Task, capacityLimit: 1);
+            actionBlock.Post(42);
+            Assert.Equal(1, actionBlock.PendingWorkItems);
+
+            Assert.Throws<ActionBlockIsFullException>(() => actionBlock.Post(1));
+            Assert.Equal(1, actionBlock.PendingWorkItems);
+
+            tcs.SetResult(null);
+            await Task.Delay(10);
+            Assert.Equal(0, actionBlock.PendingWorkItems);
+            
+            // This should not fail!
+            actionBlock.Post(1);
+        }
+
+        [Fact]
         public async Task CompletionTaskIsDoneWhenCompletedIsCalled()
         {
             var actionBlock = new ActionBlockSlim<int>(42, n => { });

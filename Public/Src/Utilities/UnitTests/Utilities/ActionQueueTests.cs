@@ -14,6 +14,23 @@ namespace Test.BuildXL.Utilities
     public class ActionQueueTests
     {
         [Fact]
+        public async Task WhenQueueIsFull()
+        {
+            var queue = new ActionQueue(degreeOfParallelism: 2, capacityLimit: 1);
+            var tcs = new TaskCompletionSource<object>();
+
+            var t = queue.RunAsync(() => tcs.Task);
+            await Assert.ThrowsAsync<ActionBlockIsFullException>(() => queue.RunAsync(() => { }));
+
+            tcs.SetResult(null);
+
+            await t;
+
+            // should be fine now.
+            await queue.RunAsync(() => { });
+        }
+
+        [Fact]
         public async Task ExceptionsShouldNotBlockProcessing()
         {
             int callbackCount = 0;

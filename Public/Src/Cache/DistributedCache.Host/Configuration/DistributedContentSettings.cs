@@ -1176,6 +1176,11 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public EnumSetting<ContentMetadataStoreMode>? ClusterGlobalStoreModeOverride { get; set; }
 
+        [DataMember]
+        public int? MetadataStoreMaxOperationConcurrency { get; set; }
+
+        [DataMember]
+        public int? MetadataStoreMaxOperationQueueLength { get; set; }
 
         [DataMember]
         public bool ContentMetadataBlobsEnabled { get; set; } = true;

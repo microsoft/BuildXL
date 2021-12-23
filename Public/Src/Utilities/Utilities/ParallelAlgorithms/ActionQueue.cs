@@ -16,10 +16,19 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     {
         private readonly ActionBlockSlim<Func<Task>> m_actionBlock;
 
+        /// <inheritdoc cref="ActionBlockSlim{T}.PendingWorkItems"/>.
+        public int PendingWorkItems => m_actionBlock.PendingWorkItems;
+
+        /// <inheritdoc cref="ActionBlockSlim{T}.Complete"/>
+        public void Complete() => m_actionBlock.Complete();
+
+        /// <inheritdoc cref="ActionBlockSlim{T}.CompletionAsync"/>
+        public Task CompletionAsync() => m_actionBlock.CompletionAsync();
+
         /// <nodoc />
-        public ActionQueue(int degreeOfParallelism)
+        public ActionQueue(int degreeOfParallelism, int? capacityLimit = null)
         {
-            m_actionBlock = ActionBlockSlim<Func<Task>>.CreateWithAsyncAction(degreeOfParallelism, f => f());
+            m_actionBlock = ActionBlockSlim<Func<Task>>.CreateWithAsyncAction(degreeOfParallelism, f => f(), capacityLimit);
         }
 
         /// <summary>
@@ -79,6 +88,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Runs the delegate asynchronously and returns the completion
         /// </summary>
+        /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
         public Task RunAsync(Action action)
         {
             return RunAsync(() =>
@@ -91,6 +101,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Runs the delegate asynchronously and returns the completion
         /// </summary>
+        /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
         public Task RunAsync(Func<Task> runAsync)
         {
             return RunAsync(async () =>
@@ -103,6 +114,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Runs the delegate asynchronously and returns the completion
         /// </summary>
+        /// <exception cref="ActionBlockIsFullException">If the queue is full and the queue was configured to limit the queue size.</exception>
         public Task<T> RunAsync<T>(Func<Task<T>> runAsync)
         {
             var taskSource = TaskSourceSlim.Create<T>();

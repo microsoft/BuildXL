@@ -290,6 +290,9 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var configuration = new GlobalCacheServiceConfiguration()
             {
+                MaxOperationConcurrency = _distributedSettings.MetadataStoreMaxOperationConcurrency,
+                MaxOperationQueueLength = _distributedSettings.MetadataStoreMaxOperationQueueLength,
+
                 MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
                 MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
                 VolatileEventStorage = new RedisVolatileEventStorageConfiguration()

@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
@@ -37,6 +38,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public BlobEventStorageConfiguration PersistentEventStorage { get; init; }
 
         public ClusterManagementConfiguration ClusterManagement { get; init; }
+
+        /// <summary>
+        /// If set, all the operations for the global cache service will go through a queue for limiting the number of simultaneous operations.
+        /// </summary>
+        public int? MaxOperationConcurrency { get; init; }
+
+        /// <summary>
+        /// If <see cref="MaxOperationConcurrency"/> is set, then this property will represent a length of the queue that will be used for managing concurrency of the global cache service.
+        /// </summary>
+        public int? MaxOperationQueueLength { get; init; }
     }
 
     public record ClusterManagementConfiguration
@@ -47,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// Interface that represents a content metadata service backed by a <see cref="IGlobalCacheStore"/>
     /// </summary>
-    public partial class ResilientGlobalCacheService : GlobalCacheService, IRoleObserver
+    public class ResilientGlobalCacheService : GlobalCacheService, IRoleObserver
     {
         private const string LogCursorKey = "ResilientContentMetadataService.LogCursor";
 
@@ -59,11 +70,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private readonly SemaphoreSlim _restoreCheckpointGate = TaskUtilities.CreateMutex();
         private readonly SemaphoreSlim _createCheckpointGate = TaskUtilities.CreateMutex();
 
+        private ActionQueue _concurrencyLimitingQueue;
+
         private readonly IClock _clock;
         protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
 
         internal bool ForceClientRetries(out string reason)
         {
+            if (ShutdownStarted)
+            {
+                reason = "The service is shutting down";
+                return true;
+            }
+
             if (_role == Role.Worker)
             {
                 reason = "Service is in worker mode";
@@ -116,6 +135,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             await base.StartupCoreAsync(context).ThrowIfFailureAsync();
+
+            if (_configuration?.MaxOperationConcurrency != null)
+            {
+                var maxConcurrency = _configuration.MaxOperationConcurrency.Value;
+                var maxQueueLength = _configuration.MaxOperationQueueLength;
+                Tracer.Debug(context, $"Using concurrency limiting queue. MaxConcurrency={maxConcurrency}, MaxQueueLength={maxQueueLength}");
+                _concurrencyLimitingQueue = new ActionQueue(maxConcurrency, maxQueueLength);
+            }
 
             _createCheckpointLoopTask = CreateCheckpointLoopAsync(context)
                 .FireAndForgetErrorsAsync(context, operation: nameof(CreateCheckpointLoopAsync));
@@ -190,7 +217,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                        };
             }
 
-            var result = await base.ExecuteCoreAsync(context, request, executeAsync);
+            Result<TResponse> result;
+
+            if (!request.Replaying)
+            {
+                CacheActivityTracker.Increment(CaSaaSActivityTrackingCounters.ProcessedMetadataRequests);
+            }
+
+            if (_concurrencyLimitingQueue == null || request.Replaying)
+            {
+                // Not using concurrency limiter when the request is replayed.
+                result = await base.ExecuteCoreAsync(context, request, executeAsync);
+            }
+            else
+            {
+                try
+                {
+                    result = await _concurrencyLimitingQueue.RunAsync(
+                        () =>
+                        {
+                            return base.ExecuteCoreAsync(context, request, executeAsync);
+                        });
+                }
+                catch (ActionBlockIsFullException e)
+                {
+                    return new TResponse()
+                           {
+                               // TODO (1888943): support different retry kinds to notify the clients that the retry should happen after a longer period of time, for instance.
+                               ShouldRetry = true,
+                               ErrorMessage = $"Too many simultaneous operations. Limit={e.ConcurrencyLimit}, CurrentCount={e.CurrentCount}",
+                           };
+                }
+            }
 
             if (!request.Replaying)
             {

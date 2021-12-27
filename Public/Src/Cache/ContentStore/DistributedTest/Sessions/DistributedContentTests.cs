@@ -303,7 +303,7 @@ namespace ContentStoreTest.Distributed.Sessions
             }
 
             public ResilientGlobalCacheService GetContentMetadataService(int? idx = null) =>
-                (ResilientGlobalCacheService)(GetDistributedStore(idx ?? GetMasterIndex()).ContentLocationStoreFactory as ContentLocationStoreFactory)?.LocalGlobalCacheService;
+                (ResilientGlobalCacheService)(GetDistributedStore(idx ?? GetMasterIndex()).ContentLocationStoreFactory as ContentLocationStoreFactory)?.Services.Dependencies.GlobalCacheService.InstanceOrDefault();
 
             public LocalLocationStore GetLocalLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedStore(idx).ContentLocationStore).LocalLocationStore;

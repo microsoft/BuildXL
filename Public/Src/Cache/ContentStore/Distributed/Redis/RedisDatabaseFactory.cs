@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Utilities;
 #if MICROSOFT_INTERNAL
 using Microsoft.Caching.Redis;
 using Microsoft.Caching.Redis.KeyspaceIsolation;
@@ -34,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private readonly Func<Task<IConnectionMultiplexer>> _connectionMultiplexerFactory;
         private readonly Func<IConnectionMultiplexer, Task> _connectionMultiplexerShutdownFunc;
-        private IConnectionMultiplexer _connectionMultiplexer;
+        private AsyncLazy<IConnectionMultiplexer> _connectionMultiplexer;
 
         /// <summary>
         /// Notifies existing clients that the current connection multiplexer instance is about to be closed.
@@ -45,11 +46,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisDatabaseFactory"/> class.
         /// </summary>
-        private RedisDatabaseFactory(IConnectionMultiplexer connectionMultiplexer, Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory, Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc)
+        private RedisDatabaseFactory(Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory, Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc)
         {
             _connectionMultiplexerFactory = connectionMultiplexerFactory;
             _connectionMultiplexerShutdownFunc = connectionMultiplexerShutdownFunc;
-            _connectionMultiplexer = connectionMultiplexer;
+            _connectionMultiplexer = new AsyncLazy<IConnectionMultiplexer>(connectionMultiplexerFactory);
             _resetConnectionMultiplexerCts = new CancellationTokenSource();
         }
 
@@ -67,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Factory method for a database factory.
         /// </summary>
-        public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider, RedisConnectionMultiplexerConfiguration configuration)
+        public static RedisDatabaseFactory Create(Context context, IConnectionStringProvider provider, RedisConnectionMultiplexerConfiguration configuration)
         {
             Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => RedisConnectionMultiplexer.CreateAsync(context, provider, configuration);
 
@@ -77,8 +78,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 await RedisConnectionMultiplexer.ForgetAsync(context, options);
             };
 
-            var connectionMultiplexer = await connectionMultiplexerFactory();
-            return new RedisDatabaseFactory(connectionMultiplexer, connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
+            return new RedisDatabaseFactory(connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
+        }
+
+        /// <summary>
+        /// Factory method for a database factory.
+        /// </summary>
+        public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider, RedisConnectionMultiplexerConfiguration configuration)
+        {
+            var databaseFactory = Create(context, provider, configuration);
+            await databaseFactory.InitializeAsync();
+            return databaseFactory;
         }
 
         /// <summary>
@@ -89,12 +99,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </remarks>
         public static Task<RedisDatabaseFactory> CreateAsync(IConnectionStringProvider provider, IConnectionMultiplexer connectionMultiplexer)
         {
-            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => Task.FromResult(connectionMultiplexer);
-
-            Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc = m => BoolResult.SuccessTask;
-
-            var databaseFactory = new RedisDatabaseFactory(connectionMultiplexer, connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
-            return Task.FromResult(databaseFactory);
+            return CreateAsync(() => connectionMultiplexer, m => BoolResult.SuccessTask);
         }
 
         /// <summary>
@@ -103,24 +108,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <remarks>
         /// Used by tests only.
         /// </remarks>
-        public static Task<RedisDatabaseFactory> CreateAsync(Func<IConnectionMultiplexer> connectionMultiplexerFactory, Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc)
+        public static async Task<RedisDatabaseFactory> CreateAsync(Func<IConnectionMultiplexer> connectionMultiplexerFactory, Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc)
         {
-            var connectionMultiplexer = connectionMultiplexerFactory();
-            var databaseFactory = new RedisDatabaseFactory(connectionMultiplexer, () => Task.FromResult(connectionMultiplexerFactory()), connectionMultiplexerShutdownFunc);
-            return Task.FromResult(databaseFactory);
+            var databaseFactory = new RedisDatabaseFactory(() => Task.FromResult(connectionMultiplexerFactory()), connectionMultiplexerShutdownFunc);
+            await databaseFactory.InitializeAsync();
+            return databaseFactory;
+        }
+
+        private Task InitializeAsync()
+        {
+            return _connectionMultiplexer.GetValueAsync();
         }
 
         /// <nodoc />
-        public EndPoint[] GetEndPoints() => _connectionMultiplexer.GetEndPoints();
+        public EndPoint[] GetEndPoints() => _connectionMultiplexer.Value.GetEndPoints();
 
         /// <nodoc />
-        public IServer GetServer(EndPoint endpoint) => _connectionMultiplexer.GetServer(endpoint);
+        public IServer GetServer(EndPoint endpoint) => _connectionMultiplexer.Value.GetServer(endpoint);
 
         /// <summary>
         /// Gets a Redis Database object with a specified key prefix.
         /// </summary>
         public async Task<(IDatabase database, CancellationToken databaseLifetimeToken)> GetDatabaseWithKeyPrefix(Context context, string keySpace)
         {
+            var connectionMultiplexer = await _connectionMultiplexer.GetValueAsync();
+
             if (_resetConnectionMultiplexerCts.IsCancellationRequested)
             {
                 using (await SemaphoreSlimToken.WaitAsync(_creationSemaphore))
@@ -129,15 +141,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     {
                         Tracer.Debug(context, "Shutting down current connection multiplexer.");
 
-                        await _connectionMultiplexerShutdownFunc(_connectionMultiplexer);
+                        await _connectionMultiplexerShutdownFunc(connectionMultiplexer);
 
                         Tracer.Debug(context, "Creating new multiplexer instance.");
 
                         var newConnectionMultiplexer = await _connectionMultiplexerFactory();
+                        connectionMultiplexer = newConnectionMultiplexer;
 
                         // Using volatile operation to prevent the instruction reordering.
                         // We really want the cts change to be the last one.
-                        Volatile.Write(ref _connectionMultiplexer, newConnectionMultiplexer);
+                        Volatile.Write(ref _connectionMultiplexer, AsyncLazy<IConnectionMultiplexer>.FromResult(newConnectionMultiplexer));
 
                         // Need to change the source at the end to avoid the race condition when
                         // another thread can see a non-canceled CancellationTokenSource
@@ -147,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 }
             }
 
-            return (_connectionMultiplexer.GetDatabase().WithKeyPrefix(keySpace), _resetConnectionMultiplexerCts.Token);
+            return (connectionMultiplexer.GetDatabase().WithKeyPrefix(keySpace), _resetConnectionMultiplexerCts.Token);
         }
 
         /// <summary>

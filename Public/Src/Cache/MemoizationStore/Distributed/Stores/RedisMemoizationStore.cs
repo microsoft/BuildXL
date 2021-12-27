@@ -9,7 +9,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     internal class RedisMemoizationStore : DatabaseMemoizationStore
     {
         /// <nodoc />
-        public RedisMemoizationStore(ILogger logger, RedisMemoizationDatabase database)
+        public RedisMemoizationStore(RedisMemoizationDatabase database)
             : base(database)
         {
         }

@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using Grpc.Core;
 using ProtoBuf;
 using ProtoBuf.Grpc.Configuration;
 using ProtoBuf.Meta;
@@ -18,6 +19,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     public static class MetadataServiceSerializer
     {
+        /// <summary>
+        /// The key in metadata request headers for storing ContextId for request.
+        /// NOTE: This must be lowercase due to bug (always transfers as lowercase, but uses case-sensitive comparison)
+        /// in certain versions of Grpc.Core (addressed in latest version).
+        /// </summary>
+        public const string ContextIdMetadataKey = "cid";
+
         public static BinderConfiguration BinderConfiguration { get; }
 
         public static RuntimeTypeModel TypeModel { get; }
@@ -56,6 +64,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return model;
         }
 
+        public static Metadata.Entry CreateContextIdHeaderEntry(string contextId)
+        {
+            return new Metadata.Entry(ContextIdMetadataKey, contextId);
+        }
+
+        public static string TryGetContextId(Metadata headers)
+        {
+            return headers?.GetValue(ContextIdMetadataKey);
+        }
+
         private static Format<BitMachineIdSet> Convert((byte[] data, int offset) value)
         {
             if (value.data == null)
@@ -73,6 +91,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private static MachineLocation Convert(string value)
         {
+            if (value == null)
+            {
+                return default;
+            }
+
             return new MachineLocation(value);
         }
 

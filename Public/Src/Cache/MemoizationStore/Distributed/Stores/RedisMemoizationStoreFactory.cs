@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -13,45 +14,17 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
     /// <nodoc />
-    public class RedisMemoizationStoreFactory : ContentLocationStoreFactory
+    public class RedisMemoizationStoreFactory
     {
-        /// <nodoc />
-        public RedisMemoizationStoreFactory(
-            ContentLocationStoreFactoryArguments arguments,
-            RedisContentLocationStoreConfiguration configuration)
-            : base(arguments, configuration)
+    /// <nodoc />
+        public static IMemoizationStore CreateMemoizationStore(ContentLocationStoreServices services)
         {
-        }
-
-        /// <nodoc />
-        public IMemoizationStore CreateMemoizationStore(ILogger logger)
-        {
-            var primaryRedisDatabaseFactory = RedisDatabaseFactoryForRedisGlobalStore;
-            Contract.Assert(primaryRedisDatabaseFactory != null);
-            var primaryRedisDatabaseAdapter = CreateDatabase(primaryRedisDatabaseFactory);
-
-            var secondaryRedisDatabaseFactory = RedisDatabaseFactoryForRedisGlobalStoreSecondary;
-            Contract.Assert(secondaryRedisDatabaseFactory != null);
-            var secondaryRedisDatabaseAdapter = CreateDatabase(secondaryRedisDatabaseFactory, optional: true);
-
+            var redisGlobalStore = services.RedisGlobalStore.Instance;
             var memoizationDb = new RedisMemoizationDatabase(
-                primaryRedisDatabaseAdapter,
-                secondaryRedisDatabaseAdapter,
-                Configuration.Memoization);
-            return new RedisMemoizationStore(logger, memoizationDb);
-        }
-
-        private RedisDatabaseAdapter CreateDatabase(RedisDatabaseFactory factory, bool optional = false)
-        {
-            if (factory != null)
-            {
-                return new RedisDatabaseAdapter(factory, KeySpace);
-            }
-            else
-            {
-                Contract.Assert(optional);
-                return null;
-            }
+                redisGlobalStore.RaidedRedis.PrimaryRedisDb,
+                redisGlobalStore.RaidedRedis.SecondaryRedisDb,
+                services.Configuration.Memoization);
+            return new RedisMemoizationStore(memoizationDb);
         }
     }
 }

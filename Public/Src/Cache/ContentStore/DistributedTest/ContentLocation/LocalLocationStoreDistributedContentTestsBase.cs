@@ -297,7 +297,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Token,
                 dataRootPath: rootPath.Path,
                 configuration: configuration,
-                keyspace: ContentLocationStoreFactory.DefaultKeySpace,
+                keyspace: DefaultKeySpace,
                 fileSystem: FileSystem
             );
 

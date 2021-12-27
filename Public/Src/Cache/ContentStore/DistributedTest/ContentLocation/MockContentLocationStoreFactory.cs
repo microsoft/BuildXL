@@ -23,12 +23,12 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public TestDistributedContentCopier GetCopier() => (TestDistributedContentCopier)Copier;
 
         public MockContentLocationStoreFactory(
-            ITestRedisDatabase primaryRedisDatabase,
-            ITestRedisDatabase secondaryRedisDatabase,
+            LocalRedisProcessDatabase primaryRedisDatabase,
+            LocalRedisProcessDatabase secondaryRedisDatabase,
             AbsolutePath rootDirectory,
             ITestClock mockClock = null,
             RedisContentLocationStoreConfiguration configuration = null)
-        : base(mockClock ?? TestSystemClock.Instance, configuration ?? CreateDefaultConfiguration(rootDirectory), CreateTestCopier(mockClock ?? TestSystemClock.Instance, rootDirectory))
+        : base(mockClock ?? TestSystemClock.Instance, configuration ?? CreateDefaultConfiguration(rootDirectory, primaryRedisDatabase, secondaryRedisDatabase), CreateTestCopier(mockClock ?? TestSystemClock.Instance, rootDirectory))
         {
             _primaryRedisDatabase = primaryRedisDatabase;
             _secondaryRedisDatabase = secondaryRedisDatabase;
@@ -43,13 +43,17 @@ namespace ContentStoreTest.Distributed.ContentLocation
             _secondaryRedisDatabase?.Dispose();
         }
 
-        private static RedisContentLocationStoreConfiguration CreateDefaultConfiguration(AbsolutePath rootDirectory)
+        private static RedisContentLocationStoreConfiguration CreateDefaultConfiguration(
+            AbsolutePath rootDirectory,
+            LocalRedisProcessDatabase primaryRedisDatabase,
+            LocalRedisProcessDatabase secondaryRedisDatabase)
         {
             var configuration = new RedisContentLocationStoreConfiguration()
-                   {
-                       Keyspace = "Default:",
-                       RedisGlobalStoreConnectionString = "Test",
-                   };
+            {
+                Keyspace = "Default:",
+                RedisGlobalStoreConnectionString = primaryRedisDatabase.ConnectionString,
+                RedisGlobalStoreSecondaryConnectionString = secondaryRedisDatabase?.ConnectionString
+            };
 
             configuration.InlinePostInitialization = true;
             configuration.MachineStateRecomputeInterval = TimeSpan.Zero;
@@ -58,22 +62,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
             configuration.Checkpoint = new CheckpointConfiguration(rootDirectory);
             configuration.CentralStore = new LocalDiskCentralStoreConfiguration(rootDirectory / "centralStore", "checkpoints-key");
             configuration.PrimaryMachineLocation = new MachineLocation(rootDirectory.ToString());
+
             return configuration;
-        }
-
-        /// <inheritdoc />
-        protected override RedisGlobalStore CreateRedisGlobalStore()
-        {
-            var primaryConnection = MockRedisDatabaseFactory.CreateConnection(_primaryRedisDatabase);
-            var primaryDatabaseAdapter = new RedisDatabaseAdapter(
-                RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), primaryConnection).GetAwaiter().GetResult(),
-                DefaultKeySpace);
-            var secondaryConnection = MockRedisDatabaseFactory.CreateConnection(_secondaryRedisDatabase);
-            var secondaryDatabaseAdapter = new RedisDatabaseAdapter(
-                RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), secondaryConnection).GetAwaiter().GetResult(),
-                DefaultKeySpace);
-
-            return new RedisGlobalStore(Clock, Configuration, primaryDatabaseAdapter, secondaryDatabaseAdapter, primaryDatabaseAdapter, secondaryDatabaseAdapter);
         }
 
         //private static TestDistributedContentCopier CreateTestCopier()

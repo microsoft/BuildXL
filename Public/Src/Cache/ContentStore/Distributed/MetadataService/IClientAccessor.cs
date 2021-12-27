@@ -10,18 +10,18 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
-    /// Obtains a connection to a host that implements <typeparamref name="TClient"/>
+    /// Obtains a connection to a host that implements <typeparamref name="TService"/>
     /// </summary>
-    public interface IClientAccessor<TKey, TClient> : IStartupShutdownSlim
+    public interface IClientAccessor<TKey, TService> : IStartupShutdownSlim
     {
-        Task<TResult> UseAsync<TResult>(OperationContext context, TKey key, Func<TClient, Task<TResult>> operation);
+        Task<TResult> UseAsync<TResult>(OperationContext context, TKey key, Func<TService, Task<TResult>> operation);
     }
 
     /// <summary>
-    /// Obtains a connection to a host that implements <typeparamref name="TClient"/>
+    /// Obtains a connection to a host that implements <typeparamref name="TService"/>
     /// </summary>
-    public interface IClientAccessor<TClient> : IStartupShutdownSlim
+    public interface IClientAccessor<TService> : IStartupShutdownSlim
     {
-        Task<TResult> UseAsync<TResult>(OperationContext context, Func<TClient, Task<TResult>> operation);
+        Task<TResult> UseAsync<TResult>(OperationContext context, Func<TService, Task<TResult>> operation);
     }
 }

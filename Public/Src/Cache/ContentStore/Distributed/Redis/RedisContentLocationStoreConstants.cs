@@ -5,8 +5,16 @@ using System;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
-    internal static class RedisContentLocationStoreConstants
+    /// <summary>
+    /// Constants used by content location stores
+    /// </summary>
+    public static class RedisContentLocationStoreConstants
     {
+        /// <summary>
+        /// Default value for keyspace used for partitioning Redis data
+        /// </summary>
+        public const string DefaultKeySpace = "Default:";
+
         /// <summary>
         /// Number of queries to send to Redis at a time.
         /// </summary>

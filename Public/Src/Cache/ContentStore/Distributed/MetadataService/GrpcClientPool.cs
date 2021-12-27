@@ -19,16 +19,16 @@ using ProtoBuf.Grpc.Configuration;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
-    public class ClientPool<TClient> : StartupShutdownComponentBase, IClientAccessor<MachineLocation, TClient>
-        where TClient : class
+    public class GrpcClientPool<TService> : StartupShutdownComponentBase, IClientAccessor<MachineLocation, TService>
+        where TService : class
     {
-        protected override Tracer Tracer { get; } = new Tracer($"{nameof(ClientPool<TClient>)}<{typeof(TClient).Name}>");
+        protected override Tracer Tracer { get; } = new Tracer($"{nameof(GrpcClientPool<TService>)}<{typeof(TService).Name}>");
 
-        private readonly ConditionalWeakTable<ConnectionHandle, TClient> _clientTable = new ConditionalWeakTable<ConnectionHandle, TClient>();
+        private readonly ConditionalWeakTable<ConnectionHandle, TService> _clientTable = new ConditionalWeakTable<ConnectionHandle, TService>();
         private readonly IClientAccessor<MachineLocation, ConnectionHandle> _connectionAccessor;
-        private readonly LocalClient<TClient> _localClient;
+        private readonly LocalClient<TService> _localClient;
 
-        public ClientPool(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TClient> localClient = null)
+        public GrpcClientPool(IClientAccessor<MachineLocation, ConnectionHandle> connectionAccessor, LocalClient<TService> localClient = null)
         {
             _connectionAccessor = connectionAccessor;
             _localClient = localClient;
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<TClient, Task<TResult>> operation)
+        public Task<TResult> UseAsync<TResult>(OperationContext context, MachineLocation key, Func<TService, Task<TResult>> operation)
         {
             if (_localClient?.Location.Equals(key) == true)
             {
@@ -49,21 +49,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
             return _connectionAccessor.UseAsync(context, key, connectionHandle =>
             {
-                var client = _clientTable.GetValue(connectionHandle, static h => h.Channel.CreateGrpcService<TClient>(MetadataServiceSerializer.ClientFactory));
+                var client = _clientTable.GetValue(connectionHandle, static h => h.Channel.CreateGrpcService<TService>(MetadataServiceSerializer.ClientFactory));
                 return operation(client);
             });
         }
     }
 
-    public class ConnectionPool : StartupShutdownComponentBase, IClientAccessor<MachineLocation, ConnectionHandle>
+    public class GrpcConnectionPool : StartupShutdownComponentBase, IClientAccessor<MachineLocation, ConnectionHandle>
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ConnectionPool));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcConnectionPool));
 
         private readonly ConnectionPoolConfiguration _configuration;
         private readonly IClock _clock;
         private ResourcePool<MachineLocation, ConnectionHandle> _pool;
 
-        public ConnectionPool(ConnectionPoolConfiguration configuration, IClock clock = null)
+        public GrpcConnectionPool(ConnectionPoolConfiguration configuration, IClock clock = null)
         {
             _configuration = configuration;
             _clock = clock;

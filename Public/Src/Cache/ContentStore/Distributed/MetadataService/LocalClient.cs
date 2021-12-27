@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -14,7 +16,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public class LocalClient<TClient> : StartupShutdownComponentBase
     {
-        public TClient Client { get; }
+        private readonly Lazy<TClient> _lazyClient;
+        public TClient Client => _lazyClient.Value;
 
         public MachineLocation Location { get; }
 
@@ -23,13 +26,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         public LocalClient(MachineLocation location, TClient client)
+            : this(location, () => client)
+        {
+        }
+
+        public LocalClient(MachineLocation location, Func<TClient> clientFactory)
         {
             Location = location;
-            Client = client;
-            if (client is IStartupShutdownSlim component)
+            _lazyClient = new Lazy<TClient>(clientFactory);
+        }
+
+        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            if (Client is IStartupShutdownSlim component)
             {
-                LinkLifetime(component);
+                return component.StartupAsync(context);
             }
+
+            return base.StartupCoreAsync(context);
+        }
+
+        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            if (Client is IStartupShutdownSlim component)
+            {
+                return component.ShutdownAsync(context);
+            }
+
+            return base.ShutdownCoreAsync(context);
         }
 
     }

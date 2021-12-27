@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
+using ProtoBuf.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
@@ -74,6 +76,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private readonly IClock _clock;
         protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
+
+        internal ContentMetadataEventStream EventStream => _eventStream;
 
         internal bool ForceClientRetries(out string reason)
         {
@@ -271,18 +275,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 else if (ForceClientRetries(out reason))
                 {
                     return new TResponse()
-                           {
-                               ShouldRetry = true,
-                               ErrorMessage = reason,
-                               Diagnostics = !response.Succeeded ? response.Diagnostics : null,
-                           };
+                        {
+                            ShouldRetry = true,
+                            ErrorMessage = reason,
+                            Diagnostics = !response.Succeeded ? response.Diagnostics : null,
+                        };
                 }
             }
 
             return result;
         }
 
-        private async Task<BoolResult> RestoreCheckpointAsync(OperationContext context)
+        internal async Task<BoolResult> RestoreCheckpointAsync(OperationContext context)
         {
             return await context.PerformOperationAsync(
                 Tracer,
@@ -430,7 +434,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        public Task<BoolResult> CreateCheckpointAsync(OperationContext context)
+        public Task<Result<CheckpointLogId>> CreateCheckpointAsync(OperationContext context)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -448,7 +452,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
                         await _eventStream.AfterCheckpointAsync(context, logId).ThrowIfFailureAsync();
 
-                        return BoolResult.Success;
+                        return Result.Success(logId);
                     }
                 });
         }

@@ -49,6 +49,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public TimeSpan MetadataRotationInterval { get; set; } = TimeSpan.FromDays(7);
 
         public TimeSpan BlobRotationInterval { get; set; } = TimeSpan.FromHours(1);
+
+        public bool StoreExpandedContent { get; set; }
     }
 
     /// <summary>
@@ -106,6 +108,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             MetadataHeaders,
 
             Blobs,
+
+            /// <summary>
+            /// Represents content locations as multiple entries which are later compacted into a single entry
+            /// [ShortHash] -> [ContentSize:long] // This serves as a marker that compaction is necessary and stores the size of the entry
+            /// [ShortHash][MachineId] -> {}
+            /// </summary>
+            ExpandedContent
         }
 
         public enum ColumnGroup
@@ -493,6 +502,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                var rotationInterval = column switch
                                {
                                    Columns.Content => _configuration.ContentRotationInterval,
+                                   Columns.ExpandedContent => _configuration.ContentRotationInterval,
                                    Columns.Metadata => _configuration.MetadataRotationInterval,
                                    Columns.MetadataHeaders => _configuration.MetadataRotationInterval,
                                    Columns.Blobs => _configuration.BlobRotationInterval,
@@ -707,6 +717,69 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return value != null;
         }
 
+        public bool LocationAdded(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashes, bool touch)
+        {
+            if (_configuration.StoreExpandedContent)
+            {
+                return _keyValueStore.Use(
+                    static (store, state) =>
+                    {
+                        store.ApplyBatch(
+                            state,
+                            state.db.NameOf(Columns.ExpandedContent),
+                            static (batch, state, columnHandle) =>
+                            {
+                                Span<ShortHash> hashSpan = stackalloc ShortHash[1];
+                                Span<long> sizeSpan = stackalloc long[1];
+                                Span<ExpandedContentEntryKey> entrySpan = stackalloc ExpandedContentEntryKey[1];
+
+                                foreach ((ShortHash hash, long size) in state.hashes.AsStructEnumerable())
+                                {
+                                    // [ShortHash] -> Size
+                                    hashSpan[0] = hash;
+                                    sizeSpan[0] = size;
+                                    batch.Put(key: MemoryMarshal.AsBytes(hashSpan), value: TrimTrailingZeros(MemoryMarshal.AsBytes(sizeSpan)), columnHandle);
+
+
+                                    // [ShortHash][MachineId] -> {}
+                                    entrySpan[0] = new ExpandedContentEntryKey(hash, (ushort)state.machine.Index);
+                                    batch.Put(key: MemoryMarshal.AsBytes(entrySpan), value: ReadOnlySpan<byte>.Empty, columnHandle);
+                                }
+                            });
+
+                        return true;
+                    },
+                    (hashes, machine, db: this)
+                ).ThrowOnError();
+            }
+            else
+            {
+                foreach (var hash in hashes.AsStructEnumerable())
+                {
+                    base.LocationAdded(context, hash.Hash, machine, hash.Size, updateLastAccessTime: touch);
+                }
+
+                return true;
+            }
+        }
+
+        private static Span<byte> TrimTrailingZeros(Span<byte> span)
+        {
+#if NETCOREAPP
+            return span.TrimEnd<byte>(0);
+#else
+            for (int i = span.Length - 1; i >= 0; i--)
+            {
+                if (span[i] != 0)
+                {
+                    return span.Slice(0, i + 1);
+                }
+            }
+
+            return Span<byte>.Empty;
+#endif
+        }
+
         protected override IEnumerable<(ShortHash key, ContentLocationEntry? entry)> EnumerateEntriesWithSortedKeysFromStorage(OperationContext context, EnumerationFilter? filter = null, bool returnKeysOnly = false)
         {
             throw new NotImplementedException();
@@ -722,16 +795,54 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return entry != null;
         }
 
+        private static int SizeOf<T>()
+            where T : unmanaged
+        {
+            Span<T> span = stackalloc T[1];
+            var size = MemoryMarshal.AsBytes(span).Length;
+            return size;
+        }
+
+        private static readonly ContentLocationEntry EmptyLocationEntry = ContentLocationEntry.Create(MachineIdSet.Empty, -1, DateTime.UtcNow, DateTime.UtcNow);
+
         // NOTE: This should remain static to avoid allocations in TryGetEntryCore
         private static ContentLocationEntry? TryGetEntryCoreHelper(ShortHash hash, RocksDbStore store, RocksDbContentMetadataDatabase db)
         {
             ContentLocationEntry? result = null;
 
-            // TODO: unify with RocksDbContentLocationDatabase
             using var keyHandle = hash.ToPooledByteArray();
+
+            // TODO: We should evaluate whether compaction of entries is needed?
+            // NOTE: We don't bother cleaning up entries since that's handled by the DB's garbage collection
+
+            // 1. Retrieve machine ids from expanded entries
+            Span<long> size = stackalloc long[1];
+            List<MachineId>? machineIdsBuffer = null;
+            if (db.TryRead(store, keyHandle.Value, MemoryMarshal.AsBytes(size), Columns.ExpandedContent))
+            {
+                machineIdsBuffer = new List<MachineId>();
+
+                foreach (var kvp in db.PrefixSearch(store, keyHandle.Value, Columns.ExpandedContent))
+                {
+                    if (kvp.Key.Length == ExpandedContentEntryKey.SerializedLength)
+                    {
+                        var entry = MemoryMarshal.Read<ExpandedContentEntryKey>(kvp.Key);
+                        machineIdsBuffer.Add(new MachineId(entry.MachineId));
+                    }
+                }
+            }
+
+            // 2. Read combined entry
             if (db.TryGetPinnableValue(store, keyHandle.Value, out var data, Columns.Content))
             {
                 result = db.DeserializeContentLocationEntry(data.Value);
+            }
+
+            // Merge results
+            if (machineIdsBuffer?.Count > 0)
+            {
+                result ??= ContentLocationEntry.Missing;
+                result = result.SetMachineExistence(MachineIdCollection.Create(machineIdsBuffer), exists: true, size: size[0]);
             }
 
             return result;
@@ -755,6 +866,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return store.TryGetValue(key, out value, NameOf(columns))
                 || store.TryGetValue(key, out value, NameOf(columns, GetFormerColumnGroup(columns)));
+        }
+
+        private bool TryRead(RocksDbStore store, ReadOnlySpan<byte> key, Span<byte> valueBuffer, Columns columns)
+        {
+            return store.TryReadValue(key, valueBuffer, NameOf(columns)) >= 0
+                || store.TryReadValue(key, valueBuffer, NameOf(columns, GetFormerColumnGroup(columns))) >= 0;
         }
 
         private bool TryGetPinnableValue(RocksDbStore store, byte[] key, [NotNullWhen(true)] out RocksDbPinnableSpan? value, Columns columns)
@@ -1035,6 +1152,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private MetadataEntryHeader DeserializeMetadataEntryHeader(ReadOnlySpan<byte> data)
         {
             return MetadataServiceSerializer.TypeModel.Deserialize<MetadataEntryHeader>((ReadOnlySpan<byte>)data);
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ExpandedContentEntryKey
+        {
+            public static readonly int SerializedLength = SizeOf<ExpandedContentEntryKey>();
+
+            public ShortHash Hash;
+            public ushort MachineId;
+
+            public ExpandedContentEntryKey(ShortHash hash, ushort machineId)
+            {
+                (Hash, MachineId) = (hash, machineId);
+            }
         }
 
         private class KeyValueStoreGuard : IDisposable

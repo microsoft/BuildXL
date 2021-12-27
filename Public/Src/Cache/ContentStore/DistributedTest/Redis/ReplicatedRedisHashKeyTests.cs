@@ -29,8 +29,6 @@ namespace ContentStoreTest.Distributed.Redis
 {
     public class ReplicatedRedisHashKeyTests : TestBase
     {
-        private const string DefaultKeySpace = ContentLocationStoreFactory.DefaultKeySpace;
-
         private static readonly IDictionary<RedisKey, RedisValue> InitialTestData = new Dictionary<RedisKey, RedisValue>
         {
             { GetKey("first"), "one" },

@@ -25,7 +25,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly IContentMetadataStore _store;
-        private Context _startupContext;
         protected readonly ClusterManagementStore ClusterManagementStore;
 
         public GlobalCacheService(IContentMetadataStore store, ClusterManagementStore clusterManagementStore)
@@ -34,13 +33,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             ClusterManagementStore = clusterManagementStore;
             LinkLifetime(store);
             LinkLifetime(clusterManagementStore);
-        }
-
-        /// <inheritdoc />
-        public override Task<BoolResult> StartupAsync(Context context)
-        {
-            _startupContext = context;
-            return base.StartupAsync(context);
         }
 
         /// <inheritdoc />
@@ -102,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // Plus this method should not be very long and we can just allow it to fail if the shutdown will cause some errors.
             // (consider adding a flag if we think it will be needed in the future).
 
-            var tracingContext = new Context(request.ContextId, _startupContext.Logger);
+            var tracingContext = new Context(request.ContextId, StartupLogger);
             var context = new OperationContext(tracingContext);
 
             try
@@ -227,7 +219,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             where TRequest : ServiceRequestBase
             where TResponse : ServiceResponseBase, new()
         {
-            var tracingContext = new Context(request.ContextId, _startupContext.Logger);
+            var contextId = request.ContextId;
+            contextId ??= MetadataServiceSerializer.TryGetContextId(callContext.RequestHeaders);
+            var tracingContext = contextId != null
+                ? new Context(contextId, StartupLogger)
+                : new Context(StartupLogger);
+
             return WithOperationContext(
                 tracingContext,
                 callContext.CancellationToken,

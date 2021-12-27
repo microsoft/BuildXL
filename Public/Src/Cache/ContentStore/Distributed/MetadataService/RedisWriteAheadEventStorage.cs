@@ -104,22 +104,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // NOTE: _redisDatabaseFactory is only provided when running outside of tests.
             if (_redisDatabaseFactory != null)
             {
-                await _redisDatabaseFactory.StartupAsync(context).ThrowIfFailureAsync();
-
                 _redisDatabaseAdapter = await _redisDatabaseFactory.CreateAsync(context, Tracer.Name, _configuration.ConnectionString!);
             }
 
             return BoolResult.Success;
-        }
-
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            // NOTE: _redisDatabaseFactory is only provided when running outside of tests.
-            if (_redisDatabaseFactory != null)
-            {
-                return _redisDatabaseFactory.ShutdownAsync(context);
-            }
-            return base.ShutdownCoreAsync(context);
         }
 
         public Task<BoolResult> AppendAsync(OperationContext context, BlockReference cursor, ReadOnlyMemory<byte> piece)

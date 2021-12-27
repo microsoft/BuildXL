@@ -68,7 +68,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 ExpiryTime = _memoizationExpiryTime,
                 SlowOperationCancellationTimeout = null
             });
-            return new RedisMemoizationStore(_logger, memoizationDb);
+            return new RedisMemoizationStore(memoizationDb);
         }
 
         public override Task EnumerateStrongFingerprints(int strongFingerprintCount)

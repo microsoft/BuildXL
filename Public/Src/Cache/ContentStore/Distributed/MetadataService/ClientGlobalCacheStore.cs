@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Tracing;
+using Grpc.Core;
 
 #nullable enable
 
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private async Task<TResult> ExecuteAsync<TResult>(
             OperationContext originalContext,
-            Func<OperationContext, IGlobalCacheService, Task<TResult>> executeAsync,
+            Func<OperationContext, CallOptions, IGlobalCacheService, Task<TResult>> executeAsync,
             Func<TResult, string?> extraEndMessage,
             string? extraStartMessage = null,
             bool shouldRetry = true,
@@ -76,6 +77,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 Tracer,
                 context =>
                 {
+
+                    var callOptions = new CallOptions(
+                        headers: new Metadata()
+                        {
+                            MetadataServiceSerializer.CreateContextIdHeaderEntry(context.TracingContext.TraceId)
+                        },
+                        deadline: DateTime.UtcNow + _configuration.OperationTimeout,
+                        cancellationToken: context.Token);
+
                     var policy = shouldRetry ? _retryPolicy : _noRetryPolicy;
                     return policy.ExecuteAsync(async () =>
                     {
@@ -91,7 +101,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                                 return _serviceClientFactory.UseAsync(context, service =>
                                 {
                                     clientCreationTime = stopwatch.Elapsed;
-                                    return executeAsync(context, service);
+
+                                    return executeAsync(context, callOptions, service);
                                 });
                             },
                             extraStartMessage: extraStartMessage,
@@ -121,12 +132,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
-                var response = await service.GetClusterUpdatesAsync(request with
-                {
-                    ContextId = context.TracingContext.TraceId,
-                }, context.Token);
+                var response = await service.GetClusterUpdatesAsync(request, callOptions);
 
                 return response.ToResult(r => r);
             },
@@ -136,12 +144,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
-                var response = await service.HeartbeatAsync(request with
-                {
-                    ContextId = context.TracingContext.TraceId,
-                }, context.Token);
+                var response = await service.HeartbeatAsync(request, callOptions);
 
                 return response.ToResult(r => r);
             },
@@ -151,13 +156,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
                 var response = await service.GetContentLocationsAsync(new GetContentLocationsRequest()
                 {
-                    ContextId = context.TracingContext.TraceId,
                     Hashes = contentHashes,
-                }, context.Token);
+                }, callOptions);
 
                 return response.ToResult(r => response.Entries);
             },
@@ -180,34 +184,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
             return new ValueTask<BoolResult>(
-                ExecuteAsync(context, async (context, service) =>
+                ExecuteAsync(context, async (context, callOptions, service) =>
                 {
                     var response = await service.RegisterContentLocationsAsync(new RegisterContentLocationsRequest()
                     {
                         ContextId = context.TracingContext.TraceId,
                         Hashes = contentHashes,
                         MachineId = machineId,
-                    }, context.Token);
+                    }, callOptions);
 
                     return response.ToBoolResult();
                 },
                 extraEndMessage: _ =>
                 {
                     var csv = string.Join(",", contentHashes.Select(s => s.Hash));
-                    return $"MachineId=[{machineId}] Touch=[{touch}] Hashes=[{csv}]";
+                    return $"MachineId=[{machineId}] Touch=[{touch}] Hashes=(#{contentHashes.Count})[{csv}]";
                 }));
         }
 
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
                 var response = await service.PutBlobAsync(new PutBlobRequest()
                 {
-                    ContextId = context.TracingContext.TraceId,
                     ContentHash = hash,
                     Blob = blob,
-                }, context.Token);
+                }, callOptions);
 
                 return response.ToPutBlobResult(hash, blob.Length);
             },
@@ -216,13 +219,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<GetBlobResult> GetBlobAsync(OperationContext context, ShortHash hash)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
                 var response = await service.GetBlobAsync(new GetBlobRequest()
                 {
-                    ContextId = context.TracingContext.TraceId,
                     ContentHash = hash,
-                }, context.Token);
+                }, callOptions);
 
                 return response.ToGetBlobResult(hash);
             },
@@ -235,15 +237,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             SerializedMetadataEntry replacement,
             string expectedReplacementToken)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
                 var response = await service.CompareExchangeAsync(new CompareExchangeRequest()
                 {
-                    ContextId = context.TracingContext.TraceId,
                     StrongFingerprint = strongFingerprint,
                     Replacement = replacement,
                     ExpectedReplacementToken = expectedReplacementToken
-                }, context.Token);
+                }, callOptions);
 
                 return response.ToResult(r => r.Exchanged);
             },
@@ -252,14 +253,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
                 var response = await service.GetLevelSelectorsAsync(new GetLevelSelectorsRequest()
                 {
-                    ContextId = context.TracingContext.TraceId,
                     WeakFingerprint = weakFingerprint,
                     Level = level,
-                }, context.Token);
+                }, callOptions);
 
                 return response.ToResult(r => new LevelSelectors(r.Selectors, r.HasMore));
             },
@@ -268,13 +268,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            return ExecuteAsync(context, async (context, service) =>
+            return ExecuteAsync(context, async (context, callOptions, service) =>
             {
                 var response = await service.GetContentHashListAsync(new GetContentHashListRequest()
                 {
-                    ContextId = context.TracingContext.TraceId,
                     StrongFingerprint = strongFingerprint,
-                }, context.Token);
+                }, callOptions);
 
                 return response.ToResult(r => r.MetadataEntry, isNullAllowed: true);
             },

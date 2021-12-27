@@ -269,7 +269,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (distributedSettings.UseRedisMetadataStore)
             {
-                return factory.CreateMemoizationStoreAsync().GetAwaiter().GetResult();
+                return RedisMemoizationStoreFactory.CreateMemoizationStore(factory.Services.ContentLocationStoreServices.Instance);
             }
             else
             {

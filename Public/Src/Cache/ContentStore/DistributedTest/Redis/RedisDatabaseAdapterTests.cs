@@ -32,8 +32,6 @@ namespace ContentStoreTest.Distributed.Redis
 {
     public class RedisDatabaseAdapterTests : TestWithOutput
     {
-        private const string DefaultKeySpace = ContentLocationStoreFactory.DefaultKeySpace;
-
         private static readonly IDictionary<RedisKey, RedisValue> InitialTestData = new Dictionary<RedisKey, RedisValue>
         {
             { GetKey("first"), "one" },

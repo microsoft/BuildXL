@@ -4,8 +4,10 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -24,5 +26,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public DistributedContentCopier Copier { get; init; }
 
         public IClock Clock { get; init; }
+
+        public GrpcConnectionPool ConnectionPool { get; init; }
+
+        public ContentLocationStoreServicesDependencies Dependencies { get; init; } = new ContentLocationStoreServicesDependencies();
     }
 }

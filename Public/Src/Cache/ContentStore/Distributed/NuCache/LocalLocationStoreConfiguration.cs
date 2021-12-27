@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Configuration object for the content metadata store
         /// </summary>
-        public ContentMetadataStoreConfiguration? MetadataStore { get; set; }
+        public ClientContentMetadataStoreConfiguration? MetadataStore { get; set; }
 
         /// <summary>
         /// A helper method that provides extra information to the compiler regarding whether some properties are null or not.

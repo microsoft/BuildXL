@@ -1123,6 +1123,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ContentMetadataEnableResilience { get; set; }
 
         [DataMember]
+        public bool ContentMetadataOptimizeWrites { get; set; }
+
+        [DataMember]
         public bool UseBlobVolatileStorage { get; set; }
 
         [DataMember]

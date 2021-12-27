@@ -381,6 +381,18 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
         }
 
+        /// <inheritdoc />
+        public void ApplyBatch<TData>(in TData data, string? columnFamilyName, Action<WriteBatch, TData, ColumnFamilyHandle> apply)
+        {
+            ColumnFamilyInfo batchColumnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+
+            using (var writeBatch = new WriteBatch())
+            {
+                apply(writeBatch, data, batchColumnFamilyInfo.Handle);
+                WriteInternal(writeBatch);
+            }
+        }
+
         /// <summary>
         /// Adds a put operation for a key to a <see cref="WriteBatch"/>. These are not written
         /// to the store by this function, just added to the <see cref="WriteBatch"/>.
@@ -445,6 +457,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             value = m_store.Get(key, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
             return value != null;
+        }
+
+        /// <inheritdoc />
+        public long TryReadValue(ReadOnlySpan<byte> key, Span<byte> valueBuffer, string? columnFamilyName = null)
+        {
+            return m_store.Get(key, valueBuffer, GetColumnFamilyInfo(columnFamilyName).Handle, readOptions: m_readOptions);
         }
 
         /// <inheritdoc />

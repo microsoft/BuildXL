@@ -637,6 +637,12 @@ namespace BuildXL.Launcher.Server
                     }
 
                     int proxyMachineIndex = ThreadSafeRandom.Generator.Next(minProxyMachineIndexInclusive, maxProxyMachineIndexExclusive);
+                    if (_machines.Count >= proxyMachineIndex)
+                    {
+                        // No proxy machines available
+                        return null;
+                    }
+
                     host = _machines[proxyMachineIndex];
                 }
 

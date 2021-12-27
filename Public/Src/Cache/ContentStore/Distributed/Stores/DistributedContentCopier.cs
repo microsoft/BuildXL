@@ -53,6 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <nodoc />
         public IAbsFileSystem FileSystem { get; }
 
+        internal Context Context { get; }
+
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier));
@@ -79,8 +81,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             FileSystem = fileSystem;
             _clock = clock;
 
-            var context = new Context(logger);
-            _copyScheduler = settings.CopyScheduler.Create(context);
+            Context = new Context(logger);
+            _copyScheduler = settings.CopyScheduler.Create(Context);
 
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;

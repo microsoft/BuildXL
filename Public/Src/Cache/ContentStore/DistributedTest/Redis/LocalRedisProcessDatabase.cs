@@ -198,7 +198,7 @@ namespace ContentStoreTest.Distributed.Redis
         {
             StartRedisServerIfNeeded();
 
-            var database = GetDatabase().WithKeyPrefix(ContentLocationStoreFactory.DefaultKeySpace);
+            var database = GetDatabase().WithKeyPrefix(DefaultKeySpace);
 
             try
             {
@@ -226,7 +226,7 @@ namespace ContentStoreTest.Distributed.Redis
                 foreach (KeyValuePair<RedisKey, RedisValue> kvp in initialData)
                 {
                     string key = kvp.Key;
-                    key = key.Substring(ContentLocationStoreFactory.DefaultKeySpace.Length);
+                    key = key.Substring(DefaultKeySpace.Length);
                     if (expiryData != null && expiryData.TryGetValue(kvp.Key, out var expiryDate))
                     {
                         database.StringSet(key, kvp.Value, expiryDate - _clock.UtcNow);
@@ -243,7 +243,7 @@ namespace ContentStoreTest.Distributed.Redis
                 foreach (KeyValuePair<RedisKey, RedisValue[]> kvp in setData)
                 {
                     string key = kvp.Key;
-                    key = key.Substring(ContentLocationStoreFactory.DefaultKeySpace.Length);
+                    key = key.Substring(DefaultKeySpace.Length);
                     database.SetAdd(key, kvp.Value);
                 }
             }
@@ -480,9 +480,9 @@ port {portNumber}";
             foreach (RedisKey key in GetKeys())
             {
                 string stringKey = key;
-                stringKey = stringKey.Substring(ContentLocationStoreFactory.DefaultKeySpace.Length);
+                stringKey = stringKey.Substring(DefaultKeySpace.Length);
                 RedisKey redisKey = stringKey;
-                redisKey = redisKey.Prepend(ContentLocationStoreFactory.DefaultKeySpace);
+                redisKey = redisKey.Prepend(DefaultKeySpace);
                 if (!dict.ContainsKey(redisKey))
                 {
                     var type = database.KeyType(key);

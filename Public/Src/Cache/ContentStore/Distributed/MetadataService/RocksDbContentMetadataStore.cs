@@ -67,11 +67,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
-            foreach (var hash in contentHashes.AsStructEnumerable())
-            {
-                Database.LocationAdded(context, hash.Hash, machineId, hash.Size, updateLastAccessTime: touch);
-            }
-
+            Database.LocationAdded(context, machineId, contentHashes, touch);
             return BoolResult.SuccessValueTask;
         }
 

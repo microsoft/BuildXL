@@ -5,8 +5,6 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.Host.Service.Internal;
-using BuildXL.Utilities;
 
 namespace BuildXL.Cache.Host.Service
 {

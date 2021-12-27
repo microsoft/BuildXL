@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
@@ -29,11 +30,16 @@ namespace BuildXL.Cache.ContentStore.Utils
         where TKey : notnull
         where TObject : IStartupShutdownSlim
     {
+        private readonly record struct WrapperEntry(TKey Key, DateTime LastAccessTime, ResourceWrapper<TObject> Wrapper);
+
         private readonly Context _context;
         private readonly ResourcePoolConfiguration _configuration;
 
         private readonly Dictionary<TKey, ResourceWrapper<TObject>> _resources;
         private readonly object _resourcesLock = new object();
+
+        private readonly PriorityQueue<WrapperEntry> _expirationQueue = new PriorityQueue<WrapperEntry>(10, Comparer<WrapperEntry>.Create(static (w1, w2) => w1.LastAccessTime.CompareTo(w2.LastAccessTime)));
+        private readonly List<ResourceWrapper<TObject>> _pendingExpiredWrappers = new List<ResourceWrapper<TObject>>();
 
         private readonly ConcurrentQueue<ResourceWrapper<TObject>> _shutdownQueue = new ConcurrentQueue<ResourceWrapper<TObject>>();
 
@@ -107,46 +113,48 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         private ResourceWrapper<TObject> AcquireWrapper(Context context, TKey key)
         {
+            var wrapper = AddOrGetWrapper(context, key);
+            ReleaseExpiredWrappers(context, disposing: false);
+            return wrapper;
+        }
+
+        private ResourceWrapper<TObject> AddOrGetWrapper(Context context, TKey key)
+        {
             lock (_resourcesLock)
             {
-                ReleaseExpiredWrappers(context, disposing: false);
-                var wrapper = AddOrGetWrapper(context, key);
+                var now = _clock.UtcNow;
+                if (!_resources.TryGetValue(key, out var wrapper) || !wrapper.IsAlive(now, _configuration.MaximumAge))
+                {
+                    if (wrapper != null)
+                    {
+                        TryRemoveWrapper(key, wrapper);
+                    }
+
+                    wrapper = CreateWrapper(context, key);
+                    _expirationQueue.Push(new WrapperEntry(key, now, wrapper));
+                    _resources[key] = wrapper;
+                }
 
                 // We need to increment this here to avoid having another thread release the resource while its being
                 // acquired and hence causing a race condition.
-                wrapper.Acquire(_clock.UtcNow);
+                wrapper.Acquire(now);
 
                 return wrapper;
             }
         }
 
-        private ResourceWrapper<TObject> AddOrGetWrapper(Context context, TKey key)
+        private void ReleaseWrapper(Context context, ResourceWrapper<TObject> wrapper)
         {
-            var now = _clock.UtcNow;
-            if (_resources.TryGetValue(key, out var wrapper))
-            {
-                if (wrapper.IsAlive(now, _configuration.MaximumAge))
-                {
-                    return wrapper;
-                }
-
-                ReleaseWrapper(context, key, wrapper);
-            }
-
-            wrapper = CreateWrapper(context, key);
-            _resources.Add(key, wrapper);
-            return wrapper;
-        }
-
-        private void ReleaseWrapper(Context context, TKey key, ResourceWrapper<TObject> wrapper)
-        {
-            lock (_resourcesLock)
-            {
-                _resources.Remove(key);
-            }
+            // This code cancels the CancellationToken associated with the wrapper which can run arbitrary code.
+            // Therefore, we should not do this under a lock.
+            Contract.Assert(!Monitor.IsEntered(_resourcesLock));
 
             wrapper.CancelOngoingOperations(context);
-            _shutdownQueue.Enqueue(wrapper);
+
+            lock (_resourcesLock)
+            {
+                _shutdownQueue.Enqueue(wrapper);
+            }
 
             Counter[ResourcePoolCounters.ReleasedResources].Increment();
         }
@@ -299,17 +307,62 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         private void ReleaseExpiredWrappers(Context context, bool disposing)
         {
+            Contract.Assert(!Monitor.IsEntered(_resourcesLock));
+
+            List<ResourceWrapper<TObject>>? expiredWrappers = null;
             lock (_resourcesLock)
             {
-                foreach (var kvp in _resources.ToList())
+                while (_expirationQueue.Count != 0)
                 {
-                    var key = kvp.Key;
-                    var wrapper = kvp.Value;
-                    if (!wrapper.IsAlive(_clock.UtcNow, _configuration.MaximumAge) || disposing)
+                    var entry = _expirationQueue.Top;
+                    if (disposing || !entry.Wrapper.IsAlive(_clock.UtcNow, _configuration.MaximumAge, out var lastAccessTime))
                     {
-                        ReleaseWrapper(context, key, wrapper);
+                        TryRemoveWrapper(entry.Key, entry.Wrapper);
+                        _expirationQueue.Pop();
+                    }
+                    else
+                    {
+                        if (entry.LastAccessTime != lastAccessTime)
+                        {
+                            _expirationQueue.Pop();
+                            _expirationQueue.Push(new WrapperEntry(entry.Key, lastAccessTime, entry.Wrapper));
+                        }
+
+                        break;
                     }
                 }
+
+                if (_pendingExpiredWrappers.Count != 0)
+                {
+                    expiredWrappers = _pendingExpiredWrappers.ToList();
+                    _pendingExpiredWrappers.Clear();
+                }
+            }
+
+            if (expiredWrappers?.Count > 0)
+            {
+                foreach (var wrapper in expiredWrappers)
+                {
+                    ReleaseWrapper(context, wrapper);
+                }
+            }
+        }
+
+        private bool TryRemoveWrapper(TKey key, ResourceWrapper<TObject> wrapper)
+        {
+            lock (_resourcesLock)
+            {
+                // Verify that the wrapper matches the current active wrapper.
+                // If it does not, that means that AddOrGetWrapper already replaced the wrapper
+                if (_resources.TryGetValue(key, out var activeWrapper) && wrapper == activeWrapper)
+                {
+                    _resources.Remove(key);
+                    _pendingExpiredWrappers.Add(wrapper);
+                    Counter[ResourcePoolCounters.RemovedResources].Increment();
+                    return true;
+                }
+
+                return false;
             }
         }
 
@@ -333,7 +386,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             });
 
             var wrapperId = Guid.NewGuid();
-            var wrapper = new ResourceWrapper<TObject>(wrapperId, lazy, _clock.UtcNow, _disposeCancellationTokenSource.Token);
+            var wrapper = new PooledResourceWrapper(wrapperId, lazy, _clock.UtcNow, _disposeCancellationTokenSource.Token, wrapper =>
+            {
+                TryRemoveWrapper(key, wrapper);
+            });
             Counter[ResourcePoolCounters.CreatedResources].Increment();
             _tracer.Info(context, $"Created wrapper with id {wrapperId}");
             return wrapper;
@@ -373,6 +429,24 @@ namespace BuildXL.Cache.ContentStore.Utils
                 .ThrowIfFailure();
 
             _disposeCancellationTokenSource.Dispose();
+        }
+
+        private class PooledResourceWrapper : ResourceWrapper<TObject>
+        {
+            private readonly Action<ResourceWrapper<TObject>> _invalidationCallback;
+
+            internal PooledResourceWrapper(Guid id, AsyncLazy<TObject> resource, DateTime now, CancellationToken cancellationToken, Action<ResourceWrapper<TObject>> invalidationCallback)
+                : base(id, resource, now, cancellationToken)
+            {
+                _invalidationCallback = invalidationCallback;
+            }
+
+            public override void Invalidate(Context context)
+            {
+                base.Invalidate(context);
+
+                _invalidationCallback?.Invoke(this);
+            }
         }
     }
 }

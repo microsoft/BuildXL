@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 {
                     await Task.Delay(_startupDelay, context.Token);
                 }
-                
+
                 return BoolResult.Success;
             }
 
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 {
                     await Task.Delay(_shutdownDelay, context.Token);
                 }
-                
+
                 return BoolResult.Success;
             }
         }
@@ -187,7 +187,14 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
                 {
                     pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(1);
                     pool.Counter[ResourcePoolCounters.ResourceInitializationAttempts].Value.Should().Be(1);
+                    pool.Counter[ResourcePoolCounters.RemovedResources].Value.Should().Be(0);
                     wrapper.Invalidate(context);
+                    pool.Counter[ResourcePoolCounters.RemovedResources].Value.Should().Be(1);
+
+                    // Invalidating again should NOT cause resource to be removed again
+                    wrapper.Invalidate(context);
+                    pool.Counter[ResourcePoolCounters.RemovedResources].Value.Should().Be(1);
+
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
@@ -326,8 +333,10 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             });
         }
 
-        [Fact]
-        public Task ExpiredInstancesGetReleasedOnReuse()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task ExpiredInstancesGetReleasedOnReuse(bool invalidate)
         {
             var clock = new MemoryClock();
             var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
@@ -336,15 +345,26 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             {
                 var key = new Key(0);
 
+                Resource? lastResource = null;
                 await pool.UseAsync(context, key, wrapper =>
                 {
+                    if (invalidate)
+                    {
+                        wrapper.Invalidate(context);
+                    }
+
+                    lastResource = wrapper.Value;
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
-                clock.Increment(TimeSpan.FromMinutes(1));
+                if (!invalidate)
+                {
+                    clock.Increment(TimeSpan.FromMinutes(1));
+                }
 
                 await pool.UseAsync(context, key, wrapper =>
                 {
+                    lastResource.Should().NotBe(wrapper.Value);
                     pool.Counter[ResourcePoolCounters.CreatedResources].Value.Should().Be(2);
                     pool.Counter[ResourcePoolCounters.ReleasedResources].Value.Should().Be(1);
                     return BoolResult.SuccessTask;
@@ -354,8 +374,10 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             clock);
         }
 
-        [Fact]
-        public Task ExpiredInstancesGetReleasedOnUnrelatedUse()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task ExpiredInstancesGetReleasedOnUnrelatedUse(bool invalidate)
         {
             var clock = new MemoryClock();
             var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
@@ -367,10 +389,18 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
                 await pool.UseAsync(context, key, wrapper =>
                 {
+                    if (invalidate)
+                    {
+                        wrapper.Invalidate(context);
+                    }
+
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
-                clock.Increment(TimeSpan.FromMinutes(1));
+                if (!invalidate)
+                {
+                    clock.Increment(TimeSpan.FromMinutes(1));
+                }
 
                 await pool.UseAsync(context, key1, wrapper =>
                 {
@@ -383,8 +413,10 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             clock);
         }
 
-        [Fact]
-        public Task ExpiredInstancesGetGarbageCollected()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task ExpiredInstancesGetGarbageCollected(bool invalidate)
         {
             var clock = new MemoryClock();
             var configuration = new ResourcePoolConfiguration() { MaximumAge = TimeSpan.FromSeconds(1) };
@@ -395,10 +427,18 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
 
                 await pool.UseAsync(context, key, wrapper =>
                 {
+                    if (invalidate)
+                    {
+                        wrapper.Invalidate(context);
+                    }
+
                     return BoolResult.SuccessTask;
                 }).ShouldBeSuccess();
 
-                clock.Increment(TimeSpan.FromMinutes(1));
+                if (!invalidate)
+                {
+                    clock.Increment(TimeSpan.FromMinutes(1));
+                }
 
                 await pool.GarbageCollectAsync(context).IgnoreFailure();
 
@@ -447,7 +487,8 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
         [Fact]
         public Task GarbageCollectionRunsInTheBackground()
         {
-            var configuration = new ResourcePoolConfiguration() {
+            var configuration = new ResourcePoolConfiguration()
+            {
                 MaximumAge = TimeSpan.FromSeconds(1),
                 GarbageCollectionPeriod = TimeSpan.FromSeconds(0.3),
             };
@@ -577,12 +618,12 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             var configuration = new ResourcePoolConfiguration();
 
             return RunTest<Key, FailingResource>(async (context, pool) =>
-             {
-                 _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
-                 {
-                     return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
-                 });
-             },
+            {
+                _ = await Assert.ThrowsAsync<ResultPropagationException>(() =>
+                {
+                    return pool.UseAsync(context, new Key(0), wrapper => BoolResult.SuccessTask);
+                });
+            },
             _ => new FailingResource(startupFailure: true),
             configuration);
         }

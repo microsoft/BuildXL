@@ -15,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// Wrapper for a resource within a <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
     /// <typeparam name="TObject">The wrapped type.</typeparam>
-    public sealed class ResourceWrapper<TObject>
+    public class ResourceWrapper<TObject>
         where TObject : IStartupShutdownSlim
     {
         private static Tracer Tracer { get; } = new Tracer(nameof(ResourceWrapper<TObject>));
@@ -85,8 +85,15 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         internal bool IsAlive(DateTime now, TimeSpan maximumAge)
         {
+            return IsAlive(now, maximumAge, out _);
+        }
+
+        /// <nodoc />
+        internal bool IsAlive(DateTime now, TimeSpan maximumAge, out DateTime lastAccessTime)
+        {
             lock (_syncRoot)
             {
+                lastAccessTime = _lastAccessTime;
                 return !Invalid && now - _lastAccessTime < maximumAge;
             }
         }
@@ -94,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Invalidates the resource, forcing it to be regenerated on next usage
         /// </summary>
-        public void Invalidate(Context context)
+        public virtual void Invalidate(Context context)
         {
             lock (_syncRoot)
             {

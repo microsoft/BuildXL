@@ -24,6 +24,9 @@ namespace BuildXL.Cache.ContentStore.Utils
         ReleasedResources,
 
         /// <nodoc />
+        RemovedResources,
+
+        /// <nodoc />
         ShutdownAttempts,
 
         /// <nodoc />

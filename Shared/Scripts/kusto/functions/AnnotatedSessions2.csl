@@ -1,5 +1,5 @@
 .create-or-alter function with (folder = "common", docstring = "AnnotatedSessions2", skipvalidation = "true") AnnotatedSessions2(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", isDeveloperBuild:string="False", stamp:string="", bucketGroup:string="") {
-// let startDate=ago(1h); 
+// let startDate=ago(1d); 
 // let endDate=ago(0d);
 // let infra = "CB";
 // let mSRReportable = "";
@@ -111,6 +111,8 @@ cluster('cbuild').database('Domino').dominoinvocation
 | extend ErrorMessage_InternalErrorOnly = case(InternalError == 1, BucketMessage, "") 
 | extend Bucket = case(
     isnotempty(Exception), "Crash",
+    // IPC errors are vague. Try to make their bucket a little more specific
+    ErrorBucket_InternalErrorOnly == "PipIpcFailed", strcat("PipIpcFailed", substring(BucketMessage, indexof(BucketMessage, "Reason: "), 60)),
     isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
     isnotempty(ExitKind), "",
     // When there are multiple internal error buckets for the same build we arbitrary take the min one. Make sure MissingDominoCompletionEvent is the last choice
@@ -125,11 +127,11 @@ cluster('cbuild').database('Domino').dominoinvocation
 //
 // 5. Merge all domino.exe invocations into a single overall session
 //
-| summarize SessionId = any(SessionId), 
+| summarize SessionId = take_any(SessionId), 
     EventInfo_Time = min(EventInfo_Time), 
-    BuildInfo_Build = any(BuildInfo_Build),
-    BuildInfo_IsDeveloperBuild = any(BuildInfo_IsDeveloperBuild),
-    BucketGroup = iff(isnotnull(anyif(Bucket, MasterInternalError != 0)), anyif(Bucket, MasterInternalError != 0), min(Bucket)),
+    BuildInfo_Build = take_any(BuildInfo_Build),
+    BuildInfo_IsDeveloperBuild = take_any(BuildInfo_IsDeveloperBuild),
+    BucketGroup = iff(isnotempty(take_anyif(Bucket, MasterInternalError != 0)), take_anyif(Bucket, MasterInternalError != 0), min(Bucket)),
     BucketMessage = min(ErrorMessage_InternalErrorOnly),
     RootCause = max(RootCause), 
     Exception = max(Exception),
@@ -137,11 +139,11 @@ cluster('cbuild').database('Domino').dominoinvocation
     InternalError = iff(sum(MasterInternalError) > 0, 1, 0),
     // But we still track builds were a worker suffered from an internal error since these are suboptimal builds
     NonFatalInternalError = iff(sum(MasterInternalError) == 0 and sum(InternalError) > 0, 1, 0),
-    BuildQueue = any(BuildQueue), 
+    BuildQueue = take_any(BuildQueue), 
     CBCanRetry = max(InternalRetryCount), 
-    CBReturnType = any(ReturnType),
-    CBReturnCode = any(ReturnCode),
-    BuildInfo_CommitId = any(BuildInfo_CommitId),
+    CBReturnType = take_any(ReturnType),
+    CBReturnCode = take_any(ReturnCode),
+    BuildInfo_CommitId = take_any(BuildInfo_CommitId),
     SuggestedBugName = max(SuggestedBugName),
     MachineNames = strcat_array(make_list_if(MachineName, InternalError > 0), ", ")
     by UniqueSession, Customer, Codebase, Infra, InProbation, UserName, Stamp

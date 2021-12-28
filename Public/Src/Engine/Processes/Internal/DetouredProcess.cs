@@ -79,6 +79,7 @@ namespace BuildXL.Processes.Internal
         private readonly ContainerConfiguration m_containerConfiguration;
         private readonly bool m_setJobBreakawayOk;
         private readonly bool m_createJobObjectForCurrentProcess;
+        private readonly Action<string> m_debugPipeReporter;
 
         /// Gather information for diagnosing flaky tests
         private readonly bool m_diagnosticsEnabled = false;
@@ -345,7 +346,8 @@ namespace BuildXL.Processes.Internal
             ContainerConfiguration containerConfiguration,
             bool setJobBreakawayOk,
             bool createJobObjectForCurrentProcess,
-            bool diagnosticsEnabled)
+            bool diagnosticsEnabled,
+            Action<string> debugPipeReporter)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -377,6 +379,7 @@ namespace BuildXL.Processes.Internal
 
             m_loggingContext = loggingContext;
             m_timeoutDumpDirectory = timeoutDumpDirectory;
+            m_debugPipeReporter = debugPipeReporter;
 
             if (diagnosticsEnabled)
             {
@@ -500,7 +503,14 @@ namespace BuildXL.Processes.Internal
                         }
 
                         // Initialize the injector
-                        m_processInjector = new ProcessTreeContext(payloadGuid, inheritableReportHandle, payloadData, dllNameX64, dllNameX86, m_loggingContext);
+                        m_processInjector = new ProcessTreeContext(
+                            payloadGuid,
+                            inheritableReportHandle,
+                            payloadData,
+                            dllNameX64,
+                            dllNameX86,
+                            m_debugPipeReporter,
+                            m_loggingContext);
 
                         // If path remapping is enabled then we wrap the job object in a container, so the filter drivers get
                         // configured (and they get cleaned up when the container is disposed)
@@ -944,7 +954,7 @@ namespace BuildXL.Processes.Internal
                             {
                                 // Stop() discards all unhandled requests. That is only safe to do since we are assuming that all processes
                                 // in the job have exited (so those requests aren't relevant anymore)
-                                await m_processInjector.Stop();
+                                await m_processInjector.StopAsync();
                                 m_hasDetoursFailures = m_processInjector.HasDetoursInjectionFailures;
                                 m_processInjector.Dispose();
                                 m_processInjector = null;
@@ -989,7 +999,7 @@ namespace BuildXL.Processes.Internal
                     if (m_processInjector != null)
                     {
                         // We may have already called Stop() in CompletionCallback, but that's okay.
-                        m_processInjector.Stop().GetAwaiter().GetResult();
+                        m_processInjector.StopAsync().GetAwaiter().GetResult();
                         m_processInjector.Dispose();
                         m_processInjector = null;
                     }

@@ -44,9 +44,14 @@ namespace Test.BuildXL.Processes
             public int ProcessDataMessageCount { get; private set; }
             public int ProcessDetouringStatusMessageCount { get; private set; }
 
+            private readonly List<string> m_debugMessages = new ();
+
+            public IEnumerable<string> DebugMessages => m_debugMessages;
+
             public override void HandleDebugMessage(DebugData debugData)
             {
                 DebugMessageCount++;
+                m_debugMessages.Add(debugData.DebugMessage);
             }
 
             public override void HandleFileAccess(FileAccessData fileAccessData)
@@ -160,8 +165,8 @@ namespace Test.BuildXL.Processes
                     MessageHandlingFlags.ProcessDetoursStatusNotify);
 
                 var result = await RunEchoProcess(myListener);
-
-                XAssert.AreEqual(0, myListener.DebugMessageCount);
+                
+                XAssert.AreEqual(0, myListener.DebugMessageCount, string.Join(Environment.NewLine, myListener.DebugMessages));
                 XAssert.AreEqual(numFilePathAccesses, CleanFileAccesses(myListener.FileAccesses).Count());
                 XAssert.AreEqual(numProcesses, myListener.ProcessMessageCount);
                 XAssert.AreEqual(numProcessDetoursStatuses, myListener.ProcessDetouringStatusMessageCount);

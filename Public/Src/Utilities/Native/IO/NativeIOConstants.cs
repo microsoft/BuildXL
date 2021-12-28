@@ -226,5 +226,15 @@ namespace BuildXL.Native.IO
         /// ERROR_INVALID_NAME
         /// </summary>
         public const int ErrorInvalidName = 0x7B;
+
+        /// <summary>
+        /// ERROR_BROKEN_PIPE
+        /// </summary>
+        public const int ErrorBrokenPipe = 0x6D;
+
+        /// <summary>
+        /// ERROR_NO_DATA
+        /// </summary>
+        public const int ErrorNoData = 0xE8;
     }
 }

@@ -26,10 +26,9 @@ public:
         {
             int charsRequired = MultiByteToWideChar(CP_ACP, 0, s, -1, NULL, 0);
             if (charsRequired <= 0) {
-                Dbg(L"UnicodeConverter::UnicodeConverter - Failed to convert string:2.");
-                wprintf(L"Error: UnicodeConverter::UnicodeConverter - Failed to convert string:2.");
-                fwprintf(stderr, L"Error: UnicodeConverter::UnicodeConverter - Failed to convert string:2.");
-                HandleDetoursInjectionAndCommunicationErrors(DETOURS_UNICODE_CONVERSION_18, L"Failure writing message to pipe:2: exit(-60).", DETOURS_UNICODE_LOG_MESSAGE_18);
+                PCWSTR errorMsg = L"UnicodeConverter::UnicodeConverter: Failed to convert string:2";
+                Dbg(errorMsg);
+                HandleDetoursInjectionAndCommunicationErrors(DETOURS_UNICODE_CONVERSION_18, errorMsg, DETOURS_UNICODE_LOG_MESSAGE_18);
             }
 
             m_str = new wchar_t[(size_t)charsRequired];
@@ -37,10 +36,9 @@ public:
 
             int charsConverted = MultiByteToWideChar(CP_ACP, 0, s, -1, m_str, charsRequired);
             if (charsConverted != charsRequired) {
-                Dbg(L"UnicodeConverter::UnicodeConverter - Failed to convert string:1.");
-                wprintf(L"Error: UnicodeConverter::UnicodeConverter - Failed to convert string:1.");
-                fwprintf(stderr, L"Error: UnicodeConverter::UnicodeConverter - Failed to convert string:1.");
-                HandleDetoursInjectionAndCommunicationErrors(DETOURS_UNICODE_CONVERSION_18, L"Failure writing message to pipe:1: exit(-60).", DETOURS_UNICODE_LOG_MESSAGE_18);
+                PCWSTR errorMsg = L"UnicodeConverter::UnicodeConverter: Failed to convert string:1";
+                Dbg(errorMsg);
+                HandleDetoursInjectionAndCommunicationErrors(DETOURS_UNICODE_CONVERSION_18, errorMsg, DETOURS_UNICODE_LOG_MESSAGE_18);
             }
         }
     }

@@ -23,6 +23,10 @@ namespace BuildXL.Processes
         /// <summary>
         /// Report a windows file
         /// </summary>
+        /// <remarks>
+        /// TODO: This report type is not used anywhere and is not supported by <see cref="SandboxedProcessReports"/>.
+        ///       Consider removing it.
+        /// </remarks>
         WindowsCall = 2,
 
         /// <summary>

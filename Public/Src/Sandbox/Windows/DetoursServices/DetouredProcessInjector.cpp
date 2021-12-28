@@ -197,7 +197,7 @@ DWORD DetouredProcessInjector::LocalInjectProcess(HANDLE processHandle, bool inh
     if (!DetourUpdateProcessWithDll(processHandle, &dll, 1))
     {
         DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::LocalInjectProcess - Failed to inject %S from %s process into %s process: 0x%08x",
+        Dbg(L"DetouredProcessInjector::LocalInjectProcess: Failed to inject %S from %s process into %s process (error code: 0x%08x)",
               dll, s_isWow64Process ? L"WOW64" : L"Native", isWow64Process(processHandle) ? L"WOW64" : L"Native", (int)err);
         return err;
     }
@@ -205,7 +205,7 @@ DWORD DetouredProcessInjector::LocalInjectProcess(HANDLE processHandle, bool inh
     if (_mapDirectory.isValid() && !ApplyMapping(processHandle, _mapDirectory.get()))
     {
         DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::LocalInjectProcess - Failed to apply mapping handle %d from %s to %s process: 0x%08x",
+        Dbg(L"DetouredProcessInjector::LocalInjectProcess: Failed to apply mapping handle %d from %s to %s process (error code: 0x%08x)",
             (uint32_t)((intptr_t)_mapDirectory.get() & UINT32_MAX),
             s_isWow64Process ? L"WOW64" : L"Native",
             isWow64Process(processHandle) ? L"WOW64" : L"Native", (int)err);
@@ -239,14 +239,14 @@ DWORD DetouredProcessInjector::LocalInjectProcess(HANDLE processHandle, bool inh
     errno_t memcpyerror = memcpy_s(handles, _payloadSize, _payload.get(), _payloadSize);
     if (memcpyerror != 0)
     {
-        Dbg(L"DetouredProcessInjector::LocalInjectProcess - Failed to do memcpy: 0x%08x", (int)memcpyerror);
+        Dbg(L"DetouredProcessInjector::LocalInjectProcess: Failed to do memcpy (error code: 0x%08x)", (int)memcpyerror);
         return ERROR_PARTIAL_COPY;
     }
 
     if (!DetourCopyPayloadToProcess(processHandle, _payloadGuid, payloadWrapper.get(), size))
     {
         DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::LocalInjectProcess - Failed to copy payload to process: 0x%08x", (int)err);
+        Dbg(L"DetouredProcessInjector::LocalInjectProcess: Failed to copy payload to process (error code: 0x%08x)", (int)err);
         return err;
     }
 
@@ -260,13 +260,13 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     if (processId == 0)
     {
         DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Failed to get process id for a process: 0x%08x", (int)err);
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Failed to get process id for a process: 0x%08x", (int)err);
         return err;
     }
 
     if (!_remoteInjectorPipe.isValid())
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - override pipe is invalid, process will not be injected");
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Override pipe is invalid, process will not be injected");
         return ERROR_INVALID_FUNCTION;
     }
 
@@ -307,7 +307,7 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     if (!eventSuccess.isValid())
     {
         DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Failed creating event %s: 0x%08x", nameSuccess, (int)err);
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Failed creating event %s (error code: 0x%08x)", nameSuccess, (int)err);
         return err;
     }
 
@@ -315,7 +315,7 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     if (!eventFailure.isValid())
     {
         DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Failed creating event %s: 0x%08x", nameFailure, (int)err);
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Failed creating event %s (error code: 0x%08x)", nameFailure, (int)err);
         return err;
     }
 
@@ -331,11 +331,10 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     
     if (!WriteFile(_remoteInjectorPipe.get(), request, charsWritten * sizeof(wchar_t), &bytesWritten, &overlapped))
     {
-        DWORD err = GetLastError();
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Failed writing to pipe requesting process injection for process id %d: 0x%08x", (int)processId, (int)err);
-        wprintf(L"Error: DetouredProcessInjector::RemoteInjectProcess - Failed writing to pipe requesting process injection for process id %d: 0x%08x.", (int)processId, (int)err);
-        fwprintf(stderr, L"Error: DetouredProcessInjector::RemoteInjectProcess - Failed writing to pipe requesting process injection for process id %d: 0x%08x.", (int)processId, (int)err);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_3, L"Failure writing message to pipe: exit(-45).", DETOURS_WINDOWS_LOG_MESSAGE_3);
+        DWORD error = GetLastError();
+        std::wstring errorMsg = DebugStringFormat(L"DetouredProcessInjector::RemoteInjectProcess: Failed to write to pipe for requesting process injection for process id %d (error code: 0x%08x)", (int)processId, (int)error);
+        Dbg(errorMsg.c_str());
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_3, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_3);
     }
 
     // Wait for any of the events to fire
@@ -352,21 +351,21 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     ULONGLONG endWait = GetTickCount64();
     if (((endWait - startWait) / 60000) > (g_injectionTimeoutInMinutes - 1))
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Wait time > %d min. - %d min.", g_injectionTimeoutInMinutes, (int)((endWait - startWait) / 60000));
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Wait time > %d min. - %d min.", g_injectionTimeoutInMinutes, (int)((endWait - startWait) / 60000));
     }
 
     if (result == WAIT_TIMEOUT)
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Timeout requesting process injection for process id %d", (int)processId);
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Timeout requesting process injection for process id %d", (int)processId);
     }
     else if (result == WAIT_OBJECT_0 + 1)
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Remote injection failed for process id %d, result: %ld, error: 0x%08X", (int)processId, (int)result, (int)GetLastError());
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Remote injection failed for process id %d, result: %ld, error: 0x%08X", (int)processId, (int)result, (int)GetLastError());
         result = ERROR_INVALID_FUNCTION;
     }
     else if (result != WAIT_OBJECT_0)
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess - Failed waiting for request for process injection for process id %d: 0x%08x", (int)processId, (int)result);
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Failed waiting for request for process injection for process id %d: 0x%08x", (int)processId, (int)result);
     }
     else {
         return ERROR_SUCCESS;
@@ -393,20 +392,20 @@ void WINAPI DetouredProcessInjector_Destroy(DetouredProcessInjector *injector)
         delete injector;
     }
     else {
-        Dbg(L"DetouredProcessInjector_Destroy: injector is not valid");
+        Dbg(L"DetouredProcessInjector_Destroy: Injector is not valid");
     }
 }
 
 DWORD WINAPI DetouredProcessInjector_Inject(DetouredProcessInjector *injector, DWORD pid, bool)
 {
     if (!injector->IsValid()) {
-        Dbg(L"DetouredProcessInjector_Inject: injector is not valid");
+        Dbg(L"DetouredProcessInjector_Inject: Injector is not valid");
         return ERROR_INVALID_FUNCTION;
     }
 
     if (injector == nullptr)
     {
-        Dbg(L"DetouredProcessInjector_Inject: injector is null");
+        Dbg(L"DetouredProcessInjector_Inject: Injector is null");
         return ERROR_SUCCESS;
     }
 
@@ -414,7 +413,7 @@ DWORD WINAPI DetouredProcessInjector_Inject(DetouredProcessInjector *injector, D
 
     if (!processHandle.isValid())
     {
-        Dbg(L"DetouredProcessInjector_Inject: process handle is not valid");
+        Dbg(L"DetouredProcessInjector_Inject: Process handle is not valid");
         return GetLastError();
     }
 

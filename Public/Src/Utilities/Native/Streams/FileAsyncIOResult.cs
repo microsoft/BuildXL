@@ -60,12 +60,6 @@ namespace BuildXL.Native.Streams
         /// Indicates if the native error code specifies that the end of the file has been reached (specific to reading).
         /// Present only when the result status is not <see cref="FileAsyncIOStatus.Pending"/>.
         /// </summary>
-        public bool ErrorIndicatesEndOfFile
-        {
-            get
-            {
-                return Error == NativeIOConstants.ErrorHandleEof;
-            }
-        }
+        public bool ErrorIndicatesEndOfFile => Error == NativeIOConstants.ErrorHandleEof;
     }
 }

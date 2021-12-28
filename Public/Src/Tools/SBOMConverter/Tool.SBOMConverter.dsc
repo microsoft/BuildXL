@@ -8,7 +8,7 @@ namespace SBOMConverter {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
-    export const exe = !(BuildXLSdk.isDropToolingEnabled && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.executable({
+    export const exe = !(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isFullFramework && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.executable({
         assemblyName: "SBOMConverter",
         rootNamespace: "Tool.SBOMConverter",
         sources: globR(d`.`, "*.cs"),

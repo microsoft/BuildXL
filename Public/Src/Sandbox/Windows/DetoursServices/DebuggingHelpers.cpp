@@ -22,8 +22,6 @@ using std::unique_ptr;
 // STATIC FUNCTIONS
 // ----------------------------------------------------------------------------
 
-#ifdef DETOURS_SERVICES_NATIVES_LIBRARY
-
 std::wstring DebugStringFormatArgs(PCWSTR formattedString, va_list args) {
     std::wstring failed = std::wstring(L"Failed DebuggingHelpers::DebugStringFormatArgs");
     int neededLength = _vscwprintf(formattedString, args);
@@ -48,6 +46,8 @@ std::wstring DebugStringFormat(PCWSTR formattedString, ...) {
     va_end(args);
     return result;
 }
+
+#ifdef DETOURS_SERVICES_NATIVES_LIBRARY
 
 void DebuggerOutputDebugString(PCWSTR text, bool shouldBreak)
 {
@@ -91,15 +91,13 @@ static void WriteMessage(PCWSTR text)
 #endif
 
     if ((g_fileAccessManifestFlags & FileAccessManifestFlag::DiagnosticMessagesEnabled) != FileAccessManifestFlag::None) {
-        HANDLE stdoutHandle = GetStdHandle(STD_ERROR_HANDLE);
+        HANDLE stderrHandle = GetStdHandle(STD_ERROR_HANDLE);
         DWORD bytesTransferred;
         DWORD lastError = GetLastError();
-        if (!WriteFile(stdoutHandle, ansiBuffer.c_str(), (DWORD) ansiBuffer.length(), &bytesTransferred, NULL)) {
+        if (!WriteFile(stderrHandle, ansiBuffer.c_str(), (DWORD) ansiBuffer.length(), &bytesTransferred, NULL)) {
             DWORD error = GetLastError();
-            Dbg(L"Failed to write to stderr: %08X; ExitCode: %d", (int)error, DETOURS_PIPE_WRITE_ERROR_1);
-            wprintf(L"Error: Failed to write to stderr: %08X; ExitCode: %d", (int)error, DETOURS_PIPE_WRITE_ERROR_1);
-            fwprintf(stderr, L"Error: Failed to write to stderr: %08X; ExitCode: %d", (int)error, DETOURS_PIPE_WRITE_ERROR_1);
-            HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_1, L"Failure writing message to pipe: exit(-43).", DETOURS_WINDOWS_LOG_MESSAGE_1);
+            std::wstring errorMsg = DebugStringFormat(L"WriteMessage: Failed to write to stderr (error code: 0x%08X)", (int)error);
+            HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_1, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_1);
         }
 
         SetLastError(lastError);
@@ -112,11 +110,17 @@ static void WriteMessage(PCWSTR text)
 
 void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId)
 {
+    std::wstring messageWithExitCode = DebugStringFormat(L"%s -- Detours ExitCode: %d", eventLogMsgPtr, errorCode);
+    wprintf_s(L"%s", messageWithExitCode.c_str());
+    fwprintf_s(stderr, L"%s", messageWithExitCode.c_str());
+
     fflush(stdout);
     fflush(stderr);
-    std::wstring strMsg(eventLogMsgPtr);
-    WriteToInternalErrorsFile(L"%s\r\n", eventLogMsgPtr);
-    LogEventLogMessage(strMsg, EVENTLOG_ERROR_TYPE, EVENTLOG_ERROR_TYPE_ID, eventLogMsgId);
+
+    std::wstring strMsg(messageWithExitCode.c_str());
+    WriteToInternalErrorsFile(L"%s\r\n", messageWithExitCode.c_str());
+    LogEventLogMessage(messageWithExitCode, EVENTLOG_ERROR_TYPE, EVENTLOG_ERROR_TYPE_ID, eventLogMsgId);
+
     if (HardExitOnErrorInDetours())
     {
         exit(errorCode);
@@ -158,9 +162,8 @@ void Dbg(PCWSTR format, ...)
     if (!WriteFile(g_reportFileHandle, buffer, (DWORD)bufferLength, &bytesWritten, &overlapped))
     {
         DWORD error = GetLastError();
-        wprintf(L"Error: Failed to write Dbg diagnostics line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_2);
-        fwprintf(stderr, L"Error: Failed to write Dbg diagnostics line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_2);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_2, L"Failure writing message to pipe: exit(-44).", DETOURS_WINDOWS_LOG_MESSAGE_2);
+        std::wstring errorMsg = DebugStringFormat(L"Dbg: Failed to write Dbg diagnostics message '[ %s ]' to report pipe (error code: 0x%08X)", resultArgs.c_str(), (int)error);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_2, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_2);
     }
 
     SetLastError(lastError);

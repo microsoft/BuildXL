@@ -681,8 +681,8 @@ InternalCreateDetouredProcess(
         status == CreateDetouredProcessStatus::ProcessResumeFailed ||
         status == CreateDetouredProcessStatus::PayloadCopyFailed)
     {
-        fwprintf(stderr, L"Failure in CreateProcess. LastError: %d, Status: %d. Exiting with code -47.", (int)error, (int)status);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ERROR_5, L"Failure in CreateProcess.Exiting with code -47.", DETOURS_WINDOWS_LOG_MESSAGE_5);
+        std::wstring errorMsg = DebugStringFormat(L"InternalCreateDetouredProcess: Failed to create process (CreateDetouredProcessStatus: %d, error code: 0x%08X)", (int)status, (int)error);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ERROR_5, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_5);
     }
     return status;
 }
@@ -819,9 +819,12 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
 
     if (!InitializeAttributeList(processCreationAttributes, addProcessToSilo))
     {
-        Dbg(L"Failed initializing attribute list");
-        fwprintf(stderr, L"Failure in CreateProcessAttributes initializing attribute list. LastError: %d, Status: %d. Exiting with code -62.", (int)GetLastError(), (int)CreateDetouredProcessStatus::CreateProcessAttributeListFailed);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ATTRIBUTE_LIST_21, L"Failure in CreateDetouredProcess. Exiting with code -63.", DETOURS_WINDOWS_LOG_MESSAGE_21);
+        std::wstring errorMsg = DebugStringFormat(
+            L"CreateProcessAttributes: Failed to initialize attribute list (CreateDetouredProcessStatus: %d, error code: 0x%08X)",
+            (int)CreateDetouredProcessStatus::CreateProcessAttributeListFailed,
+            (int)GetLastError());
+        Dbg(errorMsg.c_str());
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ATTRIBUTE_LIST_21, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_21);
 
         if (LogProcessDetouringStatus())
         {
@@ -849,10 +852,14 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
         hStdInput, 
         hStdOutput, 
         hStdError,
-        /*out*/ processCreationAttributes)) {
-        Dbg(L"Failed creating extended attributes");
-        fwprintf(stderr, L"Failure in CreateDetouredProcess creating ProcAttributes for explicit handle inheritance. LastError: %d, Status: %d. Exiting with code -49.", (int)GetLastError(), (int)CreateDetouredProcessStatus::HandleInheritanceFailed);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_INHERIT_HANDLES_ERROR_7, L"Failure in CreateDetouredProcess. Exiting with code -49.", DETOURS_WINDOWS_LOG_MESSAGE_7);
+        /*out*/ processCreationAttributes)) 
+    {
+        std::wstring errorMsg = DebugStringFormat(
+            L"CreateProcessAttributes: Failed to create Proc attributes for explicit handle inheritance (CreateDetouredProcessStatus: %d, error code: 0x%08X)",
+            (int)CreateDetouredProcessStatus::HandleInheritanceFailed,
+            (int)GetLastError());
+        Dbg(errorMsg.c_str());
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_INHERIT_HANDLES_ERROR_7, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_7);
 
         if (LogProcessDetouringStatus())
         {
@@ -878,11 +885,14 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
 
     if (addProcessToSilo)
     {
-        if (!CreateProcAttributeForAddingProcessToSilo(
-            /*in out*/ processCreationAttributes)) {
-            Dbg(L"Failed adding process to silo");
-            fwprintf(stderr, L"Failure in CreateDetouredProcess adding process to a silo. LastError: %d, Status: %d. Exiting with code -61.", (int)GetLastError(), (int)CreateDetouredProcessStatus::AddProcessToSiloFailed);
-            HandleDetoursInjectionAndCommunicationErrors(DETOURS_ADD_TO_SILO_ERROR_20, L"Failure in CreateDetouredProcess. Exiting with code -62.", DETOURS_WINDOWS_LOG_MESSAGE_20);
+        if (!CreateProcAttributeForAddingProcessToSilo(/*in out*/ processCreationAttributes)) 
+        {
+            std::wstring errorMsg = DebugStringFormat(
+                L"CreateProcessAttributes: Failed to add process to a silo (CreateDetouredProcessStatus: %d, error code: 0x%08X)",
+                (int)CreateDetouredProcessStatus::AddProcessToSiloFailed,
+                (int)GetLastError());
+            Dbg(errorMsg.c_str());
+            HandleDetoursInjectionAndCommunicationErrors(DETOURS_ADD_TO_SILO_ERROR_20, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_20);
 
             if (LogProcessDetouringStatus())
             {

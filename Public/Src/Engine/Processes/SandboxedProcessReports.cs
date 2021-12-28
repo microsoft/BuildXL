@@ -211,19 +211,6 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            if (m_manifest.MessageCountSemaphore != null)
-            {
-                try
-                {
-                    m_manifest.MessageCountSemaphore.WaitOne(0);
-                }
-                catch (Exception ex)
-                {
-                    MessageProcessingFailure = CreateMessageProcessingFailure(data, I($"Wait error on semaphore for counting Detours messages: {ex.GetLogEventMessage()}."));
-                    return false;
-                }
-            }
-
             int splitIndex = data.IndexOf(',');
 
             if (splitIndex <= 0)
@@ -255,51 +242,74 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            if (m_manifest.MessageCountSemaphore != null && reportType.ShouldCountReportType())
+            {
+                try
+                {
+                    m_manifest.MessageCountSemaphore.WaitOne(0);
+                }
+                catch (Exception ex)
+                {
+                    MessageProcessingFailure = CreateMessageProcessingFailure(data, I($"Wait error on semaphore for counting Detours messages: {ex.GetLogEventMessage()}."));
+                    return false;
+                }
+            }
+
             string errorMessage = string.Empty;
 
             switch (reportType)
             {
                 case ReportType.FileAccess:
-                if (!FileAccessReportLineReceived(ref data, FileAccessReportLine.TryParse, isAnAugmentedFileAccess: false, out errorMessage))
-                {
-                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                    return false;
-                }
-                break;
-                case ReportType.DebugMessage:
-                if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.DebugMessageNotify) != 0)
-                {
-                    m_detoursEventListener.HandleDebugMessage(new DebugData { PipId = PipSemiStableHash, PipDescription = PipDescription, DebugMessage = data });
-                }
+                    if (!FileAccessReportLineReceived(ref data, FileAccessReportLine.TryParse, isAnAugmentedFileAccess: false, out errorMessage))
+                    {
+                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                        return false;
+                    }
 
-                Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, data);
-                break;
+                    break;
+
+                case ReportType.DebugMessage:
+                    if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.DebugMessageNotify) != 0)
+                    {
+                        m_detoursEventListener.HandleDebugMessage(new DebugData { PipId = PipSemiStableHash, PipDescription = PipDescription, DebugMessage = data });
+                    }
+
+                    Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, data);
+                    break;
+
                 case ReportType.WindowsCall:
-                throw new NotImplementedException(I($"{ReportType.WindowsCall} report type is not supported."));
+                    throw new NotImplementedException(I($"{ReportType.WindowsCall} report type is not supported."));
+
                 case ReportType.ProcessData:
-                if (!ProcessDataReportLineReceived(data, out errorMessage))
-                {
-                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                    return false;
-                }
-                break;
+                    if (!ProcessDataReportLineReceived(data, out errorMessage))
+                    {
+                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                        return false;
+                    }
+
+                    break;
+
                 case ReportType.ProcessDetouringStatus:
-                if (!ProcessDetouringStatusReceived(data, out errorMessage))
-                {
-                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                    return false;
-                }
-                break;
+                    if (!ProcessDetouringStatusReceived(data, out errorMessage))
+                    {
+                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                        return false;
+                    }
+
+                    break;
+
                 case ReportType.AugmentedFileAccess:
-                if (!FileAccessReportLineReceived(ref data, TryParseAugmentedFileAccess, isAnAugmentedFileAccess: true, out errorMessage))
-                {
-                    MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
-                    return false;
-                }
-                break;
+                    if (!FileAccessReportLineReceived(ref data, TryParseAugmentedFileAccess, isAnAugmentedFileAccess: true, out errorMessage))
+                    {
+                        MessageProcessingFailure = CreateMessageProcessingFailure(data, errorMessage);
+                        return false;
+                    }
+
+                    break;
+
                 default:
-                Contract.Assume(false);
-                break;
+                    Contract.Assume(false);
+                    break;
             }
 
             return true;

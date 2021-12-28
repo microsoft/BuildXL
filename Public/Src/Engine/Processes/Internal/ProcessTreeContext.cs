@@ -45,7 +45,14 @@ namespace BuildXL.Processes
         private readonly LoggingContext m_loggingContext;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public ProcessTreeContext(Guid payloadGuid, SafeHandle reportPipe, ArraySegment<byte> payload, string dllNameX64, string dllNameX86, LoggingContext loggingContext)
+        public ProcessTreeContext(
+            Guid payloadGuid,
+            SafeHandle reportPipe,
+            ArraySegment<byte> payload,
+            string dllNameX64,
+            string dllNameX86,
+            Action<string> debugPipeReporter,
+            LoggingContext loggingContext)
         {
             // We cannot create this object in a wow64 process
             Contract.Assume(
@@ -72,7 +79,12 @@ namespace BuildXL.Processes
                     FileDesiredAccess.GenericRead,
                     ownsHandle: true,
                     kind: FileKind.Pipe);
-                m_injectionRequestReader = new AsyncPipeReader(injectionRequestFile, InjectCallback, Encoding.Unicode, BufferSize);
+                m_injectionRequestReader = new AsyncPipeReader(
+                    injectionRequestFile,
+                    InjectCallback,
+                    Encoding.Unicode,
+                    BufferSize,
+                    new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
             }
             catch (Exception exception)
             {
@@ -107,7 +119,7 @@ namespace BuildXL.Processes
             m_injectionRequestReader.BeginReadLine();
         }
 
-        public async Task Stop()
+        public async Task StopAsync()
         {
             PrepareToStop();
 

@@ -164,7 +164,8 @@ namespace BuildXL.Processes
                     // this to happen at the job object level
                     setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
                     info.CreateJobObjectForCurrentProcess,
-                    info.DiagnosticsEnabled);
+                    info.DiagnosticsEnabled,
+                    DebugPipeConnection);
         }
 
         /// <inheritdoc />
@@ -543,7 +544,12 @@ namespace BuildXL.Processes
                     ownsHandle: true,
                     kind: FileKind.Pipe);
                 StreamDataReceived reportLineReceivedCallback = m_reports == null ? (StreamDataReceived)null : ReportLineReceived;
-                m_reportReader = new AsyncPipeReader(reportFile, reportLineReceivedCallback, reportEncoding, m_bufferSize);
+                m_reportReader = new AsyncPipeReader(
+                    reportFile,
+                    reportLineReceivedCallback,
+                    reportEncoding,
+                    m_bufferSize,
+                    new AsyncPipeReader.DebugReporter(errorMsg => DebugPipeConnection($"ReportReader: {errorMsg}")));
                 m_reportReader.BeginReadLine();
             }
 
@@ -559,6 +565,8 @@ namespace BuildXL.Processes
                 return m_reports.ReportLineReceived(data);
             }
         }
+
+        private void DebugPipeConnection(string data) => m_reports.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
 
         private static async Task FeedStandardInputAsync(DetouredProcess detouredProcess, TextReader reader, TaskSourceSlim<bool> stdInTcs)
         {

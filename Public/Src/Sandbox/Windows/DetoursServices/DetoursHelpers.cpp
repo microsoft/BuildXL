@@ -471,7 +471,6 @@ inline void VerifyManifestRoot(PCManifestRecord const root)
 
 void WriteToInternalErrorsFile(PCWSTR format, ...)
 {
-    wprintf(L"Logging internal error message from Detours...\r\n");
     if (g_internalDetoursErrorNotificationFile != nullptr)
     {
         DWORD error = GetLastError();
@@ -479,8 +478,9 @@ void WriteToInternalErrorsFile(PCWSTR format, ...)
         while (true)
         {
             // Get a file handle.
-            HANDLE openedFile = CreateFileW(g_internalDetoursErrorNotificationFile,
-                GENERIC_WRITE,
+            HANDLE openedFile = CreateFileW(
+                g_internalDetoursErrorNotificationFile,
+                FILE_APPEND_DATA,
                 0,
                 NULL,
                 OPEN_ALWAYS,
@@ -646,9 +646,8 @@ bool ParseFileAccessManifest(
 {
     if (g_manifestPtr != nullptr) {
         // Fail if the pointer is not null. We are loading the Dll, so we could have not loaded this yet.
-        wprintf(L"g_manifestPtr already set - %p", g_manifestPtr);
-        fwprintf(stderr, L"g_manifestPtr already set - %p", g_manifestPtr);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_9, L"g_manifestPtr already set: exit(-51).", DETOURS_WINDOWS_LOG_MESSAGE_9);
+        std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: g_manifestPtr already set (pointer value: %p)", g_manifestPtr);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_9, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_9);
         return false;
     }
 
@@ -662,15 +661,8 @@ bool ParseFileAccessManifest(
     if (!g_pDetouredProcessInjector->Init(reinterpret_cast<const byte *>(payload), initErrorMessage))
     {
         // Error initializing injector due to incorrect content of payload.
-        std::wstring initError = L"Error initializing process injector: ";
-        initError.append(initErrorMessage);
-        wprintf(L"%s", initError.c_str());
-        fwprintf(stderr, L"%s", initError.c_str());
-
-        std::wstring initErrorWithExitCode(initError);
-        initErrorWithExitCode.append(L": exit(-61).");
-
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_19, initErrorWithExitCode.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_19);
+        std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Error initializing process injector: %s", initErrorMessage.c_str());
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_19, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_19);
         return false;
     }
 
@@ -685,18 +677,14 @@ bool ParseFileAccessManifest(
     if (g_manifestPtr == nullptr || g_manifestSizePtr == nullptr)
     {
         // Error allocating memory.
-        wprintf(L"Error allocating virtual memory.");
-        fwprintf(stderr, L"Error allocating virtual memory");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_10, L"Error allocating virtual memory: exit(-52).", DETOURS_WINDOWS_LOG_MESSAGE_10);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_10, L"ParseFileAccessManifest: Error allocating virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_10);
         return false;
     }
 
     if (memcpy_s(g_manifestPtr, payloadSize, payloadBytes, payloadSize))
     {
         // Could't copy the payload.
-        wprintf(L"Error copying payload to virtual memory.");
-        fwprintf(stderr, L"Error copying payload to virtual memory");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_11, L"Error copying payload to virtual memory: exit(-53).", DETOURS_WINDOWS_LOG_MESSAGE_11);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_11, L"ParseFileAccessManifest: Error copying payload to virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_11);
         return false;
     }
 
@@ -706,18 +694,14 @@ bool ParseFileAccessManifest(
     if (VirtualProtect(g_manifestPtr, payloadSize, PAGE_READONLY, &oldProtection) == 0)
     {
         // Error protecting the memory for the payload.
-        wprintf(L"Error protecting payload in virtual memory.");
-        fwprintf(stderr, L"Error protecting payload in virtual memory");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_12, L"Error protecting payload in virtual memory: exit(-54).", DETOURS_WINDOWS_LOG_MESSAGE_12);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_12, L"ParseFileAccessManifest: Error protecting payload in virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_12);
         return false;
     }
 
     if (VirtualProtect(g_manifestSizePtr, sizeof(DWORD), PAGE_READONLY, &oldProtection) == 0)
     {
         // Error protecting the memory for the payloadSize.
-        wprintf(L"Error protecting payload size in virtual memory.");
-        fwprintf(stderr, L"Error protecting payload size in virtual memory");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_13, L"Error protecting payload size in virtual memory: exit(-55).", DETOURS_WINDOWS_LOG_MESSAGE_13);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_13, L"ParseFileAccessManifest: Error protecting payload size in virtual memory", DETOURS_WINDOWS_LOG_MESSAGE_13);
         return false;
     }
 
@@ -732,10 +716,9 @@ bool ParseFileAccessManifest(
     {
 #pragma warning( push ) //warning C4777: 'wprintf' : format string '%llu' requires an argument of type 'unsigned __int64', but variadic argument 2 has type 'size_t'
 #pragma warning( disable : 4777)
-        wprintf(L"Error bad payload size %d:%llu.", (int)*g_manifestSizePtr, (unsigned long long)sizeof(size_t));
-        fwprintf(stderr, L"Error bad payload size %d:%llu.", (int)*g_manifestSizePtr, (unsigned long long)sizeof(size_t));
+        std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Error bad payload size %d:%llu.", (int)*g_manifestSizePtr, (unsigned long long)sizeof(size_t));
 #pragma warning( pop )
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_14, L"Error bad payload size: exit(-56).", DETOURS_WINDOWS_LOG_MESSAGE_14);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_14, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_14);
         return false;
     }
 
@@ -744,9 +727,7 @@ bool ParseFileAccessManifest(
     PCManifestDebugFlag debugFlag = reinterpret_cast<PCManifestDebugFlag>(&payloadBytes[offset]);
     if (!debugFlag->CheckValidityAndHandleInvalid())
     {
-        wprintf(L"Error invalid debugFlag.");
-        fwprintf(stderr, L"Error invalid debugFlag.");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_15, L"Error invalid debugFlag: exit(-57).", DETOURS_WINDOWS_LOG_MESSAGE_15);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_15, L"ParseFileAccessManifest: Error invalid debugFlag", DETOURS_WINDOWS_LOG_MESSAGE_15);
         return false;
     }
 
@@ -755,9 +736,7 @@ bool ParseFileAccessManifest(
     PCManifestInjectionTimeout injectionTimeoutFlag = reinterpret_cast<PCManifestInjectionTimeout>(&payloadBytes[offset]);
     if (!injectionTimeoutFlag->CheckValidityAndHandleInvalid())
     {
-        wprintf(L"Error invalid injectionTimeoutFlag.");
-        fwprintf(stderr, L"Error invalid injectionTimeoutFlag.");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_16, L"Error invalid injectionTimeoutFlag: exit(-58).", DETOURS_WINDOWS_LOG_MESSAGE_16);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_16, L"ParseFileAccessManifest: Error invalid injectionTimeoutFlag", DETOURS_WINDOWS_LOG_MESSAGE_16);
         return false;
     }
 
@@ -873,12 +852,10 @@ bool ParseFileAccessManifest(
 
         if (g_messageCountSemaphore == nullptr || g_messageCountSemaphore == INVALID_HANDLE_VALUE)
         {
-            WriteToInternalErrorsFile(L"Detours Error: Failed opening semaphore for tracking message count - %s\r\n", helperString);
             DWORD error = GetLastError();
-            Dbg(L"Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            wprintf(L"Detours Error: Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            fwprintf(stderr, L"Detours Error: Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            HandleDetoursInjectionAndCommunicationErrors(DETOURS_SEMAPHOREOPEN_ERROR_6, L"Detours Error : Failed opening semaphore for tracking message count. exit(-48).", DETOURS_WINDOWS_LOG_MESSAGE_6);
+            std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Failed to open message-count tracking semaphore '%s' (error code: 0x%0X8)", helperString, (int)error);
+            Dbg(errorMsg.c_str());
+            HandleDetoursInjectionAndCommunicationErrors(DETOURS_SEMAPHOREOPEN_ERROR_6, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_6);
         }
 
         delete[] helperString;
@@ -914,10 +891,9 @@ bool ParseFileAccessManifest(
             if (g_reportFileHandle == INVALID_HANDLE_VALUE) {
                 DWORD error = GetLastError();
                 g_reportFileHandle = NULL;
-                Dbg(L"error: failed to open report file '%s': %08X", report->Report.ReportPath, (int)error);
-                wprintf(L"error: failed to open report file '%s': %08X", report->Report.ReportPath, (int)error);
-                fwprintf(stderr, L"error: failed to open report file '%s': %08X", report->Report.ReportPath, (int)error);
-                HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_17, L"error: failed to open report file: exit(-59).", DETOURS_WINDOWS_LOG_MESSAGE_17);
+                // No need to call Dbg since calling Dbg with invalid or NULL report handle is noop.
+                std::wstring errorMsg = DebugStringFormat(L"ParseFileAccessManifest: Failed to open report file '%s' (error code: 0x%08X)", report->Report.ReportPath, (int)error);
+                HandleDetoursInjectionAndCommunicationErrors(DETOURS_PAYLOAD_PARSE_FAILED_17, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_17);
                 return false;
             }
 
@@ -1033,9 +1009,10 @@ bool LocateAndParseFileAccessManifest()
     DWORD manifestSize;
 
     if (!LocateFileAccessManifest(/*out*/ manifest, /*out*/ manifestSize)) {
-        wprintf(L"Failed to find payload coming from Detours");
-        fwprintf(stderr, L"Failed to find payload coming from Detours");
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_NO_PAYLOAD_FOUND_8, L"Failure to find payload coming from Detours: exit(-50).", DETOURS_WINDOWS_LOG_MESSAGE_8);
+        HandleDetoursInjectionAndCommunicationErrors(
+            DETOURS_NO_PAYLOAD_FOUND_8,
+            L"LocateAndParseFileAccessManifest: Failed to find payload coming from Detours",
+            DETOURS_WINDOWS_LOG_MESSAGE_8);
         return false;
     }
 

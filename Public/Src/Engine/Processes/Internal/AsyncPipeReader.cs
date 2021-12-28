@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
@@ -18,11 +19,12 @@ namespace BuildXL.Processes.Internal
 
     internal sealed unsafe class AsyncPipeReader : IDisposable, IIOCompletionTarget
     {
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new ();
         private State m_state = State.Initialized;
 
-        private Queue<string> m_messageQueue = new Queue<string>();
+        private Queue<string> m_messageQueue = new ();
         private readonly StreamDataReceived m_userCallBack;
+        private readonly DebugReporter m_debugPipeReporter;
         private bool m_bLastCarriageReturn;
 
         private readonly IAsyncFile m_file;
@@ -63,7 +65,8 @@ namespace BuildXL.Processes.Internal
             IAsyncFile file,
             StreamDataReceived callback,
             Encoding encoding,
-            int bufferSize)
+            int bufferSize,
+            DebugReporter debugPipeReporter = null)
         {
             Contract.Requires(file != null);
             Contract.Requires(file.CanRead);
@@ -83,6 +86,8 @@ namespace BuildXL.Processes.Internal
             m_pooledStringBuilderWrapper = Pools.GetStringBuilder();
             StringBuilderInstace.Clear();
             StringBuilderInstace.EnsureCapacity(maxCharsPerBuffer * 2);
+
+            m_debugPipeReporter = debugPipeReporter;
         }
 
         public void Dispose()
@@ -200,8 +205,23 @@ namespace BuildXL.Processes.Internal
             int byteLen;
             if (asyncIOResult.Status == FileAsyncIOStatus.Failed)
             {
+                if (m_debugPipeReporter?.IsVerbose == true)
+                {
+                    m_debugPipeReporter?.Info($"Failed AsyncIO: Error = {asyncIOResult.Error}, state = {m_state}");
+                }
+
                 // Treat failures as EOF.
                 // TODO: This is a bad thing to do, but is what the original AsyncStreamReader was doing.
+                if (!asyncIOResult.ErrorIndicatesEndOfFile
+                    && asyncIOResult.Error != NativeIOConstants.ErrorBrokenPipe
+                    && m_state != State.Stopped)
+                {
+                    // EOF typically indicates that client (or the other end) has closed the connection (or the pipe handle).
+                    // When state is Stopped, pipe handle has been closed properly.
+                    // ERROR_BROKEN_PIPE indicates that client has been disconnected (e.g., program has ended).
+                    m_debugPipeReporter?.Error($"IOCompletionPort.GetQueuedCompletionStatus failed (state: {m_state}, error code: {asyncIOResult.Error})");
+                }
+
                 byteLen = 0;
             }
             else
@@ -402,6 +422,63 @@ namespace BuildXL.Processes.Internal
                             throw new BuildXLException("Async reading of a pipe was canceled (did not read all data)");
                         }
                     });
+            }
+        }
+
+        /// <summary>
+        /// Debug reporter for <see cref="AsyncPipeReader"/>.
+        /// </summary>
+        public class DebugReporter
+        {
+            /// <summary>
+            /// Verbosity level.
+            /// </summary>
+            public enum VerbosityLevel : byte
+            {
+                Error = 0,
+                Info = 1,
+            }
+
+            private readonly Action<string> m_log;
+            private readonly VerbosityLevel m_level;
+
+            /// <summary>
+            /// Check if logging verbose.
+            /// </summary>
+            public bool IsVerbose => m_level >= VerbosityLevel.Info;
+
+            /// <summary>
+            /// Constructor.
+            /// </summary>
+            public DebugReporter(Action<string> log, VerbosityLevel level = VerbosityLevel.Error)
+            {
+                Contract.Assert(log != null);
+
+                m_log = log;
+                m_level = level;
+            }
+
+            /// <summary>
+            /// Log info-level message.
+            /// </summary>
+            public void Info(string message)
+            {
+                if (m_level >= VerbosityLevel.Info)
+                {
+                    m_log($"{nameof(AsyncPipeReader)} INFO: {message}");
+                }
+            }
+
+            /// <summary>
+            /// Log error-level message.
+            /// </summary>
+            /// <param name="message"></param>
+            public void Error(string message)
+            {
+                if (m_level >= VerbosityLevel.Error)
+                {
+                    m_log($"{nameof(AsyncPipeReader)} ERROR: {message}");
+                }
             }
         }
     }

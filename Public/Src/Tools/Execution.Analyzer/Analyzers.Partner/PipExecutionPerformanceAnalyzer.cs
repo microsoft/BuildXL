@@ -170,7 +170,7 @@ namespace BuildXL.Execution.Analyzer
                 IncrementIndent();
 
                 WriteLineIndented(I($"\"id\" : \"{process.PipId.ToString()}\","));
-                WriteLineIndented(I($"\"semiStableHash\" : \"{Pip.SemiStableHashPrefix}{process.SemiStableHash:X16}\","));
+                WriteLineIndented(I($"\"semiStableHash\" : \"{Pip.FormatSemiStableHash(process.SemiStableHash)}\","));
                 WriteLineIndented(I($"\"tool\" : \"{NormalizeString(process.GetToolName(CachedGraph.Context.PathTable).ToString(CachedGraph.Context.StringTable))}\","));
                 WriteLineIndented(I($"\"description\" : \"{NormalizeString(process.GetDescription(CachedGraph.Context))}\","));
                 WriteLineIndented(I($"\"numberOfExecutedProcesses\" : {performance.NumberOfProcesses},"));

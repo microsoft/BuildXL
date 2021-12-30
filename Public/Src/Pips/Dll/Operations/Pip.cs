@@ -2,10 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage.Fingerprints;
@@ -28,6 +30,11 @@ namespace BuildXL.Pips.Operations
         /// The prefix to use when reporting the semistable hash.
         /// </summary>
         public const string SemiStableHashPrefix = "Pip";
+
+        /// <summary>
+        /// Regex that matches a formatted semistable hash
+        /// </summary>
+        private static readonly Regex s_formattedSemiStableHashRegex = new(@$"{SemiStableHashPrefix}[a-fA-F0-9]{{16,}}");
 
         private PipId m_pipId;
 
@@ -107,6 +114,9 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Format the semistable hash for display 
         /// </summary>
+        /// <remarks>
+        /// Keep in sync with <see cref="s_formattedSemiStableHashRegex"/> and <see cref="TryParseSemiStableHash(string, out long)"/>
+        /// </remarks>
         public static string FormatSemiStableHash(long hash) => string.Format(CultureInfo.InvariantCulture, "{0}{1:X16}", SemiStableHashPrefix, hash);
 
         /// <summary>
@@ -132,6 +142,28 @@ namespace BuildXL.Pips.Operations
                 return false;
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
             }
+        }
+
+        /// <summary>
+        /// Extract all appearances of semistable hashes in a text. The hashes are assumed to be formatted by <see cref="FormatSemiStableHash"/>
+        /// </summary>
+        public static IReadOnlyList<long> ExtractSemistableHashes(string text)
+        {
+            Contract.Requires(text != null);
+
+            var matches = s_formattedSemiStableHashRegex.Matches(text);
+
+            var result = new List<long>(matches.Count);
+            for (var i = 0; i < matches.Count; i++)
+            {
+                var capture = matches[i].Captures[0].Value;
+                if(TryParseSemiStableHash(capture, out var hash))
+                {
+                    result.Add(hash);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

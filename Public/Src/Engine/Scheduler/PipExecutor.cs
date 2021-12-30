@@ -3209,7 +3209,7 @@ namespace BuildXL.Scheduler
 
                 if (process.DirectoryOutputs.Length != metadata.DynamicOutputs.Count)
                 {
-                    stringBuilder.AppendLine(I($"{Pip.SemiStableHashPrefix}{process.SemiStableHash:X16} and {Pip.SemiStableHashPrefix}{metadata.SemiStableHash:X16} have different numbers of output directories"));
+                    stringBuilder.AppendLine(I($"{Pip.FormatSemiStableHash(process.SemiStableHash)} and {Pip.FormatSemiStableHash(metadata.SemiStableHash)} have different numbers of output directories"));
                 }
 
                 Logger.Log.PipCacheMetadataBelongToAnotherPip(

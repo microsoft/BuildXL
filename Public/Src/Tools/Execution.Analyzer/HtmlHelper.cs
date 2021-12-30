@@ -259,7 +259,7 @@ namespace BuildXL.Execution.Analyzer
                     pip => new
                            {
                                PipType = pip.PipType.ToString(),
-                               Hash = string.Format("{0}{1:X16}", Pip.SemiStableHashPrefix, pip.Provenance?.SemiStableHash),
+                               Hash = Pip.FormatSemiStableHash(pip.Provenance?.SemiStableHash ?? 0),
                                FullName = pip.Provenance?.OutputValueSymbol.ToString(m_symbolTable),
                                Spec = pip.Provenance?.Token.Path.ToString(m_pathTable),
                                Details = GetPipDetails(pip),

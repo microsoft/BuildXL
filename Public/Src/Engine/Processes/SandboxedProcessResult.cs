@@ -38,7 +38,7 @@ namespace BuildXL.Processes
         public bool HasDetoursInjectionFailures { get; set; }
 
         /// <summary>
-        /// Optional set (can be null). Paths to a surviving child process; <code>null</code> if there were non, otherwise (a subset of) all remaining
+        /// Optional set (can be null). Paths to a surviving child process; <code>null</code> if there were none, otherwise (a subset of) all remaining
         /// processes; some elements can be null if the process could not be determined
         /// </summary>
         /// <remarks>

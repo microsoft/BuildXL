@@ -85,7 +85,13 @@ namespace Test.BuildXL.Processes
         {
             var stdout = await result.StandardOutput.ReadValueAsync();
             var stderr = await result.StandardError.ReadValueAsync();
-            XAssert.IsFalse(result.Killed, "Process claims it or a child process was killed; exit code: {0}, stdout: '{1}', stderr: '{2}'. Diagnostic information: \n {3}", result.ExitCode, stdout.Trim(), stderr.Trim(), result.DiagnosticMessage);
+            if (result.Killed)
+            {
+                string survivingProcesses = result.SurvivingChildProcesses != null ? string.Join(",", result.SurvivingChildProcesses.Select(reportedProcess => reportedProcess.Path)) : "none";
+                XAssert.Fail($"Process claims it or a child process was killed; exit code: {result.ExitCode}, stdout: '{stdout.Trim()}', " +
+                    $"stderr: '{stderr.Trim()}'. Diagnostic information:{Environment.NewLine}{result.DiagnosticMessage}{Environment.NewLine}SurvivingChidren:{survivingProcesses}");
+            }
+
             XAssert.AreEqual(0, result.ExitCode, "Unexpected error code; stdout: '{0}', stderr: '{1}'", stdout, stderr);
             XAssert.AreEqual(string.Empty, stderr.Trim());
             XAssert.AreEqual(echoMessage, stdout.Trim());

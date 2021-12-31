@@ -11,6 +11,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Interfaces
@@ -61,7 +62,8 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <param name="config">Json cache configuration data string</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
-        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(string config, Guid activityId)
+        /// <param name="cacheConfiguration">Cache configuration object, which may influence how the cache is configured</param>
+        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(string config, Guid activityId, ICacheConfiguration cacheConfiguration = null)
         {
             ICacheConfigData cacheData;
             Exception exception;
@@ -71,7 +73,7 @@ namespace BuildXL.Cache.Interfaces
             }
 
             // create cache instance
-            return await InitializeCacheAsync(cacheData, activityId);
+            return await InitializeCacheAsync(cacheData, activityId, cacheConfiguration);
         }
 
         /// <summary>
@@ -115,7 +117,8 @@ namespace BuildXL.Cache.Interfaces
         /// </summary>
         /// <param name="cacheData">The cache config data to be passed to the factory</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
-        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId)
+        /// <param name="cacheConfiguration">Cache configuration object, which may influence how the cache is configured</param>
+        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration)
         {
             Contract.Requires(cacheData != null);
 
@@ -168,7 +171,7 @@ namespace BuildXL.Cache.Interfaces
             }
 
             // call the loaded cache factory and create new cache object
-            return await factoryObject.InitializeCacheAsync(cacheData, activityId);
+            return await factoryObject.InitializeCacheAsync(cacheData, activityId, cacheConfiguration);
         }
 
         /// <summary>

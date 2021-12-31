@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStoreAdapter;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.BuildCacheAdapter
@@ -62,7 +63,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
         {
             Contract.Requires(cacheData != null);
 

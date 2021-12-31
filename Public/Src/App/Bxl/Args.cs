@@ -1320,6 +1320,9 @@ namespace BuildXL
                             "useLargeNtClosePreallocatedList",
                             sign => sandboxConfiguration.UseLargeNtClosePreallocatedList = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "useLocalOnlyCache",
+                            sign => cacheConfiguration.UseLocalOnly = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "usePackagesFromFileSystem",
                             sign => frontEndConfiguration.UsePackagesFromFileSystem = sign),
                         OptionHandlerFactory.CreateBoolOption(

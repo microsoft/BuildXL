@@ -65,6 +65,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
             MonitorAugmentedPathSets = template.MonitorAugmentedPathSets;
+            UseLocalOnly = template.UseLocalOnly;
         }
 
         /// <nodoc />
@@ -165,5 +166,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MonitorAugmentedPathSets { get; set; }
+
+        /// <inheritdoc />
+        public bool? UseLocalOnly { get; set; }
     }
 }

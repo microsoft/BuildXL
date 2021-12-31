@@ -11,6 +11,7 @@ namespace BuildCacheAdapter {
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Configuration.dll,
             Interfaces.dll,
             MemoizationStoreAdapter.dll,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,

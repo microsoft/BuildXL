@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Cache.BasicFilesystem
 {
@@ -159,7 +160,7 @@ namespace BuildXL.Cache.BasicFilesystem
         }
 
         /// <inheritdoc />
-        public Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId)
+        public Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
         {
             Contract.Requires(cacheData != null);
             return Task.FromResult(InitializeCache(cacheData, activityId));

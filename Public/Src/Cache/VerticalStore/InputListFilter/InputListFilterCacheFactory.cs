@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Cache.InputListFilter
 {
@@ -79,7 +80,7 @@ namespace BuildXL.Cache.InputListFilter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -117,7 +118,7 @@ namespace BuildXL.Cache.InputListFilter
                 }
             }
 
-            var maybeCache = await CacheFactory.InitializeCacheAsync(config.FilteredCache, activityId);
+            var maybeCache = await CacheFactory.InitializeCacheAsync(config.FilteredCache, activityId, cacheConfiguration);
             if (!maybeCache.Succeeded)
             {
                 return maybeCache.Failure;

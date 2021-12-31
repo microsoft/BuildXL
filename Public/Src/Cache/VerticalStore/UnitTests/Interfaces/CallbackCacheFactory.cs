@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Cache.Interfaces.Test
 {
@@ -23,7 +24,7 @@ namespace BuildXL.Cache.Interfaces.Test
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -35,7 +36,7 @@ namespace BuildXL.Cache.Interfaces.Test
 
             Config cacheConfig = possibleCacheConfig.Result;
 
-            var cache = await CacheFactory.InitializeCacheAsync(cacheConfig.EncapsulatedCache, activityId);
+            var cache = await CacheFactory.InitializeCacheAsync(cacheConfig.EncapsulatedCache, activityId, cacheConfiguration);
 
             if (!cache.Succeeded)
             {

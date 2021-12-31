@@ -12,6 +12,7 @@ using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.InMemory;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.VerticalAggregator
@@ -106,7 +107,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, ICacheConfiguration cacheConfiguration = null)
         {
             Contract.Requires(cacheData != null);
 
@@ -130,7 +131,7 @@ namespace BuildXL.Cache.VerticalAggregator
                 }
 
                 // initialize local cache
-                var maybeCache = await CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.LocalCache, activityId);
+                var maybeCache = await CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.LocalCache, activityId, cacheConfiguration);
                 if (!maybeCache.Succeeded)
                 {
                     return eventing.StopFailure(maybeCache.Failure);
@@ -144,12 +145,12 @@ namespace BuildXL.Cache.VerticalAggregator
                     return eventing.StopFailure(new VerticalCacheAggregatorNeedsWriteableLocalFailure(local.CacheId));
                 }
 
-                if (cacheAggregatorConfig.UseLocalOnly)
+                if (cacheAggregatorConfig.UseLocalOnly || cacheConfiguration?.UseLocalOnly == true)
                 {
                     return eventing.Returns(Possible.Create(local));
                 }
 
-                maybeCache = await ConstructRemoteCacheAsync(activityId, cacheAggregatorConfig);
+                maybeCache = await ConstructRemoteCacheAsync(activityId, cacheAggregatorConfig, cacheConfiguration);
                 if (!maybeCache.Succeeded)
                 {
                     eventing.Write(CacheActivity.CriticalDataOptions, new { RemoteCacheFailed = maybeCache.Failure });
@@ -202,14 +203,14 @@ namespace BuildXL.Cache.VerticalAggregator
             }
         }
 
-        private static async Task<Possible<ICache, Failure>> ConstructRemoteCacheAsync(Guid activityId, Config cacheAggregatorConfig)
+        private static async Task<Possible<ICache, Failure>> ConstructRemoteCacheAsync(Guid activityId, Config cacheAggregatorConfig, ICacheConfiguration cacheConfiguration)
         {
             var timeout = TimeSpan.FromMilliseconds(cacheAggregatorConfig.RemoteConstructionTimeoutMilliseconds);
 
             try
             {
                 return await TaskUtilities.WithTimeoutAsync(
-                    CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId),
+                    CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId, cacheConfiguration),
                     timeout);
             }
 #pragma warning disable CA1031 // Do not catch general exception types

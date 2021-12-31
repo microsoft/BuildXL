@@ -344,7 +344,7 @@ namespace BuildXL.Engine
                     return cacheConfigData.Failure;
                 }
 
-                Possible<ICacheCoreCache> maybeCache = await CacheFactory.InitializeCacheAsync(cacheConfigData.Result, loggingContext.ActivityId);
+                Possible<ICacheCoreCache> maybeCache = await CacheFactory.InitializeCacheAsync(cacheConfigData.Result, loggingContext.ActivityId, config);
 
                 if (!maybeCache.Succeeded)
                 {

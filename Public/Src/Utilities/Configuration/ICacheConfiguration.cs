@@ -163,5 +163,10 @@ namespace BuildXL.Utilities.Configuration
         /// The value of 0 means that the monitoring is disabled.
         /// </summary>
         int MonitorAugmentedPathSets { get; }
+
+        /// <summary>
+        /// When true, only a local cache will be created, even if a remote cache is configured.
+        /// </summary>
+        bool? UseLocalOnly { get; }
     }
 }

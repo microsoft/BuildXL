@@ -125,11 +125,15 @@ namespace Test.BuildXL.Scheduler
             {
                 Context = BuildXLContext.CreateInstanceForTesting();
                 var config = ConfigurationHelpers.GetDefaultForTesting(Context.PathTable, AbsolutePath.Create(Context.PathTable, System.IO.Path.Combine(testOutputDirectory, "config.dc")));
+
+                var isSubstUsed = FileUtilities.TryGetSubstSourceAndTarget(testOutputDirectory, out var substSource, out var substTarget, out var errorMessage);
+                XAssert.IsFalse(!isSubstUsed && errorMessage != null, errorMessage);
+
                 m_env = new DummyPipExecutionEnvironment(
                     CreateLoggingContextForTest(),
                     Context,
                     config,
-                    subst: FileUtilities.TryGetSubstSourceAndTarget(testOutputDirectory, out var substSource, out var substTarget) 
+                    subst: isSubstUsed
                         ? (substSource, substTarget) 
                         : default((string, string)?),
                     sandboxConnection: GetSandboxConnection());

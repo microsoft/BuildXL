@@ -1358,16 +1358,22 @@ namespace BuildXL.Native.IO
         /// <param name="referenceFullPath">Rooted reference path.</param>
         /// <param name="substSource">Output subst source.</param>
         /// <param name="substTarget">Output subst target.</param>
-        /// <returns>True if subst is used.</returns>
+        /// <param name="errorMessage">Error message when this method failed to get the subst source/target.</param>
+        /// <returns>
+        /// Returns true if the function was able to successfully determine whether subst is used on the referenced path and subst is used. If not, then this function will return false
+        /// along with an error message set if an error occured.
+        /// On a Unix OS, this will return false because subst is not supported, and the errorMessage will be null.
+        /// </returns>
         /// <remarks>
         /// This method calls <code>GetFinalPathByHandle</code> which is only applicable on Windows.
         /// </remarks>
-        public static bool TryGetSubstSourceAndTarget(string referenceFullPath, out string substSource, out string substTarget)
+        public static bool TryGetSubstSourceAndTarget(string referenceFullPath, out string substSource, out string substTarget, out string errorMessage)
         {
             Contract.Requires(Path.IsPathRooted(referenceFullPath));
 
             substSource = null;
             substTarget = null;
+            errorMessage = null;
 
             if (OperatingSystemHelper.IsUnixOS)
             {
@@ -1375,14 +1381,15 @@ namespace BuildXL.Native.IO
                 return false;
             }
 
-            OpenFileResult directoryOpenResult = FileUtilities.TryOpenDirectory(
+            OpenFileResult directoryOpenResult = TryOpenDirectory(
                 referenceFullPath,
                 FileShare.Read | FileShare.Write | FileShare.Delete,
                 out SafeFileHandle directoryHandle);
 
             if (!directoryOpenResult.Succeeded)
             {
-                throw directoryOpenResult.ThrowForError();
+                errorMessage = directoryOpenResult.CreateExceptionForError().Message;
+                return false;
             }
 
             string directoryHandlePath = GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);

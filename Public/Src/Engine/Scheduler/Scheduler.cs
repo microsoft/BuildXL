@@ -1263,7 +1263,7 @@ namespace BuildXL.Scheduler
             {
                 // GetSystemRoots adds Windows OS installation drives (Generally C Drive)
                 var driveName = !OperatingSystemHelper.IsUnixOS
-                    ? GetRootDriveForPath(path, reverseDirectoryTranslator, context)
+                    ? GetRootDriveForPath(path, reverseDirectoryTranslator, context, loggingContext)
                     : IO.GetMountNameForPath(path.ToString(Context.PathTable));
                 if (driveName != null)
                 {
@@ -1421,12 +1421,19 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Returns the pre subst root drive for given path.
         /// </summary>
-        private static string GetRootDriveForPath(AbsolutePath path, DirectoryTranslator reverseDirectoryTranslator, PipExecutionContext context)
+        private static string GetRootDriveForPath(AbsolutePath path, DirectoryTranslator reverseDirectoryTranslator, PipExecutionContext context, LoggingContext loggingContext)
         {
             string drive;
-            if (FileUtilities.TryGetSubstSourceAndTarget(path.GetRoot(context.PathTable).ToString(context.PathTable), out string substSource, out string substTarget))
+
+            if (FileUtilities.TryGetSubstSourceAndTarget(path.GetRoot(context.PathTable).ToString(context.PathTable), out string substSource, out string substTarget, out string errorMessage) && errorMessage == null)
             {
                 drive = substSource;
+            }
+            else if (errorMessage != null)
+            {
+                // TryGetSubstSourceAndTarget may return false and set a warning message to be logged if something went wrong
+                Logger.Log.UnableToMonitorDriveWithSubst(loggingContext, path.ToString(context.PathTable), errorMessage);
+                drive = string.Empty;
             }
             else
             {

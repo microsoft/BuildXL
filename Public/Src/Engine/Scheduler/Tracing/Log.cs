@@ -3881,6 +3881,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{pipSemistableHash}] Cached pip output '{filePath}', hash '{hash}'.")]
         internal abstract void LogCachedPipOutput(LoggingContext loggingContext, string pipSemistableHash, string filePath, string hash);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.UnableToMonitorDriveWithSubst,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Unable to monitor root drive '{drive}' for path '{path}' because BuildXL cannot acquire its subst source/target. Disk space for this drive will not be monitored.")]
+        internal abstract void UnableToMonitorDriveWithSubst(LoggingContext loggingContext, string path, string drive);
     }
 }
 #pragma warning restore CA1823 // Unused field

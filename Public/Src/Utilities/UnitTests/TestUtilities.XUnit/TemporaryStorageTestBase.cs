@@ -205,7 +205,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// </remarks>
         protected bool TryGetSubstSourceAndTarget(out string substSource, out string substTarget)
         {
-            return FileUtilities.TryGetSubstSourceAndTarget(TemporaryDirectory, out substSource, out substTarget);
+            var isSubstUsed = FileUtilities.TryGetSubstSourceAndTarget(TemporaryDirectory, out substSource, out substTarget, out var errorMessage);
+            XAssert.IsFalse(!isSubstUsed && errorMessage != null, errorMessage);
+
+            return isSubstUsed;
         }
 
         /// <summary>

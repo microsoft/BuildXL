@@ -26,6 +26,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace DetoursCrossBitTests
 {
@@ -213,12 +214,16 @@ namespace DetoursCrossBitTests
                 }
 
                 Contract.Assume(pip != null);
+
+                var isSubstUsed = FileUtilities.TryGetSubstSourceAndTarget(tempDirectory, out var substSource, out var substTarget, out var errorMessage);
+                XAssert.IsFalse(!isSubstUsed && errorMessage != null, errorMessage);
+
                 PipResult executeResult = await Execute(
                     context, 
                     fileContentTable, 
                     config, 
                     pip, 
-                    FileUtilities.TryGetSubstSourceAndTarget(tempDirectory, out var substSource, out var substTarget) 
+                    isSubstUsed
                     ? (substSource, substTarget) 
                     : default((string, string)?));
 

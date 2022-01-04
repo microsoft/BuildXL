@@ -62,6 +62,7 @@ export namespace DropDaemon {
                 BuildXLSdk.isFullFramework,
                 NetFx.Netstandard.dll
             ),
+            importFrom("Microsoft.SBOM.Adapters").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("System.Text.Json.v5.0.0").pkg,
             importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
         ],

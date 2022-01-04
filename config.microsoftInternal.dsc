@@ -5,7 +5,7 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 
 const artifactNugetVersion = "18.194.31720-buildid16023539";
 const azureDevopsNugetVersion = "16.194.0-internal202109201";
-const sbomApiVersion = "2.0.90";
+const sbomApiVersion = "2.0.99";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -76,6 +76,8 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.SBOMCore", version: sbomApiVersion, dependentPackageIdsToSkip: ["Microsoft.Extensions.Logging.Abstractions"] },
     { id: "Microsoft.Parsers.ManifestGenerator", version: sbomApiVersion, dependentPackageIdsToSkip: ["Newtonsoft.Json"]},
     { id: "Microsoft.Parsers.SPDX22SBOMParser", version: sbomApiVersion },
+    { id: "Microsoft.SBOM.Adapters", version: sbomApiVersion },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "1.0.8" },
     { id: "Microsoft.ManifestInterface", version: sbomApiVersion, dependentPackageIdsToSkip: ["System.Text.Json"] },
     { id: "Microsoft.Sbom.Contracts", version: sbomApiVersion },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },

@@ -17,12 +17,5 @@ namespace SBOMUtilities {
         internalsVisibleTo: [
             "Test.BuildXL.Utilities",
         ],
-        runtimeContent: [
-            importFrom("BuildXL.Tools").SBOMConverter.withQualifier({
-                configuration: qualifier.configuration,
-                targetFramework: "net6.0",
-                targetRuntime: qualifier.targetRuntime
-            }).deployment
-        ]
     });
 }

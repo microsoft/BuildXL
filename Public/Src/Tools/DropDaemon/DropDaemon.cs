@@ -27,6 +27,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
+using Microsoft.Sbom.Adapters;
 using Microsoft.Sbom.Contracts;
 using Microsoft.Sbom.Contracts.Entities;
 using Microsoft.Sbom.Contracts.Enums;
@@ -37,6 +38,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
 using BuildXL.Utilities.SBOMUtilities;
 using BuildXL.Utilities.Tracing;
+using Microsoft.Sbom.Adapters.Report;
 
 namespace Tool.DropDaemon
 {
@@ -901,15 +903,38 @@ namespace Tool.DropDaemon
                     return new List<SBOMPackage>();
                 }
 
-                var sbomLogger = new SBOMConverterLogger(
-                    m => Logger.Info(m),
-                    m => Logger.Warning(m),
-                    m => Logger.Warning(m)); // TODO: Change this to an error once testing is complete
-                var result = ComponentDetectionConverter.TryConvert(bcdeOutputJsonPath, sbomLogger, out var packages);
 
-                if (!result)
+                var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(bcdeOutputJsonPath);
+
+                foreach (var reportItem in adapterReport.Report)
                 {
-                    Logger.Warning($"ComponentDetectionConverter did not complete successfully.");
+                    switch (reportItem.Type)
+                    {
+                        case AdapterReportItemType.Success:
+                        {
+                            if (!string.IsNullOrEmpty(reportItem.Details))
+                            {
+                                Logger.Info("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            }
+                            break;
+                        }
+                        case AdapterReportItemType.Warning:
+                        {
+                            if (!string.IsNullOrEmpty(reportItem.Details))
+                            {
+                                Logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            }
+                            break;
+                        }
+                        case AdapterReportItemType.Failure:
+                        {
+                            if (!string.IsNullOrEmpty(reportItem.Details))
+                            {
+                                Logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            }
+                            break;
+                        }
+                    }
                 }
 
                 return packages ?? new List<SBOMPackage>();

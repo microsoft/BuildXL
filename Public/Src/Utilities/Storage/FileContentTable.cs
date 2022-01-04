@@ -700,6 +700,36 @@ namespace BuildXL.Storage
                         int hashLength = ContentHashingUtilities.HashInfo.ByteLength;
                         var hashBuffer = new byte[hashLength];
 
+                        // Adding to the m_entries dictionary is about half of the work (in terms of wall clock time) of
+                        // deserialization for large FileContentTables. Perform that on another thread to get out of the
+                        // way of reading in the file as quickly as possible
+                        ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>> itemsToInsert = new ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>>();
+                        bool completeReadingFile = false;
+                        Thread deserializationHelper = new Thread(() =>
+                        {
+                            while (true)
+                            {
+                                KeyValuePair<FileIdAndVolumeId, Entry> item;
+                                if (itemsToInsert.TryDequeue(out item))
+                                {
+                                    bool added = loadedTable.m_entries.TryAdd(item.Key, item.Value);
+                                    Contract.Assume(added);
+                                }
+                                else
+                                {
+                                    if (completeReadingFile && !itemsToInsert.TryPeek(out item))
+                                    {
+                                        break;
+                                    }
+
+                                    // The amount of sleep time for this thread doesn't noticeably change the end to end performance.
+                                    Thread.Sleep(5);
+                                }
+                            }
+                        });
+                        deserializationHelper.Name = "FileContentTable deserialization helper";
+                        deserializationHelper.Start();
+
                         for (uint i = 0; i < numberOfEntries; i++)
                         {
                             // Key: Volume and file ID
@@ -738,9 +768,11 @@ namespace BuildXL.Storage
                             thisEntryTimeToLive--;
 
                             var observedVersionAndHash = new Entry(usn, ContentHashingUtilities.CreateFrom(hashBuffer), length, thisEntryTimeToLive);
-                            bool added = loadedTable.m_entries.TryAdd(fileIdAndVolumeId, observedVersionAndHash);
-                            Contract.Assume(added);
+                            itemsToInsert.Enqueue(new KeyValuePair<FileIdAndVolumeId, Entry>(fileIdAndVolumeId, observedVersionAndHash));
                         }
+
+                        completeReadingFile = true;
+                        deserializationHelper.Join();
 
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.NumEntries, loadedTable.Count);
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);

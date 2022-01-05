@@ -8,9 +8,9 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Distribution.OpenBond;
-using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities.Configuration;
@@ -155,28 +155,14 @@ namespace BuildXL.Engine.Distribution
             // Maybe add a "Pause" operation to the binary logger so it blocks its thread
             // while we read/send the buffer.
             listenerStream.WriteTo(m_flushedExecutionLog);
-            if (m_finishedSendingPipResults 
-                && !m_sendCancellationSource.IsCancellationRequested 
-                && m_flushedExecutionLog.Length > 0 || m_pendingMessages.Values.Any())
+            if (m_finishedSendingPipResults && !m_sendCancellationSource.IsCancellationRequested && m_flushedExecutionLog.Length > 0)
             {
-                var orphanMessages = m_pendingMessages.Values.SelectMany(x => x).ToList();
-                foreach (var orphan in orphanMessages)
-                {
-                    // The general assumption is that all events will be forwarded along with the corresponding
-                    // pip result. If for some reason the event gets to the m_pendingMessages queue
-                    // *after* the pip result was already sent back, then it will not be sent and remain in that queue.
-                    // We leverage this final message to the orchestrator to send any pending events.
-                    // Still, this is an anomaly so let's log a warning.
-                    Tracing.Logger.Log.DistributionWorkerForwardedOrphanMessage(m_loggingContext, orphan.Text);
-                }
-
                 // A final flush of the execution log may come after all the pip results are sent
                 // In that case, we send the blob individually:
                 m_orchestratorClient.NotifyAsync(new WorkerNotificationArgs()
                 {
                     ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++,
-                    ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length),                    
-                    ForwardedEvents = orphanMessages
+                    ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length)
                 },
                 null, 
                 m_sendCancellationSource.Token).Wait();
@@ -185,33 +171,18 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private readonly ConcurrentDictionary<long, List<EventMessage>> m_pendingMessages = new(); 
         /// <nodoc/>
         public void ReportEventMessage(EventMessage eventMessage)
         {
             Contract.Assert(m_started);
+
+            // TODO: Associate eventMessage to pip id and delay queuing
             if (m_sendCancellationSource.IsCancellationRequested)
             {
                 // We are not sending messages anymore
                 return;
             }
 
-            if (TryExtractSemistableHashFromEvent(eventMessage, out var hash))
-            {
-                // Add to the queue of pending messages
-                m_pendingMessages.AddOrUpdate(hash, 
-                    _ => new() { eventMessage }, 
-                    (_, v) => { v.Add(eventMessage); return v; });
-            }
-            else
-            {
-                // If we couldn't associate the message to a pip id, then just send it 
-                QueueEvent(eventMessage);
-            }
-        }
-
-        private void QueueEvent(EventMessage eventMessage)
-        {
             try
             {
                 m_outgoingEvents.Add(eventMessage);
@@ -226,36 +197,6 @@ namespace BuildXL.Engine.Distribution
                 // builds with FireForgetMaterializeOutputs we may still be executing output
                 // materialization while closing down communications with the orchestrator 
                 // (which called Exit on the worker already after sending the MaterializeOutput requests).
-            }
-        }
-
-        private bool TryExtractSemistableHashFromEvent(EventMessage eventMessage, out long hash)
-        {
-            // If the event is a PipProcessError, the semistable hash was already parsed for metadata
-            // so extract it from there rather than using the regex
-            if (eventMessage.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
-            {
-                hash = eventMessage.PipProcessErrorEvent.PipSemiStableHash;
-                return true;
-            }
-
-            if (string.IsNullOrEmpty(eventMessage.Text))
-            {
-                hash = 0;
-                return false;
-            }
-
-            // Else try to extract a pipid from the error message
-            var extractedPipIds = Pip.ExtractSemistableHashes(eventMessage.Text);
-            if (extractedPipIds.Count == 0)
-            {
-                hash = 0;
-                return false;
-            }
-            else
-            {
-                hash = extractedPipIds[0];
-                return true;
             }
         }
 
@@ -296,15 +237,6 @@ namespace BuildXL.Engine.Distribution
                     while (m_executionResults.Count < m_maxMessagesPerBatch && m_pipResultListener.ReadyToSendResultList.TryTake(out var item))
                     {
                         m_executionResults.Add(item);
-
-                        // Add any pending events to the outgoing queue
-                        if (m_pendingMessages.TryRemove(item.SemiStableHash, out var eventList))
-                        {
-                            foreach (var e in eventList)
-                            {
-                                QueueEvent(e);
-                            }
-                        }
                     }
                 }
 

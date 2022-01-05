@@ -595,6 +595,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: Configuration.ClusterRedisOperationTimeout);
         }
 
+        public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
+        {
+            throw new NotImplementedException("This method should never be called");
+        }
+
         /// <inheritdoc />
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {

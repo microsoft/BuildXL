@@ -20,7 +20,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         public override bool AllowMultipleStartupAndShutdowns => true;
 
-        private readonly Dictionary<string, byte[]> _storage = new Dictionary<string, byte[]>();
+        private readonly Dictionary<string, byte[]> _storage;
+
+        public MockCentralStorage(Dictionary<string, byte[]> storage = null)
+        {
+            _storage = storage ?? new Dictionary<string, byte[]>();
+        }
 
         protected override Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader, bool isImmutable)
         {

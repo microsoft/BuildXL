@@ -19,6 +19,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public static CheckpointLogId InitialLogId => new CheckpointLogId(0);
 
+        public static CheckpointLogId MaxValue => new CheckpointLogId(int.MaxValue);
+
         public CheckpointLogId Next() => new CheckpointLogId(Value + 1);
 
         public string Serialize()

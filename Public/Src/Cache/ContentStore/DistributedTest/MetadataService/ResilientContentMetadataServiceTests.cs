@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -24,6 +27,8 @@ using FluentAssertions;
 using Microsoft.VisualBasic;
 using Xunit;
 using Xunit.Abstractions;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 {
@@ -44,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         [Fact]
         public Task UndefinedRoleDoesNotAnswerRequestsTest()
         {
-            return RunTest(async (context, service) =>
+            return RunTest(async (context, service, iteration) =>
             {
                 // There haven't been any heartbeats yet, so we shouldn't be replying to requests
                 var machineId = new MachineId(0);
@@ -61,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         [Fact]
         public Task SimpleRegisterAndGetTest()
         {
-            return RunTest(async (context, service) =>
+            return RunTest(async (context, service, iteration) =>
             {
                 // First heartbeat lets the service know its master, so it's willing to process requests
                 await service.OnRoleUpdatedAsync(context, Role.Master);
@@ -86,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
         [Fact]
         public Task SimpleBlobPutAndGetTest()
         {
-            return RunTest(async (context, service) =>
+            return RunTest(async (context, service, iteration) =>
             {
                 // First heartbeat lets the service know its master, so it's willing to process requests
                 await service.OnRoleUpdatedAsync(context, Role.Master);
@@ -116,11 +121,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             });
         }
 
+        [Fact]
+        public Task CheckpointMaxAgeIsRespected()
+        {
+            var clock = new MemoryClock();
+            return RunTest(async (context, service, iteration) =>
+            {
+                if (iteration == 0)
+                {
+                    // First heartbeat lets the service know its master. This also restores the latest checkpoint and clears old ones if needed
+                    await service.OnRoleUpdatedAsync(context, Role.Master);
+
+                    // Create a checkpoint and make sure it shows up in the registry
+                    await service.CreateCheckpointAsync(context).ShouldBeSuccess();
+
+                    var r = await service.CheckpointManager.CheckpointRegistry.GetCheckpointStateAsync(context);
+                    r.Succeeded.Should().BeTrue();
+                    r.Value!.CheckpointAvailable.Should().BeTrue();
+                }
+                else if (iteration == 1)
+                {
+                    clock.Increment(TimeSpan.FromHours(0.5));
+
+                    // First heartbeat lets the service know its master. This also restores the latest checkpoint and clears old ones if needed
+                    await service.OnRoleUpdatedAsync(context, Role.Master);
+
+                    var r = await service.CheckpointManager.CheckpointRegistry.GetCheckpointStateAsync(context);
+                    r.Succeeded.Should().BeTrue();
+                    r.Value!.CheckpointAvailable.Should().BeTrue();
+                }
+                else
+                {
+                    clock.Increment(TimeSpan.FromHours(1));
+
+                    // First heartbeat lets the service know its master. This also restores the latest checkpoint and clears old ones if needed
+                    await service.OnRoleUpdatedAsync(context, Role.Master);
+
+                    var r = await service.CheckpointManager.CheckpointRegistry.GetCheckpointStateAsync(context);
+                    r.Succeeded.Should().BeTrue();
+                    r.Value!.CheckpointAvailable.Should().BeFalse();
+                }
+            },
+            clock: clock,
+            iterations: 3,
+            modifyConfig: configuration =>
+            {
+                configuration.CheckpointMaxAge = TimeSpan.FromHours(1);
+            });
+        }
+
         private async Task RunTest(
-            Func<OperationContext, ResilientGlobalCacheService, Task> runTestAsync,
+            Func<OperationContext, ResilientGlobalCacheService, int, Task> runTestAsync,
             bool persistentStorageFailure = false,
             bool volatileStorageFailure = false,
-            IClock clock = null)
+            IClock? clock = null,
+            int iterations = 1,
+            Action<GlobalCacheServiceConfiguration>? modifyConfig = null)
         {
             var tracingContext = new Context(Logger);
             var operationContext = new OperationContext(tracingContext);
@@ -133,6 +189,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 EventStream = new ContentMetadataEventStreamConfiguration(),
                 VolatileEventStorage = new RedisVolatileEventStorageConfiguration(),
             };
+            modifyConfig?.Invoke(contentMetadataServiceConfiguration);
 
             using var database = LocalRedisProcessDatabase.CreateAndStartEmpty(_redisFixture, TestGlobal.Logger, SystemClock.Instance);
             var primaryFactory = await RedisDatabaseFactory.CreateAsync(
@@ -140,48 +197,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
                 new LiteralConnectionStringProvider(database.ConnectionString),
                 new RedisConnectionMultiplexerConfiguration() { LoggingSeverity = Severity.Error });
             var primaryDatabaseAdapter = new RedisDatabaseAdapter(primaryFactory, "keyspace");
-            var redisVolatileEventStorage = new RedisWriteAheadEventStorage(contentMetadataServiceConfiguration.VolatileEventStorage, primaryDatabaseAdapter, clock);
 
-            IWriteAheadEventStorage volatileEventStorage = new FailingVolatileEventStorage();
-            if (!volatileStorageFailure)
+            var centralStorage = new Dictionary<string, byte[]>();
+
+            for (var iteration = 0; iteration < iterations; iteration++)
             {
-                volatileEventStorage = redisVolatileEventStorage;
+                Tracer.Info(operationContext, $"Running iteration {iteration}");
+
+                var redisVolatileEventStorage = new RedisWriteAheadEventStorage(contentMetadataServiceConfiguration.VolatileEventStorage, primaryDatabaseAdapter, clock);
+
+                IWriteAheadEventStorage volatileEventStorage = new FailingVolatileEventStorage();
+                if (!volatileStorageFailure)
+                {
+                    volatileEventStorage = redisVolatileEventStorage;
+                }
+
+                IWriteBehindEventStorage persistentEventStorage = new FailingPersistentEventStorage();
+                if (!persistentStorageFailure)
+                {
+                    persistentEventStorage = new MockPersistentEventStorage();
+                }
+
+                var contentMetadataEventStream = new ContentMetadataEventStream(
+                    contentMetadataServiceConfiguration.EventStream,
+                    volatileEventStorage,
+                    persistentEventStorage);
+
+                var rocksdbContentMetadataDatabaseConfiguration = new RocksDbContentMetadataDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
+                var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, new RocksDbContentMetadataStoreConfiguration()
+                {
+                    Database = rocksdbContentMetadataDatabaseConfiguration,
+                });
+
+                var storage = new MockCentralStorage(centralStorage);
+                var checkpointManager = new CheckpointManager(
+                    rocksDbContentMetadataStore.Database,
+                    redisVolatileEventStorage,
+                    storage,
+                    contentMetadataServiceConfiguration.Checkpoint,
+                    new CounterCollection<ContentLocationStoreCounters>());
+                var resilientContentMetadataService = new ResilientGlobalCacheService(
+                    contentMetadataServiceConfiguration,
+                    checkpointManager,
+                    rocksDbContentMetadataStore,
+                    contentMetadataEventStream,
+                    storage,
+                    clock);
+
+                await resilientContentMetadataService.StartupAsync(operationContext).ThrowIfFailure();
+                await runTestAsync(operationContext, resilientContentMetadataService, iteration);
+                await resilientContentMetadataService.ShutdownAsync(operationContext).ThrowIfFailure();
             }
-
-            IWriteBehindEventStorage persistentEventStorage = new FailingPersistentEventStorage();
-            if (!persistentStorageFailure)
-            {
-                persistentEventStorage = new MockPersistentEventStorage();
-            }
-
-            var contentMetadataEventStream = new ContentMetadataEventStream(
-                contentMetadataServiceConfiguration.EventStream,
-                volatileEventStorage,
-                persistentEventStorage);
-
-            var rocksdbContentMetadataDatabaseConfiguration = new RocksDbContentMetadataDatabaseConfiguration(TestRootDirectoryPath / "ContentMetadataDatabase");
-            var rocksDbContentMetadataStore = new RocksDbContentMetadataStore(clock, new RocksDbContentMetadataStoreConfiguration() {
-                Database = rocksdbContentMetadataDatabaseConfiguration,
-            });
-
-            var storage = new MockCentralStorage();
-            var checkpointManager = new CheckpointManager(
-                rocksDbContentMetadataStore.Database,
-                redisVolatileEventStorage,
-                storage,
-                contentMetadataServiceConfiguration.Checkpoint,
-                new CounterCollection<ContentLocationStoreCounters>());
-            var resilientContentMetadataService = new ResilientGlobalCacheService(
-                contentMetadataServiceConfiguration,
-                checkpointManager,
-                rocksDbContentMetadataStore,
-                contentMetadataEventStream,
-                storage,
-                clock);
-
-            await resilientContentMetadataService.StartupAsync(operationContext).ThrowIfFailure();
-            await runTestAsync(operationContext, resilientContentMetadataService);
-            await resilientContentMetadataService.ShutdownAsync(operationContext).ThrowIfFailure();
         }
 
         public override void Dispose()

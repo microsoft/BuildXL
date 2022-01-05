@@ -342,5 +342,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 return Result.Success(checkpointState);
             });
         }
+
+        public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                await _redisDatabaseAdapter!.ExecuteBatchAsync(
+                    context,
+                    batch => batch.AddOperation(string.Empty, batch => batch.KeyDeleteAsync(_checkpointRegistryKey)),
+                    RedisOperation.All);
+
+                return BoolResult.Success;
+            });
+        }
     }
 }

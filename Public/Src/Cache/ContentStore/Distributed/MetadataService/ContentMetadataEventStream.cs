@@ -267,6 +267,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return true;
         }
 
+        public Task<BoolResult> ClearAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var r1 = _writeAheadEventStorage.GarbageCollectAsync(context, BlockReference.MaxValue);
+                var r2 = _writeBehindEventStorage.GarbageCollectAsync(context, CheckpointLogId.MaxValue);
+                await Task.WhenAll(r1, r2);
+                return (await r1) & (await r2);
+            });
+        }
+
         private Task<BoolResult> CommitWriteBehindAsync(OperationContext context, LogBlock block)
         {
             var msg = $"{block.QualifiedBlockId} EventCount={block.EventCount} Length={block.Length}";

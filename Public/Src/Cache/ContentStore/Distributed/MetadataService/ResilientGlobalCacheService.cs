@@ -11,6 +11,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -50,6 +51,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// If <see cref="MaxOperationConcurrency"/> is set, then this property will represent a length of the queue that will be used for managing concurrency of the global cache service.
         /// </summary>
         public int? MaxOperationQueueLength { get; init; }
+
+        /// Maximum age of the newest checkpoint that we're willing to tolerate. If the latest checkpoint is older than
+        /// the age, we'll wipe out all of the data in the system and start from a clean slate.
+        /// </summary>
+        public TimeSpan? CheckpointMaxAge { get; set; }
     }
 
     public record ClusterManagementConfiguration
@@ -78,6 +84,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         protected override Tracer Tracer { get; } = new Tracer(nameof(ResilientGlobalCacheService));
 
         internal ContentMetadataEventStream EventStream => _eventStream;
+
+        internal CheckpointManager CheckpointManager => _checkpointManager;
 
         internal bool ForceClientRetries(out string reason)
         {
@@ -288,12 +296,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         internal async Task<BoolResult> RestoreCheckpointAsync(OperationContext context)
         {
-            return await context.PerformOperationAsync(
+            return await context.PerformOperationAsync<Result<(string checkpointId, CheckpointLogId logId, CheckpointLogId startReadLogId, int startWriteLogId)>>(
                 Tracer,
                 async () =>
                 {
                     var checkpointState = await _checkpointManager.CheckpointRegistry.GetCheckpointStateAsync(context)
                         .ThrowIfFailureAsync();
+
+                    // It is possible for a system failure (in creating checkpoints, for example) to create a huge
+                    // backlog of events to be processed. If that happens, the system can enter a state where it needs
+                    // to process a lot of events in order to get back to normal operation, and for those events to be
+                    // very old (and hence irrelevant). This flag allows us to wipe the slate and start from scratch.
+                    var now = _clock.UtcNow;
+                    if (_configuration.CheckpointMaxAge is not null && !checkpointState.CheckpointTime.IsRecent(now, _configuration.CheckpointMaxAge.Value))
+                    {
+                        // If there was a failure, it was reported in the log message. The fact of the matter is that
+                        // if this fails, there's really not much we can do except pretending everything's OK.
+                        await DiscardStaleCheckpointsAsync(context, checkpointState).IgnoreFailure();
+                        return Result.Success((checkpointId: string.Empty, CheckpointLogId.InitialLogId, CheckpointLogId.InitialLogId, startWriteLogId: CheckpointLogId.InitialLogId.Value));
+                    }
 
                     CheckpointLogId logId = default;
 
@@ -332,6 +353,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     return Result.Success((checkpointId: checkpointState.CheckpointId, logId, startReadLogId, startWriteLogId: startWriteLogId.Value));
                 },
                 extraEndMessage: r => $"CheckpointId=[{r.GetValueOrDefault().checkpointId}] DbLogId=[{r.GetValueOrDefault().logId}] StartReadLogId=[{r.GetValueOrDefault().startReadLogId}] StartWriteLogId=[{r.GetValueOrDefault().startWriteLogId}]");
+        }
+
+        private Task<BoolResult> DiscardStaleCheckpointsAsync(OperationContext context, CheckpointState checkpointState)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var t1 = _checkpointManager.CheckpointRegistry.ClearCheckpointsAsync(context);
+                var t2 = _eventStream.ClearAsync(context);
+
+                // These may take some time, so we do them in parallel
+                await Task.WhenAll(t1, t2);
+
+                var r1 = await t1;
+                var r2 = await t2;
+                if (!r1 || !r2)
+                {
+                    return new BoolResult(r1 & r2, $"Last checkpoint creation time is `{checkpointState.CheckpointTime}` which is beyond the allowed staleness (`{_configuration.CheckpointMaxAge}`), and we failed to clear the checkpoint registry and event streams");
+                }
+
+                return BoolResult.Success;
+            });
         }
 
         private static IAsyncEnumerable<ServiceRequestBase> ReadAsync(ChannelReader<ServiceRequestBase> reader, CancellationToken cancellationToken)

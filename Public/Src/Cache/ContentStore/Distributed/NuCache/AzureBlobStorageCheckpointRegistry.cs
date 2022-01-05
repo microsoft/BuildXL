@@ -220,21 +220,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
+        public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () => await GarbageCollectAsync(context, retentionLimit: 0),
+                traceOperationStarted: false);
+        }
+
         internal void TriggerGarbageCollection(OperationContext context)
         {
             context.PerformOperationAsync<BoolResult>(Tracer, () =>
             {
                 return _gcGate.DeduplicatedOperationAsync(
-                    (timeWaiting, currentCount) => GarbageCollectAsync(context, limit: _configuration.CheckpointLimit),
+                    (timeWaiting, currentCount) => GarbageCollectAsync(context, retentionLimit: _configuration.CheckpointLimit),
                     (timeWaiting, currentCount) => BoolResult.SuccessTask,
                     token: context.Token);
             },
             traceOperationStarted: false).FireAndForget(context);
         }
 
-        internal Task<BoolResult> GarbageCollectAsync(OperationContext context, int limit)
+        /// <summary>
+        /// Deletes all but the most recent <paramref name="retentionLimit"/> entries from the registry. Used to ensure
+        /// our checkpoint retention is kept bounded.
+        /// </summary>
+        internal Task<BoolResult> GarbageCollectAsync(OperationContext context, int retentionLimit)
         {
-            Contract.Requires(limit >= 0);
+            Contract.Requires(retentionLimit >= 0);
 
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
@@ -255,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             }
                         })
                         .OrderByDescending(kvp => kvp.timestampUtc)
-                        .Skip(limit)
+                        .Skip(retentionLimit)
                         .Select(kvp => kvp.blob);
 
                     await foreach (var blob in blobs)

@@ -17,6 +17,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         [ProtoMember(2)]
         public int LogBlockId { get; init; }
 
+        public static BlockReference MaxValue => new BlockReference(CheckpointLogId.MaxValue, int.MaxValue);
+
         public BlockReference(CheckpointLogId logId, int logBlockId)
         {
             LogId = logId;

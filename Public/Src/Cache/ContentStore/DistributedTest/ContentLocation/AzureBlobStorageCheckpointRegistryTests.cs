@@ -102,9 +102,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var registry = new AzureBlobStorageCheckpointRegistry(configuration, M1, clock);
 
             await registry.StartupAsync(context).ThrowIfFailureAsync();
-            await registry.GarbageCollectAsync(context, limit: 0).ThrowIfFailureAsync();
+            await registry.GarbageCollectAsync(context, retentionLimit: 0).ThrowIfFailureAsync();
             await runTest(context, registry, clock);
-            await registry.GarbageCollectAsync(context, limit: 0).ThrowIfFailureAsync();
+            await registry.GarbageCollectAsync(context, retentionLimit: 0).ThrowIfFailureAsync();
             await registry.ShutdownAsync(context).ThrowIfFailureAsync();
         }
     }

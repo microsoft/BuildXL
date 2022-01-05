@@ -23,5 +23,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Gets the most recent checkpoint state.
         /// </summary>
         Task<Result<CheckpointState>> GetCheckpointStateAsync(OperationContext context);
+
+        /// <summary>
+        /// Deletes all existing checkpoints from the registry
+        /// </summary>
+        Task<BoolResult> ClearCheckpointsAsync(OperationContext context);
     }
 }

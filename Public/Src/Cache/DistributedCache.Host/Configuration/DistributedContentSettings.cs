@@ -1153,6 +1153,9 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting ContentMetadataRedisMaximumKeyLifetime { get; set; } = TimeSpan.FromMinutes(120);
 
         [DataMember]
+        public TimeSpanSetting? ContentMetadataCheckpointMaxAge { get; set; } = null;
+
+        [DataMember]
         public string ContentMetadataLogBlobContainerName { get; set; } = "persistenteventstorage";
 
         [DataMember]

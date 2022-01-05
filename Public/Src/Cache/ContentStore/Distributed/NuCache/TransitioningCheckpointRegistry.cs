@@ -65,5 +65,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return new BoolResult(primaryResult & fallbackResult, $"Failed to register checkpoint `{checkpointId}` at squence point `{sequencePoint}` to both primary and fallback");
         }
+
+        public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var t1 = _primary.ClearCheckpointsAsync(context);
+                var t2 = _fallback.ClearCheckpointsAsync(context);
+                await Task.WhenAll(t1, t2);
+                return (await t1) & (await t2);
+            },
+            traceOperationStarted: false);
+        }
     }
 }

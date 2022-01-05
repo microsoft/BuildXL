@@ -131,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             {
                 MaxOperationConcurrency = DistributedContentSettings.MetadataStoreMaxOperationConcurrency,
                 MaxOperationQueueLength = DistributedContentSettings.MetadataStoreMaxOperationQueueLength,
-
+                CheckpointMaxAge = DistributedContentSettings.ContentMetadataCheckpointMaxAge?.Value,
                 MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
                 MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
                 VolatileEventStorage = new RedisVolatileEventStorageConfiguration()

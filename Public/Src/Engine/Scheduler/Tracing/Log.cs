@@ -2923,6 +2923,24 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipStarting(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ServicePipWaitingToBecomeReady,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Service pip process has started (pid: {processId}). Awaiting confirmation from the service that it has finished initialization.")]
+        internal abstract void ScheduleServicePipProcessStartedButNotReady(LoggingContext loggingContext, string pipDescription, int processId);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ServicePipReportedReady,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Service pip (pid: {processId}, process name: {processName}) reported that it is ready.")]
+        internal abstract void ScheduleServicePipReportedReady(LoggingContext loggingContext, int processId, string processName);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ServicePipShuttingDown,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

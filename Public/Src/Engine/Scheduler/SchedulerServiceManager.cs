@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -29,6 +31,7 @@ namespace BuildXL.Scheduler
     {
         private readonly ConcurrentBigMap<PipId, ServiceTracking> m_startedServices = new ConcurrentBigMap<PipId, ServiceTracking>();
         private readonly Dictionary<PipId, PipId> m_finalizationPipToServicePipMap = new Dictionary<PipId, PipId>();
+        private readonly ConcurrentDictionary<int, TaskSourceSlim<bool>> m_serviceReadiness = new();
 
         private readonly PipGraph m_pipGraph;
         private readonly PipExecutionContext m_context;
@@ -117,6 +120,12 @@ namespace BuildXL.Scheduler
                 servicePips.Select(servicePipId => EnsureServiceRunningAsync(servicePipId, environment)));
 
             return results.All(succeeded => succeeded);
+        }
+
+        public override void ReportServiceIsReady(int processId, string processName)
+        {
+            Logger.Log.ScheduleServicePipReportedReady(m_executePhaseLoggingContext, processId, processName);
+            GetServiceReadyCompletionByProcessId(processId).TrySetResult(true);
         }
 
         /// <summary>
@@ -220,12 +229,13 @@ namespace BuildXL.Scheduler
             try
             {
                 var serviceProcess = HydrateServiceStartOrShutdownProcess(pipId);
-
+                string pipDescription = null;
                 if (isStartup)
                 {
+                    pipDescription = serviceProcess.GetDescription(m_context);
                     Logger.Log.ScheduleServicePipStarting(
                         loggingContext,
-                        serviceProcess.GetDescription(m_context));
+                        pipDescription);
 
                     Interlocked.Increment(ref m_runningServicesCount);
 
@@ -254,7 +264,30 @@ namespace BuildXL.Scheduler
                         serviceProcess,
                         processId =>
                         {
-                            serviceLaunchCompletion.TrySetResult(isStartup);
+                            if (processId < 0)
+                            {
+                                // processIdListener is called twice: 'processId' after the process has started, and
+                                // '-processId' after the process has exited. Here we are only interested in the first call.
+                                return;
+                            }
+
+                            if (isStartup && false) // block this logic until the daemons are updated
+                            {
+                                // It's a startup of a service, so we need to wait for a call from that service before setting serviceLaunchCompletion.
+                                GetServiceReadyTaskByProcessId(pipDescription, processId).ContinueWith(tsk =>
+                                {
+                                    // tsk is an underlying task of TaskCompletionSource. The completion represents whether the
+                                    // service pip process made a callback to the engine to notify that the service is ready.
+                                    // Continuation is executed when tsk is completed; be design, it's never faulted or cancelled,
+                                    // so it's safe to get the result of tsk.
+                                    var serviceStatus = tsk.GetAwaiter().GetResult();
+                                    serviceLaunchCompletion.TrySetResult(serviceStatus);
+                                });
+                            }
+                            else
+                            {
+                                serviceLaunchCompletion.TrySetResult(isStartup);
+                            }
                         });
 
                     using (
@@ -297,6 +330,33 @@ namespace BuildXL.Scheduler
             return process;
         }
 
+
+        private TaskSourceSlim<bool> GetServiceReadyCompletionByProcessId(int pid)
+        {
+            return m_serviceReadiness.GetOrAdd(
+                pid,
+                TaskSourceSlim.Create<bool>());
+        }
+
+        private Task<bool> GetServiceReadyTaskByProcessId(string servicePipDescription, int processId)
+        {
+            Logger.Log.ScheduleServicePipProcessStartedButNotReady(m_executePhaseLoggingContext, servicePipDescription, processId);
+            var serviceReadyCompletion = GetServiceReadyCompletionByProcessId(processId); 
+            serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromMinutes(5)).ContinueWith(tsk =>
+            {
+                // If tsk is not faulted, it means that a task returned by WithTimeoutAsync completed successfully, i.e., the completion
+                // result was set and no further action is needed.
+                if (tsk.Exception != null)
+                {
+                    // Timeout (task tsk can get into a faulted state only because of a TimeoutException inside WithTimeoutAsync()).
+                    // (need to check Exception instead of IsFaulted to avoid TaskUnobservedException)
+                    serviceReadyCompletion.TrySetResult(false);
+                }
+            });
+
+            return serviceReadyCompletion.Task;
+        }
+
         /// <summary>
         /// A helper class for keeping track of running service tasks.
         /// </summary>
@@ -329,7 +389,7 @@ namespace BuildXL.Scheduler
             /// <nodoc />
             public Task<bool> WaitForProcessStartAsync()
             {
-                return StartupCompletion.GetAsyncCompletion();
+                return StartupCompletion.Task;
             }
         }
     }

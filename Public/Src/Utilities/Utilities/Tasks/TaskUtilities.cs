@@ -493,29 +493,6 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
-        /// Gets a task for the completion source which execute continuations for TaskCompletionSource.SetResult asynchronously.
-        /// </summary>
-        public static Task<T> GetAsyncCompletion<T>(this TaskSourceSlim<T> completion)
-        {
-            if (completion.Task.IsCompleted)
-            {
-                return completion.Task;
-            }
-
-            return GetTaskWithAsyncContinuationAsync(completion);
-        }
-
-        private static async Task<T> GetTaskWithAsyncContinuationAsync<T>(this TaskSourceSlim<T> completion)
-        {
-            var result = await completion.Task;
-
-            // Yield to not block the thread which sets the result of the completion
-            await Task.Yield();
-
-            return result;
-        }
-
-        /// <summary>
         /// Allows an IDisposable-conforming release of an acquired semaphore
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]

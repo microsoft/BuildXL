@@ -99,6 +99,15 @@ namespace BuildXL.Ipc.ExternalApi
         {
             return ExecuteCommand(new GetSealedDirectoryContentCommand(directory, fullDirectoryPath));
         }
+
+        /// <summary>
+        /// Notifies the engine that the service pip has started successfully and is listening to the assigned port.
+        /// </summary>
+        public Task<Possible<bool>> ReportServicePipIsReady(int processId, string processName)
+        {
+            return ExecuteCommand(new ReportServicePipIsReadyCommand(processId, processName));
+        }
+
         #endregion
 
         private async Task<Possible<T>> ExecuteCommand<T>(Command<T> command)

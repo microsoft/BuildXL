@@ -11,7 +11,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
     /// </summary>
     public sealed class LogMessageCommand : Command<bool>
     {
-        /// <summary>Nessage to be logged.</summary>
+        /// <summary>Message to be logged.</summary>
         public string Message { get; }
 
         /// <summary>Whether the message is to be logged as a warning or verbose.</summary>
@@ -29,7 +29,6 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// <inheritdoc />
         public override bool TryParseResult(string result, out bool commandResult)
         {
-            commandResult = false;
             return bool.TryParse(result, out commandResult);
         }
 

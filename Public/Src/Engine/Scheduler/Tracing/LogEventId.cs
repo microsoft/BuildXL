@@ -402,6 +402,8 @@ namespace BuildXL.Scheduler.Tracing
         ServicePipShuttingDownFailed = 12004,
         IpcClientForwardedMessage = 12005,
         IpcClientFailed = 12006,
+        ServicePipWaitingToBecomeReady = 12007,
+        ServicePipReportedReady = 12008,
 
         // BuildXL API server
         ApiServerForwarderIpcServerMessage = 12100,

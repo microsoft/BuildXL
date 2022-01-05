@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.ExternalApi.Commands;
@@ -43,6 +42,7 @@ namespace BuildXL.Scheduler
         private readonly PipExecutionContext m_context;
         private readonly Tracing.IExecutionLogTarget m_executionLog;
         private readonly Tracing.BuildManifestGenerator m_buildManifestGenerator;
+        private readonly ServiceManager m_serviceManger;
         private readonly ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>> m_inMemoryBuildManifestStore;
         private readonly ConcurrentBigMap<string, long> m_receivedStatistics;
         private readonly bool m_verifyFileContentOnBuildManifestHashComputation;
@@ -71,6 +71,7 @@ namespace BuildXL.Scheduler
             PipTwoPhaseCache pipTwoPhaseCache,
             Tracing.IExecutionLogTarget executionLog,
             Tracing.BuildManifestGenerator buildManifestGenerator,
+            ServiceManager serviceManger,
             bool verifyFileContentOnBuildManifestHashComputation)
         {
             Contract.Requires(ipcMonikerId != null);
@@ -85,6 +86,7 @@ namespace BuildXL.Scheduler
             m_context = context;
             m_executionLog = executionLog;
             m_buildManifestGenerator = buildManifestGenerator;
+            m_serviceManger = serviceManger;
             m_pipTwoPhaseCache = pipTwoPhaseCache;
             m_inMemoryBuildManifestStore = new ConcurrentBigMap<ContentHash, IReadOnlyList<ContentHash>>();
             m_receivedStatistics = new ConcurrentBigMap<string, long>();
@@ -281,7 +283,7 @@ namespace BuildXL.Scheduler
 
             Tracing.Logger.Log.ApiServerOperationReceived(m_loggingContext, op.Payload);
             var maybeIpcResult = await TryDeserialize(op.Payload)
-                .ThenAsync(cmd => TryExecuteCommand(cmd));
+                .ThenAsync(cmd => TryExecuteCommandAsync(cmd));
 
             return maybeIpcResult.Succeeded
                 ? maybeIpcResult.Result
@@ -292,7 +294,7 @@ namespace BuildXL.Scheduler
         /// Generic ExecuteCommand.  Pattern matches <paramref name="cmd"/> and delegates
         /// to a specific Execute* method based on the commands type.
         /// </summary>
-        private async Task<Possible<IIpcResult>> TryExecuteCommand(Command cmd)
+        private async Task<Possible<IIpcResult>> TryExecuteCommandAsync(Command cmd)
         {
             Contract.Requires(cmd != null);
 
@@ -336,7 +338,7 @@ namespace BuildXL.Scheduler
             {
                 using (Counters.StartStopwatch(ApiServerCounters.GetSealedDirectoryContentDuration))
                 {
-                    var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ApiServerCounters.TotalGetSealedDirectoryContentCalls);
+                    var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContentAsync, getSealedDirectoryFilesCmd, ApiServerCounters.TotalGetSealedDirectoryContentCalls);
                     return new Possible<IIpcResult>(result);
                 }
             }
@@ -345,6 +347,13 @@ namespace BuildXL.Scheduler
             if (logMessageCmd != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteLogMessage, logMessageCmd, ApiServerCounters.TotalLogMessageCalls);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var reportServicePipIsReady = cmd as ReportServicePipIsReadyCommand;
+            if (reportServicePipIsReady != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteReportServicePipIsReadyAsync, reportServicePipIsReady, ApiServerCounters.TotalServicePipIsReadyCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -521,7 +530,7 @@ namespace BuildXL.Scheduler
             return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
-        private async Task<IIpcResult> ExecuteGetSealedDirectoryContent(GetSealedDirectoryContentCommand cmd)
+        private async Task<IIpcResult> ExecuteGetSealedDirectoryContentAsync(GetSealedDirectoryContentCommand cmd)
         {
             Contract.Requires(cmd != null);
 
@@ -600,6 +609,15 @@ namespace BuildXL.Scheduler
             return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
+        private Task<IIpcResult> ExecuteReportServicePipIsReadyAsync(ReportServicePipIsReadyCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+
+            m_serviceManger.ReportServiceIsReady(cmd.ProcessId, cmd.ProcessName);
+
+            return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
+        }
+
         private Possible<Command> TryDeserialize(string operation)
         {
             try
@@ -664,10 +682,16 @@ namespace BuildXL.Scheduler
         GetSealedDirectoryContentDuration,
 
         /// <summary>
-        /// Time spent on <see cref="LogMessageCommand"/> calls
+        /// Number of <see cref="LogMessageCommand"/> calls
         /// </summary>
         [CounterType(CounterType.Numeric)]
-        TotalLogMessageCalls
+        TotalLogMessageCalls,
+
+        /// <summary>
+        /// Number of <see cref="ReportServicePipIsReadyCommand"/> calls
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        TotalServicePipIsReadyCalls,
     }
 
     /// <summary>

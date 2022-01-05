@@ -32,7 +32,6 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// <inheritdoc />
         public override bool TryParseResult(string result, out bool commandResult)
         {
-            commandResult = false;
             return bool.TryParse(result, out commandResult);
         }
 

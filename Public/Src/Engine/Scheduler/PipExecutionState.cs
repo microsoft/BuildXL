@@ -84,7 +84,7 @@ namespace BuildXL.Scheduler
         public FileContentManager FileContentManager { get; internal set; }
 
         /// <summary>
-        /// Directory mempership fingerprinter.
+        /// Directory membership fingerprinter.
         /// </summary>
         public IDirectoryMembershipFingerprinter DirectoryMembershipFingerprinter { get; private set; }
 

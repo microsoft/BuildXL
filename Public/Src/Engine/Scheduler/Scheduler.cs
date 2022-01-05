@@ -1513,14 +1513,17 @@ namespace BuildXL.Scheduler
                     m_pipTwoPhaseCache,
                     ExecutionLog,
                     m_buildManifestGenerator,
+                    m_serviceManager,
                     m_configuration.Engine.VerifyFileContentOnBuildManifestHashComputation);
                 m_apiServer.Start(loggingContext);
             }
 
             if (m_configuration.Schedule.EnablePlugin == true)
             {
-                m_pluginManager = new PluginManager(loggingContext, m_configuration.Logging.LogsDirectory.ToString(Context.PathTable),
-                                                    m_configuration.Schedule.PluginLocations.Select(path => path.ToString(Context.PathTable)));
+                m_pluginManager = new PluginManager(
+                    loggingContext, 
+                    m_configuration.Logging.LogsDirectory.ToString(Context.PathTable),
+                    m_configuration.Schedule.PluginLocations.Select(path => path.ToString(Context.PathTable)));
                 m_pluginManager.Start();
             }
 

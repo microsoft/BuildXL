@@ -1225,7 +1225,7 @@ namespace BuildXL.Processes
         {
             using (var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_context.CancellationToken))
             {
-                var cancellationTokenRegistration = cancellationTokenSource.Token.Register(() => process.KillAsync());
+                using var cancellationTokenRegistration = cancellationTokenSource.Token.Register(() => process.KillAsync());
 
                 SandboxedProcessResult result;
 
@@ -1313,7 +1313,6 @@ namespace BuildXL.Processes
                 finally
                 {
                     m_activeProcess = null;
-                    cancellationTokenRegistration.Dispose();
                     process.Dispose();
                 }
 

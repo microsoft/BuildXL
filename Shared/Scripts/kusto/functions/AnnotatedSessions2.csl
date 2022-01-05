@@ -61,7 +61,7 @@ cluster('cbuild').database('Domino').dominoinvocation
             Environment startswith "OSGTools", "OSGTools",
             Environment startswith "OSG", "WDG",
             IsJavaScriptBuild, "JavaScript",
-            "Unknown") 
+            "Z_Unknown") 
 // Normalize CloudBuild per-session usernames
 | extend UserName = iff(UserName startswith "CBA-", "CBA-", UserName)
 | project SessionId, RelatedSessionIdentifier , BuildInfo_IsDeveloperBuild, EventInfo_Time, OfficeBuildType, Codebase, Customer, Infra, BuildInfo_Build , BuildInfo_CommitId, UserName, MachineInfo_OsVersion, MachineName
@@ -145,8 +145,10 @@ cluster('cbuild').database('Domino').dominoinvocation
     CBReturnCode = take_any(ReturnCode),
     BuildInfo_CommitId = take_any(BuildInfo_CommitId),
     SuggestedBugName = max(SuggestedBugName),
-    MachineNames = strcat_array(make_list_if(MachineName, InternalError > 0), ", ")
-    by UniqueSession, Customer, Codebase, Infra, InProbation, UserName, Stamp
+    MachineNames = strcat_array(make_list_if(MachineName, InternalError > 0), ", "),
+    // Prefer the real customer name before Z_Unknown
+    Customer = min(Customer)
+    by UniqueSession, Codebase, Infra, InProbation, UserName, Stamp
 //
 // 6. Annotate which sessions should be reported in the MSR
 | extend MSRReportable = case(

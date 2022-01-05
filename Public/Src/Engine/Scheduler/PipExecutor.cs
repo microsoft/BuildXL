@@ -1136,7 +1136,7 @@ namespace BuildXL.Scheduler
                     executionResult,
                     pip.PipType == PipType.Process ? ((Process)pip).RewritePolicy.ImpliesDoubleWriteIsWarning() : false);
 
-                if (cacheHitData.Metadata.NumberOfWarnings > 0 && environment.Configuration.Logging.ReplayWarnings)
+                if (cacheHitData.Metadata.NumberOfWarnings > 0 && environment.Configuration.Logging.ReplayWarnings())
                 {
                     Logger.Log.PipWarningsFromCache(
                         operationContext,

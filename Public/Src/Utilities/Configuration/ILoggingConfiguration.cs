@@ -338,7 +338,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether warnings should be replayed from the cache
         /// </summary>
-        bool ReplayWarnings { get; }
+        bool? ReplayWarnings { get; }
 
         /// <summary>
         /// Whether the pip descriptions should be shortened to (SemiStableHash, CustomerSuppliedPipDescription)

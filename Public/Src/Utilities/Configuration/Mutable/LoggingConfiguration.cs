@@ -36,7 +36,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ExecutionFingerprintStoreLogDirectory = AbsolutePath.Invalid;
             CacheLookupFingerprintStoreLogDirectory = AbsolutePath.Invalid;
             HistoricMetadataCacheLogDirectory = AbsolutePath.Invalid;
-            ReplayWarnings = true;
             SubstSource = AbsolutePath.Invalid;
             SubstTarget = AbsolutePath.Invalid;
             FancyConsole = true;
@@ -359,7 +358,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool DisableLoggedPathTranslation { get; set; }
 
         /// <inheritdoc />
-        public bool ReplayWarnings { get; set; }
+        public bool? ReplayWarnings { get; set; }
 
         /// <inheritdoc />
         public bool UseCustomPipDescriptionOnConsole { get; set; }

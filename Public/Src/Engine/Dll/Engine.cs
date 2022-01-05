@@ -1175,7 +1175,10 @@ namespace BuildXL.Engine
                 // Minimize output materialization in cloudbuild
                 mutableConfig.Schedule.EnableLazyWriteFileMaterialization = true;
                 mutableConfig.Schedule.WriteIpcOutput = false;
-                mutableConfig.Logging.ReplayWarnings = false;
+                if (!mutableConfig.Logging.ReplayWarnings.HasValue)
+                {
+                    mutableConfig.Logging.ReplayWarnings = false;
+                }
 
                 // Use compression for graph files to greatly reduce the size
                 mutableConfig.Engine.CompressGraphFiles = true;

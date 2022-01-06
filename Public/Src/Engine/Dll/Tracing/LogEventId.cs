@@ -354,6 +354,7 @@ namespace BuildXL.Engine.Tracing
         DistributionConnectionTimeout = 7047,
         DistributionConnectionFailure = 7048,
         AttachmentFailureAfterOrchestratorExit = 7049,
+        DistributionWorkerForwardedOrphanMessage = 7050,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,

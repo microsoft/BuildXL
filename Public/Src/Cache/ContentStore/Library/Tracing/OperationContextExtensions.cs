@@ -34,6 +34,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
     /// </summary>
     public static class OperationContextExtensions
     {
+        /// <summary>
+        /// Detaches a <see cref="CancellationToken"/> instance from <paramref name="context"/>.
+        /// </summary>
+        public static OperationContext WithoutCancellationToken(this OperationContext context) => new OperationContext(context.TracingContext, token: CancellationToken.None);
+
         /// <nodoc />
         public static PerformAsyncOperationBuilder<TResult> CreateOperation<TResult>(this OperationContext context, Tracer tracer, Func<Task<TResult>> operation) where TResult : ResultBase
         {

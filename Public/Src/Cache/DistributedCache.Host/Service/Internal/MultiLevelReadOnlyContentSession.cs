@@ -39,7 +39,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         protected override Tracer Tracer { get; } = new Tracer(nameof(MultiLevelContentStore));
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MultiLevelReadOnlyContentSession"/> class.
+        /// Initializes a new instance of the <see cref="MultiLevelReadOnlyContentSession{TSession}"/> class.
         /// </summary>
         public MultiLevelReadOnlyContentSession(
             string name,

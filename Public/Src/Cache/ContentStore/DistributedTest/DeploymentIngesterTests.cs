@@ -305,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
 
         private class TestSecretsProvider : ISecretsProvider
         {
-            public Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+            public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
                 var secrets = new Dictionary<string, Secret>();
 
@@ -318,16 +318,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                     else
                     {
                         request.Kind.Should().Be(SecretKind.SasToken);
-                        secrets.Add(request.Name, new UpdatingSasToken(new SasToken()
-                        {
-                            StorageAccount = $"https://{request.Name}.azure.blob.com/",
-                            ResourcePath = "ResourcePath",
-                            Token = Guid.NewGuid().ToString()
-                        }));
+                        secrets.Add(
+                            request.Name, 
+                            new UpdatingSasToken(
+                                new SasToken(
+                                    storageAccount: $"https://{request.Name}.azure.blob.com/",
+                                    resourcePath: "ResourcePath",
+                                    token: Guid.NewGuid().ToString())));
                     }
                 }
 
-                return Task.FromResult(secrets);
+                return Task.FromResult(new RetrievedSecrets(secrets));
             }
         }
     }

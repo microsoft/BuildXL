@@ -6,12 +6,13 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {
@@ -187,7 +188,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             LifetimeTrackerHelper = Tracing.LifetimeTrackerHelper.Starting(clock.GetUtcNow(), processStartupTime ?? GetProcessStartupTimeUtc(), offlineTime.Then(v => Result.Success(v.lastServiceHeartbeatTime)));
 
-            Trace(context, $"Starting CaSaaS instance{offlineTime.ToStringSelect(r => $". LastHeartBeatTime={r.lastServiceHeartbeatTime}, ShutdownCorrectly={r.shutdownCorrectly}")}");
+            var runtime = OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion();
+            Trace(context, $"Starting CaSaaS instance. Runtime={runtime}{offlineTime.ToStringSelect(r => $". LastHeartBeatTime={r.lastServiceHeartbeatTime}, ShutdownCorrectly={r.shutdownCorrectly}")}");
         }
 
         /// <summary>

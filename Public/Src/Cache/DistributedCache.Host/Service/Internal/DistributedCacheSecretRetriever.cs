@@ -8,11 +8,13 @@ using System.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+
+#nullable enable
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -22,35 +24,43 @@ namespace BuildXL.Cache.Host.Service.Internal
     public class DistributedCacheSecretRetriever
     {
         private readonly DistributedContentSettings _distributedSettings;
+        private readonly AzureBlobStorageLogPublicConfiguration? _loggingConfiguration;
+
         private readonly ILogger _logger;
         private readonly IDistributedCacheServiceHost _host;
 
-        private readonly Lazy<Task<(Dictionary<string, Secret>, string)>> _secrets;
+        private readonly Lazy<Task<Result<RetrievedSecrets>>> _secrets;
 
         /// <nodoc />
         public DistributedCacheSecretRetriever(DistributedCacheServiceArguments arguments)
         {
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
+            _loggingConfiguration = arguments.LoggingSettings?.Configuration;
             _logger = arguments.Logger;
             _host = arguments.Host;
 
-            _secrets = new Lazy<Task<(Dictionary<string, Secret>, string)>>(TryGetSecretsAsync);
+            _secrets = new Lazy<Task<Result<RetrievedSecrets>>>(TryGetSecretsAsync);
         }
 
         /// <summary>
         /// Retrieves the secrets. Results will be cached so secrets are only computed the first time this is called.
         /// </summary>
-        public Task<(Dictionary<string, Secret>, string)> TryRetrieveSecretsAsync() => _secrets.Value;
+        public Task<Result<RetrievedSecrets>> TryRetrieveSecretsAsync() => _secrets.Value;
 
-        private async Task<(Dictionary<string, Secret>, string errors)> TryGetSecretsAsync()
+        private async Task<Result<RetrievedSecrets>> TryGetSecretsAsync()
         {
             var errorBuilder = new StringBuilder();
 
             var result = await impl();
 
-            return (result, errorBuilder.ToString());
+            if (result is null)
+            {
+                return Result.FromErrorMessage<RetrievedSecrets>(errorBuilder.ToString());
+            }
 
-            async Task<Dictionary<string, Secret>> impl()
+            return Result.Success(result);
+
+            async Task<RetrievedSecrets?> impl()
             {
                 _logger.Debug(
                     $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
@@ -78,8 +88,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                     return null;
                 }
 
-                var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
-                retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
+                retrieveSecretsRequests.AddRange(
+                    storageSecretNames
+                        .Select(tpl => new RetrieveSecretsRequest(tpl.secretName, tpl.useSasTokens ? SecretKind.SasToken : SecretKind.PlainText)));
 
                 if (string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
                 {
@@ -103,6 +114,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 addOptionalSecret(_distributedSettings.SecondaryGlobalRedisSecretName);
                 addOptionalSecret(_distributedSettings.ContentMetadataRedisSecretName);
+
+                var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
                 addOptionalSecret(_distributedSettings.ContentMetadataBlobSecretName, azureBlobStorageCredentialsKind);
 
                 // Ask the host for credentials
@@ -118,7 +131,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // Validate requests match as expected
                 foreach (var request in retrieveSecretsRequests)
                 {
-                    if (secrets.TryGetValue(request.Name, out var secret))
+                    if (secrets.Secrets.TryGetValue(request.Name, out var secret))
                     {
                         bool typeMatch = true;
                         switch (request.Kind)
@@ -143,7 +156,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return secrets;
             }
 
-            bool appendIfNull(object value, string propertyName)
+            bool appendIfNull(object? value, string propertyName)
             {
                 if (value is null)
                 {
@@ -165,17 +178,23 @@ namespace BuildXL.Cache.Host.Service.Internal
                 deltaBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalDeltaBackoffSeconds));
         }
 
-        private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
+        private List<(string secretName, bool useSasTokens)>? GetAzureStorageSecretNames(StringBuilder errorBuilder)
         {
-            var secretNames = new List<string>();
+            bool useSasToken = _distributedSettings.AzureBlobStorageUseSasTokens;
+            var secretNames = new List<(string secretName, bool useSasTokens)>();
             if (_distributedSettings.AzureStorageSecretName != null && !string.IsNullOrEmpty(_distributedSettings.AzureStorageSecretName))
             {
-                secretNames.Add(_distributedSettings.AzureStorageSecretName);
+                secretNames.Add((_distributedSettings.AzureStorageSecretName, useSasToken));
             }
 
             if (_distributedSettings.AzureStorageSecretNames != null && !_distributedSettings.AzureStorageSecretNames.Any(string.IsNullOrEmpty))
             {
-                secretNames.AddRange(_distributedSettings.AzureStorageSecretNames);
+                secretNames.AddRange(_distributedSettings.AzureStorageSecretNames.Select(n => (n, useSasToken)));
+            }
+
+            if (_loggingConfiguration?.SecretName != null)
+            {
+                secretNames.Add((_loggingConfiguration.SecretName, _loggingConfiguration.UseSasTokens));
             }
 
             if (secretNames.Count > 0)

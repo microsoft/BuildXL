@@ -2,24 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Utilities.Collections;
-using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -115,88 +104,6 @@ namespace BuildXL.Cache.Host.Service
             public void Dispose()
             {
                 // Do nothing. This instance is reused
-            }
-        }
-
-        private class LauncherProcess : ILauncherProcess
-        {
-            private static readonly Tracer _tracer = new Tracer(nameof(LauncherProcess));
-
-            private readonly Process _process;
-
-            public LauncherProcess(ProcessStartInfo info)
-            {
-                info.RedirectStandardOutput = true;
-                info.RedirectStandardError = true;
-
-                _process = new Process()
-                {
-                    StartInfo = info,
-                    EnableRaisingEvents = true
-                };
-
-                _process.Exited += (sender, e) => Exited?.Invoke();
-            }
-
-            public int ExitCode => _process.ExitCode;
-
-            public int Id => _process.Id;
-
-            public bool HasExited => _process.HasExited;
-
-            public event Action Exited;
-
-            public void Kill(OperationContext context)
-            {
-                _process.Kill();
-            }
-
-            public void Start(OperationContext context)
-            {
-                // Using nagle queues to "batch" messages together and to avoid writing them to the logs one by one.
-                var outputMessagesNagleQueue = NagleQueue<string>.Create(
-                    messages =>
-                        {
-                            _tracer.Debug(context, $"Service Output: {string.Join(Environment.NewLine, messages)}");
-                            return Task.CompletedTask;
-                        },
-                    maxDegreeOfParallelism: 1, interval: TimeSpan.FromSeconds(10), batchSize: 1024);
-
-                var errorMessagesNagleQueue = NagleQueue<string>.Create(
-                    messages =>
-                    {
-                        _tracer.Error(context, $"Service Error: {string.Join(Environment.NewLine, messages)}");
-                        return Task.CompletedTask;
-                    },
-                    maxDegreeOfParallelism: 1, interval: TimeSpan.FromSeconds(10), batchSize: 1024);
-
-                _process.OutputDataReceived += (s, e) =>
-                {
-                    if (!string.IsNullOrEmpty(e.Data))
-                    {
-                        outputMessagesNagleQueue.Enqueue(e.Data);
-                    }
-                };
-
-                _process.ErrorDataReceived += (s, e) =>
-                {
-                    if (!string.IsNullOrEmpty(e.Data))
-                    {
-                        errorMessagesNagleQueue.Enqueue(e.Data);
-                    }
-                };
-
-                _process.Exited += (sender, args) =>
-                                   {
-                                       // Dispose will drain all the existing items from the message queues.
-                                       outputMessagesNagleQueue.Dispose();
-                                       errorMessagesNagleQueue.Dispose();
-                                   };
-
-                _process.Start();
-
-                _process.BeginOutputReadLine();
-                _process.BeginErrorReadLine();
             }
         }
     }

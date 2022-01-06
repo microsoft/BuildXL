@@ -303,7 +303,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 yield return session;
             }
 
-            if (!Store.TryAllSesssions)
+            if (!Store.TryAllSessions)
             {
                 yield break;
             }

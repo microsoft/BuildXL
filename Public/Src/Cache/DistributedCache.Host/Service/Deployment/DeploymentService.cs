@@ -1,6 +1,9 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -8,30 +11,25 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.Host.Service;
 using BuildXL.Utilities;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.ParallelAlgorithms;
+using JetBrains.Annotations;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 using static BuildXL.Cache.Host.Service.DeploymentUtilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.ContentStore.Tracing;
-using System.Threading;
-using System.Text;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using JetBrains.Annotations;
-using BuildXL.Utilities.Collections;
-using System.Diagnostics.ContractsLight;
 
-namespace BuildXL.Launcher.Server
+namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
     /// Service used ensure deployments are uploaded to target storage accounts and provide manifest for with download urls and tools to launch

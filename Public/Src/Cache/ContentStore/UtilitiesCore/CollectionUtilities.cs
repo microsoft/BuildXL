@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
 {
@@ -28,6 +27,16 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
 
             public static readonly T[] EmptyArray = new T[] { };
         }
+
+        private static class Empty<TKey, TValue>
+        {
+            public static readonly Dictionary<TKey, TValue> EmptyDictionary = new Dictionary<TKey, TValue>();
+        }
+
+        /// <summary>
+        /// Returns an empty instance of <see cref="IReadOnlyDictionary{TKey,TValue}"/>
+        /// </summary>
+        public static IReadOnlyDictionary<TKey, TValue> EmptyDictionary<TKey, TValue>() => Empty<TKey, TValue>.EmptyDictionary;
 
         /// <summary>
         /// Allows deconstructing a key value pair to a tuple

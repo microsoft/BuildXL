@@ -27,6 +27,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
@@ -307,7 +308,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             if (UseGrpcServer)
             {
-                var server = (ILocalContentServer<TStore>)new CacheServerFactory(arguments).Create();
+                var server = (ILocalContentServer<TStore>)new CacheServerFactory(arguments).CreateAsync(new OperationContext(context)).GetAwaiter().GetResult();
                 TStore store = server.StoresByName["Default"];
                 //if (store is MultiplexedContentStore multiplexedStore)
                 //{
@@ -398,9 +399,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 return _secrets[key];
             }
 
-            public Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+            public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
-                return Task.FromResult(requests.ToDictionary(r => r.Name, r => (Secret)new PlainTextSecret(_secrets[r.Name])));
+                return Task.FromResult(new RetrievedSecrets(requests.ToDictionary(r => r.Name, r => (Secret)new PlainTextSecret(_secrets[r.Name]))));
             }
 
             public void OnStartedService() { }

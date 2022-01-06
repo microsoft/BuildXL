@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -29,8 +28,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
-using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
-using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.CopyScheduling;
 using ContentStore.Grpc;
@@ -40,6 +37,10 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Services;
+
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BandwidthConfiguration = BuildXL.Cache.ContentStore.Distributed.BandwidthConfiguration;
+using static BuildXL.Utilities.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -67,7 +68,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public IReadOnlyList<ResolvedNamedCacheSettings> OrderedResolvedCacheSettings => _orderedResolvedCacheSettings;
         private readonly List<ResolvedNamedCacheSettings> _orderedResolvedCacheSettings;
-        private readonly Dictionary<string, Secret> _secrets;
+        private readonly RetrievedSecrets _secrets;
 
         public RedisContentLocationStoreConfiguration RedisContentLocationStoreConfiguration { get; }
 
@@ -82,14 +83,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
 
-            (var secrets, var errors) = _secretRetriever.TryRetrieveSecretsAsync().GetAwaiter().GetResult();
-            if (secrets == null)
+            var secretsResult = _secretRetriever.TryRetrieveSecretsAsync().GetAwaiter().GetResult();
+            if (!secretsResult.Succeeded)
             {
-                _logger.Error($"Unable to retrieve secrets. {errors}");
-                secrets = new Dictionary<string, Secret>();
+                _logger.Error($"Unable to retrieve secrets. {secretsResult}");
+                _secrets = new RetrievedSecrets(new Dictionary<string, Secret>());
             }
 
-            _secrets = secrets;
+            _secrets = secretsResult.Value;
 
             _orderedResolvedCacheSettings = ResolveCacheSettingsInPrecedenceOrder(arguments);
             Contract.Assert(_orderedResolvedCacheSettings.Count != 0);
@@ -294,12 +295,51 @@ namespace BuildXL.Cache.Host.Service.Internal
                 yield break;
             }
 
+            var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
+
+            var configuration = new GlobalCacheServiceConfiguration()
+            {
+                MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
+                MasterLeaseStaleThreshold = RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime.Multiply(0.5),
+                VolatileEventStorage = new RedisVolatileEventStorageConfiguration()
+                {
+                    ConnectionString = (GetRequiredSecret(_distributedSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
+                    KeyPrefix = _distributedSettings.RedisWriteAheadKeyPrefix,
+                    MaximumKeyLifetime = _distributedSettings.ContentMetadataRedisMaximumKeyLifetime,
+                },
+                PersistentEventStorage = new BlobEventStorageConfiguration()
+                {
+                    Credentials = GetStorageCredentials(new[] { _distributedSettings.ContentMetadataBlobSecretName }).First(),
+                    FolderName = "events" + _distributedSettings.KeySpacePrefix,
+                    ContainerName = _distributedSettings.ContentMetadataLogBlobContainerName,
+                },
+                CentralStorage = RedisContentLocationStoreConfiguration.CentralStore with
+                {
+                    ContainerName = _distributedSettings.ContentMetadataCentralStorageContainerName
+                },
+                EventStream = new ContentMetadataEventStreamConfiguration()
+                {
+                    BatchWriteAheadWrites = _distributedSettings.ContentMetadataBatchVolatileWrites,
+                    ShutdownTimeout = _distributedSettings.ContentMetadataShutdownTimeout,
+                    LogBlockRefreshInterval = _distributedSettings.ContentMetadataPersistInterval
+                },
+                Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
+                {
+                    WorkingDirectory = primaryCacheRoot / "cmschkpt"
+                },
+                ClusterManagement = new ClusterManagementConfiguration()
+                {
+                    MachineExpiryInterval = RedisContentLocationStoreConfiguration.MachineActiveToExpiredInterval,
+                }
+            };
+
+            CentralStreamStorage centralStreamStorage = configuration.CentralStorage.CreateCentralStorage();
+
             if (_distributedSettings.IsMasterEligible)
             {
                 var service = Services.GlobalCacheService.Instance;
                 yield return new ProtobufNetGrpcServiceEndpoint<IGlobalCacheService, GlobalCacheService>(nameof(GlobalCacheService), service);
             }
-
         }
 
         public IGrpcServiceEndpoint[] GetAdditionalEndpoints()
@@ -567,7 +607,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             AbsolutePath localCacheRoot,
             RocksDbContentLocationDatabaseConfiguration dbConfig)
         {
-            if (_secrets.Count == 0)
+            if (_secrets.Secrets.Count == 0)
             {
                 return;
             }
@@ -823,7 +863,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public Secret GetRequiredSecret(string secretName)
         {
-            if (!_secrets.TryGetValue(secretName, out var value))
+            if (!_secrets.Secrets.TryGetValue(secretName, out var value))
             {
                 throw new KeyNotFoundException($"Missing secret: {secretName}");
             }

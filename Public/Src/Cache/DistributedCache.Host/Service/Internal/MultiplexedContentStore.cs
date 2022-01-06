@@ -34,7 +34,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <summary>
         /// Indicates whether to use all sessions rather than only the primary for session read operations
         /// </summary>
-        public bool TryAllSesssions { get; }
+        public bool TryAllSessions { get; }
 
         private ContentStoreTracer StoreTracer { get; } = new ContentStoreTracer(nameof(MultiplexedContentStore));
 
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             DrivesWithContentStore = drivesWithContentStore;
             PreferredCacheDrive = preferredCacheDrive;
             PreferredContentStore = drivesWithContentStore[preferredCacheDrive];
-            TryAllSesssions = tryAllSessions;
+            TryAllSessions = tryAllSessions;
         }
 
         /// <inheritdoc />

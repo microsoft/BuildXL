@@ -1,20 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.IO;
 using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
     /// <summary>
-    /// Final settings object used for intializing a distributed cache instance
+    /// Final settings object used for initializing a distributed cache instance
     /// </summary>
     public class ResolvedNamedCacheSettings
     {

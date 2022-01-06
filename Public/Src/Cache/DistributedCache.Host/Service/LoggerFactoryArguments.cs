@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Host.Configuration;
 

@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 #nullable disable
 
@@ -67,6 +69,30 @@ namespace BuildXL.Cache.Host.Configuration
         public override string ToString()
         {
             return $"Machine={Machine} Stamp={Stamp}";
+        }
+
+        public void ApplyFromTelemetryProviderIfNeeded(ITelemetryFieldsProvider telemetryProvider)
+        {
+            if (telemetryProvider is null)
+            {
+                return;
+            }
+
+            Ring ??= telemetryProvider.Ring;
+            Stamp ??= telemetryProvider.Stamp;
+            Machine ??= telemetryProvider.MachineName;
+            MachineFunction ??= telemetryProvider.MachineName;
+            Environment ??= telemetryProvider.APEnvironment;
+        }
+
+        public static HostParameters FromTelemetryProvider(ITelemetryFieldsProvider telemetryProvider)
+        {
+            Contract.Requires(telemetryProvider is not null);
+
+            var result = new HostParameters();
+            result.ApplyFromTelemetryProviderIfNeeded(telemetryProvider);
+
+            return result;
         }
     }
 

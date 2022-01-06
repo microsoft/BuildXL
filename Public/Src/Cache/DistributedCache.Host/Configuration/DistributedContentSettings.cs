@@ -12,7 +12,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using ContentStore.Grpc;
+
 #nullable disable
+
 namespace BuildXL.Cache.Host.Configuration
 {
     /// <summary>
@@ -62,6 +64,22 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public LauncherSettings LauncherSettings { get; set; } = null;
+
+        /// <summary>
+        /// Settings for running cache out of proc as a .net core process.
+        /// </summary>
+        [DataMember]
+        public OutOfProcCacheSettings OutOfProcCacheSettings { get; set; }
+
+        /// <summary>
+        /// If true the cache should run out of proc as a .net core process.
+        /// </summary>
+        /// <remarks>
+        /// If this property is true and <see cref="OutOfProcCacheSettings"/> is null, that property should be created
+        /// by the host and set <see cref="BuildXL.Cache.Host.Configuration.OutOfProcCacheSettings.CacheConfigPath"/> property.
+        /// </remarks>
+        [DataMember]
+        public bool? RunCacheOutOfProc { get; set; }
 
         [DataMember]
         public LogManagerConfiguration LogManager { get; set; } = null;

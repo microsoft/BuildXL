@@ -16,12 +16,14 @@ using System.Text;
 using FluentAssertions;
 using System.Collections.Generic;
 using System.Diagnostics;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities;
-using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.Host.Test
 {

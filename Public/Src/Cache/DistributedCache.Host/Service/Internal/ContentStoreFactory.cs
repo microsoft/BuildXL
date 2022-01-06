@@ -5,7 +5,9 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Stores;
+
 #nullable enable
+
 namespace BuildXL.Cache.Host.Service.Internal
 {
     public class ContentStoreFactory

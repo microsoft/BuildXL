@@ -3,7 +3,6 @@
 
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
-import { NetFx } from "Sdk.BuildXL";
 
 namespace LauncherServer {
 
@@ -29,7 +28,6 @@ namespace LauncherServer {
             importFrom("Azure.Identity").pkg,
             importFrom("Azure.Core").pkg,
             importFrom("Microsoft.Identity.Client").pkg,
-
 
             // AspNetCore assemblies
             Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [

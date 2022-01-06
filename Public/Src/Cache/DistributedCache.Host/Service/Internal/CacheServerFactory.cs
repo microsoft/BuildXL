@@ -3,9 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -25,8 +26,11 @@ using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using static BuildXL.Utilities.ConfigurationHelper;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.Host.Service.OutOfProc;
+using BuildXL.Utilities.ConfigurationHelpers;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -36,6 +40,7 @@ namespace BuildXL.Cache.Host.Service.Internal
     /// <remarks>Marked as public because it is used externally.</remarks>
     public class CacheServerFactory
     {
+        private static readonly Tracer _tracer = new Tracer(nameof(CacheServerFactory));
         private readonly IAbsFileSystem _fileSystem;
         private readonly ILogger _logger;
         private readonly DistributedCacheServiceArguments _arguments;
@@ -50,20 +55,52 @@ namespace BuildXL.Cache.Host.Service.Internal
             _fileSystem = new PassThroughFileSystem(_logger);
         }
 
-        public StartupShutdownBase Create()
+        /// <summary>
+        /// Creates a cache server.
+        /// </summary>
+        /// <remarks>
+        /// Currently it can be one of the following:
+        /// * Launcher that will download configured bits and start them.
+        /// * Out-of-proc launcher that will start the current bits in a separate process.
+        /// * In-proc distributed cache service.
+        /// * In-proc local cache service.
+        /// </remarks>
+        public async Task<StartupShutdownBase> CreateAsync(OperationContext operationContext)
         {
             var cacheConfig = _arguments.Configuration;
-            if (TryCreateLauncherIfSpecified(cacheConfig, out var launcher))
+
+            if (IsLauncherEnabled(cacheConfig))
             {
-                return launcher;
+                _tracer.Debug(operationContext, $"Creating a launcher.");
+                return await CreateLauncherAsync(cacheConfig);
             }
 
-            cacheConfig.LocalCasSettings = cacheConfig.LocalCasSettings.FilterUnsupportedNamedCaches(_arguments.HostInfo.Capabilities, _logger);
-
             var distributedSettings = cacheConfig.DistributedContentSettings;
+
+            if (IsOutOfProcCacheEnabled(cacheConfig))
+            {
+                _tracer.Debug(operationContext, $"Creating an out-of-proc cache service.");
+                var outOfProcCache = await CacheServiceWrapper.CreateAsync(_arguments);
+
+                if (outOfProcCache.Succeeded)
+                {
+                    return outOfProcCache.Value;
+                }
+
+                // Tracing and falling back to the in-proc cache
+                _tracer.Error(operationContext, $"Failed to create out of proc cache: {outOfProcCache}. Using in-proc cache instead.");
+            }
+
+            _tracer.Debug(operationContext, "Creating an in-proc cache service.");
+            cacheConfig.LocalCasSettings = cacheConfig.LocalCasSettings.FilterUnsupportedNamedCaches(_arguments.HostInfo.Capabilities, _logger);
+            
             var isLocal = distributedSettings == null || !distributedSettings.IsDistributedContentEnabled;
 
-            LogManager.Update(distributedSettings.LogManager);
+            if (distributedSettings is not null)
+            {
+                LogManager.Update(distributedSettings.LogManager);
+            }
+
             var serviceConfiguration = CreateServiceConfiguration(
                 _logger,
                 _fileSystem,
@@ -93,29 +130,22 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private bool TryCreateLauncherIfSpecified(DistributedCacheServiceConfiguration cacheConfig, out DeploymentLauncher launcher)
+        private bool IsLauncherEnabled(DistributedCacheServiceConfiguration cacheConfig) =>
+            cacheConfig.DistributedContentSettings.LauncherSettings != null;
+
+        private bool IsOutOfProcCacheEnabled(DistributedCacheServiceConfiguration cacheConfig) =>
+            cacheConfig.DistributedContentSettings.RunCacheOutOfProc == true;
+
+        private async Task<DeploymentLauncher> CreateLauncherAsync(DistributedCacheServiceConfiguration cacheConfig)
         {
             var launcherSettings = cacheConfig.DistributedContentSettings.LauncherSettings;
-            if (launcherSettings != null)
-            {
-                var deploymentParams = launcherSettings.DeploymentParameters;
-                deploymentParams.Stamp ??= _arguments.TelemetryFieldsProvider?.Stamp;
-                deploymentParams.Machine ??= Environment.MachineName;
-                deploymentParams.MachineFunction ??= _arguments.TelemetryFieldsProvider?.APMachineFunction;
-                deploymentParams.Ring ??= _arguments.TelemetryFieldsProvider?.Ring;
+            Contract.Assert(launcherSettings is not null);
 
-                deploymentParams.AuthorizationSecret ??= _arguments.Host.GetPlainSecretAsync(deploymentParams.AuthorizationSecretName, _arguments.Cancellation).GetAwaiter().GetResult();
+            var deploymentParams = launcherSettings.DeploymentParameters;
+            deploymentParams.ApplyFromTelemetryProviderIfNeeded(_arguments.TelemetryFieldsProvider);
+            deploymentParams.AuthorizationSecret ??= await _arguments.Host.GetPlainSecretAsync(deploymentParams.AuthorizationSecretName, _arguments.Cancellation);
 
-                launcher = new DeploymentLauncher(
-                    launcherSettings,
-                    _fileSystem);
-                return true;
-            }
-            else
-            {
-                launcher = null;
-                return false;
-            }
+            return new DeploymentLauncher(launcherSettings, _fileSystem);
         }
 
         private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
@@ -302,18 +332,19 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
             
-            ApplyIfNotNull(localCasServiceSettings.UnusedSessionTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
-            ApplyIfNotNull(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
-            ApplyIfNotNull(localCasServiceSettings.GrpcCoreServerOptions, value => localContentServerConfiguration.GrpcCoreServerOptions = value);
-            ApplyIfNotNull(localCasServiceSettings.GrpcEnvironmentOptions, value => localContentServerConfiguration.GrpcEnvironmentOptions = value);
-            ApplyIfNotNull(localCasServiceSettings.DoNotShutdownSessionsInUse, value => localContentServerConfiguration.DoNotShutdownSessionsInUse = value);
+            localCasServiceSettings.UnusedSessionTimeoutMinutes.ApplyIfNotNull(value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
+            localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes.ApplyIfNotNull(value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
+            localCasServiceSettings.GrpcCoreServerOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcCoreServerOptions = value);
+            localCasServiceSettings.GrpcEnvironmentOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcEnvironmentOptions = value);
+            localCasServiceSettings.DoNotShutdownSessionsInUse.ApplyIfNotNull(value => localContentServerConfiguration.DoNotShutdownSessionsInUse = value);
 
-            ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value =>
+            (distributedSettings?.UseUnsafeByteStringConstruction).ApplyIfNotNull(
+                value =>
             {
                 GrpcExtensions.UnsafeByteStringOptimizations = value;
             });
 
-            ApplyIfNotNull(distributedSettings?.ShutdownEvictionBeforeHibernation, value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
+            (distributedSettings?.ShutdownEvictionBeforeHibernation).ApplyIfNotNull(value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 
             return localContentServerConfiguration;
         }
@@ -364,7 +395,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 logIncrementalStatsCounterNames: distributedSettings?.IncrementalStatisticsCounterNames,
                 asyncSessionShutdownTimeout: distributedSettings?.AsyncSessionShutdownTimeout);
 
-            ApplyIfNotNull(distributedSettings?.TraceServiceGrpcOperations, v => result.TraceGrpcOperation = v);
+            distributedSettings?.TraceServiceGrpcOperations.ApplyIfNotNull(v => result.TraceGrpcOperation = v);
             return result;
         }
 

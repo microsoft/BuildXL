@@ -29,7 +29,7 @@ namespace BuildXL.Cache.Host.Service
 
         /// <summary>
         ///     When this functor is present, and assuming the cache replaces the host's logger with its own, it is
-        ///     expected to buid <see cref="Copier"/> and <see cref="CopyRequester"/>.
+        ///     expected to build <see cref="Copier"/> and <see cref="CopyRequester"/>.
         ///     
         ///     This is done this way because constructing those elements requires access to an <see cref="ILogger"/>,
         ///     which will be replaced cache-side.

@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.AccessControl;
 using System.Threading.Tasks;
 using System.Xml;
 using BuildXL.Cache.ContentStore.FileSystem;

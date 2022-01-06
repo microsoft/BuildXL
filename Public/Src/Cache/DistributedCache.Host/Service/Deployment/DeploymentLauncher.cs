@@ -4,23 +4,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
-using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -28,12 +22,10 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Launcher.Server;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
-using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.Host.Configuration.DeploymentManifest;
 
 namespace BuildXL.Cache.Host.Service
@@ -407,12 +399,12 @@ namespace BuildXL.Cache.Host.Service
         {
             private readonly SemaphoreSlim _mutex = TaskUtilities.CreateMutex();
 
+            private LauncherManagedProcess _runningProcess;
+
             /// <summary>
             /// The active process for the tool
             /// </summary>
-            public ILauncherProcess RunningProcess { get; private set; }
-
-            private TaskSourceSlim<bool> ProcessExitSource { get; set; }
+            public ILauncherProcess RunningProcess => _runningProcess?.Process;
 
             /// <summary>
             /// Gets whether the tool process is running
@@ -430,6 +422,7 @@ namespace BuildXL.Cache.Host.Service
             public DisposableDirectory Directory { get; }
 
             private DeploymentLauncher Launcher { get; }
+
             public PinRequest PinRequest { get; set; }
 
             public AbsolutePath DirectoryPath => Directory.Path;
@@ -511,6 +504,7 @@ namespace BuildXL.Cache.Host.Service
             protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
             {
                 int? processId = null;
+                var tool = Manifest.Tool;
                 return context.PerformOperationAsync(
                     Tracer,
                     async () =>
@@ -519,9 +513,9 @@ namespace BuildXL.Cache.Host.Service
                         //       Or maybe process should terminate itself if its not healthy?
                         using (await _mutex.AcquireAsync(context.Token))
                         {
-                            if (RunningProcess == null)
+                            if (_runningProcess == null)
                             {
-                                var executablePath = (Directory.Path / Manifest.Tool.Executable).Path;
+                                var executablePath = (Directory.Path / tool.Executable).Path;
                                 if (!File.Exists(executablePath))
                                 {
                                     return new BoolResult($"Executable '{executablePath}' does not exist.");
@@ -532,26 +526,22 @@ namespace BuildXL.Cache.Host.Service
                                     return new BoolResult($"Executable permissions could not be set on '{executablePath}'.");
                                 }
 
-                                RunningProcess = Launcher._host.CreateProcess(new ProcessStartInfo()
-                                {
-                                    UseShellExecute = false,
-                                    FileName = executablePath,
-                                    Arguments = string.Join(" ", Manifest.Tool.Arguments.Select(arg => QuoteArgumentIfNecessary(ExpandTokens(arg)))),
-                                    Environment =
+                                var process = Launcher._host.CreateProcess(
+                                    new ProcessStartInfo()
                                     {
-                                        Launcher.Settings.DeploymentParameters.ToEnvironment(),
-                                        Manifest.Tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)),
-                                        Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(Manifest.Tool.ServiceId)
-                                    }
-                                });
+                                        UseShellExecute = false,
+                                        FileName = executablePath,
+                                        Arguments = string.Join(" ", tool.Arguments.Select(arg => QuoteArgumentIfNecessary(ExpandTokens(arg)))),
+                                        Environment =
+                                        {
+                                            Launcher.Settings.DeploymentParameters.ToEnvironment(),
+                                            tool.EnvironmentVariables.ToDictionary(kvp => kvp.Key, kvp => ExpandTokens(kvp.Value)),
+                                            Launcher.LifetimeManager.GetDeployedInterruptableServiceVariables(tool.ServiceId)
+                                        }
+                                    });
+                                _runningProcess = new LauncherManagedProcess(process, tool.ServiceId, Launcher.LifetimeManager);
 
-                                ProcessExitSource = TaskSourceSlim.Create<bool>();
-                                RunningProcess.Exited += () =>
-                                {
-                                    OnExited(context, "ProcessExitedEvent");
-                                };
-
-                                RunningProcess.Start(context);
+                                _runningProcess.Start(context).ThrowIfFailure();
                                 processId = RunningProcess.Id;
                             }
 
@@ -559,35 +549,22 @@ namespace BuildXL.Cache.Host.Service
                         }
                     },
                     traceOperationStarted: true,
-                    extraStartMessage: $"ServiceId={Manifest.Tool.ServiceId}",
-                    extraEndMessage: r => $"ProcessId={processId ?? -1}, ServiceId={Manifest.Tool.ServiceId}");
+                    extraStartMessage: $"ServiceId={tool.ServiceId}",
+                    extraEndMessage: r => $"ProcessId={processId ?? -1}, ServiceId={tool.ServiceId}");
             }
 
-            private void OnExited(OperationContext context, string trigger)
-            {
-                context.PerformOperation(
-                    Launcher.Tracer,
-                    () =>
-                    {
-                        ProcessExitSource.TrySetResult(true);
-                        return Result.Success(RunningProcess.ExitCode.ToString());
-                    },
-                    caller: "ServiceExited",
-                    messageFactory: r => $"ProcessId={RunningProcess.Id}, ServiceId={Manifest.Tool.ServiceId}, ExitCode={r.GetValueOrDefault(string.Empty)} Trigger={trigger}").IgnoreFailure();
-            }
-
-            private static string QuoteArgumentIfNecessary(string arg)
+            public static string QuoteArgumentIfNecessary(string arg)
             {
                 return arg.Contains(" ") ? $"\"{arg}\"" : arg;
             }
 
-            private string ExpandTokens(string value)
+            public string ExpandTokens(string value)
             {
                 value = ExpandToken(value, "ServiceDir", DirectoryPath.Path);
                 return value;
             }
 
-            private static string ExpandToken(string value, string tokenName, string tokenValue)
+            public static string ExpandToken(string value, string tokenName, string tokenValue)
             {
                 if (!string.IsNullOrEmpty(tokenValue))
                 {
@@ -600,80 +577,30 @@ namespace BuildXL.Cache.Host.Service
             /// <summary>
             /// Terminates the tool process
             /// </summary>
-            protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+            protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
             {
                 var tool = Manifest.Tool;
 
-                return context.PerformOperationWithTimeoutAsync<BoolResult>(
-                    Tracer,
-                    async nestedContext =>
+                using (await _mutex.AcquireAsync(context.Token))
+                {
+                    try
                     {
-                        using (await _mutex.AcquireAsync(context.Token))
+                        if (_runningProcess != null)
                         {
-                            try
-                            {
-                                if (RunningProcess != null && !RunningProcess.HasExited)
-                                {
-                                    using var registration = nestedContext.Token.Register(() =>
-                                    {
-                                        TerminateService(context);
-                                        ProcessExitSource.TrySetCanceled();
-                                    });
-
-                                    await context.PerformOperationAsync(
-                                        Tracer,
-                                        async () =>
-                                        {
-                                            await Launcher.LifetimeManager.ShutdownServiceAsync(nestedContext, tool.ServiceId);
-                                            return BoolResult.Success;
-                                        },
-                                        caller: "GracefulShutdownService").IgnoreFailure();
-
-                                    if (RunningProcess.HasExited)
-                                    {
-                                        OnExited(context, "ShutdownAlreadyExited");
-                                    }
-
-                                    await ProcessExitSource.Task;
-                                }
-                            }
-                            finally
-                            {
-                                await PinRequest.PinContext.DisposeAsync();
-
-                                Directory.Dispose();
-                            }
-
-                            return BoolResult.Success;
+                            return await _runningProcess
+                                .StopAsync(context, TimeSpan.FromSeconds(tool.ShutdownTimeoutSeconds))
+                                .ThrowIfFailure();
                         }
-                    },
-                    timeout: TimeSpan.FromSeconds(tool.ShutdownTimeoutSeconds),
-                    extraStartMessage: $"ProcessId={RunningProcess?.Id}, ServiceId={Manifest.Tool.ServiceId}",
-                    extraEndMessage: r => $"ProcessId={RunningProcess?.Id}, ServiceId={Manifest.Tool.ServiceId}");
-            }
-
-            /// <summary>
-            /// Terminates the service by killing the process
-            /// </summary>
-            private void TerminateService(OperationContext context)
-            {
-                context.PerformOperation(
-                    Tracer,
-                    () =>
+                    }
+                    finally
                     {
-                        if (RunningProcess.HasExited)
-                        {
-                            OnExited(context, "TerminateServiceAlreadyExited");
-                        }
-                        else
-                        {
-                            RunningProcess.Kill(context);
-                        }
+                        await PinRequest.PinContext.DisposeAsync();
 
-                        return BoolResult.Success;
-                    },
-                    extraStartMessage: $"ProcessId={RunningProcess?.Id}, ServiceId={Manifest.Tool.ServiceId}",
-                    messageFactory: r => $"ProcessId={RunningProcess?.Id}, ServiceId={Manifest.Tool.ServiceId}").IgnoreFailure();
+                        Directory.Dispose();
+                    }
+
+                    return BoolResult.Success;
+                }
             }
         }
     }

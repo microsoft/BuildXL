@@ -24,7 +24,7 @@ namespace BuildXL.Launcher.Server
             _client = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
         }
 
-        public async Task<Dictionary<string, Secret>> RetrieveSecretsAsync(
+        public async Task<RetrievedSecrets> RetrieveSecretsAsync(
             List<RetrieveSecretsRequest> requests, 
             CancellationToken token)
         {
@@ -38,7 +38,7 @@ namespace BuildXL.Launcher.Server
                 secrets[request.Name] = new PlainTextSecret(secret);
             }
 
-            return secrets;
+            return new RetrievedSecrets(secrets);
         }
     }
 }

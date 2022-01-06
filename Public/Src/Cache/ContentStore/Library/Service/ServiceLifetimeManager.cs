@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <summary>
-        /// Gets set of environment variables used to launch service in child process using <see cref="RunDeployedInterruptableServiceAsync"/>
+        /// Gets set of environment variables used to launch service in child process using <see cref="RunDeployedInterruptableServiceAsync{T}"/>
         /// </summary>
         public IDictionary<string, string> GetDeployedInterruptableServiceVariables(string serviceId)
         {
@@ -95,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Service
         private string PreventStartupFile(string serviceId) => Path.Combine(SignalFileRoot.Path, $"{serviceId}.preventstartup");
 
         /// <summary>
-        /// Run a service which can be interrupted by another service (via <see cref="RunInterrupterServiceAsync"/>)
+        /// Run a service which can be interrupted by another service (via <see cref="RunInterrupterServiceAsync{T}"/>)
         /// or shutdown (via <see cref="ShutdownServiceAsync"/>).
         /// </summary>
         public async Task<T> RunInterruptableServiceAsync<T>(OperationContext context, string serviceId, Func<CancellationToken, Task<T>> runAsync)
@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <summary>
-        /// Runs a service which can interrupt another service started with <see cref="RunInterruptableServiceAsync"/>
+        /// Runs a service which can interrupt another service started with <see cref="RunInterruptableServiceAsync{T}"/>
         /// </summary>
         public async Task<T> RunInterrupterServiceAsync<T>(OperationContext context, string serviceId, string serviceToInterruptId, Func<CancellationToken, Task<T>> runAsync)
         {
@@ -131,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <summary>
-        /// Signals and waits for shutdown a service run under <see cref="RunInterruptableServiceAsync"/>
+        /// Signals and waits for shutdown a service run under <see cref="RunInterruptableServiceAsync{T}"/>
         /// </summary>
         public Task ShutdownServiceAsync(OperationContext context, string serviceId)
         {

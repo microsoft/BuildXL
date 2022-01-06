@@ -1,13 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -16,15 +11,10 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Launcher.Server.Controllers;
 using BuildXL.Utilities.Collections;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Primitives;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 
 namespace BuildXL.Launcher.Server
@@ -64,13 +54,24 @@ namespace BuildXL.Launcher.Server
             var logger = new Logger(consoleLog);
 
             var cacheConfigurationPath = configuration["CacheConfigurationPath"];
-            var standalone = configuration.GetValue<bool>("standalone", true);
+            var standalone = configuration.GetValue("standalone", true);
+            var secretsProviderKind = configuration.GetValue("secretsProviderKind", CrossProcessSecretsCommunicationKind.Environment);
+            
             return CacheServiceRunner.RunCacheServiceAsync(
                 new OperationContext(new Context(logger), token),
                 cacheConfigurationPath,
-                (hostParameters, config, token) =>
+                createHost: (hostParameters, config, token) =>
                 {
-                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters);
+                    // If this process was started as a standalone cache service, we need to change the mode
+                    // this time to avoid trying to start the cache service process again.
+                    config.DistributedContentSettings.RunCacheOutOfProc = false;
+                    if (config.DataRootPath is null)
+                    {
+                        // The required property is not set, so it should be passed through the command line options by the parent process.
+                        config.DataRootPath = configuration.GetValue("DataRootPath", "Unknown DataRootPath");
+                    }
+
+                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, retrieveAllSecretsFromSingleEnvironmentVariable: secretsProviderKind == CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry);
                     return serviceHost;
                 },
                 requireServiceInterruptable: !standalone);
@@ -120,29 +121,35 @@ namespace BuildXL.Launcher.Server
                 services.AddSingleton<HostParameters>(hostParameters);
             }
 
-            // Add ProxyServiceConfiguration as a singleton in service provider
-            services.AddSingleton(sp =>
+            // Only the launcher-based invocation would have 'ProxyConfigurationPath' and
+            // the out-of-proc case would not.
+            var configurationPath = Configuration.GetValue<string>("ProxyConfigurationPath", null);
+
+            if (configurationPath is not null)
             {
-                var context = sp.GetRequiredService<BoxRef<OperationContext>>().Value;
-                var configurationPath = Configuration["ProxyConfigurationPath"];
-                var hostParameters = sp.GetService<HostParameters>();
+                // Add ProxyServiceConfiguration as a singleton in service provider
+                services.AddSingleton(sp =>
+                {
+                    var context = sp.GetRequiredService<BoxRef<OperationContext>>().Value;
+                    var hostParameters = sp.GetService<HostParameters>();
 
-                return context.PerformOperation(
-                    new Tracer(nameof(CacheServiceStartup)),
-                    () =>
-                    {
-                        var proxyConfiguration = CacheServiceRunner.LoadAndWatchPreprocessedConfig<DeploymentConfiguration, ProxyServiceConfiguration>(
-                            context,
-                            configurationPath,
-                            configHash: out _,
-                            hostParameters: hostParameters,
-                            extractConfig: c => c.Proxy.ServiceConfiguration);
+                    return context.PerformOperation(
+                        new Tracer(nameof(CacheServiceStartup)),
+                        () =>
+                        {
+                            var proxyConfiguration = CacheServiceRunner.LoadAndWatchPreprocessedConfig<DeploymentConfiguration, ProxyServiceConfiguration>(
+                                context,
+                                configurationPath,
+                                configHash: out _,
+                                hostParameters: hostParameters,
+                                extractConfig: c => c.Proxy.ServiceConfiguration);
 
-                        return Result.Success(proxyConfiguration);
-                    },
-                    messageFactory: r => $"ConfigurationPath=[{configurationPath}], Port={r.GetValueOrDefault()?.Port}",
-                    caller: "LoadConfiguration").ThrowIfFailure();
-            });
+                            return Result.Success(proxyConfiguration);
+                        },
+                        messageFactory: r => $"ConfigurationPath=[{configurationPath}], Port={r.GetValueOrDefault()?.Port}",
+                        caller: "LoadConfiguration").ThrowIfFailure();
+                });
+            }
 
             // Add DeploymentProxyService as a singleton in service provider
             services.AddSingleton(sp =>
@@ -188,7 +195,8 @@ namespace BuildXL.Launcher.Server
             /// Constructs the service host and takes command line arguments because
             /// ASP.Net core application host is used to parse command line.
             /// </summary>
-            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters)
+            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, bool retrieveAllSecretsFromSingleEnvironmentVariable)
+                : base(retrieveAllSecretsFromSingleEnvironmentVariable)
             {
                 HostParameters = hostParameters;
                 ServiceConfiguration = configuration;

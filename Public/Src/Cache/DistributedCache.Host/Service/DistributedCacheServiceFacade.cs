@@ -109,7 +109,8 @@ namespace BuildXL.Cache.Host.Service
             var context = new Context(arguments.Logger);
             var operationContext = new OperationContext(context, arguments.Cancellation);
 
-            InitializeActivityTrackerIfNeeded(context, arguments.Configuration.DistributedContentSettings);
+            var distributedSettings = arguments.Configuration.DistributedContentSettings;
+            InitializeActivityTrackerIfNeeded(context, distributedSettings);
 
             AdjustCopyInfrastructure(arguments);
 
@@ -120,7 +121,7 @@ namespace BuildXL.Cache.Host.Service
             // Technically, this method doesn't own the file copier, but no one actually owns it.
             // So to clean up the resources (and print some stats) we dispose it here.
             using (arguments.Copier as IDisposable)
-            using (var server = factory.Create())
+            using (var server = await factory.CreateAsync(operationContext))
             {
                 try
                 {
@@ -130,7 +131,7 @@ namespace BuildXL.Cache.Host.Service
                         throw new CacheException(startupResult.ToString());
                     }
 
-                    await ReportServiceStartedAsync(operationContext, server, host);
+                    await ReportServiceStartedAsync(operationContext, server, host, distributedSettings);
                     using var cancellationAwaiter = arguments.Cancellation.ToAwaitable();
                     await cancellationAwaiter.CompletionTask;
                     await ReportShuttingDownServiceAsync(operationContext, host);
@@ -142,7 +143,7 @@ namespace BuildXL.Cache.Host.Service
                 }
                 finally
                 {
-                    var timeoutInMinutes = arguments.Configuration?.DistributedContentSettings?.MaxShutdownDurationInMinutes ?? 5;
+                    var timeoutInMinutes = distributedSettings?.MaxShutdownDurationInMinutes ?? 5;
                     var result = await server
                         .ShutdownAsync(context)
                         .WithTimeoutAsync("Server shutdown", TimeSpan.FromMinutes(timeoutInMinutes));
@@ -187,12 +188,16 @@ namespace BuildXL.Cache.Host.Service
         private static async Task ReportServiceStartedAsync(
             OperationContext context,
             StartupShutdownSlimBase server,
-            IDistributedCacheServiceHost host)
+            IDistributedCacheServiceHost host,
+            DistributedContentSettings distributedContentSettings)
         {
             LifetimeTracker.ServiceStarted(context);
             host.OnStartedService();
 
-            if (host is IDistributedCacheServiceHostInternal hostInternal
+            if (
+                // Don't need to call the following callback for out-of-proc cache
+                distributedContentSettings.OutOfProcCacheSettings is null &&
+                host is IDistributedCacheServiceHostInternal hostInternal
                 && server is IServicesProvider sp
                 && sp.TryGetService<ICacheServerServices>(out var services))
             {

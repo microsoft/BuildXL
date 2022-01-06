@@ -9,7 +9,7 @@ namespace BuildXL.Cache.Host.Service
     /// <summary>
     /// Type to signal the host which kind of secret is expected to be returned
     /// </summary>
-    public struct RetrieveSecretsRequest
+    public readonly struct RetrieveSecretsRequest
     {
         public string Name { get; }
 

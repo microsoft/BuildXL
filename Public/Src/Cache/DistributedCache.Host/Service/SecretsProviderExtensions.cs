@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.PlainText)
                 }, token);
 
-            return ((PlainTextSecret)secrets[secretName]).Secret;
+            return ((PlainTextSecret)secrets.Secrets[secretName]).Secret;
         }
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.SasToken)
                 }, token);
 
-                return new AzureBlobStorageCredentials((UpdatingSasToken)secrets[secretName]);
+                return new AzureBlobStorageCredentials((UpdatingSasToken)secrets.Secrets[secretName]);
             }
             else
             {
@@ -51,7 +51,7 @@ namespace BuildXL.Cache.Host.Service
                     new RetrieveSecretsRequest(secretName, SecretKind.PlainText)
                 }, token);
 
-                return new AzureBlobStorageCredentials((PlainTextSecret)secrets[secretName]);
+                return new AzureBlobStorageCredentials((PlainTextSecret)secrets.Secrets[secretName]);
             }
         }
     }

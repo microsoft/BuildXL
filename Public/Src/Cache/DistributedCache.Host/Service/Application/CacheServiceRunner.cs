@@ -100,7 +100,7 @@ namespace BuildXL.Cache.Host.Service
         public static async Task RunCacheServiceAsync(
             OperationContext context,
             string configurationPath,
-            Func<HostParameters, DistributedCacheServiceConfiguration, CancellationToken, IDistributedCacheServiceHost> createhost,
+            Func<HostParameters, DistributedCacheServiceConfiguration, CancellationToken, IDistributedCacheServiceHost> createHost,
             HostParameters hostParameters = null,
             bool requireServiceInterruptable = true)
         {
@@ -122,7 +122,7 @@ namespace BuildXL.Cache.Host.Service
                 {
                     var hostInfo = new HostInfo(hostParameters.Stamp, hostParameters.Ring, new List<string>());
 
-                    var host = createhost(hostParameters, config, token);
+                    var host = createHost(hostParameters, config, token);
 
                     await DistributedCacheServiceFacade.RunWithConfigurationAsync(
                         logger: context.TracingContext.Logger,

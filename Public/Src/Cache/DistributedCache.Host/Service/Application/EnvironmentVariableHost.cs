@@ -6,44 +6,83 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.Host.Service;
+using BuildXL.Cache.Host.Service.Internal;
 using Microsoft.WindowsAzure.Storage;
 
-// ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
-    /// Host where secrets are derived from environment variables
+    /// Host where secrets are derived from environment variables.
     /// </summary>
     public class EnvironmentVariableHost : IDistributedCacheServiceHost
     {
+        private readonly bool _retrieveAllSecretsFromSingleEnvironmentVariable;
+        private Result<RetrievedSecrets> _secrets;
+
         public CancellationTokenSource TeardownCancellationTokenSource { get; } = new CancellationTokenSource();
 
+        public EnvironmentVariableHost(bool retrieveAllSecretsFromSingleEnvironmentVariable = false)
+        {
+            _retrieveAllSecretsFromSingleEnvironmentVariable = retrieveAllSecretsFromSingleEnvironmentVariable;
+        }
+
+        /// <inheritdoc />
         public virtual void RequestTeardown(string reason)
         {
             TeardownCancellationTokenSource.Cancel();
         }
 
-        public string GetSecretStoreValue(string key)
+        private string GetSecretStoreValue(string key)
         {
             return Environment.GetEnvironmentVariable(key);
         }
 
+        /// <inheritdoc />
         public virtual void OnStartedService()
         {
         }
 
+        /// <inheritdoc />
         public virtual Task OnStartingServiceAsync()
         {
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc />
         public virtual void OnTeardownCompleted()
         {
         }
+        
+        /// <inheritdoc />
+        public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+        {
+            // Checking the mode first: out-of-proc cache service passes all secrets via a single environment variable.
+            if (_retrieveAllSecretsFromSingleEnvironmentVariable)
+            {
+                var secretsResult = LazyInitializer.EnsureInitialized(ref _secrets, () => DeserializeFromEnvironmentVariable());
 
-        public Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+                secretsResult.ThrowIfFailure();
+                return Task.FromResult(secretsResult.Value);
+            }
+
+            return RetrieveSecretsCoreAsync(requests, token);
+        }
+
+        private static Result<RetrievedSecrets> DeserializeFromEnvironmentVariable()
+        {
+            var variableName = RetrievedSecretsSerializer.SerializedSecretsKeyName;
+            var variable = Environment.GetEnvironmentVariable(variableName);
+            if (string.IsNullOrEmpty(variable))
+            {
+                return Result.FromErrorMessage<RetrievedSecrets>($"Environment variable '{variableName}' is null or empty.");
+            }
+
+            return RetrievedSecretsSerializer.Deserialize(variable);
+        }
+
+        private Task<RetrievedSecrets> RetrieveSecretsCoreAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
         {
             var secrets = new Dictionary<string, Secret>();
 
@@ -75,7 +114,7 @@ namespace BuildXL.Cache.Host.Service
                 secrets[request.Name] = secret;
             }
 
-            return Task.FromResult(secrets);
+            return Task.FromResult(new RetrievedSecrets(secrets));
         }
 
         private Secret CreateSasTokenSecret(RetrieveSecretsRequest request, string secretValue)
@@ -112,11 +151,10 @@ namespace BuildXL.Cache.Host.Service
                 IPAddressOrRange = null,
             });
 
-            var internalSasToken = new SasToken()
-            {
-                Token = sasToken,
-                StorageAccount = cloudStorageAccount.Credentials.AccountName,
-            };
+            var internalSasToken = new SasToken(
+                                       token: sasToken,
+                                       storageAccount: cloudStorageAccount.Credentials.AccountName,
+                                       resourcePath: null);
             return new UpdatingSasToken(internalSasToken);
         }
     }

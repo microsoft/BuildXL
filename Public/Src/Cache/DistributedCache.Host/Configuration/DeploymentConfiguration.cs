@@ -144,9 +144,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string Name { get; set; }
 
         /// <summary>
-        /// The amount of time the secret can be cached before needing to be requeried
+        /// The amount of time the secret can be cached before needing to be re-queried.
         /// </summary>
-        public TimeSpan TimeToLive { get; set; }
+        public TimeSpan TimeToLive { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
         /// Overrides the key vault uri used to retrieve this secret

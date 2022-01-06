@@ -227,8 +227,9 @@ namespace BuildXL.Processes
         /// </summary>
         public static readonly string StdOutputsDirNameInLog = "StdOutputs";
 
-        private bool m_forceExecuteLocally = false;
-        
+        private readonly ProcessRunLocation m_runLocation = ProcessRunLocation.Default;
+        private readonly RemoteSandboxedProcessData.Builder m_remoteSbDataBuilder;
+
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
         /// </summary>
@@ -262,7 +263,8 @@ namespace BuildXL.Processes
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null,
             PluginManager pluginManager = null,
             ISandboxFileSystemView sandboxFileSystemView = null,
-            IPipGraphFileSystemView pipGraphFileSystemView = null)
+            IPipGraphFileSystemView pipGraphFileSystemView = null,
+            ProcessRunLocation runLocation = ProcessRunLocation.Default)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -405,6 +407,12 @@ namespace BuildXL.Processes
             m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM = new List<string>();
             m_fileSystemView = sandboxFileSystemView;
             m_pipGraphFileSystemView = pipGraphFileSystemView;
+            m_runLocation = runLocation;
+
+            if (runLocation == ProcessRunLocation.Remote)
+            {
+                m_remoteSbDataBuilder = new RemoteSandboxedProcessData.Builder(m_pathTable);
+            }
         }
 
         /// <inheritdoc />
@@ -887,21 +895,16 @@ namespace BuildXL.Processes
             }
         }
 
-        private bool SandboxedProcessNeedsExecuteRemote => m_sandboxConfig.RemoteAllProcesses;
+        private bool SandboxedProcessShouldExecuteRemote => m_runLocation == ProcessRunLocation.Remote;
 
         private bool SandboxedProcessNeedsExecuteExternal =>
-            SandboxedProcessNeedsExecuteRemote
+            SandboxedProcessShouldExecuteRemote
             || (// Execution mode is external
                 m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
                 // Only pip that requires admin privilege.
                 && m_pip.RequiresAdmin);
 
-        private bool ShouldSandboxedProcessExecuteExternal =>
-            SandboxedProcessNeedsExecuteExternal
-            // Container is disabled.
-            && !m_containerConfiguration.IsIsolationEnabled
-            // Local execution is not enforced when process needs to execute remotely.
-            && (!SandboxedProcessNeedsExecuteRemote || !m_forceExecuteLocally);
+        private bool ShouldSandboxedProcessExecuteExternal => SandboxedProcessNeedsExecuteExternal && !m_containerConfiguration.IsIsolationEnabled;
 
         private bool ShouldSandboxedProcessExecuteInVm =>
             ShouldSandboxedProcessExecuteExternal
@@ -1112,7 +1115,7 @@ namespace BuildXL.Processes
 
                 string externalSandboxedProcessDirectory = m_layoutConfiguration.ExternalSandboxedProcessDirectory.ToString(m_pathTable);
 
-                if (SandboxedProcessNeedsExecuteRemote)
+                if (SandboxedProcessShouldExecuteRemote)
                 {
                     PopulateRemoteSandboxedProcessData(info);
 
@@ -1165,7 +1168,7 @@ namespace BuildXL.Processes
 
         private void PopulateRemoteSandboxedProcessData(SandboxedProcessInfo info)
         {
-            if (!SandboxedProcessNeedsExecuteRemote)
+            if (!SandboxedProcessShouldExecuteRemote)
             {
                 return;
             }
@@ -1173,19 +1176,19 @@ namespace BuildXL.Processes
             // <see cref="RemoteSandboxedProcessData"/> for the reason why one should not add output directories
             // when populating remote data.
 
-            var tempDirectories = new HashSet<string>(OperatingSystemHelper.PathComparer);
+            Contract.Assert(m_remoteSbDataBuilder != null);
 
             if (m_pip.TempDirectory.IsValid)
             {
-                tempDirectories.Add(m_pip.TempDirectory.ToString(m_pathTable));
+                m_remoteSbDataBuilder.AddTempDirectory(m_pip.TempDirectory);
             }
 
             foreach (var tempDir in m_pip.AdditionalTempDirectories)
             {
-                tempDirectories.Add(tempDir.ToString(m_pathTable));
+                m_remoteSbDataBuilder.AddTempDirectory(tempDir);
             }
 
-            info.RemoteSandboxedProcessData = new RemoteSandboxedProcessData(tempDirectories.ToList());
+            info.RemoteSandboxedProcessData = m_remoteSbDataBuilder.Build();
         }
 
         private void PopulateExternalVMSandboxedProcessData(SandboxedProcessInfo info)
@@ -1253,17 +1256,10 @@ namespace BuildXL.Processes
                     {
                         if (process is RemoteSandboxedProcess remoteSandboxedProcess && remoteSandboxedProcess.ShouldRunLocally == true)
                         {
-                            m_forceExecuteLocally = true;
-                            
-                            if (!SetMessageCountSemaphoreIfRequested())
-                            {
-                                return SandboxedProcessPipExecutionResult.PreparationFailure();
-                            }
-
-                            return await RunAsync(
-                                cancellationToken,
-                                remoteSandboxedProcess.SandboxedProcessInfo.SandboxConnection,
-                                remoteSandboxedProcess.SandboxedProcessInfo.SidebandWriter);
+                            return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                                SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                                RetryInfo.GetDefault(RetryReason.RemoteFallback),
+                                primaryProcessTimes: result.PrimaryProcessTimes);
                         }
 
                         int exitCode = externalSandboxedProcess.ExitCode ?? -1;
@@ -2231,7 +2227,7 @@ namespace BuildXL.Processes
                 m_sandboxConfig.LogObservedFileAccesses
                 // When sandboxed process needs to be remoted, the remoting infrastructure, like AnyBuild, typically requires all
                 // reported file accesses.
-                || SandboxedProcessNeedsExecuteRemote;
+                || SandboxedProcessShouldExecuteRemote;
             m_fileAccessManifest.BreakOnUnexpectedAccess = m_sandboxConfig.BreakOnUnexpectedFileAccess;
             m_fileAccessManifest.FailUnexpectedFileAccesses = m_sandboxConfig.FailUnexpectedFileAccesses;
             m_fileAccessManifest.ReportProcessArgs = m_sandboxConfig.LogProcesses;
@@ -2280,9 +2276,7 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
-                && (!m_sandboxConfig.RemoteAllProcesses || m_forceExecuteLocally)
-                && !OperatingSystemHelper.IsUnixOS)
+            if (OperatingSystemHelper.IsWindowsOS && !SandboxedProcessNeedsExecuteExternal)
             {
                 // Semaphore names don't allow '\\' chars.
                 if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
@@ -2296,15 +2290,23 @@ namespace BuildXL.Processes
 
         }
 
-        private void AddUntrackedScopeToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddScope(
-            path,
-            mask: m_excludeReportAccessMask,
-            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+        private void AddUntrackedScopeToManifest(AbsolutePath path, FileAccessManifest manifest = null)
+        {
+            (manifest ?? m_fileAccessManifest).AddScope(
+                path,
+                mask: m_excludeReportAccessMask,
+                values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            m_remoteSbDataBuilder?.AddUntrackedScope(path);
+        }
 
-        private void AddUntrackedPathToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddPath(
-            path,
-            mask: m_excludeReportAccessMask,
-            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+        private void AddUntrackedPathToManifest(AbsolutePath path, FileAccessManifest manifest = null)
+        {
+            (manifest ?? m_fileAccessManifest).AddPath(
+                path,
+                mask: m_excludeReportAccessMask,
+                values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            m_remoteSbDataBuilder?.AddUntrackedPath(path);
+        }
 
         private void AllowCreateDirectoryForDirectoriesOnPath(AbsolutePath path, HashSet<AbsolutePath> processedPaths, bool startWithParent = true)
         {

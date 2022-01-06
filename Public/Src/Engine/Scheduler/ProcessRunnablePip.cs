@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -68,6 +69,11 @@ namespace BuildXL.Scheduler
         /// Source change affected input of the pip
         /// </summary>
         public IReadOnlyCollection<AbsolutePath> ChangeAffectedInputs { get; set; }
+
+        /// <summary>
+        /// Run location of the process.
+        /// </summary>
+        public ProcessRunLocation RunLocation { get; set; } = ProcessRunLocation.Default;
 
         private readonly int m_weightBasedOnHistoricCpuUsage;
 

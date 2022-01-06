@@ -86,6 +86,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             PluginLocations = new List<AbsolutePath>();
             TreatAbsentDirectoryAsExistentUnderOpaque = true;
+
+            EnableProcessRemoting = false;
+            ProcessCanRunRemoteTags = new List<string>();
+            ProcessMustRunLocalTags = new List<string>();
+            RemotingThresholdMultiplier = 1.5;
         }
 
         /// <nodoc />
@@ -169,6 +174,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatAbsentDirectoryAsExistentUnderOpaque = template.TreatAbsentDirectoryAsExistentUnderOpaque;
             MaxWorkersPerModule = template.MaxWorkersPerModule;
             UseHistoricalCpuUsageInfo = template.UseHistoricalCpuUsageInfo;
+
+            EnableProcessRemoting = template.EnableProcessRemoting;
+            NumOfRemoteAgentLeases = template.NumOfRemoteAgentLeases;
+            ProcessCanRunRemoteTags = new List<string>(template.ProcessCanRunRemoteTags);
+            ProcessMustRunLocalTags = new List<string>(template.ProcessMustRunLocalTags);
+            RemotingThresholdMultiplier = template.RemotingThresholdMultiplier;
+
             StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
         }
 
@@ -420,5 +432,31 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UpdateFileContentTableByScanningChangeJournal { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableProcessRemoting { get; set; }
+
+        /// <inheritdoc />
+        public int? NumOfRemoteAgentLeases { get; set; }
+
+        /// <inheritdoc />
+        public List<string> ProcessCanRunRemoteTags { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<string> IScheduleConfiguration.ProcessCanRunRemoteTags => ProcessCanRunRemoteTags;
+
+        /// <inheritdoc />
+        public List<string> ProcessMustRunLocalTags { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<string> IScheduleConfiguration.ProcessMustRunLocalTags => ProcessMustRunLocalTags;
+
+        /// <inheritdoc />
+        public int EffectiveMaxProcesses => MaxProcesses + (EnableProcessRemoting ? (NumOfRemoteAgentLeasesValue < 0 ? 0 : NumOfRemoteAgentLeasesValue) : 0);
+
+        /// <inheritdoc />
+        public double RemotingThresholdMultiplier { get; set; }
+
+        private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? 2 * MaxProcesses;
     }
 }

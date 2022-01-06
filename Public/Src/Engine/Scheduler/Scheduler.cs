@@ -429,7 +429,7 @@ namespace BuildXL.Scheduler
         {
             int availableRemoteWorkersCount = AvailableRemoteWorkersCount;
 
-            int targetProcessSlots = m_scheduleConfiguration.MaxProcesses;
+            int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
             int targetCacheLookupSlots = m_scheduleConfiguration.MaxCacheLookup;
 
             int newProcessSlots;
@@ -1241,7 +1241,7 @@ namespace BuildXL.Scheduler
 
             m_schedulerCancellationTokenSource = new CancellationTokenSource();
 
-            m_servicePipTracker = new ServicePipTracker(Context);
+            m_servicePipTracker = new ServicePipTracker(context);
             m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
             m_ipcProvider = new IpcProviderWithMemoization(
@@ -1282,7 +1282,9 @@ namespace BuildXL.Scheduler
             }
 
             m_testHooks = testHooks;
-            LocalWorker = new LocalWorker(m_scheduleConfiguration, pipQueue, m_testHooks?.DetoursListener, Context);
+            LocalWorker = m_scheduleConfiguration.EnableProcessRemoting
+                ? new LocalWorkerWithRemoting(m_scheduleConfiguration, m_configuration.Sandbox, pipQueue, m_testHooks?.DetoursListener, context)
+                : new LocalWorker(m_scheduleConfiguration, pipQueue, m_testHooks?.DetoursListener, context);
             m_workers = new List<Worker> { LocalWorker };
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
@@ -1761,6 +1763,8 @@ namespace BuildXL.Scheduler
         public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
         {
             Dictionary<string, long> statistics = new Dictionary<string, long>();
+            LocalWorkerWithRemoting localWorkerWithRemoting = LocalWorker as LocalWorkerWithRemoting;
+
             lock (m_statusLock)
             {
                 m_fileContentManager.LogStats(loggingContext);
@@ -1941,6 +1945,10 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForHit, cacheLookupPerfInfosForHits.Min(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Min(a => a?.NumPathSetsDownloaded) ?? -1);
+
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunRemoteProcesses, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunRemote : 0);
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunLocallyProcessesOnRemotingWorker, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunLocally : 0);
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRemoteFallbackRetries, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRemoteFallbackRetryLocally : 0);
 
             var currentTime = DateTime.UtcNow;
             var earlyReleaseSavingDurationMs = Workers.Where(a => a.WorkerEarlyReleasedTime != null).Select(a => (currentTime - a.WorkerEarlyReleasedTime.Value).TotalMilliseconds).Sum();
@@ -2421,7 +2429,8 @@ namespace BuildXL.Scheduler
                         copyFileDone: copyFileStats.DoneCount,
                         copyFileNotDone: copyFileStats.Total - copyFileStats.DoneCount - copyFileStats.IgnoredCount,
                         writeFileDone: writeFileStats.DoneCount,
-                        writeFileNotDone: writeFileStats.Total - writeFileStats.DoneCount - writeFileStats.IgnoredCount);
+                        writeFileNotDone: writeFileStats.Total - writeFileStats.DoneCount - writeFileStats.IgnoredCount,
+                        procsRemoted: LocalWorker is LocalWorkerWithRemoting remoteLocal ? remoteLocal.CurrentRunRemoteCount : 0);
                 }
 
                 // Number of process pips that are not completed yet.
@@ -2557,7 +2566,8 @@ namespace BuildXL.Scheduler
             long copyFileDone,
             long copyFileNotDone,
             long writeFileDone,
-            long writeFileNotDone)
+            long writeFileNotDone,
+            long procsRemoted)
         {
             // Noop if no process information is included. This can happen for the last status event in a build using
             // incremental scheduling if it goes through the codepath where zero files changed. All other codepaths
@@ -2594,7 +2604,8 @@ namespace BuildXL.Scheduler
                     copyFileDone,
                     copyFileNotDone,
                     writeFileDone,
-                    writeFileNotDone);
+                    writeFileNotDone,
+                    procsRemoted);
             }
             else
             {
@@ -2623,7 +2634,8 @@ namespace BuildXL.Scheduler
                     copyFileDone,
                     copyFileNotDone,
                     writeFileDone,
-                    writeFileNotDone);
+                    writeFileNotDone,
+                    procsRemoted);
             }
         }
 
@@ -4419,8 +4431,8 @@ namespace BuildXL.Scheduler
                     // The pip was canceled due to retryable failure
                     if (executionResult.Result == PipResultStatus.Canceled && !IsTerminating)
                     {
-                        Contract.Requires(executionResult.RetryInfo != null, $"Retry Information is required for all retry cases. IsTerminating: {m_scheduleTerminating}");
-                        RetryReason? retryReason = executionResult.RetryInfo.RetryReason;
+                        Contract.Assert(executionResult.RetryInfo != null, $"Retry Information is required for all retry cases. IsTerminating: {m_scheduleTerminating}");
+                        RetryReason retryReason = executionResult.RetryInfo.RetryReason;
 
                         if (worker.IsLocal)
                         {
@@ -4454,7 +4466,7 @@ namespace BuildXL.Scheduler
                                     Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
                                 }
                             }
-                            else if (retryReason.IsPrepOrVmFailure())
+                            else if (retryReason.IsPreProcessExecOrRemotingInfraFailure())
                             {
                                 if (processRunnable.Performance.RetryCountDueToRetryableFailures == m_scheduleConfiguration.MaxRetriesDueToRetryableFailures)
                                 {
@@ -4465,6 +4477,11 @@ namespace BuildXL.Scheduler
                                 else
                                 {
                                     Logger.Log.PipRetryDueToRetryableFailures(operationContext, processRunnable.Description, retryReason.ToString());
+                                    if (retryReason == RetryReason.RemoteFallback)
+                                    {
+                                        // Force local execution.
+                                        processRunnable.RunLocation = ProcessRunLocation.Local;
+                                    }
                                 }
                             }
                         }

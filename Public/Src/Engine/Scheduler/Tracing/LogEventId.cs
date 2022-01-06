@@ -486,8 +486,8 @@ namespace BuildXL.Scheduler.Tracing
         // Retry Pips on Same/Different Workers
         ExcessivePipRetriesDueToRetryableFailures = 14514,
         PipRetryDueToRetryableFailures = 14515,
-        PipProcessRetriedOnSameWorker = 14516,
-        PipProcessRetriedOnDifferentWorker = 14517,
+        PipProcessRetriedInline = 14516,
+        PipProcessRetriedByReschedule = 14517,
         FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater = 14518,
         ModuleWorkerMapping = 14519,
         AddedNewWorkerToModuleAffinity = 14520,

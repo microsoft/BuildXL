@@ -238,6 +238,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "analyzeDependencyViolations",
                             opt => { /* DEPRECATED -- DO NOTHING */ }),
+                        OptionHandlerFactory.CreateOption(
+                            "augmentingPathSetCommonalityFactor",
+                            opt =>  cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateBoolOption(
                             "breakOnUnexpectedFileAccess",
                             opt => sandboxConfiguration.BreakOnUnexpectedFileAccess = opt),
@@ -352,7 +355,7 @@ namespace BuildXL
                             opt => loggingConfiguration.DumpFailedPips = opt),
                         OptionHandlerFactory.CreateOption(
                             "dumpFailedPipsLogLimit",
-                            opt => loggingConfiguration.DumpFailedPipsLogLimit = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                            opt => loggingConfiguration.DumpFailedPipsLogLimit = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "dumpFailedPipsWithDynamicData",
                             opt => loggingConfiguration.DumpFailedPipsWithDynamicData = opt),
@@ -438,6 +441,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableLessAggresiveMemoryProjection",
                             sign => schedulingConfiguration.EnableLessAggresiveMemoryProjection = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableProcessRemoting",
+                            sign => schedulingConfiguration.EnableProcessRemoting = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableSetupCostWhenChoosingWorker",
                             sign => schedulingConfiguration.EnableSetupCostWhenChoosingWorker = sign),
@@ -793,6 +799,9 @@ namespace BuildXL
                             "noWarn",
                             opt => ParseInt32ListOption(opt, loggingConfiguration.NoWarnings)),
                         OptionHandlerFactory.CreateOption(
+                            "numRemoteAgentLeases",
+                            opt => schedulingConfiguration.NumOfRemoteAgentLeases = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "numRetryFailedPipsOnAnotherWorker",
                             opt => distributionConfiguration.NumRetryFailedPipsOnAnotherWorker = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption2(
@@ -831,9 +840,6 @@ namespace BuildXL
                             "pathSetThreshold",
                             opt => cacheConfiguration.AugmentWeakFingerprintPathSetThreshold = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
-                            "augmentingPathSetCommonalityFactor",
-                            opt =>  cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
-                        OptionHandlerFactory.CreateOption(
                             "pathSetAugmentationMonitoring",
                             opt => cacheConfiguration.MonitorAugmentedPathSets = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
@@ -866,6 +872,12 @@ namespace BuildXL
                             "printFile2FileDependencies",
                             opt => frontEndConfiguration.FileToFileReportDestination = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
+                            "processCanRunRemoteTags",
+                            opt => schedulingConfiguration.ProcessCanRunRemoteTags.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", s => s.Trim()))),
+                        OptionHandlerFactory.CreateOption(
+                            "processMustRunLocalTags",
+                            opt => schedulingConfiguration.ProcessMustRunLocalTags.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", s => s.Trim()))),
+                        OptionHandlerFactory.CreateOption(
                             "processRetries",
                             opt => schedulingConfiguration.ProcessRetries = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
@@ -890,15 +902,15 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "relatedActivityId",
                             opt => loggingConfiguration.RelatedActivityId = CommandLineUtilities.ParseStringOption(opt)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "remoteAllProcesses",
-                            sign => sandboxConfiguration.RemoteAllProcesses = sign),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "remoteTelemetry",
                             (opt, sign) =>
                             loggingConfiguration.RemoteTelemetry =
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, RemoteTelemetry.EnabledAndNotify, RemoteTelemetry.Disabled),
                             isEnabled: () => loggingConfiguration.RemoteTelemetry.HasValue && loggingConfiguration.RemoteTelemetry.Value != RemoteTelemetry.Disabled),
+                        OptionHandlerFactory.CreateOption(
+                            "remotingThresholdMultiplier",
+                            opt =>  schedulingConfiguration.RemotingThresholdMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, double.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "replaceExistingFileOnMaterialization",
                             sign => cacheConfiguration.ReplaceExistingFileOnMaterialization = sign),

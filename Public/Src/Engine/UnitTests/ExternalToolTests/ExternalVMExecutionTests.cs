@@ -82,8 +82,8 @@ namespace ExternalToolTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.PipRetryDueToRetryableFailures, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
-            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnSameWorker, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
-            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnDifferentWorker, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedInline, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedByReschedule, Configuration.Schedule.MaxRetriesDueToRetryableFailures, allowMore: true);
             AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToRetryableFailures);
         }
 
@@ -109,8 +109,8 @@ namespace ExternalToolTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.PipRetryDueToRetryableFailures, 0, allowMore: false);       // Should not be retried
-            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnSameWorker, 0, allowMore: false);        // Should not be retried on same worker
-            AssertVerboseEventLogged(LogEventId.PipProcessRetriedOnDifferentWorker, 0, allowMore: false);   // Should not be retried on different worker
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedInline, 0, allowMore: false);        // Should not be retried on same worker
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedByReschedule, 0, allowMore: false);   // Should not be retried on different worker
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError);
         }
 

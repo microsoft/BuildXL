@@ -713,9 +713,10 @@ namespace BuildXL.Scheduler
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
 
-                    if (processResult != null && 
-                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
-                        !(processResult.RetryInfo?.RetryReason).IsPrepOrVmFailure())
+                    if (processResult != null
+                        && processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed
+                        && (processResult.RetryInfo == null
+                            || !(processResult.RetryInfo.RetryReason).IsPreProcessExecOrRemotingInfraFailure()))
                     {
                         if (!(processResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
@@ -725,7 +726,7 @@ namespace BuildXL.Scheduler
                             processResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
                             processResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount))
                         {
-                            string retryReason = processResult.RetryInfo != null ? $", Retry Reason: {processResult.RetryInfo.RetryReason}, Retry Location: {processResult.RetryInfo.RetryLocation}" : "";
+                            string retryReason = processResult.RetryInfo != null ? $", Retry Reason: {processResult.RetryInfo.RetryReason}, Retry Location: {processResult.RetryInfo.RetryMode}" : "";
                             Contract.Assert(false, "Invalid execution status: " + processResult.Status + retryReason);
                         }
 

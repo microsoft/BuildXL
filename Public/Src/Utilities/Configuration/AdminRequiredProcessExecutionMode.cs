@@ -4,7 +4,7 @@
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// The verbosity level for logging
+    /// Execution mode for processes that require admin privilege.
     /// </summary>
     public enum AdminRequiredProcessExecutionMode : byte
     {
@@ -17,7 +17,8 @@ namespace BuildXL.Utilities.Configuration
         /// The admin-required sandboxed process will be launched from a separate sandboxed process executor tool.
         /// </summary>
         /// <remarks>
-        /// This mode is mainly used for testing purpose.
+        /// This mode is introduced to check the functionality of process execution via sandboxed process executor tool, which "simulates"
+        /// the process execution in VM. This mode is mainly used for testing purpose.
         /// </remarks>
         ExternalTool,
 

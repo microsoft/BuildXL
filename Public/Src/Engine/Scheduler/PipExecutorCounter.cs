@@ -1287,6 +1287,11 @@ namespace BuildXL.Scheduler
         VmExecutionRetriesCount,
 
         /// <summary>
+        /// Total number of processes that were retried locally after running remotely in due to some remoting failure.
+        /// </summary>
+        TotalRemoteFallbackRetries,
+
+        /// <summary>
         /// Number of times non-existent directory probes for paths under opaque directories
         /// re-classified as existing directory probes.
         /// </summary>
@@ -1303,6 +1308,16 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         FileContentManagerEnumerateOutputDirectoryHashArtifacts,
+
+        /// <summary>
+        /// Total number of processes that ran remotely.
+        /// </summary>
+        TotalRunRemoteProcesses,
+
+        /// <summary>
+        /// Total number of processes that ran locally on worker capable of remoting.
+        /// </summary>
+        TotalRunLocallyProcessesOnRemotingWorker
     }
 
     /// <summary>

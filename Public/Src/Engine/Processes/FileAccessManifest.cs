@@ -531,6 +531,11 @@ namespace BuildXL.Processes
         /// When no manifest path is found, the returned manifest path is <see cref="AbsolutePath.Invalid"/>. 
         /// The node policy is always set (and will contain the policy of the root node if no explicit 
         /// manifest path is found)
+        /// 
+        /// TODO: BUG 1904974
+        ///       When the manifest is obtained from a deserialization, it will have a new empty path table.
+        ///       This method only works if the given path is obtained from the same path table that the original
+        ///       file access manifest holds before being serialized.
         /// </remarks>
         public bool TryFindManifestPathFor(AbsolutePath path, out AbsolutePath manifestPath, out FileAccessPolicy nodePolicy)
         {

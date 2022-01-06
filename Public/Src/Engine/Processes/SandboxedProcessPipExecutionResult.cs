@@ -392,12 +392,12 @@ namespace BuildXL.Processes
             Contract.Requires(numberOfWarnings >= 0);
             Contract.Requires(containerConfiguration != null);
             Contract.Requires(retryInfo == null || status != SandboxedProcessPipExecutionStatus.Succeeded);
-            
+
             // Protect against invalid combinations of RetryLocation and RetryReason
-            Contract.Requires(!RetryInfo.RetryAbleOnSameWorker(retryInfo) || retryInfo.RetryReason != RetryReason.ResourceExhaustion);
-            Contract.Requires(!RetryInfo.RetryAbleOnSameWorker(retryInfo) || retryInfo.RetryReason != RetryReason.ProcessStartFailure);
-            Contract.Requires(!RetryInfo.RetryAbleOnSameWorker(retryInfo) || retryInfo.RetryReason != RetryReason.TempDirectoryCleanupFailure);
-            Contract.Requires(!RetryInfo.RetryAbleOnSameWorker(retryInfo) || retryInfo.RetryReason != RetryReason.StoppedWorker);
+            Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.ResourceExhaustion);
+            Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.ProcessStartFailure);
+            Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.TempDirectoryCleanupFailure);
+            Contract.Requires(!retryInfo.CanBeRetriedInlineOrFalseIfNull() || retryInfo.RetryReason != RetryReason.StoppedWorker);
 
             Status = status;
             ObservedFileAccesses = observedFileAccesses;

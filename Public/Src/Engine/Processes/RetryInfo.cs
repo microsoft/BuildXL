@@ -2,89 +2,72 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
+using System.IO;
 
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Some Failing Processes can be retried.
-    /// This class defines the details required for the retry.
+    /// Information for process retrial, including the reason and the location (same worker vs. different worker) for retry.
     /// </summary>
     public class RetryInfo
     {
         /// <summary>
-        /// Reason for retry
+        /// Reason for retry.
         /// </summary>
         public RetryReason RetryReason { get; }
 
         /// <summary>
-        /// Location for retry.
-        /// Caller can decide to retry at a different location
+        /// Mode for retry.
         /// </summary>
-        public RetryLocation RetryLocation { get; }
+        public RetryMode RetryMode { get; }
 
-        /// <nodoc/>
-        private RetryInfo(RetryReason retryReason, RetryLocation retryLocation)
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        private RetryInfo(RetryReason retryReason, RetryMode retryMode)
         {
             RetryReason = retryReason;
-            RetryLocation = retryLocation;
+            RetryMode = retryMode;
         }
 
-        /// <summary>
-        /// Returns a RetryInfo object to be retried on the Same Worker
-        /// </summary>
-        private static RetryInfo RetryOnSameWorker(RetryReason retryReason)
-        {
-            return new RetryInfo(retryReason, RetryLocation.SameWorker);
-        }
+        private static RetryInfo RetryInline(RetryReason retryReason) => new (retryReason, RetryMode.Inline);
+
+        private static RetryInfo RetryByReschedule(RetryReason retryReason) => new (retryReason, RetryMode.Reschedule);
+
+        private static RetryInfo RetryInlineFirstThenByReschedule(RetryReason retryReason) => new (retryReason, RetryMode.Both);
 
         /// <summary>
-        /// Returns a RetryInfo object to be retried on a Different Worker
+        /// Checks if a process can be retried inline.
         /// </summary>
-        private static RetryInfo RetryOnDifferentWorker(RetryReason retryReason)
-        {
-            return new RetryInfo(retryReason, RetryLocation.DifferentWorker);
-        }
+        public bool CanBeRetriedInline() => RetryMode.CanBeRetriedInline();
 
         /// <summary>
-        /// Returns a RetryInfo object to be retried on the Same Worker first, and retried on another worker of it fails again
+        /// Checks if a process can be retried by requeuing it to the scheduler.
         /// </summary>
-        private static RetryInfo RetryOnSameAndDifferentWorkers(RetryReason retryReason)
-        {
-            return new RetryInfo(retryReason, RetryLocation.Both);
-        }
-
-        private bool RetryAbleOnSameWorker() => RetryLocation == RetryLocation.SameWorker || RetryLocation == RetryLocation.Both;
-        private bool RetryAbleOnDifferentWorker() => RetryLocation == RetryLocation.DifferentWorker || RetryLocation == RetryLocation.Both;
+        public bool CanBeRetriedByReschedule() => RetryMode.CanBeRetriedByReschedule();
 
         /// <summary>
-        /// Returns true if retry location is <see cref="RetryLocation.SameWorker"/> or <see cref="RetryLocation.Both"/> after a null check
+        /// Serializes this instance through an instance of <see cref="BinaryWriter"/>.
         /// </summary>
-        public static bool RetryAbleOnSameWorker(RetryInfo retryInfo) => retryInfo?.RetryAbleOnSameWorker() ?? false;
-
-        /// <summary>
-        /// Returns true if retry location is <see cref="RetryLocation.DifferentWorker"/> or <see cref="RetryLocation.Both"/> after a null check
-        /// </summary>
-        public static bool RetryAbleOnDifferentWorker(RetryInfo retryInfo) => retryInfo?.RetryAbleOnDifferentWorker() ?? false;
-
-        /// <nodoc/>
-        public void Serialize(BuildXLWriter writer)
+        public void Serialize(BinaryWriter writer)
         {
             writer.Write((int)RetryReason);
-            writer.Write((int)RetryLocation);
+            writer.Write((int)RetryMode);
         }
 
-        /// <nodoc/>
-        public static RetryInfo Deserialize(BuildXLReader reader)
+        /// <summary>
+        /// Deserializes an instance of <see cref="RetryInfo"/> from an instance of <see cref="BinaryReader"/>.
+        /// </summary>
+        public static RetryInfo Deserialize(BinaryReader reader)
         {
             var retryReason = (RetryReason)reader.ReadInt32();
-            var retryLocation = (RetryLocation)reader.ReadInt32();
+            var retryLocation = (RetryMode)reader.ReadInt32();
 
             return new RetryInfo(retryReason, retryLocation);
         }
 
         /// <summary>
-        /// Returns a RetryInfo object with the default location for the given RetryReason.
+        /// Gets the default retry information (e.g., retry location) for a given <see cref="RetryReason"/>.
         /// </summary>
         public static RetryInfo GetDefault(RetryReason reason)
         {
@@ -94,56 +77,76 @@ namespace BuildXL.Processes
                 case RetryReason.ProcessStartFailure:
                 case RetryReason.TempDirectoryCleanupFailure:
                 case RetryReason.StoppedWorker:
-                    return RetryOnDifferentWorker(reason);
+                    return RetryByReschedule(reason);
 
                 case RetryReason.OutputWithNoFileAccessFailed:
                 case RetryReason.MismatchedMessageCount:
                 case RetryReason.AzureWatsonExitCode:
                 case RetryReason.UserSpecifiedExitCode:
-                    return RetryOnSameWorker(reason);
+                    return RetryInline(reason);
 
                 case RetryReason.VmExecutionError:
-                    return RetryOnSameAndDifferentWorkers(reason);
+                    return RetryInlineFirstThenByReschedule(reason);
+
+                case RetryReason.RemoteFallback:
+                    return RetryByReschedule(reason);
 
                 default:
                     throw Contract.AssertFailure("Default not defined for RetryReason: " + reason.ToString());
             }
         }
-
-        /// <summary>
-        /// Returns retry info to retry on a different worker when the failing process was run in a VM.
-        /// </summary>
-        /// <remarks>Temporary mitigation for bug 1871707</remarks>
-        public static RetryInfo GetRetryInfoForVmMitigation()
-        {
-            return RetryOnDifferentWorker(RetryReason.UserSpecifiedExitCode);
-        }
     }
 
     /// <summary>
-    /// Location where retry should occur.
+    /// Extensions for <see cref="RetryInfo"/>.
     /// </summary>
-    public enum RetryLocation
+    public static class RetryInfoExtensions
     {
         /// <summary>
-        /// Retry on Same Worker
+        /// Returns true if the process can be retried inline; or false otherwise, including null instance.
         /// </summary>
-        SameWorker = 0,
+        public static bool CanBeRetriedInlineOrFalseIfNull(this RetryInfo @this) => @this?.CanBeRetriedInline() ?? false;
 
         /// <summary>
-        /// Retry on Different Worker
+        /// Returns true if the process can be retried by requeuing it back to the scheduler; or false otherwise, including null instance.
         /// </summary>
-        DifferentWorker = 1,
+        public static bool CanBeRetriedByRescheduleOrFalseIfNull(this RetryInfo @this) => @this?.CanBeRetriedByReschedule() ?? false;
+    }
+
+    /// <summary>
+    /// Mode or mechanism for retrying processes.
+    /// </summary>
+    public enum RetryMode
+    {
+        /// <summary>
+        /// Asks the pip executor to re-execute the process without requeuing (sending the process back) to the scheduler.
+        /// </summary>
+        /// <remarks>
+        /// This retry mode guarantees that the process will be retried on the same worker.
+        /// </remarks>
+        Inline = 0,
 
         /// <summary>
-        /// Retry on Same Worker before retrying on Different Worker
-        /// Behavior mimics <see cref="SameWorker"/> until we reach the local retry limit, and then mimics <see cref="DifferentWorker"/>.
+        /// Ask the pip executor to send the process back to the scheduler so that it goes through to the scheduler queue.
         /// </summary>
+        /// <remarks>
+        /// In distributed build, this retry mode can make the process re-execute on a different worker. In non distributed build,
+        /// the process will be retried on the same worker until reaching retry limit.
+        /// </remarks>
+        Reschedule = 1,
+
+        /// <summary>
+        /// Retry inline first until reaching retry limit, then reschedule.
+        /// </summary>
+        /// <remarks>
+        /// This mode is useful when we want to retry the process first on the same worker (guaranteed by <see cref="Inline"/>), then
+        /// when failure persists, retry the process on a different worker.
+        /// </remarks>
         Both = 2,
     }
 
     /// <summary>
-    /// Reasons to retry failing pips
+    /// Reasons for retrying a failing process.
     /// </summary>
     public enum RetryReason
     {
@@ -191,41 +194,40 @@ namespace BuildXL.Processes
         /// The sandboxed process may be retried due to failures caused during VM execution.
         /// </summary>
         VmExecutionError = 8,
+
+        /// <summary>
+        /// The sandboxed process may be retried due to fallback from remote execution.
+        /// </summary>
+        RemoteFallback = 9
     }
 
     /// <summary>
-    /// Extensions
+    /// Extensions for <see cref="RetryReason"/>.
     /// </summary>
     public static class RetryReasonExtensions
     {
         /// <summary>
-        /// Is retryable failure during the prep
+        /// Is retryable failure during the pre process execution.
         /// </summary>
-        public static bool IsPrepRetryableFailure(this RetryReason? retryReason)
+        public static bool IsPreProcessExecRetryableFailure(this RetryReason retryReason)
         {
-            if (retryReason == null)
-            {
-                return false;
-            }
-
             switch (retryReason)
             {
                 case RetryReason.ProcessStartFailure:
                 case RetryReason.TempDirectoryCleanupFailure:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
-        /// Is retryable failure due to a process failure in VM or failure during prep
+        /// Is retryable failure due to a pre process execution failure or due to remoting (VM or AnyBuild) infrastructure error.
         /// </summary>
-        public static bool IsPrepOrVmFailure(this RetryReason? retryReason)
-        {
-            return retryReason.IsPrepRetryableFailure() ||
-                retryReason == RetryReason.VmExecutionError;
-        }
+        public static bool IsPreProcessExecOrRemotingInfraFailure(this RetryReason retryReason) =>
+                retryReason.IsPreProcessExecRetryableFailure()
+                || retryReason == RetryReason.VmExecutionError
+                || retryReason == RetryReason.RemoteFallback;
 
         /// <summary>
         /// Is retryable failure due to Detours
@@ -237,9 +239,25 @@ namespace BuildXL.Processes
                 case RetryReason.MismatchedMessageCount:
                 case RetryReason.OutputWithNoFileAccessFailed:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
+    }
+
+    /// <summary>
+    /// Extensions for <see cref="RetryMode"/>.
+    /// </summary>
+    public static class RetryLocationExtensions
+    {
+        /// <summary>
+        /// Checks if retry can be done inline by the pip executor.
+        /// </summary>
+        public static bool CanBeRetriedInline(this RetryMode @this) => @this == RetryMode.Inline || @this == RetryMode.Both;
+
+        /// <summary>
+        /// Checks if retry can be done by requeuing the process to the scheduler.
+        /// </summary>
+        public static bool CanBeRetriedByReschedule(this RetryMode @this) => @this == RetryMode.Reschedule || @this == RetryMode.Both;
     }
 }

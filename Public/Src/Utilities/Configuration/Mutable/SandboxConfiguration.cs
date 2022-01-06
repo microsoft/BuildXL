@@ -52,7 +52,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsForIncrementalTool = false;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
             VmConcurrencyLimit = 0;
-            RemoteAllProcesses = false;
             DirectoriesToEnableFullReparsePointParsing = new List<AbsolutePath>();
         }
 
@@ -103,7 +102,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsForIncrementalTool = template.PreserveOutputsForIncrementalTool;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
             VmConcurrencyLimit = template.VmConcurrencyLimit;
-            RemoteAllProcesses = template.RemoteAllProcesses;
             DirectoriesToEnableFullReparsePointParsing = pathRemapper.Remap(template.DirectoriesToEnableFullReparsePointParsing);
         }
 
@@ -266,9 +264,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int VmConcurrencyLimit { get; set; }
-
-        /// <inheritdoc />
-        public bool RemoteAllProcesses { get; set; }
 
         /// <nodoc />
         public List<AbsolutePath> DirectoriesToEnableFullReparsePointParsing { get; set; }

@@ -1764,7 +1764,7 @@ namespace BuildXL.Scheduler.Tracing
             "{procsPending} pending, {procsWaiting} waiting {procsNotIgnored} total. | " +
             "All:{pipsSucceeded} succeeded, {pipsFailed} failed, {pipsSkippedDueToFailedDependencies} skipped,  {pipsRunning} running, {pipsReady} ready," +
             " {pipsWaiting} waiting ({pipsWaitingOnSemaphore} on semaphore), {pipsWaitingOnResources} resource paused. Services: {servicePipsRunning}." +
-            " LimitingResource:{limitingResource}. {perfInfoForLog}";
+            " LimitingResource:{limitingResource}. Remote: {procsRemoted}. {perfInfoForLog}";
 
         private const Generators StatusGenerators = EventGenerators.LocalOnly;
         private const Level StatusLevel = Level.Informational;
@@ -1803,7 +1803,8 @@ namespace BuildXL.Scheduler.Tracing
             long copyFileDone,
             long copyFileNotDone,
             long writeFileDone,
-            long writeFileNotDone);
+            long writeFileNotDone,
+            long procsRemoted);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipStatusNonOverwriteable,
@@ -1837,7 +1838,8 @@ namespace BuildXL.Scheduler.Tracing
             long copyFileDone,
             long copyFileNotDone,
             long writeFileDone,
-            long writeFileNotDone);
+            long writeFileNotDone,
+            long procsRemoted);
         #endregion
 
         [GeneratedEvent(
@@ -3766,22 +3768,22 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void HandlePipStepOnWorkerFailed(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
-            (int)LogEventId.PipProcessRetriedOnSameWorker,
+            (int)LogEventId.PipProcessRetriedInline,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip failed due to '{reason}'. Will be retried on the same worker. Attempt {attempt} of {limit}.")]
-        public abstract void PipProcessToBeRetriedOnSameWorker(LoggingContext context, int attempt, int limit, string pipDescription, string reason);
+            Message = "[{pipDescription}] Pip failed due to '{reason}', and will be retried inline on the same worker. Attempt {attempt} of {limit}.")]
+        public abstract void PipProcessRetriedInline(LoggingContext context, int attempt, int limit, string pipDescription, string reason);
 
         [GeneratedEvent(
-            (int)LogEventId.PipProcessRetriedOnDifferentWorker,
+            (int)LogEventId.PipProcessRetriedByReschedule,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip failed due to '{reason}'. Will be retried on another worker.")]
-        public abstract void PipProcessToBeRetriedOnDifferentWorker(LoggingContext context, string pipDescription, string reason);
+            Message = "[{pipDescription}] Pip failed due to '{reason}', and will be reschduled. Rescheduling can cause the pip to run on another worker.")]
+        public abstract void PipProcessToBeRetriedByReschedule(LoggingContext context, string pipDescription, string reason);
 
         [GeneratedEvent(
            (ushort)LogEventId.FileContentManagerTryMaterializeFileAsyncFileArtifactAvailableLater,

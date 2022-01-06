@@ -19,8 +19,8 @@ namespace BuildXL.Processes
     {
         private readonly ExternalToolSandboxedProcessExecutor m_tool;
 
-        private readonly StringBuilder m_output = new StringBuilder();
-        private readonly StringBuilder m_error = new StringBuilder();
+        private readonly StringBuilder m_output = new ();
+        private readonly StringBuilder m_error = new ();
 
         private AsyncProcessExecutor m_processExecutor;
 
@@ -104,7 +104,7 @@ namespace BuildXL.Processes
                 {
                     FileName = m_tool.ExecutablePath,
                     Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
-                    WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
+                    WorkingDirectory = WorkingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,

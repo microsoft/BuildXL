@@ -20,7 +20,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Distribution
@@ -105,10 +104,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public virtual int TotalProcessSlots
         {
-            get
-            {
-                return Volatile.Read(ref m_totalProcessSlots);
-            }
+            get => Volatile.Read(ref m_totalProcessSlots);
 
             protected set
             {
@@ -146,15 +142,9 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public int TotalLightSlots
         {
-            get
-            {
-                return Volatile.Read(ref m_totalLightSlots);
-            }
+            get => Volatile.Read(ref m_totalLightSlots);
 
-            protected set
-            {
-                Volatile.Write(ref m_totalLightSlots, value);
-            }
+            protected set => Volatile.Write(ref m_totalLightSlots, value);
         }
 
         /// <summary>
@@ -174,10 +164,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public int? TotalRamMb
         {
-            get
-            {
-                return m_totalMemoryMb;
-            }
+            get => m_totalMemoryMb;
 
             set
             {
@@ -298,10 +285,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public virtual WorkerNodeStatus Status
         {
-            get
-            {
-                return m_status;
-            }
+            get => m_status;
 
             set
             {
@@ -313,24 +297,12 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Whether the worker become available at any time
         /// </summary>
-        public virtual bool EverAvailable
-        {
-            get
-            {
-                return true;
-            }
-        }
+        public virtual bool EverAvailable => true;
 
         /// <summary>
         /// The number of the build requests waiting to be sent
         /// </summary>
-        public virtual int WaitingBuildRequestsCount
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public virtual int WaitingBuildRequestsCount => 0;
 
         /// <summary>
         /// Gets the name of the worker
@@ -347,6 +319,11 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public WorkerPipStateManager.Snapshot PipStateSnapshot { get; }
 
+        /// <summary>
+        /// Pip execution context.
+        /// </summary>
+        protected PipExecutionContext PipExecutionContext { init; get; }
+
         private readonly OperationKind m_workerOperationKind;
 
         /// <summary>
@@ -362,6 +339,7 @@ namespace BuildXL.Scheduler.Distribution
 
             m_workerOperationKind = OperationKind.Create("Worker " + Name);
             DrainCompletion = TaskSourceSlim.Create<bool>();
+            PipExecutionContext = context;
             InitSemaphores(context);
         }
 

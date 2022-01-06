@@ -20,7 +20,7 @@ namespace BuildXL.Scheduler.Distribution
     /// <summary>
     /// Defines an in-process worker.
     /// </summary>
-    public sealed class LocalWorker : Worker
+    public class LocalWorker : Worker
     {
         /// <summary>
         /// Set of pips that are currently executing. Executing here means running under PipExecutor.
@@ -76,7 +76,7 @@ namespace BuildXL.Scheduler.Distribution
         public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener, PipExecutionContext context)
             : base(workerId: 0, name: "#0 (Local)", context: context)
         {
-            TotalProcessSlots = scheduleConfig.MaxProcesses;
+            TotalProcessSlots = scheduleConfig.EffectiveMaxProcesses;
             TotalCacheLookupSlots = scheduleConfig.MaxCacheLookup;
             TotalLightSlots = scheduleConfig.MaxLightProcesses;
             TotalMaterializeInputSlots = scheduleConfig.MaxMaterialize;
@@ -155,7 +155,8 @@ namespace BuildXL.Scheduler.Distribution
                     fingerprint,
                     processIdListener: UpdateCurrentlyRunningPipsCount,
                     expectedMemoryCounters: processRunnable.ExpectedMemoryCounters.Value,
-                    detoursEventListener: m_detoursListener);
+                    detoursEventListener: m_detoursListener,
+                    runLocation: processRunnable.RunLocation);
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;

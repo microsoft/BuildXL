@@ -259,6 +259,7 @@ namespace BuildXL
                         var copyFileNotDone = (long)payload[21];
                         var writeFileDone = (long)payload[22];
                         var writeFileNotDone = (long)payload[23];
+                        var remoteProcs = (long)payload[24];
                         long done = pipsSucceeded + pipsFailed + pipsSkipped;
                         long total = done + pipsRunning + pipsWaiting + pipsReady;
 
@@ -288,7 +289,14 @@ namespace BuildXL
                                 sb.Append(@" {{6,{0}}} skipped,");
                             }
 
-                            sb.Append(@" {{8,{0}}} executing, {{2,{0}}} waiting]");
+                            if (remoteProcs > 0)
+                            {
+                                sb.Append(@" {{8,{0}}} executing ({{14}} remote), {{2,{0}}} waiting]");
+                            }
+                            else
+                            {
+                                sb.Append(@" {{8,{0}}} executing, {{2,{0}}} waiting]");
+                            }
 
                             if (pipsWaitingOnSemaphore > 0)
                             {
@@ -309,7 +317,7 @@ namespace BuildXL
                             sb.Length = 0;
 
                             var format = FinalizeFormatStringLayout(sb, statusLine, 0);
-                            
+
                             sb.AppendFormat(
                                 CultureInfo.InvariantCulture,
                                 format,
@@ -326,7 +334,8 @@ namespace BuildXL
                                 done,
                                 total,
                                 filePipsDone,
-                                filePipsTotal);
+                                filePipsTotal,
+                                remoteProcs);
 
                             if (pipsWaitingOnResources > 0)
                             {

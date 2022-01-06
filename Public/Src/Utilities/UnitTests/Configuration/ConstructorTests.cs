@@ -65,7 +65,7 @@ namespace Test.BuildXL.Utilities
 
             foreach (var property in type.GetTypeInfo().GetProperties())
             {
-                if (!property.GetGetMethod().IsStatic)
+                if (!property.GetGetMethod().IsStatic && property.GetSetMethod() != null)
                 {
                     var newValue = CreateInstance(context, property.PropertyType, booleanDefault);
                     property.SetValue(instance, newValue);

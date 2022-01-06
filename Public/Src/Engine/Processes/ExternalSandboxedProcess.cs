@@ -119,6 +119,21 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Some sandboxed processes may want to clean up the whole working directory to prevent it from becoming large.
+        /// </summary>
+        /// <remarks>
+        /// Note that this method does not clean up the working directory of the underlying process. It cleans up the
+        /// working directory of the external sandboxed process executor that is defined in the constructor of <see cref="ExternalSandboxedProcess"/>.
+        /// The reason for this is to keep the entries of the root of working directories small. Particularly when the process needs
+        /// to execute remotely, the directory entries of the root need to be sent to the remote agent. The more entries, the bigger the data
+        /// needs to be sent remotely.
+        /// </remarks>
+        protected void CleanUpWorkingDirectory()
+        {
+            FileUtilities.DeleteDirectoryContents(WorkingDirectory, deleteRootDirectory: true);
+        }
+
+        /// <summary>
         /// Throws an instance of <see cref="BuildXLException"/>.
         /// </summary>
         protected void ThrowBuildXLException(string message, Exception inner = null)

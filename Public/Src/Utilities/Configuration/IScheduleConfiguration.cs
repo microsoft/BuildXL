@@ -52,8 +52,12 @@ namespace BuildXL.Utilities.Configuration
         int MaxChooseWorkerCacheLookup { get; }
 
         /// <summary>
-        /// Specifies the maximum number of processes that BuildXL will launch at one time. The default value is 25% more than the total number of processors in the current machine.
+        /// Specifies the maximum number of processes that BuildXL will launch at one time locally. The default value is the total number of processors in the current machine.
         /// </summary>
+        /// <remarks>
+        /// This configuration is used also to control parallelism of components other than the number or processes to execute. For proper control of maximum number of processes,
+        /// one should use <see cref="EffectiveMaxProcesses"/>.
+        /// </remarks>
         int MaxProcesses { get; }
 
         /// <summary>
@@ -424,5 +428,72 @@ namespace BuildXL.Utilities.Configuration
         /// Updates file content table by scanning change journal.
         /// </summary>
         bool UpdateFileContentTableByScanningChangeJournal { get; }
+
+        /// <summary>
+        /// Makes scheduler aware of process remoting via AnyBuild.
+        /// </summary>
+        bool EnableProcessRemoting { get; }
+
+        /// <summary>
+        /// Number of remote leases for process remoting.
+        /// </summary>
+        /// <remarks>
+        /// This setting determines the maximum number of processes that can be executed remotely at one time
+        /// when <see cref="EnableProcessRemoting"/> is true.
+        /// 
+        /// AnyBuild agents have a leasing mechanism for executing processes in them. AnyBuild client needs to get a lease
+        /// from an agent in order to execute a process in that agent. The more agents we have, the more leases available, and
+        /// the more processes can be executed remotely.
+        /// 
+        /// In the current implementation, BuildXL does not know the number of available leases (or agents). So, in conjuction with <see cref="MaxProcesses"/>,
+        /// this number is only used to increase the number of ready-to-execute processes that can be released at one time by the CPU dispatcher queue. Having
+        /// more released processes gives the scheduler chance to execute some of them remotely.
+        /// 
+        /// TODO: Get information about agent leases from AnyBuild, and so this number can be set dynamically.
+        /// </remarks>
+        int? NumOfRemoteAgentLeases { get; }
+
+        /// <summary>
+        /// Tags indicating that the process can run on remote agent.
+        /// </summary>
+        /// <remarks>
+        /// These tags are only applicable when <see cref="EnableProcessRemoting"/> is true.
+        /// </remarks>
+        IReadOnlyList<string> ProcessCanRunRemoteTags { get; }
+
+        /// <summary>
+        /// Tags indicating that the process must run locally.
+        /// </summary>
+        /// <remarks>
+        /// These tags are only applicable when <see cref="EnableProcessRemoting"/> is true.
+        /// </remarks>
+        IReadOnlyList<string> ProcessMustRunLocalTags { get; }
+
+        /// <summary>
+        /// Specifies the maximum number of processes that BuildXL will execute (or launch) at one time.
+        /// </summary>
+        /// <remarks>
+        /// This setting includes the maximum number of processes that BuildXL will execute (or launch) locally at one time, as
+        /// specified by <see cref="MaxProcesses"/>. This setting also includes the maximum number of processes that BuildXL
+        /// will execute in remote agents when <see cref="EnableProcessRemoting"/> is true. Thus, this configuration should not
+        /// be less than <see cref="MaxProcesses"/>.
+        /// 
+        /// The reason for introducing this configuration is because <see cref="MaxProcesses"/> is also used to control parallelism of
+        /// components other than the number of processes to execute.
+        /// 
+        /// By default the value is the sum of <see cref="MaxProcesses"/> and <see cref="NumOfRemoteAgentLeases"/>. If <see cref="EnableProcessRemoting"/>
+        /// is false, then <see cref="NumOfRemoteAgentLeases"/> is assumed to be 0.
+        /// 
+        /// Note that, even though we have <see cref="MaxProcesses"/> + <see cref="NumOfRemoteAgentLeases"/> processes ready to execute, that does not mean
+        /// that <see cref="MaxProcesses"/> will execute locally and <see cref="NumOfRemoteAgentLeases"/> will execute remotely. The scheduler may decide
+        /// to execute <see cref="MaxProcesses"/> locally, but only start remoting processes when certain threshold is exceeded. However, the number
+        /// of (ready-to-execute) processes that will be released by the (CPU) dispatcher queue will not exceed <see cref="EffectiveMaxProcesses"/>.
+        /// </remarks>
+        int EffectiveMaxProcesses { get; }
+
+        /// <summary>
+        /// The multiplier for <see cref="MaxProcesses"/> that determines when the scheduler starts to execute process pips remotely when <see cref="EnableProcessRemoting"/> is true.
+        /// </summary>
+        double RemotingThresholdMultiplier { get; }
     }
 }

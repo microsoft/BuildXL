@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
@@ -183,6 +184,9 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (executeResult.result != null)
             {
+                PostProcessSandboxedProcessResult(sandboxedProcessInfo, executeResult.result);
+                LogSummary(executeResult.result);
+
                 if (m_configuration.PrintObservedAccesses)
                 {
                     PrintObservedAccesses(sandboxedProcessInfo.PathTable, executeResult.result);
@@ -195,6 +199,32 @@ namespace BuildXL.SandboxedProcessExecutor
             }
 
             return executeResult.exitCode;
+        }
+
+        private void LogSummary(SandboxedProcessResult result)
+        {
+            m_logger.LogInfo($"Process exited with exit code '{result.ExitCode}' in {result.PrimaryProcessTimes.TotalWallClockTime.TotalMilliseconds} ms");
+        }
+
+        private void PostProcessSandboxedProcessResult(SandboxedProcessInfo info, SandboxedProcessResult result)
+        {
+            m_logger.LogInfo("Post processing sandboxed process result");
+
+            if (result.FileAccesses != null)
+            {
+                if (info.RemoteSandboxedProcessData != null)
+                {
+                    // TODO: Hack! Hack!
+                    //       This changes is done so that AnyBuild does not try to send untracked files as inputs/outputs.
+                    //       This changes the file accesses that BuildXL will see.
+                    //       Ideally, this filtration should be done in AnyBuild when processing the result of SandboxedProcessResult
+                    //       coming from this executor.
+                    HashSet<ReportedFileAccess> trackedAccesses = result
+                        .FileAccesses
+                        .Where(fa => !info.RemoteSandboxedProcessData.IsUntracked(fa.GetPath(info.PathTable))).ToHashSet();
+                    result.FileAccesses = trackedAccesses;
+                }
+            }
         }
 
         private void PrintObservedAccesses(PathTable pathTable, SandboxedProcessResult result)

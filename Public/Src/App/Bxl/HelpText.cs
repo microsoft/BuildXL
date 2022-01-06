@@ -896,6 +896,40 @@ namespace BuildXL
                 HelpLevel.Verbose);
             #endregion
 
+            hw.WriteBanner(
+                Strings.HelpText_DisplayHelp_ProcessRemotingBanner,
+                HelpLevel.Verbose);
+
+            #region Process Remoting
+
+            hw.WriteOption(
+                "/enableProcessRemoting[+|-]",
+                Strings.HelpText_DisplayHelp_EnableProcessRemoting,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/processCanRunRemoteTags:<semi-colon separated tags>",
+                Strings.HelpText_DisplayHelp_ProcessCanRunRemoteTags,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/processMustRunLocalTags:<semi-colon separated tags>",
+                Strings.HelpText_DisplayHelp_ProcessMustRunLocalTags,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/remotingThresholdMultiplier:<double>",
+                Strings.HelpText_DisplayHelp_RemotingThresholdMultiplier,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/numRemoteAgentLeases:<int>",
+                Strings.HelpText_DisplayHelp_NumRemoteAgentLeases,
+                HelpLevel.Verbose);
+
+            #endregion
+
+
             hw.WriteBanner(Strings.HelpText_DisplayHelp_DiagBanner);
 
             #region Diagnostics
@@ -1182,12 +1216,12 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/relatedActivityId:<guid>",
-                Strings.HelpText_DiplayHelp_RelatedActivityId,
+                Strings.HelpText_DisplayHelp_RelatedActivityId,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/vs[+|-]",
-                Strings.HelpText_DiplayHelp_VS);
+                Strings.HelpText_DisplayHelp_VS);
 
             hw.WriteOption(
                 "/solutionName:<string>",

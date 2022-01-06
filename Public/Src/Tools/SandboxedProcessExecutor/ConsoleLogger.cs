@@ -41,6 +41,8 @@ namespace BuildXL.SandboxedProcessExecutor
             lock (m_lock)
             {
                 ConsoleColor original = Console.ForegroundColor;
+                string dateTime = DateTime.UtcNow.ToString("yyyy.MM.dd HH:mm:ss.fff");
+                message = $"{dateTime} [{type.ToString().ToUpperInvariant()}]: {message}";
                 
                 switch (type)
                 {

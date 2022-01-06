@@ -1204,6 +1204,7 @@ namespace BuildXL.Scheduler
         /// <param name="processIdListener">Callback to call when the process is actually started (PID is passed to it) and when the process exited (negative PID is passed to it)</param>
         /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
         /// <param name="detoursEventListener">Detours listener to collect detours reported accesses. For tests only</param>
+        /// <param name="runLocation">Location for running the process.</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
             OperationContext operationContext,
@@ -1215,7 +1216,8 @@ namespace BuildXL.Scheduler
             ContentFingerprint? fingerprint,
             Action<int> processIdListener = null,
             ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters),
-            IDetoursEventListener detoursEventListener = null)
+            IDetoursEventListener detoursEventListener = null,
+            ProcessRunLocation runLocation = ProcessRunLocation.Default)
         {
             var context = environment.Context;
             var counters = environment.Counters;
@@ -1263,8 +1265,20 @@ namespace BuildXL.Scheduler
                     pip,
                     expectedMemoryCounters,
                     allowResourceBasedCancellation,
-                    async (resourceScope) => { return await ExecutePipAndHandleRetryAsync(resourceScope,
-                        operationContext, pip, expectedMemoryCounters, environment, state, processIdListener, detoursEventListener, start); });
+                    async (resourceScope) =>
+                    { 
+                        return await ExecutePipAndHandleRetryAsync(
+                            resourceScope,
+                            operationContext,
+                            pip,
+                            expectedMemoryCounters,
+                            environment,
+                            state,
+                            processIdListener,
+                            detoursEventListener,
+                            runLocation,
+                            start); 
+                    });
 
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
             LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseReportingExeResult, DateTime.UtcNow.Subtract(start));
@@ -1278,7 +1292,7 @@ namespace BuildXL.Scheduler
             // We may have some violations reported already (outright denied by the sandbox manifest).
             FileAccessReportingContext fileAccessReportingContext = executionResult.UnexpectedFileAccesses;
 
-            if (RetryInfo.RetryAbleOnDifferentWorker(executionResult.RetryInfo))
+            if (executionResult.RetryInfo.CanBeRetriedByRescheduleOrFalseIfNull())
             {
                 // No post processing for retryable pips
                 processExecutionResult.SetResult(operationContext, PipResultStatus.Canceled, executionResult.RetryInfo);
@@ -1334,7 +1348,7 @@ namespace BuildXL.Scheduler
                 executionResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.AzureWatsonExitCode)
             {
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, I($"Error should have been logged for failures after multiple retries on {executionResult.RetryInfo?.RetryLocation.ToString()} due to '{executionResult.RetryInfo?.RetryReason.ToString()}'"));
+                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, I($"Error should have been logged for failures after multiple retries on {executionResult.RetryInfo?.RetryMode.ToString()} due to '{executionResult.RetryInfo?.RetryReason.ToString()}'"));
             }
 
             Contract.Assert(executionResult.UnexpectedFileAccesses != null, "Success / ExecutionFailed provides all execution-time fields");
@@ -1565,6 +1579,7 @@ namespace BuildXL.Scheduler
             PipExecutionState.PipScopeState state,
             Action<int> processIdListener,
             IDetoursEventListener detoursEventListener,
+            ProcessRunLocation runLocation,
             DateTime start)
         {
             var context = environment.Context;
@@ -1770,7 +1785,8 @@ namespace BuildXL.Scheduler
                         reparsePointResolver: environment.ReparsePointAccessResolver,
                         staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs,
                         pluginManager: environment.PluginManager,
-                        pipGraphFileSystemView: environment.PipGraphView);
+                        pipGraphFileSystemView: environment.PipGraphView,
+                        runLocation: runLocation);
                     
                     resourceScope.RegisterQueryRamUsageMb(
                         () =>
@@ -1861,9 +1877,9 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    if (result.RetryInfo?.RetryLocation == RetryLocation.DifferentWorker)
+                    if (result.RetryInfo?.RetryMode == RetryMode.Reschedule)
                     {
-                        Logger.Log.PipProcessToBeRetriedOnDifferentWorker(operationContext,
+                        Logger.Log.PipProcessToBeRetriedByReschedule(operationContext,
                             processDescription, result.RetryInfo.RetryReason.ToString());
                     }
 
@@ -1880,20 +1896,19 @@ namespace BuildXL.Scheduler
                         continue;
                     }
 
-                    if (RetryInfo.RetryAbleOnSameWorker(result.RetryInfo))
+                    if (result.RetryInfo.CanBeRetriedInlineOrFalseIfNull())
                     {
                         if (remainingInternalSandboxedProcessExecutionFailureRetries <= 0)
                         {
-                            if (result.RetryInfo.RetryLocation == RetryLocation.SameWorker)
+                            if (result.RetryInfo.RetryMode == RetryMode.Inline)
                             {
-                                // Log errors for Retry cases on the SameWorker which have reached their local retry limit
-                                LogRetryOnSameWorkerErrors(result.RetryInfo.RetryReason, operationContext, pip, processDescription);
+                                // Log errors for inline retry on the same worker which have reached their local retry limit
+                                LogRetryInlineErrors(result.RetryInfo.RetryReason, operationContext, pip, processDescription);
                                 break;
                             }
                             else // Case: RetryLocation.Both
                             {
-                                Logger.Log.PipProcessToBeRetriedOnDifferentWorker(operationContext,
-                                    processDescription, result.RetryInfo.RetryReason.ToString());
+                                Logger.Log.PipProcessToBeRetriedByReschedule(operationContext, processDescription, result.RetryInfo.RetryReason.ToString());
                                 break;
                             }
                         }
@@ -1907,7 +1922,7 @@ namespace BuildXL.Scheduler
 
                             --remainingInternalSandboxedProcessExecutionFailureRetries;
 
-                            Logger.Log.PipProcessToBeRetriedOnSameWorker(operationContext,
+                            Logger.Log.PipProcessRetriedInline(operationContext,
                                 InternalSandboxedProcessExecutionFailureRetryCountMax - remainingInternalSandboxedProcessExecutionFailureRetries,
                                 InternalSandboxedProcessExecutionFailureRetryCountMax,
                                 processDescription, result.RetryInfo.RetryReason.ToString());
@@ -1918,10 +1933,12 @@ namespace BuildXL.Scheduler
                             {
                                 Contract.Assert(false, "Unexpected result error type.");
                             }
+
                             continue;
                         }
                         // Just break the loop below. The result is already set properly.
                     }
+
                     break;
                 }
 
@@ -1991,7 +2008,7 @@ namespace BuildXL.Scheduler
             return false; // Unhandled case, needs to be handled by the caller
         }
 
-        private static void LogRetryOnSameWorkerErrors(RetryReason retryReason, OperationContext operationContext, Process pip, string processDescription)
+        private static void LogRetryInlineErrors(RetryReason retryReason, OperationContext operationContext, Process pip, string processDescription)
         {
             switch (retryReason)
             {

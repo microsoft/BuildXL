@@ -273,11 +273,6 @@ namespace BuildXL.Utilities.Configuration
         int VmConcurrencyLimit { get; }
 
         /// <summary>
-        /// Whether or not to remote all process pips.
-        /// </summary>
-        bool RemoteAllProcesses { get; }
-
-        /// <summary>
         /// List of directory paths where full reparse point resolving will be applied to any path under them.
         /// This list is only considered when <see cref="IUnsafeSandboxConfiguration.IgnoreFullReparsePointResolving"/> is set to true and<see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is set to false. 
         /// </summary>

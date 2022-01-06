@@ -1,12 +1,31 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.IO;
+
 namespace BuildXL.Processes.Remoting
 {
     /// <summary>
-    /// CODESYNC: AnyBuild src/Client/Shim.Shared/Protocol.cs
+    /// Constants, helper methods, and descriptions for the protocol format between the Shim and AnyBuild.
     /// </summary>
-    public static class Protocol
+    /// <remarks>
+    /// The protocol between AnyBuild and the shim each use a length-prefixed string format. This is designed
+    /// not for minimizing size but to minimize encoding time - we need to get message information between
+    /// processes quickly, and memcpy is faster than UTF-8 conversion.
+    ///
+    /// The first 4 bytes in each packet are a direct copy of the int32 count of bytes in the remainder of
+    /// the message. The message payload is UTF-16 characters as a string. There is no null termination of
+    /// strings except where a message requires it.
+    /// 
+    /// Example when sending the string "Smessage" (a stdout message from AnyBuild to Shim) across the wire is below.
+    /// The string is 8 characters long, so it requires 16 bytes in the payload, so the prefix integer is 16.
+    ///
+    ///     ----Message size--- ---'S'--- ---'m'--- ---'e'--- ---'s'--- ---'s'--- ---'a'--- ---'g'--- ---'e'---
+    ///     0x10 0x00 0x00 0x00 0x53 0x00 0x6D 0x00 0x65 0x00 0x73 0x00 0x73 0x00 0x61 0x00 0x67 0x00 0x65 0x00
+    ///
+    /// .
+    /// </remarks>
+    internal static class Protocol
     {
         /// <summary>
         /// AnyBuild -> Shim message that tells the Shim to run the process locally.
@@ -25,9 +44,48 @@ namespace BuildXL.Processes.Remoting
 
         /// <summary>
         /// AnyBuild -> Shim string message prefix that indicates the remote process has completed.
-        /// It includes a return code, e.g. "C0" for a zero return code.
+        /// It includes the following semicolon-delimited fields:
+        /// - A process return/exit code
+        /// - A disposition, one of 'C' for a cache hit, 'R' for remoting, 'L' for local execution.
         /// </summary>
         public const char ProcessCompleteMessagePrefix = 'C';
+
+        public static string CreateProcessCompleteMessageSuffix(int exitCode, CommandExecutionDisposition disposition)
+        {
+            return $"{exitCode};{Disposition.ToProtocolDisposition(disposition)}";
+        }
+
+        /// <summary>
+        /// Execution dispositions. See <see cref="ProcessCompleteMessagePrefix"/>.
+        /// </summary>
+        public static class Disposition
+        {
+            public const char CacheHit = 'C';
+            public const char Remoted = 'R';
+            public const char RanLocally = 'L';
+
+            public static char ToProtocolDisposition(CommandExecutionDisposition disposition)
+            {
+                return disposition switch
+                {
+                    CommandExecutionDisposition.CacheHit => CacheHit,
+                    CommandExecutionDisposition.Remoted => Remoted,
+                    CommandExecutionDisposition.RanLocally => RanLocally,
+                    _ => throw new InvalidDataException($"Unexpected disposition {disposition}"),
+                };
+            }
+
+            public static CommandExecutionDisposition ToCommandExecutionDisposition(char protocolDisposition)
+            {
+                return protocolDisposition switch
+                {
+                    CacheHit => CommandExecutionDisposition.CacheHit,
+                    Remoted => CommandExecutionDisposition.Remoted,
+                    RanLocally => CommandExecutionDisposition.RanLocally,
+                    _ => throw new InvalidDataException($"Unexpected disposition {protocolDisposition}"),
+                };
+            }
+        }
 
         /// <summary>
         /// Shim -> AnyBuild string message prefix that runs a process. The following string is a null character

@@ -244,7 +244,8 @@ namespace Test.BuildXL
                     copyFileDone:100,
                     copyFileNotDone: 100,
                     writeFileDone: 10,
-                    writeFileNotDone:10);
+                    writeFileNotDone:10,
+                    procsRemoted: 0);
                 console.ValidateCall(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
             }
         }

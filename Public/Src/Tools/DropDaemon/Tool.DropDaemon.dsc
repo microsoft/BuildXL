@@ -45,7 +45,6 @@ export namespace DropDaemon {
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("Newtonsoft.Json").pkg,
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("Microsoft.Azure.Storage.Common").pkg,
             importFrom("Microsoft.Extensions.Logging.Abstractions.v6.0.0").pkg,
@@ -64,6 +63,7 @@ export namespace DropDaemon {
             ),
             importFrom("Microsoft.SBOM.Adapters").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("System.Text.Json.v5.0.0").pkg,
+            importFrom("Newtonsoft.Json.v13.0.1").pkg,
             importFrom("System.Text.Encodings.Web.v5.0.1").pkg,
         ],
         internalsVisibleTo: [
@@ -121,6 +121,13 @@ export namespace DropDaemon {
         return [
             ...BuildXLSdk.cacheBindingRedirects(),
             {
+                name: "Newtonsoft.Json",
+                publicKeyToken: "30ad4fe6b2a6aeed",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-13.0.0.0",
+                newVersion: "13.0.0.0", // Corresponds to { id: "Newtonsoft.Json", version: "13.0.1", alias: "Newtonsoft.Json.v13.0.1" }
+            },
+            {
                 name: "System.Text.Json",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
@@ -141,6 +148,7 @@ export namespace DropDaemon {
     export function dropDaemonRuntimeContentToSkip() {
         return [
             importFrom("System.Text.Json").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Newtonsoft.Json").pkg,
             importFrom("System.Text.Encodings.Web").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("Microsoft.Extensions.Logging.Abstractions").pkg,
         ];

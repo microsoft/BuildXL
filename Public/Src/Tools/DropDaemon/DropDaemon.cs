@@ -71,10 +71,6 @@ namespace Tool.DropDaemon
         private readonly ISBOMGenerator m_sbomGenerator;
         private BsiMetadataExtractor m_bsiMetadataExtractor;
         private readonly string m_sbomGenerationOutputDirectory;
-        /// <summary>
-        /// If set to 1, SBOMPackages will be added from component detection data to the SBOM.
-        /// </summary>
-        private const string m_enableSBOMPackageConversion = "__ENABLE_SBOM_PACKAGE_CONVERSION";
 
         // This field should be removed once this SBOM format is deprecated
         // Related work item: #1895958.
@@ -884,63 +880,60 @@ namespace Tool.DropDaemon
         /// </returns>
         private IEnumerable<SBOMPackage> GetSbomPackages()
         {
-            var shouldConvertPackages = Environment.GetEnvironmentVariable(m_enableSBOMPackageConversion);
-            if (shouldConvertPackages != null && shouldConvertPackages == "1")
+            // Read Path for bcde output from environment, this should already be set by Cloudbuild
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
+
+            if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
-                // Read Path for bcde output from environment, this should already be set by Cloudbuild
-                var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
-
-                if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
-                {
-                    // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
-                    // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
-                    Logger.Info($"The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
-                    return new List<SBOMPackage>();
-                }
-                else if (!System.IO.File.Exists(bcdeOutputJsonPath))
-                {
-                    Logger.Warning($"Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
-                    return new List<SBOMPackage>();
-                }
-
-
-                var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(bcdeOutputJsonPath);
-
-                foreach (var reportItem in adapterReport.Report)
-                {
-                    switch (reportItem.Type)
-                    {
-                        case AdapterReportItemType.Success:
-                        {
-                            if (!string.IsNullOrEmpty(reportItem.Details))
-                            {
-                                Logger.Info("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
-                            }
-                            break;
-                        }
-                        case AdapterReportItemType.Warning:
-                        {
-                            if (!string.IsNullOrEmpty(reportItem.Details))
-                            {
-                                Logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
-                            }
-                            break;
-                        }
-                        case AdapterReportItemType.Failure:
-                        {
-                            if (!string.IsNullOrEmpty(reportItem.Details))
-                            {
-                                Logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                return packages ?? new List<SBOMPackage>();
+                // This shouldn't happen, but SBOM creation can still happen without it a set of packages. So, log it and return an empty set.
+                // TODO [pgunasekara]: Change this to a Warning. Currently this is only Info level until CB changes are fully rolled out to avoid generating warnings unnecessarily.
+                Logger.Info($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. Component detection data will not be included in build manifest.");
+                return new List<SBOMPackage>();
+            }
+            else if (!System.IO.File.Exists(bcdeOutputJsonPath))
+            {
+                Logger.Warning($"[GetSbomPackages] Component detection output file not found at path '{bcdeOutputJsonPath}'. Component detection data will not be included in build manifest.");
+                return new List<SBOMPackage>();
             }
 
-            return new List<SBOMPackage>();
+            Logger.Info($"[GetSbomPackages] Retrieving component detection package list from file at {bcdeOutputJsonPath}");
+
+            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(bcdeOutputJsonPath);
+
+            foreach (var reportItem in adapterReport.Report)
+            {
+                switch (reportItem.Type)
+                {
+                    case AdapterReportItemType.Success:
+                    {
+                        if (!string.IsNullOrEmpty(reportItem.Details))
+                        {
+                            Logger.Info("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                        }
+                        break;
+                    }
+                    case AdapterReportItemType.Warning:
+                    {
+                        if (!string.IsNullOrEmpty(reportItem.Details))
+                        {
+                            Logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                        }
+                        break;
+                    }
+                    case AdapterReportItemType.Failure:
+                    {
+                        if (!string.IsNullOrEmpty(reportItem.Details))
+                        {
+                            Logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            var result = packages ?? new List<SBOMPackage>(); 
+            Logger.Verbose($"[GetSbomPackages] Retrieved {result.Count()} packages");
+            return result;
         }
 
         /// <summary>

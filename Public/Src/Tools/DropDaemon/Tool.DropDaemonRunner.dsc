@@ -549,7 +549,6 @@ export namespace DropDaemonRunner {
         "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 
         "QAUTHMATERIALROOT",                        // Auth material for low-privilege build.
         "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH", // Cloudbuild auth helper executable path for build cache, symbol, and drop
-        "__ENABLE_SBOM_PACKAGE_CONVERSION",
         ...cloudBuildVarsPointingToDirs];
     /**
      * Sets the values of the 'forwardEnvironmentVars'

@@ -19,4 +19,5 @@ enum SemanticPathFlags{
     Writable = 72;
     AllowCreateDirectory = 128;
     Static = 256;
+    Tokenizable = 512;
 }

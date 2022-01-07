@@ -78,12 +78,12 @@ namespace BuildXL.Engine
         /// <summary>
         /// Adds the root to the set of tokenized roots
         /// </summary>
-        public void Add(PathTable pathTable, BuildXL.Utilities.Configuration.IMount mount)
+        public void Add(PathTable pathTable, BuildXL.Utilities.Configuration.IMount mount, bool isTokenizable = false)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(mount != null);
 
-            Add(pathTable, new SemanticPathInfo(mount.Name, mount.Path, mount.TrackSourceFileChanges, mount.IsReadable, mount.IsWritable, mount.IsSystem, mount.IsStatic, mount.IsScrubbable,  mount.AllowCreateDirectory));
+            Add(pathTable, new SemanticPathInfo(mount.Name, mount.Path, mount.TrackSourceFileChanges, mount.IsReadable, mount.IsWritable, mount.IsSystem, mount.IsStatic, mount.IsScrubbable,  mount.AllowCreateDirectory, isTokenizable));
         }
 
         /// <summary>
@@ -151,12 +151,14 @@ namespace BuildXL.Engine
         /// <summary>
         /// Adds the root to the set of tokenized roots
         /// </summary>
+        /// <remarks>Unless force tokenization is requested, only mounts with <see cref="SemanticPathFlags.Tokenizable"/> will
+        /// register a tokenizable root</remarks>
         public void Add(PathTable pathTable, in SemanticPathInfo mount, bool forceTokenize = false)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(mount.IsValid);
 
-            if (forceTokenize || mount.IsSystem)
+            if (forceTokenize || mount.IsTokenizable)
             {
                 m_nameExpander.Add(pathTable, mount);
             }

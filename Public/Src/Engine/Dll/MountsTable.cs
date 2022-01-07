@@ -571,14 +571,37 @@ namespace BuildXL.Engine
             // flip alternative roots -> mount map for easier lookup
             var alternativeRoots = m_alternativeRoots.ToMultiValueDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
+            // Collect here the mount roots of tokenizable mounts. The logic is:
+            // * System mounts are tokenizable. 
+            // * Mounts that are descendants of a system mount are tokenizable
+            // Rationale: We don't tokenize all mounts because that can lead to incorrect fingerprinting. E.g. let's say a tool writes
+            // a path P in an output file, P is a descendant of a tokenized mount root M and the corresponding pip gets cached.
+            // If the pip is looked up on a machine where M is a different root M', then we can get a cache hit, whereas it should have been
+            // a miss because the tool would have produced an output file with a written path P'
+            // As a compromise solution, system mounts are deemed safe enough to tokenize because they tend to be stable enough and it is unlikely
+            // that tools embed system-related paths in produced files. Transitively, any non-system mount that has a 
+            // system mount above should be equally safe.
+            var tokenizableMountRoots = new HashSet<AbsolutePath>();
+
+            // All system mount paths
+            var systemMounts = m_mountPathIdentifiersByMount.Keys.Where(mount => mount.IsSystem && mount.Path.IsValid).Select(mount => mount.Path).ToHashSet();
+
             // Compute the depth of each mount root so parent mounts can be visited first
+            // As we go upwards, also verify if there is any parent mount that is a system one
             List<KeyValuePair<int, IMount>> mountsByRootDepth = new List<KeyValuePair<int, IMount>>();
             foreach (IMount mount in m_mountMapBuilder.Values)
             {
                 int depth = 0;
                 AbsolutePath path = mount.Path;
+
                 while (path.IsValid)
                 {
+                    // if a mount is defined in the same location of a system mount, or has a system mount somewhere above, then it is also tokenizable
+                    if (systemMounts.Contains(path))
+                    {
+                        tokenizableMountRoots.Add(mount.Path);
+                    }
+
                     path = path.GetParent(m_context.PathTable);
                     depth++;
                 }
@@ -613,7 +636,7 @@ namespace BuildXL.Engine
                 // TODO: Does not adding on success == false change behavior
                 if (success)
                 {
-                    MountPathExpander.Add(m_context.PathTable, childMount);
+                    MountPathExpander.Add(m_context.PathTable, childMount, isTokenizable: tokenizableMountRoots.Contains(childMount.Path));
 
                     if (alternativeRoots.TryGetValue(childMount, out var additionalRoots))
                     {
@@ -621,7 +644,17 @@ namespace BuildXL.Engine
                         {
                             MountPathExpander.AddWithExistingName(
                                 m_context.PathTable,
-                                new SemanticPathInfo(childMount.Name, root, childMount.TrackSourceFileChanges, childMount.IsReadable, childMount.IsWritable, childMount.IsSystem, childMount.IsStatic, childMount.IsScrubbable,  childMount.AllowCreateDirectory));
+                                new SemanticPathInfo(
+                                    childMount.Name, 
+                                    root, 
+                                    childMount.TrackSourceFileChanges, 
+                                    childMount.IsReadable, 
+                                    childMount.IsWritable, 
+                                    childMount.IsSystem, 
+                                    childMount.IsStatic, 
+                                    childMount.IsScrubbable, 
+                                    childMount.AllowCreateDirectory, 
+                                    tokenizable: tokenizableMountRoots.Contains(root)));
                         }
                     }
                 }

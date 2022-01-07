@@ -406,7 +406,7 @@ namespace Test.BuildXL.Scheduler
             MountPathExpander expander = new MountPathExpander(pathTable);
             string userProfileDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var userProfilePath = AbsolutePath.Create(pathTable, userProfileDir);
-            expander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), userProfilePath, SemanticPathFlags.System));
+            expander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), userProfilePath, SemanticPathFlags.System | SemanticPathFlags.Tokenizable));
 
             var fingerprinter = new PipContentFingerprinter(
                 m_context.PathTable,
@@ -438,6 +438,70 @@ namespace Test.BuildXL.Scheduler
 
             XAssert.IsTrue(json.Contains(appDataSubdirName.ToCanonicalizedPath()));
             XAssert.IsTrue(json.Contains(Path.GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)).ToCanonicalizedPath()));
+        }
+
+        [Fact]
+        public void TestSystemAndDescendantMountsStayOutOfFingerprints()
+        {
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+
+            string userProfileDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            PipDataBuilder pdb = new PipDataBuilder(m_context.PathTable.StringTable);
+            pdb.Add(AbsolutePath.Create(pathTable, userProfileDir));
+            EnvironmentVariable envVar = new EnvironmentVariable(m_context.StringTable.AddString("testVar"), pdb.ToPipData(" ", PipDataFragmentEscaping.NoEscaping));
+
+            string localAppDataDirSubfolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "subfolder");
+            PipDataBuilder pdb2 = new PipDataBuilder(m_context.PathTable.StringTable);
+            pdb2.Add(AbsolutePath.Create(pathTable, localAppDataDirSubfolder));
+            EnvironmentVariable envVar2 = new EnvironmentVariable(m_context.StringTable.AddString("testVar2"), pdb2.ToPipData(" ", PipDataFragmentEscaping.NoEscaping));
+
+            string unrelated = X("/x");
+            string underUnrelated = Path.Combine(unrelated, "subfolder");
+            PipDataBuilder pdb3 = new PipDataBuilder(m_context.PathTable.StringTable);
+            pdb3.Add(AbsolutePath.Create(pathTable, underUnrelated));
+            EnvironmentVariable envVar3 = new EnvironmentVariable(m_context.StringTable.AddString("testVar3"), pdb3.ToPipData(" ", PipDataFragmentEscaping.NoEscaping));
+
+            var dependencies = new HashSet<FileArtifact>() { executable };
+            var process = GetDefaultProcessBuilder(pathTable, executable)
+                .WithEnvironmentVariables(new EnvironmentVariable[] { envVar, envVar2, envVar3 })
+                .WithDependencies(dependencies)
+                .Build();
+
+            // Create a mounts table with 3 user-defined mounts: one in the same location as a system one (user-profile), a second one under a location under a
+            // a system mount (under-localappdata) and a third one in a location unrelated to system mounts
+            var mainConfig = AbsolutePath.Create(m_context.PathTable, X("/c/config.dsc"));
+            var commandLineConfiguration = new CommandLineConfiguration() { Startup = new StartupConfiguration() { ConfigFile =  mainConfig} };
+            BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandLineConfiguration, m_context.PathTable, bxlExeLocation: null, inTestMode: true);
+            BuildXLEngine.PopulateAndValidateConfiguration(commandLineConfiguration, commandLineConfiguration, m_context.PathTable, LoggingContext);
+
+            var mountsTable = MountsTable.CreateAndRegister(LoggingContext, m_context, commandLineConfiguration, CollectionUtilities.EmptyDictionary<string, string>());
+            mountsTable.AddResolvedMount(new Mount() { Name = PathAtom.Create(m_context.StringTable, "user-profile"), Path = AbsolutePath.Create(m_context.PathTable, userProfileDir) });
+            mountsTable.AddResolvedMount(new Mount() { Name = PathAtom.Create(m_context.StringTable, "under-localappdata"), Path = AbsolutePath.Create(m_context.PathTable, localAppDataDirSubfolder) });
+            mountsTable.AddResolvedMount(new Mount() { Name = PathAtom.Create(m_context.StringTable, "unrelated"), Path = AbsolutePath.Create(m_context.PathTable, unrelated) });
+
+            var success = mountsTable.CompleteInitialization();
+            XAssert.IsTrue(success);
+
+            var userProfilePath = AbsolutePath.Create(pathTable, userProfileDir);
+
+            var fingerprinter = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetContentHashLookup(executable),
+                ExtraFingerprintSalts.Default(),
+                pathExpander: mountsTable.MountPathExpander)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
+
+            // Make sure the actual user profile nor the subdir under local app data show up in the fingerprint
+            XAssert.IsFalse(fingerprintText.Contains(userProfileDir.ToCanonicalizedPath()));
+            XAssert.IsFalse(fingerprintText.Contains(localAppDataDirSubfolder.ToCanonicalizedPath()));
+
+            // Even if there is a mount containing this path, it should not be canonicalized because it is unrelated to system mounts
+            XAssert.IsTrue(fingerprintText.Contains(underUnrelated.ToCanonicalizedPath()));
         }
 
         [Theory]
@@ -532,8 +596,8 @@ namespace Test.BuildXL.Scheduler
             var userProfilePath = AbsolutePath.Create(pathTable, userProfile);
             var redirectedUserProfilePath = AbsolutePath.Create(pathTable, redirectedUserProfile);
             
-            expander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), redirectedUserProfilePath, SemanticPathFlags.System));
-            expander.AddWithExistingName(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), userProfilePath, SemanticPathFlags.System));
+            expander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), redirectedUserProfilePath, SemanticPathFlags.System | SemanticPathFlags.Tokenizable));
+            expander.AddWithExistingName(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), userProfilePath, SemanticPathFlags.System | SemanticPathFlags.Tokenizable));
 
             var fingerprinter = new PipContentFingerprinter(
                 m_context.PathTable,

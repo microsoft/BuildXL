@@ -37,7 +37,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Creates a new SemanticPathInfo
         /// </summary>
-        public SemanticPathInfo(PathAtom rootName, AbsolutePath root, bool allowHashing, bool readable, bool writable, bool system = false, bool isStatic = false, bool scrubbable = false, bool allowCreateDirectory = false)
+        public SemanticPathInfo(PathAtom rootName, AbsolutePath root, bool allowHashing, bool readable, bool writable, bool system = false, bool isStatic = false, bool scrubbable = false, bool allowCreateDirectory = false, bool tokenizable = false)
         {
             RootName = rootName;
             Root = root;
@@ -48,7 +48,8 @@ namespace BuildXL.Pips
                 (system ? SemanticPathFlags.System : SemanticPathFlags.None) |
                 (isStatic ? SemanticPathFlags.Static : SemanticPathFlags.None) |
                 (scrubbable ? SemanticPathFlags.Scrubbable : SemanticPathFlags.None) |
-                (allowCreateDirectory ? SemanticPathFlags.AllowCreateDirectory : SemanticPathFlags.None);
+                (allowCreateDirectory ? SemanticPathFlags.AllowCreateDirectory : SemanticPathFlags.None) |
+                (tokenizable ? SemanticPathFlags.Tokenizable : SemanticPathFlags.None);
         }
 
         /// <summary>
@@ -106,6 +107,11 @@ namespace BuildXL.Pips
         /// </summary>
         public bool HasPotentialBuildOutputs => (Flags & SemanticPathFlags.HasPotentialBuildOutputs) != SemanticPathFlags.None;
 
+        /// <summary>
+        /// Gets whether the path is subject to tokenization
+        /// </summary>
+        public bool IsTokenizable => (Flags & SemanticPathFlags.Tokenizable) != SemanticPathFlags.None;
+
         #region Serialization
 
         /// <summary>
@@ -115,7 +121,7 @@ namespace BuildXL.Pips
         {
             Contract.Requires(writer != null);
 
-            writer.Write((byte)Flags);
+            writer.Write((short)Flags);
             writer.Write(RootName);
             writer.Write(Root);
         }
@@ -127,7 +133,7 @@ namespace BuildXL.Pips
         {
             Contract.Requires(reader != null);
 
-            SemanticPathFlags info = (SemanticPathFlags)reader.ReadByte();
+            SemanticPathFlags info = (SemanticPathFlags)reader.ReadInt16();
             return new SemanticPathInfo(
                 reader.ReadPathAtom(),
                 reader.ReadAbsolutePath(),
@@ -140,7 +146,7 @@ namespace BuildXL.Pips
     /// Flags indicating path semantics (ie hashable)
     /// </summary>
     [Flags]
-    public enum SemanticPathFlags : byte
+    public enum SemanticPathFlags : short
     {
         /// <summary>
         /// Indicates that the path is not hashable, readable, or writeable.
@@ -186,5 +192,10 @@ namespace BuildXL.Pips
         /// Indicates that the path represents a static location added when the build started.
         /// </summary>
         Static = 1 << 7,
+
+        /// <summary>
+        /// Indicates that the path is allowed to be tokenized
+        /// </summary>
+        Tokenizable = 1 << 8,
     }
 }

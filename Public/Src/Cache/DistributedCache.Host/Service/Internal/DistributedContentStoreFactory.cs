@@ -79,6 +79,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _logger = arguments.Logger;
             _arguments = arguments;
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
+            
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreConstants.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
@@ -97,6 +98,9 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             RedisContentLocationStoreConfiguration = CreateRedisConfiguration();
             _distributedContentStoreSettings = CreateDistributedStoreSettings(_arguments, RedisContentLocationStoreConfiguration);
+
+            // Tracing configuration before creating anything.
+            TraceConfiguration();
 
             _copier = new DistributedContentCopier(
                 _distributedContentStoreSettings,
@@ -128,6 +132,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             );
 
             Services = new DistributedContentStoreServices(serviceArguments);
+        }
+
+        private void TraceConfiguration()
+        {
+            ConfigurationPrinter.TraceConfiguration(_distributedContentStoreSettings, _logger);
+            ConfigurationPrinter.TraceConfiguration(RedisContentLocationStoreConfiguration, _logger);
+            ConfigurationPrinter.TraceConfiguration(_arguments.LoggingSettings, _logger);
+            ConfigurationPrinter.TraceConfiguration(_arguments.Configuration.LocalCasSettings, _logger);
         }
 
         internal static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)
@@ -284,7 +296,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             _arguments.Overrides.Override(redisConfig);
 
-            ConfigurationPrinter.TraceConfiguration(redisConfig, _logger);
             return redisConfig;
         }
 
@@ -492,8 +503,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             distributedContentStoreSettings.CopyScheduler = CopySchedulerConfiguration.FromDistributedContentSettings(distributedSettings);
             arguments.Overrides.Override(distributedContentStoreSettings);
-
-            ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, arguments.Logger);
 
             return distributedContentStoreSettings;
         }

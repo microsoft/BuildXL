@@ -24,6 +24,6 @@ $dateTime = (get-date -Format "yyyyMMdd.HHmm");
 $version = "0.1.0-$dateTime.$userName"
 
 .\bxl -Minimal -DeployConfig Release -SharedCacheMode Disable /q:Release /q:ReleaseLinux /q:ReleaseDotNetCoreMac out\bin\release\cache\* /p:[BuildXL.Branding]SemanticVersion=$version /p:[BuildXL.Branding]SourceIdentification='1'
-.\dropout $version cloudbuild true
+.\dropout $version cloudbuild ' ' true
 
 

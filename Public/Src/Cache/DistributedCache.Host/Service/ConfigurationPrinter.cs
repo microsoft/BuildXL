@@ -8,6 +8,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
+#nullable enable
+
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
@@ -46,9 +48,9 @@ namespace BuildXL.Cache.Host.Service
         }
 
         /// <nodoc />
-        public static void TraceConfiguration<T>(T config, ILogger logger)
+        public static void TraceConfiguration<T>(T? config, ILogger logger)
         {
-            logger.Debug($"JSON serialized of {typeof(T)}: {ConfigToString(config)}");
+            logger.Debug($"JSON serialized of {typeof(T)}: {(config is null ? "null" : ConfigToString(config))}");
         }
     }
 
@@ -64,7 +66,7 @@ namespace BuildXL.Cache.Host.Service
 
     internal class AbsolutePathConverter : JsonConverter<AbsolutePath>
     {
-        public override AbsolutePath Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => default;
+        public override AbsolutePath Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => default!;
 
         public override void Write(Utf8JsonWriter writer, AbsolutePath value, JsonSerializerOptions options)
         {

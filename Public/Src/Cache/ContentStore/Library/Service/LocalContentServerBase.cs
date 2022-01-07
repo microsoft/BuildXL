@@ -417,7 +417,12 @@ namespace BuildXL.Cache.ContentStore.Service
         private void LogMachinePerformanceStatistics(OperationContext context)
         {
             var machineStatistics = _performanceCollector.GetMachinePerformanceStatistics();
-            Tracer.Info(context, "MachinePerformanceStatistics: " + machineStatistics);
+
+            // Tracing a few things as metrics.
+            Tracer.TrackMetric(context, $"MachinePerf_{nameof(machineStatistics.ProcessThreadCount)}", machineStatistics.ProcessThreadCount);
+            Tracer.TrackMetric(context, $"MachinePerf_{nameof(machineStatistics.ThreadPoolWorkerThreads)}", machineStatistics.ThreadPoolWorkerThreads);
+
+            Tracer.Info(context, "MachinePerformanceStatistics: " + machineStatistics.ToTracingString());
         }
 
         private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)

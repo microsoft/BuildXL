@@ -295,7 +295,7 @@ namespace BuildXL.Cache.Host.Service
         {
             var manifest = deploymentInfo.Manifest;
 
-            return context.PerformOperationWithTimeoutAsync<BoolResult>(Tracer, async context =>
+            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
             {
                 // Stores files into CAS and populate file specs with hash and size info
                 var results = await DownloadQueue.SelectAsync(
@@ -342,6 +342,7 @@ namespace BuildXL.Cache.Host.Service
 
                 return results.FirstOrDefault(r => !r.Succeeded) ?? BoolResult.Success;
             },
+            timeout: Settings.DeployTimeout,
             extraStartMessage: $"Id={manifest.ContentId}, Files={manifest.Deployment.Count}",
             extraEndMessage: r => $"Id={manifest.ContentId}, Files={manifest.Deployment.Count}");
         }

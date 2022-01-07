@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public TimeSpan LeaseExpiryTime { get; set; } = TimeSpan.FromMinutes(5);
 
-        public TimeSpan? StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
+        public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
     }
 
     public class AzureBlobStorageMasterElectionMechanism : StartupShutdownSlimBase, IMasterElectionMechanism

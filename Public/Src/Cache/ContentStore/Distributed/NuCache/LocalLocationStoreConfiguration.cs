@@ -542,7 +542,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Time after which a restore checkpoint operation is automatically cancelled.
         /// </summary>
-        public TimeSpan? RestoreCheckpointTimeout { get; set; }
+        public TimeSpan RestoreCheckpointTimeout { get; set; } = TimeSpan.MaxValue;
     }
 
     /// <summary>

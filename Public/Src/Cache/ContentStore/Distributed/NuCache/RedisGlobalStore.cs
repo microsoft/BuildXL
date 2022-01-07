@@ -591,8 +591,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer.Debug(nestedContext, $"Saved checkpoint into slot '{slotNumber}'.");
                     return BoolResult.Success;
                 },
-                Counters[GlobalStoreCounters.RegisterCheckpoint],
-                timeout: Configuration.ClusterRedisOperationTimeout);
+                timeout: Configuration.ClusterRedisOperationTimeout,
+                Counters[GlobalStoreCounters.RegisterCheckpoint]);
         }
 
         public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)

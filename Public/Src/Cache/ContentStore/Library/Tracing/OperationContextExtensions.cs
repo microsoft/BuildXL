@@ -487,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <nodoc />
         public static async Task<T> WithOptionalTimeoutAsync<T>(Func<OperationContext, Task<T>> operation, TimeSpan? timeout, OperationContext context, [CallerMemberName] string? caller = null) where T : ResultBase
         {
-            if (timeout == null)
+            if (timeout == null || timeout.Value == TimeSpan.MaxValue)
             {
                 return await operation(context);
             }

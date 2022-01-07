@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             Task<BoolResult> resultTask = kind switch
             {
                 AsyncOperationKind.AsyncOperation => context.PerformOperationAsync(tracer, operation),
-                AsyncOperationKind.AsyncOperationWithTimeout => context.PerformOperationWithTimeoutAsync(tracer, _ => operation()),
+                AsyncOperationKind.AsyncOperationWithTimeout => context.PerformOperationWithTimeoutAsync(tracer, _ => operation(), timeout: TimeSpan.MaxValue),
                 AsyncOperationKind.Initialization => context.PerformInitializationAsync(tracer, operation),
                 _ => throw new InvalidOperationException(),
             };

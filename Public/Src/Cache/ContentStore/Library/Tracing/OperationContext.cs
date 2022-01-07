@@ -152,13 +152,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         public Task<T> PerformOperationWithTimeoutAsync<T>(
             Tracer operationTracer,
             Func<OperationContext, Task<T>> operation,
+            TimeSpan timeout,
             Counter? counter = default,
             bool traceErrorsOnly = false,
             bool traceOperationStarted = true,
             bool traceOperationFinished = true,
             string? extraStartMessage = null,
             Func<T, string>? extraEndMessage = null,
-            TimeSpan? timeout = null,
             bool isCritical = false,
             TimeSpan? pendingOperationTracingInterval = null,
             [CallerMemberName] string? caller = null) where T : ResultBase

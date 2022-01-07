@@ -56,11 +56,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public TimeSpan NewEpochEventStartCursorDelay { get; internal set; } = TimeSpan.FromMinutes(1);
 
-        public TimeSpan? GarbageCollectionTimeout { get; set; } = TimeSpan.FromMinutes(10);
+        public TimeSpan GarbageCollectionTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
-        public TimeSpan? RegisterCheckpointTimeout { get; set; } = TimeSpan.FromMinutes(1);
+        public TimeSpan RegisterCheckpointTimeout { get; set; } = TimeSpan.FromMinutes(1);
 
-        public TimeSpan? GetCheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         public bool Standalone { get; set; } = false;
     }
@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var checkpointState = result.Value;
                     return $"CheckpointId=[{checkpointState.CheckpointId}] SequencePoint=[{checkpointState.StartSequencePoint}]";
                 },
-                timeout: _configuration.GetCheckpointStateTimeout);
+                timeout: _configuration.CheckpointStateTimeout);
         }
 
         public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)

@@ -81,7 +81,11 @@ void ReportFileAccess(
     else {
         fileName = policyResult.GetCanonicalizedPath().GetPathString();
     }
-
+    
+    if (wcspbrk((wchar_t*)fileName, L"\u000A\u000B\u000C\u000D\u0085\u2028\u2029")) {
+        fileName = L"";
+    }
+    
     if (fileName == nullptr) {
         fileName = L"";
     }

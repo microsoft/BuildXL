@@ -254,6 +254,11 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
+        Task IDropServiceClient.PublishAsync(string dropName, string sourceDirectory, bool abortIfAlreadyExists, List<FileBlobDescriptor> preComputedBlobIds, Action<FileBlobDescriptor> hashCompleteCallback, bool includeEmptyDirectories, bool lowercasePaths, bool preserveSymlink, bool preservePermissionMask, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         Task IDropServiceClient.UpdateExpirationAsync(string dropName, DateTime? expirationTime, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
@@ -270,6 +275,11 @@ namespace Test.Tool.DropDaemon
         }
 
         public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, bool enableSymbolicLinkPreservation, bool enableExecutionBitPreservation, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

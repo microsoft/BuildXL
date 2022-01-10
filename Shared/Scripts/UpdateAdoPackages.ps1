@@ -3,7 +3,7 @@
 $destination = 'https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json'
 $source = 'https://pkgs.dev.azure.com/mseng/_packaging/VSOnline-Internal/nuget/v3/index.json'
 
-$adoVersion = '16.194.0-internal202109201'
+$adoVersion = '16.199.0-internal202201091'
 $adoPackages = @(
     'Microsoft.VisualStudio.Services.Client'
     'Microsoft.VisualStudio.Services.InteractiveClient'
@@ -18,7 +18,7 @@ $adoPackages = @(
     'Microsoft.VisualStudio.Services.ServiceEndpoints.WebApi'
 )
 
-$artifactVersion = '18.194.31720-buildid16023539'
+$artifactVersion = '18.199.32109-buildid16662423'
 $artifactPackages = @(
     'Microsoft.VisualStudio.Services.ArtifactServices.Shared'
     'Microsoft.VisualStudio.Services.BlobStore.Client'

@@ -158,6 +158,25 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
+        public Task PublishAsync(
+            string dropName,
+            string sourceDirectory,
+            bool abortIfAlreadyExists,
+            List<FileBlobDescriptor> preComputedBlobIds,
+            Action<FileBlobDescriptor> hashCompleteCallback,
+            bool includeEmptyDirectories,
+            bool lowercasePaths,
+            bool preserveSymlink,
+            bool preservePermissionMask,
+            CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                 nameof(IDropServiceClient.PublishAsync),
+                 (client, ct) => client.PublishAsync(dropName, sourceDirectory, abortIfAlreadyExists, preComputedBlobIds, hashCompleteCallback, includeEmptyDirectories, preserveSymlink, preservePermissionMask, lowercasePaths, ct),
+                 cancellationToken);
+        }
+
+        /// <inheritdoc />
         public Task UpdateExpirationAsync(string dropName, DateTime? expirationTime, CancellationToken cancellationToken)
         {
             return RetryAsync(
@@ -219,6 +238,15 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                 nameof(IDropServiceClient.CreateAsync),
                 (client, ct) => client.CreateAsync(domainId, dropName, isAppendOnly, expirationDate, chunkDedup, cancellationToken),
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, bool enableSymbolicLinkPreservation, bool enableExecutionBitPreservation, CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                nameof(IDropServiceClient.CreateAsync),
+                (client, ct) => client.CreateAsync(domainId, dropName, isAppendOnly, expirationDate, chunkDedup, enableSymbolicLinkPreservation, enableExecutionBitPreservation, cancellationToken),
                 cancellationToken);
         }
 

@@ -216,9 +216,20 @@ namespace BuildXL.Processes
                 // NOTE: passing a cancellation token here which will get triggered as soon as this object is disposed.  Consequently, this "Delay"
                 //       task will be completed right after that instead of waiting for full 'MaxWaitForReceiveAccessReports'; otherwise, it would
                 //       continue to run even after this object has been disposed, holding a reference to 'this', and unnecessarily preventing garbage collection.
-                Task.Delay(MaxWaitForReceiveAccessReports, m_waitToCompleteCts.Token)
-                    .ContinueWith(t => CompleteAccessReportProcessing(logWarningIfNotAlreadyCompleted: true))
-                    .Forget();
+                if (!m_waitToCompleteCts.IsCancellationRequested)
+                {
+                    try
+                    {
+                        Task.Delay(MaxWaitForReceiveAccessReports, m_waitToCompleteCts.Token)
+                            .ContinueWith(t => CompleteAccessReportProcessing(logWarningIfNotAlreadyCompleted: true))
+                            .Forget();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // happens if m_waitToCompleteCts has already been disposed
+                        // (in which case reading its Token property throws)
+                    }
+                }
             }
 
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>

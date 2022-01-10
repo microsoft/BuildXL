@@ -66,16 +66,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private RedisContentLocationStoreConfiguration RedisContentLocationStoreConfiguration => Arguments.RedisContentLocationStoreConfiguration;
 
         /// <nodoc />
-        public IServiceDefinition<GlobalCacheServiceConfiguration> GlobalCacheServiceConfiguration { get; }
+        public OptionalServiceDefinition<GlobalCacheServiceConfiguration> GlobalCacheServiceConfiguration { get; }
 
         /// <nodoc />
-        public IServiceDefinition<GlobalCacheService> GlobalCacheService { get; }
+        public OptionalServiceDefinition<GlobalCacheService> GlobalCacheService { get; }
 
         /// <nodoc />
-        public IServiceDefinition<ColdStorage> ColdStorage { get; }
+        public OptionalServiceDefinition<ColdStorage> ColdStorage { get; }
 
         /// <nodoc />
-        public IServiceDefinition<IRoleObserver> RoleObserver { get; }
+        public OptionalServiceDefinition<IRoleObserver> RoleObserver { get; }
 
         /// <nodoc />
         public IServiceDefinition<ContentLocationStoreFactory> ContentLocationStoreFactory { get; }
@@ -87,17 +87,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             Arguments = arguments;
 
+            bool isGlobalCacheServiceEnabled = DistributedContentSettings.IsMasterEligible
+                && RedisContentLocationStoreConfiguration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed);
+
             GlobalCacheServiceConfiguration = CreateOptional(
-                () => DistributedContentSettings.IsMasterEligible,
+                () => isGlobalCacheServiceEnabled,
                 () => CreateGlobalCacheServiceConfiguration());
 
             GlobalCacheService = CreateOptional(
-                () => DistributedContentSettings.IsMasterEligible,
+                () => isGlobalCacheServiceEnabled,
                 () => CreateGlobalCacheService());
 
             RoleObserver = CreateOptional<IRoleObserver>(
-                () => DistributedContentSettings.IsMasterEligible && GlobalCacheService.Instance is ResilientGlobalCacheService,
-                () => (ResilientGlobalCacheService)GlobalCacheService.Instance);
+                () => isGlobalCacheServiceEnabled && GlobalCacheService.InstanceOrDefault() is ResilientGlobalCacheService,
+                () => (ResilientGlobalCacheService)GlobalCacheService.InstanceOrDefault());
 
             ContentLocationStoreServices = Create(() => ContentLocationStoreFactory.Instance.Services);
 
@@ -116,9 +119,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                         ConnectionPool = Arguments.ConnectionPool,
                         Dependencies = new ContentLocationStoreServicesDependencies()
                         {
-                            GlobalCacheService = GlobalCacheService.AsOptional<IGlobalCacheService>(),
-                            ColdStorage = ColdStorage.AsOptional(),
-                            RoleObserver = RoleObserver.AsOptional()
+                            GlobalCacheService = GlobalCacheService.UnsafeGetServiceDefinition().AsOptional<IGlobalCacheService>(),
+                            ColdStorage = ColdStorage,
+                            RoleObserver = RoleObserver
                         }
                     },
                     Arguments.RedisContentLocationStoreConfiguration);
@@ -170,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private GlobalCacheService CreateGlobalCacheService()
         {
             var primaryCacheRoot = Arguments.PrimaryCacheRoot;
-            var configuration = GlobalCacheServiceConfiguration.Instance;
+            var configuration = GlobalCacheServiceConfiguration.GetRequiredInstance();
             var clock = Arguments.Clock;
             CentralStreamStorage centralStreamStorage = configuration.CentralStorage.CreateCentralStorage();
 

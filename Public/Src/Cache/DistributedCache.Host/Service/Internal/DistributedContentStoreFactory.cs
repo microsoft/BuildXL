@@ -301,54 +301,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public IEnumerable<IGrpcServiceEndpoint> CreateMetadataServices()
         {
-            if (!RedisContentLocationStoreConfiguration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
+            if (Services.GlobalCacheService.TryGetInstance(out var service))
             {
-                yield break;
-            }
-
-            var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
-
-            var configuration = new GlobalCacheServiceConfiguration()
-            {
-                MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
-                MasterLeaseStaleThreshold = RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime.Multiply(0.5),
-                VolatileEventStorage = new RedisVolatileEventStorageConfiguration()
-                {
-                    ConnectionString = (GetRequiredSecret(_distributedSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
-                    KeyPrefix = _distributedSettings.RedisWriteAheadKeyPrefix,
-                    MaximumKeyLifetime = _distributedSettings.ContentMetadataRedisMaximumKeyLifetime,
-                },
-                PersistentEventStorage = new BlobEventStorageConfiguration()
-                {
-                    Credentials = GetStorageCredentials(new[] { _distributedSettings.ContentMetadataBlobSecretName }).First(),
-                    FolderName = "events" + _distributedSettings.KeySpacePrefix,
-                    ContainerName = _distributedSettings.ContentMetadataLogBlobContainerName,
-                },
-                CentralStorage = RedisContentLocationStoreConfiguration.CentralStore with
-                {
-                    ContainerName = _distributedSettings.ContentMetadataCentralStorageContainerName
-                },
-                EventStream = new ContentMetadataEventStreamConfiguration()
-                {
-                    BatchWriteAheadWrites = _distributedSettings.ContentMetadataBatchVolatileWrites,
-                    ShutdownTimeout = _distributedSettings.ContentMetadataShutdownTimeout,
-                    LogBlockRefreshInterval = _distributedSettings.ContentMetadataPersistInterval
-                },
-                Checkpoint = RedisContentLocationStoreConfiguration.Checkpoint with
-                {
-                    WorkingDirectory = primaryCacheRoot / "cmschkpt"
-                },
-                ClusterManagement = new ClusterManagementConfiguration()
-                {
-                    MachineExpiryInterval = RedisContentLocationStoreConfiguration.MachineActiveToExpiredInterval,
-                }
-            };
-
-            CentralStreamStorage centralStreamStorage = configuration.CentralStorage.CreateCentralStorage();
-
-            if (_distributedSettings.IsMasterEligible)
-            {
-                var service = Services.GlobalCacheService.Instance;
                 yield return new ProtobufNetGrpcServiceEndpoint<IGlobalCacheService, GlobalCacheService>(nameof(GlobalCacheService), service);
             }
         }
@@ -362,7 +316,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             (IContentStore topLevelStore, DistributedContentStore primaryDistributedStore) result = default;
 
-            var coldStorage = Services.ColdStorage.AsOptional().InstanceOrDefault();
+            var coldStorage = Services.ColdStorage.InstanceOrDefault();
 
             if (_distributedSettings.GetMultiplexMode() == MultiplexMode.Legacy)
             {

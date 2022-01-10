@@ -16,9 +16,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         /// <summary>
         /// Creates a service which specifies a condition gating its availability
         /// </summary>
-        public IServiceDefinition<T> CreateOptional<T>(Func<bool> isAvailable, Func<T> createService)
+        public OptionalServiceDefinition<T> CreateOptional<T>(Func<bool> isAvailable, Func<T> createService)
         {
-            return new ServiceDefinition<T>(isAvailable, createService);
+            return new OptionalServiceDefinition<T>(new ServiceDefinition<T>(isAvailable, createService));
         }
 
         /// <summary>
@@ -79,6 +79,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             _serviceDefinition = serviceDefinition;
         }
+
+        /// <summary>
+        /// Gets the underlying service definition.
+        /// </summary>
+        internal IServiceDefinition<T> UnsafeGetServiceDefinition() => _serviceDefinition!;
+
+        /// <summary>
+        /// Gets the instance throwing if it is not available.
+        /// </summary>
+        public T GetRequiredInstance() => InstanceOrDefault() ?? throw new Exception("Service not available");
 
         /// <summary>
         /// Attempts to get instance of service if it is available

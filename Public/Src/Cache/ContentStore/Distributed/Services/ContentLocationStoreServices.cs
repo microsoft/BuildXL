@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStoreSecondary { get; }
 
         /// <nodoc />
-        public IServiceDefinition<ClientGlobalCacheStore> ClientGlobalCacheStore { get; }
+        public OptionalServiceDefinition<ClientGlobalCacheStore> ClientGlobalCacheStore { get; }
 
         /// <nodoc />
         public IServiceDefinition<IClientAccessor<IGlobalCacheService>> MasterClientAccessor { get; }
@@ -136,10 +136,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         private IGlobalCacheStore CreateGlobalCacheStore()
         {
-            if (Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
+            if (Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed)
+                && ClientGlobalCacheStore.TryGetInstance(out var distributedStore))
             {
-                var distributedStore = ClientGlobalCacheStore.Instance;
-
                 if (!Configuration.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Redis))
                 {
                     return distributedStore;

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.IO;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -34,6 +35,7 @@ namespace BuildXL
         public bool DisablePathTranslation;
         public bool EnableDedup;
         public string HashType;
+        public bool RunInSubst;
 
         // Strangely, this is not configurable via Args.cs
         public bool AnimateTaskbar = true;
@@ -114,11 +116,19 @@ namespace BuildXL
                     case "SUBSTTARGET":
                         lightConfig.SubstTarget = CommandLineUtilities.ParseStringOption(option);
                         break;
+                    case "RUNINSUBST":
+                    case "RUNINSUBST+":
+                        lightConfig.RunInSubst = true;
+                        break;
+                    case "RUNINSUBST-":
+                        lightConfig.RunInSubst = false;
+                        break;
                 }
             }
 
             // This has no attempt at any sort of error handling. Leave that to the real argument parser. Only detect errors
-            return !string.IsNullOrWhiteSpace(lightConfig.Config);
+            // If RunInSubst is specified without an explicit subst source, we fail if the config file does not exist since we need to compute the parent directory of the main config during light config interpretation
+            return !string.IsNullOrWhiteSpace(lightConfig.Config) && (!lightConfig.RunInSubst || !string.IsNullOrEmpty(lightConfig.SubstSource) || File.Exists(lightConfig.Config));
         }
     }
 }

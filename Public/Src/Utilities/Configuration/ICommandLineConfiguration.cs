@@ -52,6 +52,18 @@ namespace BuildXL.Utilities.Configuration
         /// Server maximum idle time in minutes.
         /// </summary>
         int ServerMaxIdleTimeInMinutes { get; }
+
+        /// <summary>
+        /// Whether BuildXl needs to be run under RunInSubst.exe.
+        /// </summary>
+        /// <remarks>
+        /// Source and target subst are specified by <see cref="ILoggingConfiguration.SubstSource"/> and <see cref="ILoggingConfiguration.SubstTarget"/> as usual. 
+        /// Otherwise, this option uses the location of the main config file a source and B:\\ as target defaults.
+        /// This configuration option is here to maintain congruence with LightConfig, but this value is supposed
+        /// to be false when interpreting a valid config file, since RunInSubst.exe is launched before this configuration
+        /// object is passed.
+        /// </remarks>
+        bool RunInSubst { get; }
     }
 
     /// <summary>

@@ -1,12 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.IO;
 using BuildXL;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-
+using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 
 namespace Test.BuildXL
@@ -38,7 +39,8 @@ namespace Test.BuildXL
                 "/color-",
                 "/substsource:" + m_srcPath,
                 "/substtarget:" + m_targetPath,
-                "/serverMaxIdleTimeInMinutes:60"
+                "/serverMaxIdleTimeInMinutes:60",
+                "/runInSubst:"
             });
         }
 
@@ -73,6 +75,7 @@ namespace Test.BuildXL
             AssertPathCongruent(pathTable, lightConfig.ServerDeploymentDirectory, commandLineConfig.ServerDeploymentDirectory);
             AssertPathCongruent(pathTable, lightConfig.SubstSource, commandLineConfig.Logging.SubstSource);
             AssertPathCongruent(pathTable, lightConfig.SubstTarget, commandLineConfig.Logging.SubstTarget);
+            XAssert.AreEqual(lightConfig.RunInSubst, commandLineConfig.RunInSubst);
         }
 
         private void AssertPathCongruent(PathTable pathTable, string s, AbsolutePath p)
@@ -96,7 +99,7 @@ namespace Test.BuildXL
         public void VerifyHashType()
         {
             LightConfig lightConfig;
-            XAssert.IsTrue(LightConfig.TryParse(new[] { "/c:fake", "/hashtype:murmur" }, out lightConfig));
+            XAssert.IsTrue(LightConfig.TryParse(new[] { $"/c:fake", "/hashtype:murmur" }, out lightConfig));
             XAssert.AreEqual("murmur", lightConfig.HashType);
         }
     }

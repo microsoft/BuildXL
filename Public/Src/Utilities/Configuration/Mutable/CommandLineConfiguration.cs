@@ -40,6 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Server = template.Server;
             ServerDeploymentDirectory = pathRemapper.Remap(template.ServerDeploymentDirectory);
             ServerMaxIdleTimeInMinutes = template.ServerMaxIdleTimeInMinutes;
+            RunInSubst = template.RunInSubst;
         }
 
         /// <inheritdoc />
@@ -68,5 +69,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int ServerMaxIdleTimeInMinutes { get; set; }
+
+        /// <inheritdoc />
+        public bool RunInSubst { get; set;}
     }
 }

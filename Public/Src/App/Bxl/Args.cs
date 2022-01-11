@@ -936,6 +936,9 @@ namespace BuildXL
                             "rootMap",
                             "rm",
                             opt => ParseKeyValueOption(opt, pathTable, engineConfiguration.RootMap)),
+                        OptionHandlerFactory.CreateBoolOptionWithValue(
+                            "runInSubst",
+                            (opt, sign) => configuration.RunInSubst = sign),
                         OptionHandlerFactory.CreateOption(
                             "sandboxKind",
                             opt =>

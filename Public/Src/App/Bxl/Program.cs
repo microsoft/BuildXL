@@ -4,6 +4,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -93,6 +94,12 @@ namespace BuildXL
                 return ExitCode.FromExitKind(ExitKind.InvalidCommandLine);
             }
 
+            // RunInSubst is only supported on Windows. Otherwise ignored.
+            if (OperatingSystemHelper.IsWindowsOS && lightConfig.RunInSubst)
+            {
+                return ExecuteRunInSubst(lightConfig, RawArgs);
+            }
+            
             // Not an app server; will either run fully within this process ('single instance') or start / connect to an app server.
             if (!lightConfig.NoLogo)
             {
@@ -122,6 +129,45 @@ namespace BuildXL
                 : RunSingleInstance(RawArgs);
 
             return ExitCode.FromExitKind(exitKind);
+        }
+
+        /// <summary>
+        /// Launches RunInSubst.exe specifying B:\\ as the target subst and the specified source subst (or the config.
+        /// dsc location if not specified), followed by bxl.exe with its associated arguments.
+        /// </summary>
+        /// <remarks>
+        /// This execution always appends to bxl arguments the corresponding subst source and target. In addition, it overrides with 
+        /// /RunInSubst-, so the launched process won't try to launch RunInSubst.exe again.
+        /// </remarks>
+        private int ExecuteRunInSubst(LightConfig lightConfig, string[] rawArgs)
+        {
+            // Use the substTarget specified, otherwise default to B:\
+            var substTarget = string.IsNullOrEmpty(lightConfig.SubstTarget) ? "B:\\" : lightConfig.SubstTarget;
+
+            // Use the subst source specified. Otherwise use the location of the main config file as the default
+            string substSource = string.IsNullOrEmpty(lightConfig.SubstSource) ? Directory.GetParent(lightConfig.Config).FullName : lightConfig.SubstSource;
+
+            string clientPath = AssemblyHelper.GetThisProgramExeLocation();
+            // CODESYNC: keep in sync with bxl deployment, we are assuming RunInSubst.exe is deployed alongside bxl.exe
+            string runInSubstPath = Path.Combine(Directory.GetParent(clientPath).FullName, "RunInSubst.exe");
+
+            // Launch bxl again via RunInSubst as a child process, with same arguments, but disable /runInSubst and specify subst target and source
+            string arguments = $"B=\"{substSource}\" \"{clientPath}\" {string.Join(" ", rawArgs)} /runInSubst- /substTarget:{substTarget} /substSource:\"{substSource}\"";
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = runInSubstPath,
+                Arguments = arguments,
+                WorkingDirectory = Directory.GetCurrentDirectory(),
+                UseShellExecute = false,
+            };
+
+            var process = new Process() { StartInfo = startInfo };
+
+            process.Start();
+            process.WaitForExit();
+
+            return process.ExitCode;
         }
 
         private static ExitKind RunSingleInstance(IReadOnlyCollection<string> rawArgs, ServerModeStatusAndPerf? serverModeStatusAndPerf = null)

@@ -774,6 +774,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/RunInSubst[+|-]",
+                Strings.HelpText_DisplayHelp_RunInSubst,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/server[+|-]",
                 Strings.HelpText_DisplayHelp_Server);
 

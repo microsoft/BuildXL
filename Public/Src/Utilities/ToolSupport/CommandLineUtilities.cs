@@ -313,6 +313,22 @@ namespace BuildXL.ToolSupport
         }
 
         /// <summary>
+        /// Parse an option that produces a path and check the path exists on disk.
+        /// </summary>
+        public static AbsolutePath ParsePathOptionAndAssertExistence(Option opt, PathTable pathTable)
+        {
+            var path = ParsePathOption(opt, pathTable);
+
+            if (!File.Exists(path.ToString(pathTable)))
+            {
+                throw Error("The path '{0}' specified with '/{1}' does not exist.", opt.Value, opt.Name);
+            }
+
+            return path;
+        }
+
+
+        /// <summary>
         /// Parse a repeating option that produces a list of paths.
         /// </summary>
         public static IEnumerable<AbsolutePath> ParseRepeatingPathOption(Option opt, PathTable pathTable, string separator) => ParseRepeatingOption(opt, separator, v => GetFullPath(v, opt, pathTable));

@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     _resourcePool = new ResourcePool<GrpcCopyClientKey, GrpcCopyClient>(
                         context,
                         _configuration.ResourcePoolConfiguration,
-                        (key) => new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
+                        (key) => new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool),
                         clock);
                     break;
             }
@@ -108,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 case GrpcCopyClientCacheConfiguration.PoolVersion.Disabled:
                 {
-                    var client = new GrpcCopyClient(key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool);
+                    var client = new GrpcCopyClient(context, key, _configuration.GrpcCopyClientConfiguration, sharedBufferPool: _grpcCopyClientBufferPool);
 
                     await client.StartupAsync(context).ThrowIfFailure();
                     var result = await operation(context, new DefaultResourceWrapperAdapter<GrpcCopyClient>(client));

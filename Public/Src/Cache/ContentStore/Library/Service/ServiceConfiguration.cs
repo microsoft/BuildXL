@@ -35,6 +35,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public const uint DefaultGrpcPort = GrpcDisabledPort;
 
+        /// <summary>
+        /// The default port for Encrypted GRPC (Which is disabled).
+        /// </summary>
+        public const uint DefaultEncryptedGrpcPort = GrpcDisabledPort;
+
         [DataMember(Name = "NamedCacheRoots")]
         private IDictionary<string, string> _namedCacheRootsRaw;
         private Dictionary<string, AbsolutePath> _namedCacheRoots;
@@ -112,6 +117,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         [DataMember]
         public uint GrpcPort { get; set; }
+
+        /// <summary>
+        /// Gets the GRPC port to use for server on encrypted channel.
+        /// </summary>
+        [DataMember]
+        public uint EncryptedGrpcPort { get; set; }
 
         /// <summary>
         /// Name of the non persistent memory-maped file where GRPC port will be exposed to allow for port auto-detection by clients.
@@ -209,6 +220,11 @@ namespace BuildXL.Cache.ContentStore.Service
                 args.AppendFormat(" /grpcPort={0}", GrpcPort);
             }
 
+            if (EncryptedGrpcPort != ServiceConfiguration.GrpcDisabledPort)
+            {
+                args.AppendFormat(" /encryptedGrpcPort={0}", EncryptedGrpcPort);
+            }
+
             if (GrpcPortFileName != null)
             {
                 args.AppendFormat(" /grpcPortFileName={0}", GrpcPortFileName);
@@ -285,6 +301,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             sb.AppendFormat(", GracefulShutdownSeconds={0}", GracefulShutdownSeconds);
             sb.AppendFormat(", GrpcPort={0}", GrpcPort);
+            sb.AppendFormat(", EncryptedGrpcPort={0}", EncryptedGrpcPort);
             sb.AppendFormat(", GrcpPortFileName={0}", GrpcPortFileName);
             sb.AppendFormat(", BufferSizeForGrpcCopies={0}", BufferSizeForGrpcCopies);
 

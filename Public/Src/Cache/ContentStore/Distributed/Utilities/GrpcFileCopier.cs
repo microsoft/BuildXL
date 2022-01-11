@@ -189,6 +189,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private (string host, int port) ExtractHostInfo(MachineLocation machineLocation)
         {
             var info = machineLocation.ExtractHostInfo();
+            bool? encryptionEnabled = _configuration?.GrpcCopyClientCacheConfiguration?.GrpcCopyClientConfiguration?.GrpcCoreClientOptions?.EncryptionEnabled;
+
+            if (encryptionEnabled == true)
+            {
+                return (info.host, _configuration.EncryptedGrpcPort);
+            }
+
             return (info.host, info.port ?? _configuration.GrpcPort);
         }
 

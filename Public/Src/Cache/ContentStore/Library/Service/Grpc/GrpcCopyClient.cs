@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -9,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -20,7 +22,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
-using Google.Protobuf;
 using Grpc.Core;
 
 #nullable enable
@@ -63,22 +64,64 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected override string GetArgumentsMessage() => Key.ToString();
 
         /// <summary>
+        /// Create and return SSL credentials from user certificate, else null
+        /// </summary>
+        private ChannelCredentials? TryGetSecureChannelCredentials(Context context, GrpcCopyClientConfiguration? config, out string? hostName)
+        {
+            var grpcClientOptions = config?.GrpcCoreClientOptions;
+            var encryptionCertificateName = grpcClientOptions?.EncryptionCertificateName;
+
+            var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionCertificateName, out hostName);
+
+            if (keyCertPairResult.Succeeded)
+            {
+                Tracer.Debug(context, $"Found Grpc Encryption Certificate. ");
+                return new SslCredentials(keyCertPairResult.Value.CertificateChain);
+            }
+
+            Tracer.Warning(context, $"Failed to get GRPC SSL Credentials: {keyCertPairResult}");
+            return null;
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration, IClock? clock = null, ByteArrayPool? sharedBufferPool = null)
+        internal GrpcCopyClient(Context context, GrpcCopyClientKey key, GrpcCopyClientConfiguration configuration, IClock? clock = null, ByteArrayPool? sharedBufferPool = null)
         {
             Key = key;
             _configuration = configuration;
             _clock = clock ?? SystemClock.Instance;
 
             GrpcEnvironment.WaitUntilInitialized();
-            _channel = new Channel(key.Host, key.GrpcPort,
-                ChannelCredentials.Insecure,
-                options: GrpcEnvironment.GetClientOptions(_configuration.GrpcCoreClientOptions));
+            var channelCreds = ChannelCredentials.Insecure;
+            bool? encryptionEnabled = _configuration.GrpcCoreClientOptions?.EncryptionEnabled;
 
+            Tracer.Info(context, $"Grpc Encryption Enabled = {encryptionEnabled == true}, GRPC Port: {key.GrpcPort}");
+
+            List<ChannelOption> options = new List<ChannelOption>(GrpcEnvironment.GetClientOptions(_configuration.GrpcCoreClientOptions));
+
+            if (encryptionEnabled == true)
+            {
+                try
+                {
+                    channelCreds = TryGetSecureChannelCredentials(context, _configuration, out var hostName) ?? ChannelCredentials.Insecure;
+                    if (channelCreds != ChannelCredentials.Insecure)
+                    {
+                        options.Add(new ChannelOption(ChannelOptions.SslTargetNameOverride, hostName));                        
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Tracer.Error(context, ex, $"Creating Encrypted Grpc Channel Failed.");
+                }
+            }
+
+            Tracer.Debug(context, $"Client connecting to {key.Host}:{key.GrpcPort}. Channel Encrypted = {channelCreds != ChannelCredentials.Insecure}");
+            
+            _channel = new Channel(key.Host, key.GrpcPort, channelCreds, options: options);
             _client = new ContentServer.ContentServerClient(_channel);
 
-            _bandwidthChecker = new BandwidthChecker(configuration.BandwidthCheckerConfiguration);
+            _bandwidthChecker = new BandwidthChecker(_configuration.BandwidthCheckerConfiguration);
             _pool = sharedBufferPool ?? new ByteArrayPool(_configuration.ClientBufferSizeBytes);
         }
 

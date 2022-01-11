@@ -34,6 +34,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         public int GrpcPort { get; set; } = GrpcConstants.DefaultGrpcPort;
 
         /// <summary>
+        /// Port to connect to on other machines on encrypted channel
+        /// </summary>
+        public int EncryptedGrpcPort { get; set; } = GrpcConstants.DefaultEncryptedGrpcPort;
+
+        /// <summary>
         /// Whether to invalidate Grpc clients when certain problematic issues happen
         /// </summary>
         public ClientInvalidationPolicy GrpcCopyClientInvalidationPolicy { get; set; } = ClientInvalidationPolicy.Disabled;

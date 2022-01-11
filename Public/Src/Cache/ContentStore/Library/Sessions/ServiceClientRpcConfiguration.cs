@@ -28,6 +28,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public int GrpcPort { get; set; } = Grpc.GrpcConstants.DefaultGrpcPort;
 
         /// <summary>
+        /// Port bound by the SSL secured gRPC cache service.
+        /// </summary>
+        public int EncryptedGrpcPort { get; set; } = Grpc.GrpcConstants.DefaultEncryptedGrpcPort;
+
+        /// <summary>
         /// The period of time between heartbeats.
         /// </summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);

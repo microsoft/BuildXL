@@ -35,11 +35,11 @@ namespace BuildXL.Cache.ContentStore.Service
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
+            EncryptedGrpcPort = GrpcConstants.DefaultEncryptedGrpcPort;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
             CopyRequestHandlingCountLimit = copyRequestHandlingCountLimit;
             FileSystem = fileSystem;
-
             LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
             TraceGrpcOperations = traceGrpcOperations;
@@ -55,6 +55,7 @@ namespace BuildXL.Cache.ContentStore.Service
             DataRootPath = serviceConfiguration.DataRootPath;
             NamedCacheRoots = serviceConfiguration.NamedCacheRoots;
             GrpcPort = (int)serviceConfiguration.GrpcPort;
+            EncryptedGrpcPort = (int)serviceConfiguration.EncryptedGrpcPort != ServiceConfiguration.GrpcDisabledPort ? (int)serviceConfiguration.EncryptedGrpcPort : GrpcConstants.DefaultEncryptedGrpcPort;
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName ?? DefaultFileName;
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
@@ -74,6 +75,7 @@ namespace BuildXL.Cache.ContentStore.Service
             DataRootPath = serviceConfiguration.DataRootPath;
             NamedCacheRoots = serviceConfiguration.NamedCacheRoots;
             GrpcPort = (int)serviceConfiguration.GrpcPort;
+            EncryptedGrpcPort = (int)serviceConfiguration.EncryptedGrpcPort != ServiceConfiguration.GrpcDisabledPort ? (int)serviceConfiguration.EncryptedGrpcPort : GrpcConstants.DefaultEncryptedGrpcPort;
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName ?? DefaultFileName;
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
@@ -150,6 +152,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public int GrpcPort { get; private set; } = GrpcConstants.DefaultGrpcPort;
+
+        public int EncryptedGrpcPort { get; private set; } = GrpcConstants.DefaultEncryptedGrpcPort;
 
         /// <nodoc />
         public GrpcCoreServerOptions? GrpcCoreServerOptions { get; set; }
@@ -245,6 +249,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             sb.Append($", DataRootPath={DataRootPath}");
             sb.Append($", GrpcPort={GrpcPort}");
+            sb.Append($", EncryptedGrpcPort={EncryptedGrpcPort}");
             sb.Append($", GrpcPortFileName={GrpcPortFileName}");
             sb.Append($", BufferSizeForGrpcCopies={BufferSizeForGrpcCopies}");
             sb.Append($", TraceGrpcOperations={TraceGrpcOperations}");

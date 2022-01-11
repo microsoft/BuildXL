@@ -16,5 +16,8 @@ namespace BuildXL.Cache.ContentStore.Grpc
 
         /// <nodoc />
         public static readonly int DefaultGrpcPort = 7089;
+
+        /// <nodoc />
+        public static readonly int DefaultEncryptedGrpcPort = 7090;
     }
 }

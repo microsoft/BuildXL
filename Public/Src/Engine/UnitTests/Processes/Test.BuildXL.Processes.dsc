@@ -21,6 +21,10 @@ namespace Processes {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: true
             },
+            // Code coverage utilities can interefe with our sandbox tests and
+            // cause failures as they can inject extraneous processes into our sandboxes
+            // (e.g., IntelliTrace.exe): this has caused test flakiness in the past (see bug #1908180). 
+            disableCodeCoverage: true,
             parallelGroups: ["FileAccessExplicitReportingTest", "DetoursCrossBitnessTest"]
         },
         references: [

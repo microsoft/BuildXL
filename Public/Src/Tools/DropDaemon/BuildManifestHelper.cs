@@ -144,9 +144,10 @@ HashAlgorithms=SHA256
             StringBuilder stdOutBuilder = new StringBuilder();
             StringBuilder stdErrBuilder = new StringBuilder();
 
+            var timeout = TimeSpan.FromMinutes(ExecutableMaxRuntimeInMinute);
             using (var executor = new AsyncProcessExecutor(
                 process,
-                TimeSpan.FromMinutes(ExecutableMaxRuntimeInMinute),
+                timeout,
                 line => { if (line != null) { stdOutBuilder.AppendLine(line); } },
                 line => { if (line != null) { stdErrBuilder.AppendLine(line); } }))
             {
@@ -154,14 +155,16 @@ HashAlgorithms=SHA256
                 await executor.WaitForExitAsync();
                 await executor.WaitForStdOutAndStdErrAsync();
 
-                if (executor.Process.ExitCode == 0 && !executor.TimedOut)
+                if (executor.TimedOut)
                 {
-                    return true;
+                    return new Failure<string>($"Process execution timed out (timeout: {timeout.TotalMinutes} minutes). StdErr { stdErrBuilder }, StdOut { stdOutBuilder } ");
+                }
+                else if (executor.Process.ExitCode != 0)
+                {
+                    return new Failure<string>($"Exit code: {executor.Process.ExitCode}. StdErr: { stdErrBuilder }, StdOut: { stdOutBuilder }");
                 }
 
-                string errorReturn = $"StdErr: { stdErrBuilder }, StdOut: { stdOutBuilder }";
-
-                return new Failure<string>(errorReturn);
+                return true;
             }
         }
 

@@ -173,20 +173,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             try
             {
-#if NET_CORE
-                if (useAad)
-                {
-                    return await Task.Run(() => CreateVssCredentialsForUserName(baseUri));
-                }
-                else
-                {
-                    return await Task.Run(() => _helper.GetPATCredentials(_pat));
-                }
-#else
                 // We potentially can be running this code for the full framework when the code is compiled for .net standard.
                 // Trying to call the method and fail with a better error message if the method doesn't exist.
                 return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null).ConfigureAwait(false);
-#endif //NET_CORE
             }
             catch (MissingMethodException e)
             {

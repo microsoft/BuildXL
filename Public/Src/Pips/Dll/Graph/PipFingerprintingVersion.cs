@@ -74,7 +74,8 @@ namespace BuildXL.Pips.Graph
         /// 97: Download resolver schedules real pips
         /// 98: Update search path filter computation to track visited files and directories separately in "BuildXL.Scheduler.Fingerprints.ObservedInputProcessor.ComputeSearchPathsAndFilter".
         /// 99: Alien file enumerations are cached
+        /// 100: Alien file enumerations exclude untracked artifacts
         /// </remarks>
-        TwoPhaseV2 = 99,
+        TwoPhaseV2 = 100,
     }
 }

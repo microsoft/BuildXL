@@ -166,6 +166,49 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void UntrackedPathsAndScopesAreNotPartOfTheFingerprint()
+        {
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+
+            // Create some directories and files we'll later untrack
+            var untrackedFile = CreateSourceFile(root: dirPath, prefix: "untrackedFile");
+            string untrackedFilePath = untrackedFile.Path.ToString(Context.PathTable);
+            File.WriteAllText(untrackedFilePath, "some text");
+
+            var untrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "untrackedDir"));
+            Directory.CreateDirectory(untrackedScope.Path.ToString(Context.PathTable));
+
+            var globalUntrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "globalUntrackedDir"));
+            Directory.CreateDirectory(globalUntrackedScope.Path.ToString(Context.PathTable));
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+            
+            builder.AddUntrackedFile(untrackedFile);
+            builder.AddUntrackedDirectoryScope(untrackedScope);
+            Configuration.Sandbox.GlobalUnsafeUntrackedScopes = new List<AbsolutePath> { globalUntrackedScope.Path };
+
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+
+            var pip = SchedulePipBuilder(builder);
+
+            // Run once
+            RunScheduler().AssertSuccess();
+            
+            // Delete all untracked paths and scopes. We should get a cache hit on re-run 
+            File.Delete(untrackedFile.Path.ToString(Context.PathTable));
+            Directory.Delete(untrackedScope.Path.ToString(Context.PathTable));
+            Directory.Delete(globalUntrackedScope.Path.ToString(Context.PathTable));
+
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+        }
+
+        [Fact]
         public void ExistingDirectoriesArePartOfTheFingerprint()
         {
             string dir = Path.Combine(SourceRoot, "dir");

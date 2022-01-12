@@ -22,7 +22,7 @@ namespace BuildXL.Cache.Host.Service
     ///     created on the side of whoever is using the cache, and will be processed by the cache to build all of the
     ///     required objects.
     /// </remarks>
-    public class DistributedCacheServiceArguments : LoggerFactoryArguments
+    public record DistributedCacheServiceArguments : LoggerFactoryArguments
     {
         /// <nodoc />
         public DistributedCacheServiceHostOverrides Overrides { get; set; } = DistributedCacheServiceHostOverrides.Default;
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.Host.Service
         public IContentCommunicationManager? CopyRequester { get; internal set; }
 
         /// <nodoc />
-        public IDistributedCacheServiceHost Host { get; }
+        public IDistributedCacheServiceHost Host { get; init;  }
 
         /// <nodoc />
         public IAbsFileSystem FileSystem { get; }

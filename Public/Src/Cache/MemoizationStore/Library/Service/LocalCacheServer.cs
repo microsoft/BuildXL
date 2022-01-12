@@ -42,7 +42,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheServer));
 
         /// <inheritdoc />
-        protected override ICacheServerServices Services => _grpcCacheServer;
+        protected override GrpcContentServer GrpcServer => _grpcCacheServer;
 
         /// <nodoc />
         public LocalCacheServer(
@@ -76,9 +76,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => _grpcCacheServer.Bind();
-
-        /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(ICache store, OperationContext context) => store.GetStatsAsync(context);
 
         /// <inheritdoc />
@@ -101,24 +98,12 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await _grpcCacheServer.StartupAsync(context).ThrowIfFailure();
-
-            return await base.StartupCoreAsync(context);
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             // Tracing content server statistics at shutdown, because currently no one calls GetStats on this instance.
             Tracer.TraceStatisticsAtShutdown(context, _grpcCacheServer.Counters.ToCounterSet(), prefix: "GrpcContentServer");
 
-            var result = await base.ShutdownCoreAsync(context);
-
-            result &= await _grpcCacheServer.ShutdownAsync(context);
-
-            return result;
+            return base.ShutdownCoreAsync(context);
         }
 
         /// <inheritdoc />

@@ -21,6 +21,7 @@ namespace LauncherServer {
 
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
 
@@ -28,6 +29,11 @@ namespace LauncherServer {
             importFrom("Azure.Identity").pkg,
             importFrom("Azure.Core").pkg,
             importFrom("Microsoft.Identity.Client").pkg,
+
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages(),
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufNetPackages(true),
+            importFrom("protobuf-net.Grpc.AspNetCore").pkg,
 
             // AspNetCore assemblies
             Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [

@@ -108,6 +108,12 @@ namespace BuildXL.Cache.ContentStore.Service
         public TimeSpan LogIncrementalStatsInterval { get; set; } = DefaultLogIncrementalStatsInterval;
 
         /// <summary>
+        /// Indicates whether to disable the internal gprc server. Presumably, to allow external GPRC server creation
+        /// (i.e. via ASP.Net Core)
+        /// </summary>
+        public bool DisableGrpcServer { get; set; }
+
+        /// <summary>
         /// A list of counters that will be printed as part of incremental statistics.
         /// </summary>
         /// <remarks>

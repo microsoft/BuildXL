@@ -48,24 +48,8 @@ namespace Engine {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages(),
             importFrom("Newtonsoft.Json").pkg,
-            
-            ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
-                  importFrom("Grpc.Net.Common").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                  importFrom("Grpc.Net.Client").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                  importFrom("Grpc.Net.Client.Web").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                  importFrom("Grpc.Net.ClientFactory").withQualifier({targetFramework: "netstandard2.1"}).pkg,
-                 
-                  importFrom("Grpc.AspNetCore.Server.ClientFactory").pkg,
-                  importFrom("Grpc.AspNetCore.Server").pkg,
-                  
-                  BuildXLSdk.withWinRuntime(importFrom("System.Security.Cryptography.ProtectedData").pkg, r`runtimes/win/lib/netstandard2.0`),
-                  
-                  // AspNetCore assemblies
-                  Managed.Factory.filterRuntimeSpecificBinaries(BuildXLSdk.WebFramework.getFrameworkPackage(), [
-                    importFrom("System.IO.Pipelines").pkg
-                  ]),
-            ]),
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",

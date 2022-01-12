@@ -8,6 +8,17 @@ namespace Test {
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.Host.Test",
         sources: globR(d`.`,"*.cs"),
+        runTestArgs: {
+            // Need to untrack the test output directory, because redis server tries to write some pdbs.
+            untrackTestDirectory: true,
+            parallelBucketCount: 4,
+            unsafeTestRunArguments: {
+                untrackedPaths: [
+                    f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\memurai-services.pdb`,
+                    f`D:\a\1\s\msvs\x64\RELEASE_DEVELOPER\redis-server.pdb`,
+                ],
+            },
+        },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         references: [
@@ -22,6 +33,7 @@ namespace Test {
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
+            importFrom("BuildXL.Cache.ContentStore").DistributedTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").Test.dll,

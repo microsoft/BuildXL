@@ -34,6 +34,8 @@ export const pkgs = [
         dependentPackageIdsToSkip: [ "System.Memory", "System.Threading.Channels", "Grpc.Core.Api" ] },
     { id: "protobuf-net.Grpc.Native", version: "1.0.152",
         dependentPackageIdsToSkip: [ "System.Memory", "System.Threading.Channels", "Grpc.Core" ] },
+    { id: "protobuf-net.Grpc.AspNetCore", version: "1.0.152",
+        dependentPackageIdsToSkip: [ "System.Memory", "System.Threading.Channels", "Grpc.Core" ] },
 
     { id: "System.ServiceModel.Http", version: "4.7.0" },
     { id: "System.ServiceModel.Primitives", version: "4.7.0" },

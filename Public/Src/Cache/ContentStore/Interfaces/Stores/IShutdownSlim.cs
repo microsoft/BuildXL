@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
     /// to complete (which can deadlock in some cases), we make this explicit and require
     /// clients to shutdown services asynchronously instead of relying on synchronous Dispose calls.
     /// </summary>
-    public interface IShutdownSlim<T> where T : ResultBase
+    public interface IShutdownSlim<T>
     {
         /// <summary>
         /// Gets a value indicating whether the component has been shutdown.

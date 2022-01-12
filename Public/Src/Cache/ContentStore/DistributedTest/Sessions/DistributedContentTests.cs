@@ -37,6 +37,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Extensions;
@@ -44,6 +45,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -74,13 +76,39 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected virtual DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments) => arguments;
 
-        protected abstract (TStore store, IStartupShutdown server) CreateStore(
+        protected abstract TestServerProvider CreateStore(
             Context context,
             IRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             int iteration,
             uint grpcPort);
+
+        public class TestServerProvider
+        {
+            private readonly Func<TStore> _getStore;
+            public IStartupShutdownSlim Server { get; }
+            public TStore Store => _getStore();
+
+            public TestServerProvider(IStartupShutdownSlim server, TStore store)
+                : this(server ?? store, () => store)
+            {
+            }
+
+            public TestServerProvider(IStartupShutdownSlim server, Func<TStore> getStore)
+            {
+                Assert.NotNull(server);
+                Assert.NotNull(getStore);
+
+                Server = server;
+                _getStore = getStore;
+            }
+
+            public static implicit operator TestServerProvider((TStore store, IStartupShutdownSlim server) t)
+            {
+                return new TestServerProvider(t.server, t.store);
+            }
+        }
 
         public class TestContext
         {
@@ -92,8 +120,9 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly IRemoteFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
             public IList<TSession> Sessions { get; protected set; }
-            public readonly IList<TStore> Stores;
-            public readonly IList<IStartupShutdown> Servers;
+            public IReadOnlyList<TestServerProvider> ServerProviders;
+            public readonly IReadOnlyList<TStore> Stores;
+            public readonly IList<IStartupShutdownSlim> Servers;
             public readonly int[] Ports;
             public readonly int Iteration;
 
@@ -105,7 +134,7 @@ namespace ContentStoreTest.Distributed.Sessions
                       other.Context,
                       other.FileCopier,
                       other.Directories,
-                      other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(),
+                      other.ServerProviders,
                       other.Iteration,
                       other.Ports,
                       other._traceStoreStatistics)
@@ -117,7 +146,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Context context,
                 IRemoteFileCopier fileCopier,
                 IList<DisposableDirectory> directories,
-                IList<(TStore store, IStartupShutdown server)> stores,
+                IReadOnlyList<TestServerProvider> serverProviders,
                 int iteration,
                 int[] ports,
                 bool traceStoreStatistics = false)
@@ -125,25 +154,15 @@ namespace ContentStoreTest.Distributed.Sessions
                 _testInstance = testInstance;
                 _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
-                StoreContexts = stores.Select((s, index) => new OperationContext(CreateContext(index, iteration))).ToArray();
+                StoreContexts = serverProviders.Select((s, index) => new OperationContext(CreateContext(index, iteration))).ToArray();
                 TestFileCopier = fileCopier as TestFileCopier;
                 FileCopier = fileCopier;
                 Directories = directories;
-                Stores = stores.Select(s => s.store).ToList();
-                Servers = stores.Select(s => s.server ?? s.store).ToList();
+                ServerProviders = serverProviders;
+                Stores = serverProviders.SelectList(s => s.Store);
+                Servers = serverProviders.Select(s => s.Server).ToList();
                 Iteration = iteration;
                 Ports = ports;
-
-                if (TestFileCopier != null && Stores.Count > 1)
-                {
-                    for (int i = 0; i < Stores.Count; i++)
-                    {
-                        var distributedStore = (DistributedContentStore)GetDistributedStore(i);
-                        TestFileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
-                        TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
-                        TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
-                    }
-                }
             }
 
             private Context CreateContext(int index, int iteration)
@@ -166,14 +185,16 @@ namespace ContentStoreTest.Distributed.Sessions
                         return BoolResult.Success;
                     }
 
-                    return await server.StartupAsync(StoreContexts[index]);
+                    var result = await StartupServerAsync(index);
+                    return result;
+
                 }));
 
                 Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
 
                 if (storeToStartupLast.HasValue)
                 {
-                    var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccess();
+                    var finalStartup = await StartupServerAsync(storeToStartupLast.Value).ShouldBeSuccess();
                 }
 
                 if (ShouldCreateContentSessions)
@@ -181,6 +202,24 @@ namespace ContentStoreTest.Distributed.Sessions
                     Sessions = Stores.Select((store, id) => _testInstance.CreateSession(store, Context, GetSessionName(id, buildId), implicitPin).Session).ToList();
                     await TaskUtilities.SafeWhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
                 }
+            }
+
+            private async Task<BoolResult> StartupServerAsync(int index)
+            {
+                var server = Servers[index];
+                var result = await server.StartupAsync(StoreContexts[index]);
+                if (result.Succeeded && TestFileCopier != null && Servers.Count > 1)
+                {
+                    var distributedStore = (DistributedContentStore)GetDistributedStore(index);
+                    lock (TestFileCopier)
+                    {
+                        TestFileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    }
+                }
+
+                return result;
             }
 
             protected static string GetSessionName(int id, string buildId) =>
@@ -224,7 +263,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             }
                         }));
 
-                foreach (var server in Servers)
+                foreach (var server in Servers.OfType<IDisposable>())
                 {
                     server.Dispose();
                 }
@@ -452,7 +491,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 // Insert random file in session 1
                 var randomBytes2 = ThreadSafeRandom.GetBytes(0x40);
-                var putResult2 = await sessions[1].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes2), Token);
+                var putResult2 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes2), Token);
                 Assert.True(putResult2.Succeeded);
 
                 // Ensure both files are downloaded to session 2
@@ -526,7 +565,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 placeResult.Code.Should().Be(PlaceFileResult.ResultCode.Error, placeResult.ToString());
             });
         }
-        
+
         [Fact]
         public Task SomeLocalContentStoresCorrupt()
         {
@@ -881,6 +920,10 @@ namespace ContentStoreTest.Distributed.Sessions
                             {
                                 MaximumAge = TimeSpan.FromMinutes(1),
                                 MaximumResourceCount = 1,
+                            },
+                            GrpcCopyClientConfiguration = new()
+                            {
+                                ConnectOnStartup = true
                             }
                         };
 

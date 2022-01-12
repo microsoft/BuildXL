@@ -4586,6 +4586,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "protobuf-net.Grpc.AspNetCore",
+          "Version": "1.0.152"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "protobuf-net.Grpc.Native",
           "Version": "1.0.152"
         }

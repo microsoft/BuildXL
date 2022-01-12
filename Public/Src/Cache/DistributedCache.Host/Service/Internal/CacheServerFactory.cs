@@ -331,7 +331,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             serviceConfiguration.CopyRequestHandlingCountLimit = localCasServiceSettings.MaxCopyFromHandlers;
 
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
-            
+
+            // Need to disable the Grpc server when asp.net core gprc server is used.
+            localContentServerConfiguration.DisableGrpcServer = distributedSettings.EnableAspNetCoreGrpc;
+
             localCasServiceSettings.UnusedSessionTimeoutMinutes.ApplyIfNotNull(value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
             localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes.ApplyIfNotNull(value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
             localCasServiceSettings.GrpcCoreServerOptions.ApplyIfNotNull(value => localContentServerConfiguration.GrpcCoreServerOptions = value);

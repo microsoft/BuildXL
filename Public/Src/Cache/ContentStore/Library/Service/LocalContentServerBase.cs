@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <typeparam name="TSessionData">
     ///     Type of data associated with sessions.
     /// </typeparam>
-    public abstract class LocalContentServerBase<TStore, TSession, TSessionData> : StartupShutdownBase, ISessionHandler<TSession, TSessionData>, ILocalContentServer<TStore>, IServicesProvider
+    public abstract class LocalContentServerBase<TStore, TSession, TSessionData> : StartupShutdownBase, ISessionHandler<TSession, TSessionData>, ILocalContentServer<TStore>, IServicesProvider, ICacheServerServices
         where TSession : IContentSession
         where TStore : IStartupShutdown
         where TSessionData : ISessionData
@@ -101,12 +101,18 @@ namespace BuildXL.Cache.ContentStore.Service
         protected readonly ILogger Logger;
 
         /// <nodoc />
-        protected abstract ICacheServerServices Services { get; }
+        protected abstract GrpcContentServer GrpcServer { get; }
 
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
         public IReadOnlyDictionary<string, TStore> StoresByName { get; }
+
+        public IPushFileHandler? PushFileHandler => GrpcServer.PushFileHandler;
+
+        public IDistributedStreamStore StreamStore => GrpcServer.StreamStore;
+
+        public IEnumerable<IGrpcServiceEndpoint> GrpcEndpoints => new IGrpcServiceEndpoint[] { GrpcServer }.Concat(_additionalEndpoints);
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -164,12 +170,6 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             return _sessionHandles.Select(h => h.Key).ToList();
         }
-
-        /// <summary>
-        /// Gets an array of service definitions that will be exposed via grpc server.
-        /// </summary>
-        /// <returns></returns>
-        protected abstract ServerServiceDefinition[] BindServices();
 
         /// <nodoc />
         protected abstract Task<GetStatsResult> GetStatsAsync(TStore store, OperationContext context);
@@ -287,14 +287,17 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     await StartupStoresAsync(context).ThrowIfFailure();
 
-                    foreach (var endpoint in _additionalEndpoints)
+                    foreach (var endpoint in GrpcEndpoints)
                     {
                         await endpoint.StartupAsync(context).ThrowIfFailure();
                     }
 
                     await LoadHibernatedSessionsAsync(context);
 
-                    InitializeAndStartGrpcServer(context, Config, BindServices());
+                    if (!Config.DisableGrpcServer)
+                    {
+                        InitializeAndStartGrpcServer(context, Config);
+                    }
 
                     _serviceReadinessChecker.Ready(context);
 
@@ -338,9 +341,8 @@ namespace BuildXL.Cache.ContentStore.Service
             return null;
         }
 
-        private void InitializeAndStartGrpcServer(Context context, LocalServerConfiguration config, ServerServiceDefinition[] definitions)
+        private void InitializeAndStartGrpcServer(Context context, LocalServerConfiguration config)
         {
-            Contract.Requires(definitions.Length != 0);
             GrpcCoreServerOptions? grpcCoreServerOptions = config.GrpcCoreServerOptions;
             GrpcEnvironment.WaitUntilInitialized();
 
@@ -374,14 +376,9 @@ namespace BuildXL.Cache.ContentStore.Service
                 }
             }
 
-            foreach (var endpoint in _additionalEndpoints)
+            foreach (var endpoint in GrpcEndpoints)
             {
                 endpoint.BindServices(_grpcServer.Services);
-            }
-
-            foreach (var definition in definitions)
-            {
-                _grpcServer.Services.Add(definition);
             }
 
             _grpcServer.Start();
@@ -631,7 +628,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             var success = BoolResult.Success;
 
-            foreach (var endpoint in _additionalEndpoints)
+            foreach (var endpoint in GrpcEndpoints)
             {
                 success &= await endpoint.ShutdownAsync(context);
             }
@@ -949,7 +946,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         public bool TryGetService<TService>(out TService? service)
         {
-            if (Services is TService typedService)
+            if (this is TService typedService)
             {
                 service = typedService;
                 return true;

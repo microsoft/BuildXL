@@ -27,6 +27,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var result = new LocalCasSettings
             {
+                UseScenarioIsolation = @this.UseScenarioIsolation,
                 CasClientSettings = @this.CasClientSettings,
                 ServiceSettings = @this.ServiceSettings,
                 DrivePreferenceOrder = new List<string>(@this.DrivePreferenceOrder)

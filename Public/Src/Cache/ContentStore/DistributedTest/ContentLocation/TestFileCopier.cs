@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
@@ -30,11 +31,11 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public ConcurrentDictionary<AbsolutePath, bool> FilesToCorrupt { get; } = new ConcurrentDictionary<AbsolutePath, bool>();
 
-        public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
+        public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new();
 
-        public Dictionary<MachineLocation, IPushFileHandler> PushHandlersByLocation { get; } = new Dictionary<MachineLocation, IPushFileHandler>();
+        public Dictionary<MachineLocation, IPushFileHandler> PushHandlersByLocation { get; } = new();
 
-        public Dictionary<MachineLocation, IDeleteFileHandler> DeleteHandlersByLocation { get; } = new Dictionary<MachineLocation, IDeleteFileHandler>();
+        public Dictionary<MachineLocation, IDeleteFileHandler> DeleteHandlersByLocation { get; } = new();
 
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
@@ -110,21 +111,27 @@ namespace ContentStoreTest.Distributed.ContentLocation
         
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash, CancellationToken.None);
+            return UseAsync(CopyHandlersByLocation, targetMachine, h => h.HandleCopyFileRequestAsync(context, hash, CancellationToken.None));
         }
 
         public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            var result = await DeleteHandlersByLocation[targetMachine]
-                .HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true});
+            var result = await UseAsync(DeleteHandlersByLocation, targetMachine,
+                h => h.HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true}));
             return result;
         }
 
         public virtual async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine, CopyOptions options)
         {
-            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, new FileSource(stream), CancellationToken.None);
+            var result = await UseAsync(PushHandlersByLocation, targetMachine, h => h.HandlePushFileAsync(context, hash, new FileSource(stream), CancellationToken.None));
 
             return result ? PushFileResult.PushSucceeded(result.ContentSize) : new PushFileResult(result);
+        }
+
+        private Task<TResult> UseAsync<T, TResult>(Dictionary<MachineLocation, T> map, MachineLocation location, Func<T, Task<TResult>> action)
+        {
+            var instance = map[location];
+            return action(instance);
         }
     }
 }

@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
@@ -12,9 +14,13 @@ using BuildXL.Cache.Host.Service;
 using BuildXL.Launcher.Server.Controllers;
 using BuildXL.Utilities.Collections;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ProtoBuf.Grpc.Configuration;
+using ProtoBuf.Grpc.Server;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 
 namespace BuildXL.Launcher.Server
@@ -54,24 +60,23 @@ namespace BuildXL.Launcher.Server
             var logger = new Logger(consoleLog);
 
             var cacheConfigurationPath = configuration["CacheConfigurationPath"];
-            var standalone = configuration.GetValue("standalone", true);
+            var standalone = configuration.GetValue<bool>("standalone", true);
             var secretsProviderKind = configuration.GetValue("secretsProviderKind", CrossProcessSecretsCommunicationKind.Environment);
-            
+            var context = new Context(logger);
+
             return CacheServiceRunner.RunCacheServiceAsync(
-                new OperationContext(new Context(logger), token),
+                new OperationContext(context, token),
                 cacheConfigurationPath,
                 createHost: (hostParameters, config, token) =>
                 {
                     // If this process was started as a standalone cache service, we need to change the mode
                     // this time to avoid trying to start the cache service process again.
                     config.DistributedContentSettings.RunCacheOutOfProc = false;
-                    if (config.DataRootPath is null)
-                    {
-                        // The required property is not set, so it should be passed through the command line options by the parent process.
-                        config.DataRootPath = configuration.GetValue("DataRootPath", "Unknown DataRootPath");
-                    }
+                    config.DataRootPath = configuration.GetValue("DataRootPath", config.DataRootPath);
+                    Contract.Assert(config.DataRootPath != null,
+                        "The required property (DataRootPath) is not set, so it should be passed through the command line options by the parent process.");
 
-                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, retrieveAllSecretsFromSingleEnvironmentVariable: secretsProviderKind == CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry);
+                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, retrieveAllSecretsFromSingleEnvironmentVariable: secretsProviderKind == CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry);
                     return serviceHost;
                 },
                 requireServiceInterruptable: !standalone);
@@ -121,14 +126,11 @@ namespace BuildXL.Launcher.Server
                 services.AddSingleton<HostParameters>(hostParameters);
             }
 
-            // Only the launcher-based invocation would have 'ProxyConfigurationPath' and
-            // the out-of-proc case would not.
-            var configurationPath = Configuration.GetValue<string>("ProxyConfigurationPath", null);
-
-            if (configurationPath is not null)
+            var proxyConfigurationPath = Configuration["ProxyConfigurationPath"];
+            if (!string.IsNullOrEmpty(proxyConfigurationPath))
             {
                 // Add ProxyServiceConfiguration as a singleton in service provider
-                services.AddSingleton(sp =>
+                services.AddSingleton<ProxyServiceConfiguration>(sp =>
                 {
                     var context = sp.GetRequiredService<BoxRef<OperationContext>>().Value;
                     var hostParameters = sp.GetService<HostParameters>();
@@ -139,39 +141,39 @@ namespace BuildXL.Launcher.Server
                         {
                             var proxyConfiguration = CacheServiceRunner.LoadAndWatchPreprocessedConfig<DeploymentConfiguration, ProxyServiceConfiguration>(
                                 context,
-                                configurationPath,
+                                proxyConfigurationPath,
                                 configHash: out _,
                                 hostParameters: hostParameters,
                                 extractConfig: c => c.Proxy.ServiceConfiguration);
 
                             return Result.Success(proxyConfiguration);
                         },
-                        messageFactory: r => $"ConfigurationPath=[{configurationPath}], Port={r.GetValueOrDefault()?.Port}",
+                        messageFactory: r => $"ConfigurationPath=[{proxyConfigurationPath}], Port={r.GetValueOrDefault()?.Port}",
                         caller: "LoadConfiguration").ThrowIfFailure();
                 });
+
+                // Add DeploymentProxyService as a singleton in service provider
+                services.AddSingleton(sp =>
+                {
+                    var hostParameters = sp.GetService<HostParameters>();
+
+                    var context = sp.GetRequiredService<BoxRef<OperationContext>>().Value;
+                    var configuration = sp.GetRequiredService<ProxyServiceConfiguration>();
+
+                    return context.PerformOperation(
+                        new Tracer(nameof(CacheServiceStartup)),
+                        () =>
+                        {
+                            return Result.Success(new DeploymentProxyService(
+                                configuration,
+                                hostParameters));
+                        },
+                        caller: "CreateProxyService").ThrowIfFailure();
+                });
             }
-
-            // Add DeploymentProxyService as a singleton in service provider
-            services.AddSingleton(sp =>
-            {
-                var hostParameters = sp.GetService<HostParameters>();
-
-                var context = sp.GetRequiredService<BoxRef<OperationContext>>().Value;
-                var configuration = sp.GetRequiredService<ProxyServiceConfiguration>();
-
-                return context.PerformOperation(
-                    new Tracer(nameof(CacheServiceStartup)),
-                    () =>
-                    {
-                        return Result.Success(new DeploymentProxyService(
-                            configuration,
-                            hostParameters));
-                    },
-                    caller: "CreateProxyService").ThrowIfFailure();
-            });
         }
 
-        private class ServiceHost : EnvironmentVariableHost, IDistributedCacheServiceHostInternal
+        public class ServiceHost : EnvironmentVariableHost, IDistributedCacheServiceHostInternal
         {
             /// <summary>
             /// The web application host. This is surfaced to allow access to services (namely configuration i.e. command
@@ -186,16 +188,17 @@ namespace BuildXL.Launcher.Server
             // is built. (NOTE: They are available on Start).
             public HostParameters HostParameters { get; }
             public DistributedCacheServiceConfiguration ServiceConfiguration { get; }
-            public ProxyConfigurationSource ConfigurationSource { get; } = new ProxyConfigurationSource();
 
             private DeploymentProxyService ProxyService { get; set; }
             private ContentCacheService ContentCacheService { get; set; }
+
+            private bool UseGrpc => ServiceConfiguration.DistributedContentSettings.EnableAspNetCoreGrpc;
 
             /// <summary>
             /// Constructs the service host and takes command line arguments because
             /// ASP.Net core application host is used to parse command line.
             /// </summary>
-            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, bool retrieveAllSecretsFromSingleEnvironmentVariable)
+            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, Context context, bool retrieveAllSecretsFromSingleEnvironmentVariable = false)
                 : base(retrieveAllSecretsFromSingleEnvironmentVariable)
             {
                 HostParameters = hostParameters;
@@ -203,10 +206,43 @@ namespace BuildXL.Launcher.Server
                 WebHostBuilder = Host.CreateDefaultBuilder(commandLineArgs)
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
+                        if (UseGrpc)
+                        {
+                            webBuilder.ConfigureLogging(l =>
+                            {
+                                l.ClearProviders();
+
+                                // This is left for future reference if ASP.NET logging needs to be enabled
+                                //l.AddProvider(new LoggingAdapter("ASPNET", context));
+                            });
+
+                            webBuilder.ConfigureKestrel(o =>
+                            {
+                                int? port = null;
+                                var proxyConfiguration = WebHost.Services.GetService<ProxyServiceConfiguration>();
+                                if (UseGrpc)
+                                {
+                                    port = (int)ServiceConfiguration.LocalCasSettings.ServiceSettings.GrpcPort;
+                                }
+                                else if (proxyConfiguration == null)
+                                {
+                                    port = proxyConfiguration.Port;
+                                }
+
+                                o.ConfigureEndpointDefaults(listenOptions =>
+                                {
+                                    listenOptions.Protocols = HttpProtocols.Http2;
+                                });
+
+                                if (port.HasValue)
+                                {
+                                    o.ListenAnyIP(port.Value);
+                                }
+                            });
+                        }
+
                         webBuilder.UseStartup<CacheServiceStartup>();
                     });
-
-                WebHostBuilder.ConfigureHostConfiguration(cb => cb.Add(ConfigurationSource));
             }
 
             public async Task OnStartedServiceAsync(OperationContext context, ICacheServerServices cacheServices)
@@ -215,6 +251,8 @@ namespace BuildXL.Launcher.Server
 
                 WebHostBuilder.ConfigureServices(services =>
                 {
+                    services.AddSingleton<DistributedCacheServiceConfiguration>(ServiceConfiguration);
+
                     if (ServiceConfiguration.ContentCache != null)
                     {
                         if (cacheServices.PushFileHandler != null && cacheServices.StreamStore != null)
@@ -228,16 +266,33 @@ namespace BuildXL.Launcher.Server
                             });
                         }
                     }
+
+                    if (UseGrpc)
+                    {
+                        services.AddSingleton(cacheServices);
+
+                        var grpcServiceCollection = new ServiceCollectionWrapper(services);
+
+                        foreach (var grpcEndpoint in cacheServices.GrpcEndpoints)
+                        {
+                            grpcEndpoint.AddServices(grpcServiceCollection);
+                        }
+
+                        services.AddSingleton<BinderConfiguration>(MetadataServiceSerializer.BinderConfiguration);
+                        services.AddCodeFirstGrpc();
+                    }
                 });
 
                 WebHost = WebHostBuilder.Build();
-                ConfigurationSource.Configuration = WebHost.Services.GetService<ProxyServiceConfiguration>();
 
                 // Get and start the DeploymentProxyService
                 ProxyService = WebHost.Services.GetService<DeploymentProxyService>();
                 ContentCacheService = WebHost.Services.GetService<ContentCacheService>();
 
-                await ProxyService.StartupAsync(context).ThrowIfFailureAsync();
+                if (ProxyService != null)
+                {
+                    await ProxyService.StartupAsync(context).ThrowIfFailureAsync();
+                }
 
                 if (ContentCacheService != null)
                 {
@@ -247,8 +302,19 @@ namespace BuildXL.Launcher.Server
                 await WebHost.StartAsync(context.Token);
             }
 
+            private record ServiceCollectionWrapper(IServiceCollection Services) : IGrpcServiceCollection
+            {
+                public void AddService<TService>(TService service) where TService : class
+                {
+                    Services.AddSingleton<TService>(service);
+                }
+            }
+
             public async Task OnStoppingServiceAsync(OperationContext context)
             {
+                // Not passing cancellation token since it will already be signaled
+                await WebHost.StopAsync();
+
                 if (ProxyService != null)
                 {
                     await ProxyService.ShutdownAsync(context).IgnoreFailure();
@@ -259,42 +325,8 @@ namespace BuildXL.Launcher.Server
                     await ContentCacheService.ShutdownAsync(context).IgnoreFailure();
                 }
 
-                // Not passing cancellation token since it will already be signaled
-                await WebHost.StopAsync();
-
                 WebHost.Dispose();
             }
-        }
-
-        /// <summary>
-        /// Handles propagating the port configuration from the loaded <see cref="ProxyServiceConfiguration"/>
-        /// to the web host so it will actually listen on that port.
-        /// </summary>
-        private class ProxyConfigurationSource : ConfigurationProvider, IConfigurationSource
-        {
-            public ProxyServiceConfiguration Configuration { get; set; }
-
-            public ProxyConfigurationSource()
-            {
-            }
-
-            public IConfigurationProvider Build(IConfigurationBuilder builder)
-            {
-                return this;
-            }
-
-            public override bool TryGet(string key, out string value)
-            {
-                if (key == WebHostDefaults.ServerUrlsKey)
-                {
-                    Contract.Assert(Configuration != null);
-                    value = $"http://*:{Configuration.Port}";
-                    return true;
-                }
-
-                return base.TryGet(key, out value);
-            }
-
         }
     }
 }

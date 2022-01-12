@@ -81,7 +81,7 @@ namespace BuildXL.Cache.Host.Configuration
             Ring ??= telemetryProvider.Ring;
             Stamp ??= telemetryProvider.Stamp;
             Machine ??= telemetryProvider.MachineName;
-            MachineFunction ??= telemetryProvider.MachineName;
+            MachineFunction ??= telemetryProvider.APMachineFunction;
             Environment ??= telemetryProvider.APEnvironment;
         }
 

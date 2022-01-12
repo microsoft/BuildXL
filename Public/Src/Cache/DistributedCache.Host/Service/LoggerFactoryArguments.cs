@@ -11,7 +11,7 @@ namespace BuildXL.Cache.Host.Service
     /// <summary>
     ///     Arguments for constructing the nlog logger.
     /// </summary>
-    public class LoggerFactoryArguments
+    public record LoggerFactoryArguments
     {
         /// <nodoc />
         public ILogger Logger { get; internal set; }

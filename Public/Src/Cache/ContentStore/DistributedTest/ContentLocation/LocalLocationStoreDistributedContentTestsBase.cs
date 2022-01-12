@@ -79,8 +79,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected readonly LocalRedisFixture _redis;
         protected Action<TestDistributedContentSettings> _overrideDistributed = null;
-        protected readonly Dictionary<int, RedisContentLocationStoreConfiguration> _configurations
-            = new Dictionary<int, RedisContentLocationStoreConfiguration>();
+        protected readonly ConcurrentDictionary<int, RedisContentLocationStoreConfiguration> _configurations
+            = new();
 
         private const int InfiniteHeartbeatMinutes = 10_000;
 
@@ -156,7 +156,7 @@ namespace ContentStoreTest.Distributed.Sessions
             _overrideRedis = overrideRedis;
         }
 
-        protected override (TStore store, IStartupShutdown server) CreateStore(
+        protected override TestServerProvider CreateStore(
             Context context,
             IRemoteFileCopier fileCopier,
             DisposableDirectory testDirectory,
@@ -234,11 +234,13 @@ namespace ContentStoreTest.Distributed.Sessions
                 // Use very low to delay to keep tests with proactive replication from running a very long time
                 ProactiveReplicationDelaySeconds = 0.001,
 
-                ContentMetadataClientOperationTimeout = "1s",
+                ContentMetadataClientOperationTimeout = "1m",
                 ContentMetadataClientConnectionTimeout = "1s",
 
                 ContentLocationDatabaseOpenReadOnly = true,
                 EnablePublishingCache = EnablePublishingCache,
+
+                GrpcCopyClientConnectOnStartup = true
             };
 
             if (ProactiveCopyLocationThreshold.HasValue)
@@ -306,15 +308,15 @@ namespace ContentStoreTest.Distributed.Sessions
 
             arguments = ModifyArguments(arguments);
 
+            return CreateStore(context, arguments);
+        }
+
+        protected virtual TestServerProvider CreateStore(Context context, DistributedCacheServiceArguments arguments)
+        {
             if (UseGrpcServer)
             {
                 var server = (ILocalContentServer<TStore>)new CacheServerFactory(arguments).CreateAsync(new OperationContext(context)).GetAwaiter().GetResult();
                 TStore store = server.StoresByName["Default"];
-                //if (store is MultiplexedContentStore multiplexedStore)
-                //{
-                //    store = multiplexedStore.PreferredContentStore;
-                //}
-
                 return (store, server);
             }
             else
@@ -380,7 +382,7 @@ namespace ContentStoreTest.Distributed.Sessions
             public TestHostOverrides Overrides;
         }
 
-        protected class TestHost : IDistributedCacheServiceHost
+        protected class TestHost : IDistributedCacheServiceHost, IDistributedCacheServiceHostInternal
         {
             private readonly Dictionary<string, string> _secrets = new Dictionary<string, string>();
 
@@ -407,6 +409,8 @@ namespace ContentStoreTest.Distributed.Sessions
             public void OnStartedService() { }
             public Task OnStartingServiceAsync() => Task.CompletedTask;
             public void OnTeardownCompleted() { }
+            public Task OnStartedServiceAsync(OperationContext context, ICacheServerServices services) => Task.CompletedTask;
+            public Task OnStoppingServiceAsync(OperationContext context) => Task.CompletedTask;
         }
 
         protected class TestHostOverrides : DistributedCacheServiceHostOverrides

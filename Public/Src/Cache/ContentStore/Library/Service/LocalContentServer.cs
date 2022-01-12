@@ -36,9 +36,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalContentServer));
 
-        /// <inheritdoc />
-        protected override ICacheServerServices Services => GrpcContentServer;
+        protected override GrpcContentServer GrpcServer => GrpcContentServer;
 
+        /// <summary>
+        /// Expose to tests
+        /// </summary>
         internal GrpcContentServer GrpcContentServer { get; }
 
         /// <nodoc />
@@ -56,9 +58,6 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => GrpcContentServer.Bind();
-
-        /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(IContentStore store, OperationContext context) => store.GetStatsAsync(context);
 
         /// <inheritdoc />
@@ -73,24 +72,6 @@ namespace BuildXL.Cache.ContentStore.Service
         ///     Attempt to open event that will signal an imminent service shutdown or restart.
         /// </summary>
         public static EventWaitHandle? OpenShutdownEvent(Context context, string? scenario) => ServiceReadinessChecker.OpenShutdownEvent(context, scenario);
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await GrpcContentServer.StartupAsync(context).ThrowIfFailure();
-
-            return await base.StartupCoreAsync(context);
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            var result = await base.ShutdownCoreAsync(context);
-
-            result &= await GrpcContentServer.ShutdownAsync(context);
-
-            return result;
-        }
 
         /// <inheritdoc />
         protected override Task<IReadOnlyList<HibernatedSessionInfo>> RestoreHibernatedSessionDatasAsync(OperationContext context)

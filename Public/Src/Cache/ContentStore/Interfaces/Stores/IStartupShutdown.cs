@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
     /// <summary>
     ///     Aggregation of IStartup and IShutdown
     /// </summary>
-    public interface IStartupShutdown : IStartup<BoolResult>, IShutdown<BoolResult>
+    public interface IStartupShutdown : IStartup<BoolResult>, IShutdown<BoolResult>, IStartupShutdownSlim
     {
     }
 }

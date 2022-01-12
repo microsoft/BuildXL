@@ -78,12 +78,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// <summary>
     /// A CAS server implementation based on GRPC.
     /// </summary>
-    public class GrpcContentServer : StartupShutdownSlimBase, ICacheServerServices, IDistributedStreamStore
+    public class GrpcContentServer : StartupShutdownSlimBase, IDistributedStreamStore, IGrpcServiceEndpoint
     {
-        private readonly Tracer _tracer = new Tracer(nameof(GrpcContentServer));
-
         /// <inheritdoc />
-        protected override Tracer Tracer => _tracer;
+        protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcContentServer));
 
         private readonly Capabilities _serviceCapabilities;
         private readonly IReadOnlyDictionary<string, IContentStore> _contentStoreByCacheName;
@@ -189,8 +187,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return BoolResult.SuccessTask;
         }
 
-        /// <nodoc />
-        public ServerServiceDefinition[] Bind() => new ServerServiceDefinition[] { ContentServer.BindService(GrpcAdapter) };
+        /// <inheritdoc />
+        public void BindServices(Server.ServiceDefinitionCollection services)
+        {
+            services.Add(ContentServer.BindService(GrpcAdapter));
+        }
+
+        /// <inheritdoc />
+        public void MapServices(IGrpcServiceEndpointCollection endpoints)
+        {
+            endpoints.MapService<ContentServerAdapter>();
+        }
+
+        /// <inheritdoc />
+        public void AddServices(IGrpcServiceCollection services)
+        {
+            services.AddService(GrpcAdapter);
+        }
 
         /// <summary>
         /// Implements a create session request.
@@ -472,7 +485,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
 
                     var streamResult = await operationContext.PerformOperationAsync(
-                            _tracer,
+                            Tracer,
                             async () =>
                             {
                                 var streamResult = await streamContent(result.Stream, bufferHandle.Value, secondaryBufferHandle.Value, responseStream, operationContext.Token);

@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 #nullable disable
 
@@ -14,21 +12,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
     ///     to complete (which can deadlock in some cases), we make this explicit and require
     ///     clients to shutdown services before Dispose.
     /// </summary>
-    public interface IShutdown<T> : IDisposable
+    public interface IShutdown<T> : IShutdownSlim<T>, IDisposable
     {
-        /// <summary>
-        ///     Gets a value indicating whether check if the service has been shutdown.
-        /// </summary>
-        bool ShutdownCompleted { get; }
-
-        /// <summary>
-        ///     Gets a value indicating whether check if the service shutdown has begun.
-        /// </summary>
-        bool ShutdownStarted { get; }
-
-        /// <summary>
-        ///     Shutdown the service asynchronously.
-        /// </summary>
-        Task<T> ShutdownAsync(Context context);
     }
 }

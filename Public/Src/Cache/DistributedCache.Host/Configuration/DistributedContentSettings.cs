@@ -91,6 +91,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsDistributedContentEnabled { get; set; }
 
         /// <summary>
+        /// Feature flag to turn off Grpc.Core grpc server and instead use AspNet.Core grpc implementation
+        /// </summary>
+        [DataMember]
+        public bool EnableAspNetCoreGrpc { get; set; }
+
+        /// <summary>
         /// Grpc port for backing cache service instance
         /// </summary>
         [DataMember]

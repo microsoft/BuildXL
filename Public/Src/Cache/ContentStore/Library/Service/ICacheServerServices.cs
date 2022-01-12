@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 
 namespace BuildXL.Cache.Host.Service
@@ -25,5 +27,8 @@ namespace BuildXL.Cache.Host.Service
 
         /// <nodoc />
         IDistributedStreamStore StreamStore { get; }
+
+        /// <nodoc />
+        IEnumerable<IGrpcServiceEndpoint> GrpcEndpoints { get; }
     }
 }

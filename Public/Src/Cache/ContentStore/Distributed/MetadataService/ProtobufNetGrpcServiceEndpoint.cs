@@ -45,5 +45,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 operation: "Grpc");
             services.AddCodeFirst<TService>(_service, MetadataServiceSerializer.BinderConfiguration, textWriterAdapter);
         }
+
+        public void MapServices(IGrpcServiceEndpointCollection endpoints)
+        {
+            endpoints.MapService<TService>();
+        }
+
+        public void AddServices(IGrpcServiceCollection services)
+        {
+            services.AddService<TService>(_service);
+        }
     }
 }

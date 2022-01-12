@@ -1,9 +1,12 @@
-using System;
 using System.Reflection;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service;
 using BuildXL.Launcher.Server.Controllers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -86,26 +89,33 @@ namespace BuildXL.Launcher.Server
                 app.UseDeveloperExceptionPage();
             }
 
-            //app.UseHttpsRedirection();
-
-            app.Use(async (context, next) =>
-            {
-                Console.WriteLine("Before");
-
-                await next.Invoke();
-
-                Console.WriteLine("After");
-            });
-
             app.UseRouting();
-
-            //app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
+                var sp = endpoints.ServiceProvider;
+                var configuration = sp.GetService<DistributedCacheServiceConfiguration>();
+                if (configuration != null && configuration.DistributedContentSettings.EnableAspNetCoreGrpc)
+                {
+                    var cacheServices = endpoints.ServiceProvider.GetRequiredService<ICacheServerServices>();
+                    var endpointsWrapper = new GrpcEndpointCollectionWrapper(endpoints);
+                    foreach (var endpoint in cacheServices.GrpcEndpoints)
+                    {
+                        endpoint.MapServices(endpointsWrapper);
+                    }
+                }
+
                 endpoints.MapControllers();
             });
 
+        }
+
+        private record GrpcEndpointCollectionWrapper(IEndpointRouteBuilder Endpoints) : IGrpcServiceEndpointCollection
+        {
+            public void MapService<TService>() where TService : class
+            {
+                Endpoints.MapGrpcService<TService>();
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <TestJobGroup>
     <ResourceSpec>
-        <Resource Image="2019-Datacenter" SKU="Standard_D2s_v3"/>
+        <Resource Image="CTGalleryServer2019" SKU="CTNonInteractive"/>
     </ResourceSpec>
 
     <Setup TimeoutMins="15">

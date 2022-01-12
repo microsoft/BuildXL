@@ -170,16 +170,9 @@ dotnet_naming_symbols.static_fields.applicable_accessibilities                  
 dotnet_naming_style.static_field_style.capitalization                           = camel_case
 dotnet_naming_style.static_field_style.required_prefix                          = s_
 
-# Async methods should have 'Async' suffix
-dotnet_naming_rule.async_methods_should_have_async_suffix.severity              = warning
-dotnet_naming_rule.async_methods_should_have_async_suffix.symbols               = async_methods
-dotnet_naming_rule.async_methods_should_have_async_suffix.style                 = async_methods_style
-
-dotnet_naming_symbols.async_methods.applicable_kinds                            = method
-dotnet_naming_symbols.async_methods.required_modifiers                          = async
-
-dotnet_naming_style.async_methods_style.capitalization                          = pascal_case
-dotnet_naming_style.async_methods_style.required_suffix                         = Async
+# We don't configure the naming convention for 'async' methods, because it's not possible to enforce the naming
+# convention for task-based methods not marked with the 'async' prefix (like interface members or simplie `Task FooBar() => Baz()`).
+# Instead 'Microsoft.VisualStudio.Threading.Analyzers' (or simpiler) analyzers should be used to enforce it.
 
 # Instance fields are camelCase and start with m_
 dotnet_naming_rule.instance_fields_should_be_camel_case.severity                = warning

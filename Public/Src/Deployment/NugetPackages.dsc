@@ -73,6 +73,15 @@ namespace NugetPackages {
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
     });
+	
+	const winX64Net6 = !canBuildAllPackagesOnThisHost ? undefined : pack({
+        id: `${packageNamePrefix}.win-x64-net6`,
+        deployment: BuildXL.withQualifier({
+            targetFramework: "net6.0",
+            targetRuntime: "win-x64"
+        }).deployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
 
     const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,

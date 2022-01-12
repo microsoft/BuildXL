@@ -17,6 +17,12 @@ namespace Test.BuildXL.Storage
         public ContentHashingUtilitiesUnitTests(ITestOutputHelper output)
             : base(output) { }
 
+        public void HasNonZeroHashSize()
+        {
+            // HashAlgorigthm requires this value to be set to the size of block it returns.  Murmur algorithm is not used anywhere else by default, so we test this is set.
+            XAssert.AreNotEqual(0, new Murmur3HashAlgorithm().HashSize);
+        }
+
         [Fact]
         public void OrderIndependentCombine()
         {

@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.App
     /// </summary>
     internal sealed partial class Application : IDisposable
     {
-        private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode/Dedup64K/Dedup1024K)";
+        private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode/Dedup64K/Dedup1024K/MurMur)";
 
         /// <summary>
         ///     The name of this service (sent to Kusto as the value of the 

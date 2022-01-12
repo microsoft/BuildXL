@@ -32,6 +32,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _currentOffset = 0;
             _currentBlockOffset = 0;
+            HashSizeValue = 33 * 8;
         }
 
         /// <inheritdoc />

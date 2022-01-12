@@ -17,7 +17,7 @@ namespace Test.BuildXL.Utilities
     {
         private readonly ITestOutputHelper m_output;
 
-        /// <inheritdoc />
+        /// <nodoc />
         public TaskSourceSlimTests(ITestOutputHelper output)
         {
             m_output = output;
@@ -35,7 +35,7 @@ namespace Test.BuildXL.Utilities
 
             private readonly Task m_task;
 
-            /// <inheritdoc />
+            /// <nodoc />
             public SecondProducerConsumer(ITestOutputHelper output)
             {
                 m_output = output;
@@ -64,6 +64,20 @@ namespace Test.BuildXL.Utilities
                     m_output.WriteLine("SecondProducerConsumer: the result is set.");
                 }
             }
+        }
+
+        [Fact]
+        public async Task DefaultConstructorCreatesValidInstance()
+        {
+            await Task.Yield();
+
+            // Without default constructor the await would fail with NRE.
+            var tcs = new TaskSourceSlim<int>();
+
+            tcs.SetResult(42);
+
+            int result = await tcs.Task;
+            Assert.Equal(42, result);
         }
 
         [Fact]

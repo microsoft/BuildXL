@@ -23,6 +23,19 @@ namespace BuildXL.Utilities.Tasks
     {
         private readonly TaskCompletionSource<TResult> m_tcs;
 
+        /// <summary>
+        /// A default constructor that creates the underlying <see cref="TaskCompletionSource{TResult}"/>
+        /// with <see cref="TaskCreationOptions.RunContinuationsAsynchronously"/> flag.
+        /// </summary>
+        /// <remarks>
+        /// This constructor won't prevent from complete misuse of this type because a struct can be "instantiated"
+        /// with <code>default</code> expression, but it makes the possibility of the error way less likely.
+        /// </remarks>
+        public TaskSourceSlim()
+        {
+            m_tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         /// <nodoc />
         internal TaskSourceSlim(bool runContinuationsAsynchronously)
             : this()

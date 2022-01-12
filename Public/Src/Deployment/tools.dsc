@@ -23,22 +23,6 @@ namespace Tools {
         }
     }
 
-    namespace XldbAnalyzer {
-
-        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
-
-        export const deployment : Deployment.Definition = {
-            contents: [
-                importFrom("BuildXL.Tools").Xldb.Analyzer.exe,
-            ]
-        };
-
-        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
-            definition: deployment,
-            targetLocation: Helpers.getTargetLocation("XldbAnalyzer"),
-        });
-    }
-
     namespace SandboxExec {
 
         export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;

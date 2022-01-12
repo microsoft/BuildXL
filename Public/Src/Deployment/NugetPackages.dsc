@@ -425,53 +425,6 @@ namespace NugetPackages {
         }).deployment
     });
 
-    const xldbnetcorequalifier : BuildXLSdk.DefaultQualifierWithNet472 = {
-        targetFramework: "netcoreapp3.1",
-        configuration: qualifier.configuration,
-        targetRuntime: "win-x64"
-    };
-
-    const xldbnet472qualifier : BuildXLSdk.DefaultQualifierWithNet472 = {
-        targetFramework: "net472",
-        configuration: qualifier.configuration,
-        targetRuntime: "win-x64"
-    };
-
-    const xldblibrary = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.Xldb`,
-        deployment: {
-            contents: [
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.withQualifier(xldbnetcorequalifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.Proto.withQualifier(xldbnetcorequalifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(xldbnetcorequalifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").KeyValueStore.withQualifier(xldbnetcorequalifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Collections.withQualifier(xldbnetcorequalifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Native.withQualifier(xldbnetcorequalifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Storage.withQualifier(xldbnetcorequalifier).dll),
-
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.withQualifier(xldbnet472qualifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.Proto.withQualifier(xldbnet472qualifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(xldbnet472qualifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").KeyValueStore.withQualifier(xldbnet472qualifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Collections.withQualifier(xldbnet472qualifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Native.withQualifier(xldbnet472qualifier).dll),
-                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Storage.withQualifier(xldbnet472qualifier).dll),
-
-                {
-                    subfolder: r`content`,
-                    contents: [
-                        importFrom("BuildXL.Sandbox.Windows").Deployment.withQualifier({ targetRuntime: "win-x64" }).natives,
-                    ]
-                },
-            ]
-        },
-        dependencies: [
-            ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472PackageQualifer).getRocksDbPackages(false),
-            importFrom("Google.Protobuf").withQualifier(net472PackageQualifer).pkg,
-            importFrom("RuntimeContracts").withQualifier(net472PackageQualifer).pkg,
-        ],
-    });
-
     const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(canBuildAllPackagesOnThisHost, () => [
@@ -483,7 +436,6 @@ namespace NugetPackages {
                 cacheInterfaces,
                 cacheService,
                 cacheHashing,
-                xldblibrary,
                 utilities,
                 pips,
                 processes,

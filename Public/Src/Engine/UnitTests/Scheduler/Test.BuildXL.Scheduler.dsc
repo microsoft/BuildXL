@@ -58,7 +58,6 @@ namespace Scheduler {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").Configuration.dll,
-            importFrom("BuildXL.Tools").Xldb.Proto.dll,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe

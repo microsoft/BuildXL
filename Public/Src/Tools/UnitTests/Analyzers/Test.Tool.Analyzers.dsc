@@ -39,8 +39,6 @@ namespace Test.Tool.Analyzers {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
-            importFrom("BuildXL.Tools").Xldb.dll,
-            importFrom("BuildXL.Tools").Xldb.Proto.dll,
             importFrom("Newtonsoft.Json").pkg,
         ],
         runtimeContent: [

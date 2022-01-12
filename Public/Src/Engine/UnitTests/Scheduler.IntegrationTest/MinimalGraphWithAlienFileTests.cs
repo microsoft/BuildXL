@@ -166,19 +166,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void UntrackedPathsAndScopesAreNotPartOfTheFingerprint()
+        public void GlobalUntrackedScopesAreNotPartOfTheFingerprint()
         {
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
             DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
 
-            // Create some directories and files we'll later untrack
-            var untrackedFile = CreateSourceFile(root: dirPath, prefix: "untrackedFile");
-            string untrackedFilePath = untrackedFile.Path.ToString(Context.PathTable);
-            File.WriteAllText(untrackedFilePath, "some text");
-
-            var untrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "untrackedDir"));
-            Directory.CreateDirectory(untrackedScope.Path.ToString(Context.PathTable));
-
+            // Create a directory we'll later globally untrack
             var globalUntrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "globalUntrackedDir"));
             Directory.CreateDirectory(globalUntrackedScope.Path.ToString(Context.PathTable));
 
@@ -188,8 +181,6 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
             });
             
-            builder.AddUntrackedFile(untrackedFile);
-            builder.AddUntrackedDirectoryScope(untrackedScope);
             Configuration.Sandbox.GlobalUnsafeUntrackedScopes = new List<AbsolutePath> { globalUntrackedScope.Path };
 
             // This makes sure we use the right file system, which is aware of alien files
@@ -200,9 +191,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Run once
             RunScheduler().AssertSuccess();
             
-            // Delete all untracked paths and scopes. We should get a cache hit on re-run 
-            File.Delete(untrackedFile.Path.ToString(Context.PathTable));
-            Directory.Delete(untrackedScope.Path.ToString(Context.PathTable));
+            // Delete the untracked scope. We should get a cache hit on re-run 
             Directory.Delete(globalUntrackedScope.Path.ToString(Context.PathTable));
 
             RunScheduler().AssertCacheHit(pip.Process.PipId);

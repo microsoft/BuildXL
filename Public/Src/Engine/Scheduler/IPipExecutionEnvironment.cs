@@ -238,6 +238,11 @@ namespace BuildXL.Scheduler
         /// Indicates if inputs are lazily materialized via MaterializeInput step.
         /// </summary>
         bool InputsLazilyMaterialized { get; }
+
+        /// <summary>
+        /// The set of <see cref="ISandboxConfiguration.GlobalUnsafeUntrackedScopes"/> translated with <see cref="DirectoryTranslator"/>
+        /// </summary>
+        IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes { get; }
     }
 
     /// <summary>

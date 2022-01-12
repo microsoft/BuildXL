@@ -637,6 +637,8 @@ namespace Test.BuildXL.Scheduler.Utils
 
         public PluginManager PluginManager { get; }
 
+        public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes => CollectionUtilities.EmptySet<AbsolutePath>();
+
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {
             if (m_knownSealedSourceDirectoriesAllDirectories.Contains(directory.Path))

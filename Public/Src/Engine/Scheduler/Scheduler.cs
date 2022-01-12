@@ -1218,6 +1218,8 @@ namespace BuildXL.Scheduler
             m_fileContentTable = fileContentTable;
             m_journalState = journalState ?? JournalState.DisabledJournal;
             DirectoryTranslator = directoryTranslator;
+            TranslatedGlobalUnsafeUntrackedScopes = m_configuration.Sandbox.GlobalUnsafeUntrackedScopes.Select(p => DirectoryTranslator.Translate(p, context.PathTable)).ToReadOnlySet();
+
             m_directoryMembershipFingerprinterRules = directoryMembershipFingerprinterRules;
             m_previousInputsSalt = previousInputsSalt ?? UnsafeOptions.PreserveOutputsNotUsed;
             m_fileAccessAllowlist = fileAccessAllowlist;
@@ -5249,6 +5251,10 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         public DirectoryTranslator DirectoryTranslator { get; }
+
+        /// <inheritdoc />
+        public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes { get; }
+
 
         /// <summary>
         /// Gets the execution information for the producer pip of the given file.

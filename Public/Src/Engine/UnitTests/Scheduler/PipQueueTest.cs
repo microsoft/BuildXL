@@ -661,6 +661,8 @@ namespace Test.BuildXL.Scheduler
             public ReparsePointResolver ReparsePointAccessResolver => null;
 
             public PluginManager PluginManager { get; }
+
+            public IReadOnlySet<AbsolutePath> TranslatedGlobalUnsafeUntrackedScopes => CollectionUtilities.EmptySet<AbsolutePath>();
         }
     }
 

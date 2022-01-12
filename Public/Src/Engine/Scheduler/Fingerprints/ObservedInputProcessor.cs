@@ -2100,21 +2100,8 @@ namespace BuildXL.Scheduler.Fingerprints
                 // 1) add known immediate outputs using the pip file system. These should always be there.
                 // 2) enumerate the real file system excluding outputs that are not immediate dependency ones
                 using (var pooledPathSet = Pools.GetDirectoryMemberSet())
-                using (var pooledUntrackedSet = Pools.GetAbsolutePathSet())
                 {
                     var pipFileEnumResult = pooledPathSet.Instance;
-                    var untrackedPaths = pooledUntrackedSet.Instance;
-
-                    // Collect here all untracked paths and scopes for this pip
-                    // Observe that we put together paths and scopes under the same set. The rationale is:
-                    // - if an untracked path is enumerated, we just pretend it was not part of the enumeration, since if the path becomes absent it shouldn't affect any fingerprint
-                    // - if an untracked scoped is defined, it only matters (for the same reasons as in the above point) if the scope is immediately under the directory being
-                    // enumerated. We don't need to check if the scope is a parent of the enumerated directory since in that case we shouldn't be using this enumeration mode, since the enumerated 
-                    // directory is under an untracked scope.
-                    var processPip = (Process) request.PipInfo.UnderlyingPip;
-                    untrackedPaths.AddRange(processPip.UntrackedPaths);
-                    untrackedPaths.AddRange(processPip.UntrackedScopes);
-                    untrackedPaths.AddRange(m_env.Configuration.Sandbox.GlobalUnsafeUntrackedScopes);
 
                     // 1) Query the pip file system, since we want outputs from immediate dependencies to be there regardless
                     // of the state of the real file system
@@ -2153,8 +2140,10 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 AbsolutePath realFileEntryPath = realFileEntry.Item1;
 
-                                // If the entry is untracked, then it should be invisible for the enumeration
-                                if (untrackedPaths.Contains(realFileEntryPath))
+                                // If the entry is globally untracked, then it should be invisible for the enumeration
+                                // Observe that since this is a global collection of untracked scopes, excluding this entry makes sense for all pips
+                                // enumerating this directory, and therefore it is safe to cache
+                                if (m_env.TranslatedGlobalUnsafeUntrackedScopes.Contains(realFileEntryPath))
                                 {
                                     continue;
                                 }

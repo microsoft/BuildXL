@@ -50,8 +50,11 @@ export namespace DropDaemonRunner {
             args: ServiceStartArguments
         )
         => {
+            const startArgs = overrideServerMoniker(
+                <UberArguments>args
+            );
             return startServiceInternal(
-                <UberArguments>args,
+                startArgs,
                 "start-nodrop",
                 "stop",
                 undefined

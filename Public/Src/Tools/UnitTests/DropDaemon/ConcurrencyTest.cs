@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Multiplexing;
@@ -34,7 +35,7 @@ namespace Test.Tool.DropDaemon
         /// </summary>
         [Theory]
         [InlineData(2, 50)]
-        public void TestWithThreads(int numServices, int numRequestsPerService)
+        public async Task TestWithThreadsAsync(int numServices, int numRequestsPerService)
         {
             var ipcProvider = new IpcProviderWithMemoization(IpcFactory.GetProvider());
             var ipcMonikers = Enumerable
@@ -42,23 +43,21 @@ namespace Test.Tool.DropDaemon
                 .Select(_ => ipcProvider.RenderConnectionString(ipcProvider.CreateNewMoniker()))
                 .ToList();
 
-            var serverThreads = ipcMonikers
-                .Select(moniker => CreateThreadForCommand($"{StartNoDropCmd.Name} --{Moniker.LongName} " + moniker, null))
+            var serverTasks = ipcMonikers
+                .Select(moniker => CreateTaskForCommand($"{StartNoDropCmd.Name} --{Moniker.LongName} " + moniker, null))
                 .ToList();
-            Start(serverThreads);
 
-            Thread.Sleep(100);
+            // make sure that the daemons are running
+            await Task.Delay(200);
 
-            var clientThreads = GetClientThreads(ipcProvider, ipcMonikers, numServices, numRequestsPerService, $"{PingDaemonCmd.Name} --{Moniker.LongName} <moniker>");
+            var clientThreads = GetClientTasks(ipcProvider, ipcMonikers, numRequestsPerService, $"{PingDaemonCmd.Name} --{Moniker.LongName} <moniker>");
 
-            Start(clientThreads);
-            Join(clientThreads);
+            await Task.WhenAll(clientThreads);
 
-            var serverShutdownThreads = GetClientThreads(ipcProvider, ipcMonikers, numServices, 1, $"{StopDaemonCmd.Name} --{Moniker.LongName} <moniker>");
-            Start(serverShutdownThreads);
-            Join(serverShutdownThreads);
+            var serverShutdownThreads = GetClientTasks(ipcProvider, ipcMonikers, 1, $"{StopDaemonCmd.Name} --{Moniker.LongName} <moniker>");
 
-            Join(serverThreads);
+            await Task.WhenAll(serverShutdownThreads);
+            await Task.WhenAll(serverTasks);
         }
 
         public static void Start(IEnumerable<Thread> threads)
@@ -77,20 +76,20 @@ namespace Test.Tool.DropDaemon
             }
         }
 
-        private IEnumerable<Thread> GetClientThreads(IIpcProvider ipcProvider, IEnumerable<string> ipcMonikers, int numServices, int numRequests, string cmdLine)
+        private IEnumerable<Task> GetClientTasks(IIpcProvider ipcProvider, IEnumerable<string> ipcMonikers, int numRequests, string cmdLine)
         {
             return ipcMonikers
                 .SelectMany(moniker =>
                     Enumerable
                         .Range(1, numRequests)
-                        .Select(i => CreateThreadForCommand(cmdLine.Replace("<moniker>", moniker), ipcProvider.GetClient(moniker, new ClientConfig())))
+                        .Select(i => CreateTaskForCommand(cmdLine.Replace("<moniker>", moniker), ipcProvider.GetClient(moniker, new ClientConfig())))
                         .ToList())
                 .ToList();
         }
 
-        private Thread CreateThreadForCommand(string cmdLine, IClient client)
+        private Task CreateTaskForCommand(string cmdLine, IClient client)
         {
-            return new Thread(() =>
+            return Task.Factory.StartNew(() =>
             {
                 Console.WriteLine($"running command: " + cmdLine);
                 var logger = new LambdaLogger((level, format, args) =>
@@ -102,7 +101,7 @@ namespace Test.Tool.DropDaemon
                 ConfiguredCommand conf = ParseArgs(cmdLine, UnixParser.Instance, logger);
                 var exitCode = conf.Command.ClientAction(conf, client);
                 Assert.Equal(0, exitCode);
-            });
+            }, creationOptions: TaskCreationOptions.LongRunning);
         }
     }
 }

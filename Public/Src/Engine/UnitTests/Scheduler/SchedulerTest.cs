@@ -2178,7 +2178,7 @@ namespace Test.BuildXL.Scheduler
         {
             Process servicePip, shutdownPip, clientPip;
             SetupServicePips(servicePip: out servicePip, shutdownPip: out shutdownPip, clientPip: out clientPip);
-            XAssert.IsTrue(RunScheduler().GetAwaiter().GetResult());
+            XAssert.IsTrue(RunScheduler(testHooks: new SchedulerTestHooks() { ServicePipReportedReady = true }).GetAwaiter().GetResult());
 
             // service pip and service shutdown pip must be uncacheable
             XAssert.AreEqual(2, m_scheduler.PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsExecutedButUncacheable));

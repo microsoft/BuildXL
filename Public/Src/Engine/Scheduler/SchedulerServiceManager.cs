@@ -36,6 +36,7 @@ namespace BuildXL.Scheduler
         private readonly PipGraph m_pipGraph;
         private readonly PipExecutionContext m_context;
         private readonly ServicePipTracker m_servicePipTracker;
+        private readonly SchedulerTestHooks m_testHooks;
         private LoggingContext m_executePhaseLoggingContext;
         private OperationTracker m_operationTracker;
         private int m_runningServicesCount;
@@ -58,11 +59,12 @@ namespace BuildXL.Scheduler
         public int TotalServiceShutdownPipsCompleted => m_totalServiceShutdownPipsCompleted;
 
         /// <nodoc />
-        public SchedulerServiceManager(PipGraph pipGraph, PipExecutionContext context, ServicePipTracker pipTracker)
+        public SchedulerServiceManager(PipGraph pipGraph, PipExecutionContext context, ServicePipTracker pipTracker, SchedulerTestHooks testHooks)
         {
             m_pipGraph = pipGraph;
             m_context = context;
             m_servicePipTracker = pipTracker;
+            m_testHooks = testHooks;
         }
 
         internal void Start(LoggingContext loggingContext, OperationTracker operationTracker)
@@ -271,7 +273,7 @@ namespace BuildXL.Scheduler
                                 return;
                             }
 
-                            if (isStartup && false) // block this logic until the daemons are updated
+                            if (isStartup)
                             {
                                 // It's a startup of a service, so we need to wait for a call from that service before setting serviceLaunchCompletion.
                                 GetServiceReadyTaskByProcessId(pipDescription, processId).ContinueWith(tsk =>
@@ -341,6 +343,12 @@ namespace BuildXL.Scheduler
         private Task<bool> GetServiceReadyTaskByProcessId(string servicePipDescription, int processId)
         {
             Logger.Log.ScheduleServicePipProcessStartedButNotReady(m_executePhaseLoggingContext, servicePipDescription, processId);
+
+            if (m_testHooks != null && m_testHooks.ServicePipReportedReady != null)
+            {
+                return Task.FromResult(m_testHooks.ServicePipReportedReady.Value);
+            }
+
             var serviceReadyCompletion = GetServiceReadyCompletionByProcessId(processId); 
             serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromMinutes(5)).ContinueWith(tsk =>
             {

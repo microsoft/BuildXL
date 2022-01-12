@@ -331,12 +331,14 @@ namespace Tool.DropDaemon
         internal static readonly Command StartNoDropCmd = RegisterCommand(
             name: "start-nodrop",
             description: @"Starts a server process without a backing VSO drop client (useful for testing/pinging the daemon).",
+            options: new Option[] { IpcServerMonikerOptional },
             needsIpcClient: false,
             clientAction: (conf, _) =>
             {
                 var daemonConfig = CreateDaemonConfig(conf);
                 var dropServiceConfig = CreateDropServiceConfig(conf);
-                using (var daemon = new DropDaemon(conf.Config.Parser, daemonConfig, dropServiceConfig))
+                using (var client = CreateClient(conf.Get(IpcServerMonikerOptional), daemonConfig))
+                using (var daemon = new DropDaemon(conf.Config.Parser, daemonConfig, dropServiceConfig, client: client))
                 {
                     daemon.Start();
                     daemon.Completion.GetAwaiter().GetResult();

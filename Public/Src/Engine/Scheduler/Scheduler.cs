@@ -1241,8 +1241,9 @@ namespace BuildXL.Scheduler
 
             m_schedulerCancellationTokenSource = new CancellationTokenSource();
 
+            m_testHooks = testHooks;
             m_servicePipTracker = new ServicePipTracker(context);
-            m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker);
+            m_serviceManager = new SchedulerServiceManager(graph, context, m_servicePipTracker, m_testHooks);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
             m_ipcProvider = new IpcProviderWithMemoization(
                 ipcProvider ?? IpcFactory.GetProvider(),
@@ -1281,7 +1282,6 @@ namespace BuildXL.Scheduler
                 m_pipStateCountersSnapshots[i] = new PipStateCountersSnapshot();
             }
 
-            m_testHooks = testHooks;
             LocalWorker = m_scheduleConfiguration.EnableProcessRemoting
                 ? new LocalWorkerWithRemoting(m_scheduleConfiguration, m_configuration.Sandbox, pipQueue, m_testHooks?.DetoursListener, context)
                 : new LocalWorker(m_scheduleConfiguration, pipQueue, m_testHooks?.DetoursListener, context);

@@ -69,5 +69,13 @@ namespace BuildXL.Scheduler
         /// Scanning journal result.
         /// </summary>
         public ScanningJournalResult ScanningJournalResult { get; set; }
+
+        /// <summary>
+        /// A value to simulate readiness of a started service pip.
+        /// </summary>
+        /// <remarks>
+        /// We don't spin up API server for basic tests, so a service pip cannot make complete the handshake.
+        /// </remarks>
+        public bool? ServicePipReportedReady { get; set; }
     }
 }

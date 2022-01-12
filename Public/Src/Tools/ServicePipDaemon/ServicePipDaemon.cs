@@ -48,14 +48,14 @@ namespace Tool.ServicePipDaemon
         private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
 
         /// <summary>Daemon configuration.</summary>
-        public DaemonConfig Config { get; }
+        protected internal DaemonConfig Config { get; }
 
-        /// <summary>Task to wait on for the completion result.</summary>
-        public Task Completion => m_server.Completion;
+        /// <summary>Task to wait on for the completion the underlying server (i.e., all commands are handled, 'stop' was issued).</summary>
+        protected Task Completion => m_server.Completion;
 
         /// <summary>Client for talking to BuildXL.</summary>
         [CanBeNull]
-        public Client ApiClient { get; }
+        protected Client ApiClient { get; }
 
         /// <nodoc />
         protected readonly ICloudBuildLogger m_etwLogger;
@@ -396,6 +396,18 @@ namespace Tool.ServicePipDaemon
         public void Start()
         {
             m_server.Start(this);
+
+            // some tests run without API Client, so there is no one to notify that the service is ready
+            if (ApiClient != null)
+            {
+                var process = Process.GetCurrentProcess();
+                m_logger.Verbose($"Reporting to BXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}')");
+                var possibleResult = ApiClient.ReportServicePipIsReady(process.Id, process.ProcessName).GetAwaiter().GetResult();
+                if (!possibleResult.Succeeded)
+                {
+                    m_logger.Error("Failed to notify BuildXL that the service is ready.");
+                }
+            }
         }
 
         /// <summary>

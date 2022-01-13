@@ -373,28 +373,40 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)LogEventId.LogRemotingDebugMessage,
+            (int)LogEventId.FindAnyBuildClient,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[Pip{pipSemiStableHash:X16}] Remoting debug: {message}")]
-        public abstract void LogRemotingDebugMessage(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string message);
+            Message = "Find AnyBuild client for process remoting at '{anyBuildInstallDir}'")]
+        public abstract void FindAnyBuildClient(LoggingContext context, string anyBuildInstallDir);
 
         [GeneratedEvent(
-            (int)LogEventId.LogRemotingErrorMessage,
+            (int)LogEventId.FindOrStartAnyBuildDaemon,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[Pip{pipSemiStableHash:X16}] Remoting error: {message}")]
-        public abstract void LogRemotingErrorMessage(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string message);
+            Message = "Find or start AnyBuild daemon manager for process remoting with arguments '{args}' (log directory: '{logDir}')")]
+        public abstract void FindOrStartAnyBuildDaemon(LoggingContext context, string args, string logDir);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExceptionOnFindOrStartAnyBuildDaemon,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Exception on finding or starting AnyBuild daemon: {exception}")]
+        public abstract void ExceptionOnFindOrStartAnyBuildDaemon(LoggingContext context, string exception);
+
+        [GeneratedEvent(
+            (int)LogEventId.ExceptionOnGetAnyBuildRemoteProcessFactory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Exception on getting AnyBuild remote process factory: {exception}")]
+        public abstract void ExceptionOnGetAnyBuildRemoteProcessFactory(LoggingContext context, string exception);
 
         [GeneratedEvent(
             (int)LogEventId.LogMacKextFailure,

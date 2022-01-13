@@ -17,7 +17,8 @@ namespace Processes {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 BuildXLSdk.NetFx.System.IO.Compression.dll,
-                BuildXLSdk.NetFx.System.Management.dll
+                BuildXLSdk.NetFx.System.Management.dll,
+                NetFx.Netstandard.dll
             ),
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
                 SysMng.pkg.override<Shared.ManagedNugetPackage>({
@@ -38,12 +39,16 @@ namespace Processes {
             importFrom("BuildXL.Utilities").PluginGrpc.dll,
             importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
+                  importFrom("AnyBuild.SDK").pkg,
+            ]),
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",
             "Test.BuildXL.Processes",
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",
+            "ExternalToolTest.BuildXL.Scheduler",
         ],
         runtimeContent: [
             ...addIfLazy(Context.getCurrentHost().os === "win" && qualifier.targetRuntime === "win-x64", () => [

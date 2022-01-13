@@ -4,9 +4,9 @@
 namespace BuildXL.Processes.Remoting
 {
     /// <summary>
-    /// Various execution sub-results provided from AnyBuild process execution.
+    /// Result disposition.
     /// </summary>
-    public enum CommandExecutionDisposition
+    public enum RemoteResultDisposition
     {
         /// <summary>
         /// Default zero value.
@@ -19,12 +19,12 @@ namespace BuildXL.Processes.Remoting
         CacheHit,
 
         /// <summary>
-        /// The process was remoted to an AnyBuild cluster.
+        /// The process was remoted.
         /// </summary>
         Remoted,
 
         /// <summary>
-        /// The process was run locally by AnyBuild.exe and no fallback execution is needed.
+        /// The process was run locally by the remoting engine and no fallback execution is needed.
         /// </summary>
         RanLocally,
     }

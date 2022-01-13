@@ -1781,6 +1781,7 @@ namespace BuildXL.Scheduler
                         directoryTranslator: environment.DirectoryTranslator,
                         remainingUserRetryCount: remainingUserRetries,
                         vmInitializer: environment.VmInitializer,
+                        remoteProcessManager: environment.RemoteProcessManager,
                         tempDirectoryCleaner: environment.TempCleaner,
                         changeAffectedInputs: changeAffectedInputs,
                         detoursListener: detoursEventListener,

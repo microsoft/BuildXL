@@ -68,6 +68,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Processes.Sideband;
+using BuildXL.Processes.Remoting;
 
 namespace BuildXL.Scheduler
 {
@@ -1404,11 +1405,12 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
-            m_pipRetryCountersDueToNetworkFailures = new int[(m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0) + 1];
+            m_pipRetryCountersDueToNetworkFailures = new int[(configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0) + 1];
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
-            m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
+            RemoteProcessManager = RemoteProcessManagerFactory.GetOrCreate(loggingContext, Context, configuration, SandboxedProcessFactory.Counters);
+            m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(configuration.Logging.MaxNumPipTelemetryBatches, configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
             ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
 
@@ -7525,6 +7527,9 @@ namespace BuildXL.Scheduler
         public VmInitializer VmInitializer { get; }
 
         /// <inheritdoc/>
+        public IRemoteProcessManager RemoteProcessManager { get; }
+
+        /// <inheritdoc/>
         public ReparsePointResolver ReparsePointAccessResolver { get; }
 
         private long m_maxExternalProcessesRan;
@@ -7769,6 +7774,7 @@ namespace BuildXL.Scheduler
 
             ExecutionLog?.Dispose();
             SandboxConnection?.Dispose();
+            RemoteProcessManager?.Dispose();
 
             LocalWorker.Dispose();
             m_allWorker?.Dispose();

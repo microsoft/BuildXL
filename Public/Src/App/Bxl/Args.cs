@@ -902,6 +902,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "relatedActivityId",
                             opt => loggingConfiguration.RelatedActivityId = CommandLineUtilities.ParseStringOption(opt)),
+                        OptionHandlerFactory.CreateOption(
+                            "remoteExecutionServiceUri",
+                            opt =>  schedulingConfiguration.RemoteExecutionServiceUri = CommandLineUtilities.ParseStringOption(opt)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "remoteTelemetry",
                             (opt, sign) =>

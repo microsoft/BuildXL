@@ -21,12 +21,8 @@ namespace BuildXL.Processes.Remoting
     /// </remarks>
     public class RemoteSandboxedProcess : ExternalSandboxedProcess
     {
-        /// <summary>
-        /// Remote process factory creator.
-        /// </summary>
-        public static Lazy<IRemoteProcessFactory> RemoteProcessFactory;
-
-        private IRemoteProcess m_remoteProcess;
+        private IRemoteProcessPip m_remoteProcess;
+        private readonly IRemoteProcessManager m_remoteProcessManager;
         private readonly CancellationTokenSource m_killProcessCts = new ();
         private readonly CancellationTokenSource m_combinedCts;
         private readonly CancellationToken m_cancellationToken;
@@ -56,28 +52,19 @@ namespace BuildXL.Processes.Remoting
         /// </summary>
         public RemoteSandboxedProcess(
             SandboxedProcessInfo sandboxedProcessInfo,
+            IRemoteProcessManager remoteProcessManager,
             ExternalToolSandboxedProcessExecutor tool,
             string externalSandboxedProcessDirectory,
             CancellationToken cancellationToken)
             : base(sandboxedProcessInfo, Path.Combine(externalSandboxedProcessDirectory, nameof(ExternalToolSandboxedProcess)))
         {
             Contract.Requires(tool != null);
+            Contract.Requires(remoteProcessManager.IsInitialized);
 
             m_tool = tool;
+            m_remoteProcessManager = remoteProcessManager;
             m_cancellationToken = cancellationToken;
             m_combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_killProcessCts.Token);
-
-            if (RemoteProcessFactory == null)
-            {
-                RemoteProcessFactory = new Lazy<IRemoteProcessFactory>(() =>
-                {
-                    // TODO:
-                    // var clientDll = Assembly.Load(... path to client dll...);
-                    // s_remoteProcessFactory = Activator.CreateInstance(clientDll.GetType("AnyBuild.BuildXL.Client.BuildXLRemoteProcessFactory"));
-
-                    return new RemoteProcessFactory();
-                });
-            }
         }
 
         /// <inheritdoc />
@@ -86,14 +73,13 @@ namespace BuildXL.Processes.Remoting
             base.Start();
 
             SerializeSandboxedProcessInputFile(SandboxedProcessInfoFile, SandboxedProcessInfo.Serialize);
-            var remoteProcessInfo = new RemoteCommandExecutionInfo(
+            var remoteProcessInfo = new RemoteProcessInfo(
                 m_tool.ExecutablePath,
                 m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
                 SandboxedProcessInfo.WorkingDirectory,
-                useLocalEnvironment: false,
-                SandboxedProcessInfo.EnvironmentVariables.ToDictionary().ToList());
+                SandboxedProcessInfo.EnvironmentVariables.ToDictionary());
 
-            m_remoteProcess = RemoteProcessFactory.Value.CreateAndStartAsync(remoteProcessInfo, m_combinedCts.Token).GetAwaiter().GetResult();
+            m_remoteProcess = m_remoteProcessManager.CreateAndStartAsync(remoteProcessInfo, m_combinedCts.Token).GetAwaiter().GetResult();
         }
 
         /// <inheritdoc />

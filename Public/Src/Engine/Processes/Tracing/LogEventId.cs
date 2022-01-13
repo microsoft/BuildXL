@@ -155,10 +155,12 @@ namespace BuildXL.Processes.Tracing
         ExistenceAssertionUnderOutputDirectoryFailed = 12214,
 
         /// Sandboxed process remoting.
-        LogRemotingDebugMessage = 12500,
-        LogRemotingErrorMessage = 12501,
+        FindAnyBuildClient = 12500, // was LogRemotingDebugMessage
+        FindOrStartAnyBuildDaemon = 12501, // was LogRemotingErrorMessage
         PipProcessStartRemoteExecution = 12502,
         PipProcessFinishedRemoteExecution = 12503,
+        ExceptionOnFindOrStartAnyBuildDaemon = 12504,
+        ExceptionOnGetAnyBuildRemoteProcessFactory = 12505,
 
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,

@@ -14,25 +14,25 @@ namespace ExternalToolTest.BuildXL.Scheduler
     /// <summary>
     /// Remote process for testing.
     /// </summary>
-    internal class TestRemoteProcess : IRemoteProcess
+    internal class TestRemoteProcess : IRemoteProcessPip
     {
         private readonly StringBuilder m_output = new();
         private readonly StringBuilder m_error = new ();
-        private readonly RemoteCommandExecutionInfo m_processInfo;
+        private readonly RemoteProcessInfo m_processInfo;
         private readonly CancellationToken m_cancellationToken;
         private readonly bool m_shouldRunLocally;
 
         private AsyncProcessExecutor m_processExecutor;
         private Process m_process;
-        private Task<IRemoteProcessResult> m_completion;
+        private Task<IRemoteProcessPipResult> m_completion;
 
-        public Task<IRemoteProcessResult> Completion => m_completion;
+        public Task<IRemoteProcessPipResult> Completion => m_completion;
 
         /// <summary>
         /// Creates an instance of <see cref="TestRemoteProcess"/>.
         /// </summary>
         public TestRemoteProcess(
-            RemoteCommandExecutionInfo processInfo,
+            RemoteProcessInfo processInfo,
             CancellationToken cancellationToken,
             bool shouldRunLocally = false)
         {
@@ -50,7 +50,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = m_processInfo.Command,
+                    FileName = m_processInfo.Executable,
                     Arguments = m_processInfo.Args,
                     WorkingDirectory = m_processInfo.WorkingDirectory,
                     RedirectStandardError = true,
@@ -79,14 +79,14 @@ namespace ExternalToolTest.BuildXL.Scheduler
                         m_error.Append(line);
                     }
                 },
-                $"{nameof(TestRemoteProcess)}: {m_processInfo.Command} {m_processInfo.Args}");
+                $"{nameof(TestRemoteProcess)}: {m_processInfo.Executable} {m_processInfo.Args}");
 
             m_processExecutor.Start();
             m_completion = WaitForCompletionAsync();
             return Task.CompletedTask;
         }
 
-        private async Task<IRemoteProcessResult> WaitForCompletionAsync()
+        private async Task<IRemoteProcessPipResult> WaitForCompletionAsync()
         {
             await m_processExecutor.WaitForExitAsync();
             await m_processExecutor.WaitForStdOutAndStdErrAsync();
@@ -97,11 +97,11 @@ namespace ExternalToolTest.BuildXL.Scheduler
                     m_process.ExitCode,
                     m_output.ToString(),
                     m_error.ToString(),
-                    CommandExecutionDisposition.Remoted);
+                    RemoteResultDisposition.Remoted);
         }
     }
 
-    internal sealed class RemoteProcessResult : IRemoteProcessResult
+    internal sealed class RemoteProcessResult : IRemoteProcessPipResult
     {
         /// <inheritdoc/>
         public bool ShouldRunLocally { get; private set; }
@@ -116,11 +116,11 @@ namespace ExternalToolTest.BuildXL.Scheduler
         public string StdErr { get; private set; }
 
         /// <inheritdoc/>
-        public CommandExecutionDisposition Disposition { get; private set; }
+        public RemoteResultDisposition Disposition { get; private set; }
 
         internal static RemoteProcessResult CreateForLocalRun() => new() { ShouldRunLocally = true };
 
-        internal static RemoteProcessResult CreateFromCompletedProcess(int exitCode, string stdOut, string stdErr, CommandExecutionDisposition disposition) =>
+        internal static RemoteProcessResult CreateFromCompletedProcess(int exitCode, string stdOut, string stdErr, RemoteResultDisposition disposition) =>
             new() { ExitCode = exitCode, StdOut = stdOut, StdErr = stdErr, Disposition = disposition };
     }
 }

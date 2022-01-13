@@ -495,5 +495,14 @@ namespace BuildXL.Utilities.Configuration
         /// The multiplier for <see cref="MaxProcesses"/> that determines when the scheduler starts to execute process pips remotely when <see cref="EnableProcessRemoting"/> is true.
         /// </summary>
         double RemotingThresholdMultiplier { get; }
+
+        /// <summary>
+        /// URI of cluster to use for remoting processes.
+        /// </summary>
+        /// <remarks>
+        /// When unspecified, the service URI will be determined by AnyBuild client itself.
+        /// This setting is only applicable when <see cref="EnableProcessRemoting"/> is true.
+        /// </remarks>
+        string RemoteExecutionServiceUri { get; }
     }
 }

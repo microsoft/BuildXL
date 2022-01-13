@@ -178,6 +178,7 @@ namespace BuildXL.Processes
         private readonly ContainerConfiguration m_containerConfiguration;
 
         private readonly VmInitializer m_vmInitializer;
+        private readonly IRemoteProcessManager m_remoteProcessManager;
 
         private readonly Dictionary<AbsolutePath, AbsolutePath> m_tempFolderRedirectionForVm = new Dictionary<AbsolutePath, AbsolutePath>();
 
@@ -256,6 +257,7 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
+            IRemoteProcessManager remoteProcessManager = null,
             SubstituteProcessExecutionInfo shimInfo = null,
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
             IDetoursEventListener detoursListener = null,
@@ -387,6 +389,7 @@ namespace BuildXL.Processes
             }
 
             m_vmInitializer = vmInitializer;
+            m_remoteProcessManager = remoteProcessManager;
 
             if (configuration.IncrementalTools != null)
             {
@@ -1117,13 +1120,16 @@ namespace BuildXL.Processes
 
                 if (SandboxedProcessShouldExecuteRemote)
                 {
+                    // Initialize remoting process manager once.
+                    await m_remoteProcessManager.InitAsync();
+
                     PopulateRemoteSandboxedProcessData(info);
 
                     Tracing.Logger.Log.PipProcessStartRemoteExecution(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
-                        spi => new RemoteSandboxedProcess(spi, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory, cancellationToken));
+                        spi => new RemoteSandboxedProcess(spi, m_remoteProcessManager, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory, cancellationToken));
                 }
                 else if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
@@ -1157,6 +1163,14 @@ namespace BuildXL.Processes
                     m_pipDescription,
                     ex.LogEventErrorCode,
                     ex.LogEventMessage);
+
+                if (SandboxedProcessShouldExecuteRemote && !m_remoteProcessManager.IsInitialized)
+                {
+                    // Failed to initialize remoting process manager --> fallback to local execution.
+                    return SandboxedProcessPipExecutionResult.FailureButRetryAble(
+                        SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                        RetryInfo.GetDefault(RetryReason.RemoteFallback));
+                }
 
                 return SandboxedProcessPipExecutionResult.FailureButRetryAble(
                     SandboxedProcessPipExecutionStatus.ExecutionFailed,

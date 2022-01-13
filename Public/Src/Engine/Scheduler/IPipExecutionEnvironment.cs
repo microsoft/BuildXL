@@ -14,6 +14,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Remoting;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -213,6 +214,11 @@ namespace BuildXL.Scheduler
         /// VM initializer.
         /// </summary>
         VmInitializer VmInitializer { get; }
+
+        /// <summary>
+        /// Remoting process manager.
+        /// </summary>
+        IRemoteProcessManager RemoteProcessManager { get; }
 
         /// <summary>
         /// Temp directory cleaner

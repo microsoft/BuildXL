@@ -22,6 +22,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Plugin;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Remoting;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -630,6 +631,8 @@ namespace Test.BuildXL.Scheduler.Utils
         public ProcessInContainerManager ProcessInContainerManager { get; }
 
         public VmInitializer VmInitializer { get; }
+
+        public IRemoteProcessManager RemoteProcessManager { get; }
 
         public ITempCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
 

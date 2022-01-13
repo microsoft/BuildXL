@@ -75,6 +75,20 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
 
         /// <summary>
+        /// Directory where AnyBuild client is installed.
+        /// </summary>
+        /// <remarks>
+        /// This property can be set to override the default AnyBuild client installation directory. AnyBuild client is needed
+        /// for process remoting via AnyBuild.
+        /// </remarks>
+        public static readonly Setting<string> AnyBuildInstallDir = CreateSetting("BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR", value => value);
+
+        /// <summary>
+        /// Extra arguments to be passed to AnyBuild daemon for process remoting.
+        /// </summary>
+        public static readonly Setting<string> AnyBuildExtraArgs = CreateSetting("BUILDXL_ANYBUILD_EXTRA_ARGS", value => value);
+
+        /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions
         /// </summary>
         public static readonly Setting<bool> FailFastOnNullReferenceException = CreateSetting("FailFastOnNullReferenceException", value => value == "1");

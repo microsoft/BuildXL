@@ -82,6 +82,9 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Contracts", version: sbomApiVersion },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
     { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection.Contracts", version: "0.2010.80" },
+
+    // Process remoting
+    { id: "AnyBuild.SDK", version: "0.1.5" },
 ] : [
 
     // Artifact packages and dependencies in OSS
@@ -103,5 +106,6 @@ export const resolver = {
 
         f`Private/InternalSdk/Drop/module.config.dsc`,
         f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
+        f`Private/InternalSdk/AnyBuild.SDK/module.config.dsc`,
     ]
 };

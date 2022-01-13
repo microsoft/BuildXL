@@ -259,10 +259,8 @@ export const deploymentForBuildXL: Deployment.Definition = {
         ...getGrpcPackages(true),
 
         ...addIf(qualifier.targetRuntime === "win-x64",
-            importFrom("Grpc.Core").Contents.all.getFile("runtimes/win/native/grpc_csharp_ext.x64.dll"),
-            importFrom("Grpc.Core").Contents.all.getFile("runtimes/win/native/grpc_csharp_ext.x86.dll")),
+            importFrom("Grpc.Core").Contents.all.getFile("runtimes/win-x64/native/grpc_csharp_ext.x64.dll")),
         ...addIf(qualifier.targetRuntime === "osx-x64",
-            importFrom("Grpc.Core").Contents.all.getFile("runtimes/osx/native/libgrpc_csharp_ext.x64.dylib"),
-            importFrom("Grpc.Core").Contents.all.getFile("runtimes/osx/native/libgrpc_csharp_ext.x86.dylib")),
+            importFrom("Grpc.Core").Contents.all.getFile("runtimes/osx-x64/native/libgrpc_csharp_ext.x64.dylib")),
     ]
 };

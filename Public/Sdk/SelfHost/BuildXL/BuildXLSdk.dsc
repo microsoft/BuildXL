@@ -669,7 +669,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "DISABLE_FEATURE_EXTENDED_ENCODING"
                 ),
                 ...addIf(Flags.isMicrosoftInternal,
-                    "FEATURE_ARIA_TELEMETRY"
+                    "FEATURE_ARIA_TELEMETRY",
+                    "FEATURE_ANYBUILD_PROCESS_REMOTING"
                 ),
                 ...addIf(isTargetRuntimeOsx,
                     "FEATURE_THROTTLE_EVAL_SCHEDULER"

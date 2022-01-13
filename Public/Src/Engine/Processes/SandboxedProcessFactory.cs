@@ -190,13 +190,37 @@ namespace BuildXL.Processes
             /// Duration of reporting output content inside of Scheduler
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
-            SchedulerPhaseReportingOutputContent
+            SchedulerPhaseReportingOutputContent,
+
+            /// <summary>
+            /// Duration of initializing remoting process manager.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorInitializingRemoteProcessManager,
+
+            /// <summary>
+            /// Duration of finding AnyBuild during remoting process manager initialization.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorRemoteProcessManagerFindAnyBuild,
+
+            /// <summary>
+            /// Duration of starting AnyBuild daemon during remoting process manager initialization.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorRemoteProcessManagerStartAnyBuildDaemon,
+
+            /// <summary>
+            /// Duration of getting AnyBuild remote process factory during remoting process manager initialization.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorRemoteProcessManagerGetAnyBuildRemoteFactory,
         }
 
         /// <summary>
         /// Counters for sandboxed process execution.
         /// </summary>
-        public static readonly CounterCollection<SandboxedProcessCounters> Counters = new CounterCollection<SandboxedProcessCounters>();
+        public static readonly CounterCollection<SandboxedProcessCounters> Counters = new ();
 
         /// <summary>
         /// Start a sand-boxed process asynchronously. The result will only be available once the process terminates.

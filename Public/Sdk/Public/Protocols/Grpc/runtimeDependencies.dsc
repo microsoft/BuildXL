@@ -13,10 +13,9 @@ namespace Deployment {
         ? {
             contents: [
                 {
-                    subfolder: r`runtimes/win/native`,
+                    subfolder: r`runtimes/win-x64/native`,
                     contents: [
-                        Managed.Factory.createBinary(pkgContents, r`runtimes/win/native/grpc_csharp_ext.x64.dll`),
-                        Managed.Factory.createBinary(pkgContents, r`runtimes/win/native/grpc_csharp_ext.x86.dll`),
+                        Managed.Factory.createBinary(pkgContents, r`runtimes/win-x64/native/grpc_csharp_ext.x64.dll`),
                     ],
                 },
             ]
@@ -25,10 +24,9 @@ namespace Deployment {
         ? {
             contents: [
                 {
-                    subfolder: r`runtimes/osx/native`,
+                    subfolder: r`runtimes/osx-x64/native`,
                     contents: [
-                        Managed.Factory.createBinary(pkgContents, r`runtimes/osx/native/libgrpc_csharp_ext.x64.dylib`),
-                        Managed.Factory.createBinary(pkgContents, r`runtimes/osx/native/libgrpc_csharp_ext.x86.dylib`),
+                        Managed.Factory.createBinary(pkgContents, r`runtimes/osx-x64/native/libgrpc_csharp_ext.x64.dylib`),
                     ],
                 },
             ]
@@ -36,10 +34,9 @@ namespace Deployment {
         : { 
             contents: [
                 {
-                    subfolder: r`runtimes/linux/native`,
+                    subfolder: r`runtimes/linux-x64/native`,
                     contents: [
-                        Managed.Factory.createBinary(pkgContents, r`runtimes/linux/native/libgrpc_csharp_ext.x64.so`),
-                        Managed.Factory.createBinary(pkgContents, r`runtimes/linux/native/libgrpc_csharp_ext.x86.so`),
+                        Managed.Factory.createBinary(pkgContents, r`runtimes/linux-x64/native/libgrpc_csharp_ext.x64.so`),
                     ],
                 },
             ],

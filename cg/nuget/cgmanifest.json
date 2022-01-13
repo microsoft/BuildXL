@@ -14,6 +14,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "AnyBuild.SDK",
+          "Version": "0.1.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Aria.Cpp.SDK.osx-x64",
           "Version": "8.5.6"
         }
@@ -294,7 +303,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf",
-          "Version": "3.17.3"
+          "Version": "3.19.1"
         }
       }
     },
@@ -303,7 +312,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf.Tools",
-          "Version": "3.17.2"
+          "Version": "3.19.1"
         }
       }
     },
@@ -312,7 +321,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.AspNetCore",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -321,7 +330,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.AspNetCore.Server",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -330,7 +339,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.AspNetCore.Server.ClientFactory",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -339,7 +348,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -348,7 +357,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core.Api",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -357,7 +366,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -366,7 +375,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Client.Web",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -375,7 +384,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.ClientFactory",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -384,7 +393,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Net.Common",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },
@@ -393,7 +402,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Tools",
-          "Version": "2.32.0"
+          "Version": "2.41.0"
         }
       }
     },

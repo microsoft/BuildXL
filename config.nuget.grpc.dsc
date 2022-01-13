@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 // Ideally these are same version, but ProtoBuf has a newer patch version.
-const protoVersion = "3.17.3";
-const protoToolsVersion = "3.17.2";
+const protoVersion = "3.19.1";
+const protoToolsVersion = "3.19.1";
 
-const grpcVersion = "2.32.0";
+const grpcVersion = "2.41.0";
 
 export const pkgs = [
     // grpc
@@ -16,7 +16,7 @@ export const pkgs = [
     { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
     { id: "Grpc.AspNetCore.Server", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},
     { id: "Grpc.AspNetCore", version: grpcVersion, dependentPackageIdsToSkip: ["System.Diagnostics.DiagnosticSource"]},  
-    
+
     { id: "Grpc.Core", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Grpc.Core.Api", version: grpcVersion, dependentPackageIdsToSkip: [ "System.Memory" ] },
     { id: "Grpc.Tools", version: grpcVersion },

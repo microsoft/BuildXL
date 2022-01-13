@@ -125,14 +125,16 @@ namespace BuildXL.FrontEnd.JavaScript
             if (m_resolverSettings.NodeExeLocation != null)
             {
                 var specifiedNodeExe = m_resolverSettings.NodeExeLocation.GetValue();
+                AbsolutePath nodeExeLocationPath;
+
                 if (specifiedNodeExe is FileArtifact fileArtifact)
                 {
-                    nodeExeLocation = fileArtifact.Path.ToString(m_context.PathTable);
+                    nodeExeLocationPath = fileArtifact.Path;
                 }
                 else 
                 {
                     var pathCollection = ((IReadOnlyList<DirectoryArtifact>)specifiedNodeExe).Select(dir => dir.Path);
-                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, new[] { "node", "node.exe" }, out AbsolutePath nodeExeLocationPath))
+                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, new[] { "node", "node.exe" }, out nodeExeLocationPath))
                     {
                         failure = $"'node' cannot be found under any of the provided paths '{string.Join(";", pathCollection.Select(path => path.ToString(m_context.PathTable)))}'.";
                         Tracing.Logger.Log.CannotFindGraphBuilderTool(
@@ -142,9 +144,22 @@ namespace BuildXL.FrontEnd.JavaScript
 
                         return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
                     }
-
-                    nodeExeLocation = nodeExeLocationPath.ToString(m_context.PathTable);
                 }
+
+                nodeExeLocation = nodeExeLocationPath.ToString(m_context.PathTable);
+
+                // Most graph construction tools (yarn, rush, etc.) rely on node.exe being on the PATH. Make sure
+                // that's the case by appending the PATH exposed to the graph construction process with the location of the
+                // specified node.exe. By prepending PATH with it, we also make sure yarn/rush will be using the same version
+                // of node the user specified.
+                string pathWithNode = buildParameters.ContainsKey("PATH") ? buildParameters["PATH"] : string.Empty;
+                var nodeDirectory = nodeExeLocationPath.GetParent(m_context.PathTable);
+                if (nodeDirectory.IsValid)
+                {
+                    pathWithNode = nodeDirectory.ToString(m_context.PathTable) + Path.PathSeparator + pathWithNode;
+                }
+                
+                buildParameters = buildParameters.Override(new[] { new KeyValuePair<string, string>("PATH", pathWithNode) });
             }
             else
             {

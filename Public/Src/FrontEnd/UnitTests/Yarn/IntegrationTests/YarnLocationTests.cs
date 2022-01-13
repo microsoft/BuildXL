@@ -82,6 +82,27 @@ namespace Test.BuildXL.FrontEnd.Yarn.IntegrationTests
         }
 
         [Fact]
+        public void SpecifiedNodeIsAlwaysInThePathForYarn()
+        {
+            // Set a PATH which doesn't contain node.exe
+            var environment = new Dictionary<string, string>
+            {
+                ["PATH"] = "/path/to/foo"
+            };
+
+            // Use the default yarn location and explicitly provide a location for node
+            // The yarn process should get the location of node as part of PATH, even if
+            // it is not explicitly configured by the user
+            var config = Build(environment: environment, nodeLocation: $"f`{PathToNode}`")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
+                    .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunYarnProjects(config); 
+
+            Assert.True(engineResult.IsSuccess);
+        }
+
+        [Fact]
         public void YarnInstallationNotFoundIsProperlyHandled()
         {
             // Explicitly undefine the yarn location, but do not expose anything in PATH either

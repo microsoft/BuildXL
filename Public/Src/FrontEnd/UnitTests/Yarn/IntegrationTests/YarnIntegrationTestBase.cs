@@ -75,7 +75,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
             string moduleName = "Test",
             string root = "d`.`",
             string additionalOutputDirectories = null,
-            bool? enableFullReparsePointResolving = null)
+            bool? enableFullReparsePointResolving = null,
+            string nodeLocation = "")
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -87,7 +88,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
                 moduleName,
                 root,
                 additionalOutputDirectories,
-                enableFullReparsePointResolving);
+                enableFullReparsePointResolving,
+                nodeLocation);
         }
 
         /// <inheritdoc/>
@@ -97,7 +99,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
             string moduleName = "Test",
             string root = "d`.`",
             string additionalOutputDirectories = null,
-            bool? enableFullReparsePointResolving = null)
+            bool? enableFullReparsePointResolving = null,
+            string nodeLocation = "")
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -109,6 +112,12 @@ namespace Test.BuildXL.FrontEnd.Yarn
                 yarnLocation = $"f`{PathToYarn}`";
             }
 
+            // We reserve the null string for a true undefined.
+            if (nodeLocation == string.Empty)
+            {
+                nodeLocation = $"f`{PathToNode}`";
+            }
+
             // Let's explicitly pass an environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
                 DefaultYarnPrelude(
@@ -117,6 +126,7 @@ namespace Test.BuildXL.FrontEnd.Yarn
                     moduleName: moduleName,
                     root: root,
                     additionalOutputDirectories,
+                    nodeLocation: nodeLocation,
                     enableFullReparsePointResolving));
         }
 
@@ -165,6 +175,7 @@ namespace Test.BuildXL.FrontEnd.Yarn
             string moduleName,
             string root,
             string additionalOutputDirectories,
+            string nodeLocation,
             bool? enableFullReparsePointResolving = null) => $@"
 config({{
     resolvers: [
@@ -172,7 +183,7 @@ config({{
             kind: 'Yarn',
             moduleName: '{moduleName}',
             root: {root},
-            nodeExeLocation: f`{PathToNode}`,
+            {(nodeLocation != null ? $"nodeExeLocation: {nodeLocation}," : string.Empty)}
             {DictionaryToExpression("environment", environment)}
             {(yarnLocation != null ? $"yarnLocation: {yarnLocation}," : string.Empty)}
             {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}

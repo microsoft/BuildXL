@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
@@ -130,9 +131,9 @@ namespace Test.BuildXL.Engine.Cache
                 return this.m_cache.TryLoadAvailableContentAsync(hashes);
             }
 
-            public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash)
+            public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, CancellationToken cancellationToken)
             {
-                return this.m_cache.TryMaterializeAsync(fileRealizationModes, path, contentHash);
+                return this.m_cache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
             }
 
             public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)

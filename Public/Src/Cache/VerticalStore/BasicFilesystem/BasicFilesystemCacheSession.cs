@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -454,7 +455,8 @@ namespace BuildXL.Cache.BasicFilesystem
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            CancellationToken cancellationToken)
         {
             Contract.Requires(!IsClosed);
             Contract.Requires(filename != null);

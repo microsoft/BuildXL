@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
@@ -219,7 +220,9 @@ namespace BuildXL.Cache.Interfaces.Test
             string,
             FileState,
             UrgencyHint,
-            Guid, ICacheReadOnlySession,
+            Guid,
+            CancellationToken,
+            ICacheReadOnlySession,
             Task<Possible<string, Failure>>> ProduceFileAsyncCallback;
 
         public Task<Possible<string, Failure>> ProduceFileAsync(
@@ -227,7 +230,8 @@ namespace BuildXL.Cache.Interfaces.Test
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            CancellationToken cancellationToken)
         {
             var callback = ProduceFileAsyncCallback;
             if (callback != null)
@@ -238,6 +242,7 @@ namespace BuildXL.Cache.Interfaces.Test
                     fileState,
                     urgencyHint,
                     activityId,
+                    cancellationToken,
                     m_realSession);
             }
             else
@@ -247,7 +252,8 @@ namespace BuildXL.Cache.Interfaces.Test
                     filename,
                     fileState,
                     urgencyHint,
-                    activityId);
+                    activityId,
+                    cancellationToken);
             }
         }
     }

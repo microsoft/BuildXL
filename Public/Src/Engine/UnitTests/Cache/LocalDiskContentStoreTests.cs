@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
@@ -219,7 +220,8 @@ namespace Test.BuildXL.Engine.Cache
                     await harness.TryMaterializeAsync(
                         FileRealizationMode.HardLink, 
                         storedA.Expand(pathTable), 
-                        infoB.Hash);
+                        infoB.Hash,
+                        harness.Context.CancellationToken);
 
                 XAssert.IsTrue(
                     possiblyMaterialized.Succeeded,
@@ -340,7 +342,8 @@ namespace Test.BuildXL.Engine.Cache
                 await harness.Store.TryMaterializeTransientWritableCopyAsync(
                     harness.ContentCache,
                     tempPath,
-                    info.Hash);
+                    info.Hash,
+                    harness.Context.CancellationToken);
             if (!possiblyMaterialized.Succeeded)
             {
                 XAssert.Fail("Failed to materialize content (transient) after initial write and store: {0}", possiblyMaterialized.Failure.DescribeIncludingInnerFailures());
@@ -1051,9 +1054,9 @@ namespace Test.BuildXL.Engine.Cache
                 return ContentCache.TryOpenContentStreamAsync(contentHash);
             }
 
-            public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash)
+            public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, CancellationToken cancellationToken)
             {
-                return ContentCache.TryMaterializeAsync(fileRealizationModes, path, contentHash);
+                return ContentCache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
             }
 
             public async Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash)

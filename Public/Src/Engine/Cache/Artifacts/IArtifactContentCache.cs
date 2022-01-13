@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
@@ -62,7 +63,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         Task<Possible<Unit, Failure>> TryMaterializeAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash);
+            ContentHash contentHash,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Attempts to store content as found at the specified path. This may be a no-op if the cache already has the specified content, in

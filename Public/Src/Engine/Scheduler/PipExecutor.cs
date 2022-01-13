@@ -776,7 +776,8 @@ namespace BuildXL.Scheduler
                                 environment.Cache.ArtifactContentCache,
                                 GetFileRealizationMode(environment),
                                 destinationFile,
-                                contentHash);
+                                contentHash,
+                                cancellationToken: environment.Context.CancellationToken);
                     }
 
                     if (possiblyMaterialized.HasValue && possiblyMaterialized.Value.Succeeded)
@@ -1690,7 +1691,8 @@ namespace BuildXL.Scheduler
                                 .TryMaterializeTransientWritableCopyAsync(
                                     environment.Cache.ArtifactContentCache,
                                     artifactNeededPrivate.Path,
-                                    artifactHash);
+                                    artifactHash,
+                                    environment.Context.CancellationToken);
 
                     if (!maybeMadeWritable.Succeeded)
                     {

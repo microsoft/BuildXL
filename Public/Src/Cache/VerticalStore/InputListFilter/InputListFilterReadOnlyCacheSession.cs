@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
@@ -70,9 +70,9 @@ namespace BuildXL.Cache.InputListFilter
             return m_session.PinToCasAsync(hash, urgencyHint, activityId);
         }
 
-        public Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken)
         {
-            return m_session.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId);
+            return m_session.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, cancellationToken);
         }
     }
 }

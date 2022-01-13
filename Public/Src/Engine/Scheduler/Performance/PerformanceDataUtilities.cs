@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
@@ -95,6 +96,7 @@ namespace BuildXL.Scheduler.Performance
             string path,
             PathTable pathTable,
             ContentFingerprint graphSemistableFingerprint,
+            CancellationToken cancellationToken,
             DateTime? time = null)
         {
             var possibleCacheEntry =
@@ -134,7 +136,8 @@ namespace BuildXL.Scheduler.Performance
                           return await cache.ArtifactContentCache.TryMaterializeAsync(
                               FileRealizationMode.Copy,
                               absolutePath.Expand(pathTable),
-                              runningTimeTableHash);
+                              runningTimeTableHash,
+                              cancellationToken);
                       });
 
             if (!result.Succeeded)

@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
@@ -211,7 +212,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         public Task<Possible<Unit, Failure>> TryMaterializeAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            CancellationToken cancellationToken = default)
         {
             return Task.Run<Possible<Unit, Failure>>(
                 () =>

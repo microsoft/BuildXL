@@ -12,6 +12,7 @@ using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using System.Threading;
 
 // ReSharper disable InconsistentNaming
 namespace BuildXL.Cache.VerticalAggregator
@@ -1215,7 +1216,8 @@ namespace BuildXL.Cache.VerticalAggregator
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            CancellationToken cancellationToken)
         {
             using (var counters = m_sessionCounters.ProduceFileCounter())
             {
@@ -1234,7 +1236,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         bool secondTry = false;
                         while (true)
                         {
-                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, eventing.Id);
+                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, eventing.Id, cancellationToken);
                             if (localResult.Succeeded)
                             {
                                 counters.HitLocal();
@@ -1242,7 +1244,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             }
 
                             // Download to the final location.
-                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId);
+                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, cancellationToken);
 
                             if (!remoteProduceFileResult.Succeeded)
                             {

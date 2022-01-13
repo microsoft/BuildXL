@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
@@ -168,12 +169,12 @@ namespace BuildXL.Cache.Compositing
             }
         }
 
-        public async Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken)
         {
             using (var eventing = new ProduceFileActivity(CompositingCache.EventSource, activityId, this))
             {
                 eventing.Start(hash, filename, fileState, urgencyHint);
-                return eventing.Returns(await m_casSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId));
+                return eventing.Returns(await m_casSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, cancellationToken));
             }
         }
     }

@@ -140,7 +140,8 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             Possible<Unit> maybeMaterialized = await ContentCache.TryMaterializeAsync(
                 FileRealizationMode.Copy,
                 AbsolutePath.Create(Context.PathTable, targetPath).Expand(Context.PathTable),
-                availableHash);
+                availableHash,
+                Context.CancellationToken);
             XAssert.IsTrue(maybeMaterialized.Succeeded);
 
             XAssert.AreEqual(TargetContent, File.ReadAllText(targetPath));
@@ -154,7 +155,8 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
                     maybeMaterialized = await ContentCache.TryMaterializeAsync(
                         FileRealizationMode.Copy,
                         AbsolutePath.Create(Context.PathTable, targetPath).Expand(Context.PathTable),
-                        availableHash);
+                        availableHash,
+                        Context.CancellationToken);
 
                     XAssert.IsFalse(maybeMaterialized.Succeeded, "Expected materialization failure due to open file handle, but it succeed");
 

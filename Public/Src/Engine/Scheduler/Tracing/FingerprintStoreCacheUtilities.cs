@@ -163,7 +163,8 @@ namespace BuildXL.Scheduler.Tracing
             AbsolutePath path,
             PathTable pathTable,
             string key,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            CancellationToken cancellationToken)
         {
             var fingerprint = ComputeFingerprint(key, configuration);
             Logger.Log.GettingFingerprintStoreTrace(
@@ -223,7 +224,8 @@ namespace BuildXL.Scheduler.Tracing
                             var maybeMaterialized = await cache.ArtifactContentCache.TryMaterializeAsync(
                                 FileRealizationMode.Copy,
                                 filePath.Expand(pathTable),
-                                subPathKeyedHash.ContentHash.ToContentHash());
+                                subPathKeyedHash.ContentHash.ToContentHash(),
+                                cancellationToken);
 
                             return maybeMaterialized;
                         }

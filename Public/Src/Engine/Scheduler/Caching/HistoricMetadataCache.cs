@@ -1411,7 +1411,8 @@ namespace BuildXL.Scheduler.Cache
             string path,
             PathTable pathTable,
             IConfiguration configuration,
-            ContentFingerprint performanceDataFingerprint)
+            ContentFingerprint performanceDataFingerprint,
+            CancellationToken cancellationToken)
         {
             var fingerprint = ComputeFingerprint(loggingContext, pathTable, configuration, performanceDataFingerprint);
             var possibleCacheEntry = await cache.TwoPhaseFingerprintStore.TryGetLatestCacheEntryAsync(loggingContext, fingerprint);
@@ -1466,7 +1467,8 @@ namespace BuildXL.Scheduler.Cache
                             var maybeMaterialized = await cache.ArtifactContentCache.TryMaterializeAsync(
                                 FileRealizationMode.Copy,
                                 filePath.Expand(pathTable),
-                                subPathKeyedHash.ContentHash.ToContentHash());
+                                subPathKeyedHash.ContentHash.ToContentHash(),
+                                cancellationToken);
 
                             return maybeMaterialized;
                         }

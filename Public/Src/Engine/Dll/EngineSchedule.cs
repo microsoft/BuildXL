@@ -493,7 +493,8 @@ namespace BuildXL.Engine
                             location,
                             context.PathTable,
                             configuration,
-                            performanceDataFingerprint);
+                            performanceDataFingerprint,
+                            context.CancellationToken);
                     if (!result.Succeeded || !result.Result)
                     {
                         SchedulerLogger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Could not load historic metadatacache data from cache"));
@@ -686,7 +687,8 @@ namespace BuildXL.Engine
                                         pm.LoggingContext,
                                         filePath,
                                         context.PathTable,
-                                        performanceDataFingerprint);
+                                        performanceDataFingerprint,
+                                        context.CancellationToken);
                             }
 
                             if (!result.Succeeded || !result.Result)
@@ -2110,7 +2112,8 @@ namespace BuildXL.Engine
                 var materializationTasks = pathsToPopulate.Select((path, i) => Task.Run(() => cache.ArtifactContentCache.TryMaterializeAsync(
                         FileRealizationMode.HardLinkOrCopy,
                         path.Expand(context.PathTable),
-                        hashesToFetch[i]))).ToArray();
+                        hashesToFetch[i],
+                        context.CancellationToken))).ToArray();
 
                 var results = await Task.WhenAll(materializationTasks);
 

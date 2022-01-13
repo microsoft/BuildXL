@@ -2204,8 +2204,11 @@ namespace BuildXL.Scheduler.Artifacts
                                 else
                                 {
                                     // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
-                                    if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
-                                            possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure))
+                                    // Ctrl+c for PlaceSingleFileAsync will throw OperationCanceledException, we also don't want to log these
+                                    if ((possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
+                                         possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure)) ||
+                                        (possiblyPlaced.Failure.GetType() != typeof(OperationCanceledException) &&
+                                         possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(OperationCanceledException)))
                                     {
                                         Logger.Log.StorageCacheGetContentWarning(
                                             operationContext,
@@ -2424,7 +2427,8 @@ namespace BuildXL.Scheduler.Artifacts
                                 // Don't track or record hashes of virtual files since they should be replaced if encountered
                                 // in subsequent builds. Due to the volatility of the VFS provider.
                                 trackPath: !canVirtualize,
-                                recordPathInFileContentTable: !canVirtualize);
+                                recordPathInFileContentTable: !canVirtualize,
+                                cancellationToken: Context.CancellationToken);
 
                             if (possiblyPlaced.Succeeded)
                             {

@@ -113,7 +113,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             PathAtom fileName = default,
             ReparsePointInfo? reparsePointInfo = null,
             bool trackPath = true,
-            bool recordPathInFileContentTable = true)
+            bool recordPathInFileContentTable = true,
+            CancellationToken cancellationToken = default)
         {
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
@@ -203,7 +204,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                     possibleMaterialization = await cache.TryMaterializeAsync(
                         fileRealizationModes,
                         expandedPath,
-                        contentHash);
+                        contentHash,
+                        cancellationToken);
 
                     if (!possibleMaterialization.Succeeded)
                     {
@@ -327,7 +329,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         public Task<Possible<Unit, Failure>> TryMaterializeTransientWritableCopyAsync(
             IArtifactContentCache cache,
             AbsolutePath path,
-            ContentHash contentHash) => cache.TryMaterializeAsync(FileRealizationMode.Copy, Expand(path), contentHash);
+            ContentHash contentHash,
+            CancellationToken cancellationToken) => cache.TryMaterializeAsync(FileRealizationMode.Copy, Expand(path), contentHash, cancellationToken);
 
         /// <summary>
         /// Tries to enumerate a directory and track membership.

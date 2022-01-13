@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
@@ -274,7 +275,8 @@ namespace BuildXL.Cache.InMemory
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            CancellationToken cancellationToken)
         {
             Possible<StreamWithLength, Failure> casStream = await GetStreamAsync(hash, urgencyHint, activityId);
 

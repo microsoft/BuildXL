@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
@@ -106,7 +107,7 @@ namespace BuildXL.Cache.Tests
                 return null;
             };
 
-            cacheSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+            cacheSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
             {
                 XAssert.Fail("Remote Cache was called when disconnected (ProduceFileAsync)");
                 return null;

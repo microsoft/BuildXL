@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Web;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -22,7 +21,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core
@@ -610,7 +608,7 @@ namespace BuildXL.FrontEnd.Core
 
                     if (possiblyLoaded.Result.AllContentAvailable)
                     {
-                        var possiblyPlaced = await cache.ArtifactContentCache.TryMaterializeAsync(PackageFileRealizationMode, expandedTargetLocation, contentHash.Value);
+                        var possiblyPlaced = await cache.ArtifactContentCache.TryMaterializeAsync(PackageFileRealizationMode, expandedTargetLocation, contentHash.Value, FrontEndContext.CancellationToken);
                         if (!possiblyPlaced.Succeeded)
                         {
                             m_logger.DownloadToolFailedDueToCacheError(loggingContext, friendlyName, possiblyPlaced.Failure.Describe());

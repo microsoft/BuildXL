@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
@@ -338,7 +339,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionExceptionInducers.Add(SessionAPIs.ProduceFileAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     throw new TestException();
                 };
@@ -397,7 +398,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionExceptionInducers.Add(SessionAPIs.ProduceFileAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     throw new TestException();
                 };
@@ -489,7 +490,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionFailureInducers.Add(SessionAPIs.ProduceFileAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>(new TestInducedFailure("(ProduceFile)")));
@@ -549,7 +550,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionFailureInducers.Add(SessionAPIs.ProduceFileAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.ProduceFileAsyncCallback = (CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>(new TestInducedFailure("(ProduceFile)")));
@@ -970,7 +971,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                 return realSession.GetStreamAsync(hash, hint, guid);
             };
 
-            session.ProduceFileAsyncCallback = (hash, filename, fileState, hint, guid, realSession) =>
+            session.ProduceFileAsyncCallback = (hash, filename, fileState, hint, guid, cancellationToken, realSession) =>
             {
                 if (hash == item)
                 {
@@ -981,7 +982,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                     return Task.FromResult<Possible<string, Failure>>(filename);
                 }
 
-                return realSession.ProduceFileAsync(hash, filename, fileState, hint, guid);
+                return realSession.ProduceFileAsync(hash, filename, fileState, hint, guid, cancellationToken);
             };
 
             session.ValidateContentAsyncCallback = (hash, hint, guid, realSession) =>
@@ -1030,14 +1031,14 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                                 return realSession1.GetStreamAsync(hash1, hint1, guid1);
                             };
 
-                            session.ProduceFileAsyncCallback = (hash1, filename1, fileState1, hint1, guid1, realSession1) =>
+                            session.ProduceFileAsyncCallback = (hash1, filename1, fileState1, hint1, guid1, cancellationToken, realSession1) =>
                             {
                                 if (hash1 == item)
                                 {
                                     return Task.FromResult<Possible<string, Failure>>(new ProduceFileFailure(realSession1.CacheId, hash1, filename1));
                                 }
 
-                                return realSession1.ProduceFileAsync(hash1, filename1, fileState1, hint1, guid1);
+                                return realSession1.ProduceFileAsync(hash1, filename1, fileState1, hint1, guid1, cancellationToken);
                             };
                             break;
 

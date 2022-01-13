@@ -19,6 +19,7 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using BuildXL.Utilities.Configuration;
+using System.Threading;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -259,7 +260,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         private async Task<Possible<Unit, Failure>> TryMaterializeCoreAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            CancellationToken cancellationToken)
         {
             FileToDelete fileToDelete = FileToDelete.Create(path.ExpandedPath);
 
@@ -299,7 +301,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 () => maybeOpen.ThenAsync(cache => cache.ProduceFileAsync(
                     new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash)),
                     pathForCache,
-                    GetFileStateForRealizationMode(fileRealizationModes))),
+                    GetFileStateForRealizationMode(fileRealizationModes),
+                    cancellationToken: cancellationToken)),
                 nameof(TryMaterializeAsync));
 
             if (!maybePlaced.Succeeded && maybePlaced.Failure.DescribeIncludingInnerFailures().Contains("File exists at destination"))
@@ -319,7 +322,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         public async Task<Possible<Unit, Failure>> TryMaterializeAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            CancellationToken cancellationToken)
         {
             // TODO: The cache should be able to do this itself, preferably sharing the same code.
             //       When placing content, we may be replacing output that has been hardlinked elsewhere.
@@ -330,7 +334,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 () => Helpers.RetryOnFailureAsync(
                     async lastAttempt =>
                     {
-                        return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash);
+                        return await TryMaterializeCoreAsync(fileRealizationModes, path, contentHash, cancellationToken);
                     }),
                 nameof(TryMaterializeAsync));
 

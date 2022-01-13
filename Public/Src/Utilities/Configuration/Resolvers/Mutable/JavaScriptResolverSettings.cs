@@ -32,7 +32,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ModuleName = resolverSettings.ModuleName;
             Environment = resolverSettings.Environment;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
-            NodeExeLocation = resolverSettings.NodeExeLocation;
+            NodeExeLocation = pathRemapper.Remap(resolverSettings.NodeExeLocation);
             AdditionalOutputDirectories = resolverSettings.AdditionalOutputDirectories;
             Execute = resolverSettings.Execute;
             CustomCommands = resolverSettings.CustomCommands;
@@ -60,7 +60,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? KeepProjectGraphFile { get; set; }
 
         /// <inheritdoc/>
-        public FileArtifact? NodeExeLocation { get; set; }
+        public DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> NodeExeLocation { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }

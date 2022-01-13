@@ -95,7 +95,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string customScripts = null,
             string additionalDependencies = null,
             string additionalOutputDirectories = null,
-            bool? enableFullReparsePointResolving = null)
+            bool? enableFullReparsePointResolving = null,
+            string nodeExeLocation = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -115,7 +116,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 customScripts,
                 additionalDependencies,
                 additionalOutputDirectories,
-                enableFullReparsePointResolving);
+                enableFullReparsePointResolving,
+                nodeExeLocation);
         }
 
         /// <inheritdoc/>
@@ -132,7 +134,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string customScripts = null,
             string additionalDependencies = null,
             string additionalOutputDirectories = null,
-            bool? enableFullReparsePointResolving = null)
+            bool? enableFullReparsePointResolving = null,
+            string nodeExeLocation = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -144,6 +147,11 @@ namespace Test.BuildXL.FrontEnd.Rush
             if (rushBaseLibLocation == string.Empty)
             {
                 rushBaseLibLocation = PathToNodeModules;
+            }
+
+            if (nodeExeLocation == null)
+            {
+                nodeExeLocation = $"f`{PathToNode}`";
             }
 
             // Let's explicitly pass an environment, so the process environment won't affect tests by default
@@ -163,7 +171,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     customScripts: customScripts,
                     additionalDependencies,
                     additionalOutputDirectories,
-                    enableFullReparsePointResolving));
+                    enableFullReparsePointResolving,
+                    nodeExeLocation));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -263,14 +272,15 @@ namespace Test.BuildXL.FrontEnd.Rush
             string customScripts,
             string additionalDependencies,
             string additionalOutputDirectories,
-            bool? enableFullReparsePointResolving = null) => $@"
+            bool? enableFullReparsePointResolving = null,
+            string nodeExeLocation = null) => $@"
 config({{
     resolvers: [
         {{
             kind: 'Rush',
             moduleName: '{moduleName}',
             root: d`.`,
-            nodeExeLocation: f`{PathToNode}`,
+            {(nodeExeLocation != null ? $"nodeExeLocation: {nodeExeLocation}," : string.Empty)}
             {DictionaryToExpression("environment", environment)}
             {(executeCommands != null? $"execute: {executeCommands}," : string.Empty)}
             {(customRushCommands != null ? $"customCommands: {customRushCommands}," : string.Empty)}

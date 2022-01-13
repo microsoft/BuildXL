@@ -22,6 +22,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <inheritdoc/>
-        public FileArtifact? YarnLocation { get; set; }
+        public DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> YarnLocation { get; set; }
     }
 }

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
@@ -120,7 +121,38 @@ namespace BuildXL.FrontEnd.JavaScript
                 return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
             }
 
-            SandboxedProcessResult result = await RunJavaScriptGraphBuilderAsync(outputFile, buildParameters, foundLocation);
+            string nodeExeLocation;
+            if (m_resolverSettings.NodeExeLocation != null)
+            {
+                var specifiedNodeExe = m_resolverSettings.NodeExeLocation.GetValue();
+                if (specifiedNodeExe is FileArtifact fileArtifact)
+                {
+                    nodeExeLocation = fileArtifact.Path.ToString(m_context.PathTable);
+                }
+                else 
+                {
+                    var pathCollection = ((IReadOnlyList<DirectoryArtifact>)specifiedNodeExe).Select(dir => dir.Path);
+                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, new[] { "node", "node.exe" }, out AbsolutePath nodeExeLocationPath))
+                    {
+                        failure = $"'node' cannot be found under any of the provided paths '{string.Join(";", pathCollection.Select(path => path.ToString(m_context.PathTable)))}'.";
+                        Tracing.Logger.Log.CannotFindGraphBuilderTool(
+                            m_context.LoggingContext,
+                            m_resolverSettings.Location(m_context.PathTable),
+                            failure);
+
+                        return new JavaScriptGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                    }
+
+                    nodeExeLocation = nodeExeLocationPath.ToString(m_context.PathTable);
+                }
+            }
+            else
+            {
+                // We always use cmd.exe as the tool so if the node.exe location is not provided we can just pass 'node.exe' and let PATH do the work.
+                nodeExeLocation = "node.exe";
+            }
+
+            SandboxedProcessResult result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation);
 
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
 
@@ -184,6 +216,7 @@ namespace BuildXL.FrontEnd.JavaScript
         }
 
         private Task<SandboxedProcessResult> RunJavaScriptGraphBuilderAsync(
+           string nodeExeLocation,
            AbsolutePath outputFile,
            BuildParameters.IBuildParameters buildParameters,
            AbsolutePath toolLocation)
@@ -191,11 +224,8 @@ namespace BuildXL.FrontEnd.JavaScript
             AbsolutePath toolPath = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePathToGraphConstructionTool);
             string outputDirectory = outputFile.GetParent(m_context.PathTable).ToString(m_context.PathTable);
 
-            // We always use cmd.exe as the tool so if the node.exe location is not provided we can just pass 'node.exe' and let PATH do the work.
             var cmdExeArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(m_context.PathTable, Environment.GetEnvironmentVariable("COMSPEC")));
-            string nodeExeLocation = m_resolverSettings.NodeExeLocation.HasValue ?
-                m_resolverSettings.NodeExeLocation.Value.Path.ToString(m_context.PathTable) :
-                "node.exe";
+            
             var toolArguments = GetGraphConstructionToolArguments(outputFile, toolLocation, toolPath, nodeExeLocation);
 
             Tracing.Logger.Log.ConstructingGraphScript(m_context.LoggingContext, toolArguments);

@@ -109,12 +109,24 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         /// <nodoc />
+        public List<DirectoryArtifact> Remap(IReadOnlyList<DirectoryArtifact> paths)
+        {
+            return m_oldPathTable == null ? new List<DirectoryArtifact>(paths) : new List<DirectoryArtifact>(paths.Select(Remap));
+        }
+
+        /// <nodoc />
         public FileArtifact Remap(FileArtifact file)
         {
             return m_oldPathTable == null || !file.IsValid ? file : FileArtifact.CreateSourceFile(Remap(file.Path));
         }
 
-                /// <nodoc />
+        /// <nodoc />
+        public DirectoryArtifact Remap(DirectoryArtifact directory)
+        {
+            return m_oldPathTable == null || !directory.IsValid ? directory : new DirectoryArtifact(Remap(directory.Path), directory.PartialSealId, directory.IsSharedOpaque);
+        }
+
+        /// <nodoc />
         public FileArtifact? Remap(FileArtifact? file)
         {
             return file.HasValue ? (FileArtifact?)Remap(file.Value) : null;
@@ -137,6 +149,29 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 else if (fileValue is PathAtom pathAtom)
                 {
                     remappedPath.SetValue(Remap(pathAtom));
+                }
+            }
+
+            return remappedPath;
+        }
+
+        /// <nodoc />
+        public DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> Remap(DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> fileUnion)
+        {
+            DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> remappedPath = null;
+
+            if (fileUnion != null)
+            {
+                var fileValue = fileUnion.GetValue();
+                remappedPath = new DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>>();
+
+                if (fileValue is FileArtifact file)
+                {
+                    remappedPath.SetValue(Remap(file));
+                }
+                else if (fileValue is IReadOnlyList<DirectoryArtifact> searchDirectories)
+                {
+                    remappedPath.SetValue(Remap(searchDirectories));
                 }
             }
 

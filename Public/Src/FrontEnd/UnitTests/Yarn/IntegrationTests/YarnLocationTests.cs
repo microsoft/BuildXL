@@ -24,7 +24,7 @@ namespace Test.BuildXL.FrontEnd.Yarn.IntegrationTests
         [Fact]
         public void ExplicitInvalidYarnLocationIsHandled()
         {
-            var config = Build(yarnLocation: "/path/to/foo")
+            var config = Build(yarnLocation: "f`/path/to/foo`")
                     .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 
@@ -32,6 +32,34 @@ namespace Test.BuildXL.FrontEnd.Yarn.IntegrationTests
 
             Assert.False(engineResult.IsSuccess);
             AssertErrorEventLogged(LogEventId.ProjectGraphConstructionError);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+        }
+
+        [Fact]
+        public void ExplicitListOfDirectoriesIsHandled()
+        {
+            var pathToYarn = Path.GetDirectoryName(PathToYarn).Replace("\\", "/");
+
+            var config = Build(yarnLocation: $"[d`/path/to/foo`, d`{pathToYarn}`]")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
+                    .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunYarnProjects(config);
+
+            Assert.True(engineResult.IsSuccess);
+        }
+
+        [Fact]
+        public void InvalidListOfDirectoriesIsHandled()
+        {
+            var config = Build(yarnLocation: "[d`/path/to/foo`, d`/path/to/another/foo`]")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
+                    .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunYarnProjects(config);
+
+            Assert.False(engineResult.IsSuccess);
+            AssertErrorEventLogged(LogEventId.CannotFindGraphBuilderTool);
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
         }
 

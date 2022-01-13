@@ -339,8 +339,9 @@ interface YarnResolver extends JavaScriptResolverWithExecutionSemantics {
 
     /**
      * The location of yarn. If not provided, BuildXL will try to look for it under PATH.
+     * A file pointing to yarn can be provided, or alternatively a collection of directories to look for yarn.
      */
-    yarnLocation?: File;
+    yarnLocation?: File | Directory[];
 }
 
 /**
@@ -417,9 +418,10 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
 
     /**
      * The path to node.exe to use for discovering the graph.
+     * A file pointing to node can be provided, or alternatively a collection of directories to look for node.
      * If not provided, node.exe will be looked in PATH.
      */
-    nodeExeLocation?: File;
+    nodeExeLocation?: File | Directory[];
 
     /**
      * Collection of additional output directories pips may write to.

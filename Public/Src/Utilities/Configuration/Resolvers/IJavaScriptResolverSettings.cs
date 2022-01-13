@@ -14,9 +14,10 @@ namespace BuildXL.Utilities.Configuration
         /// The path to node.exe to use for discovering the JavaScript graph
         /// </summary>
         /// <remarks>
+        /// Alternatively to a path, a collection of directories to seach for node.exe can be provided.
         /// If not provided, node.exe will be looked in PATH
         /// </remarks>
-        FileArtifact? NodeExeLocation { get; }
+        DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> NodeExeLocation { get; }
 
         /// <summary>
         /// Collection of additional output directories pips may write to

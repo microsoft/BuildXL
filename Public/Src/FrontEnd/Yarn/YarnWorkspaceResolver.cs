@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
@@ -36,15 +38,33 @@ namespace BuildXL.FrontEnd.Yarn
         protected override bool TryFindGraphBuilderToolLocation(IYarnResolverSettings resolverSettings, BuildParameters.IBuildParameters buildParameters, out AbsolutePath finalYarnLocation, out string failure)
         {
             // If the base location was provided at configuration time, we honor it as is
-            if (resolverSettings.YarnLocation.HasValue)
+            string paths;
+
+            if (resolverSettings.YarnLocation != null)
             {
-                finalYarnLocation = resolverSettings.YarnLocation.Value.Path;
-                failure = string.Empty;
-                return true;
+                var value = resolverSettings.YarnLocation.GetValue();
+                if (value is FileArtifact file)
+                {
+                    finalYarnLocation = file;
+                    failure = string.Empty;
+                    return true;
+                }
+                else
+                {
+                    var pathCollection = ((IReadOnlyList<DirectoryArtifact>) value).Select(dir => dir.Path);
+                    if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, pathCollection, new[] { "yarn", "yarn.cmd" }, out finalYarnLocation))
+                    {
+                        failure = $"'yarn' cannot be found under any of the provided paths '{string.Join(Path.PathSeparator.ToString(), pathCollection.Select(path => path.ToString(m_context.PathTable)))}'.";
+                        return false;
+                    }
+
+                    failure = string.Empty;
+                    return true;
+                }
             }
 
             // If the location was not provided, let's try to see if Yarn is under %PATH%
-            string paths = buildParameters["PATH"];
+            paths = buildParameters["PATH"];
 
             if (!FrontEndUtilities.TryFindToolInPath(m_context, m_host, paths, new[] { "yarn", "yarn.cmd"}, out finalYarnLocation))
             {

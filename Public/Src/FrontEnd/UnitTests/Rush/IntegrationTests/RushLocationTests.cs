@@ -12,9 +12,9 @@ using Xunit.Abstractions;
 namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
 {
     [Trait("Category", "RushLibLocationTests")]
-    public class RushLibLocationTests : RushIntegrationTestBase
+    public class RushLocationTests : RushIntegrationTestBase
     {
-        public RushLibLocationTests(ITestOutputHelper output)
+        public RushLocationTests(ITestOutputHelper output)
             : base(output)
         {
         }
@@ -70,6 +70,38 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             // Explicitly undefine the rush base lib location, but do not expose anything in PATH
             // that points to a valid Rush installation
             var config = Build(rushBaseLibLocation: null)
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
+                    .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.False(engineResult.IsSuccess);
+            AssertErrorEventLogged(LogEventId.CannotFindGraphBuilderTool);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+        }
+
+        [Fact]
+        public void ExplicitListOfDirectoriesIsHandled()
+        {
+            var pathToNode = Path.GetDirectoryName(PathToNode).Replace("\\", "/");
+
+            var config = Build(nodeExeLocation: $"[d`/path/to/foo`, d`{pathToNode}`]")
+                    .AddJavaScriptProject("@ms/project-A", "src/A")
+                    .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.True(engineResult.IsSuccess);
+        }
+
+        [Fact]
+        public void InvalidListOfDirectoriesIsHandled()
+        {
+            var config = Build(nodeExeLocation: "[d`/path/to/foo`, d`/path/to/another/foo`]")
                     .AddJavaScriptProject("@ms/project-A", "src/A")
                     .PersistSpecsAndGetConfiguration();
 

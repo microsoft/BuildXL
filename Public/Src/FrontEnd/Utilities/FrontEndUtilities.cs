@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -467,28 +468,50 @@ namespace BuildXL.FrontEnd.Utilities
         }
 
         /// <summary>
+        /// <see cref="TryFindToolInPath(FrontEndContext, FrontEndHost, string, IEnumerable{string}, out AbsolutePath)"/>
+        /// </summary>
+        public static bool TryFindToolInPath(
+            FrontEndContext context,
+            FrontEndHost host,
+            string paths,
+            IEnumerable<string> toolNamesToFind,
+            out AbsolutePath location)
+        {
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(host);
+            Contract.RequiresNotNull(toolNamesToFind);
+            Contract.RequiresNotNullOrEmpty(paths);
+
+            var pathCollection = paths.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries);
+
+            var absolutePathCollection = pathCollection
+                .Select(path => AbsolutePath.TryCreate(context.PathTable, path.Trim('"'), out var absolutePath) ? absolutePath : AbsolutePath.Invalid)
+                .Where(path => path.IsValid);
+
+            return TryFindToolInPath(context, host, absolutePathCollection, toolNamesToFind, out location);
+        }
+
+        /// <summary>
         /// Tries to find if any of the tool names provided can be found under a collection of paths
         /// </summary>
         public static bool TryFindToolInPath(
             FrontEndContext context, 
             FrontEndHost host, 
-            string paths, 
+            IEnumerable<AbsolutePath> pathCollection, 
             IEnumerable<string> toolNamesToFind, 
             out AbsolutePath location)
         {
             Contract.RequiresNotNull(context);
             Contract.RequiresNotNull(host);
-            Contract.RequiresNotNullOrEmpty(paths);
+            Contract.RequiresNotNull(pathCollection);
             Contract.RequiresNotNull(toolNamesToFind);
 
             location = AbsolutePath.Invalid;
 
             AbsolutePath foundPath = AbsolutePath.Invalid;
-            foreach (string path in paths.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (AbsolutePath absolutePath in pathCollection)
             {
-                var nonEscapedPath = path.Trim('"');
-                // Sometimes paths are not well-formed, so make sure we can actually recognize an absolute path there
-                if (AbsolutePath.TryCreate(context.PathTable, nonEscapedPath, out var absolutePath))
+                if (absolutePath.IsValid)
                 {
                     foreach (var toolName in toolNamesToFind)
                     {

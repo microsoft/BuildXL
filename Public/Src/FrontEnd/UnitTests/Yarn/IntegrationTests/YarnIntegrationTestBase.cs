@@ -106,7 +106,7 @@ namespace Test.BuildXL.FrontEnd.Yarn
             // We reserve the null string for a true undefined.
             if (yarnLocation == string.Empty)
             {
-                yarnLocation = PathToYarn;
+                yarnLocation = $"f`{PathToYarn}`";
             }
 
             // Let's explicitly pass an environment, so the process environment won't affect tests by default
@@ -174,7 +174,7 @@ config({{
             root: {root},
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
-            {(yarnLocation != null ? $"yarnLocation: f`{yarnLocation}`," : string.Empty)}
+            {(yarnLocation != null ? $"yarnLocation: {yarnLocation}," : string.Empty)}
             {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}
         }}
     ],

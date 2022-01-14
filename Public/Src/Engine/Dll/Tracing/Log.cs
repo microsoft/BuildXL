@@ -959,15 +959,6 @@ namespace BuildXL.Engine.Tracing
             Message = "After we received an exit request from the orchestrator, worker exits with an unexpected reason due to a failure in one of the orchestrator-related calls (e.g., attach, notify).")]
         public abstract void DistributionWorkerUnexpectedFailureAfterOrchestratorExits(LoggingContext context);
 
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerForwardedOrphanMessage,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "An event will be forwarded to the orchestrator after all pip results were sent; this means that the event was received by the notification manager after the associated pip result was sent back. Event text: {message}")]
-        public abstract void DistributionWorkerForwardedOrphanMessage(LoggingContext context, string message);
-
         #endregion
 
         [GeneratedEvent(

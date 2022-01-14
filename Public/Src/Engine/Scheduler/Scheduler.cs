@@ -377,7 +377,7 @@ namespace BuildXL.Scheduler
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
                 
                 worker.TrackStatusOperation(m_workersStatusOperation);
-                worker.Initialize(PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
+                worker.InitializeForDistribution(PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
             }

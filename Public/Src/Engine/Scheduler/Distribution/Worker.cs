@@ -328,6 +328,8 @@ namespace BuildXL.Scheduler.Distribution
 
         private readonly OperationKind m_workerOperationKind;
 
+        private bool m_isDistributedBuild;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -343,6 +345,7 @@ namespace BuildXL.Scheduler.Distribution
             DrainCompletion = TaskSourceSlim.Create<bool>();
             PipExecutionContext = context;
             InitSemaphores(context);
+            m_isDistributedBuild = false;
         }
 
         /// <summary>
@@ -435,9 +438,6 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Whether the content tracking is enabled.
         /// </summary>
-        /// <remarks>
-        /// Content tracking is enabled when there are remote workers in the scheduler.
-        /// </remarks>
         public bool IsContentTrackingEnabled => m_availableContent != null;
 
         /// <summary>
@@ -894,8 +894,9 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Initializes the worker
         /// </summary>
-        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
+        public virtual void InitializeForDistribution(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
+            m_isDistributedBuild = true;
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);
         }
@@ -917,9 +918,10 @@ namespace BuildXL.Scheduler.Distribution
         {
             operationContext = operationContext.IsValid ? operationContext : runnable.OperationContext;
             var scope = new PipExecutionScope(runnable, this, operationContext);
-            if (IsContentTrackingEnabled)
+            if (m_isDistributedBuild && runnable.Step != PipExecutionStep.MaterializeOutputs)
             {
-                // Only perform this operation for distributed orchestrator.
+                // Log the start of the pip step on the worker unless it is a materialize output step.
+                // For that step, we log in AllWorkers once per pip instead of per worker. 
                 Logger.Log.DistributionExecutePipRequest(operationContext, runnable.FormattedSemiStableHash, Name, runnable.Step.AsString());
             }
 
@@ -931,7 +933,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         private void OnPipExecutionCompletion(RunnablePip runnable)
         {
-            if (!IsContentTrackingEnabled)
+            if (!m_isDistributedBuild)
             {
                 // Only perform this operation for distributed orchestrator.
                 return;
@@ -940,7 +942,10 @@ namespace BuildXL.Scheduler.Distribution
             var operationContext = runnable.OperationContext;
             var executionResult = runnable.ExecutionResult;
 
-            Logger.Log.DistributionFinishedPipRequest(operationContext, runnable.FormattedSemiStableHash, Name, runnable.Step.AsString());
+            if (runnable.Step != PipExecutionStep.MaterializeOutputs)
+            {
+                Logger.Log.DistributionFinishedPipRequest(operationContext, runnable.FormattedSemiStableHash, Name, runnable.Step.AsString());
+            }
 
             if (executionResult == null)
             {

@@ -5,6 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Distribution
@@ -39,6 +40,8 @@ namespace BuildXL.Scheduler.Distribution
             {
                 Task<PipResultStatus>[] tasks = new Task<PipResultStatus>[m_workers.Length];
 
+                Logger.Log.DistributionExecutePipRequest(operationContext, runnablePip.FormattedSemiStableHash, Name, nameof(PipExecutionStep.MaterializeOutputs));
+
                 // Start from the remote workers
                 for (int i = m_workers.Length - 1; i >= 0; i--)
                 {
@@ -47,6 +50,8 @@ namespace BuildXL.Scheduler.Distribution
                 }
 
                 var results = await Task.WhenAll(tasks);
+
+                Logger.Log.DistributionFinishedPipRequest(operationContext, runnablePip.FormattedSemiStableHash, Name, "MaterializeOutput");
 
                 foreach (var result in results)
                 {

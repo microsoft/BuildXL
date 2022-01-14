@@ -737,7 +737,7 @@ namespace BuildXL.Scheduler.Tracing
             Message = "[{formattedSemiStableHash}] Pip output '{filePath}' with hash '{hash} reported from worker '{workerName}'. {reparsePointInfo}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)Keywords.Diagnostics)]
         public abstract void DistributionOrchestratorWorkerProcessOutputContent(LoggingContext context, string formattedSemiStableHash, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
@@ -789,7 +789,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.CopyingPipOutputToLocalStorage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance | (int)Keywords.Diagnostics,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.Storage,
             Message = "[{formattedSemiStableHash}] Ensured pip output hash '{contentHash}' is available for local materialization: Result: {result} | Target location up-to-date: {targetLocationUpToDate} | Remotely copied bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipOutputToLocalStorage(
@@ -804,7 +804,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.CopyingPipInputToLocalStorage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Storage,
             Message = "[{formattedSemiStableHash}] Ensured pip input hash '{contentHash}' is available for materialization: Result: {result} | Up-to-date: {targetLocationUpToDate} | Remote bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipInputToLocalStorage(
@@ -2550,7 +2550,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.PathSetValidationTargetFailedAccessCheck,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Scheduler,
             Message = "{pipDescription} Strong fingerprint could not be computed because FileContentRead for '{path}' is not allowed for the pip because it is not a declared dependency. PathSet will not be usable")]
         public abstract void PathSetValidationTargetFailedAccessCheck(LoggingContext context, string pipDescription, string path);

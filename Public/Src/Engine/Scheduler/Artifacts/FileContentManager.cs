@@ -28,6 +28,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using static BuildXL.Tracing.Diagnostics;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 
@@ -2902,12 +2903,14 @@ namespace BuildXL.Scheduler.Artifacts
                         }
 
                         // Log the result of each requested hash
-                        string expectedContentHash = contentHash.ToHex();
 
                         using (operationContext.StartOperation(OperationCounter.FileContentManagerHandleContentAvailabilityLogContentAvailability, fileArtifact))
                         {
-                            if (!onlyLogUnavailableContent || !isAvailable)
+                            if ((!onlyLogUnavailableContent || !isAvailable) &&
+                                ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                             {
+                                string expectedContentHash = contentHash.ToHex();
+
                                 if (materializingOutputs)
                                 {
                                     Logger.Log.ScheduleCopyingPipOutputToLocalStorage(
@@ -2947,7 +2950,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 success = false;
                                 onContentUnavailable(
                                     currentFileIndex,
-                                    expectedContentHash,
+                                    contentHash.ToHex(),
                                     existingContentOnDiskInfo.HasValue
                                         ? existingContentOnDiskInfo.Value.Hash.ToHex()
                                         : null,
@@ -3456,7 +3459,7 @@ namespace BuildXL.Scheduler.Artifacts
                     fileTrackedHash = TrackedFileContentInfo.CreateUntrackedWithUnknownLength(WellKnownContentHashes.AbsentFile, possibleProbeResult.Result);
                 }
 
-                if (BuildXL.Scheduler.ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     if (fileArtifact.IsSourceFile)
                     {

@@ -902,7 +902,7 @@ namespace BuildXL.Engine.Tracing
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash}' reported to orchestrator.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+            Keywords = (int)Keywords.Diagnostics)]
         public abstract void DistributionWorkerPipOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash);
 
         [GeneratedEvent(
@@ -2552,10 +2552,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.PipTableStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage
-
-                // Computing the parameters to log this is a bit expensive (~50ms). So make it diagnostic
-                | (int)Keywords.Diagnostics,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
             Message = "  PipTable created {0} streams occupying {1} bytes, using {2} bytes; {3} entries, {4} entries written (in {7} ms), {5} entries read (in {8} ms), {6} entries alive")]
         public abstract void PipTableStats(LoggingContext context, int streams, long size, long used, int count, int writes, long reads, int alive, long writingTime, long readingTime);
@@ -2564,7 +2561,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.PipTableDeserializationContext,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage | (int)Keywords.Diagnostics,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
             Message = "  PipTable deserialized {1} pips because of {0}")]
         public abstract void PipTableDeserializationContext(LoggingContext context, string name, int count);

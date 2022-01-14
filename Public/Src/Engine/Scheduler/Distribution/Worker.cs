@@ -18,9 +18,11 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Tracing.Diagnostics;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -964,7 +966,8 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             if (IsRemote &&
-                (runnable.Step == PipExecutionStep.ExecuteProcess || runnable.Step == PipExecutionStep.ExecuteNonProcessPip))
+                (runnable.Step == PipExecutionStep.ExecuteProcess || runnable.Step == PipExecutionStep.ExecuteNonProcessPip) &&
+                ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
             {
                 // Log the outputs reported from the worker for the pip execution
                 foreach (var outputFile in executionResult.OutputContent)

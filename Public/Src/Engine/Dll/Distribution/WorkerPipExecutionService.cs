@@ -5,7 +5,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Diagnostics.Tracing;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +24,8 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using EventWrittenEventArgs = System.Diagnostics.Tracing.EventWrittenEventArgs;
+using static BuildXL.Tracing.Diagnostics;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Distribution
@@ -407,7 +408,8 @@ namespace BuildXL.Engine.Distribution
                         executionResult.Seal();
                         m_workerPipStateManager.Transition(pipId, WorkerPipState.Executed);
 
-                        if (!executionResult.Result.IndicatesFailure())
+                        if (!executionResult.Result.IndicatesFailure() &&
+                            ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                         {
                             foreach (var outputContent in executionResult.OutputContent)
                             {

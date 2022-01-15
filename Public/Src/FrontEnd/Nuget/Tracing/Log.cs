@@ -210,7 +210,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = "Nuget statistics: from disk: {packagesFromDisk}, from cache: {packagesFromCache}, from the remote: {packagesDownloaded}, " +
                       "failed: {packagesFailed}. Total elapsed milliseconds: {totalMilliseconds}. Degree of parallelism: {dop}.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void NugetStatistics(LoggingContext context, long packagesFromDisk, long packagesFromCache, long packagesDownloaded, long packagesFailed, long totalMilliseconds, int dop);
 
         [GeneratedEvent(

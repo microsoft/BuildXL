@@ -95,7 +95,7 @@ namespace BuildXL.FrontEnd.Download.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "[Download.{0}] contexts: {1} trees, {2} contexts.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ContextStatistics(LoggingContext context, string name, long contextTrees, long contexts);
 
         [GeneratedEvent(

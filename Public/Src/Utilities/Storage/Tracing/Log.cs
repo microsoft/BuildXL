@@ -70,7 +70,7 @@ namespace BuildXL.Storage.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = EventConstants.PhasePrefix + "Done saving change tracking set")]
         public abstract void EndSavingChangeTracker(LoggingContext context);
 
@@ -79,7 +79,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             Message = "Saving change tracking set: Path: {path} | Token: {token} | State: {state} | Tracked volume count: {trackedVolumeCount} | Elapsed time: {durationMs}ms")]
         public abstract void SavingChangeTracker(LoggingContext context, string path, string token, string state, int trackedVolumeCount, long durationMs);
 
@@ -259,7 +259,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             Message = "Anti dependency validation: Verified to be absent: {0} | Failed to retrack as non-existent: {1} | Failed to probe: {2} | Elapsed time: {3}ms")]
         public abstract void AntiDependencyValidationStats(LoggingContext context, int numOfVerifiedToBeAbsent, int numOfFailedToRetrackAsNonExistent, int numOfFailedToProbe, long elapsedMs);
 
@@ -295,7 +295,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             Message = "Enumeration dependency validation: Unchanged: {0} | Failed to retrack: {1} | Failed to open and enumerate: {2} | Elapsed time: {3}ms")]
         public abstract void EnumerationDependencyValidationStats(LoggingContext context, int numOfUnchanges, int numOfFailedToRetrack, int numOfFailedToOpenAndEnumerate, long elapsedMs);
 
@@ -349,7 +349,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             Message = "Hard link validation: Unchanged: {0} | File id changes: {1} | Failed to retrack: {2} | Non-existent: {3} | Failed to open: {4} | Elapsed time: {5}ms")]
         public abstract void HardLinkValidationStats(LoggingContext context, int numOfUnchanges, int numOfFileIdChanges, int numOfFailedToRetrack, int numOfNonExistent, int numOfFailedToOpenAndTrack, long elapsedMs);
 
@@ -620,7 +620,7 @@ namespace BuildXL.Storage.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = EventConstants.PhasePrefix + "Done loading previous change tracking set")]
         public abstract void EndLoadingChangeTracker(LoggingContext context);
 
@@ -629,7 +629,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             Message = "Loading previous change tracking set: Path: {path} |  Token: {token} | Status: {status} | Reason: {reason} | Tracked volume count: {trackedVolumeCount} | Tracked journal size: {trackedJournalSizeByte} bytes| Elapsed time: {durationMs}ms")]
         public abstract void LoadingChangeTracker(LoggingContext context, string path, string token, string status, string reason, int trackedVolumeCount, long trackedJournalSizeByte, long durationMs);
 
@@ -657,7 +657,7 @@ namespace BuildXL.Storage.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             Message = "Scanning journal: Token: {token} | Status: {status} | Elapsed time: {durationMs}ms")]
         public abstract void ScanningJournal(LoggingContext context, string token, string status, long durationMs);
 
@@ -667,7 +667,7 @@ namespace BuildXL.Storage.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = EventConstants.PhasePrefix + "Done scanning USN journal")]
         public abstract void EndScanningJournal(LoggingContext context);
 

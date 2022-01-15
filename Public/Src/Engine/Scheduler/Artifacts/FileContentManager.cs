@@ -3390,7 +3390,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 Interlocked.Increment(ref m_stats.OutputFilesHashed);
                             }
 
-                            if (ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
+                            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                             {
                                 Logger.Log.StorageHashedSourceFile(operationContext, artifactFullPath, fileTrackedHash.Hash.ToHex());
                             }
@@ -3784,6 +3784,11 @@ namespace BuildXL.Scheduler.Artifacts
 
         private void LogOutputOrigin(OperationContext operationContext, long pipSemiStableHash, string path, in FileMaterializationInfo info, PipOutputOrigin origin, string additionalInfo = null)
         {
+            if (origin == PipOutputOrigin.NotMaterialized && !ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+            {
+                return;
+            }
+
             string hashHex = info.Hash.ToHex();
             string pipDescription = Pip.FormatSemiStableHash(pipSemiStableHash);
             var reparseInfo = info.ReparsePointInfo.IsActionableReparsePoint ? info.ReparsePointInfo.ToString() : string.Empty;

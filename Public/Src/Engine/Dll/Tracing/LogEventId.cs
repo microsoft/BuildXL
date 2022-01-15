@@ -286,21 +286,6 @@ namespace BuildXL.Engine.Tracing
         MountsImpactingBuild = 3214,
         DominoEngineEnd = 3599,
 
-
-
-
-
-        PerformanceSample = 6303,
-
-
-
-
-
-
-
-
-
-
         // RESERVED TO [2800, 2899] (BuildXL.Engine.dll)
 
         // Distribution [7000, 7050]

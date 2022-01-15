@@ -616,7 +616,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.TryBringContentToLocalCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Diagnostics | (int)Keywords.Performance,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.Storage,
             Message = "[{pipDescription}] Try bring content to local cache.")]
         internal abstract void ScheduleTryBringContentToLocalCache(LoggingContext loggingContext, string pipDescription);
@@ -1060,7 +1060,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.IncrementalBuildSavingsSummary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = EventConstants.PhasePrefix + "Cache savings: {cacheRate:P} of {totalProcesses} included processes. {ignoredProcesses} excluded via filtering.")]
         internal abstract void IncrementalBuildSavingsSummary(LoggingContext loggingContext, double cacheRate, long totalProcesses, long ignoredProcesses);
@@ -1069,7 +1069,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.IncrementalBuildSharedCacheSavingsSummary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = EventConstants.PhasePrefix + "Shared cache usage: Downloaded {remoteProcesses} processes [{relativeCacheRate:P} of cache hits] and {contentDownloaded} of outputs.")]
         internal abstract void IncrementalBuildSharedCacheSavingsSummary(LoggingContext loggingContext, double relativeCacheRate, long remoteProcesses, string contentDownloaded);
@@ -1078,7 +1078,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.SchedulerDidNotConverge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "This build did not converge with the remote. Run the cache miss analyzer against the remote build to see why.\r\n\r\n{executionAnalyzerPath} /mode:cacheMiss /xl:[REPACE_WITH_REMOTE_XLG] /xl:{executionLogPath} /o:{outputFilePath}")]
         internal abstract void SchedulerDidNotConverge(LoggingContext loggingContext, string executionLogPath, string executionAnalyzerPath, string outputFilePath);
@@ -1087,7 +1087,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.RemoteCacheHitsGreaterThanTotalCacheHits,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = EventConstants.PhasePrefix + "Inconsistent cache hit statistics: number of remote cache hits ({remoteHits}) greater than number of total cache hits ({totalHits}).")]
         internal abstract void RemoteCacheHitsGreaterThanTotalCacheHits(LoggingContext loggingContext, long remoteHits, long totalHits);
@@ -1096,7 +1096,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.PipsSucceededStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Pips successfully executed: {numberOfPips}")]
         internal abstract void PipsSucceededStats(LoggingContext loggingContext, long numberOfPips);
@@ -1105,7 +1105,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.PipsFailedStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Pips that failed: {numberOfPips}")]
         internal abstract void PipsFailedStats(LoggingContext loggingContext, long numberOfPips);
@@ -1114,7 +1114,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.PipDetailedStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  PipStats Type: {pipType}, successful: {success}, failed: {fail}, skipped: {skipped} ignored: {ignored}, total: {total}")]
         internal abstract void PipDetailedStats(LoggingContext loggingContext, string pipType, long success, long fail, long skipped, long ignored, long total);
@@ -1123,7 +1123,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.ProcessesCacheMissStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Processes that were launched: {numberOfProcesses}")]
         internal abstract void ProcessesCacheMissStats(LoggingContext loggingContext, long numberOfProcesses);
@@ -1132,7 +1132,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.ProcessesCacheHitStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Processes that were skipped due to cache hit: {numberOfProcesses}")]
         internal abstract void ProcessesCacheHitStats(LoggingContext loggingContext, long numberOfProcesses);
@@ -1141,7 +1141,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.SourceFileHashingStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Source files: {sourceFilesHashed} changed | {sourceFilesUnchanged} unchanged | {sourceFilesUntracked} untracked | {sourceFilesAbsent} absent")]
         internal abstract void SourceFileHashingStats(LoggingContext loggingContext, long sourceFilesHashed, long sourceFilesUnchanged, long sourceFilesUntracked, long sourceFilesAbsent);
@@ -1150,7 +1150,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.OutputFileHashingStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Output files: {outputFilesHashed} changed | {outputFilesUnchanged} unchanged")]
         internal abstract void OutputFileHashingStats(LoggingContext loggingContext, long outputFilesHashed, long outputFilesUnchanged);
@@ -1159,7 +1159,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.OutputFileStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Output files: {outputFilesNewlyCreated} produced | {outputFilesDeployed} copied from cache | {outputFilesUpToDate} up-to-date")]
         internal abstract void OutputFileStats(LoggingContext loggingContext, long outputFilesNewlyCreated, long outputFilesDeployed, long outputFilesUpToDate);
@@ -1168,7 +1168,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.WarningStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Tool warnings: {pipsWithWarnings} pip runs caused {warnings} warnings | {pipsWithWarningsFromCache} cached pips caused {warningsFromCache} cached warnings")]
         internal abstract void WarningStats(LoggingContext loggingContext, int pipsWithWarnings, long warnings, int pipsWithWarningsFromCache, long warningsFromCache);
@@ -1177,7 +1177,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.CacheTransferStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "  Attempts at bringing content to local cache: {tryBringContentToLocalCacheCounts} | Number of artifacts brought to local cache: {artifactsBroughtToLocalCacheCounts} | Total size of artifacts brought to local cache {totalSizeArtifactsBroughtToLocalCache} Mb")]
         internal abstract void CacheTransferStats(
@@ -1425,7 +1425,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.EndAssigningPriorities,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "-- Done calculating pip priorities")]
@@ -1445,7 +1445,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.EndSettingPipStates,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "-- Done setting pip states")]
@@ -1541,7 +1541,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.ProcessStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
             Message = PipStartMessage)]
@@ -1559,7 +1559,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.ProcessEnd,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = PipEndMessage)]
@@ -1575,7 +1575,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.CopyFileStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
             Message = PipStartMessage)]
@@ -1591,7 +1591,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.CopyFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = PipEndMessage)]
@@ -1601,7 +1601,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.WriteFileStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
             Message = PipStartMessage)]
@@ -1617,7 +1617,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.WriteFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = PipEndMessage)]
@@ -1734,15 +1734,6 @@ namespace BuildXL.Scheduler.Tracing
             int column,
             string pipDescription,
             string pipValueId);
-
-        [GeneratedEvent(
-            (int)LogEventId.StorageCacheGetContentUsingFallback,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Diagnostics,
-            EventTask = (int)Tasks.Storage,
-            Message = "Placing content {0}: Trying ingress of fallback path '{1}' since content not in cache.")]
-        public abstract void StorageCacheGetContentUsingFallback(LoggingContext context, string contentHash, string fallbackPath);
 
         #endregion
 
@@ -1874,7 +1865,7 @@ namespace BuildXL.Scheduler.Tracing
              (int)LogEventId.DependencyViolationDoubleWrite,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
-             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+             Keywords = (int)Keywords.UserMessage,
              EventTask = (int)Tasks.Scheduler,
              Message =
                  PipDependencyAnalysisPrefix +
@@ -1891,7 +1882,7 @@ namespace BuildXL.Scheduler.Tracing
              (int)LogEventId.AllowedSameContentDoubleWrite,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
-             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+             Keywords = (int)Keywords.UserMessage,
              EventTask = (int)Tasks.Scheduler,
              Message =
                  PipDependencyAnalysisPrefix +
@@ -1908,7 +1899,7 @@ namespace BuildXL.Scheduler.Tracing
              (int)LogEventId.AllowedRewriteOnUndeclaredFile,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
-             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+             Keywords = (int)Keywords.UserMessage,
              EventTask = (int)Tasks.Scheduler,
              Message =
                  "Pip {1} wrote to the undeclared file '{2}'. However, the configured policy allows for it and the rewrite is safe.")]
@@ -1931,7 +1922,7 @@ namespace BuildXL.Scheduler.Tracing
              (int)LogEventId.DisallowedRewriteOnUndeclaredFile,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
-             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+             Keywords = (int)Keywords.UserMessage,
              EventTask = (int)Tasks.Scheduler,
              Message = PipDependencyAnalysisPrefix +
                  "Rewrite on the undeclared file '{2}' was disallowed. {3}")]
@@ -1946,7 +1937,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationReadRace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipSpecDependencyAnalysisPrefix +
@@ -1966,7 +1957,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationUndeclaredOrderedRead,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipSpecDependencyAnalysisPrefix +
@@ -1987,7 +1978,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationMissingSourceDependencyWithValueSuggestion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2005,7 +1996,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationMissingSourceDependency,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2022,7 +2013,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationUndeclaredReadCycle,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2039,7 +2030,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationReadUndeclaredOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2059,7 +2050,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationWriteInSourceSealDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2078,7 +2069,7 @@ namespace BuildXL.Scheduler.Tracing
            (int)LogEventId.DependencyViolationWriteInExclusiveOpaqueDirectory,
            EventGenerators = EventGenerators.LocalOnly,
            EventLevel = Level.Verbose,
-           Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+           Keywords = (int)Keywords.UserMessage,
            EventTask = (int)Tasks.Scheduler,
            Message =
                PipDependencyAnalysisPrefix +
@@ -2097,7 +2088,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationWriteInUndeclaredSourceRead,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2116,7 +2107,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationWriteOnExistingFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2134,7 +2125,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationWriteOnAbsentPathProbe,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2157,7 +2148,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2173,7 +2164,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 "[{1}]" +
@@ -2189,7 +2180,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationGenericWithRelatedPip,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2207,7 +2198,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationGeneric,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2224,7 +2215,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationUndeclaredOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2240,7 +2231,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.DependencyViolationSharedOpaqueWriteInTempDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2260,7 +2251,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.DependencyViolationTheSameTempFileProducedByIndependentPips,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
@@ -2325,7 +2316,7 @@ namespace BuildXL.Scheduler.Tracing
             (int)LogEventId.HistoricPerfDataStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message = "  HistoricPerfData: {0} hits | {1} misses | {2} added | {3} updated | {4}% average relative process runtime deviation where critical path suggestions were available")]
         public abstract void HistoricPerfDataStats(LoggingContext context, long hits, long misses, long added, long updated, int averageRuntimeDeviation);
@@ -2605,7 +2596,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = EventConstants.PhasePrefix + "USN journal statistics for scheduler: {message}")]
         public abstract void JournalProcessingStatisticsForScheduler(LoggingContext context, string message);
 
@@ -2614,7 +2605,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = "USN journal statistics for scheduler")]
         public abstract void JournalProcessingStatisticsForSchedulerTelemetry(LoggingContext context, string scanningJournalStatus, IDictionary<string, long> stats);
 
@@ -2695,7 +2686,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             Message = "Reading dirty node state file '{path}': Status: {status} | Reason: {reason} | Elapsed time: {elapsedMs}ms")]
         public abstract void IncrementalSchedulingReadDirtyNodeState(LoggingContext context, string path, string status, string reason, long elapsedMs);
 
@@ -2776,7 +2767,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             Message = "Loading incremental scheduling state at '{path}': Status: {status} | Reason: {reason} | Elapsed time: {elapsedMs}ms")]
         public abstract void IncrementalSchedulingLoadState(LoggingContext context, string path, string status, string reason, long elapsedMs);
 
@@ -2785,7 +2776,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             Message = "Attempt to reuse existing incremental scheduling state from engine state: {reason} | Engine state id (if reuseable): {engineStateIdIfReusable}")]
         public abstract void IncrementalSchedulingReuseState(LoggingContext context, string reason, string engineStateIdIfReusable);
 
@@ -2794,7 +2785,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             Message = "Saving incremental scheduling state at '{path}': Status: {status} | Reason: {reason} | Elapsed time: {elapsedMs}ms")]
         public abstract void IncrementalSchedulingSaveState(LoggingContext context, string path, string status, string reason, long elapsedMs);
 
@@ -2803,7 +2794,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             Message = "Processing graph change to update incremental scheduling state: Loaded graph id: {loadedGraphId} | New graph id: {newGraphId} | Elapsed time: {elapsedMs}ms")]
         public abstract void IncrementalSchedulingProcessGraphChange(LoggingContext context, string loadedGraphId, string newGraphId, long elapsedMs);
 

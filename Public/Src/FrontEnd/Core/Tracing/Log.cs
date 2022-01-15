@@ -46,7 +46,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void FrontEndLoadConfigPhaseComplete(LoggingContext context, LoadConfigurationStatistics statistics);
 
         [GeneratedEvent(
@@ -67,7 +67,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void FrontEndInitializeResolversPhaseComplete(LoggingContext context, InitializeResolversStatistics statistics);
 
         [GeneratedEvent(
@@ -434,7 +434,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.EndDownloadingTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "-- Done downloading tool '{toolName}'.")]
@@ -573,7 +573,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.StartRetrievingPackage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Start,
             Message = "-- Checking if package '{friendlyPackageName}' is cached or needs to be downloaded from '{targetLocation}'")]
@@ -583,7 +583,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.EndRetrievingPackage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            Keywords = (int)(Keywords.Diagnostics),
             EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "-- Done retrieving package {friendlyPackageName}.")]
@@ -938,7 +938,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "  cycle detection: {0} threads created, {1} chains added, {2} removed before processing, {3} abandoned while processing, {4} removed after processing.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void CycleDetectionStatistics(LoggingContext context, long threadsCreated, long chainsAdded, long chainsRemovedBeforeProcessing, long chainsAbandonedWhileProcessing, long chainsRemovedAfterProcessing);
 
         [GeneratedEvent(

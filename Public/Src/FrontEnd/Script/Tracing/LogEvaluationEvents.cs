@@ -619,7 +619,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "  [DScript.{0}] array evaluation: {1} empty, {2} evaluations, {3} constructed as evaluated arrays.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ArrayEvaluationStatistics(LoggingContext context, string name, long empty, long evaluations, long evaluatedArrays);
 
         [GeneratedEvent(
@@ -628,7 +628,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "  [DScript.{name}] glob: total time {totalGlobTimeInMs} ms.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void GlobStatistics(LoggingContext context, string name, long totalGlobTimeInMs);
 
         [GeneratedEvent(
@@ -637,7 +637,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "  [DScript.{name}] [{duration} ms] {methodName} was called {numberOfCalls} times.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void MethodInvocationCountStatistics(LoggingContext context, string name, string methodName, long numberOfCalls, string duration);
 
         [GeneratedEvent(
@@ -646,7 +646,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "  [DScript.{0}] contexts: {1} trees, {2} contexts.",
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ContextStatistics(LoggingContext context, string name, long contextTrees, long contexts);
 
         [GeneratedEvent(

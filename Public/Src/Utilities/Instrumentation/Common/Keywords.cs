@@ -13,21 +13,11 @@ namespace BuildXL.Utilities.Instrumentation.Common
     public static class Keywords
     {
         /// <summary>
-        /// Added to events that log performance data (GC stats, parsing stats, object sizes)
-        /// </summary>
-        public const EventKeywords Performance = (EventKeywords)(1 << 29);
-
-        /// <summary>
         /// Added to Level=Verbose events that may need to be optionally enabled for additional diagnostics but are
         /// generally disabled. The BuildXL host application has command lines to optionally enable events with this
         /// keyword on a per task basis
         /// </summary>
         public const EventKeywords Diagnostics = (EventKeywords)(1 << 28);
-
-        /// <summary>
-        /// Events that are sent to CloudBuild listener
-        /// </summary>
-        public const EventKeywords CloudBuild = (EventKeywords)(1 << 27);
 
         /// <summary>
         /// Indicates an event that will be interpreted by the BuildXL listeners.
@@ -38,11 +28,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// This the events relevant to progress indication.
         /// </summary>
         public const EventKeywords Progress = (EventKeywords)(1 << 1);
-
-        /// <summary>
-        /// Events related to analysis of file monitoring violations.
-        /// </summary>
-        public const EventKeywords DependencyAnalysis = (EventKeywords)(1 << 2);
 
         /// <summary>
         /// Events that are only shown as temporary status on the console. They may be overwritten by future events

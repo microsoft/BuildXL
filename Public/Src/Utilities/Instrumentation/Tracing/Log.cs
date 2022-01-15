@@ -105,7 +105,7 @@ namespace BuildXL.Tracing
             (ushort)LogEventId.Memory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Engine,
             Message = "Managed memory: {0} MB, private bytes: {1} MB, threads: {2}")]
         public abstract void Memory(LoggingContext context, long managedHeapMegabytes, long privateMemorySizeMegabytes, int threads);
@@ -257,83 +257,6 @@ namespace BuildXL.Tracing
             Message = "{logKind} {message}",
             Keywords = (int)Keywords.ExternalEtwOnly)]
         public abstract void TextLogEtwOnly(LoggingContext context, string sessionId, string logKind, int sequenceNumber, int eventNumber, string eventLabel, string message);
-
-        #region CloudBuildEvents
-        private const string CloudBuildMessageVersion = " v{cbEvent.Version}";
-        private const string CloudBuildMessageVersionTargetId = " v{cbEvent.Version} Id:{cbEvent.TargetId}";
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DominoInvocationEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "{ShortProductName}InvocationEvent" + CloudBuildMessageVersion)]
-        public abstract void DominoInvocationEvent(LoggingContext context, DominoInvocationEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DominoCompletedEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "{ShortProductName}CompletedEvent" + CloudBuildMessageVersion)]
-        public abstract void DominoCompletedEvent(LoggingContext context, DominoCompletedEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DominoContinuousStatisticsEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "{ShortProductName}ContinuousStatisticsEvent" + CloudBuildMessageVersion)]
-        public abstract void DominoContinuousStatisticsEvent(LoggingContext context, DominoContinuousStatisticsEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.TargetAddedEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "TargetAddedEvent" + CloudBuildMessageVersionTargetId + " Name:{cbEvent.TargetName}")]
-        public abstract void TargetAddedEvent(LoggingContext context, TargetAddedEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.TargetRunningEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "TargetRunningEvent" + CloudBuildMessageVersionTargetId)]
-        public abstract void TargetRunningEvent(LoggingContext context, TargetRunningEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.TargetFailedEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "TargetFailedEvent" + CloudBuildMessageVersionTargetId)]
-        public abstract void TargetFailedEvent(LoggingContext context, TargetFailedEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.TargetFinishedEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
-            Message = "TargetFinishedEvent" + CloudBuildMessageVersionTargetId)]
-        public abstract void TargetFinishedEvent(LoggingContext context, TargetFinishedEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DropCreationEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.CloudBuild,
-            Message = "'drop create': {cbEvent.ErrorMessage} {cbEvent.AdditionalInformation}")]
-        public abstract void DropCreationEvent(LoggingContext context, DropCreationEvent cbEvent);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DropFinalizationEvent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.CloudBuild,
-            Message = "'drop finalize': {cbEvent.ErrorMessage} {cbEvent.AdditionalInformation}")]
-        public abstract void DropFinalizationEvent(LoggingContext context, DropFinalizationEvent cbEvent);
-        #endregion
     }
 
     /// <summary>

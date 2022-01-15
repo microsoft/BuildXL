@@ -22,6 +22,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Tracing.Diagnostics;
 
 namespace BuildXL.Scheduler.Cache
 {
@@ -369,7 +370,8 @@ namespace BuildXL.Scheduler.Cache
         {
             var result = await TwoPhaseFingerprintStore.TryGetCacheEntryAsync(weakFingerprint, pathSetHash, strongFingerprint);
 
-            if (result.Succeeded)
+            if (result.Succeeded &&
+                ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
             {
                 Tracing.Logger.Log.PipTwoPhaseCacheGetCacheEntry(
                     LoggingContext,
@@ -407,15 +409,19 @@ namespace BuildXL.Scheduler.Cache
             if (result.Succeeded)
             {
                 var publishedEntry = result.Result.Status == CacheEntryPublishStatus.Published ? entry : result.Result.ConflictingEntry;
-                Tracing.Logger.Log.PipTwoPhaseCachePublishCacheEntry(
-                    LoggingContext,
-                    pip.GetDescription(Context),
-                    weakFingerprint.ToString(),
-                    pathSetHash.ToString(),
-                    strongFingerprint.ToString(),
-                    entry.MetadataHash.ToString(),
-                    result.Result.Status.ToString(),
-                    publishedEntry.MetadataHash.ToString());
+
+                if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+                {
+                    Tracing.Logger.Log.PipTwoPhaseCachePublishCacheEntry(
+                        LoggingContext,
+                        pip.GetDescription(Context),
+                        weakFingerprint.ToString(),
+                        pathSetHash.ToString(),
+                        strongFingerprint.ToString(),
+                        entry.MetadataHash.ToString(),
+                        result.Result.Status.ToString(),
+                        publishedEntry.MetadataHash.ToString());
+                }
             }
 
             return result;

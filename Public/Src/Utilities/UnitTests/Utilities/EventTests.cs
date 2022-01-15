@@ -135,8 +135,7 @@ namespace Test.BuildXL.Utilities
                     // We exclude pip-provenance and phase events for now because for some reason they define GUIDs that never actually
                     // get logged (which is probably not a valid thing to do on an EventSource).
                     if (!l.LastEvent.Message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal)
-                        && !l.LastEvent.Message.StartsWith(EventConstants.PhasePrefix, StringComparison.Ordinal)
-                        && !l.LastEvent.Keywords.HasFlag(Keywords.Performance))
+                        && !l.LastEvent.Message.StartsWith(EventConstants.PhasePrefix, StringComparison.Ordinal))
                     {
                         for (int i = 0; i < payload.Length; i++)
                         {

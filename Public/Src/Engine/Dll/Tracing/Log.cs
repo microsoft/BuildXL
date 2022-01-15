@@ -54,7 +54,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void ParsePhaseComplete(LoggingContext context, ParseStatistics parseStatistics);
 
         [GeneratedEvent(
@@ -74,7 +74,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void EvaluatePhaseComplete(LoggingContext context, EvaluateStatistics evaluateStatistics);
 
         [GeneratedEvent(
@@ -94,7 +94,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void ExecutePhaseComplete(LoggingContext context, ExecuteStatistics executeStatistics, LimitingResourcePercentages limitingResourcePercentages);
 
         [GeneratedEvent(
@@ -203,7 +203,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = EventConstants.PhasePrefix + "Done visiting {fileCount} spec files for graph reuse check in {elapsedMilliseconds}ms")]
         public abstract void VisitingSpecFilesComplete(LoggingContext context, int elapsedMilliseconds, int fileCount);
 
@@ -268,7 +268,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void CheckingForPipGraphReuseComplete(LoggingContext context, GraphCacheCheckStatistics graphCacheCheckStatistics);
 
         [GeneratedEvent(
@@ -277,7 +277,7 @@ namespace BuildXL.Engine.Tracing
             Message = EventConstants.PhasePrefix + "Checking input files for pip graph reuse. {done} done. {remaining} remaining.",
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress | Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void CheckingForPipGraphReuseStatus(LoggingContext context, int done, int remaining);
 
         [GeneratedEvent(
@@ -307,7 +307,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void PartiallyReloadingEngineStateComplete(LoggingContext context, GraphCacheReloadStatistics graphCacheReloadStatistics);
 
         [GeneratedEvent(
@@ -317,7 +317,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void EngineContextHeuristicOutcomeReuse(LoggingContext context, int generation, string reason);
 
         [GeneratedEvent(
@@ -327,7 +327,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void EngineContextHeuristicOutcomeSkip(LoggingContext context, int generation, string reason);
 
         [GeneratedEvent(
@@ -357,7 +357,7 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void SerializingPipGraphComplete(LoggingContext context, GraphCacheSaveStatistics graphCacheSaveStatistics);
 
         [GeneratedEvent(
@@ -1002,15 +1002,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void MountsImpactingBuild(LoggingContext context, EffectiveMounts effectiveMounts);
 
         [GeneratedEvent(
-            (ushort)LogEventId.PerformanceSample,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "Perf: CPU:{machineProcessorTime}%, FreeMemory:{machineAvailableMemoryMegabytes}MB. Ready:{ready}, Running:{running}, Max:{maxRunning}, Limiting factor heuristic: {limitingResource}",
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Engine,
-            Keywords = (int)Keywords.Performance)]
-        public abstract void PerformanceSample(LoggingContext context, int machineProcessorTime, int machineAvailableMemoryMegabytes, long ready, long running, int maxRunning, string limitingResource);
-
-        [GeneratedEvent(
             (ushort)LogEventId.AllowlistFileAccess,
 
             // This is no longer sent to telemetry because it is a relatively large amount of data and was never used.
@@ -1575,7 +1566,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.SerializedFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Serialized {0} in {1}ms")]
         public abstract void SerializedFile(LoggingContext context, string objectSerialized, long milliseconds);
@@ -1584,7 +1575,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.DeserializedFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Deserialized '{0}' in {1}ms")]
         public abstract void DeserializedFile(LoggingContext context, string file, long milliseconds);
@@ -2158,7 +2149,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.EndRehydratingConfigurationWithNewPathTable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done rehydrating configuration with new PathTable")]
@@ -2178,7 +2169,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.EndLoadingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done loading historic perf data")]
@@ -2198,7 +2189,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.EndSavingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done saving updated historic perf data")]
@@ -2354,7 +2345,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.EndInitializingCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Machine-wide cache lock acquired")]
@@ -2364,7 +2355,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.SynchronouslyWaitedForCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Synchronously waited {0}ms for cache to finish initializing. {1}ms of cache initialization overlapped other processing")]
         public abstract void SynchronouslyWaitedForCache(LoggingContext context, int waitTimeMs, int overlappedTimeMs);
@@ -2383,7 +2374,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.EndParseConfig,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done parsing configuration files")]
@@ -2402,7 +2393,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.StatsBanner,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Engine Statistics")]
         public abstract void StatsBanner(LoggingContext context);
@@ -2411,7 +2402,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.FrontEndStatsBanner,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Front End Statistics")]
         public abstract void FrontEndStatsBanner(LoggingContext context);
@@ -2420,7 +2411,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.GCStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "  Garbage Collections: Gen0 {0}, Gen1 {1}, Gen2 {2}")]
         public abstract void GCStats(LoggingContext context, long gen0CollectionCount, long gen1CollectionCount, long gen2CollectionCount);
@@ -2429,7 +2420,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.ObjectPoolStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "  {0} object pool: {1} entries, {2} uses, {3} factory invocations")]
         public abstract void ObjectPoolStats(LoggingContext context, string pool, int entryCount, long useCount, long factoryInvocations);
@@ -2438,7 +2429,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.PipWriterStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "  Serialized {0}: {1} entries, {2} total bytes, {3} bytes/entry")]
         public abstract void PipWriterStats(LoggingContext context, string category, long entries, long totalBytes, int bytesPerEntry);
@@ -2447,7 +2438,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.InterningStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "  {0}: {1} entries, {2} bytes of heap, {3} skipped allocated entries")]
         public abstract void InterningStats(LoggingContext context, string table, int entryCount, long sizeInBytes, int skippedEntries = 0);
@@ -2456,7 +2447,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.ObjectCacheStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "  {0}: {1} hits, {2} misses")]
         public abstract void ObjectCacheStats(LoggingContext context, string table, long hits, long misses);
@@ -2516,7 +2507,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)SharedLogEventId.EndEngineRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Keywords.Diagnostics | (int)Keywords.Performance | (int)Keywords.Progress,
+            Keywords = (int)Keywords.Diagnostics | (int)Keywords.Progress,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + "Done running engine")]
@@ -2552,6 +2543,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.PipTableStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
+            // Computing the parameters to log this is a bit expensive (~50ms). So make it diagnostic
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
             Message = "  PipTable created {0} streams occupying {1} bytes, using {2} bytes; {3} entries, {4} entries written (in {7} ms), {5} entries read (in {8} ms), {6} entries alive")]
@@ -2869,7 +2861,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (ushort)LogEventId.ScheduleConstructedWithConfiguration,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (int)Tasks.Engine,
             Message = "Schedule constructed. Resolvers involved: [{frontendKinds}].")]
         public abstract void ScheduleConstructedWithConfiguration(LoggingContext context, string frontendKinds);

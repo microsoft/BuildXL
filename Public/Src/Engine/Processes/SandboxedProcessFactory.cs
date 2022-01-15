@@ -12,6 +12,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Tracing.Diagnostics;
 
 namespace BuildXL.Processes
 {
@@ -309,7 +310,10 @@ namespace BuildXL.Processes
         public static void LogSubPhaseDuration(LoggingContext context, Pip pip, SandboxedProcessCounters counter, TimeSpan duration, string extraInfo = "")
         {
             Counters.AddToCounter(counter, duration);
-            Logger.Log.LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
+            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+            {
+                Logger.Log.LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
+            }
         }
     }
 }

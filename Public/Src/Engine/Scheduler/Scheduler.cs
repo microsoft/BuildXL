@@ -905,6 +905,10 @@ namespace BuildXL.Scheduler
         /// </summary>
         private readonly ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>> m_alienFileEnumerationCache;
 
+        /// <summary>
+        /// Whether diagnostics events are enabled to be logged.
+        /// </summary>
+        private readonly bool m_diagnosticsEnabled;
         #endregion
 
         #region Ready Queue
@@ -1415,6 +1419,8 @@ namespace BuildXL.Scheduler
             ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
 
             m_alienFileEnumerationCache = new ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>>();
+
+            m_diagnosticsEnabled = ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics);
         }
 
         private static int GetLoggingPeriodInMsForExecution(IConfiguration configuration)
@@ -7126,15 +7132,18 @@ namespace BuildXL.Scheduler
                         ? executableVersionedHash.Hash.ToHex()
                         : executablePath;
 
-                Logger.Log.ProcessStart(
-                    pipLoggingContext,
-                    provenance.Token.Path.ToString(Context.PathTable),
-                    provenance.Token.Line,
-                    provenance.Token.Position,
-                    pip.GetDescription(Context),
-                    provenance.OutputValueSymbol.ToString(Context.SymbolTable),
-                    executablePath,
-                    executableHashStr);
+                if (m_diagnosticsEnabled)
+                {
+                    Logger.Log.ProcessStart(
+                        pipLoggingContext,
+                        provenance.Token.Path.ToString(Context.PathTable),
+                        provenance.Token.Line,
+                        provenance.Token.Position,
+                        runnablePip.Description,
+                        provenance.OutputValueSymbol.ToString(Context.SymbolTable),
+                        executablePath,
+                        executableHashStr);
+                }
             }
             else
             {
@@ -7150,7 +7159,7 @@ namespace BuildXL.Scheduler
                         break;
                 }
 
-                if (startEvent != null)
+                if (startEvent != null && m_diagnosticsEnabled)
                 {
                     startEvent(
                         pipLoggingContext,
@@ -7192,13 +7201,16 @@ namespace BuildXL.Scheduler
                         ? executableVersionedHash.Hash.ToHex()
                         : executablePath;
 
-                Logger.Log.ProcessEnd(
-                    pipLoggingContext,
-                    pip.GetDescription(Context),
-                    provenance.OutputValueSymbol.ToString(Context.SymbolTable),
-                    (int)status,
-                    ticks,
-                    executableHashStr);
+                if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+                {
+                    Logger.Log.ProcessEnd(
+                        pipLoggingContext,
+                        pip.GetDescription(Context),
+                        provenance.OutputValueSymbol.ToString(Context.SymbolTable),
+                        (int)status,
+                        ticks,
+                        executableHashStr);
+                }
             }
             else
             {
@@ -7214,7 +7226,7 @@ namespace BuildXL.Scheduler
                         break;
                 }
 
-                if (endEvent != null)
+                if (endEvent != null && m_diagnosticsEnabled)
                 {
                     endEvent(
                         pipLoggingContext,

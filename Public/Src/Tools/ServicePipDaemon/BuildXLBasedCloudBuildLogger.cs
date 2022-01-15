@@ -41,8 +41,7 @@ namespace Tool.ServicePipDaemon
 
         private void LogDropEventLocally(DropOperationBaseEvent e)
         {
-            var enabled = ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.CloudBuild) ? "ENABLED" : "DISABLED";
-            m_localLogger.Info("Logging {0}Event(dropUrl: {1}, succeeded: {2}): {3}", e.Kind, e.DropUrl, e.Succeeded, enabled);
+            m_localLogger.Info("Logging {0}Event(dropUrl: {1}, succeeded: {2})", e.Kind, e.DropUrl, e.Succeeded);
         }
     }
 }

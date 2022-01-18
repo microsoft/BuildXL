@@ -3,7 +3,7 @@
 
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
-const core60Version = "6.0.0";
+const core60Version = "6.0.1";
 
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";

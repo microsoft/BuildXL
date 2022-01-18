@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
@@ -92,7 +93,7 @@ namespace BuildXL.Cache.Analyzer
 
         internal static async Task<Tuple<CasHash, long>> GetContentSizeAsync(this ICacheReadOnlySession session, CasHash casHash)
         {
-            var possibleString = await session.PinToCasAsync(casHash);
+            var possibleString = await session.PinToCasAsync(casHash, CancellationToken.None);
             if (!possibleString.Succeeded)
             {
                 return new Tuple<CasHash, long>(casHash, (long)ContentError.UnableToPin);

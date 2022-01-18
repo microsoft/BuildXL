@@ -2699,7 +2699,7 @@ namespace BuildXL.Scheduler.Artifacts
                     possibleResults =
                         await
                             ArtifactContentCache.TryLoadAvailableContentAsync(
-                                filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.Item2).ToList());
+                                filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.Item2).ToList(), Context.CancellationToken);
                 }
             }
 

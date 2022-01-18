@@ -141,7 +141,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <inheritdoc />
-        public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes)
+        public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
         {
             return Task.Run<Possible<ContentAvailabilityBatchResult, Failure>>(
                 () =>

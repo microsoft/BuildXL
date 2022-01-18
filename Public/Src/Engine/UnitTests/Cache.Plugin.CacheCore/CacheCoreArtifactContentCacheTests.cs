@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
@@ -14,8 +15,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System;
 
 namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -42,7 +41,7 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             XAssert.AreNotEqual(desiredHash, unrelatedHash);
 
             Possible<ContentAvailabilityBatchResult> possiblyLoaded =
-                await ContentCache.TryLoadAvailableContentAsync(new List<ContentHash>() { desiredHash });
+                await ContentCache.TryLoadAvailableContentAsync(new List<ContentHash>() { desiredHash }, CancellationToken.None);
             XAssert.IsTrue(possiblyLoaded.Succeeded);
             ContentAvailabilityBatchResult result = possiblyLoaded.Result;
             XAssert.IsFalse(result.AllContentAvailable);
@@ -59,7 +58,7 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             XAssert.AreNotEqual(desiredHash, unrelatedHash);
 
             Possible<ContentAvailabilityBatchResult> possiblyLoaded =
-                await ContentCache.TryLoadAvailableContentAsync(new List<ContentHash>() { desiredHash });
+                await ContentCache.TryLoadAvailableContentAsync(new List<ContentHash>() { desiredHash }, CancellationToken.None);
             XAssert.IsTrue(possiblyLoaded.Succeeded);
             ContentAvailabilityBatchResult result = possiblyLoaded.Result;
             XAssert.IsTrue(result.AllContentAvailable);
@@ -80,12 +79,14 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             XAssert.AreNotEqual(alsoAvailableHash, unavailableHash);
 
             Possible<ContentAvailabilityBatchResult> possiblyLoaded =
-                await ContentCache.TryLoadAvailableContentAsync(new List<ContentHash>()
-                                                                {
-                                                                    availableHash,
-                                                                    unavailableHash,
-                                                                    alsoAvailableHash
-                                                                });
+                await ContentCache.TryLoadAvailableContentAsync(
+                    new List<ContentHash>()
+                    {
+                        availableHash,
+                        unavailableHash,
+                        alsoAvailableHash
+                    },
+                    CancellationToken.None);
             XAssert.IsTrue(possiblyLoaded.Succeeded);
             ContentAvailabilityBatchResult result = possiblyLoaded.Result;
             XAssert.IsFalse(result.AllContentAvailable);
@@ -260,7 +261,7 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
         private static async Task LoadContentAndExpectAvailable(CacheCoreArtifactContentCache cache, ContentHash hash)
         {
             Possible<ContentAvailabilityBatchResult> possiblyLoaded =
-                await cache.TryLoadAvailableContentAsync(new List<ContentHash>() { hash });
+                await cache.TryLoadAvailableContentAsync(new List<ContentHash>() { hash }, CancellationToken.None);
             XAssert.IsTrue(possiblyLoaded.Succeeded);
             XAssert.IsTrue(possiblyLoaded.Result.AllContentAvailable);
         }

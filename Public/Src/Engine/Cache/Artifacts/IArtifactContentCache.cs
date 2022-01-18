@@ -46,7 +46,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// The returned batch result will contain an entry for all requested hashes, in the same order as <paramref name="hashes"/>
         /// (for each <c>i</c>, <c>hashes[i] == batchResult.Results[i].Hash</c>).
         /// </summary>
-        Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes);
+        Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken);
 
         /// <summary>
         /// Attempts to open a read-only stream for content. The content should have previously been stored or loaded.

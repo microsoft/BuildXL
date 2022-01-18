@@ -37,6 +37,7 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
         private static readonly ContentHash s_dummyPathSetHash = ContentHashingUtilities.ZeroHash;
 
         private readonly LoggingContext m_loggingContext;
+        private readonly PipExecutionContext m_context;
         private readonly PathTable m_pathTable;
         private readonly IArtifactContentCache m_contentCache;
         private readonly ITwoPhaseFingerprintStore m_twoPhaseStore;
@@ -47,23 +48,19 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
             PipExecutionContext context,
             ITwoPhaseFingerprintStore twoPhaseStore,
             IArtifactContentCache contentCache)
-            : this(loggingContext, context.PathTable, twoPhaseStore, contentCache)
-        {
-            Contract.Requires(context != null);
-        }
-
-        /// <nodoc />
-        public SinglePhaseFingerprintStoreAdapter(LoggingContext loggingContext, PathTable pathTable, ITwoPhaseFingerprintStore twoPhaseStore, IArtifactContentCache contentCache)
         {
             Contract.Requires(loggingContext != null);
-            Contract.Requires(pathTable != null);
+            Contract.Requires(context.PathTable != null);
             Contract.Requires(twoPhaseStore != null);
             Contract.Requires(contentCache != null);
+            Contract.Requires(context != null);
 
             m_loggingContext = loggingContext;
             m_twoPhaseStore = twoPhaseStore;
             m_contentCache = contentCache;
-            m_pathTable = pathTable;
+            m_pathTable = context.PathTable;
+            m_context = context;
+
         }
 
         /// <summary>
@@ -114,6 +111,7 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
                        m_loggingContext,
                        contentHash,
                        shouldRetry: possibleResult => !possibleResult.Succeeded || (possibleResult.Result != null && possibleResult.Result.IsCorrupted),
+                       cancellationToken: m_context.CancellationToken,
                        maxRetry: PipFingerprintEntry.LoadingAndDeserializingRetries);
 
             if (!maybeDeserializedEntry.Succeeded)

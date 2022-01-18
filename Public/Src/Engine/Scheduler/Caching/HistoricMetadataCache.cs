@@ -1437,7 +1437,7 @@ namespace BuildXL.Scheduler.Cache
 
             var absolutePath = AbsolutePath.Create(pathTable, path);
 
-            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(possibleCacheEntry.Result.Value.ToArray());
+            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(possibleCacheEntry.Result.Value.ToArray(), cancellationToken);
 
             var result = await maybePinned.ThenAsync<Unit>(
                 async pinResult =>
@@ -1447,7 +1447,7 @@ namespace BuildXL.Scheduler.Cache
                         return new Failure<string>(I($"Could not pin content for historic metadata cache '{string.Join(", ", pinResult.Results.Where(r => !r.IsAvailable).Select(r => r.Hash))}'"));
                     }
 
-                    var maybeLoadedDescriptor = await cache.ArtifactContentCache.TryLoadAndDeserializeContent<PackageDownloadDescriptor>(historicMetadataCacheDescriptorHash);
+                    var maybeLoadedDescriptor = await cache.ArtifactContentCache.TryLoadAndDeserializeContent<PackageDownloadDescriptor>(historicMetadataCacheDescriptorHash, cancellationToken);
                     if (!maybeLoadedDescriptor.Succeeded)
                     {
                         return maybeLoadedDescriptor.Failure;

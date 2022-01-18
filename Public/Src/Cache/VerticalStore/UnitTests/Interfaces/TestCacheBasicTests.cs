@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
@@ -527,7 +528,7 @@ namespace BuildXL.Cache.Tests
 
             FakeBuild fb = new FakeBuild("test", 3);
 
-            var result = await session.PinToCasAsync(new CasHash(fb.OutputHashes[0]));
+            var result = await session.PinToCasAsync(new CasHash(fb.OutputHashes[0]), CancellationToken.None);
             XAssert.IsFalse(result.Succeeded, "Pin should fail");
             XAssert.AreEqual(typeof(NoCasEntryFailure), result.Failure.GetType(), "Incorrect failure returned {0}", result.Failure.Describe());
 

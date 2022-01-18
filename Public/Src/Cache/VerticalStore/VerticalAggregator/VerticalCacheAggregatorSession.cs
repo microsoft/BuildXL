@@ -376,7 +376,8 @@ namespace BuildXL.Cache.VerticalAggregator
                         if (!m_remoteIsReadOnly && m_cache.WriteThroughCasData && result.Succeeded && !m_cache.RemoteCache.IsDisconnected)
                         {
                             counters.WriteThrough();
-                            var remotePin = await m_remoteROSession.PinToCasAsync(result.Result);
+                            // TODO [pgunasekara]: Add a cancellation token here
+                            var remotePin = await m_remoteROSession.PinToCasAsync(result.Result, CancellationToken.None);
                             if (remotePin.Succeeded)
                             {
                                 counters.CopyStats.FileSkipped();
@@ -844,7 +845,8 @@ namespace BuildXL.Cache.VerticalAggregator
                     {
                         if (checkExistsInTarget)
                         {
-                            var targetPin = await targetSession.PinToCasAsync(hash);
+                            // TODO [pgunasekara]: Add a cancellation token here
+                            var targetPin = await targetSession.PinToCasAsync(hash, CancellationToken.None);
                             if (targetPin.Succeeded)
                             {
                                 counters.FileSkipped();
@@ -863,8 +865,9 @@ namespace BuildXL.Cache.VerticalAggregator
 
                         if (pinSource)
                         {
+                            // TODO [pgunasekara]: Add a cancellation token here
                             // Pin the target on the source, so it knows we intend to copy it.
-                            var sourcePin = sourceSession.PinToCasAsync(hash);
+                            var sourcePin = sourceSession.PinToCasAsync(hash, CancellationToken.None);
                             var sourceResult = await sourcePin;
                             if (!sourceResult.Succeeded)
                             {
@@ -1030,8 +1033,9 @@ namespace BuildXL.Cache.VerticalAggregator
                     List<Task<Possible<CasHash, Failure>>> fileUploads = new List<Task<Possible<CasHash, Failure>>>(casHashes.Length + 1);
                     HashSet<CasHash> filesInMotion = new HashSet<CasHash>();
 
+                    // TODO [pgunasekara]: Add a cancellation token here
                     // First thing we do is pin/publish the CAS items to the remote cache.
-                    Possible<string, Failure>[] pinResults = await targetSession.PinToCasAsync(casHashes, urgencyHint);
+                    Possible<string, Failure>[] pinResults = await targetSession.PinToCasAsync(casHashes, CancellationToken.None, urgencyHint);
                     bool allPinsFailed = pinResults.Length == 1 && !pinResults[0].Succeeded;
                     for (int i = 0; i < casHashes.Length; i++)
                     {
@@ -1071,7 +1075,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var eventing = new PinToCasMultipleActivity(VerticalCacheAggregator.EventSource, activityId, this))
             {
@@ -1091,7 +1095,7 @@ namespace BuildXL.Cache.VerticalAggregator
                     {
                         try
                         {
-                            Possible<string, Failure>[] localResultSet = await m_localSession.PinToCasAsync(casEntries, urgencyHint, eventing.Id);
+                            Possible<string, Failure>[] localResultSet = await m_localSession.PinToCasAsync(casEntries, cancellationToken, urgencyHint, eventing.Id);
 
                             int remoteCheckCount = 0;
                             for (int i = 0; i < localResultSet.Length; i++)
@@ -1125,6 +1129,7 @@ namespace BuildXL.Cache.VerticalAggregator
                                 CasEntries remotePinCheck = new CasEntries(hashes);
                                 Possible<string, Failure>[] remotePins = await m_remoteROSession.PinToCasAsync(
                                     remotePinCheck,
+                                    cancellationToken,
                                     urgencyHint,
                                     eventing.Id);
                                 for (int i = 0; i < remotePins.Length; i++)
@@ -1160,7 +1165,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var counters = m_sessionCounters.PinToCasCounter())
             {
@@ -1170,7 +1175,7 @@ namespace BuildXL.Cache.VerticalAggregator
 
                     try
                     {
-                        var localResult = await m_localSession.PinToCasAsync(hash, urgencyHint, eventing.Id);
+                        var localResult = await m_localSession.PinToCasAsync(hash, cancellationToken, urgencyHint, eventing.Id);
 
                         if (localResult.Succeeded)
                         {
@@ -1182,7 +1187,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         // BasicFileSystem will return a UnPinnedCasEntryFailure if we try to get content that hasn't been pinned, even if the content is not in the cache.
                         // In fact, this is by design as it will prevent a remote access for items that are not pinned.  It does mean that we give you a different
                         // message which is to be clear about the cause but this is by design.  Note also that InMemory does the same thing to show that behavior.
-                        var result = await m_remoteROSession.PinToCasAsync(hash, urgencyHint, eventing.Id);
+                        var result = await m_remoteROSession.PinToCasAsync(hash, cancellationToken, urgencyHint, eventing.Id);
                         if (!result.Succeeded)
                         {
                             counters.PinMiss();

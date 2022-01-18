@@ -1342,7 +1342,8 @@ namespace BuildXL.Engine.Distribution
             var cacheValidationContentRetrieval = await contentCache.TryLoadAvailableContentAsync(new[]
             {
                 cacheValidationContentHash,
-            });
+            },
+            PipExecutionContext.CancellationToken);
 
             if (!cacheValidationContentRetrieval.Succeeded)
             {

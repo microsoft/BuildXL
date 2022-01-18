@@ -127,7 +127,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 // First check to see if the content is already available in the cache since that's a faster noop path
                 // than storing an already existing PathSet
-                var result = await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { pathSetHash });
+                var result = await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { pathSetHash }, Context.CancellationToken);
                 if (result.Succeeded && result.Result.AllContentAvailable)
                 {
                     return Unit.Void;
@@ -211,6 +211,7 @@ namespace BuildXL.Scheduler.Cache
                     LoggingContext,
                     metadataHash,
                     contentSize: metadataSize,
+                    cancellationToken: Context.CancellationToken,
                     shouldRetry: possibleResult => !possibleResult.Succeeded || (possibleResult.Result != null && possibleResult.Result.IsCorrupted),
                     maxRetry: PipFingerprintEntry.LoadingAndDeserializingRetries);
 
@@ -236,6 +237,7 @@ namespace BuildXL.Scheduler.Cache
             }
 
             return (PipCacheDescriptorV2Metadata) metadataEntry.Deserialize(
+                Context.CancellationToken,
                 new CacheQueryData
                 {
                     WeakContentFingerprint = weakFingerprint,
@@ -312,7 +314,7 @@ namespace BuildXL.Scheduler.Cache
             if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
                 Possible<ContentAvailabilityBatchResult> maybeAvailable =
-                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash });
+                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash }, Context.CancellationToken);
                 if (!maybeAvailable.Succeeded)
                 {
                     return maybeAvailable.Failure;

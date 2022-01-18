@@ -1044,9 +1044,9 @@ namespace Test.BuildXL.Engine.Cache
                 }
             }
 
-            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes)
+            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
             {
-                return ContentCache.TryLoadAvailableContentAsync(hashes);
+                return ContentCache.TryLoadAvailableContentAsync(hashes, CancellationToken.None);
             }
 
             public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)

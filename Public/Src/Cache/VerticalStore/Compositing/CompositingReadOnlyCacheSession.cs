@@ -133,13 +133,13 @@ namespace BuildXL.Cache.Compositing
             }
         }
 
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var eventing = new PinToCasMultipleActivity(CompositingCache.EventSource, activityId, this))
             {
                 eventing.Start(hashes, urgencyHint);
 
-                var results = await m_casSession.PinToCasAsync(hashes, urgencyHint, eventing.Id);
+                var results = await m_casSession.PinToCasAsync(hashes, cancellationToken, urgencyHint, eventing.Id);
 
                 for (int i = 0; i < results.Length; i++)
                 {
@@ -153,13 +153,13 @@ namespace BuildXL.Cache.Compositing
             }
         }
 
-        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var eventing = new PinToCasActivity(CompositingCache.EventSource, activityId, this))
             {
                 eventing.Start(hash, urgencyHint);
 
-                var result = await m_casSession.PinToCasAsync(hash, urgencyHint, eventing.Id);
+                var result = await m_casSession.PinToCasAsync(hash, cancellationToken, urgencyHint, eventing.Id);
                 if (result.Succeeded)
                 {
                     PinnedToCas.TryAdd(hash, 0);

@@ -61,7 +61,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// <see cref="PipFingerprintEntry"/> is a tagged polymorphic container (see <see cref="Kind"/>),
         /// and this operation unwraps it. The returned instance contains all relevant data for the entry.
         /// </summary>
-        public IPipFingerprintEntryData Deserialize(CacheQueryData cacheQueryData = null)
+        public IPipFingerprintEntryData Deserialize(CancellationToken cancellationToken, CacheQueryData cacheQueryData = null)
         {
             if (Kind == PipFingerprintEntryKind.Unknown)
             {
@@ -127,8 +127,9 @@ namespace BuildXL.Engine.Cache.Fingerprints
                     if (cacheQueryData != null && cacheQueryData.ContentCache != null)
                     {
                         var maybeActualContent = cacheQueryData.ContentCache.TryLoadContent(
-                            cacheQueryData.MetadataHash, 
-                            failOnNonSeekableStream: true, 
+                            cacheQueryData.MetadataHash,
+                            cancellationToken,
+                            failOnNonSeekableStream: true,
                             byteLimit: 20 * 1024 * 1024).Result;
 
                         if (maybeActualContent.Succeeded && maybeActualContent.Result != null)
@@ -194,8 +195,9 @@ namespace BuildXL.Engine.Cache.Fingerprints
         {
             get
             {
+                // TODO [pgunasekara]: Add a cancellation token here
                 // We are robust to Kind.Unknown here since this properties is sometimes used in string-ifying for e.g. logs.
-                IPipFingerprintEntryData data = Deserialize();
+                IPipFingerprintEntryData data = Deserialize(CancellationToken.None);
                 return data?.Id ?? 0;
             }
         }
@@ -205,8 +207,9 @@ namespace BuildXL.Engine.Cache.Fingerprints
         {
             get
             {
+                // TODO [pgunasekara]: Add a cancellation token here
                 // We are robust to Kind.Unknown here since this properties is sometimes used in string-ifying for e.g. logs.
-                IPipFingerprintEntryData data = Deserialize();
+                IPipFingerprintEntryData data = Deserialize(CancellationToken.None);
                 return data == null ? CollectionUtilities.EmptyArray<BondContentHash>() : data.ListRelatedContent();
             }
         }

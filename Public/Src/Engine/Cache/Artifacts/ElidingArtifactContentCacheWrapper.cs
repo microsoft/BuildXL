@@ -15,7 +15,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Engine.Cache.Artifacts
 {
     /// <summary>
-    /// Artifact content cache wrapper which elides calls to <see cref="TryLoadAvailableContentAsync(System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash})"/> to prevent duplicate calls
+    /// Artifact content cache wrapper which elides calls to <see cref="TryLoadAvailableContentAsync(System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash}, CancellationToken)"/> to prevent duplicate calls
     /// for the same hash to the inner cache.
     /// NOTE: Concurrent requests for the same hash may not be elided.
     /// </summary>
@@ -39,7 +39,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes)
+        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
         {
             using (var hashAvailabilityMapWrapper = m_hashAvailabilityMapPool.GetInstance())
             using (var hashListWrapper = m_hashListPool.GetInstance())
@@ -53,7 +53,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 if (uniqueUnknownAvailabilityHashes.Count != 0)
                 {
                     // Only query inner cache if there are hashes whose availabilty is unknown
-                    var possibleBatchResult = await m_innerCache.TryLoadAvailableContentAsync(uniqueUnknownAvailabilityHashes);
+                    var possibleBatchResult = await m_innerCache.TryLoadAvailableContentAsync(uniqueUnknownAvailabilityHashes, cancellationToken);
                     if (!possibleBatchResult.Succeeded)
                     {
                         // If not successful just return the result

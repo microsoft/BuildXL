@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
@@ -60,7 +61,7 @@ namespace BuildXL.Cache.Tests
         {
             long result;
 
-            await session.PinToCasAsync(hash).SuccessAsync();
+            await session.PinToCasAsync(hash, CancellationToken.None).SuccessAsync();
 
             using (var stream = await session.GetStreamAsync(hash).SuccessAsync())
             {

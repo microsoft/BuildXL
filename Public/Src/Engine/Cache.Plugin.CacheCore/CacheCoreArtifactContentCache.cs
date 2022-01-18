@@ -51,7 +51,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         }
 
         /// <inheritdoc />
-        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes)
+        public async Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
         {
             string opName = nameof(TryLoadAvailableContentAsync);
 
@@ -72,7 +72,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
             try
             {
-                multiMaybePinned = await maybeOpen.Result.PinToCasAsync(casHashes).WithTimeoutAsync(TimeSpan.FromMinutes(TimeoutDurationMin));
+                multiMaybePinned = await maybeOpen.Result.PinToCasAsync(casHashes, cancellationToken).WithTimeoutAsync(TimeSpan.FromMinutes(TimeoutDurationMin));
             }
             catch (TimeoutException)
             {

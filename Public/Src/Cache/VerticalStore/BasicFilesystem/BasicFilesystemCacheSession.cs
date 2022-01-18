@@ -385,7 +385,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
         }
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             Contract.Requires(!IsClosed);
 
@@ -422,7 +422,7 @@ namespace BuildXL.Cache.BasicFilesystem
             });
         }
 
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             Contract.Requires(!IsClosed);
             Contract.Requires(casEntries.IsValid);
@@ -435,7 +435,7 @@ namespace BuildXL.Cache.BasicFilesystem
                 var taskValues = new Task<Possible<string, Failure>>[casEntries.Count];
                 for (int i = 0; i < casEntries.Count; i++)
                 {
-                    taskValues[i] = PinToCasAsync(casEntries[i], urgencyHint, activityId);
+                    taskValues[i] = PinToCasAsync(casEntries[i], cancellationToken, urgencyHint, activityId);
                 }
 
                 // Now await them all (since they can run in parallel

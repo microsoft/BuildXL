@@ -123,7 +123,7 @@ namespace BuildXL.Scheduler.Performance
 
             var absolutePath = AbsolutePath.Create(pathTable, path);
 
-            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(new[] {runningTimeTableHash});
+            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(new[] { runningTimeTableHash }, cancellationToken);
 
             var result = await maybePinned.ThenAsync(
                 async pinResult =>

@@ -2092,7 +2092,7 @@ namespace BuildXL.Engine
 
                 // We must establish availability before trying to materialize content.
                 Possible<ContentAvailabilityBatchResult> maybeLoaded =
-                    await cache.ArtifactContentCache.TryLoadAvailableContentAsync(hashesToFetch);
+                    await cache.ArtifactContentCache.TryLoadAvailableContentAsync(hashesToFetch, context.CancellationToken);
 
                 if (!maybeLoaded.Succeeded)
                 {

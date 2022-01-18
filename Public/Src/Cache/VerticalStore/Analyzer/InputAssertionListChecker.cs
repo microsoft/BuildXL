@@ -149,7 +149,7 @@ namespace BuildXL.Cache.Analyzer
             }
 
             // Pin the input assertion list file
-            Possible<string, Failure> possibleString = await m_readOnlySession.PinToCasAsync(sfp.CasElement).ConfigureAwait(false);
+            Possible<string, Failure> possibleString = await m_readOnlySession.PinToCasAsync(sfp.CasElement, CancellationToken.None).ConfigureAwait(false);
             if (!possibleString.Succeeded)
             {
                 return string.Empty;
@@ -228,7 +228,7 @@ namespace BuildXL.Cache.Analyzer
             {
                 if (!m_inputAssertionListLengths.ContainsKey(strongFingerprint.CasElement))
                 {
-                    Possible<string, Failure> possibleString = await m_readOnlySession.PinToCasAsync(strongFingerprint.CasElement).ConfigureAwait(false);
+                    Possible<string, Failure> possibleString = await m_readOnlySession.PinToCasAsync(strongFingerprint.CasElement, CancellationToken.None).ConfigureAwait(false);
                     if (possibleString.Succeeded)
                     {
                         Possible<StreamWithLength, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(strongFingerprint.CasElement).ConfigureAwait(false);

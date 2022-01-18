@@ -171,33 +171,33 @@ namespace BuildXL.Cache.Interfaces.Test
             }
         }
 
-        public Func<CasEntries, UrgencyHint, Guid, ICacheReadOnlySession, Task<Possible<string, Failure>[]>> PinToCasMultipleAsyncCallback;
+        public Func<CasEntries, UrgencyHint, Guid, CancellationToken, ICacheReadOnlySession, Task<Possible<string, Failure>[]>> PinToCasMultipleAsyncCallback;
 
-        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             var callback = PinToCasMultipleAsyncCallback;
             if (callback != null)
             {
-                return callback(hashes, urgencyHint, activityId, m_realSession);
+                return callback(hashes, urgencyHint, activityId, cancellationToken, m_realSession);
             }
             else
             {
-                return m_realSession.PinToCasAsync(hashes, urgencyHint, activityId);
+                return m_realSession.PinToCasAsync(hashes, cancellationToken, urgencyHint, activityId);
             }
         }
 
-        public Func<CasHash, UrgencyHint, Guid, ICacheReadOnlySession, Task<Possible<string, Failure>>> PinToCasAsyncCallback;
+        public Func<CasHash, UrgencyHint, Guid, CancellationToken, ICacheReadOnlySession, Task<Possible<string, Failure>>> PinToCasAsyncCallback;
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             var callback = PinToCasAsyncCallback;
             if (callback != null)
             {
-                return callback(hash, urgencyHint, activityId, m_realSession);
+                return callback(hash, urgencyHint, activityId, cancellationToken, m_realSession);
             }
             else
             {
-                return m_realSession.PinToCasAsync(hash, urgencyHint, activityId);
+                return m_realSession.PinToCasAsync(hash, cancellationToken, urgencyHint, activityId);
             }
         }
 

@@ -191,7 +191,7 @@ namespace BuildXL.Engine
                     case PipFingerprintEntryKind.GraphDescriptor:
                         // Hit.
                         return GetPipGraphCacheDescriptorResult.CreateForHit(
-                            (PipGraphCacheDescriptor) metadata.Deserialize(cacheQueryData),
+                            (PipGraphCacheDescriptor) metadata.Deserialize(m_engineContext.CancellationToken, cacheQueryData),
                             fingerprintChains,
                             hopCount,
                             sw.ElapsedMilliseconds,
@@ -199,7 +199,7 @@ namespace BuildXL.Engine
                             (long) getFingerprintEntrySw.TotalElapsed.TotalMilliseconds);
 
                     case PipFingerprintEntryKind.GraphInputDescriptor:
-                        var pipGraphInputs = (PipGraphInputDescriptor) metadata.Deserialize(cacheQueryData);
+                        var pipGraphInputs = (PipGraphInputDescriptor) metadata.Deserialize(m_engineContext.CancellationToken, cacheQueryData);
                         Possible<ContentFingerprint> possibleFingerprint;
 
                         using (hashPipGraphInputSw.Start())
@@ -459,7 +459,7 @@ namespace BuildXL.Engine
                             case PipFingerprintEntryKind.GraphDescriptor:
                                 return
                                     StorePipGraphCacheDescriptorResult.CreateForConflict(
-                                        (PipGraphCacheDescriptor) descriptor.Result.Deserialize(cacheQueryData),
+                                        (PipGraphCacheDescriptor) descriptor.Result.Deserialize(m_engineContext.CancellationToken, cacheQueryData),
                                         fingerprintChains,
                                         hopCount,
                                         sw.ElapsedMilliseconds,
@@ -474,7 +474,7 @@ namespace BuildXL.Engine
                                         currentFingerprint,
                                         buildParametersForHashingGraphInput,
                                         mountsForHashingGraphInput,
-                                        (PipGraphInputDescriptor) descriptor.Result.Deserialize(cacheQueryData),
+                                        (PipGraphInputDescriptor) descriptor.Result.Deserialize(m_engineContext.CancellationToken, cacheQueryData),
                                         ProviderContext.Store,
                                         hopCount,
                                         inputTracker,
@@ -523,7 +523,7 @@ namespace BuildXL.Engine
                         {
                             case PipFingerprintEntryKind.GraphDescriptor:
                                 return StorePipGraphCacheDescriptorResult.CreateForUnknown(
-                                    (PipGraphCacheDescriptor) descriptor.Result.Deserialize(cacheQueryData),
+                                    (PipGraphCacheDescriptor) descriptor.Result.Deserialize(m_engineContext.CancellationToken, cacheQueryData),
                                     fingerprintChains,
                                     hopCount,
                                     sw.ElapsedMilliseconds,
@@ -531,7 +531,7 @@ namespace BuildXL.Engine
                                     (long) storeFingerprintEntrySw.TotalElapsed.TotalMilliseconds,
                                     (long) loadAndDeserializeSw.TotalElapsed.TotalMilliseconds);
                             case PipFingerprintEntryKind.GraphInputDescriptor:
-                                var conflictingGraphInputDescriptor = (PipGraphInputDescriptor) descriptor.Result.Deserialize(cacheQueryData);
+                                var conflictingGraphInputDescriptor = (PipGraphInputDescriptor) descriptor.Result.Deserialize(m_engineContext.CancellationToken, cacheQueryData);
                                 Possible<ContentFingerprint> possibleFingerprint;
 
                                 using (hashPipGraphInputSw.Start())

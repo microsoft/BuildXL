@@ -95,13 +95,13 @@ namespace BuildXL.Cache.Tests
                 return null;
             };
 
-            cacheSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+            cacheSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
             {
                 XAssert.Fail("Remote Cache was called when disconnected (PinToCasAsync)");
                 return null;
             };
 
-            cacheSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+            cacheSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
             {
                 XAssert.Fail("Remote Cache was called when disconnected (PinToCasMultiple)");
                 return null;

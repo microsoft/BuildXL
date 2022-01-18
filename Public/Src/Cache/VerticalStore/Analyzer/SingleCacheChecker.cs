@@ -170,7 +170,7 @@ namespace BuildXL.Cache.Analyzer
                 return true;
             }
 
-            Possible<string, Failure> pinAttempt = await m_readOnlySession.PinToCasAsync(casHash);
+            Possible<string, Failure> pinAttempt = await m_readOnlySession.PinToCasAsync(casHash, CancellationToken.None);
             return pinAttempt.Succeeded;
         }
 

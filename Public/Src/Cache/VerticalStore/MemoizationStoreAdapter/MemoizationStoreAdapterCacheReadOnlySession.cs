@@ -175,17 +175,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
-            var result = await ReadOnlyCacheSession.PinAsync(new Context(Logger), hash.ToMemoization(), CancellationToken.None);
+            var result = await ReadOnlyCacheSession.PinAsync(new Context(Logger), hash.ToMemoization(), cancellationToken);
             return result.FromMemoization(hash, CacheId);
         }
 
         /// <inheritdoc />
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             List<ContentHash> contentHashes = hashes.Select(hash => hash.ToContentHash()).ToList();
-            IEnumerable<Task<Indexed<PinResult>>> resultSet = await ReadOnlyCacheSession.PinAsync(new Context(Logger), contentHashes, CancellationToken.None);
+            IEnumerable<Task<Indexed<PinResult>>> resultSet = await ReadOnlyCacheSession.PinAsync(new Context(Logger), contentHashes, cancellationToken);
 
             var results = new Possible<string, Failure>[contentHashes.Count];
 

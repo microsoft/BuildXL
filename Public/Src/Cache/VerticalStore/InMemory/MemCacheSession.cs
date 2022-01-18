@@ -240,7 +240,7 @@ namespace BuildXL.Cache.InMemory
             });
         }
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             return Task.Run(() =>
             {
@@ -258,13 +258,13 @@ namespace BuildXL.Cache.InMemory
             });
         }
 
-        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries casEntries, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
             Possible<string, Failure>[] retValues = new Possible<string, Failure>[casEntries.Count];
 
             for (int i = 0; i < casEntries.Count; i++)
             {
-                retValues[i] = await PinToCasAsync(casEntries[i], urgencyHint, activityId);
+                retValues[i] = await PinToCasAsync(casEntries[i], cancellationToken, urgencyHint, activityId);
             }
 
             return retValues;

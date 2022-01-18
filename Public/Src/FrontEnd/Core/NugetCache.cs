@@ -26,10 +26,11 @@ namespace BuildXL.FrontEnd.Core
         private readonly Lazy<SinglePhaseFingerprintStoreAdapter> m_lazySinglePhaseAdapter;
         private readonly ConcurrentDictionary<string, ContentFingerprint> m_fingerprintCache = new ConcurrentDictionary<string, ContentFingerprint>();
 
-        public NugetCache(Task<Possible<EngineCache>> engineCache, PathTable pathTable, LoggingContext loggingContext)
+        public NugetCache(Task<Possible<EngineCache>> engineCache, PipExecutionContext context, LoggingContext loggingContext)
         {
             Contract.Requires(engineCache != null);
-            Contract.Requires(pathTable != null);
+            Contract.Requires(context != null);
+            Contract.Requires(context.PathTable != null);
 
             m_engineCache = engineCache;
             m_loggingContext = loggingContext;
@@ -38,7 +39,7 @@ namespace BuildXL.FrontEnd.Core
                 {
                     return new SinglePhaseFingerprintStoreAdapter(
                         m_loggingContext,
-                        pathTable,
+                        context,
                         Cache.TwoPhaseFingerprintStore,
                         Cache.ArtifactContentCache);
                 });

@@ -54,7 +54,7 @@ namespace Test.BuildXL.Engine.Cache
             // going to backing cache
             for (int i = 0; i < 5; i++)
             {
-                var result = await elidingCache.TryLoadAvailableContentAsync(loadedHashes);
+                var result = await elidingCache.TryLoadAvailableContentAsync(loadedHashes, CancellationToken.None);
                 Assert.True(result.Succeeded);
                 Assert.True(result.Result.AllContentAvailable);
                 Assert.Equal(loadedHashes.Length, result.Result.Results.Length);
@@ -75,7 +75,7 @@ namespace Test.BuildXL.Engine.Cache
                 loadedHashes[missingHashIndex] = missingHash;
             }
 
-            var notAllAvailableResults = await elidingCache.TryLoadAvailableContentAsync(loadedHashes);
+            var notAllAvailableResults = await elidingCache.TryLoadAvailableContentAsync(loadedHashes, CancellationToken.None);
             Assert.True(notAllAvailableResults.Succeeded);
             Assert.False(notAllAvailableResults.Result.AllContentAvailable);
             Assert.Equal(loadedHashes.Length, notAllAvailableResults.Result.Results.Length);
@@ -121,14 +121,14 @@ namespace Test.BuildXL.Engine.Cache
                 return hash;
             }
 
-            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes)
+            public Task<Possible<ContentAvailabilityBatchResult, Failure>> TryLoadAvailableContentAsync(IReadOnlyList<ContentHash> hashes, CancellationToken cancellationToken)
             {
                 foreach (var hash in hashes)
                 {
                     m_hashLoadCounts.AddOrUpdate(hash, 1, (k, v) => v + 1);
                 }
 
-                return this.m_cache.TryLoadAvailableContentAsync(hashes);
+                return this.m_cache.TryLoadAvailableContentAsync(hashes, CancellationToken.None);
             }
 
             public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, CancellationToken cancellationToken)

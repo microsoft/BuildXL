@@ -119,21 +119,22 @@ namespace BuildXL.Cache.Interfaces
         /// for the duration of this cache session
         /// </summary>
         /// <param name="hash">CAS Hash entry</param>
+        /// <param name="cancellationToken">Cancellation token for this operation.</param>
         /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
-        /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <returns>
         /// If success, the CAS Hash entry is now available and the CacheIdentifier
         /// may be used to log explains where it came from.
         /// </returns>
-        Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
+        Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
 
         /// <summary>
         /// Given an array of CAS Hash, ensure that the entries are available and kept
         /// available for the duration of this cache session.
         /// </summary>
         /// <param name="hashes">Array of CAS Hashes</param>
+        /// <param name="cancellationToken">Cancellation token for this operation.</param>
         /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
-        /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <returns>
         /// If success, the CAS Hash entries are now available locally and the CacheIdentifiers
         /// explains where they came from.  (Including already local content returning
@@ -148,7 +149,8 @@ namespace BuildXL.Cache.Interfaces
         /// CasHash PinToCas() call above.  I do like this because it would allow
         /// the result of a GetCacheEntry() to then choose to ensure all are available.
         /// </remarks>
-        Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
+        Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
 
         /// <summary>
         /// Given a CAS Hash that is local, map it to the given filename

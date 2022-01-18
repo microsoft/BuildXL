@@ -273,7 +273,7 @@ namespace BuildXL.FrontEnd.Core
             }
 
             // Cache hit
-            var packageDescriptor = (PackageDownloadDescriptor)entry.Deserialize(cacheQueryData);
+            var packageDescriptor = (PackageDownloadDescriptor)entry.Deserialize(FrontEndContext.CancellationToken, cacheQueryData);
             if (!string.Equals(packageDescriptor.FriendlyName, friendlyName, StringComparison.Ordinal))
             {
                 // Cache is corrupted.
@@ -297,7 +297,7 @@ namespace BuildXL.FrontEnd.Core
             // Step: Try to bring all the contents of the package locally from the content cache.
             var hashes = packageDescriptor.Contents.SelectArray(hashByPath => hashByPath.ContentHash.ToContentHash());
 
-            var possibleResults = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(hashes);
+            var possibleResults = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(hashes, FrontEndContext.CancellationToken);
             if (!possibleResults.Succeeded)
             {
                 m_logger.DownloadPackageFailedDueToCacheError(loggingContext, friendlyName, possibleResults.Failure.Describe());
@@ -591,7 +591,7 @@ namespace BuildXL.FrontEnd.Core
                     if (entry != null && // Normal miss case
                         entry.Kind == PipFingerprintEntryKind.FileDownload)
                     {
-                        var fileDownloadDescriptor = (FileDownloadDescriptor)entry.Deserialize(cacheQueryData);
+                        var fileDownloadDescriptor = (FileDownloadDescriptor)entry.Deserialize(FrontEndContext.CancellationToken, cacheQueryData);
                         contentHash = fileDownloadDescriptor.Content.ToContentHash();
                     }
                 }
@@ -599,7 +599,7 @@ namespace BuildXL.FrontEnd.Core
                 // We have a content hash, try to materialize it from the cache
                 if (contentHash.HasValue)
                 {
-                    var possiblyLoaded = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash.Value });
+                    var possiblyLoaded = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash.Value }, FrontEndContext.CancellationToken);
                     if (!possiblyLoaded.Succeeded)
                     {
                         m_logger.DownloadToolFailedDueToCacheError(loggingContext, friendlyName, possiblyLoaded.Failure.Describe());

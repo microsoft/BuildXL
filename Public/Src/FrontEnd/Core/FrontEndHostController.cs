@@ -313,7 +313,7 @@ namespace BuildXL.FrontEnd.Core
                         }
                     });
 
-                return new NugetCache(cacheTask, FrontEndContext.PathTable, LoggingContext);
+                return new NugetCache(cacheTask, FrontEndContext, LoggingContext);
             });
         }
 
@@ -325,7 +325,7 @@ namespace BuildXL.FrontEnd.Core
             Contract.Requires(cacheTask != null);
             Contract.Requires(outputDirectory.IsValid);
 
-            m_nugetCache = Task.FromResult(new NugetCache(cacheTask, FrontEndContext.PathTable, LoggingContext));
+            m_nugetCache = Task.FromResult(new NugetCache(cacheTask, FrontEndContext, LoggingContext));
             m_outputDirectory = outputDirectory.ToString(FrontEndContext.PathTable);
         }
 

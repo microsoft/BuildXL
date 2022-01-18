@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
@@ -41,7 +42,7 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(maybeStored.Succeeded);
 
             var maybeDeserialized =
-                await cache.TryLoadAndDeserializeContent<PipCacheDescriptorV2Metadata>(maybeStored.Result);
+                await cache.TryLoadAndDeserializeContent<PipCacheDescriptorV2Metadata>(maybeStored.Result, CancellationToken.None);
             XAssert.IsTrue(maybeDeserialized.Succeeded);
 
             PipCacheDescriptorV2Metadata roundtripped = maybeDeserialized.Result;
@@ -60,7 +61,7 @@ namespace Test.BuildXL.Engine.Cache
             ContentHash imaginaryContent = ContentHashingUtilities.HashBytes(Encoding.UTF8.GetBytes("Imagination"));
 
             var maybeDeserialized =
-                await cache.TryLoadAndDeserializeContent<PipCacheDescriptorV2Metadata>(imaginaryContent);
+                await cache.TryLoadAndDeserializeContent<PipCacheDescriptorV2Metadata>(imaginaryContent, CancellationToken.None);
             XAssert.IsTrue(maybeDeserialized.Succeeded);
             XAssert.IsNull(maybeDeserialized.Result, "Should be a miss (cache empty)");
         }

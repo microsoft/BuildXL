@@ -60,14 +60,14 @@ namespace BuildXL.Cache.InputListFilter
             return m_session.GetStreamAsync(hash, urgencyHint, activityId);
         }
 
-        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
-            return m_session.PinToCasAsync(hashes, urgencyHint, activityId);
+            return m_session.PinToCasAsync(hashes, cancellationToken, urgencyHint, activityId);
         }
 
-        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, UrgencyHint urgencyHint, Guid activityId)
         {
-            return m_session.PinToCasAsync(hash, urgencyHint, activityId);
+            return m_session.PinToCasAsync(hash, cancellationToken, urgencyHint, activityId);
         }
 
         public Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken)

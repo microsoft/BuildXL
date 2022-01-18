@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
@@ -103,14 +104,14 @@ namespace BuildXL.Cache.Tests
         /// <returns>An Async Task</returns>
         public static async Task CheckContentsAsync(ICacheReadOnlySession session, CasHash index, CasEntries entries, CasAccessMethod accessMethod = CasAccessMethod.Stream)
         {
-            string cacheId = await session.PinToCasAsync(index).SuccessAsync("Cannot pin entry {0} to cache {1}", index.ToString(), session.CacheId);
+            string cacheId = await session.PinToCasAsync(index, CancellationToken.None).SuccessAsync("Cannot pin entry {0} to cache {1}", index.ToString(), session.CacheId);
             string[] expected = (await GetStreamAsync(index, accessMethod, session)).Success().Stream.AsString().Split(s_splitLines, StringSplitOptions.RemoveEmptyEntries);
 
             XAssert.AreEqual(expected.Length, entries.Count, "Counts did not match from cache {0}: {1} != {2}", cacheId, expected.Length, entries.Count);
 
             for (int i = 0; i < expected.Length; i++)
             {
-                string casCacheId = await session.PinToCasAsync(entries[i]).SuccessAsync();
+                string casCacheId = await session.PinToCasAsync(entries[i], CancellationToken.None).SuccessAsync();
                 string entry = (await GetStreamAsync(entries[i], accessMethod, session)).Success().Stream.AsString();
 
                 XAssert.AreEqual(expected[i], entry, "CasEntry {0} mismatch from cache {1}:  [{2}] != [{3}]", i, casCacheId, expected[i], entry);

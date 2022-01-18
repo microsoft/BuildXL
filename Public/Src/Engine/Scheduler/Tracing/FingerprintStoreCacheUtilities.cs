@@ -192,7 +192,7 @@ namespace BuildXL.Scheduler.Tracing
                 I($"Loaded fingerprint store entry from cache: Key='{key}' Fingerprint='{fingerprint}' MetadataHash='{possibleCacheEntry.Result?.MetadataHash ?? ContentHashingUtilities.ZeroHash}'"));
 
             var fingerprintStoreDescriptorHash = possibleCacheEntry.Result.Value.MetadataHash;
-            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(possibleCacheEntry.Result.Value.ToArray());
+            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(possibleCacheEntry.Result.Value.ToArray(), cancellationToken);
 
             var result = await maybePinned.ThenAsync<Unit>(
                 async pinResult =>
@@ -202,7 +202,7 @@ namespace BuildXL.Scheduler.Tracing
                         return new Failure<string>(I($"Could not pin content for fingerprint store '{string.Join(", ", pinResult.Results.Where(r => !r.IsAvailable).Select(r => r.Hash))}'"));
                     }
 
-                    var maybeLoadedDescriptor = await cache.ArtifactContentCache.TryLoadAndDeserializeContent<PackageDownloadDescriptor>(fingerprintStoreDescriptorHash);
+                    var maybeLoadedDescriptor = await cache.ArtifactContentCache.TryLoadAndDeserializeContent<PackageDownloadDescriptor>(fingerprintStoreDescriptorHash, cancellationToken);
                     if (!maybeLoadedDescriptor.Succeeded)
                     {
                         return maybeLoadedDescriptor.Failure;

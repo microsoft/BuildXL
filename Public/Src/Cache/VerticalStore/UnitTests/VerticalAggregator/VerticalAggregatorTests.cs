@@ -319,7 +319,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionExceptionInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -329,7 +329,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionExceptionInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -378,7 +378,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionExceptionInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -388,7 +388,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionExceptionInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     throw new TestException();
@@ -470,7 +470,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionFailureInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>(new TestInducedFailure("(PinToCas)")));
@@ -480,7 +480,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_sessionFailureInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheSessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>[] { new TestInducedFailure("(PinToCasMultiple)") });
@@ -530,7 +530,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionFailureInducers.Add(SessionAPIs.PinToCasAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>(new TestInducedFailure("(PinToCas)")));
@@ -540,7 +540,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             m_readOnlySessionFailureInducers.Add(SessionAPIs.PinToCasMultipleAsyncCallback, (CallbackCacheReadOnlySessionWrapper targetSession) =>
             {
-                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
+                targetSession.PinToCasMultipleAsyncCallback = (CasEntries hashes, UrgencyHint urgencyHint, Guid activityId, CancellationToken cancellationToken, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
                     return Task.FromResult(new Possible<string, Failure>[] { new TestInducedFailure("(PinToCasMultiple)") });
@@ -1011,14 +1011,14 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
                         case ValidateContentStatus.Remediated:
                             // Set up the cache to have "removed" the item
-                            session.PinToCasAsyncCallback = (hash1, hint1, guid1, realSession1) =>
+                            session.PinToCasAsyncCallback = (hash1, hint1, guid1, cancellationToken, realSession1) =>
                             {
                                 if (hash1 == item)
                                 {
                                     return Task.FromResult<Possible<string, Failure>>(new NoCasEntryFailure(realSession1.CacheId, hash1));
                                 }
 
-                                return realSession1.PinToCasAsync(hash1, hint1, guid1);
+                                return realSession1.PinToCasAsync(hash1, cancellationToken, hint1, guid1);
                             };
 
                             session.GetStreamAsyncCallback = (hash1, hint1, guid1, realSession1) =>
@@ -1084,7 +1084,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             XAssert.IsNotNull(remoteSession, "Why did the remote session not become a callback session?");
 
             // Validate that pinning gets it from the L2 cache
-            string cacheId = await session.PinToCasAsync(item).SuccessAsync();
+            string cacheId = await session.PinToCasAsync(item, CancellationToken.None).SuccessAsync();
             XAssert.AreEqual(remoteSession.CacheId, cacheId);
 
             int calledValidate = 0;
@@ -1155,7 +1155,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             XAssert.AreEqual(1, calledValidate, "Aggregator should have called ValidateContent exactly once");
 
             // Verify that it now lives in the local cache
-            cacheId = await session.PinToCasAsync(item).SuccessAsync();
+            cacheId = await session.PinToCasAsync(item, CancellationToken.None).SuccessAsync();
             XAssert.AreEqual(cache.LocalCache.CacheId, cacheId);
 
             await session.CloseAsync().SuccessAsync();
@@ -1197,7 +1197,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             var item = await vSession2.RemoteSession.AddToCasAsync(testName.AsStream()).SuccessAsync();
 
             // Check that Pin shows that it is in the L3
-            XAssert.AreEqual(vSession2.RemoteSession.CacheId, await session.PinToCasAsync(item).SuccessAsync());
+            XAssert.AreEqual(vSession2.RemoteSession.CacheId, await session.PinToCasAsync(item, CancellationToken.None).SuccessAsync());
 
             var item2 = await vSession2.LocalSession.AddToCasAsync(testName.AsStream()).SuccessAsync();
             XAssert.AreEqual(item, item2);
@@ -1207,7 +1207,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             // Now that we have the item in both L2 and L3, we should check what pin does
             // correctly identify it in the L2 and not in the L1 or L3
-            XAssert.AreEqual(vSession2.LocalSession.CacheId, await session.PinToCasAsync(item).SuccessAsync());
+            XAssert.AreEqual(vSession2.LocalSession.CacheId, await session.PinToCasAsync(item, CancellationToken.None).SuccessAsync());
 
             // Now pull that content via the full aggregator.  The L2 will produce corrupted
             // content but the aggregator will notice, do the ValidateContent call and then
@@ -1227,7 +1227,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             }
 
             // Verify by doing a pin and seeing that it comes in as being in the L1
-            XAssert.AreEqual(vSession.LocalSession.CacheId, await session.PinToCasAsync(item).SuccessAsync());
+            XAssert.AreEqual(vSession.LocalSession.CacheId, await session.PinToCasAsync(item, CancellationToken.None).SuccessAsync());
 
             await session.CloseAsync().SuccessAsync();
             await testCache.ShutdownAsync().SuccessAsync();
@@ -1257,7 +1257,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             ICacheSession session = await CreateSessionAsync(testCache, testSessionId);
 
             // Don't crash
-            await session.PinToCasAsync(new CasEntries(new CasHash[0]));
+            await session.PinToCasAsync(new CasEntries(new CasHash[0]), CancellationToken.None);
         }
 
 #if !FEATURE_SAFE_PROCESS_HANDLE

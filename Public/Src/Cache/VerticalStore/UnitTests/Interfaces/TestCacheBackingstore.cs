@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
@@ -92,15 +93,15 @@ namespace BuildXL.Cache.Tests
                     XAssert.AreEqual(s_determinism[fromDeterminism].EffectiveGuid, entries.Determinism.EffectiveGuid);
 
                     // Now pin the CasElement and all of the CasEntries
-                    (await session.PinToCasAsync(record.StrongFingerprint.CasElement)).Success();
-                    (await session.PinToCasAsync(newEntries)).Success();
+                    (await session.PinToCasAsync(record.StrongFingerprint.CasElement, CancellationToken.None)).Success();
+                    (await session.PinToCasAsync(newEntries, CancellationToken.None)).Success();
 
                     // Now make a new record
                     var newRecord = (await session.AddOrGetAsync(
                         record.StrongFingerprint.WeakFingerprint,
-                                                                 record.StrongFingerprint.CasElement,
-                                                                 record.StrongFingerprint.HashElement,
-                                                                 new CasEntries(newEntries, s_determinism[toDeterminism]))).Success();
+                        record.StrongFingerprint.CasElement,
+                        record.StrongFingerprint.HashElement,
+                        new CasEntries(newEntries, s_determinism[toDeterminism]))).Success();
 
                     // The new record should be null since the determinism was upgraded
                     XAssert.IsNull(newRecord.Record);
@@ -166,8 +167,8 @@ namespace BuildXL.Cache.Tests
                 XAssert.AreEqual(s_determinism[fromDeterminism].EffectiveGuid, entries.Determinism.EffectiveGuid);
 
                 // Now pin the CasElement and all of the CasEntries
-                (await session.PinToCasAsync(record.StrongFingerprint.CasElement)).Success();
-                (await session.PinToCasAsync(newEntries)).Success();
+                (await session.PinToCasAsync(record.StrongFingerprint.CasElement, CancellationToken.None)).Success();
+                (await session.PinToCasAsync(newEntries, CancellationToken.None)).Success();
 
                 // Now make a new record
                 var newRecord = (await session.AddOrGetAsync(

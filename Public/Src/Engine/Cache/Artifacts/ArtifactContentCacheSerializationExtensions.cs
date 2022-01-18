@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Bond;
 using Bond.IO.Unsafe;
@@ -43,10 +44,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         public static async Task<Possible<T, Failure>> TryLoadAndDeserializeContent<T>(
             this IArtifactContentCache contentCache,
             ContentHash contentHash,
+            CancellationToken cancellationToken,
             BoxRef<long> contentSize = null)
             where T : class
         {
-            var maybeStream = await TryGetStreamFromContentHash(contentCache, contentHash, contentSize);
+            var maybeStream = await TryGetStreamFromContentHash(contentCache, contentHash, cancellationToken, contentSize);
 
             if (!maybeStream.Succeeded)
             {
@@ -91,15 +93,15 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <summary>
-        /// Runs <see cref="TryLoadAndDeserializeContent{T}(IArtifactContentCache, ContentHash, BoxRef{long})"/> with some retry logic.
+        /// Runs <see cref="TryLoadAndDeserializeContent{T}(IArtifactContentCache, ContentHash, CancellationToken, BoxRef{long})"/> with some retry logic.
         /// </summary>
         public static async Task<Possible<T, Failure>> TryLoadAndDeserializeContentWithRetry<T>(
             this IArtifactContentCache contentCache,
             LoggingContext loggingContext,
             ContentHash contentHash,
             Func<Possible<T, Failure>, bool> shouldRetry,
-            BoxRef<long> contentSize = null,
-            int maxRetry = 1)
+            CancellationToken cancellationToken,
+            BoxRef<long> contentSize = null, int maxRetry = 1)
             where T : class
         {
             Contract.Requires(loggingContext != null);
@@ -110,7 +112,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             do
             {
-                result = await TryLoadAndDeserializeContent<T>(contentCache, contentHash, contentSize);
+                result = await TryLoadAndDeserializeContent<T>(contentCache, contentHash, cancellationToken, contentSize);
 
                 if (!shouldRetry(result))
                 {
@@ -140,11 +142,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         public static async Task<Possible<byte[], Failure>> TryLoadContent(
             this IArtifactContentCache contentCache,
             ContentHash contentHash,
+            CancellationToken cancellationToken,
             BoxRef<long> contentSize = null,
-            bool failOnNonSeekableStream = false,
-            int byteLimit = int.MaxValue)
+            bool failOnNonSeekableStream = false, int byteLimit = int.MaxValue)
         {
-            var maybeStream = await TryGetStreamFromContentHash(contentCache, contentHash, contentSize);
+            var maybeStream = await TryGetStreamFromContentHash(contentCache, contentHash, cancellationToken, contentSize);
 
             if (!maybeStream.Succeeded)
             {
@@ -219,12 +221,13 @@ namespace BuildXL.Engine.Cache.Artifacts
         private static async Task<Possible<Stream, Failure>> TryGetStreamFromContentHash(
             IArtifactContentCache contentCache,
             ContentHash contentHash,
+            CancellationToken cancellationToken,
             BoxRef<long> contentSize = null)
         {
             if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
                 Possible<ContentAvailabilityBatchResult, Failure> maybeAvailable =
-                    await contentCache.TryLoadAvailableContentAsync(new[] { contentHash });
+                    await contentCache.TryLoadAvailableContentAsync(new[] { contentHash }, cancellationToken);
                 if (!maybeAvailable.Succeeded)
                 {
                     return maybeAvailable.Failure;

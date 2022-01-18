@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
@@ -77,7 +78,8 @@ namespace BuildXL.Cache.Compositing
                     // The rest of the determinism moves depend on if the files exist or not.
                     bool foundAllFiles = true;
 
-                    var pinCheck = await m_casSession.PinToCasAsync(existRecordCheck.Result, urgencyHint, eventing.Id);
+                    // TODO [pgunasekara]: Add a cancellation token here
+                    var pinCheck = await m_casSession.PinToCasAsync(existRecordCheck.Result, CancellationToken.None, urgencyHint, eventing.Id);
 
                     foreach (var oneOutput in pinCheck)
                     {

@@ -13,7 +13,6 @@ using Xunit;
 using System.IO;
 using System.Threading;
 
-
 // VS Test Explorer can't find Mta*, so change the false to true to run the tests in VS.
 #if false
 using MtaFact = Xunit.FactAttribute;
@@ -26,8 +25,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
     {
         static DedupContentHasherTestsBase()
         {
-            Assert.Equal(8, Marshal.SizeOf<IntPtr>());
+            // If the following assertion will fail, the tests will fail with 'TypeLoadException' and it would be good to have a better error message.
+            Assert.True(Is64BitPlatform(), "The tests should be running on 64-bit platform, but running on 32-bit platform instead.");
         }
+
+        private static bool Is64BitPlatform() => Marshal.SizeOf<IntPtr>() == 8;
 
         protected DedupNode HashIsStable(HashType hashType, uint byteCount, string expectedHash, int seed = 0)
         {

@@ -460,8 +460,8 @@ export namespace DropDaemonRunner {
                 Cmd.option("--domainId ", args.dropDomainId),
                 ...addIf(
                     command === "create",
-                    Cmd.flag("--generateBuildManifest", args.generateBuildManifest),
-                    Cmd.flag("--signBuildManifest", args.signBuildManifest),
+                    Cmd.optionalBooleanFlag("--generateBuildManifest ", args.generateBuildManifest, "true", "false"),
+                    Cmd.optionalBooleanFlag("--signBuildManifest ", args.signBuildManifest, "true", "false"),
                     // Options to suppress SBOM through env variables 
                     // Do this last to override previous options (which may come from args or from the config file).
                     Cmd.option("--generateBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestGeneration")),

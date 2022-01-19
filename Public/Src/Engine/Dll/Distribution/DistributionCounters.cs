@@ -88,6 +88,12 @@ namespace BuildXL.Engine.Distribution
         [CounterType(CounterType.Stopwatch)]
         WorkerFlushExecutionLogDuration,
 
+        /// <summary>
+        /// Time spent building the messages to be sent to the orchestrator
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        WorkerOutgoingMessageProcessingDuration,
+
         /// <nodoc/>
         BuildResultBatchesSentToOrchestrator,
 

@@ -7,12 +7,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Distribution.OpenBond;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -33,6 +35,11 @@ namespace BuildXL.Engine.Distribution
         void ReportEventMessage(EventMessage eventMessage);
 
         /// <summary>
+        /// Should be called when a pip step has started processing in this worker
+        /// </summary>
+        void MarkPipProcessingStarted(long semistableHash);
+
+        /// <summary>
         /// Report a pip result
         /// </summary>
         public void ReportResult(ExtendedPipCompletionData pipCompletion);
@@ -45,7 +52,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Stop listening for events and wait for any pending messages to be sent
         /// </summary>
-        public void Exit();
+        public void Exit(bool isClean);
     }
 
     /// <summary>
@@ -58,6 +65,7 @@ namespace BuildXL.Engine.Distribution
         internal readonly DistributionService DistributionService;
         private CancellationTokenSource m_sendCancellationSource;
         private volatile bool m_started;
+        private volatile bool m_uncleanExit;
 
         /// Individual sources for notifications
         private PipResultListener m_pipResultListener;
@@ -79,7 +87,7 @@ namespace BuildXL.Engine.Distribution
         private readonly List<ExtendedPipCompletionData> m_executionResults = new List<ExtendedPipCompletionData>();
         private readonly List<EventMessage> m_eventList = new List<EventMessage>();
         private readonly WorkerNotificationArgs m_notification = new WorkerNotificationArgs();
-        
+
         /// <nodoc/>
         public WorkerNotificationManager(DistributionService distributionService, IWorkerPipExecutionService executionService, LoggingContext loggingContext)
         {
@@ -103,8 +111,13 @@ namespace BuildXL.Engine.Distribution
             m_started = true;
         }
 
-        public void Exit()
+        public void Exit(bool isClean)
         {
+            if (!isClean)
+            {
+                m_uncleanExit = true;
+            }
+
             if (!m_started)
             {
                 return;
@@ -131,6 +144,7 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public void Cancel()
         {
+            m_uncleanExit = true;
             if (m_started)
             {
                 m_executionLogTarget?.Deactivate();
@@ -148,41 +162,79 @@ namespace BuildXL.Engine.Distribution
 
         internal void FlushExecutionLog(MemoryStream listenerStream)
         {
-            // Because the execution log target is filling its own 
-            // buffer in a different thread, we have to copy its current buffer
-            // to our own buffer to have a static blob to send with the notification
+            // This method is called every time the execution log is flushed,
+            // i.e., when we call m_executionLogTarget.FlushAsync() before sending a message
+            // to the orchestrator. The reason is the execution log target filling its own 
+            // buffer in a different thread, so we have to copy its current contents
+            // to our own buffer to have a static blob to send with the notification.
             // TODO: A better way of doing this without copying bytes. 
             // Maybe add a "Pause" operation to the binary logger so it blocks its thread
-            // while we read/send the buffer.
+            // while we read/send the buffer. 
+            // This logic will be removed when/if we go back to sending the XLG separately (see work item 1883805)
+
             listenerStream.WriteTo(m_flushedExecutionLog);
-            if (m_finishedSendingPipResults && !m_sendCancellationSource.IsCancellationRequested && m_flushedExecutionLog.Length > 0)
+            
+            if (m_finishedSendingPipResults
+                && !m_sendCancellationSource.IsCancellationRequested
+                && m_flushedExecutionLog.Length > 0)
             {
                 // A final flush of the execution log may come after all the pip results are sent
                 // In that case, we send the blob individually:
                 m_orchestratorClient.NotifyAsync(new WorkerNotificationArgs()
                 {
                     ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++,
-                    ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length)
+                    ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length),
                 },
-                null, 
+                null,
                 m_sendCancellationSource.Token).Wait();
 
                 m_flushedExecutionLog.SetLength(0);
             }
         }
 
+        // We keep message queues for every active pip step in this worker
+        private readonly ConcurrentDictionary<long, PooledObjectWrapper<ConcurrentQueue<EventMessage>>> m_pendingMessages = new();
+
+        private readonly ObjectPool<ConcurrentQueue<EventMessage>> m_queuePool = new (
+            () => new(), 
+            q => 
+            { 
+                while (q.TryDequeue(out _)) 
+                {
+                    // Queue has no .Clear(), dequeue everything. 
+                    // Note that we will drain the queue anyways before
+                    // disposing the pooled object wrapper so this should be no-op 
+                }
+                return q; 
+            });
+
         /// <nodoc/>
         public void ReportEventMessage(EventMessage eventMessage)
         {
             Contract.Assert(m_started);
-
-            // TODO: Associate eventMessage to pip id and delay queuing
             if (m_sendCancellationSource.IsCancellationRequested)
             {
                 // We are not sending messages anymore
                 return;
             }
 
+            if (TryExtractSemistableHashFromEvent(eventMessage, out var hash) 
+                && m_pendingMessages.TryGetValue(hash, out var messageQueueForPip))
+            {
+                messageQueueForPip.Instance.Enqueue(eventMessage);
+            }
+            else
+            {
+                // Either we couldn't associate the message to a pip id, or the extracted id doesn't match any pip
+                // that is currently being processed in this worker (the event might arrive after we have sent
+                // the pip result to the orchestrator).
+                // In these cases, just send the event as soon as possible.
+                QueueOutboundEvent(eventMessage);
+            }
+        }
+
+        private void QueueOutboundEvent(EventMessage eventMessage)
+        {
             try
             {
                 m_outgoingEvents.Add(eventMessage);
@@ -200,6 +252,53 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void QueuePendingEvents(ExtendedPipCompletionData item)
+        {
+            // The pip step has been processed and the result is ready to be sent
+            // to the orchestrator - remove the pending message queue and queue the events
+            if (m_pendingMessages.TryRemove(item.SemiStableHash, out var eventQueue))
+            {
+                using (eventQueue)
+                {
+                    while (eventQueue.Instance.TryDequeue(out var e))
+                    {
+                        QueueOutboundEvent(e);
+                    }
+                }
+            }
+        }
+
+        private bool TryExtractSemistableHashFromEvent(EventMessage eventMessage, out long hash)
+        {
+            // If the event is a PipProcessError, the semistable hash was already parsed for metadata
+            // so extract it from there rather than using the regex
+            if (eventMessage.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
+            {
+                hash = eventMessage.PipProcessErrorEvent.PipSemiStableHash;
+                return true;
+            }
+
+            if (string.IsNullOrEmpty(eventMessage.Text))
+            {
+                hash = 0;
+                return false;
+            }
+
+            // Else try to extract a pipid from the error message
+            var extractedPipIds = Pip.ExtractSemistableHashes(eventMessage.Text);
+            if (extractedPipIds.Count == 0)
+            {
+                hash = 0;
+                return false;
+            }
+            else
+            {
+                hash = extractedPipIds[0];
+                return true;
+            }
+        }
+
         private void SendNotifications(CancellationToken cancellationToken)
         {
             ExtendedPipCompletionData firstItem;
@@ -210,7 +309,7 @@ namespace BuildXL.Engine.Distribution
                     // Sending of notifications is driven by pip results - block until we have a new result to send
                     // but also send a message every two minutes to keep the execution log and potential delayed
                     // events flowing.
-                    if(!m_pipResultListener.ReadyToSendResultList.TryTake(out firstItem, (int)TimeSpan.FromMinutes(2).TotalMilliseconds, cancellationToken))
+                    if (!m_pipResultListener.ReadyToSendResultList.TryTake(out firstItem, (int)TimeSpan.FromMinutes(2).TotalMilliseconds, cancellationToken))
                     {
                         // Timeout is hit, we don't have any result to send right now
                         firstItem = null;
@@ -232,11 +331,17 @@ namespace BuildXL.Engine.Distribution
                 m_executionResults.Clear();
                 if (firstItem != null)
                 {
-                    m_executionResults.Add(firstItem);
-
-                    while (m_executionResults.Count < m_maxMessagesPerBatch && m_pipResultListener.ReadyToSendResultList.TryTake(out var item))
+                    using (DistributionService.Counters.StartStopwatch(DistributionCounter.WorkerOutgoingMessageProcessingDuration))
                     {
-                        m_executionResults.Add(item);
+                        QueuePendingEvents(firstItem);
+                        m_executionResults.Add(firstItem);
+
+                        while (m_executionResults.Count < m_maxMessagesPerBatch && m_pipResultListener.ReadyToSendResultList.TryTake(out var item))
+                        {
+                            // Add any pending events to the outgoing queue
+                            QueuePendingEvents(item);
+                            m_executionResults.Add(item);
+                        }
                     }
                 }
 
@@ -265,12 +370,12 @@ namespace BuildXL.Engine.Distribution
                 m_notification.WorkerId = ExecutionService.WorkerId;
                 m_notification.CompletedPips = m_executionResults.Select(p => p.SerializedData).ToList();
                 m_notification.ForwardedEvents = m_eventList;
-                
+
                 if (m_flushedExecutionLog.Length > 0)
                 {
                     m_notification.ExecutionLogBlobSequenceNumber = m_xlgBlobSequenceNumber++;
                     m_notification.ExecutionLogData = new ArraySegment<byte>(m_flushedExecutionLog.GetBuffer(), 0, (int)m_flushedExecutionLog.Length);
-                } 
+                }
                 else
                 {
                     m_notification.ExecutionLogBlobSequenceNumber = 0;
@@ -279,7 +384,7 @@ namespace BuildXL.Engine.Distribution
 
                 using (DistributionService.Counters.StartStopwatch(DistributionCounter.SendNotificationDuration))
                 {
-                    var callResult = m_orchestratorClient.NotifyAsync(m_notification, 
+                    var callResult = m_orchestratorClient.NotifyAsync(m_notification,
                         m_executionResults.Select(a => a.SemiStableHash).ToList(),
                         cancellationToken).GetAwaiter().GetResult();
 
@@ -307,8 +412,43 @@ namespace BuildXL.Engine.Distribution
             }
 
             m_finishedSendingPipResults = true;
-            m_outgoingEvents.CompleteAdding(); 
+            m_outgoingEvents.CompleteAdding();
+
+            if (m_pendingMessages.Any())
+            {
+                var pendingPipDetails = new List<string>();
+                var orphanMessages = new List<(long PipId, EventMessage Message)>();
+                foreach (var kvp in m_pendingMessages)
+                {
+                    var (pipId, queue) = (kvp.Key, kvp.Value.Instance);
+
+                    pendingPipDetails.Add($"{Pip.FormatSemiStableHash(pipId)} (count: {queue.Count})");
+
+                    foreach (var e in queue)
+                    {
+                        orphanMessages.Add((pipId, e));
+                    };
+                }
+
+                foreach (var orphan in orphanMessages)
+                {
+                    // All events should have been forwarded along with the corresponding
+                    // pip result, or immediately if we don't have a running pip step to associate to the message.
+                    Tracing.Logger.Log.DistributionWorkerOrphanMessage(m_loggingContext, Pip.FormatSemiStableHash(orphan.PipId), orphan.Message.Text);
+                }
+
+                // Log to track the ocurrence of this. Remove 
+                Tracing.Logger.Log.DistributionWorkerPendingMessageQueues(m_loggingContext, m_uncleanExit, string.Join(", ", pendingPipDetails.ToArray()));
+            }
+
             DistributionService.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToOrchestrator, m_numBatchesSent);
+        }
+
+        public void MarkPipProcessingStarted(long semistableHash)
+        {
+            // Add a queue for pending messages for this pip step
+            Contract.Assert(m_pendingMessages.TryAdd(semistableHash, m_queuePool.GetInstance()), 
+                "There shouldn't be a pending message queue for a pip we are about to process"); 
         }
     }
 }

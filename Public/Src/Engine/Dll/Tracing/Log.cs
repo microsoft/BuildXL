@@ -959,6 +959,24 @@ namespace BuildXL.Engine.Tracing
             Message = "After we received an exit request from the orchestrator, worker exits with an unexpected reason due to a failure in one of the orchestrator-related calls (e.g., attach, notify).")]
         public abstract void DistributionWorkerUnexpectedFailureAfterOrchestratorExits(LoggingContext context);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerOrphanMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "A forwardable event was not forwarded by the worker by the end of the build. PipId: {pipId}. Event text: {message}")]
+        public abstract void DistributionWorkerOrphanMessage(LoggingContext context, string pipId, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerPendingMessageQueues,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Pending message queues for pips were still active by the end of the build: this is unexpected. Any orphan messages have been logged. Details: IsUncleanExit: {isUncleanExit}. Pips: [{pipDetails}]")]
+        public abstract void DistributionWorkerPendingMessageQueues(LoggingContext context, bool isUncleanExit, string pipDetails);
+
         #endregion
 
         [GeneratedEvent(

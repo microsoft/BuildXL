@@ -339,6 +339,7 @@ namespace BuildXL.Engine.Tracing
         DistributionConnectionTimeout = 7047,
         DistributionConnectionFailure = 7048,
         AttachmentFailureAfterOrchestratorExit = 7049,
+        DistributionWorkerOrphanMessage = 7050,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,
@@ -391,6 +392,8 @@ namespace BuildXL.Engine.Tracing
 
         EngineLoadedFileContentTable = 7150,
         GrpcAuthWarningTrace = 7151,
+
+        DistributionWorkerPendingMessageQueues = 7153,
 
         LogAndRemoveEngineStateOnBuildFailure = 10011,
         CacheIsStillBeingInitialized = 13200,

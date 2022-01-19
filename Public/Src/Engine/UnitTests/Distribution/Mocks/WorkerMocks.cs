@@ -29,6 +29,8 @@ namespace Test.BuildXL.Distribution
         public bool Exited => ExitCalls > 0;
         public int ExitCalls;
 
+        public volatile bool CleanExit; 
+
         public bool Cancelled => CancelCalls > 0;
         public int CancelCalls;
 
@@ -40,9 +42,13 @@ namespace Test.BuildXL.Distribution
             Interlocked.Increment(ref CancelCalls);
         }
 
-        void IWorkerNotificationManager.Exit()
+        void IWorkerNotificationManager.Exit(bool isCleanExit)
         {
             Interlocked.Increment(ref ExitCalls);
+            if (!isCleanExit)
+            {
+                CleanExit = false;
+            }
         }
 
         void IWorkerNotificationManager.ReportEventMessage(EventMessage eventMessage)
@@ -58,6 +64,10 @@ namespace Test.BuildXL.Distribution
         void IWorkerNotificationManager.Start(IOrchestratorClient orchestratorClient, EngineSchedule schedule, IPipResultSerializer serializer)
         {
             Interlocked.Increment(ref StartCalls);
+        }
+
+        public void MarkPipProcessingStarted(long semistableHash)
+        {
         }
     }
 

@@ -218,11 +218,12 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         public void Exit(Optional<string> failure = default, bool isUnexpected = false)
         {
-            m_notificationManager.Exit();
+            var reportSuccess = !failure.HasValue;
+
+            m_notificationManager.Exit(isClean: reportSuccess && !isUnexpected);
             m_orchestratorClient.CloseAsync().GetAwaiter().GetResult();
 
             m_attachCompletionSource.TrySetResult(false);
-            var reportSuccess = !failure.HasValue;
             
             if (!reportSuccess)
             {

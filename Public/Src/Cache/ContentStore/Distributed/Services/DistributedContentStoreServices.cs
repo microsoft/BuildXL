@@ -132,6 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             return new GlobalCacheServiceConfiguration()
             {
+                EnableBackgroundRestoreCheckpoint = DistributedContentSettings.GlobalCacheBackgroundRestore,
                 MaxOperationConcurrency = DistributedContentSettings.MetadataStoreMaxOperationConcurrency,
                 MaxOperationQueueLength = DistributedContentSettings.MetadataStoreMaxOperationQueueLength,
                 CheckpointMaxAge = DistributedContentSettings.ContentMetadataCheckpointMaxAge?.Value,

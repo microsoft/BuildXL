@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -40,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         protected void RunInBackground(string operationName, Func<OperationContext, Task<BoolResult>> operation, bool fireAndForget = false)
         {
             LinkLifetime(new BackgroundOperation($"{Tracer.Name}.{operationName}", fireAndForget
-                ? c => operation(c).IgnoreErrorsAndReturnCompletion().WithResultAsync(BoolResult.Success)
+                ? c => operation(c).FireAndForgetErrorsAsync(c, operationName).WithResultAsync(BoolResult.Success)
                 : operation));
         }
 
@@ -50,20 +51,38 @@ namespace BuildXL.Cache.ContentStore.Utils
             StartupContext = context;
             StartupLogger = context.TracingContext.Logger;
 
-            foreach (var nestedComponent in _nestedComponents)
+            // Startup dependent components
+            // Background operations need to run after startup is finished
+            foreach (var nestedComponent in _nestedComponents.Where(n => n is not BackgroundOperation))
             {
                 await nestedComponent.StartupAsync(context).ThrowIfFailureAsync();
             }
 
-            return await base.StartupCoreAsync(context);
+            await base.StartupCoreAsync(context).ThrowIfFailureAsync();
+
+            // Background operations need to run after startup is finished
+            foreach (var nestedComponent in _nestedComponents.Where(n => n is BackgroundOperation))
+            {
+                await nestedComponent.StartupAsync(context).ThrowIfFailureAsync();
+            }
+
+            return BoolResult.Success;
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            var success = await base.ShutdownCoreAsync(context);
+            var success = BoolResult.Success;
 
-            foreach (var nestedComponent in _nestedComponents)
+            // Background operations need to stop before shutting down the component
+            foreach (var nestedComponent in _nestedComponents.Where(n => n is BackgroundOperation))
+            {
+                success &= await nestedComponent.ShutdownAsync(context);
+            }
+
+            success &= await base.ShutdownCoreAsync(context);
+
+            foreach (var nestedComponent in _nestedComponents.Where(n => n is not BackgroundOperation))
             {
                 success &= await nestedComponent.ShutdownAsync(context);
             }

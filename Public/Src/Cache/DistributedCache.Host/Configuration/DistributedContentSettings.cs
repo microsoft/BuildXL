@@ -1144,6 +1144,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int PublishingConcurrencyLimit { get; set; } = 128;
 
         [DataMember]
+        public bool GlobalCacheBackgroundRestore { get; set; }
+
+        [DataMember]
         public bool ContentMetadataEnableResilience { get; set; }
 
         [DataMember]

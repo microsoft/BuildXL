@@ -18,6 +18,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using ProtoBuf.Grpc;
@@ -27,6 +29,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     public record GlobalCacheServiceConfiguration
     {
         public CheckpointManagerConfiguration Checkpoint { get; init; }
+
+        public bool EnableBackgroundRestoreCheckpoint { get; init; }
 
         public int MaxEventParallelism { get; init; }
 
@@ -68,12 +72,65 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// </summary>
     public class ResilientGlobalCacheService : GlobalCacheService, IRoleObserver
     {
+        private class CancellableOperation : IDisposable
+        {
+            private readonly AsyncLazy<bool> _lazyOperation;
+            private bool _isDisposedOrCanceled = false;
+            private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+
+            public CancellableOperation(Func<CancellationToken, Task<bool>> operation)
+            {
+                _lazyOperation = new AsyncLazy<bool>(() =>
+                {
+                    if (_isDisposedOrCanceled)
+                    {
+                        return BoolTask.False;
+                    }
+
+                    return operation(_cts.Token);
+                });
+            }
+
+            public Task<bool> EnsureStartedAndAwaitCompletionAsync()
+            {
+                return _lazyOperation.GetValueAsync();
+            }
+
+            public void Dispose()
+            {
+                lock (this)
+                {
+                    _isDisposedOrCanceled = true;
+                    _cts.Dispose();
+                }
+            }
+
+            public void Cancel()
+            {
+                if (!_isDisposedOrCanceled)
+                {
+                    lock (this)
+                    {
+                        if (!_isDisposedOrCanceled)
+                        {
+                            _cts.Cancel();
+                            _isDisposedOrCanceled = true;
+                        }
+                    }
+                }
+            }
+
+        }
+
         private const string LogCursorKey = "ResilientContentMetadataService.LogCursor";
 
         private readonly ContentMetadataEventStream _eventStream;
         private readonly GlobalCacheServiceConfiguration _configuration;
         private readonly CheckpointManager _checkpointManager;
         private readonly RocksDbContentMetadataStore _store;
+
+        private CancellableOperation _pendingBackgroundRestore = new(token => BoolTask.False);
+        private readonly SemaphoreSlim _createBackgroundRestoreOperationGate = TaskUtilities.CreateMutex();
 
         private readonly SemaphoreSlim _restoreCheckpointGate = TaskUtilities.CreateMutex();
         private readonly SemaphoreSlim _createCheckpointGate = TaskUtilities.CreateMutex();
@@ -122,7 +179,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private DateTime _lastSuccessfulHeartbeat;
         private Role _role = Role.Worker;
         private bool _hasRestoredCheckpoint;
-        private Task _createCheckpointLoopTask = Task.CompletedTask;
 
         public ResilientGlobalCacheService(
             GlobalCacheServiceConfiguration configuration,
@@ -142,6 +198,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LinkLifetime(streamStorage);
             LinkLifetime(_eventStream);
             LinkLifetime(_checkpointManager.Storage);
+
+            RunInBackground(nameof(CreateCheckpointLoopAsync), CreateCheckpointLoopAsync, fireAndForget: true);
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -156,16 +214,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 _concurrencyLimitingQueue = new ActionQueue(maxConcurrency, maxQueueLength);
             }
 
-            _createCheckpointLoopTask = CreateCheckpointLoopAsync(context)
-                .FireAndForgetErrorsAsync(context, operation: nameof(CreateCheckpointLoopAsync));
-
             return BoolResult.Success;
         }
 
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            await _createCheckpointLoopTask;
-
             if (!ForceClientRetries(out _))
             {
                 // Stop logging
@@ -191,6 +244,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 _eventStream.SetIsLogging(false);
                 _hasRestoredCheckpoint = false;
                 _role = role;
+            }
+
+            if (_role == Role.Master)
+            {
+                // Acquire mutex to ensure we cancel the actual outstanding background restore
+                // (i.e. no new _pendingBackgroundRestore gets created after calling Cancel)
+                using (_createBackgroundRestoreOperationGate.AcquireSemaphore())
+                {
+                    _pendingBackgroundRestore.Cancel();
+                }
+
+                // Need to wait for restore to complete to not corrupt state
+                await _pendingBackgroundRestore.EnsureStartedAndAwaitCompletionAsync();
             }
 
             if (_role == Role.Master && !_hasRestoredCheckpoint)
@@ -223,10 +289,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             if (!request.Replaying && ForceClientRetries(out var reason))
             {
                 return new TResponse()
-                       {
-                           ShouldRetry = true,
-                           ErrorMessage = reason
-                       };
+                {
+                    ShouldRetry = true,
+                    ErrorMessage = reason
+                };
             }
 
             Result<TResponse> result;
@@ -254,11 +320,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 catch (ActionBlockIsFullException e)
                 {
                     return new TResponse()
-                           {
-                               // TODO (1888943): support different retry kinds to notify the clients that the retry should happen after a longer period of time, for instance.
-                               ShouldRetry = true,
-                               ErrorMessage = $"Too many simultaneous operations. Limit={e.ConcurrencyLimit}, CurrentCount={e.CurrentCount}",
-                           };
+                    {
+                        // TODO (1888943): support different retry kinds to notify the clients that the retry should happen after a longer period of time, for instance.
+                        ShouldRetry = true,
+                        ErrorMessage = $"Too many simultaneous operations. Limit={e.ConcurrencyLimit}, CurrentCount={e.CurrentCount}",
+                    };
                 }
             }
 
@@ -283,11 +349,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 else if (ForceClientRetries(out reason))
                 {
                     return new TResponse()
-                        {
-                            ShouldRetry = true,
-                            ErrorMessage = reason,
-                            Diagnostics = !response.Succeeded ? response.Diagnostics : null,
-                        };
+                    {
+                        ShouldRetry = true,
+                        ErrorMessage = reason,
+                        Diagnostics = !response.Succeeded ? response.Diagnostics : null,
+                    };
                 }
             }
 
@@ -300,8 +366,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 Tracer,
                 async () =>
                 {
-                    var checkpointState = await _checkpointManager.CheckpointRegistry.GetCheckpointStateAsync(context)
-                        .ThrowIfFailureAsync();
+                    var checkpointState = await RestoreCheckpointDatabaseAsync(context);
 
                     // It is possible for a system failure (in creating checkpoints, for example) to create a huge
                     // backlog of events to be processed. If that happens, the system can enter a state where it needs
@@ -353,6 +418,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                     return Result.Success((checkpointId: checkpointState.CheckpointId, logId, startReadLogId, startWriteLogId: startWriteLogId.Value));
                 },
                 extraEndMessage: r => $"CheckpointId=[{r.GetValueOrDefault().checkpointId}] DbLogId=[{r.GetValueOrDefault().logId}] StartReadLogId=[{r.GetValueOrDefault().startReadLogId}] StartWriteLogId=[{r.GetValueOrDefault().startWriteLogId}]");
+        }
+
+        private async Task<BoolResult> BackgroundRestoreCheckpointAsync(OperationContext context)
+        {
+            return await context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var checkpointState = await RestoreCheckpointDatabaseAsync(context);
+                    return Result.Success(checkpointState);
+                },
+                extraEndMessage: r => $"CheckpointId=[{r.GetValueOrDefault()?.CheckpointId}]");
+        }
+
+        private async Task<CheckpointState> RestoreCheckpointDatabaseAsync(OperationContext context)
+        {
+            var checkpointState = await _checkpointManager.CheckpointRegistry.GetCheckpointStateAsync(context)
+                                    .ThrowIfFailureAsync();
+
+            using (await _createCheckpointGate.AcquireAsync())
+            {
+                await _checkpointManager.RestoreCheckpointAsync(context, checkpointState).ThrowIfFailureAsync();
+            }
+
+            return checkpointState;
         }
 
         private Task<BoolResult> DiscardStaleCheckpointsAsync(OperationContext context, CheckpointState checkpointState)
@@ -451,13 +541,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             }
         }
 
-        private async Task CreateCheckpointLoopAsync(OperationContext context)
+        private async Task<BoolResult> CreateCheckpointLoopAsync(OperationContext context)
         {
             try
             {
                 while (!context.Token.IsCancellationRequested)
                 {
                     await Task.Delay(_configuration.Checkpoint.CreateCheckpointInterval, context.Token);
+
+                    if (_configuration.EnableBackgroundRestoreCheckpoint && _role != Role.Master)
+                    {
+                        using (_createBackgroundRestoreOperationGate.AcquireSemaphore())
+                        {
+                            if (_role != Role.Master)
+                            {
+                                _pendingBackgroundRestore = new CancellableOperation(async token =>
+                                {
+                                    if (token.IsCancellationRequested)
+                                    {
+                                        return false;
+                                    }
+
+                                    using (var innerContext = context.WithCancellationToken(token))
+                                    {
+                                        await BackgroundRestoreCheckpointAsync(innerContext).FireAndForgetErrorsAsync(context);
+                                        return true;
+                                    }
+                                });
+                            }
+                        }
+
+                        using (_pendingBackgroundRestore)
+                        {
+                            await _pendingBackgroundRestore.EnsureStartedAndAwaitCompletionAsync();
+                        }
+                    }
 
                     if (ForceClientRetries(out _))
                     {
@@ -474,6 +592,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 // Do nothing
             }
+
+            return BoolResult.Success;
         }
 
         public Task<Result<CheckpointLogId>> CreateCheckpointAsync(OperationContext context)

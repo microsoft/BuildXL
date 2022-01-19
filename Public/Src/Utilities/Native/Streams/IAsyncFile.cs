@@ -84,7 +84,7 @@ namespace BuildXL.Native.Streams
         /// See <see cref="IIOCompletionManager.ReadFileOverlapped"/>.
         /// Offset is ignored for <see cref="FileKind.Pipe"/> files.
         /// </summary>
-        unsafe void ReadOverlapped(IIOCompletionTarget target, byte* pinnedBuffer, int bytesToRead, long fileOffset);
+        unsafe Overlapped* ReadOverlapped(IIOCompletionTarget target, byte* pinnedBuffer, int bytesToRead, long fileOffset);
 
         /// <summary>
         /// Reads up to the specified number of bytes into the provided buffer.
@@ -96,5 +96,10 @@ namespace BuildXL.Native.Streams
         /// Writes out the buffer in overlapped fashion
         /// </summary>
         unsafe void WriteOverlapped(IIOCompletionTarget target, byte* pinnedBuffer, int bytesToWrite, long fileOffset);
+
+        /// <summary>
+        /// Cancels async IO operation.
+        /// </summary>
+        unsafe void Cancel(Overlapped* overlapped);
     }
 }

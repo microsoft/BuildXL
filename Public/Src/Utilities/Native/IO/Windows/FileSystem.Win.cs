@@ -575,6 +575,10 @@ namespace BuildXL.Native.IO.Windows
             IntPtr dwCompletionKey,
             Overlapped* lpOverlapped);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern unsafe bool CancelIoEx(SafeFileHandle hFile, Overlapped* lpOverlapped);
+
         [Flags]
         private enum FileCompletionMode
         {
@@ -4380,6 +4384,17 @@ namespace BuildXL.Native.IO.Windows
             var success = TryGetFileAttributes(path, out FileAttributes attributes, out _);
 
             return success && ((attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction);
+        }
+
+        /// <summary>
+        /// Cancels IO.
+        /// </summary>
+        public static unsafe bool TryCancelIoWithOverlapped(SafeFileHandle handle, Overlapped* overlapped, out int errorCode)
+        {
+            bool result = CancelIoEx(handle, overlapped);
+            errorCode = Marshal.GetLastWin32Error();
+
+            return result;
         }
     }
 }

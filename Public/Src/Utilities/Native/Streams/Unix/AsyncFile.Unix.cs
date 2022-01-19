@@ -106,7 +106,7 @@ namespace BuildXL.Native.Streams.Unix
         }
 
         /// <inheritdoc />
-        public unsafe void ReadOverlapped(
+        public unsafe Overlapped* ReadOverlapped(
             IIOCompletionTarget target,
             byte* pinnedBuffer,
             int bytesToRead,
@@ -143,6 +143,7 @@ namespace BuildXL.Native.Streams.Unix
             }
 
             QueueCompletionNotification(target, result);
+            return null;
         }
 
         private unsafe void QueueCompletionNotification(IIOCompletionTarget target, FileAsyncIOResult result)
@@ -191,5 +192,8 @@ namespace BuildXL.Native.Streams.Unix
             Analysis.IgnoreArgument(this);
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public unsafe void Cancel(Overlapped* overlapped) => throw new NotImplementedException();
     }
 }

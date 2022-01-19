@@ -84,7 +84,7 @@ namespace BuildXL.Processes
                     InjectCallback,
                     Encoding.Unicode,
                     BufferSize,
-                    new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
+                    debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
             }
             catch (Exception exception)
             {

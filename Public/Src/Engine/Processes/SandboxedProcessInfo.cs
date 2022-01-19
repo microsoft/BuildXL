@@ -269,6 +269,18 @@ namespace BuildXL.Processes
         public Encoding StandardOutputEncoding { get; set; }
 
         /// <summary>
+        /// Retries pipe reading on cancellation.
+        /// </summary>
+        /// <remarks>
+        /// BuildXL and Detours communicate with each other by establishing named pipes. In some builds,
+        /// the pipe reading got canceled in the middle of the builds. It is still unknown
+        /// what caused the cancellation because none of BuildXL code (except the test code) performs
+        /// cancellation on pipe reading. To be more reliable, we can retry pipe reading
+        /// when a cancellation happens.
+        /// </remarks>
+        public bool RetryPipeReadOnCancel { get; set; }
+
+        /// <summary>
         /// Encoded command line arguments
         /// </summary>
         public string Arguments
@@ -549,6 +561,7 @@ namespace BuildXL.Processes
 
                 writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
                 writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
+                writer.Write(RetryPipeReadOnCancel);
                 writer.Write(
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
@@ -597,6 +610,8 @@ namespace BuildXL.Processes
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
+                bool retryPipeReadOnCancel = reader.ReadBoolean();
+
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
@@ -643,7 +658,8 @@ namespace BuildXL.Processes
                     RedirectedTempFolders = redirectedTempFolder,
                     DetoursFailureFile = detoursFailureFile,
                     RemoteSandboxedProcessData = remoteSandboxedProcessData,
-                    ExternalVMSandboxedProcessData = externalVMSandboxedProcessData
+                    ExternalVMSandboxedProcessData = externalVMSandboxedProcessData,
+                    RetryPipeReadOnCancel = retryPipeReadOnCancel,
                 };
             }
         }

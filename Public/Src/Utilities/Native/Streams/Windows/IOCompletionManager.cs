@@ -124,7 +124,7 @@ namespace BuildXL.Native.Streams.Windows
         }
 
         /// <inheritdoc />
-        public unsafe void ReadFileOverlapped(
+        public unsafe Overlapped* ReadFileOverlapped(
             IIOCompletionTarget target,
             SafeFileHandle handle,
             byte* pinnedBuffer,
@@ -139,6 +139,8 @@ namespace BuildXL.Native.Streams.Windows
             TraceStartIfEnabled(overlapped, target);
 
             bool needOverlappedRelease = true;
+            bool overlappedHasBeenReleased = false;
+
             try
             {
                 FileAsyncIOResult result = FileSystemWin.ReadFileOverlapped(
@@ -159,11 +161,14 @@ namespace BuildXL.Native.Streams.Windows
                     // TODO: We could set a recursion-limit to allow some fraction of repeated IOs to complete synchronously, without
                     //       queueing to the threadpool. Sync completions are the common case for files cached in memory.
                     ReleaseOvelappedAndQueueCompletionNotification(overlapped, result);
+                    overlappedHasBeenReleased = true;
                 }
 
                 // At this point overlapped is either needed (pending status)
                 // or already released by ReleaseOvelappedAndQueueCompletionNotification
                 needOverlappedRelease = false;
+
+                return !overlappedHasBeenReleased ? (Overlapped*)overlapped : null;
             }
             finally
             {
@@ -319,6 +324,22 @@ namespace BuildXL.Native.Streams.Windows
 
             // The port can be closed as well
             m_completionPort.Dispose();
+        }
+
+        /// <inheritdoc/>
+        public unsafe void CancelOverlapped(SafeFileHandle handle, Overlapped* overlapped)
+        {
+            Contract.Requires(!handle.IsInvalid);
+            Contract.Requires(overlapped != null);
+
+            TaggedOverlapped* taggedOverlapped = (TaggedOverlapped*)overlapped;
+            if (taggedOverlapped->EntryId == TaggedOverlapped.AvailableMarker)
+            {
+                return;
+            }
+
+            // Best effort.
+            Analysis.IgnoreResult(FileSystemWin.TryCancelIoWithOverlapped(handle, overlapped, out int _));
         }
     }
 }

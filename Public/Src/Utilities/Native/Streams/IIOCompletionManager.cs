@@ -41,11 +41,16 @@ namespace BuildXL.Native.Streams
         /// Note that <paramref name="pinnedBuffer"/> must be pinned on a callstack that lives until I/O completion or with a pinning <see cref="System.Runtime.InteropServices.GCHandle"/>,
         /// since it directly receives any read bytes from the kernel.
         /// </summary>
-        unsafe void ReadFileOverlapped(
+        unsafe Overlapped* ReadFileOverlapped(
             IIOCompletionTarget target,
             SafeFileHandle handle,
             byte* pinnedBuffer,
             int bytesToRead,
             long fileOffset);
+
+        /// <summary>
+        /// Cancels overlapped.
+        /// </summary>
+        unsafe void CancelOverlapped(SafeFileHandle handle, Overlapped* overlapped);
     }
 }

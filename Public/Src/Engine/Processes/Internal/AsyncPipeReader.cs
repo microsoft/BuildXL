@@ -12,6 +12,7 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using Overlapped = BuildXL.Native.Streams.Overlapped;
 
 namespace BuildXL.Processes.Internal
 {
@@ -43,6 +44,14 @@ namespace BuildXL.Processes.Internal
 
         private TaskCompletionSource<bool> m_completion;
 
+        private readonly bool m_retryOnCancel;
+        private int m_retryCount = 5;
+
+        // For testing cancellation.
+        private Overlapped* m_overlapped;
+        private int m_cancelOverlapped = 0;
+        internal bool AllowCancelOverlapped { get; set; }
+
         private enum State
         {
             Initialized,
@@ -61,11 +70,23 @@ namespace BuildXL.Processes.Internal
         /// character encoding is set by encoding and the buffer size,
         /// in number of 16-bit characters, is set by bufferSize.
         /// </summary>
+        /// <remarks>
+        /// In some builds, the pipe reading got canceled in the middle of the builds. It is still unknown
+        /// what caused the cancellation because none of BuildXL code (except the test code) performs
+        /// cancellation on pipe reading.
+        /// 
+        /// In case <paramref name="retryOnCancel"/> is false, such a cancellation causes the pipe to be closed.
+        /// Thus, the client will fail to write to the pipe.
+        /// 
+        /// Since we know that none of BuildXL code performs cancellation, we can also make this pipe reader
+        /// retry pipe reading (call <code>ReadOverlapped</code> again) when a cancellation happens.
+        /// </remarks>
         public AsyncPipeReader(
             IAsyncFile file,
             StreamDataReceived callback,
             Encoding encoding,
             int bufferSize,
+            bool retryOnCancel = false,
             DebugReporter debugPipeReporter = null)
         {
             Contract.Requires(file != null);
@@ -87,6 +108,7 @@ namespace BuildXL.Processes.Internal
             StringBuilderInstace.Clear();
             StringBuilderInstace.EnsureCapacity(maxCharsPerBuffer * 2);
 
+            m_retryOnCancel = retryOnCancel;
             m_debugPipeReporter = debugPipeReporter;
         }
 
@@ -158,7 +180,7 @@ namespace BuildXL.Processes.Internal
 
             // We start reading outside of the lock, since the read may complete synchronously.
             // File offset is ignored since we're reading a pipe.
-            m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
+            m_overlapped = m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
         }
 
         /// <summary>
@@ -216,6 +238,15 @@ namespace BuildXL.Processes.Internal
                     && asyncIOResult.Error != NativeIOConstants.ErrorBrokenPipe
                     && m_state != State.Stopped)
                 {
+                    if (asyncIOResult.Error == NativeIOConstants.ErrorOperationAborted
+                        && m_retryOnCancel
+                        && m_retryCount > 0)
+                    {
+                        --m_retryCount;
+                        m_overlapped = m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
+                        return;
+                    }
+
                     // EOF typically indicates that client (or the other end) has closed the connection (or the pipe handle).
                     // When state is Stopped, pipe handle has been closed properly.
                     // ERROR_BROKEN_PIPE indicates that client has been disconnected (e.g., program has ended).
@@ -279,8 +310,32 @@ namespace BuildXL.Processes.Internal
                 GetLinesFromCharBuffers(charLen);
 
                 // File offset is ignored since we're reading a pipe.
-                m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
+                m_overlapped = m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
+                CancelIfRequested();
             }
+        }
+
+        private void CancelIfRequested()
+        {
+            if (!AllowCancelOverlapped || m_overlapped == null)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(ref m_cancelOverlapped, 0, 1) == 1)
+            {
+                m_file.Cancel(m_overlapped);
+            }
+        }
+
+        internal void InjectCancellation()
+        {
+            if (!AllowCancelOverlapped)
+            {
+                return;
+            }
+
+            Interlocked.Exchange(ref m_cancelOverlapped, 1);
         }
 
         private void SignalCompletion(bool reachedEof)

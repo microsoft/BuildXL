@@ -236,5 +236,10 @@ namespace BuildXL.Native.IO
         /// ERROR_NO_DATA
         /// </summary>
         public const int ErrorNoData = 0xE8;
+
+        /// <summary>
+        /// ERROR_OPERATION_ABORTED
+        /// </summary>
+        public const int ErrorOperationAborted = 0x3E3;
     }
 }

@@ -48,7 +48,9 @@ namespace Transformer {
                     Cmd.argument("/NJH"), // No Job Header
                     Cmd.argument("/NFL"), // No File list reducing stdout processing
                     Cmd.argument("/NP"),  // Don't show per-file progress counter
-                    Cmd.argument("/MT"),  // Multi threaded
+                    // TODO: Enable multi-threaded.
+                    //       Currently this can cause missing files in the target directory; mainly happens during NPM install pips.
+                    // Cmd.argument("/MT"),  // Multi threaded
                 ],
                 dependencies: arguments.dependencies || [],
                 outputs: [

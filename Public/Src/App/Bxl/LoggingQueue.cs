@@ -4,11 +4,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -23,7 +23,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Indicates whether async logging is currently enabled
         /// </summary>
-        private bool m_isAsyncLoggingEnabled = false;
+        private volatile bool m_isAsyncLoggingEnabled = false;
 
         /// <summary>
         /// The timestamp when async logging was initiated
@@ -45,11 +45,7 @@ namespace BuildXL.Tracing
         /// </summary>
         private readonly BlockingCollection<(EventCounter, Action)> m_logActionQueue = new BlockingCollection<(EventCounter, Action)>();
 
-        /// <summary>
-        /// Lock used when completing async logging so that all async log operations are guaranteed to
-        /// be flushed to log queue. Subsequent operations will be logged synchronously
-        /// </summary>
-        private readonly ReadWriteLock m_lock = ReadWriteLock.Create();
+        private long m_totalLoggingQueueAddDurationMs;
 
         /// <summary>
         /// Enqueues a log action for async logging
@@ -60,30 +56,36 @@ namespace BuildXL.Tracing
 
             var eventCounter = GetEventCounter(eventId, eventName);
 
-            // This lock is only for ensuring that the completion of async logging
-            // does not occur concurrently with addition to the queue. Hence, a shared (read)
-            // lock is used here since the queue is concurrent-safe so the lock is not needed
-            // for managing queue concurrency. The exclusive (write) lock is used by the 
-            // CompleteAsyncLogging method.
-            using (m_lock.AcquireReadLock())
+            if (m_isAsyncLoggingEnabled)
             {
-                if (m_isAsyncLoggingEnabled)
+                StopwatchVar duration = new StopwatchVar();
+
+                try
                 {
+                    duration.Start();
                     m_logActionQueue.Add((eventCounter, logAction));
+                    return;
                 }
-                else
+                catch (InvalidOperationException)
                 {
-                    MeasuredLog(eventCounter, logAction);
+                    // Async logging has been completed as m_logActionQueue has marked as completed.
+                    // Synchronously log this event.
+                }
+                finally
+                {
+                    Interlocked.Add(ref m_totalLoggingQueueAddDurationMs, (long)duration.TotalElapsed.TotalMilliseconds);
                 }
             }
+
+            MeasuredLog(eventCounter, logAction);
         }
 
         /// <summary>
         /// Logs the event using the given <paramref name="logAction"/> and measures it duration
         /// </summary>
-        private static void MeasuredLog(EventCounter eventCounter, Action logAction)
+        private static void MeasuredLog(EventCounter eventCounter, Action logAction, bool threadSafe = false)
         {
-            using (eventCounter.Measure())
+            using (eventCounter.Measure(threadSafe))
             {
                 logAction();
             }
@@ -122,12 +124,8 @@ namespace BuildXL.Tracing
         {
             m_completeAsyncLoggingStart = TimestampUtilities.Timestamp;
 
-            // See EnqueueLogAction for details on the semantics of this lock
-            using (m_lock.AcquireWriteLock())
-            {
-                m_isAsyncLoggingEnabled = false;
-                m_logActionQueue.CompleteAdding();
-            }
+            m_isAsyncLoggingEnabled = false;
+            m_logActionQueue.CompleteAdding();
         }
 
         /// <summary>
@@ -139,7 +137,7 @@ namespace BuildXL.Tracing
             {
                 foreach (var item in m_logActionQueue.GetConsumingEnumerable())
                 {
-                    MeasuredLog(item.Item1, item.Item2);
+                    MeasuredLog(item.Item1, item.Item2, threadSafe:true);
                 }
             }
             catch (InvalidOperationException)
@@ -157,6 +155,7 @@ namespace BuildXL.Tracing
 
             var asyncLoggingOverhang = TimestampUtilities.Timestamp - m_completeAsyncLoggingStart;
             statistics["AsyncLoggingOverhangMs"] = (long)asyncLoggingOverhang.TotalMilliseconds;
+            statistics["AddLoggingQueueOverheadMs"] = m_totalLoggingQueueAddDurationMs;
             long totalOccurrences = 0; 
             TimeSpan totalDuration = TimeSpan.Zero;
 
@@ -211,26 +210,37 @@ namespace BuildXL.Tracing
             /// <summary>
             /// Measure a single logging operation scope
             /// </summary>
-            public MeasureScope Measure()
+            public MeasureScope Measure(bool threadSafe)
             {
-                return new MeasureScope(this);
+                return new MeasureScope(this, threadSafe);
             }
 
             public readonly struct MeasureScope : IDisposable
             {
                 private readonly EventCounter m_counter;
                 private readonly TimeSpan m_startTime;
+                private readonly bool m_threadSafe;
 
-                public MeasureScope(EventCounter counter)
+                public MeasureScope(EventCounter counter, bool threadSafe)
                 {
                     m_counter = counter;
                     m_startTime = TimestampUtilities.Timestamp;
+                    m_threadSafe = threadSafe;
                 }
 
                 public void Dispose()
                 {
-                    Interlocked.Increment(ref m_counter.m_occurrences);
-                    Interlocked.Add(ref m_counter.m_elapsedTicks, (TimestampUtilities.Timestamp - m_startTime).Ticks);
+                    long elapsedTicks = (TimestampUtilities.Timestamp - m_startTime).Ticks;
+                    if (m_threadSafe)
+                    {
+                        m_counter.m_occurrences++;
+                        m_counter.m_elapsedTicks += elapsedTicks;
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref m_counter.m_occurrences);
+                        Interlocked.Add(ref m_counter.m_elapsedTicks, elapsedTicks);
+                    }
                 }
             }
         }

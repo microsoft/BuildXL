@@ -372,7 +372,7 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 if (origin != PipOutputOrigin.NotMaterialized && artifact.IsOutputFile)
                 {
-                    LogOutputOrigin(operationContext, pipSemiStableHash, artifact.Path.ToString(Context.PathTable), info, origin);
+                    LogOutputOrigin(operationContext, pipSemiStableHash, artifact.Path, Context.PathTable, info, origin);
                 }
             }
         }
@@ -3782,13 +3782,14 @@ namespace BuildXL.Scheduler.Artifacts
             return FileArtifact.Invalid;
         }
 
-        private void LogOutputOrigin(OperationContext operationContext, long pipSemiStableHash, string path, in FileMaterializationInfo info, PipOutputOrigin origin, string additionalInfo = null)
+        private void LogOutputOrigin(OperationContext operationContext, long pipSemiStableHash, AbsolutePath absPath, PathTable pathTable, in FileMaterializationInfo info, PipOutputOrigin origin, string additionalInfo = null)
         {
             if (origin == PipOutputOrigin.NotMaterialized && !ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
             {
                 return;
             }
 
+            string path = absPath.ToString(pathTable);
             string hashHex = info.Hash.ToHex();
             string pipDescription = Pip.FormatSemiStableHash(pipSemiStableHash);
             var reparseInfo = info.ReparsePointInfo.IsActionableReparsePoint ? info.ReparsePointInfo.ToString() : string.Empty;
@@ -4305,7 +4306,8 @@ namespace BuildXL.Scheduler.Artifacts
                         m_manager.LogOutputOrigin(
                             operationContext,
                             producerSemiStableHash,
-                            file.Path.ToString(m_manager.Context.PathTable),
+                            file.Path,
+                            m_manager.Context.PathTable,
                             materializationFile.MaterializationInfo,
                             result,
                             materializationFile.VirtualizationInfo);

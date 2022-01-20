@@ -1,6 +1,17 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20220114.1 (Release [128430](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128430)) Released 1/19/2022
+-	Reduce high-volume logging for distributed pip requests
+-	Allow specifying search paths for JS coordinators in resolver configuration
+-	Handle Crtl+C cancellation when interacting with the cache
+-	Simplify subst usage for dev cache with new /runInSubst flag
+-	Various bug fixes
+
+# 0.1.0-20220107.4.1 (Release [128274](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128274)) Released 1/14/2022
+- SPDX Improvements
+- Various bug fixes
+
  # 0.1.0-20211203.5 (Release [123327](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=123327)) Released 12/08/2021
 - Add SBOM packages to SBOM generation step in DropDaemon
 - Light process pips are fully supported by scheduler

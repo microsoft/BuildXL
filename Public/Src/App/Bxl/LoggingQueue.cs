@@ -58,11 +58,9 @@ namespace BuildXL.Tracing
 
             if (m_isAsyncLoggingEnabled)
             {
-                StopwatchVar duration = new StopwatchVar();
-
+                var stopwatch = StopwatchSlim.Start();
                 try
                 {
-                    duration.Start();
                     m_logActionQueue.Add((eventCounter, logAction));
                     return;
                 }
@@ -73,7 +71,7 @@ namespace BuildXL.Tracing
                 }
                 finally
                 {
-                    Interlocked.Add(ref m_totalLoggingQueueAddDurationMs, (long)duration.TotalElapsed.TotalMilliseconds);
+                    Interlocked.Add(ref m_totalLoggingQueueAddDurationMs, (long)stopwatch.Elapsed.TotalMilliseconds);
                 }
             }
 

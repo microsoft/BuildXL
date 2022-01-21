@@ -79,6 +79,7 @@ namespace BuildXL.Processes.Internal
         private readonly ContainerConfiguration m_containerConfiguration;
         private readonly bool m_setJobBreakawayOk;
         private readonly bool m_createJobObjectForCurrentProcess;
+        private readonly bool m_retryPipeReadOnCancel;
         private readonly Action<string> m_debugPipeReporter;
 
         /// Gather information for diagnosing flaky tests
@@ -347,6 +348,7 @@ namespace BuildXL.Processes.Internal
             bool setJobBreakawayOk,
             bool createJobObjectForCurrentProcess,
             bool diagnosticsEnabled,
+            bool retryPipeReadOnCancel,
             Action<string> debugPipeReporter)
         {
             Contract.Requires(bufferSize >= 128);
@@ -379,6 +381,7 @@ namespace BuildXL.Processes.Internal
 
             m_loggingContext = loggingContext;
             m_timeoutDumpDirectory = timeoutDumpDirectory;
+            m_retryPipeReadOnCancel = retryPipeReadOnCancel;
             m_debugPipeReporter = debugPipeReporter;
 
             if (diagnosticsEnabled)
@@ -509,6 +512,7 @@ namespace BuildXL.Processes.Internal
                             payloadData,
                             dllNameX64,
                             dllNameX86,
+                            m_retryPipeReadOnCancel,
                             m_debugPipeReporter,
                             m_loggingContext);
 

@@ -167,6 +167,7 @@ namespace BuildXL.Processes
                     setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
                     info.CreateJobObjectForCurrentProcess,
                     info.DiagnosticsEnabled,
+                    info.RetryPipeReadOnCancel,
                     DebugPipeConnection);
         }
 

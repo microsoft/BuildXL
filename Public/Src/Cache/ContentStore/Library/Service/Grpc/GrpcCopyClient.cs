@@ -68,9 +68,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private ChannelCredentials? TryGetSecureChannelCredentials(Context context, GrpcCopyClientConfiguration? config, out string? hostName)
         {
-            var grpcClientOptions = config?.GrpcCoreClientOptions;
-            var encryptionCertificateName = grpcClientOptions?.EncryptionCertificateName;
-
+            var encryptionCertificateName = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_SUBJECT__");
             var keyCertPairResult = GrpcEncryptionUtils.TryGetSecureChannelCredentials(encryptionCertificateName, out hostName);
 
             if (keyCertPairResult.Succeeded)

@@ -71,12 +71,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// </summary>
         public bool EncryptionEnabled { get; set; } = false;
 
-        /// <summary>
-        /// Encryption Certificate subject for GRPC channel encryption including the "CN=" prefix.
-        /// This certificate should be present in the windows certificate store.
-        /// </summary>
-        public string? EncryptionCertificateName { get; set; }
-
         #region POSIX Only
 
         /// <summary>

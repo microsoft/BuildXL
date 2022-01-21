@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -35,7 +34,7 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, IGlobalCacheStore, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
         private const int MaxCheckpointSlotCount = 5;
         private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();
@@ -43,9 +42,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly IClock _clock;
-
-        /// <inheritdoc />
-        public ClusterState ClusterState { get; private set; }
 
         internal RaidedRedisDatabase RaidedRedis { get; }
 
@@ -66,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         internal RedisBlobAdapter SecondaryBlobAdapter { get; }
 
-        private Role? _role = null;
+        private MasterElectionState _lastElection = MasterElectionState.DefaultWorker;
 
         /// <nodoc />
         public CounterCollection<GlobalStoreCounters> Counters { get; } = new CounterCollection<GlobalStoreCounters>();
@@ -79,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         // TODO: figure out how to deal with this in new master-leader election
         /// <inheritdoc />
-        bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => _role == Role.Master && Configuration.MirrorClusterState;
+        bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => Role == Role.Master && Configuration.MirrorClusterState;
 
         /// <inheritdoc />
         TimeSpan ReplicatedRedisHashKey.IReplicatedKeyHost.MirrorInterval => Configuration.ClusterStateMirrorInterval;
@@ -119,48 +115,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var counters = Counters.ToCounterSet();
             counters.Merge(PrimaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
             counters.Merge(SecondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
-            counters.Merge(RaidedRedis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
+            counters.Merge(RaidedRedis.GetCounters(context, Role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
 
-        /// <inheritdoc />
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            List<MachineLocation> allMachineLocations = new List<MachineLocation>();
-            Contract.Assert(Configuration.PrimaryMachineLocation.IsValid, "Primary machine location must be specified");
-
-            allMachineLocations.Add(Configuration.PrimaryMachineLocation);
-            allMachineLocations.AddRange(Configuration.AdditionalMachineLocations);
-
-            var machineMappings = await Task.WhenAll(allMachineLocations.Select(machineLocation => RegisterMachineAsync(context, machineLocation)));
-
-            ClusterState = new ClusterState(machineMappings[0].Id, machineMappings);
-
-            return BoolResult.Success;
-        }
-
-        public async Task<MachineMapping> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
-        {
-            if (Configuration.DistributedContentConsumerOnly)
-            {
-                return new MachineMapping(machineLocation, new MachineId(0));
-            }
-
-            // Get the local machine id
-            var machineIdAndIsAdded = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
-                context,
-                Configuration.RetryWindow,
-                RedisOperation.StartupGetOrAddLocalMachine,
-                (batch, key) => batch.GetOrAddMachineAsync(key, machineLocation.ToString(), _clock.UtcNow),
-                timeout: Configuration.ClusterRedisOperationTimeout)
-                .ThrowIfFailureAsync();
-
-            Tracer.Debug(context, $"Assigned machine id={machineIdAndIsAdded.machineId}, location={machineLocation}, isAdded={machineIdAndIsAdded.isAdded}.");
-
-            return new MachineMapping(machineLocation, new MachineId(machineIdAndIsAdded.machineId));
-        }
-
-        #region Operations
+        #region Content Location Operations
 
         /// <inheritdoc />
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
@@ -368,7 +327,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         #endregion Operations
 
-        #region Role Management
+        #region Master Election Operations
+
+        public MachineLocation Master => _lastElection.Master;
+
+        public Role Role => _lastElection.Role;
+
+        public Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(Tracer, async () =>
+            {
+                var role = await UpdateRoleAsync(context, release: false)
+                    .ThrowIfFailureAsync();
+
+                var masterName = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(
+                    context,
+                    Configuration.RetryWindow,
+                    RedisOperation.GetCheckpoint,
+                    (batch, key) => batch.AddOperation("GetRole", b => b.HashGetAsync(key, "M#1.MachineName")),
+                    timeout: Configuration.ClusterRedisOperationTimeout)
+                    .ThrowIfFailureAsync();
+
+                var master = masterName.IsNull ? default(MachineLocation) : new MachineLocation((string)masterName);
+
+                var state = new MasterElectionState(master, role);
+                _lastElection = state;
+                return Result.Success(state);
+            });
+        }
 
         /// <inheritdoc />
         public async Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown)
@@ -378,9 +364,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return Result.Success<Role>(Role.Worker);
             }
 
-            if (_role != Role.Master)
+            if (Role != Role.Master)
             {
-                return Result.Success(_role ?? Role.Worker);
+                return Result.Success(Role);
             }
 
             var result = await context.PerformOperationAsync(
@@ -388,7 +374,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 () => UpdateRoleAsync(context, release: true),
                 Counters[GlobalStoreCounters.ReleaseRole]);
 
-            _role = null;
+            _lastElection = MasterElectionState.DefaultWorker;
 
             return result;
         }
@@ -457,29 +443,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Counters[GlobalStoreCounters.UpdateRole]);
         }
 
-        public Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
+        #endregion Role Management
+
+        #region Cluster State Management
+
+        public Task<Result<MachineMapping>> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var role = await UpdateRoleAsync(context, release: false)
-                    .ThrowIfFailureAsync();
-                _role = role;
+                if (Configuration.DistributedContentConsumerOnly)
+                {
+                    return Result.Success(new MachineMapping(machineLocation, new MachineId(0)));
+                }
 
-                var masterName = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(
+                // Get the local machine id
+                var machineIdAndIsAdded = await _clusterStateKey.UseNonConcurrentReplicatedHashAsync(
                     context,
                     Configuration.RetryWindow,
-                    RedisOperation.GetCheckpoint,
-                    (batch, key) => batch.AddOperation("GetRole", b => b.HashGetAsync(key, "M#1.MachineName")),
+                    RedisOperation.StartupGetOrAddLocalMachine,
+                    (batch, key) => batch.GetOrAddMachineAsync(key, machineLocation.ToString(), _clock.UtcNow),
                     timeout: Configuration.ClusterRedisOperationTimeout)
                     .ThrowIfFailureAsync();
 
-                var master = masterName.IsNull ? default(MachineLocation) : new MachineLocation((string)masterName);
+                Tracer.Debug(context, $"Assigned machine id={machineIdAndIsAdded.machineId}, location={machineLocation}, isAdded={machineIdAndIsAdded.isAdded}.");
 
-                return Result.Success(new MasterElectionState(master, role));
+                return Result.Success(new MachineMapping(machineLocation, new MachineId(machineIdAndIsAdded.machineId)));
+            },
+            traceOperationStarted: false,
+            extraEndMessage: r =>
+            {
+                if (r.Succeeded)
+                {
+                    return $"MachineLocation=[{r.Value.Location}] MachineId=[{r.Value.Id}]";
+                }
+                else
+                {
+                    return $"MachineLocation=[{machineLocation}]";
+                }
             });
         }
-
-        #endregion Role Management
 
         public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
         {
@@ -536,6 +538,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 Counters[GlobalStoreCounters.UpdateClusterState]);
         }
+
+        #endregion
+
+        #region Checkpoint Registry
 
         /// <inheritdoc />
         public Task<Result<CheckpointState>> GetCheckpointStateAsync(OperationContext context)
@@ -600,6 +606,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             throw new NotImplementedException("This method should never be called");
         }
 
+        #endregion
+
+        #region Blobs in Redis
+
         /// <inheritdoc />
         public Task<PutBlobResult> PutBlobAsync(OperationContext context, ShortHash hash, byte[] blob)
         {
@@ -636,6 +646,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash[0] >= 128 ? PrimaryBlobAdapter : SecondaryBlobAdapter;
         }
 
+        #endregion
+
+        #region Metadata Operations
+
         public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
             return MemoizationAdapter.GetLevelSelectorsAsync(context, weakFingerprint, level);
@@ -650,5 +664,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return MemoizationAdapter.GetContentHashListAsync(context, strongFingerprint);
         }
+
+        #endregion
     }
 }

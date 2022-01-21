@@ -12,13 +12,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Current master machine
         MachineLocation Master,
         /// Role of the current machine
-        Role Role);
+        Role Role)
+    {
+        public static MasterElectionState DefaultWorker = new MasterElectionState(Master: default, Role: Role.Worker);
+    } 
 
     /// <nodoc />
     public interface IMasterElectionMechanism : IStartupShutdownSlim
     {
         /// <summary>
-        /// Obtain role for the current machine
+        /// Obtain the last known master to this machine
+        /// </summary>
+        public MachineLocation Master { get; }
+
+        /// <summary>
+        /// Obtains the last known role for this machine
+        /// </summary>
+        public Role Role { get; }
+
+        /// <summary>
+        /// Update and obtain role for the current machine
         /// </summary>
         public Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context);
 

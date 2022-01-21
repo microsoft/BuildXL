@@ -266,7 +266,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     await ls[master].LocalLocationStore.CreateCheckpointAsync(context).ShouldBeSuccess();
 
                     // Restoring the checkpoint because the bin manager is stored in the checkpoint instance.
-                    TestClock.UtcNow += TimeSpan.FromMinutes(5);
+                    TestClock.UtcNow += TimeSpan.FromMinutes(2);
                     await ls[workerIndex].LocalLocationStore.HeartbeatAsync(context, inline: true, forceRestore: true).ShouldBeSuccess();
 
                     // We have 3 stores, meaning that we should be able to replicate the content on two other machines if we never pick

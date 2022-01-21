@@ -4,11 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Net;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -16,11 +13,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
-using StructGenerators;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
@@ -59,6 +54,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly CloudBlobContainer _container;
         private readonly CloudBlobDirectory _directory;
 
+        private MasterElectionState _lastElection = MasterElectionState.DefaultWorker;
+
         private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
         {
             RetryPolicy = new ExponentialRetry(),
@@ -77,6 +74,49 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _client = _configuration.Credentials!.CreateCloudBlobClient();
             _container = _client.GetContainerReference(_configuration.ContainerName);
             _directory = _container.GetDirectoryReference(_configuration.FolderName);
+        }
+
+        public MachineLocation Master => _lastElection.Master;
+
+        public Role Role => _lastElection.Role;
+
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            await _container.CreateIfNotExistsAsync(
+                accessType: BlobContainerPublicAccessType.Off,
+                options: DefaultBlobStorageRequestOptions,
+                operationContext: null,
+                cancellationToken: context.Token);
+
+            return await base.StartupCoreAsync(context);
+        }
+
+        public async Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
+        {
+            var r = await UpdateRoleAsync(context, tryUpdateLease: TryCreateOrExtendLease);
+            if (r.Succeeded)
+            {
+                _lastElection = r.Value;
+            }
+
+            return r;
+        }
+
+        public async Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown = false)
+        {
+            if (!_configuration.IsMasterEligible)
+            {
+                return Result.Success<Role>(Role.Worker);
+            }
+
+            var r = await UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).SelectAsync(s => s.Role);
+            if (r.Succeeded)
+            {
+                // We don't know who the master is any more
+                _lastElection = new MasterElectionState(Master: default, Role: r.Value);
+            }
+
+            return r;
         }
 
         private delegate bool TryUpdateLease(ref MasterLeaseMetadata metadata);
@@ -189,27 +229,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new MasterElectionState(master, master.Equals(_primaryMachineLocation) ? Role.Master : Role.Worker);
         }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await _container.CreateIfNotExistsAsync();
-            return await base.StartupCoreAsync(context);
-        }
-
-        public Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
-        {
-            return UpdateRoleAsync(context, tryUpdateLease: TryCreateOrExtendLease);
-        }
-
-        public Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown = false)
-        {
-            if (!_configuration.IsMasterEligible)
-            {
-                return Task.FromResult(Result.Success<Role>(Role.Worker));
-            }
-
-            return UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).SelectAsync(s => s.Role);
-        }
-
         private Task<Result<MasterElectionState>> UpdateRoleAsync(OperationContext context, TryUpdateLease tryUpdateLease)
         {
             return context.PerformOperationWithTimeoutAsync<Result<MasterElectionState>>(
@@ -219,8 +238,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     while (true)
                     {
                         context.Token.ThrowIfCancellationRequested();
-
-                        var now = _clock.UtcNow;
 
                         var metadata = await FetchCurrentLeaseAsync(context);
                         if (!tryUpdateLease(ref metadata))
@@ -241,25 +258,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<MasterLeaseMetadata> FetchCurrentLeaseAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                async () =>
+                async (context) =>
                 {
                     var blob = _directory.GetBlockBlobReference(_configuration.FileName);
 
-                    if (!await blob.ExistsAsync(DefaultBlobStorageRequestOptions, operationContext: null, cancellationToken: context.Token))
+                    var downloadContext = new Microsoft.WindowsAzure.Storage.OperationContext();
+                    string jsonText;
+                    try
                     {
-                        return Result.Success(new MasterLeaseMetadata());
+                        jsonText = await blob.DownloadTextAsync(
+                            operationContext: downloadContext,
+                            cancellationToken: context.Token,
+                            encoding: Encoding.UTF8,
+                            accessCondition: null,
+                            options: DefaultBlobStorageRequestOptions);
+                    }
+                    catch (StorageException e)
+                    {
+                        if (e.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound)
+                        {
+                            return Result.Success(new MasterLeaseMetadata());
+                        }
+
+                        throw;
                     }
 
-                    var downloadContext = new Microsoft.WindowsAzure.Storage.OperationContext();
-                    var leaseJson = await blob.DownloadTextAsync(
-                        operationContext: downloadContext,
-                        cancellationToken: context.Token,
-                        encoding: Encoding.UTF8,
-                        accessCondition: null,
-                        options: DefaultBlobStorageRequestOptions);
-                    var lease = JsonUtilities.JsonDeserialize<MasterLease>(leaseJson);
+                    var lease = JsonUtilities.JsonDeserialize<MasterLease>(jsonText);
                     return new MasterLeaseMetadata(downloadContext.LastResult.Etag, lease);
                 },
                 extraEndMessage: r =>
@@ -272,7 +298,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var state = r.Value;
                     return $"ETag=[{state?.ETag ?? "null"}] Lease=[{state?.Lease}]";
                 },
-                traceOperationStarted: false).ThrowIfFailureAsync();
+                traceOperationStarted: false,
+                timeout: _configuration.StorageInteractionTimeout).ThrowIfFailureAsync();
         }
 
         private Task<bool> CompareUpdateLeaseAsync(
@@ -280,11 +307,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MasterLease lease,
             string? etag)
         {
-            return context.PerformOperationAsync(
+            return context.PerformOperationWithTimeoutAsync(
                 Tracer,
-                async () =>
+                async (context) =>
                 {
-                    var serializedLease = JsonUtilities.JsonSerialize(lease);
+                    var serializedLease = JsonUtilities.JsonSerialize(lease, indent: true);
 
                     var reference = _directory.GetBlockBlobReference(_configuration.FileName);
                     var accessCondition =
@@ -331,7 +358,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     return $"{msg} Exchanged=[{r.Value}]";
-                }).ThrowIfFailureAsync();
+                },
+                timeout: _configuration.StorageInteractionTimeout).ThrowIfFailureAsync();
         }
 
         /// <summary>
@@ -351,7 +379,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return BoolResult.Success;
             },
-            timeout: TimeSpan.FromSeconds(10));
+            timeout: _configuration.StorageInteractionTimeout);
         }
     }
 }

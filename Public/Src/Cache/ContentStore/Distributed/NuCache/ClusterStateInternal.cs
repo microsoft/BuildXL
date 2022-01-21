@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Max known machine id.
         /// </summary>
-        public int MaxMachineId { get; private set; } = ClusterState.InvalidMachineId;
+        public int MaxMachineId { get; private set; } = MachineId.Invalid.Index;
 
         /// <summary>
         /// The machine id representing the primary CAS instance on the machine. 
@@ -326,19 +326,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return updatedClusterState;
-        }
-
-        /// <summary>
-        /// Marks that a machine with <paramref name="machineId"/> is Active.
-        /// </summary>
-        public Result<ClusterStateInternal> MarkMachineActive(MachineId machineId)
-        {
-            if (_inactiveMachinesSet[machineId.Index] || _closedMachinesSet[machineId.Index])
-            {
-                return SetMachineStates((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId), (BitMachineIdSet)_closedMachinesSet.Remove(machineId));
-            }
-
-            return this;
         }
 
         /// <summary>

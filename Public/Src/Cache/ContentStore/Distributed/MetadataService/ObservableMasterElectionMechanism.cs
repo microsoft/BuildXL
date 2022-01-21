@@ -9,6 +9,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
@@ -29,6 +31,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             LinkLifetime(inner);
             LinkLifetime(observer);
         }
+
+        public MachineLocation Master => _inner.Master;
+
+        public Role Role => _inner.Role;
 
         public async Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
         {
@@ -52,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return result;
         }
 
-        public void OnRoleUpdated(OperationContext context, Role role)
+        private void OnRoleUpdated(OperationContext context, Role role)
         {
             _observer.OnRoleUpdatedAsync(context, role).FireAndForget(context);
         }

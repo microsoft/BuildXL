@@ -354,6 +354,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Gets the value from <paramref name="result"/> if operation succeeded or default value if it did not succeed.
+        /// </summary>
+        public static T GetValueOr<T>(this Result<T> result, T defaultValue)
+        {
+            return result.Succeeded ? result.Value : defaultValue;
+        }
+
+        /// <summary>
         /// Gets the value from <paramref name="result"/> if operation succeeded or throws <see cref="ResultPropagationException"/> otherwise.
         /// </summary>
         /// <remarks>
@@ -403,6 +411,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
 
             return toStringProjection(result.Value);
+        }
+
+        /// <summary>
+        /// Returns a string representation of the result if succeeded.
+        /// </summary>
+        public static string ToStringOr<T>(this Result<T> result, string defaultValue)
+        {
+            if (!result.Succeeded)
+            {
+                return defaultValue;
+            }
+
+            return result.Value.ToString()!;
         }
     }
 }

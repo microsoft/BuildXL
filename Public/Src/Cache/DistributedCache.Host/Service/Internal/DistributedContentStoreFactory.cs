@@ -763,6 +763,29 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
             }
+
+            if (_distributedSettings.UseBlobClusterStateStorage)
+            {
+                var blobClusterStateStorageConfiguration = new BlobClusterStateStorageConfiguration()
+                {
+                    Credentials = storageCredentials[0],
+                    ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                    FolderName = $"{epoch}/clusterState",
+                };
+
+                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageFileName, v => blobClusterStateStorageConfiguration.FileName = v);
+                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStorageInteractionTimeout, v => blobClusterStateStorageConfiguration.StorageInteractionTimeout = v);
+                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStandalone, v => blobClusterStateStorageConfiguration.Standalone = v);
+
+                var gcCfg = new ClusterStateRecomputeConfiguration();
+                ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => gcCfg.RecomputeFrequency = TimeSpan.FromMinutes(v));
+                ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => gcCfg.ActiveToClosedInterval = TimeSpan.FromMinutes(v));
+                ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => gcCfg.ActiveToDeadExpiredInterval = TimeSpan.FromMinutes(v));
+                ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => gcCfg.ClosedToDeadExpiredInterval = TimeSpan.FromMinutes(v));
+
+                blobClusterStateStorageConfiguration.RecomputeConfiguration = gcCfg;
+                configuration.BlobClusterStateStorageConfiguration = blobClusterStateStorageConfiguration;
+            }
         }
 
         private AzureBlobStorageCredentials[] GetStorageCredentials(StringBuilder errorBuilder)

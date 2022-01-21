@@ -1,21 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
-using System.Runtime.InteropServices;
-using System.ServiceModel;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Utilities;
 
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.Services
@@ -80,6 +71,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public IServiceDefinition<IGlobalCacheStore> GlobalCacheStore { get; }
 
         /// <nodoc />
+        public IServiceDefinition<ClusterStateManager> ClusterStateManager { get; }
+
+        /// <nodoc />
         public IServiceDefinition<LocalLocationStore> LocalLocationStore { get; }
 
         public ContentLocationStoreServices(
@@ -115,6 +109,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             GlobalCacheStore = Create(() => CreateGlobalCacheStore());
 
             LocalLocationStore = Create(() => CreateLocalLocationStore());
+
+            ClusterStateManager = Create(() => CreateClusterStateManager());
         }
 
         private ClientGlobalCacheStore CreateClientGlobalCacheStore()
@@ -131,6 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                                 Configuration,
                                 Copier,
                                 MasterElectionMechanism.Instance,
+                                ClusterStateManager.Instance,
                                 Dependencies?.ColdStorage.InstanceOrDefault());
         }
 
@@ -159,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                                 : null;
             var clientPool = new GrpcClientPool<IGlobalCacheService>(Arguments.ConnectionPool, localClient);
 
-            return new GrpcMasterClientFactory<IGlobalCacheService>(RedisGlobalStore.Instance, clientPool, MasterElectionMechanism.Instance);
+            return new GrpcMasterClientFactory<IGlobalCacheService>(clientPool, MasterElectionMechanism.Instance);
         }
 
         private IMasterElectionMechanism CreateMasterElectionMechanism()
@@ -187,6 +184,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             {
                 return inner;
             }
+        }
+
+        private ClusterStateManager CreateClusterStateManager()
+        {
+            IClusterStateStorage storage;
+            if (Configuration.BlobClusterStateStorageConfiguration is not null)
+            {
+                var configuration = Configuration.BlobClusterStateStorageConfiguration;
+                var secondaryStorage = new BlobClusterStateStorage(configuration, Clock);
+                if (!configuration.Standalone)
+                {
+                    storage = new TransitionalClusterStateStorage(RedisGlobalStore.Instance, secondaryStorage);
+                }
+                else
+                {
+                    storage = secondaryStorage;
+                }
+            }
+            else
+            {
+                storage = RedisGlobalStore.Instance;
+            }
+
+            return new ClusterStateManager(Configuration, storage, Clock);
         }
 
         private RedisGlobalStore CreateRedisGlobalStore()

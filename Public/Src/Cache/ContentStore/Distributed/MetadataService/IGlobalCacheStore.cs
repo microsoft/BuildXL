@@ -74,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         #endregion Memoization Operations
     }
 
-    public interface IClusterManagementStore : IStartupShutdownSlim
+    public interface IClusterManagementStore
     {
         /// <summary>
         /// Notifies the store that the specified machine is alive

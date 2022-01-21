@@ -20,18 +20,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public sealed class ClusterState
     {
         /// <summary>
-        /// The minimum valid machine id.
-        /// NOTE: This value is implied from the logic in GetOrAddMachine.lua. 
-        /// </summary>
-        public const int MinValidMachineId = 1;
-
-        /// <summary>
-        /// The de facto invalid machine id.
-        /// NOTE: This value is implied from the logic in GetOrAddMachine.lua. 
-        /// </summary>
-        public const int InvalidMachineId = 0;
-
-        /// <summary>
         /// A current cluster state value.
         /// </summary>
         /// <remarks>
@@ -159,11 +147,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public BoolResult SetMachineStates(BitMachineIdSet inactiveMachines, BitMachineIdSet? closedMachines = null) => Mutate(static (clusterState, tpl) => clusterState.SetMachineStates(tpl.inactiveMachines, tpl.closedMachines), (inactiveMachines, closedMachines));
-
-        /// <summary>
-        /// Marks that a machine with <paramref name="machineId"/> is Active.
-        /// </summary>
-        public BoolResult MarkMachineActive(MachineId machineId) => Mutate(static (clusterState, machineId) => clusterState.MarkMachineActive(machineId), machineId);
 
         /// <summary>
         /// Sets max known machine id and unknown machines.

@@ -44,6 +44,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using Xunit.Sdk;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -756,6 +757,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     globalResult.ContentHashesInfo[0].Locations.Should().NotBeNullOrEmpty();
 
                     var redisStore0 = (RedisGlobalStore)store0.LocalLocationStore.GlobalStore;
+                    var clusterStateMgr0 = store0.LocalLocationStore.ClusterStateManager;
 
                     int registerContentCount = 5;
                     int registerMachineCount = 300;
@@ -771,7 +773,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var location = new MachineLocation((TestRootDirectoryPath / "redis" / i.ToString()).ToString());
                         locations.Add(location);
-                        var mapping = await redisStore0.RegisterMachineAsync(context, location);
+                        var mapping = await clusterStateMgr0.RegisterMachineAsync(context, location).ThrowIfFailureAsync();
                         var id = mapping.Id;
                         ids.Should().NotContain(id);
                         ids.Add(id);
@@ -2634,7 +2636,7 @@ Token).ShouldBeSuccess();
 
                     // Registering new machine should assign a new id which is greater than current ids (i.e. register machine operation
                     // should operate against secondary key which should have full set of data)
-                    var newMachineId1 = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\1"));
+                    var newMachineId1 = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\1")).ThrowIfFailureAsync();
                     newMachineId1.Id.Index.Should().Be(clusterState.MaxMachineId + 1);
 
                     // Heartbeat the master to ensure cluster state is restored to primary
@@ -2645,11 +2647,11 @@ Token).ShouldBeSuccess();
                     (await _secondaryGlobalStoreDatabase.KeyDeleteAsync(masterGlobalStore.FullyQualifiedClusterStateKey)).Should().BeTrue();
 
                     // Try to register machine again should give same machine id
-                    var newMachineId1AfterDelete = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\1"));
+                    var newMachineId1AfterDelete = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\1")).ThrowIfFailureAsync();
                     newMachineId1AfterDelete.Id.Index.Should().Be(newMachineId1.Id.Index);
 
                     // Registering another machine should assign an id 1 more than the last machine id despite the cluster state deletion
-                    var newMachineId2 = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\2"));
+                    var newMachineId2 = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\2")).ThrowIfFailureAsync();
                     newMachineId2.Id.Index.Should().Be(newMachineId1.Id.Index + 1);
 
                     // Ensure resiliency to removal from both primary and secondary
@@ -2765,7 +2767,7 @@ Token).ShouldBeSuccess();
                     masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Master should receive an event and add the content to local store");
 
                     // Add time so worker machine is inactive
-                    TestClock.UtcNow += TimeSpan.FromMinutes(20);
+                    TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
                     await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
 
                     masterResult = await master.GetBulkAsync(
@@ -3508,11 +3510,11 @@ Token).ShouldBeSuccess();
                     await master.LocalLocationStore.UpdateClusterStateAsync(
                         ctx,
                         MachineState.Unknown).ShouldBeSuccess();
+                    master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
+                    master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
 
                     workerState = (await worker.LocalLocationStore.UpdateClusterStateAsync(ctx, MachineState.Unknown)).ShouldBeSuccess().Value;
                     workerState.Should().Be(MachineState.Closed);
-                    master.LocalLocationStore.ClusterState.ClosedMachines.Contains(workerPrimaryMachineId).Should().BeTrue();
-                    master.LocalLocationStore.ClusterState.InactiveMachines.Contains(workerPrimaryMachineId).Should().BeFalse();
                 });
         }
 

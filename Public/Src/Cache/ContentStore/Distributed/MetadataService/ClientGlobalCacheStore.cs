@@ -280,5 +280,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             // TODO: What to log here?
             extraEndMessage: r => r.GetValueOrDefault()?.ToString());
         }
+
+        public Task<Result<MachineMapping>> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
+        {
+            throw new NotImplementedException($"Attempt to use {nameof(ClientGlobalCacheStore)} for machine registration is unsupported");
+        }
+
+        public Task<BoolResult> ForceRegisterMachineAsync(OperationContext context, MachineMapping mapping)
+        {
+            throw new NotImplementedException($"Attempt to use {nameof(ClientGlobalCacheStore)} for machine registration is unsupported");
+        }
     }
 }

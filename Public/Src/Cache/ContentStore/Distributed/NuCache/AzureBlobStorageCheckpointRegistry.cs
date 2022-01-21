@@ -252,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var blobs = ListBlobsAsync(context, _directory)
+                    var blobs = ListBlobsAsync(context, _directory, _blobNameRegex)
                         .Select(blob =>
                         {
                             if (ParseBlobName(blob.Name, out var timestampUtc))

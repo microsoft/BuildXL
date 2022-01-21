@@ -894,16 +894,16 @@ namespace BuildXL.Cache.Host.Configuration
         public double? MaxProcessingDelayToReconcileMinutes { get; set; }
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? MachineStateRecomputeIntervalMinutes { get; set; }
+        [Validation.Range(1, double.MaxValue)]
+        public double? MachineStateRecomputeIntervalMinutes { get; set; }
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? MachineActiveToClosedIntervalMinutes { get; set; }
+        [Validation.Range(1, double.MaxValue)]
+        public double? MachineActiveToClosedIntervalMinutes { get; set; }
 
         [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        public int? MachineActiveToExpiredIntervalMinutes { get; set; }
+        [Validation.Range(1, double.MaxValue)]
+        public double? MachineActiveToExpiredIntervalMinutes { get; set; }
 
         // Files smaller than this will use the untrusted hash
         [DataMember]
@@ -1265,6 +1265,22 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpanSetting? BlobMasterElectionStorageInteractionTimeout { get; set; }
+
+        #endregion
+
+        #region Azure Blob Storage-based Cluster State
+
+        [DataMember]
+        public bool UseBlobClusterStateStorage { get; set; } = false;
+
+        [DataMember]
+        public string BlobClusterStateStorageFileName { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobClusterStateStorageStorageInteractionTimeout { get; set; }
+
+        [DataMember]
+        public bool? BlobClusterStateStorageStandalone { get; set; }
 
         #endregion
     }

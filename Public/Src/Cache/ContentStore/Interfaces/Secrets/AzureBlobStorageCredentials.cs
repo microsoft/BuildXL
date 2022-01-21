@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         public static AzureBlobStorageCredentials StorageEmulator = new AzureBlobStorageCredentials(connectionString: "UseDevelopmentStorage=true");
 
         /// <nodoc />
-        private string? ConnectionString { get; }
+        public string? ConnectionString { get; }
 
         /// <summary>
         /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way

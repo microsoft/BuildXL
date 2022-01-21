@@ -14,6 +14,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public readonly struct MachineId : IEquatable<MachineId>
     {
         /// <summary>
+        /// The minimum valid machine id.
+        /// 
+        /// NOTE: This value is originally implied from the logic in GetOrAddMachine.lua, and is replicated in newer
+        /// implementations.
+        /// </summary>
+        public const int MinValue = 1;
+
+        /// <summary>
+        /// The de facto invalid machine id.
+        /// 
+        /// NOTE: This value is originally implied from the logic in GetOrAddMachine.lua, and is replicated in newer
+        /// implementations.
+        /// </summary>
+        public static MachineId Invalid { get; } = new MachineId(0);
+
+        /// <summary>
         /// A bit that represents a state of a current machine in a byte array of a cluster state.
         /// </summary>
         public int Index { get; }
@@ -43,6 +59,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var index = reader.ReadInt32();
             return new MachineId(index);
+        }
+
+        /// <nodoc />
+        public bool IsValid()
+        {
+            return !this.Equals(Invalid);
         }
 
         /// <nodoc />

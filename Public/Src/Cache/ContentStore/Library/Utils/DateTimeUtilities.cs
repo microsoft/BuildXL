@@ -40,20 +40,45 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <nodoc />
-        public static bool IsRecent(this DateTime lastTouch, DateTime now, TimeSpan recencyInterval)
+        public static bool IsRecent(this DateTime lastAccessTime, DateTime now, TimeSpan recencyInterval)
         {
             if (recencyInterval == Timeout.InfiniteTimeSpan)
             {
                 return true;
             }
 
-            return lastTouch + recencyInterval >= now;
+            return lastAccessTime + recencyInterval >= now;
+        }
+
+        public static bool IsStale(this DateTime lastAcccessTime, DateTime now, TimeSpan frequency)
+        {
+            return lastAcccessTime + frequency <= now;
         }
 
         /// <nodoc />
         public static TimeSpan Multiply(this TimeSpan timespan, double factor)
         {
             return TimeSpan.FromTicks((long)(timespan.Ticks * factor));
+        }
+
+        public static DateTime Max(this DateTime lhs, DateTime rhs)
+        {
+            if (lhs > rhs)
+            {
+                return lhs;
+            }
+
+            return rhs;
+        }
+
+        public static DateTime Min(this DateTime lhs, DateTime rhs)
+        {
+            if (lhs > rhs)
+            {
+                return rhs;
+            }
+
+            return lhs;
         }
     }
 }

@@ -105,15 +105,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return;
             }
 
-            if (reputation == MachineReputation.Good
-                && _clusterState != null
-                && _clusterState.TryResolveMachineId(location, out var machineId)
-                && (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId)))
-            {
-                Tracer.Debug(_context, $"Marked machine {machineId}='{location}' active due to report of good reputation.");
-                _clusterState.MarkMachineActive(machineId).IgnoreFailure();
-            }
-
             var reputationState = _reputations.GetOrAdd(location, _ => new ReputationState());
             string displayLocation = location.ToString();
 

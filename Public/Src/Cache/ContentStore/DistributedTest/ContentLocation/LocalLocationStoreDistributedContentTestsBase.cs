@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -178,7 +179,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 TestMachineIndex = index,
                 TestIteration = iteration,
                 IsDistributedContentEnabled = true,
-                KeySpacePrefix = "TestPrefix",
+                KeySpacePrefix = UniqueTestId,
 
                 // By default, only first store is master eligible
                 IsMasterEligible = index == 0,
@@ -189,7 +190,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
                 EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
-                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
+                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", AzureBlobStorageCredentials.StorageEmulator.ConnectionString),
                 ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),
                 ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob_Unspecified", "Unused"),
 
@@ -240,7 +241,13 @@ namespace ContentStoreTest.Distributed.Sessions
                 ContentLocationDatabaseOpenReadOnly = true,
                 EnablePublishingCache = EnablePublishingCache,
 
-                GrpcCopyClientConnectOnStartup = true
+                GrpcCopyClientConnectOnStartup = true,
+
+                //UseBlobCheckpointRegistry = true,
+                //BlobCheckpointRegistryStandalone = true,
+                //UseBlobMasterElection = true,
+                //UseBlobClusterStateStorage = true,
+                //BlobClusterStateStorageStandalone = true,
             };
 
             if (ProactiveCopyLocationThreshold.HasValue)

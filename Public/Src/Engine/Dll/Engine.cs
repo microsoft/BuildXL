@@ -933,9 +933,9 @@ namespace BuildXL.Engine
                 mutableConfig.Distribution.LowWorkersWarningThreshold = 0;
             }
 
-            if (!mutableConfig.Distribution.BuildRole.IsOrchestrator())
+            if (!mutableConfig.Distribution.BuildRole.IsOrchestrator() || mutableConfig.Schedule.ModuleAffinityEnabled())
             {
-                // No additional choose worker threads needed in single machine builds or workers
+                // No additional choose worker threads needed in single machine builds, workers, or orchestrators when module affinity is enabled
                 mutableConfig.Schedule.MaxChooseWorkerCpu = 1;
                 mutableConfig.Schedule.MaxChooseWorkerCacheLookup = 1;
             }
@@ -1267,6 +1267,9 @@ namespace BuildXL.Engine
                 // When running in cloudbuild we want to ignore the user setting the interactive flag
                 // and force it to be false since we never want to pop up UI there.
                 mutableConfig.Interactive = false;
+
+                // Fire forget materialize output is enabled by default in CloudBuild as it improves the perf during meta build.
+                mutableConfig.Distribution.FireForgetMaterializeOutput = initialCommandLineConfiguration.Distribution.FireForgetMaterializeOutput ?? true;
             }
             else
             {

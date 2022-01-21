@@ -62,7 +62,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Indicates whether the orchestrator should wait for the results of materializeoutput step on remote workers.
         /// </summary>
-        bool FireForgetMaterializeOutput { get; }
+        bool? FireForgetMaterializeOutput { get; }
 
         /// <summary>
         /// Indicates number of times the orchestrator should retry failing pips due to lost workers on a different worker.

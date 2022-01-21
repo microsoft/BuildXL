@@ -74,7 +74,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public double EarlyWorkerReleaseMultiplier { get; set; }
 
         /// <inheritdoc />
-        public bool FireForgetMaterializeOutput { get; set; }
+        public bool? FireForgetMaterializeOutput { get; set; }
 
         /// <inheritdoc />
         public int? NumRetryFailedPipsOnAnotherWorker { get; set; }

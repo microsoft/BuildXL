@@ -80,7 +80,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             InputChanges = AbsolutePath.Invalid;
             UpdateFileContentTableByScanningChangeJournal = true;
 
-            EnableSetupCostWhenChoosingWorker = true;
+            EnableSetupCostWhenChoosingWorker = false;
             EnableLessAggresiveMemoryProjection = false;
             MaxRetriesDueToRetryableFailures = 5;
 

@@ -2536,7 +2536,7 @@ namespace BuildXL.Scheduler
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
 
-                if (m_configuration.Distribution.FireForgetMaterializeOutput && m_materializeOutputsQueued && !AnyPendingPipsExceptMaterializeOutputs())
+                if (m_configuration.Distribution.FireForgetMaterializeOutput() && m_materializeOutputsQueued && !AnyPendingPipsExceptMaterializeOutputs())
                 {
                     // There is no pips running anything except materializeOutputs.
                     m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);

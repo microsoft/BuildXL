@@ -9,11 +9,19 @@ namespace BuildXL.Utilities.Configuration
     public static class DistributionConfigurationExtensions
     {
         /// <summary>
-        /// Whether this build is running in CloudBuild
+        /// Whether this build materializes output files on all workers
         /// </summary>
         public static bool ReplicateOutputsToWorkers(this IDistributionConfiguration configuration)
         {
             return configuration.ReplicateOutputsToWorkers ?? false;
+        }
+
+        /// <summary>
+        /// Whether workers should send results of materializeoutput step to the orchestrator.
+        /// </summary>
+        public static bool FireForgetMaterializeOutput(this IDistributionConfiguration configuration)
+        {
+            return configuration.FireForgetMaterializeOutput ?? false;
         }
     }
 }

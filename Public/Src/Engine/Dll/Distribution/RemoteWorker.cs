@@ -233,7 +233,7 @@ namespace BuildXL.Engine.Distribution
                         {
                             task.SetRequestDuration(dateTimeBeforeSend, sendDuration);
 
-                            bool fireForgetMaterializeOutputEnabled = m_orchestratorService.Environment.Configuration.Distribution.FireForgetMaterializeOutput;
+                            bool fireForgetMaterializeOutputEnabled = m_orchestratorService.Environment.Configuration.Distribution.FireForgetMaterializeOutput();
                             if (task.RunnablePip.Step == PipExecutionStep.MaterializeOutputs && fireForgetMaterializeOutputEnabled)
                             {
                                 // We do not wait for the result of MaterializeOutputs steps on the workers.

@@ -394,7 +394,7 @@ namespace BuildXL.Engine.Distribution
 
             pipCompletion.ExecutionResult = executionResult;
 
-            if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput)
+            if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput())
             {
                 // We do not report 'MaterializeOutput' step results back to orchestrator.
                 Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());

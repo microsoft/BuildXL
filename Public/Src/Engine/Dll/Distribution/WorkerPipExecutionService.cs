@@ -195,7 +195,7 @@ namespace BuildXL.Engine.Distribution
                 using (var operationContext = m_operationTracker.StartOperation(PipExecutorCounter.WorkerServiceHandlePipStepDuration, pipId, pipType, LoggingContext))
                 using (operationContext.StartOperation(step))
                 {
-                    if (step == PipExecutionStep.MaterializeOutputs && Config.Distribution.FireForgetMaterializeOutput)
+                    if (step == PipExecutionStep.MaterializeOutputs && Config.Distribution.FireForgetMaterializeOutput())
                     {
                         // We do not report 'MaterializeOutput' step results back to orchestrator
                         // so the notification manager is not made aware of the pip being processed.

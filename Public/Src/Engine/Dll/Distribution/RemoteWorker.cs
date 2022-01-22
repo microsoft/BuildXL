@@ -145,14 +145,13 @@ namespace BuildXL.Engine.Distribution
             m_sendThread = new Thread(SendBuildRequests);
         }
 
-        public override void InitializeForDistribution(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
+        public override void InitializeForDistribution(IScheduleConfiguration scheduleConfig, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
             m_pipGraph = pipGraph;
             m_workerExecutionLogTarget = executionLogTarget;
             m_schedulerCompletion = schedulerCompletion;
-            base.InitializeForDistribution(pipGraph, executionLogTarget, schedulerCompletion);
+            base.InitializeForDistribution(scheduleConfig, pipGraph, executionLogTarget, schedulerCompletion);
         }
-
 
         private void SendBuildRequests()
         {

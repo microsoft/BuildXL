@@ -438,7 +438,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Whether the content tracking is enabled.
         /// </summary>
-        public bool IsContentTrackingEnabled => m_availableContent != null;
+        private bool m_isContentTrackingEnabled;
 
         /// <summary>
         /// Ensures that this worker instance has the same resource mappings as the given worker
@@ -894,9 +894,13 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Initializes the worker
         /// </summary>
-        public virtual void InitializeForDistribution(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
+        public virtual void InitializeForDistribution(IScheduleConfiguration scheduleConfig, PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
             m_isDistributedBuild = true;
+
+            // Content tracking is needed when calculating setup cost per pip on each worker.
+            // That's an expensive calculation, so it is disabled by default.
+            m_isContentTrackingEnabled = scheduleConfig.EnableSetupCostWhenChoosingWorker;
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);
         }
@@ -952,8 +956,9 @@ namespace BuildXL.Scheduler.Distribution
                 return;
             }
 
-            if ((runnable.Step == PipExecutionStep.PostProcess && !executionResult.Converged) ||
-                (!executionResult.Result.IndicatesNoOutput() && runnable.Step == PipExecutionStep.ExecuteNonProcessPip))
+            if (m_isContentTrackingEnabled &&
+                ((runnable.Step == PipExecutionStep.PostProcess && !executionResult.Converged) ||
+                (!executionResult.Result.IndicatesNoOutput() && runnable.Step == PipExecutionStep.ExecuteNonProcessPip)))
             {
                 // After post process, if process was not converged (i.e. process execution outputs are used
                 // as results because there was no conflicting cache entry when storing to cache),
@@ -1010,7 +1015,7 @@ namespace BuildXL.Scheduler.Distribution
             // Update the pip state
             Transition(pip.PipId, WorkerPipState.Prepped);
 
-            if (!IsContentTrackingEnabled)
+            if (!m_isContentTrackingEnabled)
             {
                 return;
             }
@@ -1038,13 +1043,6 @@ namespace BuildXL.Scheduler.Distribution
                         // Process directories to visit files unless they were already added
                         return !added;
                     }
-                },
-                serviceFilter: servicePipId =>
-                {
-                    bool added = TryAddAvailableServiceInputContent(servicePipId);
-
-                    // Don't attempt to add anything. Just need to register the available content
-                    return false;
                 });
         }
 
@@ -1073,27 +1071,11 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
-        /// Adds the service input to the available content for the worker
-        /// </summary>
-        public bool TryAddAvailableServiceInputContent(PipId servicePipId)
-        {
-            return m_availableContent.Add(servicePipId) ?? false;
-        }
-
-        /// <summary>
         /// Gets whether the content is materialized on the worker
         /// </summary>
         public bool HasContent(in FileOrDirectoryArtifact artifact)
         {
             return m_availableContent.Contains(artifact);
-        }
-
-        /// <summary>
-        /// Gets whether the service input content is materialized on the worker
-        /// </summary>
-        public bool HasServiceInputContent(PipId servicePipId)
-        {
-            return m_availableContent.Contains(servicePipId);
         }
 
         #endregion

@@ -2205,11 +2205,8 @@ namespace BuildXL.Scheduler.Artifacts
                                 else
                                 {
                                     // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
-                                    // Ctrl+c for PlaceSingleFileAsync will throw OperationCanceledException, we also don't want to log these
-                                    if ((possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
-                                         possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure)) ||
-                                        (possiblyPlaced.Failure.GetType() != typeof(OperationCanceledException) &&
-                                         possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(OperationCanceledException)))
+                                    if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
+                                        possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure))
                                     {
                                         Logger.Log.StorageCacheGetContentWarning(
                                             operationContext,
@@ -2467,6 +2464,12 @@ namespace BuildXL.Scheduler.Artifacts
                                         Interlocked.Increment(ref m_stats.TotalMaterializedInputsExpensiveCount);
                                     }
                                 }
+                            }
+                            else if (Context.CancellationToken.IsCancellationRequested)
+                            {
+                                // If the materialization was unsuccessful and a cancellation was requested, we can skip logging this message to the console.
+                                // Return CtrlCCancellationFailure instead of possiblyPlaced to indicate that it does not need to be logged.
+                                return WithLineInfo(new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure()));
                             }
 
                             return WithLineInfo(possiblyPlaced);

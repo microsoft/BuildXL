@@ -349,8 +349,10 @@ namespace BuildXL.Scheduler
                 return Task.FromResult(m_testHooks.ServicePipReportedReady.Value);
             }
 
-            var serviceReadyCompletion = GetServiceReadyCompletionByProcessId(processId); 
-            serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromMinutes(5)).ContinueWith(tsk =>
+            var serviceReadyCompletion = GetServiceReadyCompletionByProcessId(processId);
+            // There was some weird slowness in ApiServer in processing the callback,
+            // so we decided to go with a generous timeout value.
+            serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromMinutes(30)).ContinueWith(tsk =>
             {
                 // If tsk is not faulted, it means that a task returned by WithTimeoutAsync completed successfully, i.e., the completion
                 // result was set and no further action is needed.

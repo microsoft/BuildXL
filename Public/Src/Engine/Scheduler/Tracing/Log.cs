@@ -82,9 +82,10 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  Reason: {reason}. Error: {message}")]
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  Reason: {reason}. Error: {message}")]
         internal abstract void PipIpcFailed(
             LoggingContext loggingContext,
+            string pipDescription,
             string operation,
             string moniker,
             string reason,
@@ -96,9 +97,10 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  IPC operation input is invalid. Error: {message}")]
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  IPC operation input is invalid. Error: {message}")]
         internal abstract void PipIpcFailedDueToInvalidInput(
             LoggingContext loggingContext,
+            string pipDescription,
             string operation,
             string moniker,
             string message);
@@ -109,9 +111,10 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
+            Message = "[{pipDescription}] IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
         internal abstract void PipIpcFailedDueToInfrastructureError(
             LoggingContext loggingContext,
+            string pipDescription,
             string operation,
             string moniker,
             string message);
@@ -148,8 +151,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Putting '{path}' into the cache, resulted in error: {errorMessage}")]
-        internal abstract void StorageCachePutContentFailed(LoggingContext loggingContext, string path, string errorMessage);
+            Message = "[{pipDescription}] Putting '{path}' into the cache, resulted in error: {errorMessage}")]
+        internal abstract void StorageCachePutContentFailed(LoggingContext loggingContext, string pipDescription, string path, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.StorageTrackOutputFailed,
@@ -157,8 +160,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Tracking output '{path}' resulted in error: {errorMessage}")]
-        internal abstract void StorageTrackOutputFailed(LoggingContext loggingContext, string path, string errorMessage);
+            Message = "[{pipDescription}] Tracking output '{path}' resulted in error: {errorMessage}")]
+        internal abstract void StorageTrackOutputFailed(LoggingContext loggingContext, string pipDescription, string path, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipOutputProduced,
@@ -438,8 +441,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Failed to copy the content with hash {contentHash} (from '{fallbackPath}') into the build cache. This is needed in order to provide a private, writable copy at the same location. Error: {errorMessage}")]
-        internal abstract void StorageCacheIngressFallbackContentToMakePrivateError(LoggingContext loggingContext, string contentHash, string fallbackPath, string errorMessage);
+            Message = "[{pipDescription}] Failed to copy the content with hash {contentHash} (from '{fallbackPath}') into the build cache. This is needed in order to provide a private, writable copy at the same location. Error: {errorMessage}")]
+        internal abstract void StorageCacheIngressFallbackContentToMakePrivateError(LoggingContext loggingContext, string pipDescription, string contentHash, string fallbackPath, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessDescendantOfUncacheable,
@@ -645,7 +648,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Cleaning output directory '{destinationPath}' for pip {pipDescription} resulted in error: {errorMessage}")]
+            Message = "[{pipDescription}] Cleaning output directory '{destinationPath}' for pip resulted in error: {errorMessage}")]
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
@@ -773,8 +776,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Placing the content with hash {contentHash} to '{destinationPath}' resulted in error: {errorMessage}")]
-        public abstract void StorageCacheGetContentError(LoggingContext loggingContext, string contentHash, string destinationPath, string errorMessage);
+            Message = "[{pipDescription}] Placing the content with hash {contentHash} to '{destinationPath}' resulted in error: {errorMessage}")]
+        public abstract void StorageCacheGetContentError(LoggingContext loggingContext, string pipDescription, string contentHash, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.StorageCacheGetContentWarning,
@@ -2552,7 +2555,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
-            Message = "{pipDescription} Metadata entry is invalid because it contains static output '{path}' that is not in the pip specification")]
+            Message = "[{pipDescription}] Metadata entry is invalid because it contains static output '{path}' that is not in the pip specification")]
         public abstract void InvalidMetadataStaticOutputNotFound(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
@@ -2561,7 +2564,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
-            Message = "{pipDescription} Metadata entry is invalid because it contains required static output '{path}' that has the absent content hash")]
+            Message = "[{pipDescription}] Metadata entry is invalid because it contains required static output '{path}' that has the absent content hash")]
         public abstract void InvalidMetadataRequiredOutputIsAbsent(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
@@ -3587,7 +3590,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipInputAssertions,
-            Message = "Source dependency for file at path: {filePath} could not be hashed while processing pip: {pipDescription}.")]
+            Message = "[{pipDescription}] Source dependency for file at path: {filePath} could not be hashed while processing pip.")]
         public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription);
 
         [GeneratedEvent(

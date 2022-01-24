@@ -456,7 +456,7 @@ namespace BuildXL.Scheduler
                 MakeSharedOpaqueOutputIfNeeded(environment, copyFile.Destination);
             }
 
-            var mayBeTracked = await TrackPipOutputAsync(operationContext, environment, copyFile.Destination);
+            var mayBeTracked = await TrackPipOutputAsync(operationContext, copyFile, environment, copyFile.Destination);
 
             if (!mayBeTracked.Succeeded)
             {
@@ -651,12 +651,15 @@ namespace BuildXL.Scheduler
             }
             else
             {
+                var pipDescription = pip.GetDescription(environment.Context);
+
                 // log error if execution failed
                 if (ipcResult.ExitCode == IpcResultStatus.InvalidInput)
                 {
                     // we separate the 'invalid input' errors here, so they can be classified as 'user errors'
                     Logger.Log.PipIpcFailedDueToInvalidInput(
                         operationContext,
+                        pipDescription,
                         operation.Payload,
                         connectionString,
                         ipcResult.Payload);
@@ -666,6 +669,7 @@ namespace BuildXL.Scheduler
                     // we separate transmission errors here, so they can be properly classified as InfrastructureErrors
                     Logger.Log.PipIpcFailedDueToInfrastructureError(
                         operationContext,
+                        pipDescription,
                         operation.Payload,
                         connectionString,
                         ipcResult.Payload);
@@ -674,6 +678,7 @@ namespace BuildXL.Scheduler
                 {
                     Logger.Log.PipIpcFailed(
                         operationContext,
+                        pipDescription,
                         operation.Payload,
                         connectionString,
                         ipcResult.ExitCode.ToString(),
@@ -802,7 +807,7 @@ namespace BuildXL.Scheduler
                                 tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                                 knownContentHash: contentHash,
                                 isReparsePoint: false)
-                            : await TrackPipOutputAsync(operationContext, environment, destinationFile);
+                            : await TrackPipOutputAsync(operationContext, producerPip, environment, destinationFile);
 
                         if (!possiblyStored.Succeeded)
                         {
@@ -1673,6 +1678,7 @@ namespace BuildXL.Scheduler
                         {
                             Logger.Log.StorageCacheIngressFallbackContentToMakePrivateError(
                                 operationContext,
+                                processDescription,
                                 contentHash: artifactHash.ToHex(),
                                 fallbackPath:
                                     artifactNeededPrivate.Path.ToString(pathTable),
@@ -1698,6 +1704,7 @@ namespace BuildXL.Scheduler
                     {
                         Logger.Log.StorageCacheGetContentError(
                             operationContext,
+                            pip.GetDescription(context),
                             contentHash: artifactHash.ToHex(),
                             destinationPath:
                                 artifactNeededPrivate.Path.ToString(pathTable),
@@ -4814,6 +4821,7 @@ namespace BuildXL.Scheduler
                     ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isReparsePoint)
                     : await TrackPipOutputAsync(
                         operationContext,
+                        process,
                         environment,
                         outputArtifact,
                         createHandleWithSequentialScan: environment.ShouldCreateHandleWithSequentialScan(outputArtifact),
@@ -5244,8 +5252,9 @@ namespace BuildXL.Scheduler
             {
                 Logger.Log.StorageCachePutContentFailed(
                     operationContext,
+                    process.GetDescription(environment.Context),
                     outputFileArtifact.Path.ToString(environment.Context.PathTable),
-                    possiblyStored.Failure.DescribeIncludingInnerFailures());
+                    possiblyStored.Failure.DescribeIncludingInnerFailures());;
             }
 
             return possiblyStored;
@@ -5253,6 +5262,7 @@ namespace BuildXL.Scheduler
 
         private static async Task<Possible<TrackedFileContentInfo>> TrackPipOutputAsync(
             OperationContext operationContext,
+            Pip pip,
             IPipExecutionEnvironment environment,
             FileArtifact outputFileArtifact,
             bool createHandleWithSequentialScan = false,
@@ -5283,6 +5293,7 @@ namespace BuildXL.Scheduler
             {
                 Logger.Log.StorageTrackOutputFailed(
                     operationContext,
+                    pip.GetDescription(environment.Context),
                     outputFileArtifact.Path.ToString(environment.Context.PathTable),
                     possiblyTracked.Failure.DescribeIncludingInnerFailures());
             }

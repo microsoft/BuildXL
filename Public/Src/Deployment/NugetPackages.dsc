@@ -429,7 +429,7 @@ namespace NugetPackages {
         contents: [
             ...addIfLazy(canBuildAllPackagesOnThisHost, () => [
                 ...addIf(!BuildXLSdk.Flags.genVSSolution,
-                    winX64
+                    winX64, winX64Net6
                 ),
                 cacheTools,
                 cacheLibraries,

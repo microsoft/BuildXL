@@ -30,9 +30,10 @@ namespace BuildXL.Launcher.Server
             var configuration = GetConfiguration();
 
             var consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
+            var logger = new Logger(consoleLog);
             var arguments = new LoggerFactoryArguments(
-                new Logger(consoleLog), 
-                new EnvironmentVariableHost(),
+                logger, 
+                new EnvironmentVariableHost(new BuildXL.Cache.ContentStore.Interfaces.Tracing.Context(logger)),
                 configuration.LoggingSettings,
                 new HostTelemetryFieldsProvider(HostParameters.FromEnvironment()));
 

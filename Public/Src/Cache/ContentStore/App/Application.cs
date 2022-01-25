@@ -605,6 +605,7 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
+            Context context,
             IRemoteFileCopier copier,
             IContentCommunicationManager copyRequester,
             DistributedContentSettings dcs,
@@ -619,7 +620,7 @@ namespace BuildXL.Cache.ContentStore.App
             LoggingSettings loggingSettings,
             ITelemetryFieldsProvider telemetryFieldsProvider)
         {
-            var distributedCacheServiceHost = new EnvironmentVariableHost();
+            var distributedCacheServiceHost = new EnvironmentVariableHost(context);
 
             var localCasSettings = LocalCasSettings.Default(
                 maxSizeQuotaMB: maxSizeQuotaMB,

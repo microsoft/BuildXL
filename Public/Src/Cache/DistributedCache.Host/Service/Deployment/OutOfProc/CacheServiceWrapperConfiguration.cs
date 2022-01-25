@@ -22,7 +22,8 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
             AbsolutePath workingDirectory,
             HostParameters hostParameters,
             AbsolutePath cacheConfigPath,
-            AbsolutePath dataRootPath)
+            AbsolutePath dataRootPath,
+            bool useInterProcSecretsCommunication)
         {
             ServiceId = serviceId;
             Executable = executable;
@@ -30,6 +31,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
             HostParameters = hostParameters;
             CacheConfigPath = cacheConfigPath;
             DataRootPath = dataRootPath;
+            UseInterProcSecretsCommunication = useInterProcSecretsCommunication;
         }
 
         /// <summary>
@@ -71,5 +73,10 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
         /// The time to wait for service to shutdown before terminating the process
         /// </summary>
         public TimeSpan ShutdownTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>
+        /// If true, then memory-mapped-based secrets communication is used.
+        /// </summary>
+        public bool UseInterProcSecretsCommunication { get; }
     }
 }

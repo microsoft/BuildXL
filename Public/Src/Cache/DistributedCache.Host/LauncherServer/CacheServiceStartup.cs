@@ -76,7 +76,7 @@ namespace BuildXL.Launcher.Server
                     Contract.Assert(config.DataRootPath != null,
                         "The required property (DataRootPath) is not set, so it should be passed through the command line options by the parent process.");
 
-                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, retrieveAllSecretsFromSingleEnvironmentVariable: secretsProviderKind == CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry);
+                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry);
                     return serviceHost;
                 },
                 requireServiceInterruptable: !standalone);
@@ -198,8 +198,8 @@ namespace BuildXL.Launcher.Server
             /// Constructs the service host and takes command line arguments because
             /// ASP.Net core application host is used to parse command line.
             /// </summary>
-            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, Context context, bool retrieveAllSecretsFromSingleEnvironmentVariable = false)
-                : base(retrieveAllSecretsFromSingleEnvironmentVariable)
+            public ServiceHost(string[] commandLineArgs, DistributedCacheServiceConfiguration configuration, HostParameters hostParameters, Context context, CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment)
+                : base(context, secretsCommunicationKind)
             {
                 HostParameters = hostParameters;
                 ServiceConfiguration = configuration;
@@ -313,7 +313,12 @@ namespace BuildXL.Launcher.Server
             public async Task OnStoppingServiceAsync(OperationContext context)
             {
                 // Not passing cancellation token since it will already be signaled
-                await WebHost.StopAsync();
+                
+                // WebHost is null for out-of-proc casaas case.
+                if (WebHost != null)
+                {
+                    await WebHost.StopAsync();
+                }
 
                 if (ProxyService != null)
                 {
@@ -325,7 +330,7 @@ namespace BuildXL.Launcher.Server
                     await ContentCacheService.ShutdownAsync(context).IgnoreFailure();
                 }
 
-                WebHost.Dispose();
+                WebHost?.Dispose();
             }
         }
     }

@@ -56,7 +56,8 @@ namespace IntegrationTest.BuildXL.Scheduler
                 writable: true));
         }
 
-        [Theory]
+
+        [TheoryIfSupportedAttribute(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its falky on mac
         [InlineData(TempArtifactType.AdditionalTempDirectory)]
         [InlineData(TempArtifactType.TempDirectory)]
         [InlineData(TempArtifactType.TempFile)]

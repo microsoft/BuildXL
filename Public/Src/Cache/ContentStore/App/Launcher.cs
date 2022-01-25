@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.App
                         return;
                     }
 
-                    var host = new EnvironmentVariableHost();
+                    var host = new EnvironmentVariableHost(new Context(_logger));
                     settings.DeploymentParameters.AuthorizationSecret ??= await host.GetPlainSecretAsync(settings.DeploymentParameters.AuthorizationSecretName, _cancellationToken);
                     
                     var telemetryFieldsProvider = new HostTelemetryFieldsProvider(settings.DeploymentParameters)

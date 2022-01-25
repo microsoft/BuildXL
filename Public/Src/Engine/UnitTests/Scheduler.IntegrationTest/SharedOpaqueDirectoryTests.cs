@@ -1554,7 +1554,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.Process.PipId).AssertSuccess();
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its falky on mac
         [Trait("Category", "SkipLinux")] // TODO(BUG)
         [MemberData(
             nameof(CrossProduct),

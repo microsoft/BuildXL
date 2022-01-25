@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.App
             // allowing it.
             var cacheName = "Default";
             Initialize();
-
+            
             if (debug)
             {
                 System.Diagnostics.Debugger.Launch();
@@ -93,6 +93,7 @@ namespace BuildXL.Cache.ContentStore.App
                 }
 
                 var arguments = CreateDistributedCacheServiceArguments(
+                    context: new BuildXL.Cache.ContentStore.Interfaces.Tracing.Context(_logger),
                     copier: copier,
                     copyRequester: grpcCopier,
                     dcs: dcs,

@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.App
                 CacheServiceRunner.RunCacheServiceAsync(
                     new OperationContext(new Context(_logger), _cancellationToken),
                     configurationPath,
-                    (_, _, _) => new EnvironmentVariableHost()).GetAwaiter().GetResult();
+                    (_, _, _) => new EnvironmentVariableHost(new Context(_logger))).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {

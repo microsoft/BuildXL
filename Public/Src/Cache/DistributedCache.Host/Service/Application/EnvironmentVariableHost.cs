@@ -8,8 +8,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Service.Internal;
 using Microsoft.WindowsAzure.Storage;
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -18,14 +20,16 @@ namespace BuildXL.Cache.Host.Service
     /// </summary>
     public class EnvironmentVariableHost : IDistributedCacheServiceHost
     {
-        private readonly bool _retrieveAllSecretsFromSingleEnvironmentVariable;
         private Result<RetrievedSecrets> _secrets;
+        private readonly CrossProcessSecretsCommunicationKind _secretsCommunicationKind;
+        private readonly Context _tracingContext;
 
         public CancellationTokenSource TeardownCancellationTokenSource { get; } = new CancellationTokenSource();
 
-        public EnvironmentVariableHost(bool retrieveAllSecretsFromSingleEnvironmentVariable = false)
+        public EnvironmentVariableHost(Context context, CrossProcessSecretsCommunicationKind secretsCommunicationKind = CrossProcessSecretsCommunicationKind.Environment)
         {
-            _retrieveAllSecretsFromSingleEnvironmentVariable = retrieveAllSecretsFromSingleEnvironmentVariable;
+            _secretsCommunicationKind = secretsCommunicationKind;
+            _tracingContext = context;
         }
 
         /// <inheritdoc />
@@ -58,16 +62,28 @@ namespace BuildXL.Cache.Host.Service
         /// <inheritdoc />
         public Task<RetrievedSecrets> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
         {
-            // Checking the mode first: out-of-proc cache service passes all secrets via a single environment variable.
-            if (_retrieveAllSecretsFromSingleEnvironmentVariable)
+            if (_secretsCommunicationKind == CrossProcessSecretsCommunicationKind.Environment)
+            {
+                // Default mode for the launcher
+                return RetrieveSecretsCoreAsync(requests, token);
+            }
+            else if (_secretsCommunicationKind == CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry)
             {
                 var secretsResult = LazyInitializer.EnsureInitialized(ref _secrets, () => DeserializeFromEnvironmentVariable());
 
                 secretsResult.ThrowIfFailure();
                 return Task.FromResult(secretsResult.Value);
             }
-
-            return RetrieveSecretsCoreAsync(requests, token);
+            else if (_secretsCommunicationKind == CrossProcessSecretsCommunicationKind.MemoryMappedFile)
+            {
+                // 'ReadExposedSecrets' returns a disposable object, but the secrets obtained here are long-lived.
+                RetrievedSecrets secrets = InterProcessSecretsCommunicator.ReadExposedSecrets(new OperationContext(_tracingContext));
+                return Task.FromResult(secrets);
+            }
+            else
+            {
+                throw Contract.AssertFailure($"Unknown {nameof(CrossProcessSecretsCommunicationKind)}: {_secretsCommunicationKind}.");
+            }
         }
 
         private static Result<RetrievedSecrets> DeserializeFromEnvironmentVariable()

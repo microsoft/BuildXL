@@ -17,7 +17,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.ConfigurationHelpers;
-// The next using is needed in order to create ProcessStartInfo.EnvironmentVariables with collection initialization syntax.
 
 #nullable enable
 
@@ -31,6 +30,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
         private readonly CacheServiceWrapperConfiguration _configuration;
         private readonly ServiceLifetimeManager _serviceLifetimeManager;
         private readonly RetrievedSecrets _secrets;
+        private IDisposable? _interProcessSecretsCommunicator;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(CacheServiceWrapper));
@@ -115,7 +115,8 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                     hostParameters: hostParameters,
                     cacheConfigPath: new AbsolutePath(outOfProcSettings.CacheConfigPath),
                     // DataRootPath is set in CloudBuild and we need to propagate this configuration to the launched process.
-                    dataRootPath: new AbsolutePath(configuration.Configuration.DataRootPath));
+                    dataRootPath: new AbsolutePath(configuration.Configuration.DataRootPath),
+                    useInterProcSecretsCommunication: outOfProcSettings.UseInterProcSecretsCommunication);
 
                 outOfProcSettings.ServiceLifetimePollingIntervalSeconds.ApplyIfNotNull(v => resultingConfiguration.ServiceLifetimePollingInterval = TimeSpan.FromSeconds(v));
                 outOfProcSettings.ShutdownTimeoutSeconds.ApplyIfNotNull(v => resultingConfiguration.ShutdownTimeout = TimeSpan.FromSeconds(v));
@@ -139,7 +140,9 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
 
             // Need to specify through the arguments what type of secrets provider to use.
             // Currently we serialize all the secrets as a single string.
-            var secretsProviderKind = CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry;
+            var secretsProviderKind = _configuration.UseInterProcSecretsCommunication
+                ? CrossProcessSecretsCommunicationKind.MemoryMappedFile
+                : CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry;
 
             var argumentsList = new []
                                 {
@@ -156,13 +159,20 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
                               {
                                   _configuration.HostParameters.ToEnvironment(),
                                   _serviceLifetimeManager.GetDeployedInterruptableServiceVariables(_configuration.ServiceId),
-
-                                  // Passing the secrets via environment variable in a single value.
-                                  // This may be problematic if the serialized size will exceed some size (like 32K), but
-                                  // it should not be the case for now.
-                                  { RetrievedSecretsSerializer.SerializedSecretsKeyName, RetrievedSecretsSerializer.Serialize(_secrets) },
                                   getDotNetEnvironmentVariables()
                               };
+
+            if (_configuration.UseInterProcSecretsCommunication)
+            {
+                _interProcessSecretsCommunicator = InterProcessSecretsCommunicator.Expose(context, _secrets);
+            }
+            else
+            {
+                // Passing the secrets via environment variable in a single value.
+                // This may be problematic if the serialized size will exceed some size (like 32K), but
+                // it should not be the case for now.
+                environment.Add(RetrievedSecretsSerializer.SerializedSecretsKeyName, RetrievedSecretsSerializer.Serialize(_secrets));
+            }
 
             var process = new LauncherProcess(
                 new ProcessStartInfo()
@@ -177,6 +187,7 @@ namespace BuildXL.Cache.Host.Service.OutOfProc
             _runningProcess = new LauncherManagedProcess(process, _configuration.ServiceId, _serviceLifetimeManager);
             Tracer.Info(context, "Starting out-of-proc cache process.");
             var result = _runningProcess.Start(context);
+
             Tracer.Info(context, $"Started out-of-proc cache process (Id={process.Id}). Result: {result}.");
             return Task.FromResult(result);
 

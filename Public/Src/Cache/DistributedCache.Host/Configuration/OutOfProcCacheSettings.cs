@@ -23,5 +23,10 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ServiceLifetimePollingIntervalSeconds { get; set; }
 
         public int? ShutdownTimeoutSeconds { get; set; }
+
+        /// <summary>
+        /// If true, then memory-mapped-based secrets communication is used.
+        /// </summary>
+        public bool UseInterProcSecretsCommunication { get; set; } = false;
     }
 }

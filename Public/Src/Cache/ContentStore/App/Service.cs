@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Utils;
@@ -141,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.App
                 telemetryFieldsProvider: new TelemetryFieldsProvider(ringId, stampId, serviceName: "Service"),
                 copier: new DistributedCopier(),
                 copyRequester: null,
-                host: new EnvironmentVariableHost(),
+                host: new EnvironmentVariableHost(new Context(_logger)),
                 hostInfo: new HostInfo(null, null, new List<string>()),
                 cancellation: cancellationTokenSource.Token,
                 dataRootPath: serverDataRootPath.Path,

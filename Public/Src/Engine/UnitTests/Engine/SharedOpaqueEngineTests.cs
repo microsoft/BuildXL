@@ -197,7 +197,7 @@ namespace Test.BuildXL.Engine
             Assert.False(Directory.Exists(dir2));
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // The test is skipped because its falky on mac
         public void OutputsUnderSharedOpaqueAreProperlyMarkedEvenOnCacheReplay()
         {
             var file = X("out/SharedOpaqueOutput.txt");

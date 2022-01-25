@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 if (TryResolve(machineId, out var assignedLocation))
                 {
-                    Contract.Assert(assignedLocation.Path.Equals(location), $"Machine id `{machineId}` has already been allocated to location `{assignedLocation}` and so can't be allocated to `{location}`");
+                    Contract.Assert(assignedLocation.Equals(location), $"Machine id `{machineId}` has already been allocated to location `{assignedLocation}` and so can't be allocated to `{location}`");
 
                     // Heartbeat can only fail if the machine ID doesn't exist, and we know it does
                     return Heartbeat(machineId, nowUtc, state).ThrowIfFailure().Next;

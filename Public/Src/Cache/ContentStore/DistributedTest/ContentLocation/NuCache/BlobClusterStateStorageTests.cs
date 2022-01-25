@@ -74,6 +74,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 var m1 = await storage.RegisterMachineAsync(context, MachineLocation.Create("A", 1)).ThrowIfFailureAsync();
                 var m2 = await storage.RegisterMachineAsync(context, MachineLocation.Create("B", 1)).ThrowIfFailureAsync();
 
+                // Transition m1 to Closed
                 var r = await storage.HeartbeatAsync(context, new HeartbeatMachineRequest()
                 {
                     MachineId = m1.Id,
@@ -85,6 +86,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
                 r.PriorState.Should().Be(ClusterStateMachine.InitialState);
                 r.ClosedMachines.Value.Contains(m1.Id).Should().BeTrue();
+                r.InactiveMachines.Value.IsEmpty.Should().BeTrue();
+
+                // Transition m1 to Open
+                r = await storage.HeartbeatAsync(context, new HeartbeatMachineRequest()
+                {
+                    MachineId = m1.Id,
+                    Location = m1.Location,
+                    Name = m1.Location.Path,
+                    HeartbeatTime = clock.UtcNow,
+                    DeclaredMachineState = MachineState.Open,
+                }).ThrowIfFailureAsync();
+
+                r.PriorState.Should().Be(MachineState.Closed);
+                r.ClosedMachines.Value.IsEmpty.Should().BeTrue();
+                r.InactiveMachines.Value.IsEmpty.Should().BeTrue();
+
+                // Transition m1 to DeadUnavailable
+                r = await storage.HeartbeatAsync(context, new HeartbeatMachineRequest()
+                {
+                    MachineId = m1.Id,
+                    Location = m1.Location,
+                    Name = m1.Location.Path,
+                    HeartbeatTime = clock.UtcNow,
+                    DeclaredMachineState = MachineState.DeadUnavailable,
+                }).ThrowIfFailureAsync();
+
+                r.PriorState.Should().Be(MachineState.Open);
+                r.ClosedMachines.Value.IsEmpty.Should().BeTrue();
+                r.InactiveMachines.Value.Contains(m1.Id).Should().BeTrue();
+
+                // Transition m1 to Closed
+                r = await storage.HeartbeatAsync(context, new HeartbeatMachineRequest()
+                {
+                    MachineId = m1.Id,
+                    Location = m1.Location,
+                    Name = m1.Location.Path,
+                    HeartbeatTime = clock.UtcNow,
+                    DeclaredMachineState = MachineState.Closed,
+                }).ThrowIfFailureAsync();
+
+                r.PriorState.Should().Be(MachineState.DeadUnavailable);
+                r.ClosedMachines.Value.Contains(m1.Id).Should().BeTrue();
+                r.InactiveMachines.Value.IsEmpty.Should().BeTrue();
+
+                // Transition m1 to Open
+                r = await storage.HeartbeatAsync(context, new HeartbeatMachineRequest()
+                {
+                    MachineId = m1.Id,
+                    Location = m1.Location,
+                    Name = m1.Location.Path,
+                    HeartbeatTime = clock.UtcNow,
+                    DeclaredMachineState = MachineState.Open,
+                }).ThrowIfFailureAsync();
+
+                r.PriorState.Should().Be(MachineState.Closed);
+                r.ClosedMachines.Value.IsEmpty.Should().BeTrue();
                 r.InactiveMachines.Value.IsEmpty.Should().BeTrue();
             });
         }

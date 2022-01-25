@@ -206,6 +206,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         /// </summary>
         public static bool ArraysEqual(byte[]? x, byte[]? y)
         {
+            if (x is null)
+            {
+                return y is null;
+            }
+
+            if (y is null)
+            {
+                return x is null;
+            }
+
             return x.AsSpan().SequenceEqual(y.AsSpan());
         }
     }

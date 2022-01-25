@@ -11,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Represents id of a machine.
     /// </summary>
-    public readonly struct MachineId : IEquatable<MachineId>
+    public readonly struct MachineId : IEquatable<MachineId>, IEquatable<int>
     {
         /// <summary>
         /// The minimum valid machine id.
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public bool IsValid()
         {
-            return !this.Equals(Invalid);
+            return !Equals(Invalid);
         }
 
         /// <nodoc />
@@ -80,9 +80,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public bool Equals(int other)
+        {
+            return Index == other;
+        }
+
+        /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            return StructUtilities.Equals(this, obj);
+            if (obj is null)
+            {
+                return false;
+            }
+
+            return (obj is MachineId id && Equals(id))
+                || (obj is int i && Equals(i));
         }
 
         /// <inheritdoc />

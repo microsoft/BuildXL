@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -16,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Location information for a machine usually represented as UNC path with machine name and a root path.
     /// </summary>
-    public readonly struct MachineLocation : IEquatable<MachineLocation>
+    public readonly struct MachineLocation : IEquatable<MachineLocation>, IEquatable<string>, IEquatable<byte[]>
     {
         public const string GrpcUriSchemePrefix = "grpc://";
 
@@ -55,10 +54,33 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <inheritdoc />
-        public override string ToString() => Path;
+        public override string ToString()
+        {
+            return Path;
+        }
 
         /// <inheritdoc />
-        public bool Equals(MachineLocation other) => ByteArrayComparer.ArraysEqual(Data, other.Data);
+        public bool Equals(MachineLocation other)
+        {
+            return ByteArrayComparer.ArraysEqual(Data, other.Data);
+        }
+
+        /// <inheritdoc />
+        public bool Equals(string other)
+        {
+            if (Path is null)
+            {
+                return other is null;
+            }
+
+            return Path.Equals(other);
+        }
+
+        /// <inheritdoc />
+        public bool Equals(byte[] other)
+        {
+            return ByteArrayComparer.ArraysEqual(Data, other);
+        }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
@@ -68,7 +90,21 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return false;
             }
 
-            return obj is MachineLocation location && Equals(location);
+            return (obj is MachineLocation location && Equals(location))
+                || (obj is string str && Equals(str))
+                || (obj is byte[] arr && Equals(arr));
+        }
+
+        /// <nodoc />
+        public static bool operator ==(MachineLocation lhs, MachineLocation rhs)
+        {
+            return lhs.Equals(rhs);
+        }
+
+        /// <nodoc />
+        public static bool operator !=(MachineLocation lhs, MachineLocation rhs)
+        {
+            return !lhs.Equals(rhs);
         }
 
         /// <inheritdoc />

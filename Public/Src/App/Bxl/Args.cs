@@ -784,6 +784,9 @@ namespace BuildXL
                             "minWorkersWarn",
                             opt => distributionConfiguration.LowWorkersWarningThreshold = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "moduleAffinityLoadFactor",
+                            opt => schedulingConfiguration.ModuleAffinityLoadFactor = CommandLineUtilities.ParseDoubleOption(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "noLog",
                             opt => ParseInt32ListOption(opt, loggingConfiguration.NoLog)),
                         OptionHandlerFactory.CreateOption(

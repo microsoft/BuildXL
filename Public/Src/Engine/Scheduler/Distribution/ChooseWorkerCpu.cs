@@ -121,8 +121,7 @@ namespace BuildXL.Scheduler.Distribution
             if (config.ModuleAffinityEnabled())
             {
                 m_moduleWorkerMapping = moduleWorkerMapping;
-                // We use load-factor as 2 by default in case of module affinity. There is no rationale behind that. It is just based on MaxLoadFactor. 
-                m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(EngineEnvironmentSettings.BuildXLModuleAffinityMultiplier.Value ?? MaxLoadFactor);
+                m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(EngineEnvironmentSettings.BuildXLModuleAffinityMultiplier.Value ?? config.ModuleAffinityLoadFactor);
             }
             else
             {

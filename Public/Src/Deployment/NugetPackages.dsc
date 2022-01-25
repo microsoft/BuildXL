@@ -73,15 +73,6 @@ namespace NugetPackages {
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
     });
-	
-	const winX64Net6 = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.win-x64-net6`,
-        deployment: BuildXL.withQualifier({
-            targetFramework: "net6.0",
-            targetRuntime: "win-x64"
-        }).deployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
 
     const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,
@@ -96,6 +87,33 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.linux-x64`,
         deployment: BuildXL.withQualifier({
             targetFramework: "netcoreapp3.1",
+            targetRuntime: "linux-x64"
+        }).deployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
+	
+	const winX64Net6 = !canBuildAllPackagesOnThisHost ? undefined : pack({
+        id: `${packageNamePrefix}.win-x64-net6`,
+        deployment: BuildXL.withQualifier({
+            targetFramework: "net6.0",
+            targetRuntime: "win-x64"
+        }).deployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
+
+	const osxX64Net6 = pack({
+        id: `${packageNamePrefix}.osx-x64-net6`,
+        deployment: BuildXL.withQualifier({
+            targetFramework: "net6.0",
+            targetRuntime: "osx-x64"
+        }).deployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
+
+    const linuxX64Net6 = pack({
+        id: `${packageNamePrefix}.linux-x64-net6`,
+        deployment: BuildXL.withQualifier({
+            targetFramework: "net6.0",
             targetRuntime: "linux-x64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
@@ -425,6 +443,24 @@ namespace NugetPackages {
         }).deployment
     });
 
+    // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
+    const toolsSandBoxExecNet6 = pack({
+        id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64-net6`,
+        deployment: Tools.SandboxExec.withQualifier({
+            targetFramework: "net6.0",
+            targetRuntime: "osx-x64"
+        }).deployment
+    });
+
+    // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
+    const toolsOrchestratorNet6 = pack({
+        id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64-net6`,
+        deployment: Tools.Orchestrator.withQualifier({
+            targetFramework: "net6.0",
+            targetRuntime: "osx-x64"
+        }).deployment
+    });
+	
     const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(canBuildAllPackagesOnThisHost, () => [
@@ -442,8 +478,9 @@ namespace NugetPackages {
                 engineCache
             ]),
             sdks,
-            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, linuxX64, toolsOrchestrator),
+            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, osxX64Net6, linuxX64, linuxX64Net6, toolsOrchestrator, toolsOrchestratorNet6),
             toolsSandBoxExec,
+			toolsSandBoxExecNet6
         ]
     };
 

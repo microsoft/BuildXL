@@ -117,6 +117,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 if (!startupResult.Succeeded)
                 {
                     logger.Error($"Error while initializing the cache [{cacheConfig.CacheId}]. Failure: {startupResult.Failure}");
+                    cache.Dispose();
+
                     return startupResult.Failure;
                 }
 

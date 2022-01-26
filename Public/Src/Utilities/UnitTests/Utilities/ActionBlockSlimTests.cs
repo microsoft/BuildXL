@@ -13,6 +13,40 @@ namespace Test.BuildXL.Utilities
     public class ActionBlockSlimTests
     {
         [Fact]
+        public async Task WhenQueueIsFull()
+        {
+            var queue = new ActionQueue(degreeOfParallelism: 2, capacityLimit: 1);
+            var tcs = new TaskCompletionSource<object>();
+
+            var t = queue.RunAsync(() => tcs.Task);
+            await Assert.ThrowsAsync<ActionBlockIsFullException>(() => queue.RunAsync(() => { }));
+
+            tcs.SetResult(null);
+            
+            await t;
+
+            // Even though the task 't' is done, it still possible that the internal counter in ActionBlock was not yet decremented.
+            // "waiting" until all the items are fully processed before calling 'RunAsync' to avoid 'ActionBlockIsFullException'.
+            await WaitUntilAsync(() => queue.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1));
+
+            // should be fine now.
+            await queue.RunAsync(() => { });
+        }
+
+        internal static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan waitInterval)
+        {
+            while (true)
+            {
+                if (predicate())
+                {
+                    break;
+                }
+
+                await Task.Delay(waitInterval);
+            }
+        }
+
+        [Fact]
         public async Task ExceptionIsThrownWhenTheBlockIsFull()
         {
             var tcs = new TaskCompletionSource<object>();

@@ -277,8 +277,26 @@ namespace BuildXL.Processes
         /// what caused the cancellation because none of BuildXL code (except the test code) performs
         /// cancellation on pipe reading. To be more reliable, we can retry pipe reading
         /// when a cancellation happens.
+        /// 
+        /// DEPRECATED: Use <see cref="NumRetriesPipeReadOnCancel"/>.
+        ///             It will be temporarily kept here until QuickBuild no longer uses it.
+        /// BUG1912315
         /// </remarks>
         public bool RetryPipeReadOnCancel { get; set; }
+
+        /// <summary>
+        /// Number of pipe reading retries on cancellation.
+        /// </summary>
+        /// <remarks>
+        /// BuildXL and Detours communicate with each other by establishing named pipes. In some builds,
+        /// the pipe reading got canceled in the middle of the builds. It is still unknown
+        /// what caused the cancellation because none of BuildXL code (except the test code) performs
+        /// cancellation on pipe reading. To be more reliable, we can retry pipe reading
+        /// when a cancellation happens.
+        /// 
+        /// When set to value &lt; 0, the pipe reading retries are unlimited.
+        /// </remarks>
+        public int NumRetriesPipeReadOnCancel { get; set; } = 0;
 
         /// <summary>
         /// Encoded command line arguments
@@ -562,6 +580,7 @@ namespace BuildXL.Processes
                 writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
                 writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
                 writer.Write(RetryPipeReadOnCancel);
+                writer.Write(NumRetriesPipeReadOnCancel);
                 writer.Write(
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
@@ -611,6 +630,7 @@ namespace BuildXL.Processes
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 bool retryPipeReadOnCancel = reader.ReadBoolean();
+                int numRetriesPipeReadOnCancel = reader.ReadInt32();
 
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
@@ -660,6 +680,7 @@ namespace BuildXL.Processes
                     RemoteSandboxedProcessData = remoteSandboxedProcessData,
                     ExternalVMSandboxedProcessData = externalVMSandboxedProcessData,
                     RetryPipeReadOnCancel = retryPipeReadOnCancel,
+                    NumRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel,
                 };
             }
         }

@@ -73,7 +73,7 @@ namespace BuildXL.Processes
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
         private readonly string m_survivingPipProcessChildrenDumpDirectory;
-        private readonly bool m_retryPipeReadOnCancel;
+        private readonly int m_numRetriesPipeReadOnCancel;
 
         private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
         private readonly PerformanceCollector.Aggregation m_workingSet = new PerformanceCollector.Aggregation();
@@ -107,7 +107,9 @@ namespace BuildXL.Processes
             m_nestedProcessTerminationTimeout = info.NestedProcessTerminationTimeout;
             m_loggingContext = info.LoggingContext;
             m_survivingPipProcessChildrenDumpDirectory = info.SurvivingPipProcessChildrenDumpDirectory;
-            m_retryPipeReadOnCancel = info.RetryPipeReadOnCancel;
+            m_numRetriesPipeReadOnCancel = info.NumRetriesPipeReadOnCancel == 0
+                ? (info.RetryPipeReadOnCancel ? 5 : 0)
+                : info.NumRetriesPipeReadOnCancel;
 
             Encoding inputEncoding = info.StandardInputEncoding ?? Console.InputEncoding;
             m_standardInputReader = info.StandardInputReader;
@@ -167,7 +169,7 @@ namespace BuildXL.Processes
                     setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
                     info.CreateJobObjectForCurrentProcess,
                     info.DiagnosticsEnabled,
-                    info.RetryPipeReadOnCancel,
+                    m_numRetriesPipeReadOnCancel,
                     DebugPipeConnection);
         }
 
@@ -552,7 +554,7 @@ namespace BuildXL.Processes
                     reportLineReceivedCallback,
                     reportEncoding,
                     m_bufferSize,
-                    retryOnCancel: m_retryPipeReadOnCancel,
+                    numOfRetriesOnCancel: m_numRetriesPipeReadOnCancel,
                     debugPipeReporter: new AsyncPipeReader.DebugReporter(errorMsg => DebugPipeConnection($"ReportReader: {errorMsg}")));
                 m_reportReader.BeginReadLine();
             }

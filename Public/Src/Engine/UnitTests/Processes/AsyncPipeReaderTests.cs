@@ -3,10 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
@@ -81,8 +79,8 @@ namespace Test.BuildXL.Processes
             // Pipe can either ends with EOF or broken pipe - there can be race between sending EOF and having broken pipe.
             XAssert.AreEqual(1, debugMessages.Count);
             XAssert.IsTrue(
-                debugMessages[0].Contains($"Error = {NativeIOConstants.ErrorBrokenPipe},") 
-                || debugMessages[0].Contains($"Error = {NativeIOConstants.ErrorHandleEof},"));
+                debugMessages[0].Contains($"error code: {NativeIOConstants.ErrorBrokenPipe}") 
+                || debugMessages[0].Contains($"error code: {NativeIOConstants.ErrorHandleEof}"));
         }
 
 
@@ -151,7 +149,7 @@ namespace Test.BuildXL.Processes
                 },
                 Encoding.Unicode,
                 SandboxedProcessInfo.BufferSize,
-                retryOnCancel: retryOnCancel,
+                numOfRetriesOnCancel: retryOnCancel ? -1 : 0,
                 debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugMessages.Add(debugMsg), AsyncPipeReader.DebugReporter.VerbosityLevel.Info));
             reader.AllowCancelOverlapped = true;
             reader.BeginReadLine();
@@ -202,7 +200,7 @@ namespace Test.BuildXL.Processes
 
                 // 2 messages, one for INFO and the other for error.
                 XAssert.AreEqual(2, debugMessages.Count, string.Join(Environment.NewLine, debugMessages));
-                XAssert.IsTrue(debugMessages[0].Contains($"Error = {NativeIOConstants.ErrorOperationAborted},"));
+                XAssert.IsTrue(debugMessages[0].Contains($"error code: {NativeIOConstants.ErrorOperationAborted}"));
                 XAssert.IsTrue(debugMessages[1].Contains("IOCompletionPort.GetQueuedCompletionStatus failed"));
             }
             else
@@ -210,14 +208,15 @@ namespace Test.BuildXL.Processes
                 XAssert.AreEqual(writeCount + 1, messages.Count);
 
                 // All but last show operation is aborted.
+
                 for (int i = 0; i < debugMessages.Count - 1; ++i)
                 {
-                    XAssert.IsTrue(debugMessages[i].Contains($"Error = {NativeIOConstants.ErrorOperationAborted},"));
+                    XAssert.IsTrue(debugMessages[i].Contains($"error code: {NativeIOConstants.ErrorOperationAborted}"));
                 }
 
                 XAssert.IsTrue(
-                    debugMessages.Last().Contains($"Error = {NativeIOConstants.ErrorBrokenPipe},")
-                    || debugMessages.Last().Contains($"Error = {NativeIOConstants.ErrorHandleEof},"));
+                    debugMessages.Last().Contains($"error code: {NativeIOConstants.ErrorBrokenPipe}")
+                    || debugMessages.Last().Contains($"error code: {NativeIOConstants.ErrorHandleEof}"));
             }
         }
 
@@ -256,7 +255,7 @@ namespace Test.BuildXL.Processes
                 },
                 Encoding.Unicode,
                 SandboxedProcessInfo.BufferSize,
-                retryOnCancel: true,
+                numOfRetriesOnCancel: -1,
                 debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugMessages.Add(debugMsg), AsyncPipeReader.DebugReporter.VerbosityLevel.Info));
             reader.AllowCancelOverlapped = true;
             reader.BeginReadLine();
@@ -303,8 +302,8 @@ namespace Test.BuildXL.Processes
 
             // Ensure that pipe reading is completed.
             XAssert.IsTrue(
-                debugMessages.Last().Contains($"Error = {NativeIOConstants.ErrorBrokenPipe},")
-                || debugMessages.Last().Contains($"Error = {NativeIOConstants.ErrorHandleEof},"));
+                debugMessages.Last().Contains($"error code: {NativeIOConstants.ErrorBrokenPipe}")
+                || debugMessages.Last().Contains($"error code: {NativeIOConstants.ErrorHandleEof}"));
         }
 
         private static bool TryWrite(SafeFileHandle handle, string content, out int error)

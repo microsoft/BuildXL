@@ -51,7 +51,7 @@ namespace BuildXL.Processes
             ArraySegment<byte> payload,
             string dllNameX64,
             string dllNameX86,
-            bool retryPipeReadOnCancel,
+            int numRetriesPipeReadOnCancel,
             Action<string> debugPipeReporter,
             LoggingContext loggingContext)
         {
@@ -85,7 +85,7 @@ namespace BuildXL.Processes
                     InjectCallback,
                     Encoding.Unicode,
                     BufferSize,
-                    retryOnCancel: retryPipeReadOnCancel,
+                    numOfRetriesOnCancel: numRetriesPipeReadOnCancel,
                     debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
             }
             catch (Exception exception)

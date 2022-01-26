@@ -44,8 +44,7 @@ namespace BuildXL.Processes.Internal
 
         private TaskCompletionSource<bool> m_completion;
 
-        private readonly bool m_retryOnCancel;
-        private int m_retryCount = 5;
+        private int m_numRetriesOnCancel;
 
         // For testing cancellation.
         private Overlapped* m_overlapped;
@@ -75,18 +74,20 @@ namespace BuildXL.Processes.Internal
         /// what caused the cancellation because none of BuildXL code (except the test code) performs
         /// cancellation on pipe reading.
         /// 
-        /// In case <paramref name="retryOnCancel"/> is false, such a cancellation causes the pipe to be closed.
+        /// In case <paramref name="numOfRetriesOnCancel"/> is 0, such a cancellation causes the pipe to be closed.
         /// Thus, the client will fail to write to the pipe.
         /// 
         /// Since we know that none of BuildXL code performs cancellation, we can also make this pipe reader
         /// retry pipe reading (call <code>ReadOverlapped</code> again) when a cancellation happens.
+        /// 
+        /// If <paramref name="numOfRetriesOnCancel"/> &lt; 0, then the retries are unlimited.
         /// </remarks>
         public AsyncPipeReader(
             IAsyncFile file,
             StreamDataReceived callback,
             Encoding encoding,
             int bufferSize,
-            bool retryOnCancel = false,
+            int numOfRetriesOnCancel = 0,
             DebugReporter debugPipeReporter = null)
         {
             Contract.Requires(file != null);
@@ -108,7 +109,7 @@ namespace BuildXL.Processes.Internal
             StringBuilderInstace.Clear();
             StringBuilderInstace.EnsureCapacity(maxCharsPerBuffer * 2);
 
-            m_retryOnCancel = retryOnCancel;
+            m_numRetriesOnCancel = numOfRetriesOnCancel;
             m_debugPipeReporter = debugPipeReporter;
         }
 
@@ -229,7 +230,7 @@ namespace BuildXL.Processes.Internal
             {
                 if (m_debugPipeReporter?.IsVerbose == true)
                 {
-                    m_debugPipeReporter?.Info($"Failed AsyncIO: Error = {asyncIOResult.Error}, state = {m_state}");
+                    m_debugPipeReporter?.Info($"Failed AsyncIO (state: {m_state}, error code: {asyncIOResult.Error})");
                 }
 
                 // Treat failures as EOF.
@@ -238,11 +239,14 @@ namespace BuildXL.Processes.Internal
                     && asyncIOResult.Error != NativeIOConstants.ErrorBrokenPipe
                     && m_state != State.Stopped)
                 {
-                    if (asyncIOResult.Error == NativeIOConstants.ErrorOperationAborted
-                        && m_retryOnCancel
-                        && m_retryCount > 0)
+                    if (asyncIOResult.Error == NativeIOConstants.ErrorOperationAborted && m_numRetriesOnCancel != 0)
                     {
-                        --m_retryCount;
+                        if (m_numRetriesOnCancel > 0)
+                        {
+                            --m_numRetriesOnCancel;
+                        }
+
+                        m_debugPipeReporter?.Info($"Retry pipe read: IOCompletionPort.GetQueuedCompletionStatus failed (state: {m_state}, error code: {NativeIOConstants.ErrorOperationAborted})");
                         m_overlapped = m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
                         return;
                     }

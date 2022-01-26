@@ -208,6 +208,16 @@ namespace NugetPackages {
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net5PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net6PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netstandard20PackageQualifer).dll,
+
+            // BuildXL.Utilities.Authentication
+            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, 
+                importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Authentication.dll,
+                importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Authentication.dll,
+                importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Authentication.dll,
+                importFrom("BuildXL.Utilities").withQualifier(net5PackageQualifer).Authentication.dll,
+                importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Authentication.dll,
+                importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifer).Authentication.dll
+            ),
         ],
         dependencies: [
             // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet

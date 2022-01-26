@@ -694,7 +694,7 @@ namespace Tool.DropDaemon
         /// <returns>Credentials for PAT that was acquired.</returns>
         private VssCredentials GetCredentials()
         {
-            return m_credentialFactory.CreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.VstsDropReadWrite)
+            return m_credentialFactory.GetOrCreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.VstsDropReadWrite)
                 .GetAwaiter()
                 .GetResult();
         }

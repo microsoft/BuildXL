@@ -10,6 +10,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security;
 using System.Threading.Tasks;
 
 namespace BuildXL.Utilities.Authentication
@@ -19,8 +20,9 @@ namespace BuildXL.Utilities.Authentication
     /// </summary>
     public class VssCredentialsFactory
     {
-        private readonly string m_pat = null;
+        private readonly SecureString m_pat;
         private readonly CredentialProviderHelper m_credentialHelper;
+        private readonly VssCredentials m_credentials;
         private readonly Action<string> m_logger;
         private readonly string m_tokenCacheDirectory;
         private readonly string m_tokenCacheFileName = "buildxl_msalcache";
@@ -32,10 +34,30 @@ namespace BuildXL.Utilities.Authentication
         /// <param name="helper">Credential provider helper class to be used if a credential provider is required for authentication. Can be null.</param>
         /// <param name="logger">Logger</param>
         public VssCredentialsFactory(string pat, CredentialProviderHelper helper, Action<string> logger)
+            : this(CredentialProviderHelper.ConvertStringPatToSecureStringPat(pat), credentials: null, helper, logger) { }
+
+        /// <summary>
+        /// VssCredentialsFactory Constructor
+        /// </summary>
+        /// <param name="credentials">VSS credentials to be used. Can be null.</param>
+        /// <param name="helper">Credential provider helper class to be used if a credential provider is required for authentication. Can be null.</param>
+        /// <param name="logger">Logger</param>
+        public VssCredentialsFactory(VssCredentials credentials, CredentialProviderHelper helper, Action<string> logger)
+            : this(pat: null, credentials, helper, logger) { }
+
+        /// <summary>
+        /// VssCredentialsFactory Constructor
+        /// </summary>
+        /// <param name="pat">A personal access token to use for authentication. Can be null.</param>
+        /// <param name="helper">Credential provider helper class to be used if a credential provider is required for authentication. Can be null.</param>
+        /// <param name="logger">Logger</param>
+        /// <param name="credentials">VSS credentials to be used. Can be null.</param>
+        public VssCredentialsFactory(SecureString pat, VssCredentials credentials, CredentialProviderHelper helper, Action<string> logger)
         {
             m_credentialHelper = helper;
             m_logger = logger;
             m_pat = pat;
+            m_credentials = credentials;
 
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             m_tokenCacheDirectory = OperatingSystemHelper.IsWindowsOS
@@ -56,9 +78,14 @@ namespace BuildXL.Utilities.Authentication
         /// <param name="patType">
         /// Type of PAT to acquire if build is running on Cloudbuild. Use <see cref="PatType.NotSpecified"/> outside of Cloudbuild.
         /// </param>
-        public async Task<VssCredentials> CreateVssCredentialsAsync(Uri baseUri, bool useAad, PatType patType)
+        public async Task<VssCredentials> GetOrCreateVssCredentialsAsync(Uri baseUri, bool useAad, PatType patType)
         {
             Contract.Requires(baseUri != null);
+
+            if (m_credentials != null)
+            {
+                return m_credentials;
+            }
 
             // Credential helper should only be used on Windows CI machines (ie: inside Cloudbuild or ADO)
             // It can also be used as a backup if AAD authentication is not working, but AAD auth is 
@@ -193,7 +220,7 @@ namespace BuildXL.Utilities.Authentication
         /// <summary>
         /// Converts a PAT secure string to a VssCredential.
         /// </summary>
-        public VssCredentials GetPatCredentials(string pat)
+        public VssCredentials GetPatCredentials(SecureString pat)
         {
             return new VssBasicCredential(new NetworkCredential(string.Empty, pat));
         }

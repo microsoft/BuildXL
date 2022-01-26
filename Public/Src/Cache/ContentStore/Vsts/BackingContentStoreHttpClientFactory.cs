@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             try
             {
-                var creds = await retryPolicy.ExecuteAsync(() => _vssCredentialsFactory.CreateVssCredentialsAsync(_backingStoreBaseUri, _useAad, PatType.CacheReadWrite), CancellationToken.None).ConfigureAwait(false);
+                var creds = await retryPolicy.ExecuteAsync(() => _vssCredentialsFactory.GetOrCreateVssCredentialsAsync(_backingStoreBaseUri, _useAad, PatType.CacheReadWrite), CancellationToken.None).ConfigureAwait(false);
                 _httpClientFactory = new ArtifactHttpClientFactory(
                     creds,
                     _httpSendTimeout,

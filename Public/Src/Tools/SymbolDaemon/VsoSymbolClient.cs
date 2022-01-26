@@ -480,7 +480,7 @@ namespace Tool.SymbolDaemon
         /// <returns>Credentials for PAT that was acquired.</returns>
         private VssCredentials GetCredentials()
         {
-            return m_credentialFactory.CreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.SymbolsReadWrite)
+            return m_credentialFactory.GetOrCreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.SymbolsReadWrite)
                 .GetAwaiter()
                 .GetResult();
         }

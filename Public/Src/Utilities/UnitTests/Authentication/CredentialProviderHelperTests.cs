@@ -40,8 +40,8 @@ namespace Test.BuildXL.Utilities
 
             XAssert.IsTrue(result.Result == CredentialHelperResultType.Success);
             XAssert.IsTrue(outStream.ToString().Contains("Credentials were successfully retrieved from provider"));
+            XAssert.IsTrue(outStream.ToString().Contains("testPassword"));
             XAssert.IsNotNull(result.Pat);
-            XAssert.IsTrue(result.Pat.Contains("testPassword"));
         }
 
         [Theory]

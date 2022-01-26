@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Threading;
 using System.Linq;
+using System.Security;
 
 namespace BuildXL.Utilities.Authentication
 {
@@ -83,7 +84,7 @@ namespace BuildXL.Utilities.Authentication
         /// <summary>
         /// If success is true, then the PAT acquired will be set in this field.
         /// </summary>
-        public string Pat;
+        public SecureString Pat;
 
         /// <nodoc />
         public CredentialHelperResult()
@@ -350,10 +351,33 @@ namespace BuildXL.Utilities.Authentication
         /// </summary>
         /// <param name="output">The std out from the credential provider.</param>
         /// <returns>The PAT acquired from the credential provider as a secure string.</returns>
-        private string DeserializeOutputAndGetPat(string output)
+        private SecureString DeserializeOutputAndGetPat(string output)
         {
             var deserialized = JsonConvert.DeserializeObject<AuthOutput>(output);
-            return deserialized.Password;
+
+            if (m_createdForTesting)
+            {
+                // For testing purposes, emit the password in plaintext to be verified.
+                m_logger(deserialized.Password);
+            }
+            return ConvertStringPatToSecureStringPat(deserialized.Password);
+        }
+
+        /// <summary>
+        /// Converts a string into a SecureString.
+        /// </summary>
+        public static SecureString ConvertStringPatToSecureStringPat(string pat)
+        {
+            if (!string.IsNullOrWhiteSpace(pat))
+            {
+                var secureStringPat = new SecureString();
+                foreach (var c in pat)
+                {
+                    secureStringPat.AppendChar(c);
+                }
+                return secureStringPat;
+            }
+            return null;
         }
     }
 }

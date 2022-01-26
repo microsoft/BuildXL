@@ -82,7 +82,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             TimeSpan? expiryMinimum = null,
             TimeSpan? expiryRange = null)
         {
-            var vssCredentialsFactory = new VssCredentialsFactory(null, new CredentialProviderHelper(m => logger.Debug(m)), m => logger.Debug(m));
+            var vssCredentialsFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => logger.Debug(m)), m => logger.Debug(m));
             IBuildCacheHttpClientFactory buildCacheHttpClientFactory =
                 new BuildCacheHttpClientFactory(new Uri(@"http://localhost:22085"), vssCredentialsFactory, TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultHttpSendTimeoutMinutes), false);
             IArtifactHttpClientFactory backingContentStoreHttpClientFactory =

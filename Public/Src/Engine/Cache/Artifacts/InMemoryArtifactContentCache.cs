@@ -302,54 +302,61 @@ namespace BuildXL.Engine.Cache.Artifacts
                 {
                     lock (m_lock)
                     {
-                        byte[] contentBytes = ExceptionUtilities.HandleRecoverableIOException(
-                            () =>
-                            {
-                                var expandedPath = path.ExpandedPath;
-
-                                using (FileStream fileStream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                                using (BinaryReader binaryReader = new BinaryReader(fileStream))
+                        try
+                        {
+                            byte[] contentBytes = ExceptionUtilities.HandleRecoverableIOException(
+                                () =>
                                 {
+                                    var expandedPath = path.ExpandedPath;
+
+                                    using (FileStream fileStream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                                    using (BinaryReader binaryReader = new BinaryReader(fileStream))
+                                    {
                                     // This will work with files up to 2GB in length, due to the 'int' API signature
-                                    return binaryReader.ReadBytes((int) new FileInfo(expandedPath).Length);
-                                }
-                            },
-                            ex => { throw new BuildXLException("Failed to store content (couldn't read new content from disk)", ex); });
+                                    return binaryReader.ReadBytes((int)new FileInfo(expandedPath).Length);
+                                    }
+                                },
+                                ex => { throw new BuildXLException("Failed to store content (couldn't read new content from disk)", ex); });
 
-                        ContentHash contentHash = ContentHashingUtilities.HashBytes(contentBytes);
+                            ContentHash contentHash = ContentHashingUtilities.HashBytes(contentBytes);
 
-                        if (knownContentHash.HasValue && contentHash != knownContentHash.Value)
-                        {
-                            return new Failure<string>(I($"Stored content had an unexpected hash. (expected: {knownContentHash.Value}; actual: {contentHash})"));
-                        }
-
-                        CacheEntry entry;
-                        if (m_content.TryGetValue(contentHash, out entry))
-                        {
-                            // We assume that stores of content already present somewhere still cause replication
-                            // to both the local and remote sites. See class remarks.
-                            entry.Sites |= CacheSites.LocalAndRemote;
-                            return contentHash;
-                        }
-                        else
-                        {
-                            try
+                            if (knownContentHash.HasValue && contentHash != knownContentHash.Value)
                             {
-                                if (m_pathRealizationModes != null)
-                                {
-                                    m_pathRealizationModes[path.ExpandedPath] = fileRealizationModes;
-                                }
+                                return new Failure<string>(I($"Stored content had an unexpected hash. (expected: {knownContentHash.Value}; actual: {contentHash})"));
+                            }
 
-                                // We assume that stored content is instantly and magically replicated to some remote place.
-                                // See class remarks.
-                                m_content[contentHash] = new CacheEntry(contentBytes, CacheSites.LocalAndRemote);
-
+                            CacheEntry entry;
+                            if (m_content.TryGetValue(contentHash, out entry))
+                            {
+                                // We assume that stores of content already present somewhere still cause replication
+                                // to both the local and remote sites. See class remarks.
+                                entry.Sites |= CacheSites.LocalAndRemote;
                                 return contentHash;
                             }
-                            catch (BuildXLException ex)
+                            else
                             {
-                                return new RecoverableExceptionFailure(ex);
+                                try
+                                {
+                                    if (m_pathRealizationModes != null)
+                                    {
+                                        m_pathRealizationModes[path.ExpandedPath] = fileRealizationModes;
+                                    }
+
+                                    // We assume that stored content is instantly and magically replicated to some remote place.
+                                    // See class remarks.
+                                    m_content[contentHash] = new CacheEntry(contentBytes, CacheSites.LocalAndRemote);
+
+                                    return contentHash;
+                                }
+                                catch (BuildXLException ex)
+                                {
+                                    return new RecoverableExceptionFailure(ex);
+                                }
                             }
+                        }
+                        catch (BuildXLException ex)
+                        {
+                            return new RecoverableExceptionFailure(ex);
                         }
                     }
                 });

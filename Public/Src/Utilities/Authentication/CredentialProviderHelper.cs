@@ -1,16 +1,16 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using System.Security;
 using System.Diagnostics;
 using System.Threading;
-using Newtonsoft.Json;
+using System.Linq;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Authentication
 {
     /// <summary>
     /// Possible types of PATs that are required for various BuildXL services.
@@ -18,26 +18,30 @@ namespace BuildXL.Utilities
     public enum PatType
     {
         /// <summary>
+        /// Used for generic credential helpers.
+        /// </summary>
+        NotSpecified = 0,
+        /// <summary>
         /// R/W permission for build cache.
         /// </summary>
-        CacheReadWrite = 0,
+        CacheReadWrite = 1,
         /// <summary>
         /// R/W permission for drop.
         /// </summary>
-        VstsDropReadWrite = 1,
+        VstsDropReadWrite = 2,
         /// <summary>
         /// R/W permission for symbols.
         /// </summary>
-        SymbolsReadWrite = 2
+        SymbolsReadWrite = 3
     }
 
     /// <summary>
     /// Possible result types that can be returned during a credential acquisition operation.
     /// </summary>
-    public enum AzureArtifactsCredentialHelperResultType
+    public enum CredentialHelperResultType
     {
         /// <summary>
-        /// AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH was not set or is invalid, this is a no-op status code.
+        /// The credential provider environment variables were not set, or not found on disk.
         /// </summary>
         NoCredentialProviderSpecified = 0,
 
@@ -54,7 +58,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// An exception occured during execution of the credential provider.
         /// </summary>
-        ExceptionOccured = 3,
+        ExceptionOccurred = 3,
 
         /// <summary>
         /// Indicates that the process could not start or timed out.
@@ -65,26 +69,26 @@ namespace BuildXL.Utilities
     /// <summary>
     /// Contains the result of a credential acquisition.
     /// </summary>
-    public class AzureArtifactsCredentialHelperResult
+    public class CredentialHelperResult
     {
         /// <summary>
         /// Indicates whether credentials were acquired successfully.
-        /// If <see cref="AzureArtifactsCredentialHelperResultType.NoCredentialProviderSpecified"/>, no credentials were acquired.
-        /// If <see cref="AzureArtifactsCredentialHelperResultType.Success"/>, <see cref="AzureArtifactsCredentialHelperResult.Pat"/> should be set with the PAT that was acquired.
-        /// If <see cref="AzureArtifactsCredentialHelperResultType.BadStatusCodeReturned"/>, <see cref="AzureArtifactsCredentialHelperResultType.CredentialProviderRuntimeError"/>,
-        /// or <see cref="AzureArtifactsCredentialHelperResultType.ExceptionOccured"/>, the error will be logged to the verbose logger.
+        /// If <see cref="CredentialHelperResultType.NoCredentialProviderSpecified"/>, no credentials were acquired.
+        /// If <see cref="CredentialHelperResultType.Success"/>, <see cref="CredentialHelperResult.Pat"/> should be set with the PAT that was acquired.
+        /// If <see cref="CredentialHelperResultType.BadStatusCodeReturned"/>, <see cref="CredentialHelperResultType.CredentialProviderRuntimeError"/>,
+        /// or <see cref="CredentialHelperResultType.ExceptionOccurred"/>, the error will be logged to the verbose logger.
         /// </summary>
-        public AzureArtifactsCredentialHelperResultType Result;
+        public CredentialHelperResultType Result;
 
         /// <summary>
         /// If success is true, then the PAT acquired will be set in this field.
         /// </summary>
-        public SecureString Pat;
+        public string Pat;
 
         /// <nodoc />
-        public AzureArtifactsCredentialHelperResult()
+        public CredentialHelperResult()
         {
-            Result = AzureArtifactsCredentialHelperResultType.NoCredentialProviderSpecified;
+            Result = CredentialHelperResultType.NoCredentialProviderSpecified;
             Pat = null;
         }
     }
@@ -92,7 +96,7 @@ namespace BuildXL.Utilities
     /// <summary>
     /// Represents data output from the credential provider
     /// </summary>
-    public struct AzureArtifactsAuthOutput
+    internal struct AuthOutput
     {
 #pragma warning disable CS1591 // Missing XML comment
         public string Username { get; set; }
@@ -101,24 +105,28 @@ namespace BuildXL.Utilities
 #pragma warning restore CS1591 // Missing XML comment
     }
 
-
     /// <summary>
-    /// Helper class to retrieve ADO credentials provided by a credential provider.
+    /// Helper class to retrieve credentials provided by a credential provider.
     /// </summary>
     /// <remarks>
     /// Any exceptions thrown by this due to invalid input should be handled by the caller.
     /// </remarks>
-    public class AzureArtifactsCredentialHelper
+    public class CredentialProviderHelper
     {
         /// <summary>
-        /// Environment variable for the azure artifacts credential provider.
+        /// This is the credential provider variable used by non-cloudbuild credential providers.
         /// </summary>
-        private const string m_credentialHelperEnvironmentVariable = "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH";
+        private const string GenericCredentialProvidersPathEnvVariable = "ARTIFACT_CREDENTIALPROVIDERS_PATH";
+
+        /// <summary>
+        /// This credential helper is only used in cloudbuild.
+        /// </summary>
+        private const string CloudbuildCredentialHelperPathEnvVariable = "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH";
 
         /// <summary>
         /// Location of the credential helper executable.
         /// </summary>
-        public readonly string AzureArtifactsCredentialHelperPath;
+        public readonly string CredentialHelperPath;
 
         /// <summary>
         /// Logger provided by caller to write log messages.
@@ -136,13 +144,30 @@ namespace BuildXL.Utilities
         private readonly string m_testingExeArguments = string.Empty;
 
         /// <summary>
-        /// Create a <see cref="AzureArtifactsCredentialHelper"/> object to provide ADO PATs.
+        /// Create a <see cref="CredentialProviderHelper"/> object to provide ADO PATs.
         /// </summary>
         /// <param name="logger">Logging method to output debug information.</param>
-        public AzureArtifactsCredentialHelper(Action<string> logger)
+        public CredentialProviderHelper(Action<string> logger)
         {
             m_logger = logger;
-            AzureArtifactsCredentialHelperPath = Environment.GetEnvironmentVariable(m_credentialHelperEnvironmentVariable);
+
+            // Default to cloudbuild credential provider
+            CredentialHelperPath = Environment.GetEnvironmentVariable(CloudbuildCredentialHelperPathEnvVariable);
+            if (string.IsNullOrWhiteSpace(CredentialHelperPath))
+            {
+                CredentialHelperPath = Environment.GetEnvironmentVariable(GenericCredentialProvidersPathEnvVariable);
+                if (!string.IsNullOrWhiteSpace(CredentialHelperPath))
+                {
+                    // For GenericCredentialProvidersPathEnvVariable, we must also detect the name of the exe
+                    // We need to do this because the CloudbuildCredentialHelperPathEnvVariable variable which is set by Cloudbuild
+                    // will always give us the exe name of the path instead of a search directory. 
+                    // the GenericCredentialProvidersPathEnvVariable variable will give us only a directory, not an exe.
+                    var providers = Directory.EnumerateFiles(CredentialHelperPath, "CredentialProvider*.exe", SearchOption.TopDirectoryOnly);
+
+                    // BuildXL on Cloudbuild and ADO only use a single credential provider right now, so we can just pick the first one from the list
+                    CredentialHelperPath = providers.Any() ? providers.First() : null;
+                }
+            }
         }
 
         /// <summary>
@@ -151,12 +176,12 @@ namespace BuildXL.Utilities
         /// <param name="logger"></param>
         /// <param name="credentialHelperPath"></param>
         /// <param name="arguments"></param>
-        private AzureArtifactsCredentialHelper(Action<string> logger, string credentialHelperPath, string arguments)
+        private CredentialProviderHelper(Action<string> logger, string credentialHelperPath, string arguments)
         {
             m_logger = logger;
             m_createdForTesting = true;
             m_testingExeArguments = arguments;
-            AzureArtifactsCredentialHelperPath = credentialHelperPath;
+            CredentialHelperPath = credentialHelperPath;
         }
 
         /// <summary>
@@ -166,41 +191,39 @@ namespace BuildXL.Utilities
         /// <param name="credentialHelperPath"></param>
         /// <param name="arguments"></param>
         /// <returns></returns>
-        public static AzureArtifactsCredentialHelper CreateInstanceForTesting(Action<string> logger, string credentialHelperPath, string arguments)
+        public static CredentialProviderHelper CreateInstanceForTesting(Action<string> logger, string credentialHelperPath, string arguments)
         {
-            return new AzureArtifactsCredentialHelper(logger, credentialHelperPath, arguments);
+            return new CredentialProviderHelper(logger, credentialHelperPath, arguments);
         }
 
         /// <summary>
-        /// Acquires a PAT based on the specified PAT type using the credential provider set in the
-        /// AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH environment variable.
+        /// Acquires a PAT based on the specified PAT type.
         /// </summary>
         /// <param name="uri">The Uri for which the caller is attempting to acquire a PAT.</param>
         /// <param name="type">The type of PAT the caller is requesting from the credential provider.</param>
         /// <returns></returns>
-        public Task<AzureArtifactsCredentialHelperResult> AcquirePat(Uri uri, PatType type)
+        public Task<CredentialHelperResult> AcquirePatAsync(Uri uri, PatType type)
         {
             // Check whether a path was provided and that it exists
-            if (!IsAzureArtifactsCredentialProviderSpecified())
+            if (!IsCredentialProviderSpecified())
             {
-                // Azure artifacts credential helper was not specified or bad path was passed in the environment variable
-                // Fallback to using AAD or ARTIFACT_CREDENTIALPROVIDERS_PATH
-                return Task.FromResult(new AzureArtifactsCredentialHelperResult
+                // A credential helper was not specified or bad path was passed in the environment variable
+                return Task.FromResult(new CredentialHelperResult
                 {
-                    Result = AzureArtifactsCredentialHelperResultType.NoCredentialProviderSpecified,
+                    Result = CredentialHelperResultType.NoCredentialProviderSpecified,
                 });
             }
 
-            return Task.Run(() => ExecuteParseAndOutputSecurePat(uri, type.ToString()));
+            return Task.Run(() => ExecuteParseAndOutputSecurePat(uri, type));
         }
 
         /// <summary>
         /// Tests whether the environment variable is set and the specified path exists.
         /// </summary>
-        /// <returns>True if the azure artifacts credential provider is specified.</returns>
-        public bool IsAzureArtifactsCredentialProviderSpecified()
+        /// <returns>True if the credential provider is specified.</returns>
+        public bool IsCredentialProviderSpecified()
         {
-            return (!string.IsNullOrWhiteSpace(AzureArtifactsCredentialHelperPath) && File.Exists(AzureArtifactsCredentialHelperPath));
+            return (!string.IsNullOrWhiteSpace(CredentialHelperPath) && File.Exists(CredentialHelperPath));
         }
 
         /// <summary>
@@ -208,20 +231,32 @@ namespace BuildXL.Utilities
         /// </summary>
         /// <param name="uri">The URI to provide to the credential provider</param>
         /// <param name="authType">The type of PAT that is being requested.</param>
-        /// <returns><see cref="AzureArtifactsCredentialHelperResult"/> object with the result of the PAT acquisition operation.</returns>
+        /// <returns><see cref="CredentialHelperResult"/> object with the result of the PAT acquisition operation.</returns>
         /// <remarks>If an error occured during PAT acquisition, it will be logged in the logger provided.</remarks>
-        private AzureArtifactsCredentialHelperResult ExecuteParseAndOutputSecurePat(Uri uri, string authType)
+        private CredentialHelperResult ExecuteParseAndOutputSecurePat(Uri uri, PatType authType)
         {
-            var result = new AzureArtifactsCredentialHelperResult();
+            var result = new CredentialHelperResult();
 
             try
             {
                 var stdOut = new StringBuilder();
                 var stdErr = new StringBuilder();
-                var arguments = m_createdForTesting ? m_testingExeArguments : $"-uri \"{uri}\" -authMaterialFileName {authType}";
+                var arguments = string.Empty;
+                if (m_createdForTesting)
+                {
+                    arguments = m_testingExeArguments;
+                }
+                else
+                {
+                    arguments = $"-uri \"{uri}\"";
+                    if (authType != PatType.NotSpecified)
+                    {
+                        arguments += $" -authMaterialFileName {authType}";
+                    }
+                }
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = AzureArtifactsCredentialHelperPath,
+                    FileName = CredentialHelperPath,
                     Arguments = arguments,
                     WindowStyle = ProcessWindowStyle.Hidden,
                     UseShellExecute = false,
@@ -237,8 +272,8 @@ namespace BuildXL.Utilities
                 if (process == null)
                 {
                     // Process failed to start, return a null pat so that the caller falls back to an alternate credential provider
-                    result.Result = AzureArtifactsCredentialHelperResultType.CredentialProviderRuntimeError;
-                    m_logger($"AzureArtifactsCredentialHelper - Credential provider process was not able to start.");
+                    result.Result = CredentialHelperResultType.CredentialProviderRuntimeError;
+                    m_logger($"CredentialProviderHelper - Credential provider process was not able to start.");
 
                     return result;
                 }
@@ -253,8 +288,8 @@ namespace BuildXL.Utilities
                     if (!process.WaitForExit((int)credentialProviderTimeout.TotalMilliseconds))
                     {
                         KillProcess(process);
-                        result.Result = AzureArtifactsCredentialHelperResultType.CredentialProviderRuntimeError;
-                        m_logger($"AzureArtifactsCredentialHelper - Credential provider took longer {credentialProviderTimeout.TotalSeconds} secs.");
+                        result.Result = CredentialHelperResultType.CredentialProviderRuntimeError;
+                        m_logger($"CredentialProviderHelper - Credential provider took longer {credentialProviderTimeout.TotalSeconds} secs.");
 
                         return result;
                     }
@@ -268,21 +303,21 @@ namespace BuildXL.Utilities
 
                 if (process.ExitCode != 0)
                 {
-                    result.Result = AzureArtifactsCredentialHelperResultType.BadStatusCodeReturned;
-                    m_logger($"AzureArtifactsCredentialHelper - Credential provider execution failed with exit code {process.ExitCode}.\n" +
+                    result.Result = CredentialHelperResultType.BadStatusCodeReturned;
+                    m_logger($"CredentialProviderHelper - Credential provider execution failed with exit code {process.ExitCode}.\n" +
                              $"StdOut: \n{stdOut}\nStdErr: \n{stdErr}\n");
                 }
                 else
                 {
-                    result.Result = AzureArtifactsCredentialHelperResultType.Success;
+                    result.Result = CredentialHelperResultType.Success;
                     result.Pat = DeserializeOutputAndGetPat(stdOut.ToString());
-                    m_logger($"AzureArtifactsCredentialHelper - Credentials were successfully retrieved from provider.");
+                    m_logger($"CredentialProviderHelper - Credentials were successfully retrieved from provider.");
                 }
             }
             catch (Exception ex)
             {
-                result.Result = AzureArtifactsCredentialHelperResultType.ExceptionOccured;
-                m_logger($"AzureArtifactsCredentialHelper - Exception occured during PAT acquisition. Exception Message:\n" + ex.ToString());
+                result.Result = CredentialHelperResultType.ExceptionOccurred;
+                m_logger($"CredentialProviderHelper - Exception occured during PAT acquisition. Exception Message:\n" + ex.ToString());
             }
             
             return result;
@@ -315,23 +350,10 @@ namespace BuildXL.Utilities
         /// </summary>
         /// <param name="output">The std out from the credential provider.</param>
         /// <returns>The PAT acquired from the credential provider as a secure string.</returns>
-        private SecureString DeserializeOutputAndGetPat(string output)
+        private string DeserializeOutputAndGetPat(string output)
         {
-            var deserialized = JsonConvert.DeserializeObject<AzureArtifactsAuthOutput>(output);
-            var pat = new SecureString();
-
-            foreach (char c in deserialized.Password)
-            {
-                pat.AppendChar(c);
-            }
-
-            if (m_createdForTesting)
-            {
-                // For testing purposes, emit the password in plaintext to be verified.
-                m_logger(deserialized.Password);
-            }
-
-            return pat;
+            var deserialized = JsonConvert.DeserializeObject<AuthOutput>(output);
+            return deserialized.Password;
         }
     }
 }

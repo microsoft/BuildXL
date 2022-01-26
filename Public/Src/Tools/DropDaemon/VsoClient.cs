@@ -14,14 +14,13 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
-using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 using Microsoft.VisualStudio.Services.Content.Common.Tracing;
 using Microsoft.VisualStudio.Services.Drop.App.Core;
 using Microsoft.VisualStudio.Services.Drop.App.Core.Telemetry;
@@ -108,6 +107,8 @@ namespace Tool.DropDaemon
 
         private static CacheContextBase CacheContext => null; // not needed for anything but "get", which we don't do
 
+        private readonly VssCredentialsFactory m_credentialFactory;
+
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
                 credentials: GetCredentials(),
@@ -144,6 +145,8 @@ namespace Tool.DropDaemon
             logger.Info("Using drop config: " + JsonConvert.SerializeObject(m_config));
 
             Stats = new DropStatistics();
+
+            m_credentialFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
 
             // instantiate drop client
             m_dropClient = new ReloadingDropServiceClient(
@@ -691,16 +694,9 @@ namespace Tool.DropDaemon
         /// <returns>Credentials for PAT that was acquired.</returns>
         private VssCredentials GetCredentials()
         {
-            Action<string> loggerAction = m => m_logger.Verbose(m);
-            var adoCredentialHelper = new AzureArtifactsCredentialHelper(loggerAction);
-            var credentialHelperResult = adoCredentialHelper.AcquirePat(m_config.Service, PatType.VstsDropReadWrite).Result;
-
-            if (credentialHelperResult.Result == AzureArtifactsCredentialHelperResultType.Success)
-            {
-                return new VsoCredentialHelper(loggerAction).GetPATCredentials(credentialHelperResult.Pat);
-            }
-
-            return new VsoCredentialHelper(loggerAction).GetAADCredentials(new VsoAadAuthority(loggerAction), new UserCredential(Environment.UserName));
+            return m_credentialFactory.CreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.VstsDropReadWrite)
+                .GetAwaiter()
+                .GetResult();
         }
     }
 }

@@ -22,6 +22,7 @@ namespace VstsApp {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
+            importFrom("BuildXL.Utilities").Authentication.dll,
         ],
         appConfig: f`App.config`,
         tools: {

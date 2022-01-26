@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Vsts.Http;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
+using BuildXL.Utilities.Authentication;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {

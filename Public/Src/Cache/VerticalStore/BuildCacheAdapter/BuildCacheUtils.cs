@@ -3,8 +3,6 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
-using System.Text;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -12,42 +10,14 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-using BuildXL.Utilities;
-#if PLATFORM_WIN
-using Microsoft.VisualStudio.Services.Content.Common.Authentication;
-#else
-using System.Net;
-using System.Security;
-using Microsoft.VisualStudio.Services.Common;
-#endif
+using BuildXL.Utilities.Authentication;
 
 namespace BuildXL.Cache.BuildCacheAdapter
 {
     internal static class BuildCacheUtils
     {
-        private const string CredentialProvidersPathEnvVariable = "ARTIFACT_CREDENTIALPROVIDERS_PATH";
-
-        private const int NameUserPrincipal = 8;
-
-        [DllImport("Secur32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetUserNameExW(
-            int nameFormat,
-            [Out] StringBuilder nameBuffer,
-            ref long bufferSize);
-
-        private static string GetAadUserNameUpn()
-        {
-            long maxLength = 1024;
-            var sb = new StringBuilder(capacity: (int)maxLength);
-            return GetUserNameExW(NameUserPrincipal, sb, ref maxLength)
-                ? sb.ToString()
-                : null;
-        }
-
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Disposed by another object")]
         [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", Justification = "Not applicable")]
         internal static BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache CreateBuildCacheCache<T>(T cacheConfig, ILogger logger, string pat = null) where T : BuildCacheCacheConfig
@@ -59,53 +29,18 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 throw new ArgumentException($"HashType {ContentHashingUtilities.HashInfo.HashType} cannot be used with {store}");
             }
 
-            string credentialProviderPath = Environment.GetEnvironmentVariable(CredentialProvidersPathEnvVariable);
-            bool isCredentialProviderSpecified = !string.IsNullOrWhiteSpace(credentialProviderPath);
+            var credentialProviderHelper = new CredentialProviderHelper(m => logger.Debug(m));
 
-            var artifactsCredentialHelper = new AzureArtifactsCredentialHelper(m => logger.Debug(m));
-            bool isAzureArtifactsCredentialProviderSpecifed = artifactsCredentialHelper.IsAzureArtifactsCredentialProviderSpecified();
-
-            if (isAzureArtifactsCredentialProviderSpecifed)
+            if (credentialProviderHelper.IsCredentialProviderSpecified())
             {
-                logger.Debug($"Azure Artifacts Credential provider path specified: {artifactsCredentialHelper.AzureArtifactsCredentialHelperPath}");
-            }
-            else if (isCredentialProviderSpecified)
-            {
-                logger.Debug($"Credential providers path specified: {credentialProviderPath}");
+                logger.Debug($"Credential providers path specified: '{credentialProviderHelper.CredentialHelperPath}'");
             }
             else
             {
                 logger.Debug("Using current user's credentials for obtaining AAD token");
             }
 
-            VssCredentialsFactory credentialsFactory;
-
-#if PLATFORM_WIN
-            // Obtain and explicitly specify AAD user name ONLY when
-            //   (1) no credential provider is specified, and
-            //   (2) running on .NET Core.
-            // When a credential provider is specified, specifying AAD user name will override it and we don't want to do that.
-            // When running on .NET Framework, VsoCredentialHelper will automatically obtain currently logged on AAD user name.
-            string userName = !(isAzureArtifactsCredentialProviderSpecifed || isCredentialProviderSpecified) && Utilities.OperatingSystemHelper.IsDotNetCore
-                ? GetAadUserNameUpn()
-                : null;
-            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName, (isAzureArtifactsCredentialProviderSpecifed ? artifactsCredentialHelper : null));
-#else
-            var secPat = new SecureString();
-            if (!string.IsNullOrWhiteSpace(pat))
-            {
-                foreach (char c in pat)
-                {
-                    secPat.AppendChar(c);
-                }
-            }
-            else
-            {
-                throw new ArgumentException("PAT must be supplied when not running on Windows");
-            }
-
-            credentialsFactory = new VssCredentialsFactory(new VssBasicCredential(new NetworkCredential(string.Empty, secPat)));
-#endif
+            var credentialsFactory = new VssCredentialsFactory(pat, credentialProviderHelper, m => logger.Debug(m));
 
             logger.Diagnostic("Creating BuildCacheCache factory");
             var fileSystem = new PassThroughFileSystem(logger);

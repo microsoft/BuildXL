@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -17,11 +16,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Vsts.Internal;
-using Microsoft.VisualStudio.Services.Common;
-using Microsoft.VisualStudio.Services.Content.Common.Authentication;
+using BuildXL.Utilities.Authentication;
 
 #nullable enable
 
@@ -74,8 +71,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         protected virtual ICachePublisher CreatePublisher(string sessionName, BuildCacheServiceConfiguration config, string pat, Context context)
         {
-            var credHelper = new VsoCredentialHelper();
-            var credFactory = new VssCredentialsFactory(new VssBasicCredential(new NetworkCredential(string.Empty, pat)));
+            var credFactory = new VssCredentialsFactory(pat, helper: null, logger: m => Tracer.Info(context, m));
 
             var cache = BuildCacheCacheFactory.Create(
                 _fileSystem,

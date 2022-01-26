@@ -12,6 +12,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
@@ -56,6 +57,8 @@ namespace Tool.SymbolDaemon
         private readonly ActionQueue m_fileUploadQueue;
         private int m_batchCount;
 
+        private readonly VssCredentialsFactory m_credentialFactory;
+
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
                 credentials: GetCredentials(),
@@ -99,6 +102,8 @@ namespace Tool.SymbolDaemon
             m_counters = new CounterCollection<SymbolClientCounter>();
 
             m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using symbol config: {JsonConvert.SerializeObject(m_config)}"));
+
+            m_credentialFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => m_logger.Verbose(m)), m => m_logger.Verbose(m));
 
             m_symbolClient = new ReloadingSymbolClient(
                 logger: logger,
@@ -475,16 +480,9 @@ namespace Tool.SymbolDaemon
         /// <returns>Credentials for PAT that was acquired.</returns>
         private VssCredentials GetCredentials()
         {
-            Action<string> loggerAction = m => m_logger.Verbose(m);
-            var adoCredentialHelper = new AzureArtifactsCredentialHelper(loggerAction);
-            var credentialHelperResult = adoCredentialHelper.AcquirePat(m_config.Service, PatType.SymbolsReadWrite).Result;
-
-            if (credentialHelperResult.Result == AzureArtifactsCredentialHelperResultType.Success)
-            {
-                return new VsoCredentialHelper(loggerAction).GetPATCredentials(credentialHelperResult.Pat);
-            }
-
-            return new VsoCredentialHelper(loggerAction).GetAADCredentials(new VsoAadAuthority(loggerAction), new UserCredential(Environment.UserName));
+            return m_credentialFactory.CreateVssCredentialsAsync(m_config.Service, useAad: true, PatType.SymbolsReadWrite)
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>

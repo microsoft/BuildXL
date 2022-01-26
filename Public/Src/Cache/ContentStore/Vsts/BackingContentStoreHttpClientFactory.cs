@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -14,6 +13,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
+using BuildXL.Utilities.Authentication;
 
 namespace BuildXL.Cache.ContentStore.Vsts
 {
@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             try
             {
-                var creds = await retryPolicy.ExecuteAsync(() => _vssCredentialsFactory.CreateVssCredentialsAsync(_backingStoreBaseUri, _useAad), CancellationToken.None).ConfigureAwait(false);
+                var creds = await retryPolicy.ExecuteAsync(() => _vssCredentialsFactory.CreateVssCredentialsAsync(_backingStoreBaseUri, _useAad, PatType.CacheReadWrite), CancellationToken.None).ConfigureAwait(false);
                 _httpClientFactory = new ArtifactHttpClientFactory(
                     creds,
                     _httpSendTimeout,

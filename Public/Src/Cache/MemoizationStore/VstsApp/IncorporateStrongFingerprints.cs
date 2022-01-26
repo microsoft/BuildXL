@@ -21,7 +21,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using CLAP;
-using Microsoft.VisualStudio.Services.Content.Common.Authentication;
+using BuildXL.Utilities.Authentication;
 
 namespace BuildXL.Cache.MemoizationStore.VstsApp
 {
@@ -153,7 +153,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
         private async Task RunBuildCacheAsync(
             Context context, BuildCacheServiceConfiguration config, Func<ICache, Task> funcAsync)
         {
-            VssCredentialsFactory credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper());
+            VssCredentialsFactory credentialsFactory = new VssCredentialsFactory(pat: null, new CredentialProviderHelper(m => _tracer.Info(context, m)), m => _tracer.Info(context, m));
             ICache cache = BuildCacheCacheFactory.Create(_fileSystem, _logger, credentialsFactory, config, null);
 
             using (cache)

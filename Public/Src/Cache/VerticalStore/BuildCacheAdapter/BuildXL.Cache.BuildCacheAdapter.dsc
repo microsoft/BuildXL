@@ -10,6 +10,7 @@ namespace BuildCacheAdapter {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Authentication.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             Interfaces.dll,

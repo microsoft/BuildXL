@@ -5,13 +5,13 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using Microsoft.VisualStudio.Services.Content.Common;
+using BuildXL.Utilities.Authentication;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Http
 {
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
         {
             IRetryPolicy retryPolicy = RetryPolicyFactory.GetExponentialPolicy(AuthorizationErrorDetectionStrategy.IsTransient);
             var creds = await retryPolicy.ExecuteAsync(
-                () => _vssCredentialsFactory.CreateVssCredentialsAsync(_buildCacheBaseUri, _useAad),
+                () => _vssCredentialsFactory.CreateVssCredentialsAsync(_buildCacheBaseUri, _useAad, PatType.CacheReadWrite),
                 CancellationToken.None).ConfigureAwait(false);
 
             var httpClientFactory = new ArtifactHttpClientFactory(
@@ -70,7 +70,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
         {
             IRetryPolicy authRetryPolicy = RetryPolicyFactory.GetExponentialPolicy(AuthorizationErrorDetectionStrategy.IsTransient);
             var creds = await authRetryPolicy.ExecuteAsync(
-                () => _vssCredentialsFactory.CreateVssCredentialsAsync(_buildCacheBaseUri, _useAad),
+                () => _vssCredentialsFactory.CreateVssCredentialsAsync(_buildCacheBaseUri, _useAad, PatType.CacheReadWrite),
                 CancellationToken.None).ConfigureAwait(false);
 
             var httpClientFactory = new ArtifactHttpClientFactory(

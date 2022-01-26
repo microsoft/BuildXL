@@ -22,9 +22,9 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
-using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 using Xunit;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
+using BuildXL.Utilities.Authentication;
 
 // ReSharper disable ConvertClosureToMethodGroup
 namespace BuildXL.Cache.MemoizationStore.VstsTest
@@ -82,7 +82,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             TimeSpan? expiryMinimum = null,
             TimeSpan? expiryRange = null)
         {
-            var vssCredentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper());
+            var vssCredentialsFactory = new VssCredentialsFactory(null, new CredentialProviderHelper(m => logger.Debug(m)), m => logger.Debug(m));
             IBuildCacheHttpClientFactory buildCacheHttpClientFactory =
                 new BuildCacheHttpClientFactory(new Uri(@"http://localhost:22085"), vssCredentialsFactory, TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultHttpSendTimeoutMinutes), false);
             IArtifactHttpClientFactory backingContentStoreHttpClientFactory =

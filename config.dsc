@@ -255,6 +255,11 @@ config({
                 { id: "Polly", version: "7.2.1" },
                 { id: "Polly.Contrib.WaitAndRetry", version: "1.1.1" },
 
+                // Azurite node app compiled to standalone executable
+                // Sources for this package are: https://github.com/Azure/Azurite
+                // This packaged is produced by the pipeline: https://dev.azure.com/mseng/Domino/_build?definitionId=13199
+                { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20220125-034149" },
+
                 // It turns out Redis-64 ( https://www.nuget.org/packages/redis-64/ ) was deprecated several years 
                 // ago, and so we can't even build with it due to component governance. We don't actually care about 
                 // this package because we only use it for local dev testing, so any drop-in replacement will do.

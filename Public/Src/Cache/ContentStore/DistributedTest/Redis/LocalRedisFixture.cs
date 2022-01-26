@@ -25,6 +25,11 @@ namespace ContentStoreTest.Distributed.Redis
             () => new LocalRedisProcessDatabase(),
             i => i);
 
+        public ObjectPool<AzuriteStorageProcess> EmulatorPool { get; }
+            = new(
+            () => new AzuriteStorageProcess(),
+            i => i);
+
         /// <summary>
         /// Cleans up all the resources used by the group of tests: i.e. closes all local redis instances.
         /// </summary>
@@ -34,6 +39,17 @@ namespace ContentStoreTest.Distributed.Redis
             while (true)
             {
                 var database = DatabasePool.GetInstance();
+                if (!database.Instance.Initialized)
+                {
+                    break;
+                }
+
+                database.Instance.Close();
+            }
+
+            while (true)
+            {
+                var database = EmulatorPool.GetInstance();
                 if (!database.Instance.Initialized)
                 {
                     break;

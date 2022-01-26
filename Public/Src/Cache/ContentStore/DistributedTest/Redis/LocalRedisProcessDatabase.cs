@@ -121,7 +121,12 @@ namespace ContentStoreTest.Distributed.Redis
         /// <nodoc />
         public void Dispose(bool close)
         {
-            GC.SuppressFinalize(this);
+            if (close)
+            {
+                // Closing the instance and not returning it back to the pool.
+                Close();
+                return;
+            }
 
             if (_disposed)
             {
@@ -129,17 +134,9 @@ namespace ContentStoreTest.Distributed.Redis
                 return;
             }
 
-            if (close)
-            {
-                // Closing the instance and not returning it back to the pool.
-                Close();
-            }
-            else
-            {
-                _logger.Debug($"Returning database to pool in fixture '{_redisFixture.Id}'");
-                _redisFixture.DatabasePool.PutInstance(this);
-                _disposed = true;
-            }
+            _logger.Debug($"Returning database to pool in fixture '{_redisFixture.Id}'");
+            _redisFixture.DatabasePool.PutInstance(this);
+            _disposed = true;
         }
 
         ~LocalRedisProcessDatabase()
@@ -159,6 +156,13 @@ namespace ContentStoreTest.Distributed.Redis
 
         public void Close()
         {
+            if (Closed)
+            {
+                return;
+            }
+
+            GC.SuppressFinalize(this);
+
             _connectionMultiplexer?.Close(allowCommandsToComplete: false);
             _connectionMultiplexer?.Dispose();
 

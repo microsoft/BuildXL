@@ -109,6 +109,12 @@ namespace DistributedTest {
                         : importFrom("MemuraiDeveloper").Contents.all.contents,
                 ]
             },
+            {
+                subfolder: r`azurite`,
+                contents: [
+                    importFrom("BuildXL.Azurite.Executables").Contents.all
+                ]
+            }
         ],
     });
 }

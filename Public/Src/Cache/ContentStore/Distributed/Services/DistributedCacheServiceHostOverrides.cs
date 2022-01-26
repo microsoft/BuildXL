@@ -17,9 +17,12 @@ namespace BuildXL.Cache.Host.Service
 
         public virtual IClock Clock { get; } = SystemClock.Instance;
 
-        public virtual IWriteBehindEventStorage PersistentEventStorage => null;
-
         public virtual IWriteAheadEventStorage Override(IWriteAheadEventStorage storage)
+        {
+            return storage;
+        }
+
+        public virtual IWriteBehindEventStorage Override(IWriteBehindEventStorage storage)
         {
             return storage;
         }

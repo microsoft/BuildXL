@@ -2610,6 +2610,12 @@ Token).ShouldBeSuccess();
                     var worker = context.GetFirstWorker();
                     var masterGlobalStore = ((RedisGlobalStore)master.LocalLocationStore.GlobalStore);
 
+                    if (EnableAzuriteStorage)
+                    {
+                        // Hack to force redis to do leader election internally so it knows to replicate keys
+                        await masterGlobalStore.GetRoleAsync(context).ShouldBeSuccess();
+                    }
+
                     // Heartbeat the master to ensure cluster state is mirrored to secondary
                     TestClock.UtcNow += _configurations[0].ClusterStateMirrorInterval + TimeSpan.FromSeconds(1);
                     await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();

@@ -140,6 +140,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "BuildXL.Azurite.Executables",
+          "Version": "1.0.0-CI-20220125-034149"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "BuildXL.DeviceMap",
           "Version": "0.0.1"
         }

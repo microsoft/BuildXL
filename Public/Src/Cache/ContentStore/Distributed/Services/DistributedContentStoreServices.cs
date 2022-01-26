@@ -238,7 +238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     centralStorage = cachingCentralStorage;
                 }
 
-                var persistentEventStorage = Arguments.Overrides.PersistentEventStorage ?? new BlobWriteBehindEventStorage(configuration.PersistentEventStorage);
+                var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
 
                 var checkpointManager = new CheckpointManager(store.Database, checkpointRegistry, centralStorage, configuration.Checkpoint, new CounterCollection<ContentLocationStoreCounters>());
 

@@ -78,6 +78,10 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             {
                 return new CacheTimeoutFailure(opName, TimeoutDurationMin);
             }
+            catch (OperationCanceledException)
+            {
+                return new CancellationFailure();
+            }
 
             Contract.Assume(multiMaybePinned != null);
             Contract.Assume(multiMaybePinned.Length == casHashes.Length);

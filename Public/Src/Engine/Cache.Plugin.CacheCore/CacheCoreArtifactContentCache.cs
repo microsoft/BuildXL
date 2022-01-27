@@ -120,10 +120,14 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
                     // We return only an aggregate error from this function. To prevent erasing information, we log each error returned from
                     // the cache here (the caller may choose to also log the aggregate failure.
-                    BuildXL.Storage.Tracing.Logger.Log.StorageCacheCopyLocalError(
-                        Events.StaticContext,
-                        hashes[i].ToString(),
-                        maybePinned.Failure.DescribeIncludingInnerFailures());
+                    // We can avoid logging failures that are a result of cancelling the build early to keep the log clean.
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        BuildXL.Storage.Tracing.Logger.Log.StorageCacheCopyLocalError(
+                                                Events.StaticContext,
+                                                hashes[i].ToString(),
+                                                maybePinned.Failure.DescribeIncludingInnerFailures());
+                    }
                 }
             }
 

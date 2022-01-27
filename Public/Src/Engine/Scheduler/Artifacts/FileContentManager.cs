@@ -2712,10 +2712,14 @@ namespace BuildXL.Scheduler.Artifacts
                 // We need to fail all materialization tasks since we don't have per-hash results.
 
                 // TODO: We may want to check if the files on disk are up-to-date.
-                Logger.Log.StorageBringProcessContentLocalWarning(
-                    operationContext,
-                    pipInfo.Description,
-                    possibleResults.Failure.DescribeIncludingInnerFailures());
+                // We can avoid logging failures that are a result of cancelling the build early to keep the log clean.
+                if (!Context.CancellationToken.IsCancellationRequested)
+                {
+                    Logger.Log.StorageBringProcessContentLocalWarning(
+                        operationContext,
+                        pipInfo.Description,
+                        possibleResults.Failure.DescribeIncludingInnerFailures());
+                }
 
                 onFailure(possibleResults.Failure);
 

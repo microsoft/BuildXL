@@ -13,6 +13,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// </summary>
     public record RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
     {
+        public bool PreventRedisUsage { get; set; }
+
         /// <summary>
         /// The keyspace under which all keys in redis are stored
         /// </summary>
@@ -169,19 +171,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public ContentMetadataStoreMode? BlobContentMetadataStoreModeOverride { get; set; }
 
         /// <summary>
-        /// Controls which content location operation implementation is used for content metadata store
-        /// </summary>
-        public ContentMetadataStoreMode? ClusterGlobalStoreModeOverride { get; set; } = ContentMetadataStoreMode.Redis;
-
-        /// <summary>
         /// Gets all specified flags (including from feature-specific overrides) for controlling content metadata store mode.
         /// </summary>
         public ContentMetadataStoreModeFlags AllContentMetadataStoreModeFlags =>
             ContentMetadataStoreMode.Flags()
             | MemoizationContentMetadataStoreModeOverride.Flags()
             | LocationContentMetadataStoreModeOverride.Flags()
-            | BlobContentMetadataStoreModeOverride.Flags()
-            | ClusterGlobalStoreModeOverride.Flags();
+            | BlobContentMetadataStoreModeOverride.Flags();
 
         private bool _useMemoizationContentMetadataStore;
 

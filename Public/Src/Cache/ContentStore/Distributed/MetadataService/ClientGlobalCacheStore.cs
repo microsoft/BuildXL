@@ -130,30 +130,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                 timeout: _configuration.OperationTimeout);
         }
 
-        public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
-        {
-            return ExecuteAsync(context, async (context, callOptions, service) =>
-            {
-                var response = await service.GetClusterUpdatesAsync(request, callOptions);
-
-                return response.ToResult(r => r);
-            },
-            extraEndMessage: r => $"Request=[{request}] Response=[{r.GetValueOrDefault()}]",
-            shouldRetry: false);
-        }
-
-        public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
-        {
-            return ExecuteAsync(context, async (context, callOptions, service) =>
-            {
-                var response = await service.HeartbeatAsync(request, callOptions);
-
-                return response.ToResult(r => r);
-            },
-            extraEndMessage: r => $"Request=[{request}] Response=[{r.GetValueOrDefault()}]",
-            shouldRetry: false);
-        }
-
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)
         {
             return ExecuteAsync(context, async (context, callOptions, service) =>

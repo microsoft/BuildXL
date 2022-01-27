@@ -73,7 +73,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             RedisContentLocationStoreConfiguration configuration)
         {
             Contract.Requires(configuration != null);
-            Contract.Requires(!string.IsNullOrEmpty(configuration.RedisGlobalStoreConnectionString));
             Contract.Requires(!string.IsNullOrWhiteSpace(configuration.Keyspace));
             Contract.Requires(arguments.Copier != null);
 

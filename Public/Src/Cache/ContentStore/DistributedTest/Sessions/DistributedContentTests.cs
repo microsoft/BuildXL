@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -74,7 +75,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected virtual IContentSession UnwrapRootContentSession(TSession session) => session;
 
-        protected abstract TStore CreateFromTopLevelContentStore(IContentStore store);
+        protected abstract TStore CreateFromArguments(DistributedCacheServiceArguments arguments);
 
         protected virtual DistributedCacheServiceArguments ModifyArguments(DistributedCacheServiceArguments arguments) => arguments;
 
@@ -343,14 +344,25 @@ namespace ContentStoreTest.Distributed.Sessions
                 return session;
             }
 
-            public ResilientGlobalCacheService GetContentMetadataService(int? idx = null) =>
-                (ResilientGlobalCacheService)(GetDistributedStore(idx ?? GetMasterIndex()).ContentLocationStoreFactory as ContentLocationStoreFactory)?.Services.Dependencies.GlobalCacheService.InstanceOrDefault();
+            public ContentLocationStoreServices GetServices(int? idx = null)
+            {
+                return (GetDistributedStore(idx ?? GetMasterIndex()).ContentLocationStoreFactory as ContentLocationStoreFactory)?.Services;
+            }
 
-            public LocalLocationStore GetLocalLocationStore(int idx) =>
-                ((TransitioningContentLocationStore)GetDistributedStore(idx).ContentLocationStore).LocalLocationStore;
+            public ResilientGlobalCacheService GetContentMetadataService(int? idx = null)
+            {
+                return GetServices(idx ?? GetMasterIndex()).Dependencies.GlobalCacheService.InstanceOrDefault() as ResilientGlobalCacheService;
+            }
 
-            internal RedisGlobalStore GetRedisGlobalStore(int idx) =>
-                (RedisGlobalStore)GetLocalLocationStore(idx).GlobalStore;
+            public LocalLocationStore GetLocalLocationStore(int idx)
+            {
+                return GetServices(idx).LocalLocationStore.Instance;
+            }
+
+            internal RedisGlobalStore GetRedisGlobalStore(int idx)
+            {
+                return GetServices(idx).RedisGlobalStore.Instance;
+            }
 
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);

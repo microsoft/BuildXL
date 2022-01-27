@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 
 #nullable enable
 
@@ -17,9 +18,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// don't provide Redis as fallback, then no checkpoints will be found and we enter a weird state. Should be removed
     /// after we fully move to the new one.
     /// </summary>
-    public class TransitioningCheckpointRegistry : ICheckpointRegistry
+    public class TransitioningCheckpointRegistry : StartupShutdownComponentBase, ICheckpointRegistry
     {
-        protected Tracer Tracer { get; } = new Tracer(nameof(TransitioningCheckpointRegistry));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningCheckpointRegistry));
 
         private readonly ICheckpointRegistry _primary;
         private readonly ICheckpointRegistry _fallback;
@@ -30,6 +31,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _primary = primary;
             _fallback = fallback;
+
+            LinkLifetime(_primary);
+            LinkLifetime(_fallback);
         }
 
         public async Task<Result<CheckpointState>> GetCheckpointStateAsync(OperationContext context)

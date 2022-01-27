@@ -34,7 +34,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         private ContentMetadataStoreMode BlobMode => (_configuration.BlobContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode).Mask(_blobSupportedMask);
         private ContentMetadataStoreMode LocationMode => _configuration.LocationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
         private ContentMetadataStoreMode MemoizationMode => _configuration.MemoizationContentMetadataStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
-        private ContentMetadataStoreMode ClusterMode => _configuration.ClusterGlobalStoreModeOverride ?? _configuration.ContentMetadataStoreMode;
 
         private readonly ContentMetadataStoreModeFlags _blobSupportedMask;
 
@@ -85,16 +84,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             result &= await _distributedStore.ShutdownAsync(context);
 
             return result;
-        }
-
-        public Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request)
-        {
-            return WriteAsync(context, ClusterMode, store => store.HeartbeatAsync(context, request));
-        }
-
-        public Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request)
-        {
-            return ReadAsync(context, ClusterMode, store => store.GetClusterUpdatesAsync(context, request));
         }
 
         public Task<Result<IReadOnlyList<ContentLocationEntry>>> GetBulkAsync(OperationContext context, IReadOnlyList<ShortHash> contentHashes)

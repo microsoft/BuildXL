@@ -75,7 +75,47 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
+                    d.ContentMetadataPersistInterval = "1000s";
+                },
+                overrideRedis: r =>
+                {
+                    //r.MetadataStore = config;
+                });
+
+            return RunTestAsync(
+                3,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+                    var master = context.GetMasterIndex();
+                    var worker0 = context.EnumerateWorkersIndices().ElementAt(0);
+                    var worker1 = context.EnumerateWorkersIndices().ElementAt(1);
+
+                    var masterStore = context.GetLocalLocationStore(master);
+                    //masterStore.HeartbeatAsync(context, )
+
+                    var workerSession0 = sessions[worker0];
+                    var workerSession1 = sessions[worker1];
+
+                    var putResult = await workerSession0.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                    await OpenStreamAndDisposeAsync(workerSession1, context, putResult.ContentHash);
+                });
+        }
+
+        [Fact]
+        public Task TestServicePutAndRetrieveOnDifferentMachinesWithoutRedis()
+        {
+            UseGrpcServer = true;
+            EnableAzuriteStorage = true;
+            DisableRedis = true;
+
+            ConfigureWithOneMaster(
+                overrideDistributed: d =>
+                {
+                    d.PreventRedisUsage = true;
+                    d.ContentMetadataEnableResilience = true;
+                    d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
                     d.ContentMetadataPersistInterval = "1000s";
                 },
                 overrideRedis: r =>
@@ -115,7 +155,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -162,7 +201,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     d.IsMasterEligible = d.TestIteration >= d.TestMachineIndex;
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });
@@ -245,7 +283,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     d.ContentMetadataEnableResilience = true;
                     d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
-                    d.ClusterGlobalStoreModeOverride = ContentMetadataStoreMode.WriteBothPreferRedis;
                     d.ContentMetadataPersistInterval = "1000s";
                     d.CreateCheckpointIntervalMinutes = 10;
                 });

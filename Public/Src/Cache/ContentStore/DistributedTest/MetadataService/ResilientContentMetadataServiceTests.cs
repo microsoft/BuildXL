@@ -187,7 +187,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             {
                 Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager"),
                 EventStream = new ContentMetadataEventStreamConfiguration(),
-                VolatileEventStorage = new RedisVolatileEventStorageConfiguration(),
             };
             modifyConfig?.Invoke(contentMetadataServiceConfiguration);
 
@@ -204,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
             {
                 Tracer.Info(operationContext, $"Running iteration {iteration}");
 
-                var redisVolatileEventStorage = new RedisWriteAheadEventStorage(contentMetadataServiceConfiguration.VolatileEventStorage, primaryDatabaseAdapter, clock);
+                var redisVolatileEventStorage = new RedisWriteAheadEventStorage(new RedisVolatileEventStorageConfiguration(), primaryDatabaseAdapter, clock);
 
                 IWriteAheadEventStorage volatileEventStorage = new FailingVolatileEventStorage();
                 if (!volatileStorageFailure)

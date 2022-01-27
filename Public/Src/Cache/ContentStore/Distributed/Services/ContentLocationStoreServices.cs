@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.MetadataService;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Host.Configuration;
 
 #nullable enable
@@ -50,12 +52,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         protected string KeySpace => Configuration.Keyspace;
 
         /// <nodoc />
-        public RedisDatabaseFactory RedisDatabaseFactoryForRedisGlobalStore { get; }
-
-        /// <nodoc />
-        public RedisDatabaseFactory? RedisDatabaseFactoryForRedisGlobalStoreSecondary { get; }
-
-        /// <nodoc />
         public OptionalServiceDefinition<ClientGlobalCacheStore> ClientGlobalCacheStore { get; }
 
         /// <nodoc />
@@ -76,6 +72,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         /// <nodoc />
         public IServiceDefinition<LocalLocationStore> LocalLocationStore { get; }
 
+        /// <nodoc />
+        public IServiceDefinition<ICheckpointRegistry> CheckpointRegistry { get; }
+
         public ContentLocationStoreServices(
             ContentLocationStoreFactoryArguments arguments,
             RedisContentLocationStoreConfiguration configuration)
@@ -85,20 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             var context = arguments.Copier.Context;
 
-            RedisDatabaseFactoryForRedisGlobalStore = RedisDatabaseFactory.Create(
-                context,
-                new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString),
-                Configuration.RedisConnectionMultiplexerConfiguration);
-
-            if (Configuration.RedisGlobalStoreSecondaryConnectionString != null)
-            {
-                RedisDatabaseFactoryForRedisGlobalStoreSecondary = RedisDatabaseFactory.Create(
-                    context,
-                    new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString),
-                    Configuration.RedisConnectionMultiplexerConfiguration);
-            }
-
-            RedisGlobalStore = Create(() => CreateRedisGlobalStore());
+            RedisGlobalStore = Create(() => CreateRedisGlobalStore(context));
 
             MasterElectionMechanism = Create(() => CreateMasterElectionMechanism());
 
@@ -111,6 +97,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             LocalLocationStore = Create(() => CreateLocalLocationStore());
 
             ClusterStateManager = Create(() => CreateClusterStateManager());
+
+            CheckpointRegistry = Create(() => CreateCheckpointRegistry());
         }
 
         private ClientGlobalCacheStore CreateClientGlobalCacheStore()
@@ -122,13 +110,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         {
             return new LocalLocationStore(
                                 Clock,
-                                RedisGlobalStore.Instance,
                                 GlobalCacheStore.Instance,
                                 Configuration,
                                 Copier,
                                 MasterElectionMechanism.Instance,
                                 ClusterStateManager.Instance,
+                                CheckpointRegistry.Instance,
                                 Dependencies?.ColdStorage.InstanceOrDefault());
+        }
+
+        private ICheckpointRegistry CreateCheckpointRegistry()
+        {
+            if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration is not null)
+            {
+                var storageRegistry = new AzureBlobStorageCheckpointRegistry(Configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, Clock);
+
+                if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration.Standalone)
+                {
+                    return storageRegistry;
+                }
+                else
+                {
+                    return new TransitioningCheckpointRegistry(primary: storageRegistry, fallback: RedisGlobalStore.Instance);
+                }
+            }
+            else
+            {
+                return RedisGlobalStore.Instance;
+            }
         }
 
         private IGlobalCacheStore CreateGlobalCacheStore()
@@ -210,12 +219,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             return new ClusterStateManager(Configuration, storage, Clock);
         }
 
-        private RedisGlobalStore CreateRedisGlobalStore()
+        private RedisGlobalStore CreateRedisGlobalStore(Context context)
         {
-            var redisDatabaseForGlobalStore = ConfigurableRedisDatabaseFactory.CreateDatabase(Configuration, RedisDatabaseFactoryForRedisGlobalStore, "primaryRedisDatabase");
+            Contract.Assert(!Configuration.PreventRedisUsage, "Attempt to use Redis when it is disabled");
+
+            var redisDatabaseFactoryForRedisGlobalStore = RedisDatabaseFactory.Create(
+                context,
+                new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString),
+                Configuration.RedisConnectionMultiplexerConfiguration);
+
+            RedisDatabaseFactory? redisDatabaseFactoryForRedisGlobalStoreSecondary = null;
+            if (Configuration.RedisGlobalStoreSecondaryConnectionString != null)
+            {
+                redisDatabaseFactoryForRedisGlobalStoreSecondary = RedisDatabaseFactory.Create(
+                    context,
+                    new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString),
+                    Configuration.RedisConnectionMultiplexerConfiguration);
+            }
+
+            var redisDatabaseForGlobalStore = ConfigurableRedisDatabaseFactory.CreateDatabase(Configuration, redisDatabaseFactoryForRedisGlobalStore, "primaryRedisDatabase");
             var secondaryRedisDatabaseForGlobalStore = ConfigurableRedisDatabaseFactory.CreateDatabase(
                 Configuration,
-                RedisDatabaseFactoryForRedisGlobalStoreSecondary,
+                redisDatabaseFactoryForRedisGlobalStoreSecondary,
                 "secondaryRedisDatabase",
                 optional: true);
 
@@ -224,10 +249,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             if (Configuration.UseSeparateConnectionForRedisBlobs)
             {
                 // To prevent blob opoerations from blocking other operations, create a separate connections for them.
-                redisBlobDatabase = ConfigurableRedisDatabaseFactory.CreateDatabase(Configuration, RedisDatabaseFactoryForRedisGlobalStore, "primaryRedisBlobDatabase");
+                redisBlobDatabase = ConfigurableRedisDatabaseFactory.CreateDatabase(Configuration, redisDatabaseFactoryForRedisGlobalStore, "primaryRedisBlobDatabase");
                 secondaryRedisBlobDatabase = ConfigurableRedisDatabaseFactory.CreateDatabase(
                     Configuration,
-                    RedisDatabaseFactoryForRedisGlobalStoreSecondary,
+                    redisDatabaseFactoryForRedisGlobalStoreSecondary,
                     "secondaryRedisBlobDatabase",
                     optional: true);
             }

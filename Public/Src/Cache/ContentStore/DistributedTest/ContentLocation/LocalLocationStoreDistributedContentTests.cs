@@ -756,7 +756,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var globalResult = await store1.GetBulkAsync(context, new[] { hash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
                     globalResult.ContentHashesInfo[0].Locations.Should().NotBeNullOrEmpty();
 
-                    var redisStore0 = (RedisGlobalStore)store0.LocalLocationStore.GlobalStore;
+                    var redisStore0 = context.GetServices(0).RedisGlobalStore.Instance;
                     var clusterStateMgr0 = store0.LocalLocationStore.ClusterStateManager;
 
                     int registerContentCount = 5;
@@ -862,12 +862,15 @@ namespace ContentStoreTest.Distributed.Sessions
                     var hash = ContentHash.Random();
                     var hashes = new[] { new ContentHashWithSize(hash, 120) };
 
-                    foreach (var workerStore in context.EnumerateWorkers())
+                    foreach (var idx in context.EnumerateWorkersIndices())
                     {
+                        var workerStore = context.GetLocationStore(idx);
+                        var globalStore = context.GetServices(idx).RedisGlobalStore.Instance;
+
                         // Add to store
                         await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
                         workerStore.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddQueued].Value.Should().Be(0);
-                        workerStore.LocalLocationStore.GlobalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(1);
+                        globalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(1);
                     }
 
                     await master.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
@@ -875,7 +878,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddQueued].Value.Should().Be(1,
                         "When number of replicas is over limit location adds should be set through event stream but not eagerly sent to redis");
 
-                    master.LocalLocationStore.GlobalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(0);
+                    var masterGlobalStore = context.GetServices().RedisGlobalStore.Instance;
+                    masterGlobalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(0);
                 });
         }
 
@@ -2608,7 +2612,7 @@ Token).ShouldBeSuccess();
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
                     var master = context.GetMaster();
                     var worker = context.GetFirstWorker();
-                    var masterGlobalStore = ((RedisGlobalStore)master.LocalLocationStore.GlobalStore);
+                    var masterGlobalStore = context.GetServices().RedisGlobalStore.Instance;
 
                     if (EnableAzuriteStorage)
                     {
@@ -2719,7 +2723,7 @@ Token).ShouldBeSuccess();
 
                     var masterSession = sessions[context.GetMasterIndex()];
                     var master = context.GetMaster();
-                    var masterGlobalStore = ((RedisGlobalStore)master.LocalLocationStore.GlobalStore);
+                    var masterGlobalStore = context.GetServices().RedisGlobalStore.Instance;
 
                     var putResult = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
                     var globalGetBulkResult = await master.GetBulkAsync(

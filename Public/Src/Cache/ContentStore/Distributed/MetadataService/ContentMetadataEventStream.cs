@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// Log = [Block]*
     /// Block = [BlockId:int32][BlockByteLength:int32][EventCount:int32][Event]*
     /// </summary>
-    public partial class ContentMetadataEventStream : StartupShutdownSlimBase
+    public partial class ContentMetadataEventStream : StartupShutdownComponentBase
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(ContentMetadataEventStream));
 
@@ -74,31 +74,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _configuration = configuration;
             _writeAheadEventStorage = volatileStorage;
             _writeBehindEventStorage = persistentStorage;
-        }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
+            LinkLifetime(_writeBehindEventStorage);
+            LinkLifetime(_writeAheadEventStorage);
+
             // Start the write behind commit loop which commits log events to write behind
             // storage at a specified interval
-            WriteBehindCommitLoopAsync(context).FireAndForget(context);
-
-            await _writeBehindEventStorage.StartupAsync(context).ThrowIfFailureAsync();
-
-            await _writeAheadEventStorage.StartupAsync(context).ThrowIfFailureAsync();
-
-            return BoolResult.Success;
+            RunInBackground(nameof(WriteBehindCommitLoopAsync), WriteBehindCommitLoopAsync, fireAndForget: true);
         }
 
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             // Stop logging
             SetIsLogging(false);
-
-            var success = await _writeAheadEventStorage.ShutdownAsync(context);
-
-            success &= await _writeBehindEventStorage.ShutdownAsync(context);
-
-            return success;
+            return base.ShutdownCoreAsync(context);
         }
 
         public Task<Result<CheckpointLogId>> BeforeCheckpointAsync(OperationContext context)
@@ -330,7 +319,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private async Task WriteBehindCommitLoopAsync(OperationContext context)
+        private async Task<BoolResult> WriteBehindCommitLoopAsync(OperationContext context)
         {
             while (!context.Token.IsCancellationRequested)
             {
@@ -344,6 +333,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 await WriteBehindCommitLoopIterationAsync(new OperationContext(context, CancellationToken.None))
                     .FireAndForgetErrorsAsync(context);
             }
+
+            return BoolResult.Success;
         }
 
         public async Task<(bool committed, LogCursor cursor)> WriteBehindCommitLoopIterationAsync(

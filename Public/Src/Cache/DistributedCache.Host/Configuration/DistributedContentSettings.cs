@@ -155,6 +155,25 @@ namespace BuildXL.Cache.Host.Configuration
 
         // Redis-related configuration
 
+        [DataMember]
+        public bool PreventRedisUsage { get; set; } = false;
+
+        public void DisableRedis()
+        {
+            ContentMetadataStoreMode = Configuration.ContentMetadataStoreMode.Distributed;
+            MemoizationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
+            LocationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
+            BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
+            UseBlobCheckpointRegistry = true;
+            BlobCheckpointRegistryStandalone = true;
+            UseBlobMasterElection = true;
+            UseBlobClusterStateStorage = true;
+            BlobClusterStateStorageStandalone = true;
+            UseBlobVolatileStorage = true;
+            ContentMetadataUseBlobCheckpointRegistry = true;
+            ContentMetadataUseBlobCheckpointRegistryStandalone = true;
+        }
+
         /// <summary>
         /// TTL to be set in Redis for memoization entries.
         /// </summary>
@@ -1162,6 +1181,15 @@ namespace BuildXL.Cache.Host.Configuration
         public string ContentMetadataBlobSecretName { get; set; }
 
         [DataMember]
+        public bool ContentMetadataUseBlobCheckpointRegistry { get; set; }
+
+        [DataMember]
+        public bool ContentMetadataUseBlobCheckpointRegistryStandalone { get; set; }
+
+        [DataMember]
+        public string ContentMetadataBlobCheckpointRegistryContainerName { get; set; } = "contentmetadata";
+
+        [DataMember]
         public TimeSpanSetting ContentMetadataPersistInterval { get; set; } = TimeSpan.FromSeconds(5);
 
         [DataMember]
@@ -1205,9 +1233,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public EnumSetting<ContentMetadataStoreMode>? MemoizationContentMetadataStoreModeOverride { get; set; }
-
-        [DataMember]
-        public EnumSetting<ContentMetadataStoreMode>? ClusterGlobalStoreModeOverride { get; set; }
 
         [DataMember]
         public int? MetadataStoreMaxOperationConcurrency { get; set; }

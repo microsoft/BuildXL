@@ -40,11 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public ContentMetadataEventStreamConfiguration EventStream { get; init; }
 
-        public RedisVolatileEventStorageConfiguration VolatileEventStorage { get; init; }
-
         public BlobEventStorageConfiguration PersistentEventStorage { get; init; }
-
-        public ClusterManagementConfiguration ClusterManagement { get; init; }
 
         /// <summary>
         /// If set, all the operations for the global cache service will go through a queue for limiting the number of simultaneous operations.
@@ -60,11 +56,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         /// the age, we'll wipe out all of the data in the system and start from a clean slate.
         /// </summary>
         public TimeSpan? CheckpointMaxAge { get; set; }
-    }
-
-    public record ClusterManagementConfiguration
-    {
-        public TimeSpan MachineExpiryInterval { get; init; } = TimeSpan.FromDays(1);
     }
 
     /// <summary>
@@ -187,7 +178,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             ContentMetadataEventStream eventStream,
             IStreamStorage streamStorage,
             IClock clock = null)
-            : base(store, new ClusterManagementStore(configuration.ClusterManagement, streamStorage, clock))
+            : base(store)
         {
             _configuration = configuration;
             _store = store;
@@ -197,7 +188,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
             LinkLifetime(streamStorage);
             LinkLifetime(_eventStream);
-            LinkLifetime(_checkpointManager.Storage);
+            LinkLifetime(_checkpointManager);
 
             RunInBackground(nameof(CreateCheckpointLoopAsync), CreateCheckpointLoopAsync, fireAndForget: true);
         }
@@ -388,8 +379,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         await _checkpointManager.RestoreCheckpointAsync(context, checkpointState).ThrowIfFailureAsync();
                     }
 
-                    await ClusterManagementStore.RestoreClusterCheckpointAsync(context).ThrowIfFailureAsync();
-
                     logId = CheckpointLogId.InitialLogId;
                     var startReadLogId = logId;
                     if (_store.Database.TryGetGlobalEntry(LogCursorKey, out var cursor))
@@ -530,11 +519,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         await GetLevelSelectorsAsync((GetLevelSelectorsRequest)request);
                         break;
                     }
-                    case RpcMethodId.Heartbeat:
-                    {
-                        await HeartbeatAsync((HeartbeatMachineRequest)request);
-                        break;
-                    }
                     default:
                         throw Contract.AssertFailure($"Unhandled method id: {request.MethodId}");
                 }
@@ -607,8 +591,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         var logId = await _eventStream.BeforeCheckpointAsync(context).ThrowIfFailureAsync();
 
                         _store.Database.SetGlobalEntry(LogCursorKey, logId.Serialize());
-
-                        await ClusterManagementStore.CreateClusterCheckpointAsync(context).ThrowIfFailureAsync();
 
                         await _checkpointManager.CreateCheckpointAsync(context, new EventSequencePoint(logId.Value)).ThrowIfFailureAsync();
 

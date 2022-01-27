@@ -49,6 +49,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public abstract class ContentLocationDatabase : StartupShutdownSlimBase, IContentLocationDatabase
     {
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         /// <nodoc />
         protected readonly SerializationPool SerializationPool = new SerializationPool();
 

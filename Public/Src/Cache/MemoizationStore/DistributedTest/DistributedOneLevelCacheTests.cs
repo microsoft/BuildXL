@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
+using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -530,9 +531,16 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
             return base.ModifyArguments(arguments);
         }
 
-        protected override ICache CreateFromTopLevelContentStore(IContentStore store)
+        protected override ICache CreateFromArguments(DistributedCacheServiceArguments arguments)
         {
-            return new DistributedOneLevelCache(store, TestContext.GetTypedStore<DistributedContentStore>(store), Guid.NewGuid(), passContentToMemoization: false);
+            var factory = new DistributedContentStoreFactory(arguments);
+            var store = factory.CreateTopLevelStore().topLevelStore;
+
+            return new DistributedOneLevelCache(
+                store,
+                factory.Services.ContentLocationStoreServices.Instance,
+                Guid.NewGuid(),
+                passContentToMemoization: false);
         }
     }
 }

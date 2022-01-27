@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
     /// <summary>
     /// Interface that represents a central store (currently backed by Redis).
     /// </summary>
-    public interface IGlobalCacheStore : IContentMetadataStore, IClusterManagementStore, IStartupShutdownSlim
+    public interface IGlobalCacheStore : IContentMetadataStore, IStartupShutdownSlim
     {
         
     }
@@ -72,18 +72,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         Task<Result<SerializedMetadataEntry>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
 
         #endregion Memoization Operations
-    }
-
-    public interface IClusterManagementStore
-    {
-        /// <summary>
-        /// Notifies the store that the specified machine is alive
-        /// </summary>
-        Task<Result<HeartbeatMachineResponse>> HeartbeatAsync(OperationContext context, HeartbeatMachineRequest request);
-
-        /// <summary>
-        /// Gets updates to the cluster state based on the provided <see cref="GetClusterUpdatesRequest.MaxMachineId"/>
-        /// </summary>
-        Task<Result<GetClusterUpdatesResponse>> GetClusterUpdatesAsync(OperationContext context, GetClusterUpdatesRequest request);
     }
 }

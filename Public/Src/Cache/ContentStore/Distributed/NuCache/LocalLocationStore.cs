@@ -72,9 +72,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public ContentLocationDatabase Database { get; }
 
         /// <nodoc />
-        public IGlobalLocationStore GlobalStore { get; }
-
-        /// <nodoc />
         public IGlobalCacheStore GlobalCacheStore { get; }
 
         /// <nodoc />
@@ -169,24 +166,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
-            IGlobalLocationStore globalStore,
             IGlobalCacheStore globalCacheStore,
             LocalLocationStoreConfiguration configuration,
             DistributedContentCopier copier,
             IMasterElectionMechanism masterElectionMechanism,
             ClusterStateManager clusterStateManager,
+            ICheckpointRegistry checkpointRegistry,
             ColdStorage? coldStorage)
         {
             Contract.RequiresNotNull(clock);
-            Contract.RequiresNotNull(globalStore);
             Contract.RequiresNotNull(configuration);
 
             _clock = clock;
             Configuration = configuration;
-            GlobalStore = globalStore;
             GlobalCacheStore = globalCacheStore;
             _masterElectionMechanism = masterElectionMechanism;
             ClusterStateManager = clusterStateManager;
+            _checkpointRegistry = checkpointRegistry;
             _coldStorage = coldStorage;
 
             _recentlyAddedHashes = new VolatileSet<ShortHash>(clock);
@@ -211,24 +207,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 CentralStorage = _innerCentralStorage;
-            }
-
-            if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration is not null)
-            {
-                var storageRegistry = new AzureBlobStorageCheckpointRegistry(configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, _clock);
-
-                if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration.Standalone)
-                {
-                    _checkpointRegistry = storageRegistry;
-                }
-                else
-                {
-                    _checkpointRegistry = new TransitioningCheckpointRegistry(primary: storageRegistry, fallback: GlobalStore);
-                }
-            }
-            else
-            {
-                _checkpointRegistry = GlobalStore;
             }
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
@@ -323,7 +301,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 counters.Merge(EventStore.GetCounters(), "EventStore.");
             }
 
-            counters.Merge(GlobalStore.GetCounters(new OperationContext(context)), "GlobalStore.");
             return counters;
         }
 
@@ -339,7 +316,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters);
 
-            await GlobalStore.StartupAsync(context).ThrowIfFailure();
+            await CheckpointManager.StartupAsync(context).ThrowIfFailureAsync();
 
             await ClusterStateManager.StartupAsync(context).ThrowIfFailureAsync();
 
@@ -469,9 +446,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             result &= await ClusterStateManager.ShutdownAsync(context);
 
-            result &= await GlobalStore.ShutdownAsync(context);
-
             result &= await GlobalCacheStore.ShutdownAsync(context);
+
+            result &= await CheckpointManager.ShutdownAsync(context);
 
             if (DistributedCentralStorage != null)
             {

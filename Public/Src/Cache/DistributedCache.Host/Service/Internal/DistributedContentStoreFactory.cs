@@ -79,7 +79,12 @@ namespace BuildXL.Cache.Host.Service.Internal
             _logger = arguments.Logger;
             _arguments = arguments;
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
-            
+
+            if (_distributedSettings.PreventRedisUsage)
+            {
+                _distributedSettings.DisableRedis();
+            }
+
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreConstants.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
@@ -189,6 +194,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var redisConfig = new RedisContentLocationStoreConfiguration
             {
+                PreventRedisUsage = _distributedSettings.PreventRedisUsage,
                 Keyspace = _keySpace + RedisKeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
@@ -219,7 +225,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobContentMetadataStoreModeOverride, v => redisConfig.BlobContentMetadataStoreModeOverride = v.Value);
             ApplyIfNotNull(_distributedSettings.LocationContentMetadataStoreModeOverride, v => redisConfig.LocationContentMetadataStoreModeOverride = v.Value);
             ApplyIfNotNull(_distributedSettings.MemoizationContentMetadataStoreModeOverride, v => redisConfig.MemoizationContentMetadataStoreModeOverride = v.Value);
-            ApplyIfNotNull(_distributedSettings.ClusterGlobalStoreModeOverride, v => redisConfig.ClusterGlobalStoreModeOverride = v.Value);
 
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitCount, v => redisConfig.BlobOperationLimitCount = v);
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisConfig.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
@@ -646,8 +651,12 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.RedisMemoizationDatabaseOperationTimeoutInSeconds, value => configuration.Memoization.OperationTimeout = TimeSpan.FromSeconds(value));
             ApplyIfNotNull(_distributedSettings.RedisMemoizationSlowOperationCancellationTimeoutInSeconds, value => configuration.Memoization.SlowOperationCancellationTimeout = TimeSpan.FromSeconds(value));
 
-            configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(_distributedSettings.GlobalRedisSecretName)).Secret;
-            if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
+            if (!string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
+            {
+                configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(_distributedSettings.GlobalRedisSecretName)).Secret;
+            }
+            
+            if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
             {
                 configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret)GetRequiredSecret(
                     _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
@@ -849,6 +858,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public Secret GetRequiredSecret(string secretName)
         {
+            Contract.Requires(!string.IsNullOrEmpty(secretName), "Attempt to retrieve invalid secret");
             if (!_secrets.Secrets.TryGetValue(secretName, out var value))
             {
                 throw new KeyNotFoundException($"Missing secret: {secretName}");

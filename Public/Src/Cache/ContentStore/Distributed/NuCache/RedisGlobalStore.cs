@@ -34,7 +34,7 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalLocationStore, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, ICheckpointRegistry, IMasterElectionMechanism, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
         private const int MaxCheckpointSlotCount = 5;
         private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();

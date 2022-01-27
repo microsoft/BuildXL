@@ -81,7 +81,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public class AzureBlobStorageCheckpointRegistry : StartupShutdownSlimBase, ICheckpointRegistry
     {
-        protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStorageCheckpointRegistry));
+        protected override Tracer Tracer => WorkaroundTracer;
+
+        public Tracer WorkaroundTracer { get; set; } = new Tracer(nameof(AzureBlobStorageCheckpointRegistry));
 
         private readonly AzureBlobStorageCheckpointRegistryConfiguration _configuration;
 

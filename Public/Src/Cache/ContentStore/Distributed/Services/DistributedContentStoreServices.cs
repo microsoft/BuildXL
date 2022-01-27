@@ -83,6 +83,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         /// <nodoc />
         public IServiceDefinition<ContentLocationStoreServices> ContentLocationStoreServices { get; }
 
+        internal IServiceDefinition<RedisWriteAheadEventStorage> RedisWriteAheadEventStorage { get; }
+
+        internal IServiceDefinition<ICheckpointRegistry> CacheServiceCheckpointRegistry { get; }
+
         internal DistributedContentStoreServices(DistributedContentStoreServicesArguments arguments)
         {
             Arguments = arguments;
@@ -126,6 +130,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     },
                     Arguments.RedisContentLocationStoreConfiguration);
             });
+
+            RedisWriteAheadEventStorage = Create(() => CreateRedisWriteAheadEventStorage());
+
+            CacheServiceCheckpointRegistry = Create(() => CreateCacheServiceCheckpointRegistry());
         }
 
         private GlobalCacheServiceConfiguration CreateGlobalCacheServiceConfiguration()
@@ -138,12 +146,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 CheckpointMaxAge = DistributedContentSettings.ContentMetadataCheckpointMaxAge?.Value,
                 MaxEventParallelism = RedisContentLocationStoreConfiguration.EventStore.MaxEventProcessingConcurrency,
                 MasterLeaseStaleThreshold = DateTimeUtilities.Multiply(RedisContentLocationStoreConfiguration.Checkpoint.MasterLeaseExpiryTime, 0.5),
-                VolatileEventStorage = new RedisVolatileEventStorageConfiguration()
-                {
-                    ConnectionString = (Arguments.Secrets.GetRequiredSecret(DistributedContentSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
-                    KeyPrefix = DistributedContentSettings.RedisWriteAheadKeyPrefix,
-                    MaximumKeyLifetime = DistributedContentSettings.ContentMetadataRedisMaximumKeyLifetime,
-                },
                 PersistentEventStorage = new BlobEventStorageConfiguration()
                 {
                     Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
@@ -164,11 +166,62 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 {
                     WorkingDirectory = Arguments.PrimaryCacheRoot / "cmschkpt"
                 },
-                ClusterManagement = new ClusterManagementConfiguration()
-                {
-                    MachineExpiryInterval = RedisContentLocationStoreConfiguration.MachineActiveToExpiredInterval,
-                }
             };
+        }
+
+        internal RedisWriteAheadEventStorage CreateRedisWriteAheadEventStorage()
+        {
+            Contract.Assert(!DistributedContentSettings.PreventRedisUsage, "Attempt to use Redis when it is disabled");
+
+            var configuration = GlobalCacheServiceConfiguration.GetRequiredInstance();
+            var clock = Arguments.Clock;
+
+            var redisVolatileEventStorageConfiguration = new RedisVolatileEventStorageConfiguration()
+            {
+                ConnectionString = (Arguments.Secrets.GetRequiredSecret(DistributedContentSettings.ContentMetadataRedisSecretName) as PlainTextSecret).Secret,
+                KeyPrefix = DistributedContentSettings.RedisWriteAheadKeyPrefix,
+                MaximumKeyLifetime = DistributedContentSettings.ContentMetadataRedisMaximumKeyLifetime,
+            };
+            return new RedisWriteAheadEventStorage(
+                    redisVolatileEventStorageConfiguration,
+                    new ConfigurableRedisDatabaseFactory(RedisContentLocationStoreConfiguration),
+                    clock);
+        }
+
+        internal ICheckpointRegistry CreateCacheServiceCheckpointRegistry()
+        {
+            var configuration = GlobalCacheServiceConfiguration.GetRequiredInstance();
+            var clock = Arguments.Clock;
+            
+            if (DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistry)
+            {
+                var storageRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
+                {
+                    Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
+                    FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
+                    ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
+                    KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
+                    Standalone = DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistryStandalone,
+                };
+
+                var storageRegistry = new AzureBlobStorageCheckpointRegistry(
+                    storageRegistryConfiguration,
+                    RedisContentLocationStoreConfiguration.PrimaryMachineLocation,
+                    clock);
+                storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
+                if (storageRegistryConfiguration.Standalone)
+                {
+                    return storageRegistry;
+                }
+                else
+                {
+                    return new TransitioningCheckpointRegistry(RedisWriteAheadEventStorage.Instance, storageRegistry);
+                }
+            }
+            else
+            {
+                return RedisWriteAheadEventStorage.Instance;
+            }
         }
 
         private GlobalCacheService CreateGlobalCacheService()
@@ -199,17 +252,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
             if (!DistributedContentSettings.ContentMetadataEnableResilience)
             {
-                return new GlobalCacheService(store, new ClusterManagementStore(configuration.ClusterManagement, new NullStreamStorage(), clock));
+                return new GlobalCacheService(store);
             }
             else
             {
-                var redisStorage = new RedisWriteAheadEventStorage(
-                    configuration.VolatileEventStorage,
-                    new ConfigurableRedisDatabaseFactory(RedisContentLocationStoreConfiguration),
-                    clock);
-
-                IWriteAheadEventStorage volatileEventStorage = redisStorage;
-
+                IWriteAheadEventStorage volatileEventStorage;
                 if (DistributedContentSettings.UseBlobVolatileStorage)
                 {
                     var volatileConfig = configuration.PersistentEventStorage with
@@ -219,8 +266,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
                     volatileEventStorage = new BlobWriteAheadEventStorage(volatileConfig);
                 }
+                else
+                {
+                    volatileEventStorage = RedisWriteAheadEventStorage.Instance;
+                }
 
-                var checkpointRegistry = redisStorage;
                 CentralStorage centralStorage = centralStreamStorage;
 
                 if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
@@ -240,12 +290,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
                 var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
 
-                var checkpointManager = new CheckpointManager(store.Database, checkpointRegistry, centralStorage, configuration.Checkpoint, new CounterCollection<ContentLocationStoreCounters>());
+                var checkpointManager = new CheckpointManager(store.Database, CacheServiceCheckpointRegistry.Instance, centralStorage, configuration.Checkpoint, new CounterCollection<ContentLocationStoreCounters>());
 
                 // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
                 // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to
                 // mean "LLS' checkpoint"
-                checkpointManager.Tracer = new Tracer($"MetadataServiceCheckpointManager");
+                checkpointManager.WorkaroundTracer = new Tracer($"MetadataServiceCheckpointManager");
 
                 var eventStream = new ContentMetadataEventStream(
                     configuration.EventStream,
@@ -259,8 +309,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     eventStream,
                     centralStreamStorage,
                     clock);
-
-                service.LinkLifetime(redisStorage);
 
                 return service;
             }

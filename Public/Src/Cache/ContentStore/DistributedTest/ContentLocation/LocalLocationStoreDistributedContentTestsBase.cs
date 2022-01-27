@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -61,9 +62,11 @@ namespace ContentStoreTest.Distributed.Sessions
             return store.CreateSession(context, name, implicitPin);
         }
 
-        protected override IContentStore CreateFromTopLevelContentStore(IContentStore store)
+        protected override IContentStore CreateFromArguments(DistributedCacheServiceArguments arguments)
         {
-            return store;
+            var factory = new DistributedContentStoreFactory(arguments);
+            var topLevelStore = factory.CreateTopLevelStore().topLevelStore;
+            return topLevelStore;
         }
     }
 
@@ -92,6 +95,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool _registerAdditionalLocationPerMachine = false;
 
         protected bool EnableAzuriteStorage = true;
+
+        protected bool DisableRedis = false;
 
         protected readonly ConcurrentDictionary<(string, int), LocalRedisProcessDatabase> _localDatabases = new();
         protected readonly ConcurrentDictionary<(string, int), AzuriteStorageProcess> _localStorages = new();
@@ -184,10 +189,19 @@ namespace ContentStoreTest.Distributed.Sessions
             var rootPath = testDirectory.Path / "Root";
 
             int dbIndex = 0;
-            PrimaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
-            if (_enableSecondaryRedis)
+
+            if (DisableRedis)
             {
-                _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex, _poolSecondaryRedisDatabase);
+                EnableAzuriteStorage = true;
+            }
+
+            if (!DisableRedis)
+            {
+                PrimaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
+                if (_enableSecondaryRedis)
+                {
+                    _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex, _poolSecondaryRedisDatabase);
+                }
             }
 
             int storageIndex = 0;
@@ -199,6 +213,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             var settings = new TestDistributedContentSettings()
             {
+                PreventRedisUsage = DisableRedis,
                 TestMachineIndex = index,
                 TestIteration = iteration,
                 IsDistributedContentEnabled = true,
@@ -207,14 +222,14 @@ namespace ContentStoreTest.Distributed.Sessions
                 // By default, only first store is master eligible
                 IsMasterEligible = index == 0,
 
-                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", PrimaryGlobalStoreDatabase.ConnectionString),
-                SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase.ConnectionString) : null,
+                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", PrimaryGlobalStoreDatabase?.ConnectionString),
+                SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase?.ConnectionString) : null,
                 RedisInternalLogSeverity = Severity.Info.ToString(),
 
                 // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
                 EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
                 AzureStorageSecretName = Host.StoreSecret("Storage", storageConnectionString),
-                ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase.ConnectionString),
+                ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase?.ConnectionString),
                 ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob", storageConnectionString),
 
                 IsContentLocationDatabaseEnabled = true,
@@ -265,13 +280,18 @@ namespace ContentStoreTest.Distributed.Sessions
                 EnablePublishingCache = EnablePublishingCache,
 
                 GrpcCopyClientConnectOnStartup = true,
-
-                UseBlobCheckpointRegistry = true,
-                BlobCheckpointRegistryStandalone = true,
-                UseBlobMasterElection = true,
-                UseBlobClusterStateStorage = false,
-                BlobClusterStateStorageStandalone = false,
             };
+
+            if (EnableAzuriteStorage)
+            {
+                settings.UseBlobCheckpointRegistry = true;
+                settings.BlobCheckpointRegistryStandalone = true;
+                settings.UseBlobMasterElection = true;
+                settings.UseBlobClusterStateStorage = false;
+                settings.BlobClusterStateStorageStandalone = false;
+            }
+
+            Contract.Assert(!DisableRedis || EnableAzuriteStorage, "Azure storage emulator must be enabled when disabling Redis");
 
             if (ProactiveCopyLocationThreshold.HasValue)
             {
@@ -351,10 +371,7 @@ namespace ContentStoreTest.Distributed.Sessions
             }
             else
             {
-                var factory = new DistributedContentStoreFactory(arguments);
-
-                var topLevelStore = factory.CreateTopLevelStore().topLevelStore;
-                return (CreateFromTopLevelContentStore(topLevelStore), null);
+                return (CreateFromArguments(arguments), null);
             }
         }
 
@@ -423,6 +440,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public string StoreSecret(string key, string value)
             {
+                if (value is null)
+                {
+                    return value;
+                }
+
                 _secrets[key] = value;
                 return key;
             }

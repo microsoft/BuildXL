@@ -16,7 +16,7 @@ using ProtoBuf.Grpc;
 namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 {
     /// <summary>
-    /// Interface that represents a global cache service backed by a <see cref="IContentMetadataStore"/> and <see cref="IClusterManagementStore"/>
+    /// Interface that represents a global cache service backed by a <see cref="IContentMetadataStore"/>
     /// </summary>
     public class GlobalCacheService : StartupShutdownComponentBase, IGlobalCacheService
     {
@@ -25,34 +25,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly IContentMetadataStore _store;
-        protected readonly ClusterManagementStore ClusterManagementStore;
 
-        public GlobalCacheService(IContentMetadataStore store, ClusterManagementStore clusterManagementStore)
+        public GlobalCacheService(IContentMetadataStore store)
         {
             _store = store;
-            ClusterManagementStore = clusterManagementStore;
             LinkLifetime(store);
-            LinkLifetime(clusterManagementStore);
-        }
-
-        /// <inheritdoc />
-        public virtual Task<HeartbeatMachineResponse> HeartbeatAsync(HeartbeatMachineRequest request, CallContext callContext = default)
-        {
-            return ExecuteAsync(request, callContext, context =>
-            {
-                return ClusterManagementStore.HeartbeatAsync(context, request);
-            },
-            extraEndMessage: r => string.Join(" ", request, $"Result=[{r.GetValueOrDefault()?.ToString() ?? "Error"}]"));
-        }
-
-        /// <inheritdoc />
-        public virtual Task<GetClusterUpdatesResponse> GetClusterUpdatesAsync(GetClusterUpdatesRequest request, CallContext callContext = default)
-        {
-            return ExecuteAsync(request, callContext, context =>
-            {
-                return ClusterManagementStore.GetClusterUpdatesAsync(context, request);
-            },
-            extraEndMessage: r => string.Join(" ", request, $"Result=[{r.GetValueOrDefault()?.ToString() ?? "Error"}]"));
         }
 
         /// <inheritdoc />

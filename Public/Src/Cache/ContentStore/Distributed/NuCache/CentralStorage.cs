@@ -19,6 +19,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public abstract class CentralStorage : StartupShutdownBase
     {
+        /// <inheritdoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         /// <nodoc />
         public CounterCollection<CentralStorageCounters> Counters { get; } = new CounterCollection<CentralStorageCounters>();
 

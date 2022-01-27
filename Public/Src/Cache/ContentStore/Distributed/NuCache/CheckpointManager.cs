@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -25,9 +26,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// Helper class responsible for creating and restoring checkpoints of a local database.
     /// </summary>
-    public sealed class CheckpointManager
+    public sealed class CheckpointManager: StartupShutdownComponentBase
     {
-        public Tracer Tracer { get; internal set; } = new Tracer(nameof(CheckpointManager));
+        protected override Tracer Tracer => WorkaroundTracer;
+
+        public Tracer WorkaroundTracer { get; set; } = new Tracer(nameof(CheckpointManager));
 
         private const string IncrementalCheckpointIdSuffix = "|Incremental";
         private const string CheckpointInfoKey = "CheckpointManager.CheckpointState";
@@ -62,6 +65,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _checkpointStagingDirectory = configuration.WorkingDirectory / "staging";
 
             Counters = counters;
+
+            LinkLifetime(_database);
+            LinkLifetime(CheckpointRegistry);
+            LinkLifetime(Storage);
         }
 
         private record DatabaseStats

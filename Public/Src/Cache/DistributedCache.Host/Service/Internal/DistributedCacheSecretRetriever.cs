@@ -70,15 +70,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     $"{nameof(_distributedSettings.ContentMetadataRedisSecretName)}: {_distributedSettings.ContentMetadataRedisSecretName}, " +
                     $"{nameof(_distributedSettings.ContentMetadataBlobSecretName)}: {_distributedSettings.ContentMetadataBlobSecretName}");
 
-                bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName ?? _distributedSettings.EventHubConnectionString,
-                    $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)} or {nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubConnectionString)}");
-                invalidConfiguration |= appendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");
-
-                if (invalidConfiguration)
-                {
-                    return null;
-                }
-
                 // Create the credentials requests
                 var retrieveSecretsRequests = new List<RetrieveSecretsRequest>();
 
@@ -92,19 +83,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     storageSecretNames
                         .Select(tpl => new RetrieveSecretsRequest(tpl.secretName, tpl.useSasTokens ? SecretKind.SasToken : SecretKind.PlainText)));
 
-                if (string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
-                {
-                    return null;
-                }
-
-                if (!string.IsNullOrEmpty(_distributedSettings.EventHubSecretName))
-                {
-                    retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
-                }
-
-                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
-
-                void addOptionalSecret(string name, SecretKind secretKind = SecretKind.PlainText)
+                void addOptionalSecret(string? name, SecretKind secretKind = SecretKind.PlainText)
                 {
                     if (!string.IsNullOrEmpty(name))
                     {
@@ -112,6 +91,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     }
                 }
 
+                addOptionalSecret(_distributedSettings.EventHubSecretName);
+                addOptionalSecret(_distributedSettings.GlobalRedisSecretName);
                 addOptionalSecret(_distributedSettings.SecondaryGlobalRedisSecretName);
                 addOptionalSecret(_distributedSettings.ContentMetadataRedisSecretName);
 
@@ -154,17 +135,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
 
                 return secrets;
-            }
-
-            bool appendIfNull(object? value, string propertyName)
-            {
-                if (value is null)
-                {
-                    errorBuilder.Append($"{propertyName} should be provided. ");
-                    return true;
-                }
-
-                return false;
             }
         }
 

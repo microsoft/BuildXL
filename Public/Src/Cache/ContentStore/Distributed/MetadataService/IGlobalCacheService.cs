@@ -33,11 +33,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         /// <nodoc />
         Task<GetContentHashListResponse> GetContentHashListAsync(GetContentHashListRequest request, CallContext callContext = default);
-
-        /// <nodoc />
-        Task<HeartbeatMachineResponse> HeartbeatAsync(HeartbeatMachineRequest request, CallContext callContext = default);
-
-        /// <nodoc />
-        Task<GetClusterUpdatesResponse> GetClusterUpdatesAsync(GetClusterUpdatesRequest request, CallContext callContext = default);
     }
 }

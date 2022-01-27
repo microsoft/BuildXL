@@ -4,8 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Stores;
+using BuildXL.Cache.ContentStore.Distributed.Services;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -23,14 +22,14 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <inheritdoc />
         protected override CacheTracer CacheTracer { get; } = new CacheTracer(nameof(DistributedOneLevelCache));
 
-        private readonly DistributedContentStore _distributedContentStore;
+        private readonly ContentLocationStoreServices _contentLocationStoreServices;
 
         /// <nodoc />
-        public DistributedOneLevelCache(IContentStore contentStore, DistributedContentStore distributedContentStore, Guid id, bool passContentToMemoization = true)
+        public DistributedOneLevelCache(IContentStore contentStore, ContentLocationStoreServices contentLocationStoreServices, Guid id, bool passContentToMemoization = true)
             : base(id, passContentToMemoization)
         {
             ContentStore = contentStore;
-            _distributedContentStore = distributedContentStore;
+            _contentLocationStoreServices = contentLocationStoreServices;
         }
 
         /// <inheritdoc />
@@ -49,35 +48,24 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
         private Task<BoolResult> CreateDistributedMemoizationStoreAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(Tracer, async () =>
+            return context.PerformOperationAsync(base.Tracer, async () =>
             {
-                if (!_distributedContentStore.TryGetLocalLocationStore(out var localLocationStore))
-                {
-                    return new BoolResult("LocalLocationStore not available");
-                }
-
-                var config = localLocationStore.Configuration as RedisContentLocationStoreConfiguration;
-                if (config?.Memoization == null)
-                {
-                    return new BoolResult($"LocalLocationStore.Configuration should be of type 'RedisMemoizationStoreConfiguration' but was {localLocationStore.Configuration.GetType()}");
-                }
-
                 MemoizationDatabase getGlobalMemoizationDatabase()
                 {
-                    if (config.UseMemoizationContentMetadataStore)
+                    if (_contentLocationStoreServices.Configuration.UseMemoizationContentMetadataStore)
                     {
-                        return new MetadataStoreMemoizationDatabase(localLocationStore.GlobalCacheStore);
+                        return new MetadataStoreMemoizationDatabase(_contentLocationStoreServices.GlobalCacheStore.Instance);
                     }
                     else
                     {
-                        var redisStore = (RedisGlobalStore)localLocationStore.GlobalStore;
-                        return new RedisMemoizationDatabase(redisStore.RaidedRedis, config.Memoization);
+                        var redisStore = _contentLocationStoreServices.RedisGlobalStore.Instance;
+                        return new RedisMemoizationDatabase(redisStore.RaidedRedis, _contentLocationStoreServices.Configuration.Memoization);
                     }
                 }
 
                 MemoizationStore = new DatabaseMemoizationStore(
                     new DistributedMemoizationDatabase(
-                        localLocationStore,
+                        _contentLocationStoreServices.LocalLocationStore.Instance,
                         getGlobalMemoizationDatabase()));
 
                 return await MemoizationStore.StartupAsync(context);

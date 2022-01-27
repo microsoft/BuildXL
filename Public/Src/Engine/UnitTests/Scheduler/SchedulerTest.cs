@@ -2729,10 +2729,10 @@ namespace Test.BuildXL.Scheduler
             targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, hashes0));     // Will be added
             targets.Add(new BuildManifestEntry("drop0", relativePath, hash0, new[] { hash0 }));     // Duplicate entry will be ignored
             targets.Add(new BuildManifestEntry("drop0", relativePath, hash1, hashes1));     // Records duplicate entry
-            targets.Add(new BuildManifestEntry("drop1", relativePath, hash0, hashes0));     // Will be added
-            targets.Add(new BuildManifestEntry("drop2", relativePath, hash0, hashes0));     // Will be added
 
             buildManifestGenerator.RecordFileForBuildManifest(targets);
+            buildManifestGenerator.RecordFileForBuildManifest(new List<BuildManifestEntry> { new BuildManifestEntry("drop1", relativePath, hash0, hashes0) });
+            buildManifestGenerator.RecordFileForBuildManifest(new List<BuildManifestEntry> { new BuildManifestEntry("drop2", relativePath, hash0, hashes0) });
 
             XAssert.AreEqual(3, buildManifestGenerator.BuildManifestEntries.Count);
             XAssert.AreEqual(1, buildManifestGenerator.DuplicateEntries("drop0").Count);

@@ -22,7 +22,7 @@ namespace BuildXL.Scheduler.Tracing
         private readonly StringTable m_stringTable;
         private readonly LoggingContext m_loggingContext;
         private readonly ConcurrentBag<(string dropName, string relativePath, string recordedHash, string rejectedHash)> m_duplicateEntries;
-        private volatile bool m_generateBuildManifestFileListInvoked = false;
+        private readonly ConcurrentDictionary<string, bool> m_dropManifestFinalizations = new();
 
         /// <summary>
         /// Counters for all BuildManifest related statistics.
@@ -65,19 +65,34 @@ namespace BuildXL.Scheduler.Tracing
         public void RecordFileForBuildManifest(List<BuildManifestEntry> records)
         {
             Contract.Requires(records != null, "Build Manifest Records can't be null");
+            Contract.Requires(records.Count > 0, "Build Manifest Records can't be empty");
 
             using (Counters.StartStopwatch(BuildManifestCounters.ReceiveRecordFileForBuildManifestEventOnOrchestratorDuration))
             {
+                // Currently, each invocation of this method can essentially be matched to a call received from DropDaemon.
+                // In turn, in each call, DropDaemon only puts files that belong to the same drop.
+                // This check here is mainly to ensure that the upstream behavior has not changed.
+                for (int i = 1; i < records.Count; i++)
+                {
+                    if (records[i - 1].DropName != records[i].DropName)
+                    {
+                        Contract.Assert(false, $"All records must be from the same drop. Mismatched drop names: '{records[i - 1].DropName}', '{records[i].DropName}'");
+                    }
+                }
+
+                if (m_dropManifestFinalizations.ContainsKey(records[0].DropName))
+                {
+                    // only log one file per batch
+                    Logger.Log.RecordFileForBuildManifestAfterGenerateBuildManifestFileList(
+                        m_loggingContext,
+                        records.Count,
+                        records[0].DropName,
+                        records[0].RelativePath,
+                        records[0].AzureArtifactsHash.Serialize());
+                }
+
                 foreach (var record in records)
                 {
-                    if (m_generateBuildManifestFileListInvoked)
-                    {
-                        Logger.Log.RecordFileForBuildManifestAfterGenerateBuildManifestFileList(m_loggingContext,
-                            record.DropName,
-                            record.RelativePath,
-                            record.AzureArtifactsHash.Serialize());
-                    }
-
                     Counters.IncrementCounter(BuildManifestCounters.TotalRecordFileForBuildManifestCalls);
 
                     RelativePath relativePathObj = RelativePath.Create(m_stringTable, record.RelativePath);
@@ -104,15 +119,15 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
-        /// Rejects duplicate Hash registerations and generates a list of <see cref="BuildManifestFileInfo"/>.
+        /// Rejects duplicate Hash registrations and generates a list of <see cref="BuildManifestFileInfo"/>.
         /// </summary>
         /// <param name="dropName">Drop Name</param>
         /// <param name="error">Nullable error message</param>
         /// <param name="buildManifestFileInfoList">Nullable buildManifestFileInfoList</param>
-        /// <returns>Logs an error and returns false if duplicate file registeration attempts are detected.</returns>
+        /// <returns>Logs an error and returns false if duplicate file registration attempts are detected.</returns>
         public bool TryGenerateBuildManifestFileList(string dropName, out string error, out List<BuildManifestFileInfo> buildManifestFileInfoList)
         {
-            m_generateBuildManifestFileListInvoked = true;
+            m_dropManifestFinalizations[dropName] = true;
 
             var duplicateEntries = DuplicateEntries(dropName);
             if (duplicateEntries.Count != 0)

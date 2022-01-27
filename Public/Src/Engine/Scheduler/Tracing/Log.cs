@@ -3857,8 +3857,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "RecordFileForBuildManifest received an event after GenerateBuildManifestFileList invocation [ DropName: '{dropName}', RelativePath: '{relativePath}', AzureArtifactsHash: '{azureArtifactsHash}' ].")]
-        internal abstract void RecordFileForBuildManifestAfterGenerateBuildManifestFileList(LoggingContext loggingContext, string dropName, string relativePath, string azureArtifactsHash);
+            Message = "RecordFileForBuildManifest received an event after GenerateBuildManifestFileList invocation. Entry count: {entryCount}. First entry [DropName: '{dropName}', RelativePath: '{relativePath}', AzureArtifactsHash: '{azureArtifactsHash}' ].")]
+        internal abstract void RecordFileForBuildManifestAfterGenerateBuildManifestFileList(LoggingContext loggingContext, int entryCount, string dropName, string relativePath, string azureArtifactsHash);
 
         [GeneratedEvent(
             (ushort)LogEventId.GenerateBuildManifestFileListFoundDuplicateHashes,

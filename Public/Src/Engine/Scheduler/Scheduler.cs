@@ -2117,6 +2117,7 @@ namespace BuildXL.Scheduler
                 CriticalPathTableMisses = m_criticalPathStats?.NumWildGuesses ?? 0,
                 FileContentStats = m_fileContentManager.FileContentStats,
                 RunProcessFromCacheDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.RunProcessFromCacheDuration).TotalMilliseconds),
+                RunProcessFromRemoteCacheDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.RunProcessFromRemoteCacheDuration).TotalMilliseconds),
                 SandboxedProcessPrepDurationMs = PipExecutionCounters.GetCounterValue(PipExecutorCounter.SandboxedProcessPrepDurationMs),
                 MachineMinimumAvailablePhysicalMB = SafeConvert.ToLong(((m_performanceAggregator != null && m_performanceAggregator.MachineAvailablePhysicalMB.Count > 2) ? m_performanceAggregator.MachineAvailablePhysicalMB.Minimum : -1)),
                 AverageMachineCPU = (m_performanceAggregator != null && m_performanceAggregator.MachineCpu.Count > 2) ? (int)m_performanceAggregator.MachineCpu.Average : 0,

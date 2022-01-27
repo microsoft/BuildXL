@@ -46,6 +46,9 @@ namespace BuildXL.Scheduler
         public long RunProcessFromCacheDurationMs;
 
         /// <nodoc/>
+        public long RunProcessFromRemoteCacheDurationMs;
+
+        /// <nodoc/>
         public long SandboxedProcessPrepDurationMs;
 
         /// <nodoc/>

@@ -1077,87 +1077,91 @@ namespace BuildXL.Scheduler
                     runnableFromCacheCheckResult.Fingerprint.ToString(),
                     cacheHitData.Metadata.Id);
 
-                if (!TryGetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult, out var executionResult))
-                {
-                    // Error should have been logged
-                    executionResult.SetResult(operationContext.LoggingContext, PipResultStatus.Failed);
+                // If the cache hit came from the remote cache, we want to know the duration of that in a separate counter
+                using (cacheHitData.Locality == PublishedEntryRefLocality.Remote ? operationContext.StartOperation(PipExecutorCounter.RunProcessFromRemoteCacheDuration) : (OperationContext?) null)
+                { 
+                    if (!TryGetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult, out var executionResult))
+                    {
+                        // Error should have been logged
+                        executionResult.SetResult(operationContext.LoggingContext, PipResultStatus.Failed);
+                        executionResult.Seal();
+
+                        return executionResult;
+                    }
+
                     executionResult.Seal();
+
+                    // Save all dynamic writes to a sideband file if the pip needs it
+                    if (PipNeedsSidebandFile(environment, pip))
+                    {
+                        using var sidebandWriter = CreateSidebandWriter(environment, pip);
+                        sidebandWriter.EnsureHeaderWritten();
+                        var dynamicWrites = executionResult.SharedDynamicDirectoryWriteAccesses?.SelectMany(kvp => kvp.Value).Select(fa => fa.Path) ?? CollectionUtilities.EmptyArray<AbsolutePath>();
+                        foreach (var dynamicWrite in dynamicWrites)
+                        {
+                            sidebandWriter.RecordFileWrite(environment.Context.PathTable, dynamicWrite, flushImmediately: false);
+                        }
+                    }
+
+                    var semistableHash = pip.FormattedSemiStableHash;
+                    if (environment.Configuration.Logging.LogCachedPipOutputs)
+                    {
+                        foreach (var (file, fileInfo, origin) in executionResult.OutputContent)
+                        {
+                            if (!file.IsOutputFile || fileInfo.Hash.IsSpecialValue())
+                            {
+                                // only log real output content
+                                continue;
+                            }
+
+                            Logger.Log.LogCachedPipOutput(
+                                operationContext,
+                                semistableHash,
+                                file.Path.ToString(environment.Context.PathTable),
+                                fileInfo.Hash.ToHex());
+                        }
+                    }
+
+                    // File access violation analysis must be run before reporting the execution result output content.
+                    var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
+
+                    if ((executionResult.SharedDynamicDirectoryWriteAccesses?.Count > 0 || executionResult.AllowedUndeclaredReads?.Count > 0 || executionResult.DynamicObservations.Length > 0 || exclusiveOpaqueContent.Length > 0)
+                        && !environment.FileMonitoringViolationAnalyzer.AnalyzeDynamicViolations(
+                                pip,
+                                exclusiveOpaqueContent,
+                                executionResult.SharedDynamicDirectoryWriteAccesses,
+                                executionResult.AllowedUndeclaredReads,
+                                executionResult.DynamicObservations,
+                                executionResult.OutputContent))
+                    {
+                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
+                        return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
+                    }
+
+                    ReportExecutionResultOutputContent(
+                        operationContext,
+                        environment,
+                        pip.SemiStableHash,
+                        executionResult,
+                        pip.PipType == PipType.Process ? ((Process)pip).RewritePolicy.ImpliesDoubleWriteIsWarning() : false);
+
+                    if (cacheHitData.Metadata.NumberOfWarnings > 0 && environment.Configuration.Logging.ReplayWarnings())
+                    {
+                        Logger.Log.PipWarningsFromCache(
+                            operationContext,
+                            processDescription,
+                            cacheHitData.Metadata.NumberOfWarnings);
+
+                        if (!await ReplayWarningsFromCacheAsync(operationContext, environment, state, pip, cacheHitData))
+                        {
+                            // An error has been logged, the pip must fail
+                            return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
+
+                        }
+                    }
 
                     return executionResult;
                 }
-
-                executionResult.Seal();
-
-                // Save all dynamic writes to a sideband file if the pip needs it
-                if (PipNeedsSidebandFile(environment, pip))
-                {
-                    using var sidebandWriter = CreateSidebandWriter(environment, pip);
-                    sidebandWriter.EnsureHeaderWritten();
-                    var dynamicWrites = executionResult.SharedDynamicDirectoryWriteAccesses?.SelectMany(kvp => kvp.Value).Select(fa => fa.Path) ?? CollectionUtilities.EmptyArray<AbsolutePath>();
-                    foreach (var dynamicWrite in dynamicWrites)
-                    {
-                        sidebandWriter.RecordFileWrite(environment.Context.PathTable, dynamicWrite, flushImmediately: false);
-                    }
-                }
-
-                var semistableHash = pip.FormattedSemiStableHash;
-                if (environment.Configuration.Logging.LogCachedPipOutputs)
-                {
-                    foreach (var (file, fileInfo, origin) in executionResult.OutputContent)
-                    {
-                        if (!file.IsOutputFile || fileInfo.Hash.IsSpecialValue())
-                        {
-                            // only log real output content
-                            continue;
-                        }
-
-                        Logger.Log.LogCachedPipOutput(
-                            operationContext,
-                            semistableHash,
-                            file.Path.ToString(environment.Context.PathTable),
-                            fileInfo.Hash.ToHex());
-                    }
-                }
-
-                // File access violation analysis must be run before reporting the execution result output content.
-                var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
-
-                if ((executionResult.SharedDynamicDirectoryWriteAccesses?.Count > 0 || executionResult.AllowedUndeclaredReads?.Count > 0 || executionResult.DynamicObservations.Length > 0 || exclusiveOpaqueContent.Length > 0)
-                    && !environment.FileMonitoringViolationAnalyzer.AnalyzeDynamicViolations(
-                            pip,
-                            exclusiveOpaqueContent,
-                            executionResult.SharedDynamicDirectoryWriteAccesses,
-                            executionResult.AllowedUndeclaredReads,
-                            executionResult.DynamicObservations,
-                            executionResult.OutputContent))
-                {
-                    Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
-                    return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
-                }
-
-                ReportExecutionResultOutputContent(
-                    operationContext,
-                    environment,
-                    pip.SemiStableHash,
-                    executionResult,
-                    pip.PipType == PipType.Process ? ((Process)pip).RewritePolicy.ImpliesDoubleWriteIsWarning() : false);
-
-                if (cacheHitData.Metadata.NumberOfWarnings > 0 && environment.Configuration.Logging.ReplayWarnings())
-                {
-                    Logger.Log.PipWarningsFromCache(
-                        operationContext,
-                        processDescription,
-                        cacheHitData.Metadata.NumberOfWarnings);
-
-                    if(!await ReplayWarningsFromCacheAsync(operationContext, environment, state, pip, cacheHitData))
-                    {
-                        // An error has been logged, the pip must fail
-                        return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
-
-                    }
-                }
-
-                return executionResult;
             }
         }
 

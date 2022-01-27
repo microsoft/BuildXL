@@ -102,6 +102,13 @@ namespace BuildXL.Scheduler
         [CounterType(CounterType.Stopwatch)]
         RunProcessFromCacheDuration,
 
+        /// <summary>
+        /// The time spent replaying the outputs when the pip was a remote hit
+        /// </summary>
+        /// <remarks>Zero when the hit comes from the local cache</remarks>
+        [CounterType(CounterType.Stopwatch)]
+        RunProcessFromRemoteCacheDuration,
+
         // ============================================================================================================
         // 3. These are deeper breakdowns of the times from above. Durations here may overlap times from above
         // ============================================================================================================

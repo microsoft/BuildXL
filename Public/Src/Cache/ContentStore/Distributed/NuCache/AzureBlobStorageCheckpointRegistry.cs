@@ -12,6 +12,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
@@ -29,7 +31,7 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class AzureBlobStorageCheckpointRegistryConfiguration
+    public class AzureBlobStorageCheckpointRegistryConfiguration : IBlobFolderStorageConfiguration
     {
         public AzureBlobStorageCredentials? Credentials { get; set; }
 
@@ -63,6 +65,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         public bool Standalone { get; set; } = false;
+
+        public TimeSpan StorageInteractionTimeout { get; } = TimeSpan.FromMinutes(1);
     }
 
     /// <summary>
@@ -79,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// - <see cref="RegisterCheckpointAsync"/> simply adds a new file with the current timestamp, and also prunes
     ///   stale checkpoints.
     /// </summary>
-    public class AzureBlobStorageCheckpointRegistry : StartupShutdownSlimBase, ICheckpointRegistry
+    public class AzureBlobStorageCheckpointRegistry : StartupShutdownComponentBase, ICheckpointRegistry
     {
         protected override Tracer Tracer => WorkaroundTracer;
 
@@ -87,9 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly AzureBlobStorageCheckpointRegistryConfiguration _configuration;
 
-        private readonly CloudBlobClient _client;
-        private readonly CloudBlobContainer _container;
-        private readonly CloudBlobDirectory _directory;
+        private readonly BlobFolderStorage _storage;
 
         private readonly IClock _clock;
 
@@ -104,7 +106,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly MachineLocation _primaryMachineLocation;
 
-        private readonly IRetryPolicy _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(e => e is StorageException);
 
         public AzureBlobStorageCheckpointRegistry(
             AzureBlobStorageCheckpointRegistryConfiguration configuration,
@@ -115,22 +116,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _primaryMachineLocation = primaryMachineLocation;
             _clock = clock ?? SystemClock.Instance;
 
-            _client = _configuration.Credentials!.CreateCloudBlobClient();
-            _container = _client.GetContainerReference(_configuration.ContainerName);
-            _directory = _container.GetDirectoryReference(_configuration.FolderName);
-
+            _storage = new BlobFolderStorage(Tracer, configuration);
             _blobNameRegex = new Regex(@$"{Regex.Escape(_configuration.KeySpacePrefix)}_(?<timestampUtc>[0-9]+)\.json", RegexOptions.Compiled);
-        }
 
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await _container.CreateIfNotExistsAsync(
-                accessType: BlobContainerPublicAccessType.Off,
-                options: null,
-                operationContext: null,
-                cancellationToken: context.Token);
-
-            return BoolResult.Success;
+            LinkLifetime(_storage);
         }
 
         public Task<Result<CheckpointState>> GetCheckpointStateAsync(OperationContext context)
@@ -140,22 +129,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var blobs = ListBlobsAsync(context, _directory, _blobNameRegex)
-                        .Select(blob =>
-                        {
-                            // This should never fail, because ListBlobsAsync returns blobs that we know already match.
-                            ParseBlobName(blob.Name, out var timestampUtc);
-                            return (timestampUtc, blob);
-                        })
-                        .OrderByDescending(kvp => kvp.timestampUtc)
-                        .Select(kvp => kvp.blob);
+                    var blobs = ListBlobsRecentFirstAsync(context);
 
                     await foreach (var blob in blobs)
                     {
                         try
                         {
-                            using var stream = await blob.OpenReadAsync();
-                            var checkpointState = await CheckpointState.FromJsonStreamAsync(stream, context.Token).ThrowIfFailureAsync();
+                            var checkpointState = await _storage.ReadAsync<CheckpointState>(context, blob).ThrowIfFailureAsync();
                             return Result.Success(checkpointState);
                         }
                         catch (TaskCanceledException) when (context.Token.IsCancellationRequested)
@@ -187,39 +167,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 timeout: _configuration.CheckpointStateTimeout);
         }
 
-        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
+        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState checkpointState)
         {
             TriggerGarbageCollection(context);
 
-            var msg = $"CheckpointId=[{checkpointId}] SequencePoint=[{sequencePoint}]";
+            var msg = checkpointState.ToString();
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 context =>
                 {
-                    return _retryPolicy.ExecuteAsync(() => RegisterCheckpointCoreAsync(context, checkpointId, sequencePoint), context.Token);
+                    var blobName = GenerateBlobName();
+                    return _storage.WriteAsync(context, blobName, checkpointState);
                 },
                 traceOperationStarted: false,
                 extraStartMessage: msg,
                 extraEndMessage: _ => msg,
                 timeout: _configuration.RegisterCheckpointTimeout);
-        }
-
-        private async Task<BoolResult> RegisterCheckpointCoreAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
-        {
-            var blobName = GenerateBlobName();
-            var blob = _directory.GetBlockBlobReference(blobName);
-
-            var checkpointState = new CheckpointState(sequencePoint, checkpointId, _clock.UtcNow, _primaryMachineLocation);
-
-            await blob.UploadTextAsync(
-                checkpointState.ToJson(_jsonSerializerOptions).ThrowIfFailure(),
-                encoding: Encoding.UTF8,
-                accessCondition: null,
-                options: null,
-                operationContext: null,
-                cancellationToken: context.Token);
-
-            return BoolResult.Success;
         }
 
         public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
@@ -254,34 +217,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var blobs = ListBlobsAsync(context, _directory, _blobNameRegex)
-                        .Select(blob =>
-                        {
-                            if (ParseBlobName(blob.Name, out var timestampUtc))
-                            {
-                                return (timestampUtc, blob);
-                            }
-                            else
-                            {
-                                // If we can't parse, it means there is some file in this folder that shouldn't be
-                                // there, so we delete it.
-                                return (timestampUtc: DateTime.MinValue, blob);
-                            }
-                        })
-                        .OrderByDescending(kvp => kvp.timestampUtc)
-                        .Skip(retentionLimit)
-                        .Select(kvp => kvp.blob);
+                    var blobs = ListBlobsRecentFirstAsync(context)
+                        .Skip(retentionLimit);
 
                     await foreach (var blob in blobs)
                     {
                         try
                         {
-                            var deleteSucceeded = await blob.DeleteIfExistsAsync(
-                                deleteSnapshotsOption: DeleteSnapshotsOption.None,
-                                accessCondition: null,
-                                options: null,
-                                operationContext: null,
-                                cancellationToken: context.Token);
+                            var deleteSucceeded = await _storage.DeleteIfExistsAsync(context, blob);
                             Tracer.Info(context, $"Delete attempt Name=[{blob.Name}] Succeeded=[{deleteSucceeded}]");
                         }
                         catch (Exception e)
@@ -293,6 +236,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return BoolResult.Success;
                 },
                 timeout: _configuration.GarbageCollectionTimeout);
+        }
+
+        private IAsyncEnumerable<BlobName> ListBlobsRecentFirstAsync(OperationContext context)
+        {
+            var blobs = _storage.ListBlobsAsync(context, _blobNameRegex)
+                .Select(name =>
+                {
+                    // This should never fail, because ListBlobsAsync returns blobs that we know already match.
+                    ParseBlobName(name.Name, out var timestampUtc);
+                    return (timestampUtc, name);
+                })
+                .OrderByDescending(kvp => kvp.timestampUtc)
+                .Select(kvp => kvp.name);
+            return blobs;
         }
 
         private string GenerateBlobName()
@@ -320,39 +277,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             timestampUtc = DateTime.FromFileTimeUtc(timestamp);
             return true;
-        }
-
-        private async IAsyncEnumerable<CloudBlockBlob> ListBlobsAsync(
-            OperationContext context,
-            CloudBlobDirectory container,
-            Regex? regex = null)
-        {
-            BlobContinuationToken? continuation = null;
-            while (!context.Token.IsCancellationRequested)
-            {
-                var blobs = await container.ListBlobsSegmentedAsync(
-                    useFlatBlobListing: true,
-                    blobListingDetails: BlobListingDetails.Metadata,
-                    maxResults: null,
-                    currentToken: continuation,
-                    options: null,
-                    operationContext: null,
-                    cancellationToken: context.Token);
-                continuation = blobs.ContinuationToken;
-
-                foreach (CloudBlockBlob blob in blobs.Results.OfType<CloudBlockBlob>())
-                {
-                    if (regex is null || regex.IsMatch(blob.Name))
-                    {
-                        yield return blob;
-                    }
-                }
-
-                if (continuation == null)
-                {
-                    break;
-                }
-            }
         }
     }
 }

@@ -575,15 +575,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Counters[GlobalStoreCounters.GetCheckpointState]);
         }
 
-        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
+        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState state)
         {
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 async nestedContext =>
                 {
-                    Contract.Assert(sequencePoint.SequenceNumber != null);
+                    Contract.Assert(state.CheckpointId != null);
+                    Contract.Assert(state.StartSequencePoint.SequenceNumber != null);
+                    Contract.Assert(state.Producer.IsValid);
 
-                    var checkpoint = new RedisCheckpointInfo(checkpointId, sequencePoint.SequenceNumber.Value, _clock.UtcNow, Configuration.PrimaryMachineLocation.ToString());
+                    var checkpoint = new RedisCheckpointInfo(state.CheckpointId, state.StartSequencePoint.SequenceNumber.Value, state.CheckpointTime, state.Producer.ToString());
                     Tracer.Debug(nestedContext, $"Saving checkpoint '{checkpoint}' into the central store.");
 
                     var slotNumber = await _checkpointsKey.UseNonConcurrentReplicatedHashAsync(

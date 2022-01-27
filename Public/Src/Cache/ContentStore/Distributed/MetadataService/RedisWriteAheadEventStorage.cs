@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -255,60 +256,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return $"{cursor.LogId}:{cursor.LogBlockId}";
         }
 
-        /// <remarks>
-        /// This is not a record because .NET Core 3.1 does not support specifying constructors.
-        /// 
-        /// See: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-immutability?pivots=dotnet-5-0
-        /// </remarks>
-        private class CheckpointRegistry
+        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState checkpointState)
         {
-            public string CheckpointId { get; set; } = string.Empty;
-
-            public DateTime CreationTimeUtc { get; set; }
-
-            public Result<string> ToJson()
-            {
-                try
-                {
-                    return Result.Success(JsonSerializer.Serialize(this));
-                }
-                catch (Exception e)
-                {
-                    return Result.FromException<string>(e);
-                }
-            }
-
-            public static Result<CheckpointRegistry> FromJson(string json)
-            {
-                try
-                {
-                    var registry = JsonSerializer.Deserialize<CheckpointRegistry>(json);
-                    return Result.Success(registry!);
-                }
-                catch (Exception e)
-                {
-                    return Result.FromException<CheckpointRegistry>(e, $"Failed to deserialize {nameof(CheckpointRegistry)} from json string `{json}`");
-                }
-            }
-        }
-
-        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
-        {
-            var msg = $"CheckpointId=[{checkpointId}] SequencePoint=[{sequencePoint}]";
+            var msg = checkpointState.ToString();
 
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var registry = new CheckpointRegistry()
-                {
-                    CheckpointId = checkpointId,
-                    CreationTimeUtc = _clock.UtcNow
-                };
-
-                var serializedRegistry = registry.ToJson().ThrowIfFailure();
+                var json = JsonUtilities.JsonSerialize(checkpointState);
 
                 await _redisDatabaseAdapter!.ExecuteBatchAsync(
                     context,
-                    batch => batch.AddOperation(string.Empty, batch => batch.StringSetAsync(_checkpointRegistryKey, serializedRegistry)),
+                    batch => batch.AddOperation(string.Empty, batch => batch.StringSetAsync(_checkpointRegistryKey, json)),
                     RedisOperation.All);
 
                 return BoolResult.Success;
@@ -321,24 +279,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var serializedRegistry = await _redisDatabaseAdapter!.ExecuteBatchAsync(
+                var json = await _redisDatabaseAdapter!.ExecuteBatchAsync(
                     context,
                     batch => batch.AddOperation(string.Empty, batch => batch.StringGetAsync(_checkpointRegistryKey)),
                     RedisOperation.All);
 
-                if (serializedRegistry.IsNullOrEmpty)
+                if (json.IsNullOrEmpty)
                 {
                     return CheckpointState.CreateUnavailable(default);
                 }
 
-                var registry = CheckpointRegistry.FromJson(serializedRegistry).ThrowIfFailure();
-
-                var checkpointState = new CheckpointState(
-                    startSequencePoint: EventSequencePoint.Invalid,
-                    registry.CheckpointId,
-                    registry.CreationTimeUtc,
-                    producer: default);
-
+                var checkpointState = JsonUtilities.JsonDeserialize<CheckpointState>(json);
                 return Result.Success(checkpointState);
             });
         }

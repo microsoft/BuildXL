@@ -54,10 +54,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new Result<CheckpointState>(primaryResult & fallbackResult, "Failed to obtain checkpoint state from both primary and fallback");
         }
 
-        public async Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint)
+        public async Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState checkpointState)
         {
-            var primaryTask = _primary.RegisterCheckpointAsync(context, checkpointId, sequencePoint);
-            var fallbackTask = _fallback.RegisterCheckpointAsync(context, checkpointId, sequencePoint);
+            var primaryTask = _primary.RegisterCheckpointAsync(context, checkpointState);
+            var fallbackTask = _fallback.RegisterCheckpointAsync(context, checkpointState);
             await Task.WhenAll(primaryTask, fallbackTask);
 
             var primaryResult = await primaryTask;
@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             }
 
-            return new BoolResult(primaryResult & fallbackResult, $"Failed to register checkpoint `{checkpointId}` at squence point `{sequencePoint}` to both primary and fallback");
+            return new BoolResult(primaryResult & fallbackResult, $"Failed to register checkpoint `{checkpointState}` to both primary and fallback");
         }
 
         public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)

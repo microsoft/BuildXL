@@ -531,7 +531,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
             : base(checkpointsKey, ContainerName: "") => WorkingDirectory = workingDirectory;
     }
 
-    public record CheckpointManagerConfiguration(AbsolutePath WorkingDirectory)
+    public record CheckpointManagerConfiguration(AbsolutePath WorkingDirectory, MachineLocation PrimaryMachineLocation)
     {
         /// <summary>
         /// The interval by which the checkpoint manager creates checkpoints.
@@ -550,7 +550,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Configuration used by for creating/restoring checkpoints.
     /// </summary>
-    public record CheckpointConfiguration : CheckpointManagerConfiguration
+    public record CheckpointConfiguration(AbsolutePath WorkingDirectory, MachineLocation PrimaryMachineLocation)
+        : CheckpointManagerConfiguration(WorkingDirectory, PrimaryMachineLocation)
     {
         /// <summary>
         /// Temporary configuration of a machine's role.
@@ -596,8 +597,5 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Whether to use a random identifier at every heartbeat, or to use a deterministic identifier per checkpoint.
         /// </summary>
         public bool PacemakerUseRandomIdentifier { get; set; } = false;
-
-        /// <nodoc />
-        public CheckpointConfiguration(AbsolutePath workingDirectory) : base(workingDirectory) { }
     }
 }

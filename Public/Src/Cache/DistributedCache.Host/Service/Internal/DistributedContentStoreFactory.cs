@@ -580,7 +580,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return;
             }
 
-            configuration.Checkpoint = new CheckpointConfiguration(localCacheRoot);
+            configuration.Checkpoint = new CheckpointConfiguration(localCacheRoot, configuration.PrimaryMachineLocation);
 
             if (_distributedSettings.IsMasterEligible)
             {

@@ -185,7 +185,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.MetadataService
 
             var contentMetadataServiceConfiguration = new GlobalCacheServiceConfiguration()
             {
-                Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager"),
+                Checkpoint = new CheckpointManagerConfiguration(TestRootDirectoryPath / "CheckpointManager", default(MachineLocation)),
                 EventStream = new ContentMetadataEventStreamConfiguration(),
             };
             modifyConfig?.Invoke(contentMetadataServiceConfiguration);

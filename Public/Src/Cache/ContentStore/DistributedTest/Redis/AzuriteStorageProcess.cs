@@ -24,7 +24,7 @@ namespace ContentStoreTest.Distributed.Redis
     /// <summary>
     /// Wrapper around local storage instance.
     /// </summary>
-    public sealed class AzuriteStorageProcess
+    public sealed class AzuriteStorageProcess : IDisposable
     {
         private DisposableDirectory _tempDirectory;
         private IClock _clock;

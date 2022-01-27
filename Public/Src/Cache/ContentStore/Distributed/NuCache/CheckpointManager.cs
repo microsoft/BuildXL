@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Add incremental suffix so consumer knows that the checkpoint is an incremental checkpoint
             checkpointId += IncrementalCheckpointIdSuffix;
 
-            await CheckpointRegistry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailure();
+            await CheckpointRegistry.RegisterCheckpointAsync(context, new CheckpointState(sequencePoint, checkpointId, _database.Clock.UtcNow, _configuration.PrimaryMachineLocation)).ThrowIfFailure();
 
             return checkpointId;
         }

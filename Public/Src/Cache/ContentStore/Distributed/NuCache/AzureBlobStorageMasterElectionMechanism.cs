@@ -4,25 +4,19 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.Net;
-using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class AzureBlobStorageMasterElectionMechanismConfiguration
+    public class AzureBlobStorageMasterElectionMechanismConfiguration : IBlobFolderStorageConfiguration
     {
         public AzureBlobStorageCredentials? Credentials { get; set; }
 
@@ -42,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan StorageInteractionTimeout { get; set; } = TimeSpan.FromSeconds(10);
     }
 
-    public class AzureBlobStorageMasterElectionMechanism : StartupShutdownSlimBase, IMasterElectionMechanism
+    public class AzureBlobStorageMasterElectionMechanism : StartupShutdownComponentBase, IMasterElectionMechanism
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureBlobStorageMasterElectionMechanism));
 
@@ -50,16 +44,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly MachineLocation _primaryMachineLocation;
         private readonly IClock _clock;
 
-        private readonly CloudBlobClient _client;
-        private readonly CloudBlobContainer _container;
-        private readonly CloudBlobDirectory _directory;
+        private readonly BlobFolderStorage _storage;
 
         private MasterElectionState _lastElection = MasterElectionState.DefaultWorker;
-
-        private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
-        {
-            RetryPolicy = new ExponentialRetry(),
-        };
 
         public AzureBlobStorageMasterElectionMechanism(
             AzureBlobStorageMasterElectionMechanismConfiguration configuration,
@@ -71,25 +58,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _primaryMachineLocation = primaryMachineLocation;
             _clock = clock ?? SystemClock.Instance;
 
-            _client = _configuration.Credentials!.CreateCloudBlobClient();
-            _container = _client.GetContainerReference(_configuration.ContainerName);
-            _directory = _container.GetDirectoryReference(_configuration.FolderName);
+            _storage = new BlobFolderStorage(Tracer, configuration);
+
+            LinkLifetime(_storage);
         }
 
         public MachineLocation Master => _lastElection.Master;
 
         public Role Role => _lastElection.Role;
-
-        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            await _container.CreateIfNotExistsAsync(
-                accessType: BlobContainerPublicAccessType.Off,
-                options: DefaultBlobStorageRequestOptions,
-                operationContext: null,
-                cancellationToken: context.Token);
-
-            return await base.StartupCoreAsync(context);
-        }
 
         public async Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
         {
@@ -109,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return Result.Success<Role>(Role.Worker);
             }
 
-            var r = await UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).SelectAsync(s => s.Role);
+            var r = await UpdateRoleAsync(context, tryUpdateLease: TryReleaseLeaseIfHeld).AsAsync(s => s.Role);
             if (r.Succeeded)
             {
                 // We don't know who the master is any more
@@ -119,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return r;
         }
 
-        private delegate bool TryUpdateLease(ref MasterLeaseMetadata metadata);
+        private delegate bool TryUpdateLease(ref MasterLease metadata);
 
         private class MasterLease
         {
@@ -151,10 +127,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private record MasterLeaseMetadata(string? ETag = null, MasterLease? Lease = null);
 
-        private bool TryReleaseLeaseIfHeld(ref MasterLeaseMetadata metadata)
+        private bool TryReleaseLeaseIfHeld(ref MasterLease lease)
         {
             var now = _clock.UtcNow;
-            var lease = metadata.Lease;
             bool isMaster = IsCurrentMaster(lease);
             if (!isMaster)
             {
@@ -162,21 +137,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
-            metadata = metadata with
+            lease = new MasterLease()
             {
-                Lease = new MasterLease()
-                {
-                    CreationTimeUtc = lease!.CreationTimeUtc,
-                    LastUpdateTimeUtc = now,
-                    LeaseExpiryTimeUtc = DateTime.MinValue,
-                    Master = _primaryMachineLocation
-                }
+                CreationTimeUtc = isMaster ? lease!.CreationTimeUtc : now,
+                LastUpdateTimeUtc = now,
+                LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
+                Master = _primaryMachineLocation
             };
 
             return true;
         }
 
-        private bool TryCreateOrExtendLease(ref MasterLeaseMetadata metadata)
+        private bool TryCreateOrExtendLease(ref MasterLease lease)
         {
             if (!_configuration.IsMasterEligible)
             {
@@ -185,7 +157,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var now = _clock.UtcNow;
-            var lease = metadata.Lease;
             bool isMaster = IsCurrentMaster(lease);
             if (!isMaster && !IsLeaseExpired(lease))
             {
@@ -193,15 +164,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
-            metadata = metadata with
+            lease = new MasterLease()
             {
-                Lease = new MasterLease()
-                {
-                    CreationTimeUtc = isMaster ? lease!.CreationTimeUtc : now,
-                    LastUpdateTimeUtc = now,
-                    LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
-                    Master = _primaryMachineLocation
-                }
+                CreationTimeUtc = isMaster ? lease!.CreationTimeUtc : now,
+                LastUpdateTimeUtc = now,
+                LeaseExpiryTimeUtc = now + _configuration.LeaseExpiryTime,
+                Master = _primaryMachineLocation
             };
 
             return true;
@@ -217,10 +185,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return lease != null && lease.Master.Equals(_primaryMachineLocation);
         }
 
-        private MasterElectionState GetElectionState(MasterLeaseMetadata metadata)
+        private MasterElectionState GetElectionState(MasterLease lease)
         {
-            var master = metadata.Lease?.Master ?? default(MachineLocation);
-            if (IsLeaseExpired(metadata.Lease))
+            var master = lease?.Master ?? default(MachineLocation);
+            if (IsLeaseExpired(lease))
             {
                 // Lease is expired. Lease creator is no longer considerd master machine.
                 master = default(MachineLocation);
@@ -235,131 +203,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    while (true)
-                    {
-                        context.Token.ThrowIfCancellationRequested();
-
-                        var metadata = await FetchCurrentLeaseAsync(context);
-                        if (!tryUpdateLease(ref metadata))
+                    var lease = await _storage.ReadModifyWriteAsync<MasterLease>(context, _configuration.FileName,
+                        state =>
                         {
-                            return GetElectionState(metadata);
-                        }
+                            tryUpdateLease(ref state);
+                            return state;
+                        }).ThrowIfFailureAsync();
 
-                        bool updated = await CompareUpdateLeaseAsync(context, metadata.Lease!, metadata.ETag);
-                        if (updated)
-                        {
-                            return GetElectionState(metadata);
-                        }
-                    }
+                    return Result.Success(GetElectionState(lease));
                 },
                 timeout: _configuration.StorageInteractionTimeout,
-                extraEndMessage: r => $"{r!.GetValueOrDefault()}");
-        }
-
-        private Task<MasterLeaseMetadata> FetchCurrentLeaseAsync(OperationContext context)
-        {
-            return context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                async (context) =>
-                {
-                    var blob = _directory.GetBlockBlobReference(_configuration.FileName);
-
-                    var downloadContext = new Microsoft.WindowsAzure.Storage.OperationContext();
-                    string jsonText;
-                    try
-                    {
-                        jsonText = await blob.DownloadTextAsync(
-                            operationContext: downloadContext,
-                            cancellationToken: context.Token,
-                            encoding: Encoding.UTF8,
-                            accessCondition: null,
-                            options: DefaultBlobStorageRequestOptions);
-                    }
-                    catch (StorageException e)
-                    {
-                        if (e.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound)
-                        {
-                            return Result.Success(new MasterLeaseMetadata());
-                        }
-
-                        throw;
-                    }
-
-                    var lease = JsonUtilities.JsonDeserialize<MasterLease>(jsonText);
-                    return new MasterLeaseMetadata(downloadContext.LastResult.Etag, lease);
-                },
-                extraEndMessage: r =>
-                {
-                    if (!r.Succeeded)
-                    {
-                        return string.Empty;
-                    }
-
-                    var state = r.Value;
-                    return $"ETag=[{state?.ETag ?? "null"}] Lease=[{state?.Lease}]";
-                },
-                traceOperationStarted: false,
-                timeout: _configuration.StorageInteractionTimeout).ThrowIfFailureAsync();
-        }
-
-        private Task<bool> CompareUpdateLeaseAsync(
-            OperationContext context,
-            MasterLease lease,
-            string? etag)
-        {
-            return context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                async (context) =>
-                {
-                    var serializedLease = JsonUtilities.JsonSerialize(lease, indent: true);
-
-                    var reference = _directory.GetBlockBlobReference(_configuration.FileName);
-                    var accessCondition =
-                        etag is null ?
-                            AccessCondition.GenerateIfNotExistsCondition() :
-                            AccessCondition.GenerateIfMatchCondition(etag);
-                    try
-                    {
-                        await reference.UploadTextAsync(
-                            serializedLease,
-                            Encoding.UTF8,
-                            accessCondition: accessCondition,
-                            options: DefaultBlobStorageRequestOptions,
-                            operationContext: null,
-                            context.Token);
-                    }
-                    catch (StorageException exception)
-                    {
-                        // We obtain PreconditionFailed when If-Match fails, and NotModified when If-None-Match fails
-                        // (corresponds to IfNotExistsCondition)
-                        if (exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed
-                            || exception.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified)
-                        {
-                            Tracer.Debug(
-                                context,
-                                exception,
-                                $"Lease does not exist or does not match ETag `{etag ?? "null"}`. Reported ETag is `{exception.RequestInformation.Etag ?? "null"}`");
-                            return Result.Success(false);
-                        }
-
-                        throw;
-                    }
-
-                    // Uploaded successfully, so we overrode the previous lease
-                    return Result.Success(true);
-                },
-                traceOperationStarted: false,
-                extraEndMessage: r =>
-                {
-                    var msg = $"ETag=[{etag ?? "null"}] Lease=[{lease}]";
-                    if (!r.Succeeded)
-                    {
-                        return msg;
-                    }
-
-                    return $"{msg} Exchanged=[{r.Value}]";
-                },
-                timeout: _configuration.StorageInteractionTimeout).ThrowIfFailureAsync();
+                extraEndMessage: r => $"{r!.GetValueOrDefault()} IsMasterEligible=[{_configuration.IsMasterEligible}]");
         }
 
         /// <summary>
@@ -367,19 +221,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal Task<BoolResult> CleanupStateAsync(OperationContext context)
         {
-            return context.PerformOperationWithTimeoutAsync(Tracer, async context =>
-            {
-                var blob = _directory.GetBlobReference(_configuration.FileName);
-                await blob.DeleteIfExistsAsync(
-                    deleteSnapshotsOption: DeleteSnapshotsOption.None,
-                    accessCondition: null,
-                    options: null,
-                    operationContext: null,
-                    cancellationToken: context.Token);
-
-                return BoolResult.Success;
-            },
-            timeout: _configuration.StorageInteractionTimeout);
+            return _storage.CleanupStateAsync(context, _configuration.FileName);
         }
     }
 }

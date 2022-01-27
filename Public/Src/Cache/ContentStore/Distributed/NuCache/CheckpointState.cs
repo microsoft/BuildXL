@@ -42,6 +42,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         public MachineLocation Producer { get; set; }
 
+        // Only exposed for back compat in json serialization
+        public DateTime CreationTimeUtc { get => CheckpointTime; set => CheckpointTime = value; }
+
         public CheckpointState()
             : this(EventSequencePoint.Invalid)
         {

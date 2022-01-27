@@ -3529,26 +3529,6 @@ Token).ShouldBeSuccess();
         }
 
         #endregion
-
-        [Fact]
-        public Task DistributedCentralStoreTranslateDoesntModifyLastElement()
-        {
-            return RunTestAsync(storeCount: 2, testFunc: context =>
-             {
-                 var storage = context.GetFirstWorker().LocalLocationStore.DistributedCentralStorage;
-
-                 var locations = Enumerable.Range(0, 10)
-                     .Select(n => new MachineLocation($"{n}thPath"))
-                     .ToList();
-
-                 var translated = storage.TranslateLocations(locations);
-
-                 translated.Count.Should().Be(locations.Count);
-                 translated.Last().Path.Should().StartWith(locations.Last().Path);
-
-                 return Task.CompletedTask;
-             });
-        }
     }
 
     public class ErrorReturningTestFileCopier : TestFileCopier

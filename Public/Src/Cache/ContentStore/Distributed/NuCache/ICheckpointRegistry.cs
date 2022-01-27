@@ -16,9 +16,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public interface ICheckpointRegistry: IStartupShutdownSlim
     {
         /// <summary>
-        /// Register a checkpoint with the given <paramref name="checkpointId"/> and <paramref name="sequencePoint"/>.
+        /// Register a checkpoint with the given <paramref name="checkpointState"/>.
         /// </summary>
-        Task<BoolResult> RegisterCheckpointAsync(OperationContext context, string checkpointId, EventSequencePoint sequencePoint);
+        Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState checkpointState);
 
         /// <summary>
         /// Gets the most recent checkpoint state.

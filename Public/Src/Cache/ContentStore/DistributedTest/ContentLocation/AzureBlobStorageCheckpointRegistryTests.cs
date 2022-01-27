@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -13,6 +14,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -22,61 +24,60 @@ using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 {
+    [Collection("Redis-based tests")]
     public class AzureBlobStorageCheckpointRegistryTests : TestWithOutput
     {
         private readonly static MachineLocation M1 = new MachineLocation("M1");
+        private readonly LocalRedisFixture _fixture;
 
-        public AzureBlobStorageCheckpointRegistryTests(ITestOutputHelper output)
+        public AzureBlobStorageCheckpointRegistryTests(LocalRedisFixture fixture, ITestOutputHelper output)
             : base(output)
         {
+            _fixture = fixture;
         }
 
-        [Fact(Skip = "This test can only be run with Azure Storage Emulator")]
+        [Fact]
         public Task RegisterAndGetCheckpoint()
         {
             return RunTest(async (context, registry, clock) =>
             {
                 var now = clock.UtcNow;
 
-                var checkpointId = "chkpt1";
-                var sequencePoint = new EventSequencePoint(sequenceNumber: 1);
-
-                await registry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailureAsync();
+                var cs1 = CreateCheckpointState(clock);
+                await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
                 var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                checkpointState.CheckpointId.Should().BeEquivalentTo(checkpointId);
-                checkpointState.StartSequencePoint.Should().BeEquivalentTo(sequencePoint);
-                // Time doesn't pass when using a memory clock
-                checkpointState.CheckpointTime.Should().Be(now);
-                checkpointState.Producer.Should().BeEquivalentTo(M1);
+                checkpointState.Should().BeEquivalentTo(cs1);
             }, clock: new MemoryClock());
         }
 
-        [Fact(Skip = "This test can only be run with Azure Storage Emulator")]
+        [Fact]
         public Task NewestCheckpointOverrides()
         {
             return RunTest(async (context, registry, clock) =>
             {
-                var now = clock.UtcNow;
-
-                var checkpointId = "chkpt1";
-                var sequencePoint = new EventSequencePoint(sequenceNumber: 1);
-
-                var checkpointId2 = "chkpt2";
-                var sequencePoint2 = new EventSequencePoint(sequenceNumber: 2);
-
-                await registry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailureAsync();
-                await registry.RegisterCheckpointAsync(context, checkpointId2, sequencePoint2).ThrowIfFailureAsync();
+                var cs1 = CreateCheckpointState(clock);
+                var cs2 = CreateCheckpointState(clock);
+                await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
+                await registry.RegisterCheckpointAsync(context, cs2).ThrowIfFailureAsync();
                 var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                checkpointState.CheckpointId.Should().BeEquivalentTo(checkpointId2);
-                checkpointState.StartSequencePoint.Should().BeEquivalentTo(sequencePoint2);
-                checkpointState.CheckpointTime.Should().BeAfter(now);
-                checkpointState.Producer.Should().BeEquivalentTo(M1);
+                checkpointState.Should().BeEquivalentTo(cs2);
             });
         }
 
-        [Fact(Skip = "This test can only be run with Azure Storage Emulator")]
+        int _index = 0;
+
+        public CheckpointState CreateCheckpointState(IClock clock)
+        {
+            var index = _index++;
+            var checkpointId = "chkpt" + _index;
+            var sequencePoint = new EventSequencePoint(sequenceNumber: index);
+
+            return new CheckpointState(sequencePoint, checkpointId, clock.UtcNow, M1);
+        }
+
+        [Fact]
         public Task NoCheckpointReturnsInvalid()
         {
             return RunTest(async (context, registry, clock) =>
@@ -93,9 +94,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             var tracingContext = new Context(TestGlobal.Logger);
             var context = new OperationContext(tracingContext);
 
+            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger, clock);
+
             var configuration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
-                Credentials = new AzureBlobStorageCredentials("UseDevelopmentStorage=true"),
+                Credentials = new AzureBlobStorageCredentials(storage.ConnectionString),
                 ContainerName = "checkpoints",
                 FolderName = "checkpointRegistry",
             };

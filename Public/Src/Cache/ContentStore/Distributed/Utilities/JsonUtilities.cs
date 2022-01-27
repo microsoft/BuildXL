@@ -55,7 +55,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private static MachineLocation ReadMachineLocation(ref Utf8JsonReader reader)
         {
-            return new MachineLocation(reader.GetString());
+            var data = reader.GetString();
+            return data == null ? default : new MachineLocation(data);
         }
 
         private static MachineId ReadMachineId(ref Utf8JsonReader reader)
@@ -91,9 +92,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <summary>
         /// Deserialize the value to json using <see cref="DefaultSerializationOptions"/>
         /// </summary>
-        public static ValueTask<T> JsonDeserializeAsync<T>(Stream stream)
+        public static ValueTask<T> JsonDeserializeAsync<T>(Stream stream, CancellationToken token = default)
         {
-            return JsonSerializer.DeserializeAsync<T>(stream, DefaultSerializationOptions);
+            return JsonSerializer.DeserializeAsync<T>(stream, DefaultSerializationOptions, token);
         }
 
         /// <summary>

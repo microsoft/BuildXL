@@ -50,6 +50,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
         {
             var configuration = new RedisContentLocationStoreConfiguration()
             {
+                PrimaryMachineLocation = new MachineLocation(rootDirectory.ToString()),
                 Keyspace = "Default:",
                 RedisGlobalStoreConnectionString = primaryRedisDatabase.ConnectionString,
                 RedisGlobalStoreSecondaryConnectionString = secondaryRedisDatabase?.ConnectionString
@@ -59,9 +60,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
             configuration.MachineStateRecomputeInterval = TimeSpan.Zero;
             configuration.EventStore = new MemoryContentLocationEventStoreConfiguration();
             configuration.Database = new RocksDbContentLocationDatabaseConfiguration(rootDirectory / "rocksdb");
-            configuration.Checkpoint = new CheckpointConfiguration(rootDirectory);
+            configuration.Checkpoint = new CheckpointConfiguration(rootDirectory, configuration.PrimaryMachineLocation);
             configuration.CentralStore = new LocalDiskCentralStoreConfiguration(rootDirectory / "centralStore", "checkpoints-key");
-            configuration.PrimaryMachineLocation = new MachineLocation(rootDirectory.ToString());
 
             return configuration;
         }

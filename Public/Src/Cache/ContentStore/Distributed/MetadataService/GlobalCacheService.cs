@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             return ExecuteAsync(request, callContext, context =>
             {
                 return _store.GetBulkAsync(context, request.Hashes)
-                    .SelectAsync(entries => new GetContentLocationsResponse()
+                    .AsAsync(entries => new GetContentLocationsResponse()
                     {
                         Entries = entries
                     });

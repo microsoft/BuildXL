@@ -219,6 +219,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         TestFileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                         TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                         TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.StreamStoresByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                     }
                 }
 

@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         // Choosing MD5 hash type as hash type for peer to peer storage somewhat arbitrarily. However, it has the nice
         // property of not being a standard hash type used for normal CAS content so traffic can easily be differentiated
-        protected static readonly HashType HashType = HashType.MD5;
+        public static readonly HashType HashType = HashType.MD5;
         protected FileSystemContentStoreInternal PrivateCas { get; }
 
         /// <inheritdoc />

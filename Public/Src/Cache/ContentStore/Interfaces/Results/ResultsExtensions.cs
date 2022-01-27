@@ -189,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Maps result into different result type or propagates error to result type
         /// </summary>
-        public static async Task<Result<TResult>> SelectAsync<T, TResult>(this Task<Result<T>> resultTask, Func<T, TResult> selector)
+        public static async Task<Result<TResult>> AsAsync<T, TResult>(this Task<Result<T>> resultTask, Func<T, TResult> selector)
         {
             var result = await resultTask;
             if (result.Succeeded)

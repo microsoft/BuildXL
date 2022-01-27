@@ -30,19 +30,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         private readonly ILocationStore _locationStore;
         private readonly DistributedContentCopier _copier;
-        private const string CacheSubFolderName = "dcs";
-        private const string CacheSubFolderNameWithTrailingSlash = CacheSubFolderName + @"\";
 
-        private const string CacheSharedSubFolderToReplace = @"Shared\" + CacheSubFolderName;
-        private const string CacheSharedSubFolder = CacheSubFolderName + @"\Shared";
-
-        private readonly ConcurrentDictionary<MachineLocation, MachineLocation> _machineLocationTranslationMap = new ConcurrentDictionary<MachineLocation, MachineLocation>();
-
-        // Randomly generated seed for use when computing derived hash represent fake content for tracking
-        // which machines have started copying a particular piece of content
-        private const uint _startedCopyHashSeed = 1006063109;
         private readonly DisposableDirectory _copierWorkingDirectory;
-        private int _translateLocationsOffset = 0;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedCentralStorage));
@@ -106,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return context.PerformOperationAsync(Tracer, async () =>
             {
-                var destinationMachineResult = _locationStore.ClusterState.GetRandomMachineLocation(Array.Empty<MachineLocation>());
+                var destinationMachineResult = _locationStore.GetRandomMachineLocation();
                 if (!destinationMachineResult.Succeeded)
                 {
                     return new PushFileResult(destinationMachineResult, "Failed to get a location to proactively copy the checkpoint file.");
@@ -156,48 +145,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async context =>
                 {
-                    var startedCopyHash = ComputeStartedCopyHash(hash);
-                    await RegisterContent(context, new ContentHashWithSize(startedCopyHash, -1)).ThrowIfFailure();
+                    var result = await _locationStore.GetBulkAsync(context, hash).ThrowIfFailure();
+                    var hashInfo = result.ContentHashesInfo[0];
 
-                    for (int i = 0; i < Configuration.PropagationIterations; i++)
-                    {
-                        // If initial place fails, try to copy the content from remote locations
-                        var (hashInfo, pendingCopyCount) = await GetFileLocationsAsync(context, hash, startedCopyHash);
-
-                        var machineId = _locationStore.ClusterState.PrimaryMachineId.Index;
-                        int machineNumber = GetMachineNumber();
-                        var requiredReplicas = ComputeRequiredReplicas(machineNumber);
-
-                        var actualReplicas = hashInfo.Locations?.Count ?? 0;
-
-                        // Copy from peers if:
-                        // The number of pending copies is known to be less that the max allowed copies
-                        // OR the number replicas exceeds the number of required replicas computed based on the machine index
-                        bool shouldCopy = pendingCopyCount < Configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
-
-                        Tracer.Debug(context, $"{i} (ShouldCopy={shouldCopy}): Hash={hash.ToShortString()}, Id={machineId}" +
-                            $", Replicas={actualReplicas}, RequiredReplicas={requiredReplicas}, Pending={pendingCopyCount}, Max={Configuration.MaxSimultaneousCopies}");
-
-                        if (shouldCopy)
-                        {
-                            return await _copier.TryCopyAndPutAsync(
-                                context,
-                                new DistributedContentCopier.CopyRequest(
-                                    this,
-                                    hashInfo,
-                                    CopyReason.CentralStorage,
-                                    args => PrivateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null),
-                                    // Most of these transfers are large files (sst files), but they are also already
-                                    // compressed, so compressing over it would only waste cycles.
-                                    CopyCompression.None
-                                    ));
-                        }
-
-                        // Wait for content to propagate to more machines
-                        await Task.Delay(Configuration.PropagationDelay, context.Token);
-                    }
-
-                    return new PutResult(hash, "Insufficient replicas");
+                    return await _copier.TryCopyAndPutAsync(
+                        context,
+                        new DistributedContentCopier.CopyRequest(
+                            this,
+                            hashInfo,
+                            CopyReason.CentralStorage,
+                            args => PrivateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null),
+                            // Most of these transfers are large files (sst files), but they are also already
+                            // compressed, so compressing over it would only waste cycles.
+                            CopyCompression.None
+                        ));
                 },
                 traceErrorsOnly: true,
                 extraEndMessage: _ => $"ContentHash=[{hash}]",
@@ -225,107 +186,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return putResult;
         }
 
-        private async Task<(ContentHashWithSizeAndLocations info, int pendingCopies)> GetFileLocationsAsync(OperationContext context, ContentHash hash, ContentHash startedCopyHash)
-        {
-            // Locations are registered under the derived fake startedCopyHash to keep a count of which machines have started
-            // copying content. This allows computing the amount of pending copies by subtracting the machines which have
-            // finished copying (i.e. location is registered with real hash)
-            var result = await _locationStore.GetBulkAsync(context, new[] { hash, startedCopyHash }).ThrowIfFailure();
-            var info = result.ContentHashesInfo[0];
-
-            var startedCopyLocations = result.ContentHashesInfo[1].Locations!;
-            var finishedCopyLocations = info.Locations!;
-            var pendingCopies = startedCopyLocations.Except(finishedCopyLocations).Count();
-
-            var locations = TranslateLocations(info.Locations!);
-
-            return (new ContentHashWithSizeAndLocations(info.ContentHash, info.Size, locations), pendingCopies);
-        }
-
-        private ContentHash ComputeStartedCopyHash(ContentHash hash)
-        {
-            var murmurHash = MurmurHash3.Create(hash.ToByteArray(), _startedCopyHashSeed);
-
-            var hashLength = HashInfoLookup.Find(HashType).ByteLength;
-            var buffer = murmurHash.ToByteArray();
-            Array.Resize(ref buffer, hashLength);
-
-            return new ContentHash(HashType, buffer);
-        }
-
         private ValueTask<BoolResult> RegisterContent(OperationContext context, params ContentHashWithSize[] contentInfo)
         {
             return _locationStore.RegisterLocalLocationAsync(context, contentInfo);
-        }
-
-        internal IReadOnlyList<MachineLocation> TranslateLocations(IReadOnlyList<MachineLocation> locations)
-        {
-            // Choose a 'random' offset to ensure that locations are random
-            // Locations are normally randomly sorted except machine reputation can override this
-            // For content which is pulled on all machines like that in the central storage, it is more
-            // important not to overload a machine which may end up consistent at the top of the list because of
-            // having a good reputation
-            var offset = Interlocked.Increment(ref _translateLocationsOffset);
-
-            return locations.SelectList((item, index) => TranslateLocation(locations[getOffsetIndex(index, offset, locations.Count)]));
-
-            static int getOffsetIndex(int index, int offset, int totalCount)
-            {
-                if (index == totalCount - 1)
-                {
-                    // It's important that the last entry remains at the end of the list, because most times that corresponds
-                    // to the master, which we want to avoid copying from at all costs.
-                    return index;
-                }
-
-                return (offset + index) % (totalCount - 1);
-            }
-        }
-
-        private MachineLocation TranslateLocation(MachineLocation other)
-        {
-            if (_machineLocationTranslationMap.TryGetValue(other, out var translated))
-            {
-                return translated;
-            }
-
-            var otherPath = other.Path;
-
-            bool hasTrailingSlash = otherPath.EndsWith(@"\");
-
-            // Add dcs subfolder to the path
-            otherPath = Path.Combine(otherPath, hasTrailingSlash ? CacheSubFolderNameWithTrailingSlash : CacheSubFolderName);
-
-            // If other already ended with shared, this will rearrange so that the shared folder is under the dcs sub folder
-            otherPath = otherPath.ReplaceIgnoreCase(CacheSharedSubFolderToReplace, CacheSharedSubFolder);
-
-            var location = new MachineLocation(otherPath);
-            _machineLocationTranslationMap[other] = location;
-            return location;
-        }
-
-        /// <summary>
-        /// Computes an index for the machine among active machines
-        /// </summary>
-        private int GetMachineNumber()
-        {
-            var machineId = _locationStore.ClusterState.PrimaryMachineId.Index;
-            var machineNumber = machineId - _locationStore.ClusterState.InactiveMachineList.Count(id => id.Index < machineId);
-            return machineNumber;
-        }
-
-        private int ComputeRequiredReplicas(int index)
-        {
-            if (index <= 0)
-            {
-                return 1;
-            }
-
-            // Threshold is index / MaxSimultaneousCopies.
-            // This ensures when locations are chosen at random there should be on average MaxSimultaneousCopies or less
-            // from the set of locations assuming worst case where all machines are trying to copy concurrently
-            var machineThreshold = index / Configuration.MaxSimultaneousCopies;
-            return Math.Max(1, machineThreshold);
         }
 
         /// <summary>
@@ -334,14 +197,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public interface ILocationStore
         {
             /// <summary>
-            /// The cluster state
+            /// Gets a random machine location
             /// </summary>
-            ClusterState ClusterState { get; }
+            Result<MachineLocation> GetRandomMachineLocation();
 
             /// <summary>
             /// Gets content locations for content
             /// </summary>
-            Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes);
+            Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, ContentHash hash);
 
             /// <summary>
             /// Registers content location for current machine

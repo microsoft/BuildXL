@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected readonly SerializationPool SerializationPool = new SerializationPool();
 
         /// <nodoc />
-        protected readonly IClock Clock;
+        public readonly IClock Clock;
 
         /// <nodoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(ContentLocationDatabase)) { LogOperationStarted = false };

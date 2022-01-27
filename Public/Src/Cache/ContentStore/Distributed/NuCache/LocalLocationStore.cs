@@ -2294,32 +2294,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        /// <summary>
-        /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by
-        /// <see cref="NuCache.DistributedCentralStorage"/>
-        /// </summary>
-        private class DistributedCentralStorageLocationStoreAdapter : DistributedCentralStorage.ILocationStore
-        {
-            public ClusterState ClusterState => _store.ClusterState;
-
-            private readonly LocalLocationStore _store;
-
-            public DistributedCentralStorageLocationStoreAdapter(LocalLocationStore store)
-            {
-                _store = store;
-            }
-
-            public Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
-            {
-                return _store.GetBulkFromGlobalAsync(context, ClusterState.PrimaryMachineId, contentHashes);
-            }
-
-            public ValueTask<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
-            {
-                return _store.GlobalCacheStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo.SelectList(c => (ShortHashWithSize)c), touch: false);
-            }
-        }
-
         private class ContentLocationDatabaseAdapter : IContentLocationEventHandler
         {
             private readonly ContentLocationDatabase _database;

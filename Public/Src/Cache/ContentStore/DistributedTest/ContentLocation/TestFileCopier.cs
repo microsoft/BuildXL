@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tasks;
@@ -37,6 +38,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Dictionary<MachineLocation, IDeleteFileHandler> DeleteHandlersByLocation { get; } = new();
 
+        public Dictionary<MachineLocation, IStreamStore> StreamStoresByLocation { get; } = new();
+
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
         public TimeSpan? CopyDelay;
@@ -56,15 +59,15 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Task<CopyFileResult> CopyToAsync(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
         {
-            var sourcePath = PathUtilities.GetContentPath(sourceLocation.Machine.Path, sourceLocation.Hash);
-
-            var result = CopyToAsyncCore(context, sourcePath, destinationStream, options);
+            var result = CopyToAsyncCore(context, sourceLocation, destinationStream, options);
             CopyToAsyncTask = result;
             return result;
         }
 
-        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, CopyOptions options)
+        private async Task<CopyFileResult> CopyToAsyncCore(OperationContext context, ContentLocation sourceLocation, Stream destinationStream, CopyOptions options)
         {
+            var sourcePath = PathUtilities.GetContentPath(sourceLocation.Machine.Path, sourceLocation.Hash);
+
             try
             {
                 if (CopyDelay != null)
@@ -76,12 +79,12 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
                 FilesCopied.AddOrUpdate(sourcePath, p => sourcePath, (dest, prevPath) => prevPath);
 
-                if (!_fileSystem.FileExists(sourcePath))
+                using Stream s = await GetStream(context, sourceLocation, sourcePath);
+
+                if (s == null)
                 {
                     return new CopyFileResult(CopyResultCode.FileNotFoundError, $"Source file {sourcePath} doesn't exist.");
                 }
-
-                using Stream s = GetStream(sourcePath);
 
                 await s.CopyToAsync(destinationStream);
 
@@ -93,20 +96,28 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
         }
 
-        private Stream GetStream(AbsolutePath sourcePath)
+        private async Task<Stream> GetStream(OperationContext context, ContentLocation sourceLocation, AbsolutePath sourcePath)
         {
-            Stream s;
             if (FilesToCorrupt.ContainsKey(sourcePath))
             {
                 TestGlobal.Logger.Debug($"Corrupting file {sourcePath}");
-                s = new MemoryStream(ThreadSafeRandom.GetBytes(100));
+                return new MemoryStream(ThreadSafeRandom.GetBytes(100));
             }
-            else
+            else if (StreamStoresByLocation.TryGetValue(sourceLocation.Machine, out var store))
             {
-                s =  _fileSystem.OpenReadOnly(sourcePath, FileShare.Read);
+                var result = await store.StreamContentAsync(context, sourceLocation.Hash);
+                if (result.Succeeded)
+                {
+                    return result.Stream;
+                }
             }
 
-            return s;
+            if (!_fileSystem.FileExists(sourcePath))
+            {
+                return null;
+            }
+
+            return   _fileSystem.OpenReadOnly(sourcePath, FileShare.Read);
         }
         
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)

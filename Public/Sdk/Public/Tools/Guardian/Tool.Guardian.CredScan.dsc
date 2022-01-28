@@ -143,6 +143,7 @@ function createGuardianCall(guardianToolRoot : StaticDirectory, guardianDrop : D
     const exportDir = Context.getNewOutputDirectory("credScan");
     const baselines = glob(complianceBaselineSuppressionLocation, "*.gdnbaselines");
     const suppressions = glob(complianceBaselineSuppressionLocation, "*.gdnsuppress");
+    const outputSarifFile = a`CredentialScannerResult_${directoryIndex.toString()}.sarif`;
 
     // Generate a TSV file for all files to be scanned
     const tsvFile = Transformer.writeAllLines(p`${exportDir.path}/guardian.TSV`, files.map(file => file.path));
@@ -150,7 +151,7 @@ function createGuardianCall(guardianToolRoot : StaticDirectory, guardianDrop : D
     const guardianArgs : GuardianArguments = {
         guardianToolRootDirectory: guardianToolRoot,
         guardianConfigFile: guardianConfigFile, // Pick up default config from drop directory
-        guardianResultFile: f`${exportDir.path}/credScanResult.sarif`,
+        guardianResultFile: f`${Context.getMount("LogsDirectory").path}/Guardian/${outputSarifFile}`,
         guardianPackageDirectory: d`${guardianDrop}/packages`,
         guardianToolWorkingDirectory: exportDir, // Set this to pick up the newly generated tsv file automatically
         filesToBeScanned: files,

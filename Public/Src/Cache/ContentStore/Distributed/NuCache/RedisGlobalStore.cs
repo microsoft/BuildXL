@@ -34,7 +34,7 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, ICheckpointRegistry, IMasterElectionMechanism, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, ICheckpointRegistry, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
         private const int MaxCheckpointSlotCount = 5;
         private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();
@@ -73,12 +73,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         Tracer ReplicatedRedisHashKey.IReplicatedKeyHost.Tracer => Tracer;
 
-        // TODO: figure out how to deal with this in new master-leader election
         /// <inheritdoc />
-        bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => Role == Role.Master && Configuration.MirrorClusterState;
+        bool ReplicatedRedisHashKey.IReplicatedKeyHost.CanMirror => _masterElectionMechanism.Role == Role.Master && Configuration.MirrorClusterState;
 
         /// <inheritdoc />
         TimeSpan ReplicatedRedisHashKey.IReplicatedKeyHost.MirrorInterval => Configuration.ClusterStateMirrorInterval;
+
+        private readonly IMasterElectionMechanism _masterElectionMechanism;
 
         /// <nodoc />
         internal RedisGlobalStore(
@@ -87,7 +88,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             RedisDatabaseAdapter primaryRedisDb,
             RedisDatabaseAdapter secondaryRedisDb,
             RedisDatabaseAdapter primaryRedisBlobDb,
-            RedisDatabaseAdapter secondaryRedisBlobDb)
+            RedisDatabaseAdapter secondaryRedisBlobDb,
+            IMasterElectionMechanism masterElectionMechanism)
         {
             Contract.Requires(configuration.CentralStore != null);
 
@@ -104,6 +106,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             PrimaryBlobAdapter = new RedisBlobAdapter(primaryRedisBlobDb, _clock, Configuration);
             SecondaryBlobAdapter = new RedisBlobAdapter(secondaryRedisBlobDb, _clock, Configuration);
+
+            _masterElectionMechanism = masterElectionMechanism;
         }
 
         /// <inheritdoc />
@@ -115,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var counters = Counters.ToCounterSet();
             counters.Merge(PrimaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
             counters.Merge(SecondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
-            counters.Merge(RaidedRedis.GetCounters(context, Role, Counters[GlobalStoreCounters.InfoStats]));
+            counters.Merge(RaidedRedis.GetCounters(context, _masterElectionMechanism.Role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
 
@@ -326,124 +330,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         #endregion Operations
-
-        #region Master Election Operations
-
-        public MachineLocation Master => _lastElection.Master;
-
-        public Role Role => _lastElection.Role;
-
-        public Task<Result<MasterElectionState>> GetRoleAsync(OperationContext context)
-        {
-            return context.PerformOperationAsync(Tracer, async () =>
-            {
-                var role = await UpdateRoleAsync(context, release: false)
-                    .ThrowIfFailureAsync();
-
-                var masterName = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(
-                    context,
-                    Configuration.RetryWindow,
-                    RedisOperation.GetCheckpoint,
-                    (batch, key) => batch.AddOperation("GetRole", b => b.HashGetAsync(key, "M#1.MachineName")),
-                    timeout: Configuration.ClusterRedisOperationTimeout)
-                    .ThrowIfFailureAsync();
-
-                var master = masterName.IsNull ? default(MachineLocation) : new MachineLocation((string)masterName);
-
-                var state = new MasterElectionState(master, role);
-                _lastElection = state;
-                return Result.Success(state);
-            });
-        }
-
-        /// <inheritdoc />
-        public async Task<Result<Role>> ReleaseRoleIfNecessaryAsync(OperationContext context, bool shuttingDown)
-        {
-            if (Configuration.DistributedContentConsumerOnly)
-            {
-                return Result.Success<Role>(Role.Worker);
-            }
-
-            if (Role != Role.Master)
-            {
-                return Result.Success(Role);
-            }
-
-            var result = await context.PerformOperationAsync(
-                Tracer,
-                () => UpdateRoleAsync(context, release: true),
-                Counters[GlobalStoreCounters.ReleaseRole]);
-
-            _lastElection = MasterElectionState.DefaultWorker;
-
-            return result;
-        }
-
-        private async Task<Result<Role>> UpdateRoleAsync(OperationContext context, bool release)
-        {
-            if (Configuration.DistributedContentConsumerOnly)
-            {
-                return Role.Worker;
-            }
-
-            return await context.PerformOperationAsync<Result<Role>>(
-                Tracer,
-                async () =>
-                {
-                    // This mutex ensure that Release of master role during shutdown and Heartbeat role acquisition are synchronized.
-                    // Ensuring that a heartbeat during shutdown doesn't trigger the released master role to be acquired again.
-                    using (await _roleMutex.AcquireAsync())
-                    {
-                        if (ShutdownStarted)
-                        {
-                            // Don't acquire a role during shutdown
-                            return Role.Worker;
-                        }
-
-                        var configuredRole = Configuration.Checkpoint?.Role;
-                        if (configuredRole != null)
-                        {
-                            return configuredRole.Value;
-                        }
-
-                        var localMachineName = Configuration.PrimaryMachineLocation.ToString();
-                        var masterAcquisitionResult = await _masterLeaseKey.UseNonConcurrentReplicatedHashAsync(context, Configuration.RetryWindow, RedisOperation.UpdateRole, (batch, key) => batch.AcquireMasterRoleAsync(
-                                masterRoleRegistryKey: key,
-                                machineName: localMachineName,
-                                currentTime: _clock.UtcNow,
-                                leaseExpiryTime: Configuration.Checkpoint.MasterLeaseExpiryTime,
-                                // 1 master only is allowed. This should be changed if more than one master becomes a possible configuration
-                                slotCount: 1,
-                                release: release
-                            ),
-                            timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
-
-                        if (release)
-                        {
-                            Tracer.Debug(context, $"'{localMachineName}' released master role.");
-                            return Role.Worker;
-                        }
-
-                        if (masterAcquisitionResult != null)
-                        {
-                            var priorMachineName = masterAcquisitionResult.Value.PriorMasterMachineName;
-                            if (priorMachineName != localMachineName || masterAcquisitionResult.Value.PriorMachineStatus != SlotStatus.Acquired)
-                            {
-                                Tracer.Debug(context, $"'{localMachineName}' acquired master role from '{priorMachineName}', Status: '{masterAcquisitionResult?.PriorMachineStatus}', LastHeartbeat: '{masterAcquisitionResult?.PriorMasterLastHeartbeat}'");
-                            }
-
-                            return Role.Master;
-                        }
-                        else
-                        {
-                            return Role.Worker;
-                        }
-                    }
-                },
-                Counters[GlobalStoreCounters.UpdateRole]);
-        }
-
-        #endregion Role Management
 
         #region Cluster State Management
 

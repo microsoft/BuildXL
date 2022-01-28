@@ -30,6 +30,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using BuildXL.Cache.Host.Service.Internal;
@@ -124,6 +125,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected bool EnablePublishingCache { get; set; } = false;
 
+        public string MaxSize { get; set; } = "50 MB";
+
         protected Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
         protected Action<DistributedContentStoreSettings> _overrideDistributedContentStooreSettings = null;
 
@@ -176,6 +179,23 @@ namespace ContentStoreTest.Distributed.Sessions
                                        overrideDistributed?.Invoke(s);
                                    };
             _overrideRedis = overrideRedis;
+        }
+
+        internal TestServerProvider CreateStoreForDistributedContentTests(
+            Context context,
+            IRemoteFileCopier fileCopier,
+            DisposableDirectory testDirectory,
+            int index,
+            int iteration,
+            uint grpcPort)
+        {
+            return CreateStore(
+                context,
+                fileCopier,
+                testDirectory,
+                index,
+                iteration,
+                grpcPort);
         }
 
         protected override TestServerProvider CreateStore(
@@ -286,7 +306,6 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 settings.UseBlobCheckpointRegistry = true;
                 settings.BlobCheckpointRegistryStandalone = true;
-                settings.UseBlobMasterElection = true;
                 settings.UseBlobClusterStateStorage = false;
                 settings.BlobClusterStateStorageStandalone = false;
             }
@@ -316,7 +335,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                                                new NamedCacheSettings()
                                                                {
                                                                    CacheRootPath = rootPath.Path,
-                                                                   CacheSizeQuotaString = "50MB"
+                                                                   CacheSizeQuotaString = MaxSize,
                                                                }
                                                            }
                                                        },

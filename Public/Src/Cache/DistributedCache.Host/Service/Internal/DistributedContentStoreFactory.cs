@@ -755,23 +755,20 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configuration.AzureBlobStorageCheckpointRegistryConfiguration = azureBlobStorageCheckpointRegistryConfiguration;
             }
 
-            if (_distributedSettings.UseBlobMasterElection)
+            var azureBlobStorageMasterElectionMechanismConfiguration = new AzureBlobStorageMasterElectionMechanismConfiguration()
             {
-                var azureBlobStorageMasterElectionMechanismConfiguration = new AzureBlobStorageMasterElectionMechanismConfiguration()
-                {
-                    Credentials = storageCredentials[0],
-                    ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
-                    FolderName = $"{epoch}/masterElection",
-                };
+                Credentials = storageCredentials[0],
+                ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                FolderName = $"{epoch}/masterElection",
+            };
 
-                azureBlobStorageMasterElectionMechanismConfiguration.IsMasterEligible = _distributedSettings.IsMasterEligible && !(_distributedSettings.DistributedContentConsumerOnly ?? false);
+            azureBlobStorageMasterElectionMechanismConfiguration.IsMasterEligible = _distributedSettings.IsMasterEligible && !(_distributedSettings.DistributedContentConsumerOnly ?? false);
 
-                ApplyIfNotNull(_distributedSettings.BlobMasterElectionFileName, v => azureBlobStorageMasterElectionMechanismConfiguration.FileName = v);
-                ApplyIfNotNull(_distributedSettings.BlobMasterElectionLeaseExpiryTime, v => azureBlobStorageMasterElectionMechanismConfiguration.LeaseExpiryTime = v);
-                ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.StorageInteractionTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionFileName, v => azureBlobStorageMasterElectionMechanismConfiguration.FileName = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionLeaseExpiryTime, v => azureBlobStorageMasterElectionMechanismConfiguration.LeaseExpiryTime = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.StorageInteractionTimeout = v);
 
-                configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
-            }
+            configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
 
             if (_distributedSettings.UseBlobClusterStateStorage)
             {

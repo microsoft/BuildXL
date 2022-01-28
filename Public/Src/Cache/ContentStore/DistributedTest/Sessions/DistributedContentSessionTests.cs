@@ -3,25 +3,20 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
-using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -30,6 +25,8 @@ namespace ContentStoreTest.Distributed.Sessions
     public class DistributedContentSessionTests : ContentSessionTests
     {
         private readonly LocalRedisFixture _redis;
+
+        private readonly LocalLocationStoreDistributedContentTests _tests;
 
         internal static IReadOnlyList<TimeSpan> DefaultRetryIntervalsForTest = new List<TimeSpan>()
         {
@@ -44,6 +41,7 @@ namespace ContentStoreTest.Distributed.Sessions
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, canHibernate: true, output)
         {
             _redis = redis;
+            _tests = new LocalLocationStoreDistributedContentTests(_redis, output);
         }
 
         [Fact]
@@ -53,45 +51,48 @@ namespace ContentStoreTest.Distributed.Sessions
             return OpenStreamExisting();
         }
 
+        protected override Task RunTestAsync(
+            ImplicitPin implicitPin,
+            DisposableDirectory directory,
+            Func<Context, IContentSession, Task> funcAsync)
+        {
+            if (directory is not null)
+            {
+                return Task.CompletedTask;
+            }
+
+            _tests.MaxSize = MaxSize.ToString();
+
+            _tests.ConfigureWithOneMaster(d =>
+            {
+                d.UseFullEvictionSort = true;
+            });
+
+            return _tests.RunTestAsync(1, (testContext) =>
+            {
+                return funcAsync(testContext, testContext.Sessions[0]);
+            }, implicitPin);
+        }
+
+        protected override Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IReadOnlyContentSession, Task> funcAsync)
+        {
+            return RunTestAsync(implicitPin, null, (ctx, session) => funcAsync(ctx, session));
+        }
+
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
         {
-            var rootPath = testDirectory.Path / "Root";
-            var configurationModel = new ConfigurationModel(configuration);
-
-            var primaryDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-            var secondaryDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-
-            var localMachineLocation = new MachineLocation(rootPath.Path);
-            var storeFactory = new MockContentLocationStoreFactory(primaryDatabase, secondaryDatabase, rootPath);
-
-            var settings = CreateSettings();
-
-            return new DistributedContentStore(
-                localMachineLocation,
-                rootPath,
-                (distributedStore) =>
-                    new FileSystemContentStore(
-                        FileSystem,
-                        SystemClock.Instance,
-                        rootPath,
-                        configurationModel,
-                        settings: ContentStoreSettings.DefaultSettings,
-                        distributedStore: distributedStore,
-                        coldStorage: null),
-                storeFactory,
-                settings: settings,
-                coldStorage: null,
-                distributedCopier: storeFactory.GetCopier());
+            throw new NotImplementedException();
         }
 
         protected virtual DistributedContentStoreSettings CreateSettings()
         {
-            return new DistributedContentStoreSettings
-            {
-                LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
-                RetryIntervalForCopies = DefaultRetryIntervalsForTest,
-                SetPostInitializationCompletionAfterStartup = true
-            };
+            throw new NotImplementedException();
+        }
+
+        public override void Dispose()
+        {
+            _tests.Dispose();
+            base.Dispose();
         }
     }
 }

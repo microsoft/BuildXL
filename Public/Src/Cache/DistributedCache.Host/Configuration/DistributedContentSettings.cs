@@ -166,7 +166,6 @@ namespace BuildXL.Cache.Host.Configuration
             BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             UseBlobCheckpointRegistry = true;
             BlobCheckpointRegistryStandalone = true;
-            UseBlobMasterElection = true;
             UseBlobClusterStateStorage = true;
             BlobClusterStateStorageStandalone = true;
             UseBlobVolatileStorage = true;
@@ -1269,9 +1268,6 @@ namespace BuildXL.Cache.Host.Configuration
         #endregion
 
         #region Azure Blob Storage-based Master Election
-
-        [DataMember]
-        public bool UseBlobMasterElection { get; set; }
 
         [DataMember]
         public string BlobMasterElectionFileName { get; set; }

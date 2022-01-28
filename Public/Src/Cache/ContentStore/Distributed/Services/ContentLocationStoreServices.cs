@@ -170,28 +170,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         private IMasterElectionMechanism CreateMasterElectionMechanism()
         {
-            IMasterElectionMechanism createInner()
-            {
-                if (Configuration.AzureBlobStorageMasterElectionMechanismConfiguration is not null)
-                {
-                    var storageElectionMechanism = new AzureBlobStorageMasterElectionMechanism(Configuration.AzureBlobStorageMasterElectionMechanismConfiguration, Configuration.PrimaryMachineLocation, Clock);
-
-                    return storageElectionMechanism;
-                }
-                else
-                {
-                    return RedisGlobalStore.Instance;
-                }
-            }
-
-            var inner = createInner();
+            Contract.AssertNotNull(Configuration.AzureBlobStorageMasterElectionMechanismConfiguration);
+            var masterElectionMechanism = new AzureBlobStorageMasterElectionMechanism(
+                Configuration.AzureBlobStorageMasterElectionMechanismConfiguration,
+                Configuration.PrimaryMachineLocation,
+                Clock);
             if (Dependencies.RoleObserver.TryGetInstance(out var observer))
             {
-                return new ObservableMasterElectionMechanism(inner, observer);
+                return new ObservableMasterElectionMechanism(masterElectionMechanism, observer);
             }
             else
             {
-                return inner;
+                return masterElectionMechanism;
             }
         }
 
@@ -262,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 secondaryRedisBlobDatabase = secondaryRedisDatabaseForGlobalStore;
             }
 
-            var globalStore = new RedisGlobalStore(Arguments.Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, redisBlobDatabase, secondaryRedisBlobDatabase);
+            var globalStore = new RedisGlobalStore(Arguments.Clock, Configuration, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore, redisBlobDatabase, secondaryRedisBlobDatabase, MasterElectionMechanism.Instance);
             return globalStore;
         }
     }

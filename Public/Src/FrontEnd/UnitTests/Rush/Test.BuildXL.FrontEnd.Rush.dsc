@@ -40,7 +40,14 @@ namespace Test.Rush {
                  "RushCustomSchedulingTests",
                  "RushCustomScriptsTests",
                  "RushAdditionalDependenciesTests"
-            ]
+            ],
+            tools: {
+                exec: {
+                    // Rush tests are IO heavy. Let's limit the concurrency for them to avoid timeouts (default
+                    // concurrency for xunit tests is 8).
+                    acquireSemaphores: [{name: "BuildXL.rush_xunit_semaphore", incrementBy: 1, limit: 4}]
+                }
+            }
         },
         assemblyName: "Test.BuildXL.FrontEnd.Rush",
         sources: globR(d`.`, "*.cs"), 

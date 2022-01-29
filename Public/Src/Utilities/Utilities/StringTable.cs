@@ -93,9 +93,9 @@ namespace BuildXL.Utilities
         /// Default overflow buffer number.
         /// </summary>
         /// <remarks>
-        /// Using 5 as the default value after measuring usage in the largest builds we run
+        /// Using 10 as the default value after measuring usage in the largest builds we run
         /// </remarks>
-        private static int s_defaultOverflowBufferCount = 5;
+        private const int DefaultOverflowBufferCount = 10;
 
         // a StringId has the upper 11 bits as a buffer selector and the lower 21 bits as byte selector within the buffer
         // internals for use by the unit tests
@@ -208,16 +208,11 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Overrides large string buffer threshold.
         /// </summary>
-        public static void OverrideStringTableDefaults(int? largeBufferThreshold, int? overflowBufferCount)
+        public static void OverrideStringTableDefaults(int? largeBufferThreshold)
         {
             if (largeBufferThreshold.HasValue && largeBufferThreshold.Value > 0)
             {
                 s_largeStringBufferThreshold = largeBufferThreshold.Value;
-            }
-
-            if (overflowBufferCount.HasValue && overflowBufferCount.Value > 0)
-            {
-                s_defaultOverflowBufferCount = overflowBufferCount.Value;
             }
         }
 
@@ -258,7 +253,7 @@ namespace BuildXL.Utilities
             m_stringSet = new ConcurrentBigSet<StringId>(capacity: initialCapacity);
 
             // set up the initial buffer and consume the first byte so that StringId.Invalid's slot is consumed
-            m_overflowBufferCount = overflowBufferCount ?? s_defaultOverflowBufferCount;
+            m_overflowBufferCount = overflowBufferCount ?? DefaultOverflowBufferCount;
             m_currentOverflowIndex = 0;
 
             if (m_overflowBufferCount > 0)
@@ -656,7 +651,7 @@ namespace BuildXL.Utilities
                     }
 
                     // If we reach this line there's no more space in the table
-                    throw Contract.AssertFailure($"This string table ran out of space. Consider increasing the number of overflow buffers (Overflow buffer count: {m_overflowBufferCount}");
+                    throw Contract.AssertFailure($"This string table ran out of space.");
                 }
 
                 lock (m_byteBuffers)

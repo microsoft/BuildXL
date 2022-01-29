@@ -331,11 +331,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> LargeStringBufferThresholdBytes = CreateSetting("BuildXLLargeStringBufferThresholdBytes", value => ParseInt32(value));
 
         /// <summary>
-        /// Overrides the default overflow buffer count for string tables.
-        /// </summary>
-        public static readonly Setting<int?> StringTableOverflowBufferCount = CreateSetting("BuildXLStringTableOverflowBufferCount", value => ParseInt32(value));
-
-        /// <summary>
         /// Specifies the UTC time when CB will terminate the build due to timeout
         /// </summary>
         public static readonly Setting<long?> CbUtcTimeoutTicks = CreateSetting("BuildXL_CbTimeoutUtcTicks", value => value == null ? (long?)null : long.Parse(value));

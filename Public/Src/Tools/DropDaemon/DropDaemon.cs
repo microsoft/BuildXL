@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
@@ -66,6 +67,8 @@ namespace Tool.DropDaemon
         internal static readonly List<Option> ConfigOptions = new();
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
+
+        private int m_logFileNameCounter;
 
         /// SBOM Generation
         private readonly ISBOMGenerator m_sbomGenerator;
@@ -572,7 +575,8 @@ namespace Tool.DropDaemon
         {
             DropServiceConfig = serviceConfig;
             m_sbomGenerator = new SBOMGenerator(logger: new SBOMLoggingWrapper(Logger));
-            m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath(); 
+            m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath();
+            m_logFileNameCounter = 0;
         }
 
         internal static void EnsureCommandsInitialized()
@@ -1626,18 +1630,28 @@ namespace Tool.DropDaemon
 
         private void EnsureVsoClientIsCreated(DropConfig dropConfig)
         {
+            const int MaxLogFileNameLength = 200;
             var name = FullyQualifiedDropName(dropConfig);
+            var loggerName = string.Join("_", dropConfig.Name.Split(Path.GetInvalidFileNameChars()));
+            loggerName = $"DropClient_{loggerName.Substring(Math.Max(0, loggerName.Length - MaxLogFileNameLength))}";
+            var logFileNameCounter = Interlocked.Increment(ref m_logFileNameCounter).ToString();
             var getOrAddResult = m_vsoClients.GetOrAdd(
                 name,
-                (logger: m_logger, apiClient: ApiClient, daemonConfig: Config, dropConfig: dropConfig),
+                (loggerName: loggerName, apiClient: ApiClient, daemonConfig: Config, dropConfig: dropConfig, logFileNameCounter: logFileNameCounter),
                 static (dropName, data) =>
                 {
-                    return (data.dropConfig, new Lazy<Task<IDropClient>>(() => Task.Run(() => (IDropClient)new VsoClient(data.logger, data.apiClient, data.daemonConfig, data.dropConfig))));
+                    var tsk = new Lazy<Task<IDropClient>>(() => Task.Run(() =>
+                    {
+                        var dropLogger = new FileLogger(data.daemonConfig.LogDir, data.loggerName, data.logFileNameCounter, data.daemonConfig.Verbose, DropDLogPrefix);
+                        return (IDropClient)new VsoClient(dropLogger, data.apiClient, data.daemonConfig, data.dropConfig);
+                    }));
+                    return (data.dropConfig, tsk);
                 });
 
             // if it's a freshly added VsoClient, start the task
             if (!getOrAddResult.IsFound)
             {
+                m_logger.Info("Created a log file '{0}-{1}' for drop '{2}'", loggerName, logFileNameCounter, dropConfig.Name);
                 getOrAddResult.Item.Value.lazyVsoClientTask.Value.Forget();
             }
         }

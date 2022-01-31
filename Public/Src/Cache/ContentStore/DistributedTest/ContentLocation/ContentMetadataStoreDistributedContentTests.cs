@@ -107,7 +107,6 @@ namespace ContentStoreTest.Distributed.Sessions
         public Task TestServicePutAndRetrieveOnDifferentMachinesWithoutRedis()
         {
             UseGrpcServer = true;
-            EnableAzuriteStorage = true;
             DisableRedis = true;
 
             ConfigureWithOneMaster(

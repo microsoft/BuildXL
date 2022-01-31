@@ -201,7 +201,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
                     ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
                     KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
-                    Standalone = DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistryStandalone,
                 };
 
                 var storageRegistry = new AzureBlobStorageCheckpointRegistry(
@@ -209,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     RedisContentLocationStoreConfiguration.PrimaryMachineLocation,
                     clock);
                 storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
-                if (storageRegistryConfiguration.Standalone)
+                if (DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistryStandalone)
                 {
                     return storageRegistry;
                 }

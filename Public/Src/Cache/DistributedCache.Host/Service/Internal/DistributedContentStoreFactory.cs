@@ -734,26 +734,22 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _distributedSettings.EventProcessingMaxQueueSize,
                 value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
 
-            if (_distributedSettings.UseBlobCheckpointRegistry)
+            var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
-                var azureBlobStorageCheckpointRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
-                {
-                    Credentials = storageCredentials[0],
-                    ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
-                    FolderName = "checkpointRegistry",
-                    KeySpacePrefix = epoch,
-                };
+                Credentials = storageCredentials[0],
+                ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
+                FolderName = "checkpointRegistry",
+                KeySpacePrefix = epoch,
+            };
 
-                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);
-                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
-                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
-                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryStandalone, v => azureBlobStorageCheckpointRegistryConfiguration.Standalone = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
 
-                ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
-                azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
+            azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;
 
-                configuration.AzureBlobStorageCheckpointRegistryConfiguration = azureBlobStorageCheckpointRegistryConfiguration;
-            }
+            configuration.AzureBlobStorageCheckpointRegistryConfiguration = azureBlobStorageCheckpointRegistryConfiguration;
 
             var azureBlobStorageMasterElectionMechanismConfiguration = new AzureBlobStorageMasterElectionMechanismConfiguration()
             {

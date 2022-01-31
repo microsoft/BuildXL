@@ -64,8 +64,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public bool Standalone { get; set; } = false;
-
         public TimeSpan StorageInteractionTimeout { get; } = TimeSpan.FromMinutes(1);
     }
 

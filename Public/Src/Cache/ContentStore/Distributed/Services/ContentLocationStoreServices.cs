@@ -121,23 +121,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         private ICheckpointRegistry CreateCheckpointRegistry()
         {
-            if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration is not null)
-            {
-                var storageRegistry = new AzureBlobStorageCheckpointRegistry(Configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, Clock);
-
-                if (Configuration.AzureBlobStorageCheckpointRegistryConfiguration.Standalone)
-                {
-                    return storageRegistry;
-                }
-                else
-                {
-                    return new TransitioningCheckpointRegistry(primary: storageRegistry, fallback: RedisGlobalStore.Instance);
-                }
-            }
-            else
-            {
-                return RedisGlobalStore.Instance;
-            }
+            Contract.RequiresNotNull(Configuration.AzureBlobStorageCheckpointRegistryConfiguration);
+            return new AzureBlobStorageCheckpointRegistry(Configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, Clock);
         }
 
         private IGlobalCacheStore CreateGlobalCacheStore()

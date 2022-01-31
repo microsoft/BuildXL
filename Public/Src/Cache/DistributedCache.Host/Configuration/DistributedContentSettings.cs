@@ -164,8 +164,6 @@ namespace BuildXL.Cache.Host.Configuration
             MemoizationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             LocationContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
             BlobContentMetadataStoreModeOverride = Configuration.ContentMetadataStoreMode.Distributed;
-            UseBlobCheckpointRegistry = true;
-            BlobCheckpointRegistryStandalone = true;
             UseBlobClusterStateStorage = true;
             BlobClusterStateStorageStandalone = true;
             UseBlobVolatileStorage = true;
@@ -1246,12 +1244,6 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? AsyncSessionShutdownTimeout { get; set; }
 
         #region Azure Blob Storage-based Checkpoint Registry
-
-        [DataMember]
-        public bool UseBlobCheckpointRegistry { get; set; }
-
-        [DataMember]
-        public bool? BlobCheckpointRegistryStandalone { get; set; }
 
         [DataMember]
         public int? BlobCheckpointRegistryCheckpointLimit { get; set; }

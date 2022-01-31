@@ -95,8 +95,6 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool _poolSecondaryRedisDatabase = true;
         protected bool _registerAdditionalLocationPerMachine = false;
 
-        protected bool EnableAzuriteStorage = true;
-
         protected bool DisableRedis = false;
 
         protected readonly ConcurrentDictionary<(string, int), LocalRedisProcessDatabase> _localDatabases = new();
@@ -210,11 +208,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
             int dbIndex = 0;
 
-            if (DisableRedis)
-            {
-                EnableAzuriteStorage = true;
-            }
-
             if (!DisableRedis)
             {
                 PrimaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
@@ -226,10 +219,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             int storageIndex = 0;
             string storageConnectionString = "Unused";
-            if (EnableAzuriteStorage)
-            {
-                storageConnectionString = GetStorage(context, ref storageIndex).ConnectionString;
-            }
+            storageConnectionString = GetStorage(context, ref storageIndex).ConnectionString;
 
             var settings = new TestDistributedContentSettings()
             {
@@ -302,15 +292,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 GrpcCopyClientConnectOnStartup = true,
             };
 
-            if (EnableAzuriteStorage)
-            {
-                settings.UseBlobCheckpointRegistry = true;
-                settings.BlobCheckpointRegistryStandalone = true;
-                settings.UseBlobClusterStateStorage = false;
-                settings.BlobClusterStateStorageStandalone = false;
-            }
-
-            Contract.Assert(!DisableRedis || EnableAzuriteStorage, "Azure storage emulator must be enabled when disabling Redis");
+            settings.UseBlobClusterStateStorage = false;
+            settings.BlobClusterStateStorageStandalone = false;
 
             if (ProactiveCopyLocationThreshold.HasValue)
             {
@@ -506,11 +489,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public override IWriteBehindEventStorage Override(IWriteBehindEventStorage storage)
             {
-                if (!_tests.EnableAzuriteStorage)
-                {
-                    storage = new MockPersistentEventStorage(PersistentState);
-                }
-
                 var failingStorage = new FailingPersistentEventStorage(PersistentFailureMode, storage);
                 return failingStorage;
             }
@@ -529,11 +507,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 // Set recompute time to zero to force recomputation on every heartbeat
                 configuration.MachineStateRecomputeInterval = TimeSpan.Zero;
-
-                if (!_tests.UseRealStorage && !_tests.EnableAzuriteStorage)
-                {
-                    configuration.CentralStore = new LocalDiskCentralStoreConfiguration(_tests.TestRootDirectoryPath / "centralStore", "checkpoints-key");
-                }
 
                 if (!_tests.UseRealEventHub)
                 {

@@ -34,19 +34,14 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, ICheckpointRegistry, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
+    public sealed partial class RedisGlobalStore : StartupShutdownSlimBase, IGlobalCacheStore, IClusterStateStorage, ReplicatedRedisHashKey.IReplicatedKeyHost
     {
-        private const int MaxCheckpointSlotCount = 5;
-        private readonly SemaphoreSlim _roleMutex = TaskUtilities.CreateMutex();
-
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         private readonly IClock _clock;
 
         internal RaidedRedisDatabase RaidedRedis { get; }
 
-        private readonly ReplicatedRedisHashKey _checkpointsKey;
-        private readonly ReplicatedRedisHashKey _masterLeaseKey;
         private readonly ReplicatedRedisHashKey _clusterStateKey;
 
         /// <summary>
@@ -61,8 +56,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal RedisBlobAdapter PrimaryBlobAdapter { get; }
 
         internal RedisBlobAdapter SecondaryBlobAdapter { get; }
-
-        private MasterElectionState _lastElection = MasterElectionState.DefaultWorker;
 
         /// <nodoc />
         public CounterCollection<GlobalStoreCounters> Counters { get; } = new CounterCollection<GlobalStoreCounters>();
@@ -96,10 +89,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clock = clock;
             Configuration = configuration;
             RaidedRedis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
-            var checkpointKeyBase = configuration.CentralStore.CentralStateKeyBase;
 
-            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, RaidedRedis);
-            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, RaidedRedis);
+            var checkpointKeyBase = configuration.CentralStore.CentralStateKeyBase;
             _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, RaidedRedis);
 
             MemoizationAdapter = new RedisMemoizationAdapter(RaidedRedis, configuration.Memoization);
@@ -423,75 +414,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         timeout: Configuration.ClusterRedisOperationTimeout).ThrowIfFailureAsync();
                 },
                 Counters[GlobalStoreCounters.UpdateClusterState]);
-        }
-
-        #endregion
-
-        #region Checkpoint Registry
-
-        /// <inheritdoc />
-        public Task<Result<CheckpointState>> GetCheckpointStateAsync(OperationContext context)
-        {
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    var (checkpoints, startCursor) = await _checkpointsKey.UseNonConcurrentReplicatedHashAsync(
-                        context,
-                        Configuration.RetryWindow,
-                        RedisOperation.GetCheckpoint,
-                        (batch, key) => batch.GetCheckpointsInfoAsync(key, _clock.UtcNow),
-                        timeout: Configuration.ClusterRedisOperationTimeout)
-                    .ThrowIfFailureAsync();
-
-                    var maxCheckpoint = checkpoints.MaxByOrDefault(c => c.CheckpointCreationTime);
-                    if (maxCheckpoint == null)
-                    {
-                        Tracer.Debug(context, $"Getting checkpoint state: Can't find a checkpoint: Start cursor time: {startCursor}");
-
-                        // Add slack for start cursor to account for clock skew between event hub and redis
-                        var epochStartCursor = startCursor - Configuration.EventStore.NewEpochEventStartCursorDelay;
-                        return CheckpointState.CreateUnavailable(epochStartCursor);
-                    }
-
-                    Tracer.Debug(context, $"Getting checkpoint state: Found checkpoint '{maxCheckpoint}'");
-
-                    return Result.Success(new CheckpointState(new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName)));
-                },
-                Counters[GlobalStoreCounters.GetCheckpointState]);
-        }
-
-        public Task<BoolResult> RegisterCheckpointAsync(OperationContext context, CheckpointState state)
-        {
-            return context.PerformOperationWithTimeoutAsync(
-                Tracer,
-                async nestedContext =>
-                {
-                    Contract.Assert(state.CheckpointId != null);
-                    Contract.Assert(state.StartSequencePoint.SequenceNumber != null);
-                    Contract.Assert(state.Producer.IsValid);
-
-                    var checkpoint = new RedisCheckpointInfo(state.CheckpointId, state.StartSequencePoint.SequenceNumber.Value, state.CheckpointTime, state.Producer.ToString());
-                    Tracer.Debug(nestedContext, $"Saving checkpoint '{checkpoint}' into the central store.");
-
-                    var slotNumber = await _checkpointsKey.UseNonConcurrentReplicatedHashAsync(
-                        nestedContext,
-                        Configuration.RetryWindow,
-                        RedisOperation.UploadCheckpoint,
-                        (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount),
-                        timeout: Configuration.ClusterRedisOperationTimeout)
-                        .ThrowIfFailureAsync();
-
-                    Tracer.Debug(nestedContext, $"Saved checkpoint into slot '{slotNumber}'.");
-                    return BoolResult.Success;
-                },
-                timeout: Configuration.ClusterRedisOperationTimeout,
-                Counters[GlobalStoreCounters.RegisterCheckpoint]);
-        }
-
-        public Task<BoolResult> ClearCheckpointsAsync(OperationContext context)
-        {
-            throw new NotImplementedException("This method should never be called");
         }
 
         #endregion

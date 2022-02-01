@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -55,6 +56,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private static MachineLocation ReadMachineLocation(ref Utf8JsonReader reader)
         {
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                var document = JsonDocument.ParseValue(ref reader);
+                var property = document.RootElement.GetProperty(nameof(MachineLocation.Path));
+                if (property.ValueKind == JsonValueKind.Null)
+                {
+                    return default;
+                }
+
+                return new MachineLocation(property.GetString());
+            }
+            
             var data = reader.GetString();
             return data == null ? default : new MachineLocation(data);
         }

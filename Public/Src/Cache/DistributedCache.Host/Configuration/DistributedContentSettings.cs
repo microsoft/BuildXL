@@ -1163,6 +1163,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool GlobalCacheBackgroundRestore { get; set; }
 
         [DataMember]
+        public bool ContentMetadataDisableDatabaseRegisterLocation { get; set; }
+
+        [DataMember]
         public bool ContentMetadataEnableResilience { get; set; }
 
         [DataMember]
@@ -1182,6 +1185,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool ContentMetadataUseBlobCheckpointRegistryStandalone { get; set; }
+
+        [DataMember]
+        public bool UseBlobCheckpointLegacyFormat { get; set; } = true;
 
         [DataMember]
         public string ContentMetadataBlobCheckpointRegistryContainerName { get; set; } = "contentmetadata";

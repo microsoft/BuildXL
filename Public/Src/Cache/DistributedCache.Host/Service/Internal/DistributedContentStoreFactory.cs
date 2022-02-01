@@ -740,6 +740,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ContainerName = _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
                 FolderName = "checkpointRegistry",
                 KeySpacePrefix = epoch,
+                WriteLegacyFormat = _distributedSettings.UseBlobCheckpointLegacyFormat
             };
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);

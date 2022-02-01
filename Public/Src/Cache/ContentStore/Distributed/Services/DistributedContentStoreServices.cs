@@ -202,6 +202,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
                     ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
                     KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
+                    WriteLegacyFormat = DistributedContentSettings.UseBlobCheckpointLegacyFormat
                 };
 
                 var storageRegistry = new AzureBlobStorageCheckpointRegistry(
@@ -247,6 +248,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 clock,
                 new RocksDbContentMetadataStoreConfiguration()
                 {
+                    DisableRegisterLocation = DistributedContentSettings.ContentMetadataDisableDatabaseRegisterLocation,
                     MaxBlobCapacity = DistributedContentSettings.MaxBlobCapacity,
                     Database = dbConfig,
                 });

@@ -65,6 +65,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan CheckpointStateTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         public TimeSpan StorageInteractionTimeout { get; } = TimeSpan.FromMinutes(1);
+
+        public bool WriteLegacyFormat { get; set; } = true;
     }
 
     /// <summary>
@@ -175,7 +177,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 context =>
                 {
                     var blobName = GenerateBlobName();
-                    return _storage.WriteAsync(context, blobName, checkpointState);
+                    if (_configuration.WriteLegacyFormat)
+                    {
+                        return _storage.WriteAsync(context, blobName, JsonSerializer.Serialize(checkpointState, _jsonSerializerOptions));
+                    }
+                    else
+                    {
+                        return _storage.WriteAsync(context, blobName, checkpointState);
+                    }
                 },
                 traceOperationStarted: false,
                 extraStartMessage: msg,

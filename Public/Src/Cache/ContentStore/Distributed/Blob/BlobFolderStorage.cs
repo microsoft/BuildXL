@@ -260,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async (context) =>
                 {
-                    var jsonText = JsonUtilities.JsonSerialize(value, indent: true);
+                    var jsonText = (value is string text) ? text : JsonUtilities.JsonSerialize(value, indent: true);
 
                     var reference = GetBlockBlobReference(fileName);
                     var accessCondition = etag == AlwaysEtag ? AccessCondition.GenerateEmptyCondition() :

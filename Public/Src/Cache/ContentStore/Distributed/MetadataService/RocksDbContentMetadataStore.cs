@@ -23,6 +23,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public long MaxBlobCapacity { get; init; } = 100_000;
 
         public RocksDbContentMetadataDatabaseConfiguration Database { get; init; }
+
+        public bool DisableRegisterLocation { get; init; }
     }
 
     public class RocksDbContentMetadataStore : StartupShutdownComponentBase, IContentMetadataStore
@@ -67,7 +69,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         public ValueTask<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHashWithSize> contentHashes, bool touch)
         {
-            Database.LocationAdded(context, machineId, contentHashes, touch);
+            if (!_configuration.DisableRegisterLocation)
+            {
+                Database.LocationAdded(context, machineId, contentHashes, touch);
+            }
+
             return BoolResult.SuccessValueTask;
         }
 

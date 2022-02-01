@@ -59,15 +59,39 @@ namespace BuildXL.Scheduler
         /// </summary>
         private LimitingResource DetermineLimitingResource(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executingProcessPips, WorkerResource? lastConcurrencyLimiter)
         {
-            // Determining the heuristic on distributed builds requires some more thought. For now just bucket them as Other
-            // to keep from showing possibly incorrect data
-            if (m_isDistributed)
+            // (1) We first focus on the specific limiting resources such as not launching processes due to projected memory, user-specified semaphores.
+
+            if (lastConcurrencyLimiter.HasValue)
             {
-                return LimitingResource.Other;
-            }
+                // Blocking on semaphore trumps all other factors
+                // Some other user configured semaphore is preventing the scheduler from launching additional processes.
+                if (lastConcurrencyLimiter.Value.PrecedenceType == WorkerResource.Precedence.SemaphorePrecedence)
+                {
+                    return LimitingResource.Semaphore;
+                }
+
+                // The scheduler has backed off on executing additional process pips because of projected memory usage,
+                // even though the graph and concurrency configuration would allow it
+                if (lastConcurrencyLimiter.Value == WorkerResource.AvailableMemoryMb || lastConcurrencyLimiter.Value == WorkerResource.AvailableCommitMb)
+                {
+                    return LimitingResource.ProjectedMemory;
+                }
+
+                // Check whether any dispatcher queue is blocked due to unavailable slots.
+                if (lastConcurrencyLimiter.Value == WorkerResource.AvailableProcessSlots ||
+                    lastConcurrencyLimiter.Value == WorkerResource.AvailableMaterializeInputSlots ||
+                    lastConcurrencyLimiter.Value == WorkerResource.AvailableCacheLookupSlots ||
+                    lastConcurrencyLimiter.Value == WorkerResource.AvailableLightSlots ||
+                    lastConcurrencyLimiter.Value == WorkerResource.ModuleAffinity)
+                {
+                    return LimitingResource.UnavailableSlots;
+                }
+            }    
+            
+            // (2) Then, we focus on the high resource consumption.
 
             // High CPU trumps all other factors
-            if (aggregator.MachineCpu.Latest > 95)
+            if (aggregator.MachineCpu.Latest > 98)
             {
                 return LimitingResource.CPU;
             }
@@ -78,25 +102,6 @@ namespace BuildXL.Scheduler
             if (aggregator.MachineAvailablePhysicalMB.Latest < 300)
             {
                 return LimitingResource.Memory;
-            }
-
-            // The scheduler has backed off on executing additional process pips because of projected memory usage,
-            // even though the graph and concurrency configuration would allow it
-            if (lastConcurrencyLimiter.HasValue && lastConcurrencyLimiter.Value == WorkerResource.AvailableMemoryMb)
-            {
-                return LimitingResource.ProjectedMemory;
-            }
-
-            // Some other user configured semaphore is preventing the scheduler from launching additional processes.
-            if (lastConcurrencyLimiter.HasValue &&
-                lastConcurrencyLimiter.Value != WorkerResource.AvailableMemoryMb &&
-                lastConcurrencyLimiter.Value != WorkerResource.AvailableCommitMb &&
-                lastConcurrencyLimiter.Value != WorkerResource.AvailableProcessSlots &&
-                lastConcurrencyLimiter.Value != WorkerResource.MemoryResourceAvailable &&
-                lastConcurrencyLimiter.Value != WorkerResource.Status &&
-                lastConcurrencyLimiter.Value != WorkerResource.TotalProcessSlots)
-            {
-                return LimitingResource.Semaphore;
             }
 
             // Next we look for any disk with a relatively high percentage of active time
@@ -117,7 +122,7 @@ namespace BuildXL.Scheduler
 
             // If the number of running pips is what the queue maximum is, and no machine resources are constrained, the
             // pips are probably contending with themselves. There may be headroom to add more pips
-            if (((1.0 * executingProcessPips) / m_maxProcessPips) > .95)
+            if (!m_isDistributed && (((1.0 * executingProcessPips) / m_maxProcessPips) > .95))
             {
                 return LimitingResource.ConcurrencyLimit;
             }
@@ -159,6 +164,9 @@ namespace BuildXL.Scheduler
                         break;
                     case LimitingResource.ConcurrencyLimit:
                         m_blockedOnPipSynchronization += time;
+                        break;
+                    case LimitingResource.UnavailableSlots:
+                        m_blockedOnUnavailableSlotsMs += time;
                         break;
                     case LimitingResource.Other:
                         m_blockedOnUnknownMs += time;
@@ -213,11 +221,17 @@ namespace BuildXL.Scheduler
             Semaphore,
 
             /// <summary>
+            /// Unavailability of dispatcher slots for several steps: MaterializeInput, ExecuteProcess, CacheLookup
+            /// </summary>
+            UnavailableSlots,
+
+            /// <summary>
             /// Don't know what the limiting factor is
             /// </summary>
             Other,
         }
 
+        private int m_blockedOnUnavailableSlotsMs = 0;
         private int m_blockedOnGraphMs = 0;
         private int m_blockedOnCpuMs = 0;
         private int m_blockedOnDiskMs = 0;
@@ -229,7 +243,7 @@ namespace BuildXL.Scheduler
 
         private int GetPercentage(int numerator)
         {
-            int totalTime = m_blockedOnGraphMs + m_blockedOnCpuMs + m_blockedOnDiskMs + m_blockedOnMemoryMs + m_blockedOnPipSynchronization + m_blockedOnProjectedMemoryMs + m_blockedOnSemaphoreMs + m_blockedOnUnknownMs;
+            int totalTime = m_blockedOnGraphMs + m_blockedOnCpuMs + m_blockedOnDiskMs + m_blockedOnMemoryMs + m_blockedOnPipSynchronization + m_blockedOnProjectedMemoryMs + m_blockedOnSemaphoreMs + m_blockedOnUnknownMs + m_blockedOnUnavailableSlotsMs;
             if (totalTime > 0)
             {
                 // We intentionally return the floor to make sure we don't add up to more than 100
@@ -255,11 +269,12 @@ namespace BuildXL.Scheduler
                     ProjectedMemory = GetPercentage(m_blockedOnProjectedMemoryMs),
                     Semaphore = GetPercentage(m_blockedOnSemaphoreMs),
                     ConcurrencyLimit = GetPercentage(m_blockedOnPipSynchronization),
+                    UnavailableSlots = GetPercentage(m_blockedOnUnavailableSlotsMs),
                 };
 
                 // It's possible these percentages don't add up to 100%. So we'll round everything down
                 // and use "Other" as our fudge factor to make sure we add up to 100.
-                result.Other = 100 - result.GraphShape - result.CPU - result.Disk - result.Memory - result.ProjectedMemory - result.Semaphore - result.ConcurrencyLimit;
+                result.Other = 100 - result.GraphShape - result.CPU - result.Disk - result.Memory - result.ProjectedMemory - result.Semaphore - result.ConcurrencyLimit - result.UnavailableSlots;
 
                 return result;
             }

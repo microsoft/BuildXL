@@ -65,12 +65,12 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource Status = new WorkerResource(nameof(Status), Precedence.Status);
 
         public readonly string Name;
-        private readonly Precedence m_precedence;
+        internal readonly Precedence PrecedenceType;
 
         private WorkerResource(string name, Precedence precedence)
         {
             Name = name;
-            m_precedence = precedence;
+            PrecedenceType = precedence;
         }
 
         internal static WorkerResource CreateSemaphoreResource(string name)
@@ -80,11 +80,11 @@ namespace BuildXL.Scheduler.Distribution
 
         public bool Equals(WorkerResource other)
         {
-            if (m_precedence != other.m_precedence)
+            if (PrecedenceType != other.PrecedenceType)
             {
                 return false;
             }
-            else if (m_precedence == Precedence.SemaphorePrecedence)
+            else if (PrecedenceType == Precedence.SemaphorePrecedence)
             {
                 // Only semaphore resources need to be compared by name. For other
                 // resources the precedence has a 1 to 1 mapping to identity
@@ -101,14 +101,14 @@ namespace BuildXL.Scheduler.Distribution
 
         public override int GetHashCode()
         {
-            return m_precedence != Precedence.SemaphorePrecedence ?
-                (int)m_precedence :
+            return PrecedenceType != Precedence.SemaphorePrecedence ?
+                (int)PrecedenceType :
                 Name.GetHashCode();
         }
 
         public override string ToString()
         {
-            return m_precedence == Precedence.SemaphorePrecedence ?
+            return PrecedenceType == Precedence.SemaphorePrecedence ?
                 ("Semaphore." + Name) :
                 Name;
         }
@@ -123,7 +123,7 @@ namespace BuildXL.Scheduler.Distribution
             return !left.Equals(right);
         }
 
-        private enum Precedence
+        internal enum Precedence
         {
             Status,
             TotalCacheLookupSlots,

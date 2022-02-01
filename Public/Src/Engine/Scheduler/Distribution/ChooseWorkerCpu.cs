@@ -369,15 +369,9 @@ namespace BuildXL.Scheduler.Distribution
         public void LogStats(Dictionary<string, long> statistics)
         {
             var limitingResourceStats = m_limitingResourceCounts.ToDictionary(kvp => kvp.Key.ToString(), kvp => (long)kvp.Value.Value);
-
-            foreach (var kvp in limitingResourceStats)
-            {
-                statistics.Add($"LimitingResource_{kvp.Key}", kvp.Value);
-            }
+            Logger.Log.LimitingResourceStatistics(LoggingContext, limitingResourceStats);
 
             statistics.Add($"NumModulesExceedingMaxWorkers", m_numModulesExceedingMaxWorkers);
-
-            Logger.Log.LimitingResourceStatistics(LoggingContext, limitingResourceStats);
         }
 
         private class PipSetupCosts

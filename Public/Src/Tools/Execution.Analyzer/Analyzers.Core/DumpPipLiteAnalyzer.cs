@@ -16,7 +16,7 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeDumpPipLiteAnalyzer(AnalysisInput input)
         {
             string outputDirectory = null;
-            bool dumpObservedFileAccesses = false;
+            bool dumpObservedFileAccesses = true;
             long pipSemiStableHash = 0;
 
             foreach (var opt in AnalyzerOptions)
@@ -59,7 +59,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteBanner("Dump Pip Lite Analyzer");
             writer.WriteModeOption(nameof(AnalysisMode.DumpPipLite), "Generates a JSON file containing static information about a requested pip or generates a set of JSON files for all failing pips in a given build to the specified directory (or in the same directory as the XLG file if no directory is specified). The output from this analyzer is an easier to interpret subset of the larger dump pip analyzers.");
             writer.WriteOption("pip", "Required. SemiStableHash of the pip to be dumped (must start with 'Pip', e.g., 'PipC623BCE303738C69').");
-            writer.WriteOption("dumpObservedFileAccesses[+|-]", "Optional. The analyzer will dump observed file accesses if /logObservedFileAccesses was set for the build.");
+            writer.WriteOption("dumpObservedFileAccesses[+|-]", "Optional, enabled by default. The analyzer will dump observed file accesses if /logObservedFileAccesses was set for the build.");
             writer.WriteOption("outputDirectory", "Optional. If specifed, the logs will be generated under outputDirectory\\FailedPips, else they will be under XLGPath\\FailedPips.");
         }
     }

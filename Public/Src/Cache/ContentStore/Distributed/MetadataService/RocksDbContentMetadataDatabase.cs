@@ -260,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         EnableStatistics = true,
                         FastOpen = true,
                         LeveledCompactionDynamicLevelTargetSizes = true,
-                        Compression = RocksDbSharp.Compression.Zstd,
+                        Compression = _configuration.Compression,
                         UseReadOptionsWithSetTotalOrderSeekInDbEnumeration = true,
                         UseReadOptionsWithSetTotalOrderSeekInGarbageCollection = true,
                     },

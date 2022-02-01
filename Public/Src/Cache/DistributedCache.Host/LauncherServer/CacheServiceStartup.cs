@@ -76,7 +76,7 @@ namespace BuildXL.Launcher.Server
                     Contract.Assert(config.DataRootPath != null,
                         "The required property (DataRootPath) is not set, so it should be passed through the command line options by the parent process.");
 
-                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, CrossProcessSecretsCommunicationKind.EnvironmentSingleEntry);
+                    var serviceHost = new ServiceHost(commandLineArgs, config, hostParameters, context, secretsProviderKind);
                     return serviceHost;
                 },
                 requireServiceInterruptable: !standalone);

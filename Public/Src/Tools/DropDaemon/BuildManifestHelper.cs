@@ -31,7 +31,7 @@ namespace Tool.DropDaemon
         /// <nodoc/>
         public const string DropCatalogFilePath = ManifestFileDestination + CatalogFilename;
 
-        private const int ExecutableMaxRuntimeInMinute = 3;
+        private const int ExecutableMaxRuntimeInMinute = 15;
         private const string CdfFileName = "manifest.cdf";
 
         /// <summary>

@@ -2833,7 +2833,7 @@ namespace BuildXL.Processes
             var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(
                 m_pip,
                 m_pipDataRenderer,
-                m_pip.ProcessRetries - m_remainingUserRetryCount,
+                m_pip.ProcessRetriesOrDefault(m_configuration.Schedule) - m_remainingUserRetryCount,
                 m_pip.RequireGlobalDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
 
             if (ShouldSandboxedProcessExecuteInVm)

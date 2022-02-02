@@ -230,7 +230,7 @@ namespace BuildXL.FrontEnd.JavaScript
             out Process process,
             out ProcessOutputs processOutputs)
         {
-            using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder(), m_frontEndHost.Configuration))
+            using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
                 ConfigureProcessBuilder(processBuilder, project);

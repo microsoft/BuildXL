@@ -308,6 +308,7 @@ namespace BuildXL.Scheduler.Tracing
                 PreserveOutputsAllowlist = CreateString(pip.PreserveOutputAllowlist, pathTable),
                 ProcessOptions = pip.ProcessOptions.ToString(),
                 RetryExitCodes = pip.RetryExitCodes.IsValid ? GetJsonFriendlyList(pip.RetryExitCodes) : null,
+                ProcessRetries = pip.ProcessRetries,
             };
         }
 

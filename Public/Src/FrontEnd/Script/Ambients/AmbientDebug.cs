@@ -91,7 +91,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var cmdLineArgs = Args.AsArrayLiteral(args, 0);
             var pathTable = context.FrontEndContext.PathTable;
 
-            using (var processBuilder = ProcessBuilder.Create(pathTable, context.FrontEndContext.GetPipDataBuilder(), context.FrontEndHost.Configuration))
+            using (var processBuilder = ProcessBuilder.Create(pathTable, context.FrontEndContext.GetPipDataBuilder()))
             {
                 TransformerExecuteArgumentsProcessor.ProcessArguments(context, processBuilder, cmdLineArgs);
 

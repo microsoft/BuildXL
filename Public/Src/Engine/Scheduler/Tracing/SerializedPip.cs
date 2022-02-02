@@ -159,6 +159,8 @@ namespace BuildXL.Scheduler.Tracing
         public string ProcessOptions { get; set; }
         [JsonPropertyName("Retry Exit Codes")]
         public List<int> RetryExitCodes { get; set; }
+        [JsonPropertyName("Process Retries")]
+        public int? ProcessRetries { get; set; }
     }
 
     /// <nodoc/>

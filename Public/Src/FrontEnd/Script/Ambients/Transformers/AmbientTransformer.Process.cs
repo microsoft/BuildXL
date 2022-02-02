@@ -339,7 +339,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private bool TryScheduleProcessPip(Context context, ObjectLiteral obj, ServicePipKind serviceKind, out ProcessOutputs processOutputs, out Process pip)
         {
-            using (var processBuilder = ProcessBuilder.Create(context.PathTable, context.FrontEndContext.GetPipDataBuilder(), context.FrontEndHost.Configuration))
+            using (var processBuilder = ProcessBuilder.Create(context.PathTable, context.FrontEndContext.GetPipDataBuilder()))
             {
                 ProcessExecuteArguments(context, obj, processBuilder, serviceKind);
 

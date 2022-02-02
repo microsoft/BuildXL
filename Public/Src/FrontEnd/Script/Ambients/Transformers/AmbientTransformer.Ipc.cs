@@ -121,7 +121,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             PipData arguments;
             ReadOnlyArray<FileArtifact> fileDependencies;
             ReadOnlyArray<DirectoryArtifact> directoryDependencies;
-            using (var ipcProcessBuilder = ProcessBuilder.Create(context.PathTable, context.FrontEndContext.GetPipDataBuilder(), context.FrontEndHost.Configuration))
+            using (var ipcProcessBuilder = ProcessBuilder.Create(context.PathTable, context.FrontEndContext.GetPipDataBuilder()))
             {
                 // process arguments
                 ArrayLiteral argumentsArrayLiteral = Converter.ExtractArrayLiteral(obj, m_ipcSendMessageBody);

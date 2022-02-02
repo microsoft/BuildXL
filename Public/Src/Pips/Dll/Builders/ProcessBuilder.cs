@@ -9,7 +9,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using static BuildXL.Pips.Operations.Process;
 
 namespace BuildXL.Pips.Builders
@@ -35,7 +34,6 @@ namespace BuildXL.Pips.Builders
         private readonly Dictionary<StringId, PipData> m_environmentVariables;
 
         private readonly PooledObjectWrapper<PipDataBuilder> m_argumentsBuilder;
-        private readonly IConfiguration m_configuration;
 
         /// <nodoc />
         public PipDataBuilder ArgumentsBuilder => m_argumentsBuilder.Instance;
@@ -196,11 +194,10 @@ namespace BuildXL.Pips.Builders
         private int? m_processRetries;
 
         /// <nodoc />
-        private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, IConfiguration configuration)
+        private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder)
         {
             m_pathTable = pathTable;
             m_argumentsBuilder = argumentsBuilder;
-            m_configuration = configuration;
             m_inputFiles = Pools.GetFileArtifactSet();
             m_inputDirectories = Pools.GetDirectoryArtifactSet();
             m_servicePipDependencies = PipPools.PipIdSetPool.GetInstance();
@@ -232,20 +229,20 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// Creates a new ProcessBuilder
         /// </summary>
-        public static ProcessBuilder Create(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder, IConfiguration configuration)
+        public static ProcessBuilder Create(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(argumentsBuilder.Instance != null);
-            return new ProcessBuilder(pathTable, argumentsBuilder, configuration);
+            return new ProcessBuilder(pathTable, argumentsBuilder);
         }
 
         /// <summary>
         /// Helper to create a new ProcessBuilder for testing that doesn't need to pass the pooled PipDataBuilder for convenience
         /// </summary>
-        public static ProcessBuilder CreateForTesting(PathTable pathTable, IConfiguration configuration = null)
+        public static ProcessBuilder CreateForTesting(PathTable pathTable)
         {
             var tempPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(pathTable.StringTable), _ => { });
-            return new ProcessBuilder(pathTable, tempPool.GetInstance(), configuration ?? new ConfigurationImpl());
+            return new ProcessBuilder(pathTable, tempPool.GetInstance());
         }
 
         /// <nodoc />
@@ -505,7 +502,7 @@ namespace BuildXL.Pips.Builders
         }
 
         /// <nodoc />
-        public void SetProcessRetries(int processRetries)
+        public void SetProcessRetries(int? processRetries)
         {
             m_processRetries = processRetries;
         }
@@ -745,8 +742,7 @@ namespace BuildXL.Pips.Builders
                 preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
                 childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions),
-                // If process retries was not defined, use the global configured one
-                processRetries: m_processRetries ?? m_configuration.Schedule.ProcessRetries,
+                processRetries: m_processRetries,
                 retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable
                 );
 

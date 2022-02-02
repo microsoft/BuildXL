@@ -1,0 +1,37 @@
+parameters:
+- name: AnyBuildSource
+  type: string
+  default: ''
+- name: Ring
+  type: string
+  default: 'Dogfood'
+
+steps:
+- powershell: |
+   Remove-Item -Force -Recurse "$env:LOCALAPPDATA\Microsoft\AnyBuild" -ea SilentlyContinue
+   
+   # Make lowercase as AzStorage cannot handle uppercase in URL.
+   $source = "${{ parameters.AnyBuildSource }}".ToLowerInvariant()
+   
+   $bootstrapperArgs = @("$source", "${{ parameters.Ring }}")
+
+   Write-Host "Bootstrapper args: '$bootstrapperArgs'";
+   
+   while ($true)
+   {
+     $script = ((curl.exe -s -S --retry 10 --retry-connrefused "$source/bootstrapper.ps1") | Out-String)
+     Write-Host "Downloaded script: `r`n $script";
+     if ($LASTEXITCODE -eq 0)
+     {
+         break;
+     }
+   
+     # We sometimes get a 404 error when downloading the bootstrapper
+     # while the bootstrapper script is updating. Needs an eventual fix instead of this workaround.
+     Write-Host "ERROR: Failed downloading the bootstrapper script. Trying again."
+   }
+   
+   Invoke-Command -ScriptBlock ([scriptblock]::Create($script)) -ArgumentList $bootstrapperArgs
+  failOnStderr: true
+  displayName: 'Install AnyBuild client'
+  continueOnError: false

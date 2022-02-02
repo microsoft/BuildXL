@@ -1,0 +1,85 @@
+trigger: none
+
+pool:
+  name: BuildXL-DevOpsAgents-PME
+
+variables:
+  NugetCredentialProviderPath: '$(Build.SourcesDirectory)\Public\Src\Tools\BuildXL.Tools.CredentialProvider\bin\Debug\netcoreapp2.1\win-x64'
+  Datacenter: 'westus2'
+  ClusterName: 'Bxl1'
+  RemoteUri: 'https://westus2.anybuild-test.microsoft.com/clusters/07F427C5-7979-415C-B6D9-01BAD5118191'
+  ClientContainerUrl: 'https://anybuild$(ClusterName)$(Datacenter).blob.core.windows.net/clientreleases'
+  BootstrapArgs: '-DeployDev /p:[Sdk.BuildXL]microsoftInternal=1'
+  RemotingArgs: '-UseDev -Minimal -EnableProcessRemoting -RemoteServiceUri $(RemoteUri) /p:BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_APP_ID=$(BuildXLPipelinesAppId) /p:BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_PWD_ENV=AnyBuildServicePrincipalPwd /numRemoteAgentLeases:24 /remotingThresholdMultiplier:1.25 /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=*'
+
+steps:
+
+- checkout: self
+  fetchDepth: 1
+
+- template: ./az-login.yml
+
+- script: 'C:\windows\system32\fsutil usn createjournal m=0x20000000 a=0x8000000 D:'
+  displayName: 'Enable Journaling for D drive'
+
+- script: |
+   if EXIST %AppData%\NuGet\NuGet.Config (
+       del %AppData%\NuGet\NuGet.Config
+   )
+  displayName: 'Nuget Hack: delete old nuget.config first'
+
+- task: UseDotNet@2
+  displayName: 'Use .NET Core sdk 6.x'
+  inputs:
+    version: 6.x
+
+- task: DotNetCoreCLI@2
+  displayName: 'Build BuildXL.Tools.CredentialProvider'
+  inputs:
+    projects: '$(Build.SourcesDirectory)\Public\Src\Tools\BuildXL.Tools.CredentialProvider\BuildXL.Tools.CredentialProvider.csproj'
+    arguments: '-r win-x64'
+
+- template: ./install-client.yml
+  parameters:
+    AnyBuildSource: $(ClientContainerUrl)
+
+- task: BatchScript@1
+  displayName: 'Kill existing BuildXL processes'
+  inputs:
+    filename: Shared/Scripts/KillBxlInstancesInRepo.cmd
+  continueOnError: true
+  condition: always()
+
+- task: PowerShell@2
+  displayName: 'Build BXL'
+  inputs:
+    targetType: filePath
+    filePath: '$(Build.SourcesDirectory)\RunBxlWithPAT.ps1'
+    arguments: '-OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -NcPath $(NugetCredentialProviderPath) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) $(BootstrapArgs)'
+
+- task: PowerShell@2
+  displayName: 'Run BXL with remoting'
+  inputs:
+    targetType: filePath
+    filePath: '$(Build.SourcesDirectory)\RunBxlWithPAT.ps1'
+    arguments: '-OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -NcPath $(NugetCredentialProviderPath) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) $(RemotingArgs)'
+  env:
+    AnyBuildServicePrincipalPwd: $(AzureApp-BuildXL-Pipelines)
+
+- task: BatchScript@1
+  displayName: 'Kill existing BuildXL processes'
+  inputs:
+    filename: Shared/Scripts/KillBxlInstancesInRepo.cmd
+  continueOnError: true
+  condition: always()
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Upload logs'
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)\Out\Logs'
+  condition: always()
+
+- template: ./validate.yml
+  parameters:
+    LogDirectory: '$(Build.SourcesDirectory)\Out\Logs'
+

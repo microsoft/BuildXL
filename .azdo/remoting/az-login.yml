@@ -1,0 +1,16 @@
+parameters:
+- name: SPAppId
+  type: string
+  default: $(BuildXLPipelinesAppId)
+- name: SPPassword
+  type: string
+  default: $(AzureApp-BuildXL-Pipelines)
+- name: SPTenant
+  type: string
+  default: $(BuildXLPipelinesTenantId)
+
+steps:
+- script: |
+    call az login --service-principal --username ${{ parameters.SPAppId }} --password ${{ parameters.SPPassword }} --tenant ${{ parameters.SPTenant }}
+    if ERRORLEVEL 1 echo "az login failed" & exit /b 1
+  displayName: 'Azure login'

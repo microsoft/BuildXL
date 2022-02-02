@@ -89,6 +89,16 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> AnyBuildExtraArgs = CreateSetting("BUILDXL_ANYBUILD_EXTRA_ARGS", value => value);
 
         /// <summary>
+        /// Service principal app id for starting AnyBuild daemon.
+        /// </summary>
+        public static readonly Setting<string> AnyBuildServicePrincipalAppId = CreateSetting("BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_APP_ID", value => value);
+
+        /// <summary>
+        /// Environment variable where the service principal password for starting AnyBuild daemon is stored.
+        /// </summary>
+        public static readonly Setting<string> AnyBuildServicePrincipalPwdEnv = CreateSetting("BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_PWD_ENV", value => value);
+
+        /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions
         /// </summary>
         public static readonly Setting<bool> FailFastOnNullReferenceException = CreateSetting("FailFastOnNullReferenceException", value => value == "1");

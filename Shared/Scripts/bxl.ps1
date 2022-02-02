@@ -125,7 +125,7 @@ param(
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
     [Parameter(Mandatory=$false)]
-	[switch]$UseDedupStore = $false,
+    [switch]$UseDedupStore = $false,
 
     [Parameter(Mandatory=$false)]
     [switch]$UseVfs = $false,
@@ -139,17 +139,26 @@ param(
 
     [Parameter(Mandatory=$false)]
     [switch]$VsAll = $false,
-	
+
     [Parameter(Mandatory=$false)]
     [switch]$UseManagedSharedCompilation = $true,
-
-    [Parameter(ValueFromRemainingArguments=$true)]
-    [string[]]$DominoArguments,
 
     [Parameter(Mandatory=$false)]
     [switch]$NoQTest = $false,
 
-    [switch]$NoSubst = $false
+    [switch]$NoSubst = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$EnableProcessRemoting = $false,
+
+    [Parameter(Mandatory=$false)]
+    [string]$RemoteServiceUri = "https://westus2.anybuild-test.microsoft.com/clusters/07F427C5-7979-415C-B6D9-01BAD5118191",
+
+    [Parameter(Mandatory=$false)]
+    [string]$AnyBuildClientDir,
+
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$DominoArguments
 )
 
 $ErrorActionPreference = "Stop";
@@ -211,7 +220,7 @@ $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]micro
 # - this is not considered an internal build
 # We might decide to relax this once shared compilation gets enough mileage.
 if ($UseManagedSharedCompilation -and 
-        (($DominoArguments -like '*/ado*') -or (-not $isMicrosoftInternal))) {
+        (($DominoArguments -like '*/ado*') -or (-not $isMicrosoftInternal) -or $EnableProcessRemoting)) {
     $UseManagedSharedCompilation = $false
 }
 
@@ -310,6 +319,16 @@ else {
 
 if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArguments -match "logPrefix:.*").Length -eq 0) {
     $AdditionalBuildXLArguments += "/logsToRetain:20";
+}
+
+if ($EnableProcessRemoting) {
+    # Unit tests are not supported for remoting because change journal is not enabled on agents
+    # and all volumes in agents have the same serial.
+    $AdditionalBuildXLArguments += @("/server-", "/enableLazyOutputs-", "/exp:lazysodeletion-", "/enableProcessRemoting+", "/processCanRunRemoteTags:compile", "/processMustRunLocalTags:telemetry:xUnit;telemetry:xUnitUntracked;telemetry:QTest", "/remoteExecutionServiceUri:$RemoteServiceUri");
+
+    if (-not [string]::IsNullOrEmpty($AnyBuildClientDir)) {
+        $AdditionalBuildXLArguments += " /p:BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR=$AnyBuildClientDir"
+    }
 }
 
 if ($Deploy -eq "LKG") {

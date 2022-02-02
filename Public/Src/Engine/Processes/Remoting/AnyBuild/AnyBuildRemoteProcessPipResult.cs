@@ -41,9 +41,8 @@ namespace BuildXL.Processes.Remoting.AnyBuild
                 ExitCode = result.ExitCode,
                 StdOut = result.StdOut,
                 StdErr = result.StdErr,
-                Disposition = result.Disposition switch
+                Disposition = result.ExecutionDisposition switch
                 {
-                    CommandExecutionDisposition.Unknown => RemoteResultDisposition.Unknown,
                     CommandExecutionDisposition.CacheHit => RemoteResultDisposition.CacheHit,
                     CommandExecutionDisposition.Remoted => RemoteResultDisposition.Remoted,
                     CommandExecutionDisposition.RanLocally => RemoteResultDisposition.RanLocally,

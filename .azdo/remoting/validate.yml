@@ -1,0 +1,32 @@
+parameters:
+- name: LogDirectory
+  type: string
+  default: '$(Build.SourcesDirectory)\Out\Logs'
+
+steps:
+- powershell: |
+    $f = Get-ChildItem -Path '${{ parameters.LogDirectory }}\*\AnyBuildDaemonManager.log' -Recurse  | Select-Object -First 1
+    $bxlWithRemotingLogDir = $f.DirectoryName
+    $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
+    $stats = ConvertFrom-StringData -StringData $statsContent
+    $runRemoteCount = $stats.Get_Item("PipExecution.TotalRunRemoteProcesses")
+    $runLocalFallbackCount = $stats.Get_Item("PipExecution.TotalRemoteFallbackRetries")
+
+    Write-Host "Run remote: $runRemoteCount"
+    Write-Host "Run local due to fallback: $runLocalFallbackCount"
+
+    if ($runRemoteCount -eq 0)
+    {
+        Write-Host "No process pip ran remotely"
+        exit 1
+    }
+
+    if ($runLocalFallbackCount -ne 0)
+    {
+        Write-Host "$runLocalFallbackCount remoted process pip(s) ran locally"
+        exit 1
+    }
+
+    exit 0
+  continueOnError: true
+  displayName: 'Validate remoting'

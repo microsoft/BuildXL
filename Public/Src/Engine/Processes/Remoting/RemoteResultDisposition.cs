@@ -9,11 +9,6 @@ namespace BuildXL.Processes.Remoting
     public enum RemoteResultDisposition
     {
         /// <summary>
-        /// Default zero value.
-        /// </summary>
-        Unknown,
-
-        /// <summary>
         /// Process completed with cache hit.
         /// </summary>
         CacheHit,

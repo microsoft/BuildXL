@@ -118,7 +118,8 @@ namespace BuildXL.Processes.Remoting
                         closeDaemonOnDispose: true,
                         m_executionContext.CancellationToken,
                         logDirectory: logDir,
-                        additionalAnyBuildParameters: extraParams);
+                        additionalAnyBuildParameters: extraParams,
+                        inheritHandlesOnProcessCreation: false);
                 }
                 catch (Exception e)
                 {
@@ -164,6 +165,20 @@ namespace BuildXL.Processes.Remoting
                 "--NoSandboxingBuildEngine",
                 $"--CacheDir {localCacheDir}",
             };
+
+            if (!string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildServicePrincipalAppId))
+            {
+                args.Add("--ClientApplicationId");
+                args.Add(EngineEnvironmentSettings.AnyBuildServicePrincipalAppId);
+
+                if (string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildServicePrincipalPwdEnv))
+                {
+                    throw new BuildXLException($"Service principal password is required for starting AnyBuild daemon");
+                }
+
+                args.Add("--ClientSecretEnvironmentVariable");
+                args.Add(EngineEnvironmentSettings.AnyBuildServicePrincipalPwdEnv);
+            }
 
             if (!string.IsNullOrEmpty(m_configuration.Schedule.RemoteExecutionServiceUri))
             {

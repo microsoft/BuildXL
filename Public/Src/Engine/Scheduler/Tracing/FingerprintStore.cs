@@ -158,12 +158,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Missed outputs from cache
         /// </summary>
-        public IReadOnlyList<string> MissedOutputs;
+        public IReadOnlyList<(string path, string contentHash)> MissedOutputs;
 
         /// <summary>
         /// Constructor.
         /// </summary>
-        public PipCacheMissInfo(PipId pipId, PipCacheMissType cacheMissType, IReadOnlyList<string> missedOutputs = null)
+        public PipCacheMissInfo(PipId pipId, PipCacheMissType cacheMissType, IReadOnlyList<(string path, string contentHash)> missedOutputs = null)
         {
             PipId = pipId;
             CacheMissType = cacheMissType;
@@ -184,7 +184,8 @@ namespace BuildXL.Scheduler.Tracing
                 writer.Write(MissedOutputs.Count);
                 foreach (var o in MissedOutputs)
                 {
-                    writer.Write(o);
+                    writer.Write(o.path);
+                    writer.Write(o.contentHash);
                 }
             }
             else
@@ -202,17 +203,17 @@ namespace BuildXL.Scheduler.Tracing
             var pipCacheMissType = (PipCacheMissType)reader.ReadByte();
             var hasMissedOutputs = reader.ReadBoolean();
 
-            List<string> missedOutputs = null;
+            List<(string path, string contentHash)> missedOutputs = null;
             if (hasMissedOutputs)
             {
                 var missedOutputCount = reader.ReadUInt32();
                 if (missedOutputCount > 0)
                 {
-                    missedOutputs = new List<string>();
+                    missedOutputs = new();
 
                     for (int i = 0; i < missedOutputCount; ++i)
                     {
-                        missedOutputs.Add(reader.ReadString());
+                        missedOutputs.Add((reader.ReadString(), reader.ReadString()));
                     }
                 }
             }

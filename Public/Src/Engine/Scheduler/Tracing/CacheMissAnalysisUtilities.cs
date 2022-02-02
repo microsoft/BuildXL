@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json.Linq;
@@ -94,7 +95,11 @@ namespace BuildXL.Scheduler.Tracing
                     break;
 
                 case PipCacheMissType.MissForProcessOutputContent:
-                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.OutputMiss, "Outputs missing from the cache.", new JObject(new JProperty("MissingOutputs", missInfo.MissedOutputs)));
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(
+                        cacheMissType,
+                        CacheMissAnalysisResult.OutputMiss,
+                        "Outputs missing from the cache.",
+                        new JObject(new JProperty("MissingOutputs", missInfo.MissedOutputs.Select(o => new JObject(new JProperty("Path", o.path), new JProperty("Hash", o.contentHash))))));
                     break;
 
                 case PipCacheMissType.MissDueToInvalidDescriptors:

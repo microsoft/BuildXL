@@ -3117,12 +3117,12 @@ namespace BuildXL.Scheduler
                                 metadataHash: maybeParsedDescriptor.MetadataHash,
                                 standardOutput: maybeParsedDescriptor.StandardOutput,
                                 standardError: maybeParsedDescriptor.StandardError,
-                                onContentUnavailable: f => {
+                                onContentUnavailable: (file, hash) => {
                                     if (pipCacheMiss.Value.MissedOutputs == null)
                                     {
-                                        pipCacheMiss.Value.MissedOutputs = new List<string>();
+                                        pipCacheMiss.Value.MissedOutputs = new();
                                     }
-                                    pipCacheMiss.Value.MissedOutputs.Add(f.Path.ToString(environment.Context.PathTable));
+                                    pipCacheMiss.Value.MissedOutputs.Add((file.Path.ToString(environment.Context.PathTable), hash.ToHex()));
                                 });
 
                     if (!isContentAvailable)
@@ -4097,7 +4097,7 @@ namespace BuildXL.Scheduler
             ContentHash metadataHash,
             Tuple<AbsolutePath, ContentHash, string> standardOutput = null,
             Tuple<AbsolutePath, ContentHash, string> standardError = null,
-            Action<FileArtifact> onContentUnavailable = null)
+            Action<FileArtifact, ContentHash> onContentUnavailable = null)
         {
             Contract.Requires(environment != null);
             Contract.Requires(pip != null);
@@ -4149,7 +4149,7 @@ namespace BuildXL.Scheduler
                     materialize: materializeToVerifyAvailability,
                     onContentUnavailable: (index, expectedHash, hashOnDiskIfAvailableOrNull, failure) =>
                     {
-                        onContentUnavailable?.Invoke(allHashes[index].fileArtifact);
+                        onContentUnavailable?.Invoke(allHashes[index].fileArtifact, allHashes[index].contentHash);
                     });
 
                 if (materializeToVerifyAvailability || !succeeded)

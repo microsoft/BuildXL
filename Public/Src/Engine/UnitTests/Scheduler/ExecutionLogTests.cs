@@ -69,7 +69,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     PipId = new PipId(123),
                     CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
-                    MissedOutputs = new List<string>(),
+                    MissedOutputs = new(),
                 });
             });
         }

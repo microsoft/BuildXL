@@ -752,7 +752,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Missed outputs from cache
         /// </summary>
-        public List<string> MissedOutputs;
+        public List<(string path, string contentHash)> MissedOutputs;
 
         /// <inheritdoc />
         public ExecutionLogEventMetadata<PipCacheMissEventData> Metadata => ExecutionLogMetadata.PipCacheMiss;
@@ -762,7 +762,15 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId.Serialize(writer);
             writer.Write((byte)CacheMissType);
-            writer.Write(MissedOutputs, (w, list) => w.WriteReadOnlyList(list, (w2, f) => w2.Write(f)));
+            writer.Write(
+                MissedOutputs,
+                (w, list) => w.WriteReadOnlyList(
+                    list,
+                    (w2, f) =>
+                    {
+                        w2.Write(f.path);
+                        w2.Write(f.contentHash);
+                    }));
         }
 
         /// <inheritdoc />
@@ -770,7 +778,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId = PipId.Deserialize(reader);
             CacheMissType = (PipCacheMissType)reader.ReadByte();
-            MissedOutputs = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToList();
+            MissedOutputs = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (r2.ReadString(), r2.ReadString())))?.ToList();
         }
     }
 

@@ -47,6 +47,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         public static BlobName CreateAbsolute(string name) => new BlobName(name, false);
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 
     /// <summary>
@@ -172,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private string GetDisplayPath(BlobName fileName)
         {
             var rootPath = fileName.IsRelative ? _directoryPath : _containerPath;
-            return $"{rootPath}/{fileName}";
+            return $"{rootPath}/{fileName.Name}";
         }
 
         /// <summary>

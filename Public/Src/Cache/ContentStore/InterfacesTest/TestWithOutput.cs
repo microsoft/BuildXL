@@ -22,6 +22,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         private readonly ITestOutputHelper _output;
         private readonly Stopwatch _durationStopwatch;
 
+        public string Prefix { get; set; }
+
         public XUnitTestOutputTextWriter(ITestOutputHelper output)
         {
             _output = output;
@@ -32,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         {
             try
             {
-                var message = $"{_durationStopwatch.Elapsed:g}: {data}";
+                var message = $"{Prefix}{_durationStopwatch.Elapsed:g}: {data}";
 
                 _outputLines.Add(message);
 
@@ -79,6 +81,11 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         /// Gets the full output "printed" to the console.
         /// </summary>
         protected string GetFullOutput() => _outputTextWriter?.GetFullOutput() ?? string.Empty;
+
+        /// <summary>
+        /// Set prefix for all test output
+        /// </summary>
+        protected string TestOutputPrefix { set => _outputTextWriter.Prefix = value; }
 
         /// <inheritdoc cref="XUnitTestOutputTextWriter.GetOutputLines"/>
         protected IEnumerable<string> GetOutputLines() => _outputTextWriter?.GetOutputLines() ?? Enumerable.Empty<string>();

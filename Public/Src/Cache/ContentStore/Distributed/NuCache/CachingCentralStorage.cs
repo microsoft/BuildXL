@@ -233,9 +233,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Tries to get the content hash and size based on the storage id
+        /// </summary>
+        public bool TryGetContentInfo(string storageId, out ContentHash hash, out long size)
+        {
+            var parsed = ParseCompositeStorageId(storageId);
+            if (parsed.hash != null)
+            {
+                hash = parsed.hash.Value;
+                return PrivateCas.Contains(hash, out size);
+            }
+
+            hash = default;
+            size = default;
+            return false;
+        }
+
+        /// <summary>
         /// Opens stream to content in inner content store
         /// </summary>
-        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        public virtual Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
             return PrivateCas.OpenStreamAsync(context, contentHash, pinRequest: null);
         }
@@ -243,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Checks whether the inner content store has the content
         /// </summary>
-        public bool HasContent(ContentHash contentHash)
+        public virtual bool HasContent(ContentHash contentHash)
         {
             return PrivateCas.Contains(contentHash);
         }

@@ -3,7 +3,10 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
@@ -27,6 +30,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Returns the number of elements in the set.
         /// </summary>
         public int Count => _map.Count;
+
+        /// <summary>
+        /// Enumerates the entries 
+        /// </summary>
+        public IEnumerable<T> Enumerate()
+        {
+            return _map.Enumerate().Select(e => e.Key);
+        }
 
         /// <summary>
         /// Add the item or updates ttl if already present

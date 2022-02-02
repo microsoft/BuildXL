@@ -85,6 +85,19 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _distributedSettings.DisableRedis();
             }
 
+            switch (_distributedSettings.CheckpointDistributionMode.Value)
+            {
+                case CheckpointDistributionModes.Transitional:
+                    _distributedSettings.ContentMetadataUseBlobCheckpointRegistry = true;
+                    _distributedSettings.UseBlobCheckpointLegacyFormat = false;
+                    break;
+                case CheckpointDistributionModes.Proxy:
+                    _distributedSettings.ContentMetadataUseBlobCheckpointRegistry = true;
+                    _distributedSettings.ContentMetadataUseBlobCheckpointRegistryStandalone = true;
+                    _distributedSettings.UseBlobCheckpointLegacyFormat = false;
+                    break;
+            }
+
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreConstants.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = arguments.FileSystem;
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
@@ -580,7 +593,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return;
             }
 
-            configuration.Checkpoint = new CheckpointConfiguration(localCacheRoot, configuration.PrimaryMachineLocation);
+            configuration.Checkpoint = new CheckpointConfiguration(
+                localCacheRoot,
+                configuration.PrimaryMachineLocation)
+            {
+                StoreJsonData = _distributedSettings.CheckpointDistributionMode.Value
+                    != CheckpointDistributionModes.Legacy
+            };
 
             if (_distributedSettings.IsMasterEligible)
             {
@@ -693,7 +712,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies,
                     ProactiveCopyCheckpointFiles = _distributedSettings.ProactiveCopyCheckpointFiles,
-                    InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies
+                    InlineCheckpointProactiveCopies = _distributedSettings.InlineCheckpointProactiveCopies,
+                    CheckpointDistributionMode = _distributedSettings.CheckpointDistributionMode.Value
                 };
 
                 if (_distributedSettings.UseSelfCheckSettingsForDistributedCentralStorage)
@@ -746,6 +766,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGarbageCollectionTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.GarbageCollectionTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryFanout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointContentFanOut = v);
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
             azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;

@@ -30,8 +30,10 @@ namespace BuildXL.Cache.ContentStore.Utils
         public void LinkLifetime(IStartupShutdownSlim nestedComponent)
         {
             Contract.Requires(!StartupStarted, "Nested components must be linked before startup");
-            Contract.RequiresNotNull(nestedComponent);
-            _nestedComponents.Add(nestedComponent);
+            if (nestedComponent != null)
+            {
+                _nestedComponents.Add(nestedComponent);
+            }
         }
 
         /// <summary>

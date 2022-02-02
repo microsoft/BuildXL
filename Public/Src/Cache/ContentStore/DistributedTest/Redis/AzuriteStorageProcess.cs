@@ -135,9 +135,7 @@ namespace ContentStoreTest.Distributed.Redis
             try
             {
                 // Clear the containers in the storage account to allow reuse
-                AzureBlobStorageCredentials creds = new AzureBlobStorageCredentials(ConnectionString);
-                var blobClient = creds.CreateCloudBlobClient();
-                ClearAsync(blobClient).GetAwaiter().GetResult();
+                ClearAsync().GetAwaiter().GetResult();
 
             }
             catch (Exception ex)
@@ -152,8 +150,10 @@ namespace ContentStoreTest.Distributed.Redis
             _disposed = true;
         }
 
-        private async Task ClearAsync(CloudBlobClient blobClient)
+        public async Task ClearAsync(string prefix = null)
         {
+            AzureBlobStorageCredentials creds = new AzureBlobStorageCredentials(ConnectionString);
+            var blobClient = creds.CreateCloudBlobClient();
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromSeconds(10));
             var token = cts.Token;
@@ -162,7 +162,7 @@ namespace ContentStoreTest.Distributed.Redis
             while (!cts.IsCancellationRequested)
             {
                 var containers = await blobClient.ListContainersSegmentedAsync(
-                    prefix: null,
+                    prefix: prefix,
                     detailsIncluded: ContainerListingDetails.None,
                     maxResults: null,
                     continuation,

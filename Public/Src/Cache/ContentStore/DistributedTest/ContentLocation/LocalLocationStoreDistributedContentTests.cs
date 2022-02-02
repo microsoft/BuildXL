@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -15,12 +16,14 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -29,8 +32,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
@@ -42,9 +45,6 @@ using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using BuildXL.Cache.Host.Service.Internal;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
-using Xunit.Sdk;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -309,6 +309,72 @@ namespace ContentStoreTest.Distributed.Sessions
                             }
                     }
                 });
+        }
+
+        [Fact]
+        public Task CheckpointDistributionModesTest()
+        {
+            string checkpointFilesContainerName = "testcheckpointfiles";
+            int machineCount = 2;
+            ConfigureWithOneMaster(d =>
+            {
+
+                switch (d.TestIteration)
+                {
+                    case 0:
+                        d.CheckpointDistributionMode = CheckpointDistributionModes.Legacy;
+                        break;
+                    case 1:
+                        d.CheckpointDistributionMode = CheckpointDistributionModes.Transitional;
+                        break;
+                    case 2:
+                    default:
+                        d.CheckpointDistributionMode = CheckpointDistributionModes.Proxy;
+                        d.ContentMetadataStoreMode = ContentMetadataStoreMode.Distributed;
+                        break;
+                }
+            },
+            r =>
+            {
+                var config = ((BlobCentralStoreConfiguration)r.CentralStore);
+                r.CentralStore = config with
+                {
+                    ContainerName = checkpointFilesContainerName
+                };
+            });
+
+            const string TestKeyBase = nameof(CheckpointDistributionModesTest);
+            var map = new Dictionary<string, string>();
+
+            return RunTestAsync(
+                machineCount,
+                async context =>
+                {
+                    var masterIndex = context.GetMasterIndex();
+                    Contract.Assert(masterIndex == 0);
+                    var masterStore = context.GetMaster();
+                    var masterDb = context.GetLocalLocationStore(0).Database;
+                    var workerDb = context.GetLocalLocationStore(1).Database;
+
+                    await masterStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(ContentHash.Random(), 100) }, touch: false)
+                        .ShouldBeSuccess();
+
+                    // Attempt to retrieve expected keys to ensure checkpoint was successfully retrieved
+                    foreach (var kvp in map)
+                    {
+                        workerDb.TryGetGlobalEntry(kvp.Key, out var value).Should().BeTrue();
+                        value.Should().Be(kvp.Value);
+                    }
+                    
+                    var key = TestKeyBase + context.Iteration;
+                    map[key] = Guid.NewGuid().ToString();
+                    masterDb.SetGlobalEntry(key, map[key]);
+
+                    // Create checkpoint on master, and restore checkpoint on workers
+                    // Delete checkpoint files from storage to ensure test fails if trying to pull files from storage
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context, clearStoragePrefix: checkpointFilesContainerName);
+                },
+                iterations: 4);
         }
 
         [Fact]
@@ -3247,7 +3313,7 @@ Token).ShouldBeSuccess();
             return putResult0.ContentHash;
         }
 
-        private async Task UploadCheckpointOnMasterAndRestoreOnWorkers(TestContext context, bool reconcile = false)
+        private async Task UploadCheckpointOnMasterAndRestoreOnWorkers(TestContext context, bool reconcile = false, string clearStoragePrefix = null)
         {
             // Update time to trigger checkpoint upload and restore on master and workers respectively
             TestClock.UtcNow += TimeSpan.FromMinutes(2);
@@ -3260,6 +3326,11 @@ Token).ShouldBeSuccess();
             if (reconcile)
             {
                 await masterStore.ReconcileAsync(context, force: true).ShouldBeSuccess();
+            }
+
+            if (clearStoragePrefix != null)
+            {
+                await StorageProcess.ClearAsync(clearStoragePrefix);
             }
 
             // Next heartbeat workers to restore checkpoint

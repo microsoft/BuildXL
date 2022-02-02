@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Utilities.Collections;
+using Microsoft.WindowsAzure.Storage.Table;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -35,9 +36,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public int Count => _cachedValues.Count;
 
         /// <summary>
+        /// Enumerates the entries 
+        /// </summary>
+        public IEnumerable<(TKey Key, TValue Value)> Enumerate()
+        {
+            foreach (var key in _garbageCollectionQueue)
+            {
+                if (TryGetValue(key, out var value))
+                {
+                    yield return (key, value);
+                }
+            }
+        }
+
+        /// <summary>
         /// Sets the cached pin information.
         /// </summary>
-        public bool TryAdd(TKey key, TValue value, TimeSpan timeToLive, bool replaceIfExists = false)
+        public bool TryAdd(TKey key, TValue value, TimeSpan timeToLive, bool replaceIfExists = false, bool extendExpiryIfExists = false)
         {
             Contract.Requires(timeToLive >= TimeSpan.Zero);
 
@@ -46,10 +61,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var result = _cachedValues.AddOrUpdate(
                 key,
-                (expiry, value, replaceIfExists, now),
+                (expiry, value, replaceIfExists, now, extendExpiryIfExists),
                 addValueFactory: (k, entry) => (entry.expiry, entry.value),
                 updateValueFactory: (k, t, entry) =>
-                    !t.replaceIfExists && (t.now < t.expiry) ? entry : (new DateTime(Math.Max(t.expiry.Ticks, entry.expiry.Ticks)), t.value));
+                {
+                    if (!t.replaceIfExists && (t.now < t.expiry))
+                    {
+                        if (t.extendExpiryIfExists)
+                        {
+                            return (new DateTime(Math.Max(t.expiry.Ticks, entry.expiry.Ticks)), entry.value);
+                        }
+
+                        return entry;
+                    }
+                    else
+                    {
+                        return (new DateTime(Math.Max(t.expiry.Ticks, entry.expiry.Ticks)), t.value);
+                    }
+                });
 
             // Attempt to clean up a stale item. This supplements the remove if expired logic which
             // would never clean up items if they are not pinned again.

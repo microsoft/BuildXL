@@ -913,6 +913,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 for (int iteration = 0; iteration < iterations; iteration++)
                 {
+                    TestOutputPrefix = $"[{iteration}] ";
+
                     if (testCopier != null)
                     {
                         testCopier.WorkingDirectory = indexedDirectories[0].Directory.Path;

@@ -10,7 +10,10 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -21,12 +24,15 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
 
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+    using static CheckpointManifest;
+
     /// <summary>
     /// Helper class responsible for creating and restoring checkpoints of a local database.
     /// </summary>
-    public sealed class CheckpointManager: StartupShutdownComponentBase
+    public sealed class CheckpointManager : StartupShutdownComponentBase
     {
         protected override Tracer Tracer => WorkaroundTracer;
 
@@ -37,9 +43,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string CheckpointManifestKey = "CheckpointManager.Manifest";
 
         private const string IncrementalCheckpointInfoEntrySeparator = "\n";
-
-        private readonly ContentLocationDatabase _database;
+        private const string JsonManifestPrefix = "// ";
+        private const string JsonManifestHeader = JsonManifestPrefix + "{} \n";
+        public ContentLocationDatabase Database { get; }
         public ICheckpointRegistry CheckpointRegistry { get; }
+
+        private readonly ICheckpointObserver _checkpointObserver;
         public CentralStorage Storage { get; }
         private readonly IAbsFileSystem _fileSystem;
 
@@ -55,19 +64,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ICheckpointRegistry checkpointRegistry,
             CentralStorage storage,
             CheckpointManagerConfiguration configuration,
-            CounterCollection<ContentLocationStoreCounters> counters)
+            CounterCollection<ContentLocationStoreCounters> counters,
+            ICheckpointObserver checkpointObserver = null)
         {
-            _database = database;
+            Database = database;
             CheckpointRegistry = checkpointRegistry;
             Storage = storage;
             _configuration = configuration;
             _fileSystem = new PassThroughFileSystem();
             _checkpointStagingDirectory = configuration.WorkingDirectory / "staging";
-
+            _checkpointObserver = checkpointObserver;
             Counters = counters;
 
-            LinkLifetime(_database);
+            LinkLifetime(Database);
             LinkLifetime(CheckpointRegistry);
+            LinkLifetime(_checkpointObserver);
             LinkLifetime(Storage);
         }
 
@@ -115,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         TryFillDatabaseStats(dbStats);
 
                         // Saving checkpoint for the database into the temporary folder
-                        _database.SaveCheckpoint(context, _checkpointStagingDirectory).ThrowIfFailure();
+                        Database.SaveCheckpoint(context, _checkpointStagingDirectory).ThrowIfFailure();
 
                         try
                         {
@@ -139,7 +150,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private void TryFillDatabaseStats(DatabaseStats stats)
         {
-            if (_database is RocksDbContentLocationDatabase rocksDb)
+            if (Database is RocksDbContentLocationDatabase rocksDb)
             {
                 stats.ContentColumnFamilySizeMb = rocksDb.GetLongProperty(
                     RocksDbContentLocationDatabase.LongProperty.LiveFilesSizeBytes,
@@ -161,14 +172,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<string> CreateCheckpointIncrementalAsync(OperationContext context, EventSequencePoint sequencePoint, Guid checkpointGuid)
         {
-            var incrementalCheckpointsPrefix = $"incrementalCheckpoints/{sequencePoint.SequenceNumber}.{checkpointGuid}.";
+            var incrementalCheckpointsPrefix = $"incrementalCheckpoints/{sequencePoint.SequenceNumber}.{checkpointGuid}/";
 
             var files = _fileSystem.EnumerateFiles(_checkpointStagingDirectory, EnumerateOptions.Recurse).Select(s => s.FullPath);
             var manifest = await UploadFilesAsync(
                 context,
                 _checkpointStagingDirectory,
                 files,
-                "incrementalCheckpoints/");
+                incrementalCheckpointsPrefix);
 
             var manifestFilePath = _checkpointStagingDirectory / "checkpointInfo.txt";
             DumpCheckpointManifest(manifestFilePath, manifest);
@@ -179,15 +190,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 incrementalCheckpointsPrefix + manifestFilePath.FileName,
                 garbageCollect: true).ThrowIfFailureAsync();
 
+            var manifestEntry = AddEntry(manifest, manifestFilePath.FileName, checkpointId);
+
             // Add incremental suffix so consumer knows that the checkpoint is an incremental checkpoint
             checkpointId += IncrementalCheckpointIdSuffix;
 
-            await CheckpointRegistry.RegisterCheckpointAsync(context, new CheckpointState(sequencePoint, checkpointId, _database.Clock.UtcNow, _configuration.PrimaryMachineLocation)).ThrowIfFailure();
+            var checkpointState = new CheckpointState(sequencePoint, checkpointId, Database.Clock.UtcNow, _configuration.PrimaryMachineLocation);
+
+            if (_checkpointObserver != null)
+            {
+                AddEntry(manifest, manifestFilePath.FileName, checkpointId);
+                await _checkpointObserver.OnChangeCheckpointAsync(context, checkpointState, manifest).ThrowIfFailure();
+            }
+
+            await CheckpointRegistry.RegisterCheckpointAsync(context, checkpointState).ThrowIfFailure();
 
             return checkpointId;
         }
 
-        private async Task<IReadOnlyDictionary<string, string>> UploadFilesAsync(OperationContext context, AbsolutePath basePath, IEnumerable<AbsolutePath> files, string incrementalCheckpointsPrefix)
+        private async Task<CheckpointManifest> UploadFilesAsync(OperationContext context, AbsolutePath basePath, IEnumerable<AbsolutePath> files, string incrementalCheckpointsPrefix)
         {
             // Since checkpoints are extremely large and upload incurs a hashing operation, not having incrementality
             // at this level means that we may need to hash >100GB of data every few minutes, which is a lot.
@@ -199,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             //  - Then, we store the manifest into the DB.
             var currentManifest = DatabaseLoadManifest(context);
 
-            var newManifest = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var newManifest = new CheckpointManifest();
             await ParallelAlgorithms.WhenDoneAsync(
                 _configuration.IncrementalCheckpointDegreeOfParallelism,
                 context.Token,
@@ -208,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var relativePath = file.Path.Substring(basePath.Path.Length + 1);
 
                     bool attemptUpload = true;
-                    if (currentManifest.TryGetValue(relativePath, out var storageId) && _database.IsImmutable(file))
+                    if (currentManifest.TryGetValue(relativePath, out var storageId) && Database.IsImmutable(file))
                     {
                         // File was present in last checkpoint. Just add it to the new incremental checkpoint info
                         var touchResult = await Storage.TouchBlobAsync(
@@ -219,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             isImmutable: true);
                         if (touchResult.Succeeded)
                         {
-                            newManifest[relativePath] = storageId;
+                            AddEntry(newManifest, relativePath, storageId);
                             attemptUpload = false;
 
                             Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploadSkipped].Increment();
@@ -231,8 +252,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         storageId = await Storage.UploadFileAsync(
                             context,
                             file,
-                            incrementalCheckpointsPrefix + file.FileName).ThrowIfFailureAsync();
-                        newManifest[relativePath] = storageId;
+                            incrementalCheckpointsPrefix + relativePath).ThrowIfFailureAsync();
+                        AddEntry(newManifest, relativePath, storageId);
 
                         Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded].Increment();
                     }
@@ -264,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         ? null
                         : checkpointId.Substring(0, checkpointId.Length - IncrementalCheckpointIdSuffix.Length);
 
-                    var checkpointFile = _checkpointStagingDirectory / "chkpt.txt";
+                    var checkpointFile = _checkpointStagingDirectory / (checkpointState.CheckpointTime.ToReadableString() + ".chkpt.txt");
                     var extractedCheckpointDirectory = _checkpointStagingDirectory / "chkpt";
 
                     FileUtilities.DeleteDirectoryContents(_checkpointStagingDirectory.ToString());
@@ -276,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Making sure that the extracted checkpoint directory exists before copying the files there.
                         _fileSystem.CreateDirectory(extractedCheckpointDirectory);
 
-                        IReadOnlyDictionary<string, string> checkpointManifest = new Dictionary<string, string>();
+                        CheckpointManifest checkpointManifest = new CheckpointManifest();
                         if (checkpointId != null)
                         {
                             // Getting the checkpoint from the central store
@@ -288,6 +309,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             checkpointManifest = LoadCheckpointManifest(checkpointFile);
 
+                            if (_checkpointObserver != null)
+                            {
+                                AddEntry(checkpointManifest, checkpointFile.FileName, checkpointId);
+                                await _checkpointObserver.OnChangeCheckpointAsync(context, checkpointState, checkpointManifest).ThrowIfFailureAsync();
+                            }
+
                             await RestoreCheckpointIncrementalAsync(
                                 nestedContext,
                                 checkpointManifest,
@@ -295,7 +322,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         // Restoring the checkpoint
-                        var restoreResult = _database.RestoreCheckpoint(nestedContext, extractedCheckpointDirectory);
+                        var restoreResult = Database.RestoreCheckpoint(nestedContext, extractedCheckpointDirectory);
                         if (restoreResult.Succeeded)
                         {
                             return BoolResult.Success;
@@ -334,7 +361,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<BoolResult> RestoreCheckpointIncrementalAsync(
             OperationContext context,
-            IReadOnlyDictionary<string, string> manifest,
+            CheckpointManifest manifest,
             AbsolutePath checkpointTargetDirectory)
         {
             return context.PerformOperationAsync(
@@ -344,18 +371,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     await ParallelAlgorithms.WhenDoneAsync(
                         _configuration.IncrementalCheckpointDegreeOfParallelism,
                         context.Token,
-                        action: async (addItem, kvp) =>
+                        action: async (addItem, entry) =>
                         {
                             await RestoreFileAsync(
                                 context,
                                 checkpointTargetDirectory,
-                                relativePath: kvp.Key,
-                                storageId: kvp.Value).ThrowIfFailure();
+                                relativePath: entry.RelativePath,
+                                storageId: entry.StorageId).ThrowIfFailure();
                         },
-                        items: manifest.ToArray());
+                        items: manifest.ContentByPath.ToArray());
 
                     return BoolResult.Success;
-                });
+                },
+                extraEndMessage: _ => manifest.ToString());
         }
 
         private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId)
@@ -374,7 +402,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         context,
                         storageId,
                         targetFilePath: targetFilePathResult.Value,
-                        isImmutable: _database.IsImmutable(targetFilePathResult.Value)).ThrowIfFailure();
+                        isImmutable: Database.IsImmutable(targetFilePathResult.Value)).ThrowIfFailure();
                     Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloaded].Increment();
 
                     return BoolResult.Success;
@@ -401,7 +429,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
-                _database.SetGlobalEntry(CheckpointInfoKey, $"{checkpointId},{checkpointTime}");
+                Database.SetGlobalEntry(CheckpointInfoKey, $"{checkpointId},{checkpointTime}");
             }
             catch (Exception e)
             {
@@ -413,7 +441,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
-                if (_database.TryGetGlobalEntry(CheckpointInfoKey, out var checkpointText))
+                if (Database.TryGetGlobalEntry(CheckpointInfoKey, out var checkpointText))
                 {
                     var segments = checkpointText.Split(',');
                     var id = segments[0];
@@ -433,22 +461,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void DumpCheckpointManifest(AbsolutePath path, IReadOnlyDictionary<string, string> checkpointInfo)
+        private void DumpCheckpointManifest(AbsolutePath path, CheckpointManifest checkpointInfo)
         {
             File.WriteAllText(path.Path, SerializeCheckpointManifest(checkpointInfo));
         }
 
         /// <nodoc />
-        public static IReadOnlyDictionary<string, string> LoadCheckpointManifest(AbsolutePath checkpointFile)
+        public static CheckpointManifest LoadCheckpointManifest(AbsolutePath checkpointFile)
         {
             return DeserializeCheckpointManifest(File.ReadAllText(checkpointFile.ToString()));
         }
 
-        private void DatabaseWriteManifest(OperationContext context, IReadOnlyDictionary<string, string> manifest)
+        private void DatabaseWriteManifest(OperationContext context, CheckpointManifest manifest)
         {
             try
             {
-                _database.SetGlobalEntry(CheckpointManifestKey, SerializeCheckpointManifest(manifest));
+                Database.SetGlobalEntry(CheckpointManifestKey, SerializeCheckpointManifest(manifest));
             }
             catch (Exception e)
             {
@@ -456,17 +484,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        internal IReadOnlyDictionary<string, string> DatabaseLoadManifest(OperationContext context)
+        internal CheckpointManifest DatabaseLoadManifest(OperationContext context)
         {
             try
             {
-                if (_database.TryGetGlobalEntry(CheckpointManifestKey, out var value))
+                if (Database.TryGetGlobalEntry(CheckpointManifestKey, out var value))
                 {
                     return DeserializeCheckpointManifest(value);
                 }
                 else
                 {
-                    return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    return new CheckpointManifest();
                 }
 
             }
@@ -477,22 +505,85 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private static string SerializeCheckpointManifest(IReadOnlyDictionary<string, string> manifest)
+        private static T Deserialize<T>(string value, Func<T> customDeserialize)
         {
-            // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
-            return string.Join(IncrementalCheckpointInfoEntrySeparator, manifest.Select(s => $"{s.Key}={s.Value}"));
+            // First line in json blobs is a comment to delineate it from custom deserialization case
+            if (value.StartsWith(JsonManifestPrefix))
+            {
+                return JsonUtilities.JsonDeserialize<T>(value);
+            }
+            else
+            {
+                return customDeserialize();
+            }
         }
 
-        private static IReadOnlyDictionary<string, string> DeserializeCheckpointManifest(string serialized)
+        private string SerializeCheckpointManifest(CheckpointManifest manifest)
         {
-            // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
-            return serialized
-                .Split(new[] { IncrementalCheckpointInfoEntrySeparator }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(entry => entry.Split('='))
-                .ToDictionary(
-                    entry => entry[0],
-                    entry => entry[1],
-                    StringComparer.OrdinalIgnoreCase);
+            string result;
+            if (_configuration.StoreJsonData)
+            {
+                result = JsonManifestHeader + JsonUtilities.JsonSerialize(manifest, true);
+            }
+            else
+            {
+                // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
+                result = string.Join(IncrementalCheckpointInfoEntrySeparator, manifest.ContentByPath.Select(s => $"{s.RelativePath}={s.StorageId}"));
+            }
+
+            return result;
+        }
+
+        private static CheckpointManifest DeserializeCheckpointManifest(string serialized)
+        {
+            return Deserialize(serialized, () =>
+            {
+                var manifest = new CheckpointManifest();
+                // Format is newline (IncrementalCheckpointInfoEntrySeparator) separated entries with {Key}={Value}
+                var mapping = serialized
+                    .Split(new[] { IncrementalCheckpointInfoEntrySeparator }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(entry => entry.Split('='))
+                    .ToDictionary(
+                        entry => entry[0],
+                        entry => entry[1],
+                        StringComparer.OrdinalIgnoreCase);
+
+                foreach ((string relativePath, string storageId) in mapping)
+                {
+                    manifest.Add(new ContentEntry()
+                    {
+                        Hash = default,
+                        Size = -1,
+                        StorageId = storageId,
+                        RelativePath = relativePath
+                    });
+                }
+
+                return manifest;
+            });
+        }
+
+        private ContentEntry AddEntry(CheckpointManifest manifest, string relativePath, string storageId)
+        {
+            CachingCentralStorage storage = Storage as CachingCentralStorage;
+
+            ContentHash hash = default;
+            long size = 0;
+            if (storage?.TryGetContentInfo(storageId, out hash, out size) != true)
+            {
+                size = -1;
+            }
+
+            var entry = new ContentEntry()
+            {
+                Hash = hash,
+                Size = size,
+                StorageId = storageId,
+                RelativePath = relativePath
+            };
+
+            manifest.Add(entry);
+            return entry;
         }
     }
 }

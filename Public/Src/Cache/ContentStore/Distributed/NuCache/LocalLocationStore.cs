@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IClock _clock;
 
-        internal CheckpointManager CheckpointManager { get; private set; }
+        internal CheckpointManager CheckpointManager { get; }
 
         /// <nodoc />
         public CentralStorage CentralStorage { get; }
@@ -172,7 +172,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IMasterElectionMechanism masterElectionMechanism,
             ClusterStateManager clusterStateManager,
             ICheckpointRegistry checkpointRegistry,
-            ColdStorage? coldStorage)
+            CentralStorage centralStorage,
+            DistributedCentralStorage? distributedCentralStorage,
+            ColdStorage? coldStorage,
+            ICheckpointObserver? checkpointObserver)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(configuration);
@@ -197,17 +200,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (Configuration.DistributedCentralStore != null)
             {
-                DistributedCentralStorage = new DistributedCentralStorage(
+                distributedCentralStorage ??= new DistributedCentralStorage(
                     Configuration.DistributedCentralStore,
                     new DistributedCentralStorageLocationStoreAdapter(this),
                     copier,
-                    fallbackStorage: _innerCentralStorage);
-                CentralStorage = DistributedCentralStorage;
+                    fallbackStorage: _innerCentralStorage,
+                    clock: _clock);
             }
-            else
-            {
-                CentralStorage = _innerCentralStorage;
-            }
+
+            DistributedCentralStorage = distributedCentralStorage;
+            CentralStorage = distributedCentralStorage ?? centralStorage;
 
             Configuration.Database.TouchFrequency = configuration.TouchFrequency;
             Database = ContentLocationDatabase.Create(clock, Configuration.Database, () => ClusterState.InactiveMachineList);
@@ -217,6 +219,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 PrioritizeDesignatedLocations = Configuration.MachineListPrioritizeDesignatedLocations,
                 DeprioritizeMaster = Configuration.MachineListDeprioritizeMaster,
             };
+
+            CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters, checkpointObserver);
         }
 
         internal void PostInitialization(MachineId machineId, ILocalContentStore localContentStore)
@@ -313,8 +317,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 await DistributedCentralStorage.StartupAsync(context).ThrowIfFailure();
             }
-
-            CheckpointManager = new CheckpointManager(Database, _checkpointRegistry, CentralStorage, Configuration.Checkpoint, Counters);
 
             await CheckpointManager.StartupAsync(context).ThrowIfFailureAsync();
 

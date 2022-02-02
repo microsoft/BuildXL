@@ -66,6 +66,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public TimeSpan StorageInteractionTimeout { get; } = TimeSpan.FromMinutes(1);
 
+        public TimeSpan PushCheckpointCandidateExpiry { get; } = TimeSpan.FromMinutes(10);
+
+        public int CheckpointContentFanOut { get; set; } = 5;
+
         public bool WriteLegacyFormat { get; set; } = true;
     }
 
@@ -83,9 +87,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// - <see cref="RegisterCheckpointAsync"/> simply adds a new file with the current timestamp, and also prunes
     ///   stale checkpoints.
     /// </summary>
-    public class AzureBlobStorageCheckpointRegistry : StartupShutdownComponentBase, ICheckpointRegistry
+    public class AzureBlobStorageCheckpointRegistry :
+        StartupShutdownComponentBase,
+        ICheckpointRegistry,
+        DistributedCentralStorage.ILocationStore,
+        DistributedCentralStorage.ICheckpointStore,
+        ICheckpointObserver
     {
         protected override Tracer Tracer => WorkaroundTracer;
+
+        public override bool AllowMultipleStartupAndShutdowns => true;
 
         public Tracer WorkaroundTracer { get; set; } = new Tracer(nameof(AzureBlobStorageCheckpointRegistry));
 
@@ -102,10 +113,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             WriteIndented = true,
         };
 
-        private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
+        private CheckpointInfoSnapshot _activeCheckpointInfo = new CheckpointInfoSnapshot(new CheckpointManifest(), Array.Empty<MachineLocation>());
 
         private readonly MachineLocation _primaryMachineLocation;
 
+        private readonly SemaphoreSlim _gcGate = TaskUtilities.CreateMutex();
+
+        private readonly VolatileSet<MachineLocation> _pushLocations;
 
         public AzureBlobStorageCheckpointRegistry(
             AzureBlobStorageCheckpointRegistryConfiguration configuration,
@@ -113,8 +127,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IClock? clock = null)
         {
             _configuration = configuration;
-            _primaryMachineLocation = primaryMachineLocation;
             _clock = clock ?? SystemClock.Instance;
+            _primaryMachineLocation = primaryMachineLocation;
+
+            _pushLocations = new VolatileSet<MachineLocation>(clock);
 
             _storage = new BlobFolderStorage(Tracer, configuration);
             _blobNameRegex = new Regex(@$"{Regex.Escape(_configuration.KeySpacePrefix)}_(?<timestampUtc>[0-9]+)\.json", RegexOptions.Compiled);
@@ -136,6 +152,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         try
                         {
                             var checkpointState = await _storage.ReadAsync<CheckpointState>(context, blob).ThrowIfFailureAsync();
+                            checkpointState.FileName = blob;
+
+                            foreach (var consumer in checkpointState.Consumers)
+                            {
+                                _pushLocations.Add(consumer, _configuration.PushCheckpointCandidateExpiry);
+                            }
+
                             return Result.Success(checkpointState);
                         }
                         catch (TaskCanceledException) when (context.Token.IsCancellationRequested)
@@ -177,6 +200,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 context =>
                 {
                     var blobName = GenerateBlobName();
+                    checkpointState.Consumers.TryAdd(_primaryMachineLocation);
                     if (_configuration.WriteLegacyFormat)
                     {
                         return _storage.WriteAsync(context, blobName, JsonSerializer.Serialize(checkpointState, _jsonSerializerOptions));
@@ -284,6 +308,92 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             timestampUtc = DateTime.FromFileTimeUtc(timestamp);
             return true;
+        }
+
+        public record CheckpointInfoSnapshot(CheckpointManifest Manifest, IReadOnlyList<MachineLocation> Locations);
+
+        public async Task<BoolResult> OnChangeCheckpointAsync(OperationContext context, CheckpointState initialState, CheckpointManifest manifest)
+        {
+            _activeCheckpointInfo = _activeCheckpointInfo with
+            {
+                Manifest = manifest
+            };
+
+            if (initialState.FileName == null)
+            {
+                return BoolResult.Success;
+            }
+
+            return await context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var (state, index) = await _storage.ReadModifyWriteAsync<CheckpointState, int>(context, initialState.FileName.Value, state =>
+                    {
+                        var index = state.Consumers.Count;
+                        var updated = state.Consumers.TryAdd(_primaryMachineLocation);
+                        if (!updated)
+                        {
+                            index = state.Consumers.IndexOf(_primaryMachineLocation);
+                        }
+                        return (state, index, updated);
+                    },
+                    defaultValue: () => initialState).ThrowIfFailureAsync();
+
+                    var locations = GetCandidateLocations(state, index);
+                    _activeCheckpointInfo = new CheckpointInfoSnapshot(manifest, locations);
+                    return Result.Success(index);
+                },
+                extraEndMessage: r => $"CheckpointFile=[{initialState.FileName?.Name}] Index=[{r.GetValueOrDefault(-1)}] Locations=({_activeCheckpointInfo.Locations.Count})[{string.Join(", ", _activeCheckpointInfo.Locations)}] Manifest=[{manifest}]");
+        }
+
+        private IReadOnlyList<MachineLocation> GetCandidateLocations(CheckpointState state, int index)
+        {
+            var parentIndexBase = index / _configuration.CheckpointContentFanOut;
+            var locations = new List<MachineLocation>();
+
+            for (int i = parentIndexBase; i >= 0 && locations.Count < _configuration.CheckpointContentFanOut; i--)
+            {
+                var machine = state.Consumers[i];
+
+                // Only allow copying from machines with a lower machine location or producer to prevent cycles
+                var compareResult = StringComparer.OrdinalIgnoreCase.Compare(machine.Path, _primaryMachineLocation.Path);
+                if (compareResult < 0 || (compareResult != 0 && i == 0))
+                {
+                    locations.Add(machine);
+                }
+            }
+
+            return locations;
+        }
+
+        public bool IsActiveCheckpointFile(ShortHash hash)
+        {
+            return _activeCheckpointInfo.Manifest.TryGetEntry(hash, out _);
+        }
+
+        public Result<MachineLocation> GetRandomMachineLocation()
+        {
+            var location = _pushLocations.Enumerate().FirstOrDefault();
+            if (location.IsValid)
+            {
+                _pushLocations.CleanStaleItems(1);
+                return location;
+            }
+
+            return Result.FromErrorMessage<MachineLocation>("No locations");
+        }
+
+        public Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, ContentHash hash)
+        {
+            var size = _activeCheckpointInfo.Manifest.TryGetEntry(hash, out var entry) && entry.Size > 0 ? entry.Size : -1;
+            return Task.FromResult(new GetBulkLocationsResult(new[] { new ContentHashWithSizeAndLocations(hash, size, _activeCheckpointInfo.Locations) }));
+        }
+
+        public ValueTask<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
+        {
+            // Do nothing. Start of restore handles registering this machine for the content
+            return new ValueTask<BoolResult>(BoolResult.Success);
         }
     }
 }

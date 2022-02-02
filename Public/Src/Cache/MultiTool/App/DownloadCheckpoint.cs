@@ -178,7 +178,7 @@ namespace BuildXL.Cache.MultiTool.App
             });
         }
 
-        private static async Task DownloadCheckpointAsync(OperationContext context, PassThroughFileSystem fileSystem, BlobCentralStorage centralStorage, IReadOnlyDictionary<string, string> checkpointInfo, AbsolutePath outputDirectoryPath, int downloadParallelism)
+        private static async Task DownloadCheckpointAsync(OperationContext context, PassThroughFileSystem fileSystem, BlobCentralStorage centralStorage, CheckpointManifest checkpointInfo, AbsolutePath outputDirectoryPath, int downloadParallelism)
         {
             fileSystem.CreateDirectory(outputDirectoryPath);
 
@@ -187,13 +187,13 @@ namespace BuildXL.Cache.MultiTool.App
                 context.Token,
                 action: async (addItem, kvp) =>
                 {
-                    var fileName = kvp.Key;
-                    var storageId = kvp.Value;
+                    var fileName = kvp.RelativePath;
+                    var storageId = kvp.StorageId;
                     var outputFilePath = outputDirectoryPath / fileName;
 
                     await FetchFileAsync(context, fileSystem, centralStorage, storageId, outputFilePath).ThrowIfFailureAsync();
                 },
-                items: checkpointInfo.ToArray());
+                items: checkpointInfo.ContentByPath.ToArray());
             context.Token.ThrowIfCancellationRequested();
         }
 

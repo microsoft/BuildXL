@@ -47,7 +47,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 await registry.RegisterCheckpointAsync(context, cs1).ThrowIfFailureAsync();
                 var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                checkpointState.Should().BeEquivalentTo(cs1);
+                checkpointState.CheckpointId.Should().Be(cs1.CheckpointId);
+                checkpointState.CheckpointTime.Should().Be(cs1.CheckpointTime);
+                checkpointState.StartSequencePoint.Should().BeEquivalentTo(cs1.StartSequencePoint);
+                checkpointState.Producer.Should().BeEquivalentTo(cs1.Producer);
             }, clock: new MemoryClock());
         }
 
@@ -62,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 await registry.RegisterCheckpointAsync(context, cs2).ThrowIfFailureAsync();
                 var checkpointState = await registry.GetCheckpointStateAsync(context).ThrowIfFailureAsync();
 
-                checkpointState.Should().BeEquivalentTo(cs2);
+                checkpointState.CheckpointId.Should().Be(cs2.CheckpointId);
             });
         }
 

@@ -1249,6 +1249,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpanSetting? AsyncSessionShutdownTimeout { get; set; }
 
+        [DataMember]
+        public EnumSetting<CheckpointDistributionModes> CheckpointDistributionMode { get; set; } = CheckpointDistributionModes.Legacy;
+
         #region Azure Blob Storage-based Checkpoint Registry
 
         [DataMember]
@@ -1262,6 +1265,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public TimeSpanSetting? BlobCheckpointRegistryGetCheckpointStateTimeout { get; set; }
+
+        [DataMember]
+        public int? BlobCheckpointRegistryFanout { get; set; }
 
         #endregion
 
@@ -1302,6 +1308,57 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? BlobClusterStateStorageStandalone { get; set; }
 
         #endregion
+    }
+
+    public enum CheckpointDistributionModes
+    {
+        /// <summary>
+        /// Initial mode
+        ///
+        /// LLS
+        /// Checkpoint storage: DistributedCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Key=Value (line-delimited)
+        /// DistributedCentralStorage.LocationStore: LLS
+        ///
+        /// GCS
+        /// Checkpoint storage: CachingCentralStorage
+        /// Checkpoint registry: As configured (RedisWriteAheadEventStorage, AzureBlobStorageCheckpointRegistry)
+        /// Checkpoint manifest format: Key=Value (line-delimited)
+        /// </summary>
+        Legacy,
+
+        /// <summary>
+        /// Transitional state in preparation for switching to proxy mode
+        ///
+        /// LLS
+        /// Checkpoint storage: DistributedCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Json
+        /// DistributedCentralStorage.LocationStore: LLS
+        ///
+        /// GCS
+        /// Checkpoint storage: CachingCentralStorage
+        /// Checkpoint registry: Transitional if prior state was RedisWriteAheadEventStorage
+        /// Checkpoint manifest format: Json
+        /// </summary>
+        Transitional,
+
+        /// <summary>
+        /// Mode where locations for checkpoints are centrally registry in blob storage and copy chain forms a tree.
+        ///
+        /// LLS
+        /// Checkpoint storage: DistributedCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Json
+        /// DistributedCentralStorage.LocationStore: LLS
+        ///
+        /// GCS
+        /// Checkpoint storage: CachingCentralStorage
+        /// Checkpoint registry: Blob
+        /// Checkpoint manifest format: Json
+        /// </summary>
+        Proxy,
     }
 
     /// <summary>

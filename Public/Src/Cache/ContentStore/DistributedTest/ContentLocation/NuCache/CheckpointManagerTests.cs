@@ -11,6 +11,7 @@ using FluentAssertions;
 using System.Text.Json;
 using Xunit;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 {
@@ -95,6 +96,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
         }
 
         [Fact]
+        public void CanJsonSerializeCheckpointManifest()
+        {
+            var test1 = new CheckpointManifest();
+            test1.Add(new CheckpointManifest.ContentEntry()
+            {
+                Hash = ContentHash.Random(),
+                Size = 2032,
+                StorageId = "stoId",
+                RelativePath = "/path/to/file"
+            });
+
+            TestJsonRoundtrip(test1, (t0, t1, legacySerialized) =>
+            {
+                Assert.Equal(t0.ContentByPath.Count, t1.ContentByPath.Count);
+                if (!legacySerialized)
+                {
+                    Assert.Equal(t0.ContentByPath[0], t1.ContentByPath[0]);
+                }
+            });
+        }
+
+        [Fact]
         public void CanBackwardCompatJsonSerializeCheckpointState()
         {
             var test = new CheckpointState(new EventSequencePoint(42), checkpointId: "TestCheckpointId", producer: new MachineLocation("This is a machine loc"));
@@ -105,19 +128,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             Assert.Equal(test.Producer, deserialized.Producer);
         }
 
-        private void TestJsonRoundtrip<T>(T expected)
+        private void TestJsonRoundtrip<T>(T expected, Action<T, T, bool> assertEqual = null)
         {
+            assertEqual ??= (t0, t1, legacySerialized) => Assert.Equal(t0, t1);
             var serialized = JsonSerializer.Serialize(expected);
-            var deserialized = JsonSerializer.Deserialize(serialized, typeof(T));
-            Assert.Equal(expected, deserialized);
+            var deserialized = JsonSerializer.Deserialize<T>(serialized);
+            assertEqual(expected, deserialized, true);
 
             serialized = JsonSerializer.Serialize(expected);
             deserialized = JsonUtilities.JsonDeserialize<T>(serialized);
-            Assert.Equal(expected, deserialized);
+            assertEqual(expected, deserialized, true);
 
             serialized = JsonUtilities.JsonSerialize(expected);
             deserialized = JsonUtilities.JsonDeserialize<T>(serialized);
-            Assert.Equal(expected, deserialized);
+            assertEqual(expected, deserialized, false);
         }
     }
 }

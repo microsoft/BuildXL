@@ -103,6 +103,10 @@ namespace ContentStoreTest.Distributed.Sessions
         protected Func<AbsolutePath, int, RedisContentLocationStoreConfiguration> CreateContentLocationStoreConfiguration { get; set; }
         protected LocalRedisProcessDatabase PrimaryGlobalStoreDatabase { get; private set; }
         protected LocalRedisProcessDatabase _secondaryGlobalStoreDatabase;
+        protected AzuriteStorageProcess StorageProcess { get; private set; }
+        protected AzuriteStorageProcess ContentMetadataStorageProcess { get; private set; }
+
+        protected bool UseSeparateContentMetadataStorage { get; set; }
 
         protected AbsolutePath _redirectedSourcePath = new AbsolutePath(@"X:\cache");
         protected AbsolutePath _redirectedTargetPath = new AbsolutePath(@"X:\cache");
@@ -218,8 +222,15 @@ namespace ContentStoreTest.Distributed.Sessions
             }
 
             int storageIndex = 0;
-            string storageConnectionString = "Unused";
-            storageConnectionString = GetStorage(context, ref storageIndex).ConnectionString;
+            StorageProcess = GetStorage(context, ref storageIndex);
+            if (UseSeparateContentMetadataStorage)
+            {
+                ContentMetadataStorageProcess = GetStorage(context, ref storageIndex);
+            }
+            else
+            {
+                ContentMetadataStorageProcess = StorageProcess;
+            }
 
             var settings = new TestDistributedContentSettings()
             {
@@ -238,9 +249,9 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 // Specify event hub and storage secrets even though they are not used in tests to satisfy DistributedContentStoreFactory
                 EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
-                AzureStorageSecretName = Host.StoreSecret("Storage", storageConnectionString),
+                AzureStorageSecretName = Host.StoreSecret("Storage", StorageProcess?.ConnectionString ?? "Unused"),
                 ContentMetadataRedisSecretName = Host.StoreSecret("ContentMetadataRedis", PrimaryGlobalStoreDatabase?.ConnectionString),
-                ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob", storageConnectionString),
+                ContentMetadataBlobSecretName = Host.StoreSecret("ContentMetadataBlob", ContentMetadataStorageProcess?.ConnectionString ?? "Unused"),
 
                 IsContentLocationDatabaseEnabled = true,
                 UseDistributedCentralStorage = true,

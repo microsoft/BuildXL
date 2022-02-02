@@ -73,7 +73,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         public IServiceDefinition<LocalLocationStore> LocalLocationStore { get; }
 
         /// <nodoc />
-        public IServiceDefinition<ICheckpointRegistry> CheckpointRegistry { get; }
+        public IServiceDefinition<CentralStorage> CentralStorage { get; }
+
+        /// <nodoc />
+        public OptionalServiceDefinition<DistributedCentralStorage> DistributedCentralStorage { get; }
+
+        /// <nodoc />
+        public IServiceDefinition<AzureBlobStorageCheckpointRegistry> CheckpointRegistry { get; }
 
         public ContentLocationStoreServices(
             ContentLocationStoreFactoryArguments arguments,
@@ -99,6 +105,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
             ClusterStateManager = Create(() => CreateClusterStateManager());
 
             CheckpointRegistry = Create(() => CreateCheckpointRegistry());
+
+            CentralStorage = Create(() => CreateCentralStorage());
+
+            // LLS creates DistributedCentralStorage internally if not specified since the internally
+            // created variant depends on LLS for location tracking.
+            DistributedCentralStorage = CreateOptional(
+                () => configuration.DistributedCentralStore?.IsCheckpointAware == true,
+                () => CreateDistributedCentralStorage());
         }
 
         private ClientGlobalCacheStore CreateClientGlobalCacheStore()
@@ -109,17 +123,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
         private LocalLocationStore CreateLocalLocationStore()
         {
             return new LocalLocationStore(
-                                Clock,
-                                GlobalCacheStore.Instance,
-                                Configuration,
-                                Copier,
-                                MasterElectionMechanism.Instance,
-                                ClusterStateManager.Instance,
-                                CheckpointRegistry.Instance,
-                                Dependencies?.ColdStorage.InstanceOrDefault());
+                Clock,
+                GlobalCacheStore.Instance,
+                Configuration,
+                Copier,
+                MasterElectionMechanism.Instance,
+                ClusterStateManager.Instance,
+                CheckpointRegistry.Instance,
+                CentralStorage.Instance,
+                DistributedCentralStorage.InstanceOrDefault(),
+                Dependencies?.ColdStorage.InstanceOrDefault(),
+                checkpointObserver: Configuration.DistributedCentralStore?.TrackCheckpointConsumers == true ? CheckpointRegistry.Instance : null);
         }
 
-        private ICheckpointRegistry CreateCheckpointRegistry()
+        private DistributedCentralStorage CreateDistributedCentralStorage()
+        {
+            return new DistributedCentralStorage(
+                Configuration.DistributedCentralStore!,
+                CheckpointRegistry.Instance,
+                Copier,
+                fallbackStorage: CentralStorage.Instance,
+                Clock);
+        }
+
+        private CentralStorage CreateCentralStorage()
+        {
+            return Configuration.CentralStore!.CreateCentralStorage();
+        }
+
+        private AzureBlobStorageCheckpointRegistry CreateCheckpointRegistry()
         {
             Contract.RequiresNotNull(Configuration.AzureBlobStorageCheckpointRegistryConfiguration);
             return new AzureBlobStorageCheckpointRegistry(Configuration.AzureBlobStorageCheckpointRegistryConfiguration, Configuration.PrimaryMachineLocation, Clock);

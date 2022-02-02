@@ -9,8 +9,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 #nullable enable
 
@@ -34,6 +39,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [JsonIgnore]
+        internal BlobName? FileName { get; set; }
+
+        /// <nodoc />
+        [JsonIgnore]
         public bool CheckpointAvailable => !string.IsNullOrEmpty(CheckpointId);
 
         /// <nodoc />
@@ -42,13 +51,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         public MachineLocation Producer { get; set; }
 
+        /// <summary>
+        /// Machines currently registered as consumers of the checkpoint
+        /// </summary>
+        public SetList<MachineLocation> Consumers { get; set; } = new SetList<MachineLocation>();
+
         // Only exposed for back compat in json serialization
         public DateTime CreationTimeUtc { get => CheckpointTime; set => CheckpointTime = value; }
 
         public CheckpointState()
             : this(EventSequencePoint.Invalid)
         {
-
         }
 
         /// <nodoc />
@@ -69,67 +82,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return new CheckpointState(new EventSequencePoint(epochStartCursorTime));
         }
 
-        public bool Equals(CheckpointState? other)
-        {
-            if (other is null)
-            {
-                return false;
-            }
-
-            return StartSequencePoint.Equals(other.StartSequencePoint) &&
-                CheckpointId.Equals(other.CheckpointId) &&
-                CheckpointTime.Equals(other.CheckpointTime) &&
-                Producer.Equals(other.Producer);
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return (StartSequencePoint, CheckpointId, CheckpointTime, Producer).GetHashCode();
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj)
-        {
-            if (obj is null || obj is not CheckpointState)
-            {
-                return false;
-            }
-
-            return EqualityComparer<CheckpointState>.Default.Equals(this, (obj as CheckpointState)!);
-        }
-
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"Id={CheckpointId}, CheckpointTime={CheckpointTime}, StartSequencePoint={StartSequencePoint}, Producer={Producer}";
+            return $"Id={CheckpointId}, CheckpointTime={CheckpointTime}, StartSequencePoint={StartSequencePoint}, Producer={Producer}, Consumers={Consumers.Count}";
         }
 
-        public Result<string> ToJson(JsonSerializerOptions? options = null)
+        public bool Equals([AllowNull] CheckpointState other)
         {
-            try
+            if (other == null)
             {
-                return Result.Success(JsonSerializer.Serialize(this, options));
+                return false;
             }
-            catch (Exception e)
-            {
-                return Result.FromException<string>(e);
-            }
+
+            return Equals(this, other, s => (s.CheckpointId, s.CheckpointTime, s.StartSequencePoint, s.Producer, s.Consumers.Count));
         }
 
-        public static async Task<Result<CheckpointState>> FromJsonStreamAsync(Stream stream, CancellationToken token = default)
+        public override int GetHashCode()
         {
-            try
-            {
-                var checkpointState = await JsonSerializer.DeserializeAsync<CheckpointState>(
-                    stream,
-                    cancellationToken: token);
+            return GetHashCode(this, s => (s.CheckpointId, s.CheckpointTime, s.StartSequencePoint, s.Producer, s.Consumers.Count));
+        }
 
-                return Result.Success(checkpointState!);
-            }
-            catch (Exception e)
+        private bool Equals<T, TEquatable>(T t0, T t1, Func<T, TEquatable> getEquatable)
+            where TEquatable : IEquatable<TEquatable>
+        {
+            return getEquatable(t0).Equals(getEquatable(t1));
+        }
+        private int GetHashCode<T, TEquatable>(T t, Func<T, TEquatable> getEquatable)
+            where TEquatable : struct, IEquatable<TEquatable>
+        {
+            return getEquatable(t).GetHashCode();
+        }
+
+        public struct ContentEntry : IKeyedItem<ShortHash>
+        {
+            public ShortHash Hash { get; set; }
+            public long Size { get; set; }
+
+            public ShortHash GetKey()
             {
-                return Result.FromException<CheckpointState>(e);
+                return Hash;
             }
         }
     }

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -15,20 +16,26 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using ContentStore.Grpc;
 #nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+    using static CheckpointManifest;
+
     /// <summary>
     /// <see cref="CentralStorage"/> which uses uses distributed CAS as cache aside for a fallback central storage
     /// </summary>
     public class DistributedCentralStorage : CachingCentralStorage, IDistributedContentCopierHost
     {
         private readonly ILocationStore _locationStore;
+        private readonly ICheckpointStore? _checkpointStore;
         private readonly DistributedContentCopier _copier;
 
         private readonly DisposableDirectory _copierWorkingDirectory;
@@ -40,15 +47,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override string PreprocessStorageId(string storageId) => storageId;
 
         /// <nodoc />
+        private readonly VolatileMap<ShortHash, CopyOperation> _checkpointCopies;
+
+        /// <nodoc />
         public DistributedCentralStorage(
             DistributedCentralStoreConfiguration configuration,
             ILocationStore locationStore,
             DistributedContentCopier copier,
-            CentralStorage fallbackStorage)
+            CentralStorage fallbackStorage,
+            IClock clock)
             : base(configuration, fallbackStorage, copier.FileSystem)
         {
             _copier = copier;
             _locationStore = locationStore;
+            _checkpointCopies = new VolatileMap<ShortHash, CopyOperation>(clock);
+            _checkpointStore = configuration.IsCheckpointAware ? _locationStore as ICheckpointStore : null;
 
             _copierWorkingDirectory = new DisposableDirectory(copier.FileSystem, PrivateCas!.RootPath / "Temp");
         }
@@ -147,18 +160,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     var result = await _locationStore.GetBulkAsync(context, hash).ThrowIfFailure();
                     var hashInfo = result.ContentHashesInfo[0];
+                    if (hashInfo.Locations?.Count > 0)
+                    {
+                        return await _copier.TryCopyAndPutAsync(
+                            context,
+                            new DistributedContentCopier.CopyRequest(
+                                this,
+                                hashInfo,
+                                CopyReason.CentralStorage,
+                                args => PrivateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null),
+                                // Most of these transfers are large files (sst files), but they are also already
+                                // compressed, so compressing over it would only waste cycles.
+                                CopyCompression.None
+                            ));
+                    }
 
-                    return await _copier.TryCopyAndPutAsync(
-                        context,
-                        new DistributedContentCopier.CopyRequest(
-                            this,
-                            hashInfo,
-                            CopyReason.CentralStorage,
-                            args => PrivateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null),
-                            // Most of these transfers are large files (sst files), but they are also already
-                            // compressed, so compressing over it would only waste cycles.
-                            CopyCompression.None
-                        ));
+                    return new PutResult(hash, "Insufficient replicas");
                 },
                 traceErrorsOnly: true,
                 extraEndMessage: _ => $"ContentHash=[{hash}]",
@@ -188,7 +205,92 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private ValueTask<BoolResult> RegisterContent(OperationContext context, params ContentHashWithSize[] contentInfo)
         {
+            foreach (var item in contentInfo)
+            {
+                TryCompleteCheckpointCopy(item.Hash);
+            }
+
             return _locationStore.RegisterLocalLocationAsync(context, contentInfo);
+        }
+
+        public override bool HasContent(ContentHash contentHash)
+        {
+            if (base.HasContent(contentHash))
+            {
+                return true;
+            }
+
+            if (_checkpointStore?.IsActiveCheckpointFile(contentHash) == true)
+            {
+                // Claim to have active checkpoint files so that stream content will be called and
+                // we can wait on copy to complete
+                return true;
+            }
+
+            return false;
+        }
+
+        public override Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        {
+            var operationContext = OperationContext(context);
+            bool hasContent = base.HasContent(contentHash);
+            bool? isCheckpointFile = _checkpointStore?.IsActiveCheckpointFile(contentHash);
+            return operationContext.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    hasContent = base.HasContent(contentHash);
+
+                    if (!hasContent)
+                    {
+                        if (tryGetCheckpointCopyOperation(out var operation))
+                        {
+                            await operationContext.PerformOperationAsync(
+                                Tracer,
+                                async () =>
+                                {
+                                    // Wait for copy to complete or for configured delay
+                                    await Task.WhenAny(operation.CopyCompletion.Task, Task.Delay(Configuration.PropagationDelay)).Unwrap();
+
+                                    return BoolResult.Success;
+                                },
+                                traceOperationStarted: false,
+                                caller: "WaitForCheckpointFile",
+                                extraEndMessage: r => $"Hash={contentHash.ToShortString()}, Status={operation.CopyCompletion.Task.Status}").ThrowIfFailure();
+                        }
+                    }
+
+                    bool tryGetCheckpointCopyOperation([NotNullWhen(true)] out CopyOperation? operation)
+                    {
+                        if (isCheckpointFile != true)
+                        {
+                            operation = default;
+                            return false;
+                        }
+
+                        operation = new CopyOperation();
+                        _checkpointCopies.TryAdd(contentHash, operation, Configuration.PropagationDelay, extendExpiryIfExists: true);
+
+                        return _checkpointCopies.TryGetValue(contentHash, out operation);
+                    }
+
+                    return await base.StreamContentAsync(context, contentHash);
+                },
+                traceOperationStarted: false,
+                extraEndMessage: r => $"HasContent=[{hasContent}] IsCheckpointFile=[{isCheckpointFile}] ResultCode=[{r.Code}]");
+        }
+
+        private void TryCompleteCheckpointCopy(ContentHash contentHash)
+        {
+            if (_checkpointStore != null && _checkpointCopies.TryGetValue(contentHash, out var operation))
+            {
+                operation.CopyCompletion.TrySetResult(true);
+            }
+        }
+
+        private class CopyOperation
+        {
+            public TaskSourceSlim<bool> CopyCompletion { get; } = new TaskSourceSlim<bool>();
         }
 
         /// <summary>
@@ -210,6 +312,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// Registers content location for current machine
             /// </summary>
             ValueTask<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo);
+        }
+
+        /// <summary>
+        /// Provides information about active checkpoint files
+        /// </summary>
+        public interface ICheckpointStore
+        {
+            bool IsActiveCheckpointFile(ShortHash hash);
         }
     }
 }

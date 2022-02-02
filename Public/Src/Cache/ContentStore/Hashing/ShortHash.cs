@@ -38,6 +38,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public ShortHash(ShortReadOnlyFixedBytes bytes) => Value = bytes;
 
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ShortHash" /> struct from string
+        /// </summary>
+        public ShortHash(string serialized)
+        {
+            Contract.Requires(serialized != null);
+
+            if (!TryParse(serialized, out this))
+            {
+                throw new ArgumentException($"{serialized} is not a recognized content hash");
+            }
+        }
+
         /// <nodoc />
         public ShortReadOnlyFixedBytes Value { get; }
 
@@ -68,8 +81,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static bool TryParse(string str, out ShortHash result)
         {
-            var longHashAsString = str.PadRight(ContentHash.SerializedLength * 2 + 3, '0');
-            if (ContentHash.TryParse(longHashAsString, out var longHash))
+            if (ContentHash.TryParse(str, out var longHash, expectedStringLength: HashLength * 2))
             {
                 result = longHash.AsShortHash();
                 return true;

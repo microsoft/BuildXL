@@ -88,6 +88,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
         internal IServiceDefinition<ICheckpointRegistry> CacheServiceCheckpointRegistry { get; }
 
+        internal OptionalServiceDefinition<AzureBlobStorageCheckpointRegistry> CacheServiceBlobCheckpointRegistry { get;  }
+
         internal DistributedContentStoreServices(DistributedContentStoreServicesArguments arguments)
         {
             Arguments = arguments;
@@ -131,6 +133,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                     },
                     Arguments.RedisContentLocationStoreConfiguration);
             });
+
+            CacheServiceBlobCheckpointRegistry = CreateOptional(
+                () => DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistry,
+                () => CreateCacheServiceBlobCheckpointRegistry());
 
             RedisWriteAheadEventStorage = Create(() => CreateRedisWriteAheadEventStorage());
 
@@ -183,33 +189,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                 KeyPrefix = DistributedContentSettings.RedisWriteAheadKeyPrefix,
                 MaximumKeyLifetime = DistributedContentSettings.ContentMetadataRedisMaximumKeyLifetime,
             };
+
             return new RedisWriteAheadEventStorage(
                     redisVolatileEventStorageConfiguration,
                     new ConfigurableRedisDatabaseFactory(RedisContentLocationStoreConfiguration),
                     clock);
         }
 
-        internal ICheckpointRegistry CreateCacheServiceCheckpointRegistry()
+        internal AzureBlobStorageCheckpointRegistry CreateCacheServiceBlobCheckpointRegistry()
         {
-            var configuration = GlobalCacheServiceConfiguration.GetRequiredInstance();
             var clock = Arguments.Clock;
             
-            if (DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistry)
+            var storageRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
             {
-                var storageRegistryConfiguration = new AzureBlobStorageCheckpointRegistryConfiguration()
-                {
-                    Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
-                    FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
-                    ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
-                    KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
-                    WriteLegacyFormat = DistributedContentSettings.UseBlobCheckpointLegacyFormat
-                };
+                Credentials = Arguments.Secrets.GetStorageCredentials(new[] { DistributedContentSettings.ContentMetadataBlobSecretName }).First(),
+                FolderName = "checkpointRegistry" + DistributedContentSettings.KeySpacePrefix,
+                ContainerName = DistributedContentSettings.ContentMetadataBlobCheckpointRegistryContainerName,
+                KeySpacePrefix = DistributedContentSettings.KeySpacePrefix,
+                WriteLegacyFormat = DistributedContentSettings.UseBlobCheckpointLegacyFormat
+            };
 
-                var storageRegistry = new AzureBlobStorageCheckpointRegistry(
-                    storageRegistryConfiguration,
-                    RedisContentLocationStoreConfiguration.PrimaryMachineLocation,
-                    clock);
-                storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
+            ApplyIfNotNull(DistributedContentSettings.BlobCheckpointRegistryFanout, v => storageRegistryConfiguration.CheckpointContentFanOut = v);
+
+            var storageRegistry = new AzureBlobStorageCheckpointRegistry(
+                storageRegistryConfiguration,
+                RedisContentLocationStoreConfiguration.PrimaryMachineLocation,
+                clock);
+            storageRegistry.WorkaroundTracer = new Tracer("ContentMetadataAzureBlobStorageCheckpointRegistry");
+
+            return storageRegistry;
+        }
+
+        internal ICheckpointRegistry CreateCacheServiceCheckpointRegistry()
+        {
+            if (CacheServiceBlobCheckpointRegistry.TryGetInstance(out var storageRegistry))
+            {
                 if (DistributedContentSettings.ContentMetadataUseBlobCheckpointRegistryStandalone)
                 {
                     return storageRegistry;
@@ -276,6 +290,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
 
                 CentralStorage centralStorage = centralStreamStorage;
 
+                var blobCheckpointRegistry = CacheServiceCheckpointRegistry.Instance as AzureBlobStorageCheckpointRegistry;
+
                 if (RedisContentLocationStoreConfiguration.DistributedCentralStore != null)
                 {
                     var metadataConfig = RedisContentLocationStoreConfiguration.DistributedCentralStore with
@@ -283,17 +299,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.Services
                         CacheRoot = configuration.Checkpoint.WorkingDirectory
                     };
 
-                    var cachingCentralStorage = new CachingCentralStorage(
-                        metadataConfig,
-                        centralStorage,
-                        new PassThroughFileSystem());
+                    if (DistributedContentSettings.CheckpointDistributionMode.Value == CheckpointDistributionModes.Proxy
+                        && blobCheckpointRegistry != null)
+                    {
+                        var dcs = new DistributedCentralStorage(
+                            metadataConfig,
+                            blobCheckpointRegistry,
+                            Arguments.DistributedContentCopier,
+                            fallbackStorage: centralStorage,
+                            clock);
 
-                    centralStorage = cachingCentralStorage;
+                        centralStorage = dcs;
+                    }
+                    else
+                    {
+                        var cachingCentralStorage = new CachingCentralStorage(
+                            metadataConfig,
+                            centralStorage,
+                            Arguments.DistributedContentCopier.FileSystem);
+
+                        centralStorage = cachingCentralStorage;
+                    }
                 }
 
                 var persistentEventStorage = Arguments.Overrides.Override(new BlobWriteBehindEventStorage(configuration.PersistentEventStorage));
 
-                var checkpointManager = new CheckpointManager(store.Database, CacheServiceCheckpointRegistry.Instance, centralStorage, configuration.Checkpoint, new CounterCollection<ContentLocationStoreCounters>());
+                var checkpointManager = new CheckpointManager(
+                    store.Database,
+                    CacheServiceCheckpointRegistry.Instance,
+                    centralStorage,
+                    configuration.Checkpoint,
+                    new CounterCollection<ContentLocationStoreCounters>(),
+                    checkpointObserver: RedisContentLocationStoreConfiguration.DistributedCentralStore?.TrackCheckpointConsumers == true ? blobCheckpointRegistry : null);
 
                 // This is done to ensure logging in Kusto is shown under a separate component. The need for this comes
                 // from the fact that CheckpointManager per-se is used in our Kusto dashboards and monitoring queries to

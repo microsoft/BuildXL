@@ -416,6 +416,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static bool TryParse(string serialized, out ContentHash contentHash)
         {
+            return TryParse(serialized, out contentHash, null);
+        }
+
+        /// <summary>
+        ///     Attempt to create from a known type and string (without type).
+        /// </summary>
+        public static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash)
+        {
+            return TryParse(hashType, serialized, out contentHash, null);
+        }
+
+        /// <summary>
+        ///     Attempt to create from a known type string.
+        /// </summary>
+        internal static bool TryParse(string serialized, out ContentHash contentHash, int? expectedStringLength)
+        {
             Contract.Requires(serialized != null);
 
             var x = serialized.IndexOf(SerializedDelimiter);
@@ -445,18 +461,17 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return false;
             }
 
-            return TryParse(hashType, hash, out contentHash);
+            return TryParse(hashType, hash, out contentHash, expectedStringLength);
         }
 
         /// <summary>
         ///     Attempt to create from a known type and string (without type).
         /// </summary>
-        public static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash)
+        internal static bool TryParse(HashType hashType, string serialized, out ContentHash contentHash, int? expectedStringLength)
         {
             Contract.Requires(serialized != null);
 
-            var hashInfo = HashInfoLookup.Find(hashType);
-            if (serialized.Length != hashInfo.StringLength)
+            if (serialized.Length != (expectedStringLength ?? HashInfoLookup.Find(hashType).StringLength))
             {
                 contentHash = default(ContentHash);
                 return false;

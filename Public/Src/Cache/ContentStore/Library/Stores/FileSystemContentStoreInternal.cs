@@ -2933,6 +2933,21 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <summary>
+        /// Gets whether the store contains the given content
+        /// </summary>
+        public bool Contains(ContentHash hash, out long size)
+        {
+            if (ContentDirectory.TryGetFileInfo(hash, out var entry))
+            {
+                size = entry.FileSize;
+                return true;
+            }
+
+            size = -1;
+            return false;
+        }
+
+        /// <summary>
         ///     Gives the maximum path to files stored under the cache root.
         /// </summary>
         public static int GetMaxContentPathLengthRelativeToCacheRoot()

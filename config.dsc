@@ -339,7 +339,7 @@ config({
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },
 
-                { id: "SharpZipLib", version: "1.1.0" },
+                { id: "SharpZipLib", version: "1.3.3" },
 
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },

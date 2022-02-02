@@ -106,7 +106,7 @@ namespace Tool.Download
                     try
                     {
                         using (var reader = new StreamReader(arguments.PathToFileToExtract))
-                        using (var tar = TarArchive.CreateInputTarArchive(reader.BaseStream))
+                        using (var tar = TarArchive.CreateInputTarArchive(reader.BaseStream, nameEncoding: null))
                         {
                             tar.ExtractContents(target);
                         }
@@ -123,7 +123,7 @@ namespace Tool.Download
                     {
                         using (var reader = new StreamReader(arguments.PathToFileToExtract))
                         using (var gzipStream = new GZipInputStream(reader.BaseStream))
-                        using (var tar = TarArchive.CreateInputTarArchive(gzipStream))
+                        using (var tar = TarArchive.CreateInputTarArchive(gzipStream, nameEncoding: null))
                         {
                             tar.ExtractContents(target);
                         }

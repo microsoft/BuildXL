@@ -269,22 +269,6 @@ namespace BuildXL.Processes
         public Encoding StandardOutputEncoding { get; set; }
 
         /// <summary>
-        /// Retries pipe reading on cancellation.
-        /// </summary>
-        /// <remarks>
-        /// BuildXL and Detours communicate with each other by establishing named pipes. In some builds,
-        /// the pipe reading got canceled in the middle of the builds. It is still unknown
-        /// what caused the cancellation because none of BuildXL code (except the test code) performs
-        /// cancellation on pipe reading. To be more reliable, we can retry pipe reading
-        /// when a cancellation happens.
-        /// 
-        /// DEPRECATED: Use <see cref="NumRetriesPipeReadOnCancel"/>.
-        ///             It will be temporarily kept here until QuickBuild no longer uses it.
-        /// BUG1912315
-        /// </remarks>
-        public bool RetryPipeReadOnCancel { get; set; }
-
-        /// <summary>
         /// Number of pipe reading retries on cancellation.
         /// </summary>
         /// <remarks>
@@ -579,7 +563,6 @@ namespace BuildXL.Processes
 
                 writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
                 writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
-                writer.Write(RetryPipeReadOnCancel);
                 writer.Write(NumRetriesPipeReadOnCancel);
                 writer.Write(
                     RedirectedTempFolders,
@@ -629,7 +612,6 @@ namespace BuildXL.Processes
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
-                bool retryPipeReadOnCancel = reader.ReadBoolean();
                 int numRetriesPipeReadOnCancel = reader.ReadInt32();
 
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
@@ -679,7 +661,6 @@ namespace BuildXL.Processes
                     DetoursFailureFile = detoursFailureFile,
                     RemoteSandboxedProcessData = remoteSandboxedProcessData,
                     ExternalVMSandboxedProcessData = externalVMSandboxedProcessData,
-                    RetryPipeReadOnCancel = retryPipeReadOnCancel,
                     NumRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel,
                 };
             }

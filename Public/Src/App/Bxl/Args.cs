@@ -966,7 +966,7 @@ namespace BuildXL
                                 }
                             }),
                         OptionHandlerFactory.CreateBoolOption(
-                            "SaveFingerprintStoreToLogs",
+                            "saveFingerprintStoreToLogs",
                             sign => loggingConfiguration.SaveFingerprintStoreToLogs = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "scanChangeJournal",

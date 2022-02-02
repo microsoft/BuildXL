@@ -107,9 +107,7 @@ namespace BuildXL.Processes
             m_nestedProcessTerminationTimeout = info.NestedProcessTerminationTimeout;
             m_loggingContext = info.LoggingContext;
             m_survivingPipProcessChildrenDumpDirectory = info.SurvivingPipProcessChildrenDumpDirectory;
-            m_numRetriesPipeReadOnCancel = info.NumRetriesPipeReadOnCancel == 0
-                ? (info.RetryPipeReadOnCancel ? 5 : 0)
-                : info.NumRetriesPipeReadOnCancel;
+            m_numRetriesPipeReadOnCancel = info.NumRetriesPipeReadOnCancel;
 
             Encoding inputEncoding = info.StandardInputEncoding ?? Console.InputEncoding;
             m_standardInputReader = info.StandardInputReader;

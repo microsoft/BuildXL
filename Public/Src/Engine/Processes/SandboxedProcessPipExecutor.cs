@@ -868,6 +868,7 @@ namespace BuildXL.Processes
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                         DetoursFailureFile = m_detoursFailuresFile,
                         MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: m_sandboxConfig.MeasureProcessCpuTimes, refreshInterval: TimeSpan.FromSeconds(2)),
+                        NumRetriesPipeReadOnCancel = EngineEnvironmentSettings.SandboxNumRetriesPipeReadOnCancel.Value ?? 0,
                     };
 
                     var result = ShouldSandboxedProcessExecuteExternal

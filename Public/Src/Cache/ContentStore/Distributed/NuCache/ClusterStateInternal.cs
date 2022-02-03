@@ -19,13 +19,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public class ClusterStateInternal
     {
         // Index is machine Id.
-        private ImmutableArray<MachineLocation> _locationByIdMap = Enumerable.Range(0, 4).Select<int, MachineLocation>(_ => default).ToImmutableArray();
+        private ImmutableDictionary<MachineId, MachineLocation> _locationByIdMap = ImmutableDictionary<MachineId, MachineLocation>.Empty;
 
         private ImmutableDictionary<MachineLocation, MachineId> _idByLocationMap = ImmutableDictionary<MachineLocation, MachineId>.Empty;
 
         private BitMachineIdSet _inactiveMachinesSet = BitMachineIdSet.EmptyInstance;
 
-        internal IReadOnlyList<MachineLocation> Locations => _locationByIdMap;
+        internal IReadOnlyList<MachineLocation> Locations => _locationByIdMap.Values.AsReadOnlyList();
 
         /// <summary>
         /// Returns a set of inactive machines.
@@ -109,9 +109,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public (bool Succeeded, MachineLocation MachineLocation) TryResolve(MachineId machine)
         {
-            if (machine.Index < _locationByIdMap.Length)
+            if (_locationByIdMap.TryGetValue(machine, out var machineLocation))
             {
-                var machineLocation = _locationByIdMap[machine.Index];
                 return (Succeeded: machineLocation.Data != null, MachineLocation: machineLocation);
             }
 
@@ -137,6 +136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)
         {
             var candidates = _locationByIdMap
+                .Values
                 .Where((location, index) => location.Data != null && !_inactiveMachinesSet[index] && !_closedMachinesSet[index])
                 .Except(except)
                 .ToList();
@@ -172,7 +172,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return locationsResult.Value
                 .Where(machineId => !_inactiveMachinesSet[machineId] && !_closedMachinesSet[machineId])
-                .Select(id => _locationByIdMap[id.Index])
+                .Select(id => _locationByIdMap[id])
                 .ToArray();
         }
 
@@ -206,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public ClusterStateInternal With(
-            ImmutableArray<MachineLocation>? locationByIdMap = null,
+            ImmutableDictionary<MachineId, MachineLocation>? locationByIdMap = null,
             ImmutableDictionary<MachineLocation, MachineId>? idByLocationMap = null,
             BitMachineIdSet? inactiveMachinesSet = null,
             BitMachineIdSet? closedMachinesSet = null,
@@ -225,7 +225,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (locationByIdMap != null)
             {
-                clone._locationByIdMap = locationByIdMap.Value;
+                clone._locationByIdMap = locationByIdMap;
             }
 
             if (idByLocationMap != null)
@@ -338,7 +338,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             foreach (var kvp in unknownMachines)
             {
-                locationByIdMap.Insert(kvp.Key.Index, kvp.Value);
+                locationByIdMap[kvp.Key] = kvp.Value;
                 idByLocationMap[kvp.Value] = kvp.Key;
             }
 
@@ -355,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return With(
                 idByLocationMap: _idByLocationMap.SetItem(machineLocation, machineId),
-                locationByIdMap: _locationByIdMap.Insert(machineId.Index, machineLocation));
+                locationByIdMap: _locationByIdMap.SetItem(machineId, machineLocation));
         }
 
         /// <summary>

@@ -3904,6 +3904,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "Unable to monitor root drive '{drive}' for path '{path}' because BuildXL cannot acquire its subst source/target. Disk space for this drive will not be monitored.")]
         internal abstract void UnableToMonitorDriveWithSubst(LoggingContext loggingContext, string path, string drive);
+
+        [GeneratedEvent(
+                    (ushort)LogEventId.SchedulerCompleteExceptMaterializeOutputs,
+                    EventGenerators = EventGenerators.LocalOnly,
+                    EventLevel = Level.Verbose,
+                    Keywords = (int)Keywords.UserMessage,
+                    EventTask = (ushort)Tasks.Scheduler,
+                    Message = "The scheduler has been marked completed except for MaterializeOutput pip steps")]
+        internal abstract void SchedulerCompleteExceptMaterializeOutputs(LoggingContext loggingContext);
     }
 }
 #pragma warning restore CA1823 // Unused field

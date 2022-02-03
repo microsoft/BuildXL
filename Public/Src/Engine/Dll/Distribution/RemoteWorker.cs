@@ -76,9 +76,15 @@ namespace BuildXL.Engine.Distribution
         public override Task<bool> SetupCompletionTask => m_setupCompletion.Task;
         private readonly TaskSourceSlim<bool> m_setupCompletion;
 
+        // Before we send the build request to the worker, we need to make sure that the worker is attached.
+        // For all steps except materializeoutputs, we already send the build requests to available (running) workers;
+        // so waiting for this task might seem redundant. However, for distributed metabuild, we materialize outputs 
+        // on all workers and send the materializeoutput request to all workers, even the ones that are not available.
+        // That's why, the orchestrator now waits for the workers to be available until it is done executing all pips.
+        private Task m_beforeSendingToRemoteTask;
 
         private readonly TaskSourceSlim<bool> m_attachCompletion;
-
+        
         private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
         private readonly BlockingCollection<WorkerNotificationArgs> m_executionBlobQueue = new BlockingCollection<WorkerNotificationArgs>(new ConcurrentQueue<WorkerNotificationArgs>());
 
@@ -89,7 +95,7 @@ namespace BuildXL.Engine.Distribution
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
         private readonly IWorkerClient m_workerClient;
-        private TaskSourceSlim<bool> m_schedulerCompletion;
+        private Task m_schedulerCompletion;
 
         #region Distributed execution log state
 
@@ -149,7 +155,24 @@ namespace BuildXL.Engine.Distribution
         {
             m_pipGraph = pipGraph;
             m_workerExecutionLogTarget = executionLogTarget;
-            m_schedulerCompletion = schedulerCompletion;
+
+            TimeSpan? minimumWaitForAttachment = EngineEnvironmentSettings.MinimumWaitForRemoteWorker;
+            
+            if (minimumWaitForAttachment.HasValue)
+            {
+                // If there is a minimum waiting time to wait for attachment, we don't want to signal the scheduler is completed 
+                // until this waiting period is over.
+                m_schedulerCompletion = Task.WhenAll(Task.Delay(minimumWaitForAttachment.Value), schedulerCompletion.Task); 
+            }
+            else
+            {
+                m_schedulerCompletion = schedulerCompletion.Task; 
+            }
+
+#pragma warning disable AsyncFixer05 // Downcasting from a nested task to an outer task. This task is only meant to be awaited so we don't need the result
+            m_beforeSendingToRemoteTask = Task.WhenAny(m_attachCompletion.Task, m_schedulerCompletion);
+#pragma warning restore AsyncFixer05 // Downcasting from a nested task to an outer task.
+
             base.InitializeForDistribution(scheduleConfig, pipGraph, executionLogTarget, schedulerCompletion);
         }
 
@@ -738,14 +761,9 @@ namespace BuildXL.Engine.Distribution
         public async Task SendToRemoteAsync(OperationContext operationContext, RunnablePip runnable)
         {
             Contract.Assert(m_workerClient != null, "Calling SendToRemote before the worker is initialized");
-            Contract.Assert(m_attachCompletion.IsValid, "Remote worker not started");
+            Contract.Assert(m_beforeSendingToRemoteTask != null, "Remote worker not started");
 
-            // Before we send the build request to the worker, we need to make sure that the worker is attached.
-            // For all steps except materializeoutputs, we already send the build requests to available (running) workers;
-            // so this code below might seem redundant. However, for distributed metabuild, we materialize outputs 
-            // on all workers and send the materializeoutput request to all workers, even the ones that are not available.
-            // That's why, the orchestrator now waits for the workers to be available until it is done executing all pips.
-            var firstCompletedTask = await Task.WhenAny(m_attachCompletion.Task, m_schedulerCompletion.Task);
+            await m_beforeSendingToRemoteTask;
 
             var pipId = runnable.PipId;
             var processRunnable = runnable as ProcessRunnablePip;
@@ -778,7 +796,7 @@ namespace BuildXL.Engine.Distribution
             }
             else
             {
-                Contract.Assert(m_schedulerCompletion.Task.Status == TaskStatus.RanToCompletion);
+                Contract.Assert(m_schedulerCompletion.Status == TaskStatus.RanToCompletion);
                 // the scheduler is done with all pips except materializeoutput steps, then we fail to send the build request to the worker. 
                 FailRemotePip(pipCompletionTask, "Worker did not attach until scheduler has been completed.");
                 return;

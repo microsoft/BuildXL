@@ -2539,7 +2539,8 @@ namespace BuildXL.Scheduler
 
                 if (m_configuration.Distribution.FireForgetMaterializeOutput() && m_materializeOutputsQueued && !AnyPendingPipsExceptMaterializeOutputs())
                 {
-                    // There is no pips running anything except materializeOutputs.
+                    // There are no pips running anything except materializeOutputs.
+                    Logger.Log.SchedulerCompleteExceptMaterializeOutputs(m_loggingContext);
                     m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
                 }
 

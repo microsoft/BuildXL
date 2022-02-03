@@ -511,6 +511,7 @@ namespace BuildXL.Scheduler.Tracing
         DumpPipLiteSettingsMismatch = 14532,
 
         UnableToMonitorDriveWithSubst = 14534,
+        SchedulerCompleteExceptMaterializeOutputs = 14535,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

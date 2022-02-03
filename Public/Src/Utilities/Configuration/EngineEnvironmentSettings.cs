@@ -193,6 +193,29 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<TimeSpan> DistributionConnectTimeout = CreateSetting("BuildXLDistribConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ?? DefaultDistributionConnectTimeout);
 
         /// <summary>
+        /// Maximum time waiting for a pip to be executed remotely. If this timeout is hit the worker is disconnected, so this number should be conservative
+        /// </summary>
+        /// <remarks>
+        /// Defaults to 5.25 hours
+        /// </remarks>
+        public static readonly Setting<TimeSpan> RemotePipTimeout = CreateSetting("BuildXLRemotePipTimeoutMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ??
+        TimeSpan.FromHours(5.25));
+
+        /// <summary>
+        /// Minimum waiting time for a remote worker to attach.
+        /// </summary>
+        /// <remarks>
+        /// In /fireForgetMaterializeOutputs+ builds it may be desirable to wait a minimum period for worker attachment
+        /// because the scheduler might be marked as complete ("except for materialize outputs") fast enough so that workers
+        /// still aren't attached - in this case we would fail the worker in the metabuild stage of the build, losing it for the product build.
+        /// This setting only impacts metabuild-style builds, where success in this build is required for the worker to participate in subsequent builds
+        /// so we don't want to fail any worker even if it won't do any work (except for materializations).
+        /// </remarks>
+        public static readonly Setting<TimeSpan?> MinimumWaitForRemoteWorker = CreateSetting("BuildXLMinimumWaitForRemoteWorkerMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)));
+        #endregion
+
+        #region Grpc related settings
+        /// <summary>
         /// Whether KeepAlive is enabled for grpc. It allows http2 pings between client and server over transport.
         /// </summary>
         /// <remarks>
@@ -207,15 +230,6 @@ namespace BuildXL.Utilities.Configuration
         /// Default 2
         /// </remarks>
         public static readonly Setting<int> GrpcMaxAttempts = CreateSetting("BuildXLGrpcMaxAttempts", value => ParseInt32(value) ?? 2);
-
-        /// <summary>
-        /// Maximum time waiting for a pip to be executed remotely. If this timeout is hit the worker is disconnected, so this number should be conservative
-        /// </summary>
-        /// <remarks>
-        /// Defaults to 5.25 hours
-        /// </remarks>
-        public static readonly Setting<TimeSpan> RemotePipTimeout = CreateSetting("BuildXLRemotePipTimeoutMin", value => ParseTimeSpan(value, t => TimeSpan.FromMinutes(t)) ??
-        TimeSpan.FromHours(5.25));
 
         /// <summary>
         /// Whether new .Net client is enabled for grpc. 
@@ -264,6 +278,7 @@ namespace BuildXL.Utilities.Configuration
         /// See GRPC_TRACE in https://github.com/grpc/grpc/blob/master/doc/environment_variables.md
         /// </remarks>
         public static readonly Setting<string> GrpcTraceList = CreateSetting("BuildXLGrpcTraceList", value => value);
+        #endregion
 
         /// <summary>
         /// Authorization token location in AutoPilot machines at CloudBuild 
@@ -303,8 +318,6 @@ namespace BuildXL.Utilities.Configuration
         /// Default disabled (we skip IPC pips when materializing outputs)
         /// </remarks>
         public static readonly Setting<bool> DoNotSkipIpcWhenMaterializingOutputs = CreateSetting("BuildXLDoNotSkipIpcWhenMaterializingOutputs", value => value == "1");
-
-        #endregion
 
         #region Cache-related timeouts
 

@@ -2750,15 +2750,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Nerdbank.FullDuplexStream",
-          "Version": "1.1.12"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Nerdbank.Streams",
           "Version": "2.6.81"
         }

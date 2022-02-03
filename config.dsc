@@ -295,7 +295,6 @@ config({
                 { id: "System.Runtime.Analyzers", version: "1.0.1" },
                 { id: "System.Runtime.InteropServices.Analyzers", version: "1.0.1" },
                 { id: "System.Security.Cryptography.Hashing.Algorithms.Analyzers", version: "1.1.0" },
-                { id: "Nerdbank.FullDuplexStream", version: "1.1.12"},
                 { id: "Validation", version: "2.5.42"},
 
                 // VSTS managed API

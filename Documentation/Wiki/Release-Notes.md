@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+
+# 0.1.0-20220128.1 (Release [133425](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=133425)) Released 2/2/2022
+- Move sarif files under a single location
+- Add counter for time spent replaying outputs on remote cache hit
+- Handle cancellation for cache pin operation
+- Migrate cache, drop, and symbols authentication to MSAL
+- Publish .net6 packages for all platforms
+
 # 0.1.0-20220114.1 (Release [128430](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=128430)) Released 1/19/2022
 -	Reduce high-volume logging for distributed pip requests
 -	Allow specifying search paths for JS coordinators in resolver configuration

@@ -86,7 +86,7 @@ namespace Tool.ServicePipDaemon
                     if (reloadFirst)
                     {
                         var reloaded = Reloader.Reload(Reloader.CurrentVersion);
-                        m_logger.Warning("[{2}] Service client reloaded; new instance created: {0}, new client version: {1}", reloaded, Reloader.CurrentVersionedValue, operationId.Value);
+                        m_logger.Warning("[{2}] Service client reloaded; new instance created: {0}, new client version: {1}", reloaded, Reloader.CurrentVersionedValue.Version, operationId.Value);
                     }
 
                     var instance = GetCurrentVersionedValue();

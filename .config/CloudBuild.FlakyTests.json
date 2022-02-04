@@ -5,30 +5,6 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
 {
   "IdentifierForLogging": "For repo BuildXL.Internal in CloudBuild",
   "FlakyTestsPerModule": {
-    "Public\\Src\\Engine\\UnitTests\\Distribution_retail_X64": {
-      "FlakyTestMap": {
-        "Test.BuildXL.Distribution.WorkerServiceTests.RepeatedRequestIsRunOnce": {
-          "Name": "Test.BuildXL.Distribution.WorkerServiceTests.RepeatedRequestIsRunOnce",
-          "DetectionTimeUtc": "2021-05-21T06:00:13.6513923Z",
-          "QuarantineExpiryTimeUtc": "2021-11-17T06:00:13.6513924Z",
-          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1845726",
-          "ModuleBugReportUris": [],
-          "ErrorSignatures": [
-            "assert.equal() failure expected: #NUM# actual: #NUM#"
-          ],
-          "SessionUri": "https://cloudbuild.microsoft.com/build/b690393d-fb91-8308-bb4c-162bccda7a7b",
-          "ScheduledDeletionTimeUtc": "2022-02-03T14:00:31.473354Z",
-          "IgnoreErrorSignatures": false
-        }
-      },
-      "Metadata": {
-        "ErrorSignatureToModuleBugReportUri": {},
-        "CompletedModuleBugReportUris": [],
-        "GroupLevelModuleBugReportUris": [],
-        "TestLevelModuleBugReportUris": []
-      },
-      "TestSourceDir": "Public\\Src\\Engine\\UnitTests\\Distribution"
-    },
     "Public\\Src\\Engine\\UnitTests\\Engine_retail_X64": {
       "FlakyTestMap": {
         "Test.BuildXL.Engine.LazyMaterializationBuildTests.RebuildAfterCleanObjectsWithLazyOutputMaterialization": {

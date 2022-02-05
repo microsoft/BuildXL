@@ -2919,7 +2919,6 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Pip {pipId} timed out remotely on step {step} on worker {worker}.")]
         public abstract void PipTimedOutRemotely(LoggingContext context, string pipId, string step, string worker);
-
     }
 
     /// <summary>

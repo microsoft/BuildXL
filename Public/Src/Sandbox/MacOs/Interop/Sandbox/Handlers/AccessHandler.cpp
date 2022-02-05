@@ -130,7 +130,7 @@ PolicyResult AccessHandler::PolicyForPath(const char *absolutePath)
         log_error("Invalid policy cursor for path '%s'", absolutePath);
     }
 
-    return PolicyResult(GetPip()->GetFamFlags(), absolutePath, cursor);
+    return PolicyResult(GetPip()->GetFamFlags(), GetPip()->GetFamExtraFlags(), absolutePath, cursor);
 }
 
 static bool is_prefix(const char *s1, const char *s2)

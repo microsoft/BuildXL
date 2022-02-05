@@ -293,7 +293,7 @@ namespace BuildXL.Utilities.Configuration
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
-                EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
+                EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
             };
         }
 

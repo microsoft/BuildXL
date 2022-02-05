@@ -320,6 +320,7 @@ namespace BuildXL.Processes
                     IgnoreCreateProcessReport = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreCreateProcessReport,
                     ProbeDirectorySymlinkAsDirectory = m_sandboxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory,
                     SubstituteProcessExecutionInfo = shimInfo,
+                    ExplicitlyReportDirectoryProbes = m_sandboxConfig.ExplicitlyReportDirectoryProbes,
                 };
 
             if (!m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
@@ -1457,6 +1458,7 @@ namespace BuildXL.Processes
                 ShareMode.FILE_SHARE_NONE,
                 isRead ? CreationDisposition.OPEN_ALWAYS : CreationDisposition.CREATE_ALWAYS,
                 FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                openedFileOrDirectoryAttribute: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 manifestPath,
                 path: (path == manifestPath) ? null : path.ToString(m_pathTable),
                 enumeratePattern: null,
@@ -2122,10 +2124,10 @@ namespace BuildXL.Processes
             else
             {
                 // The default policy is to only allow absent file probes. But if undeclared source reads are enabled, we allow any kind of read
-                var rootFileAccessPolicy = m_pip.AllowUndeclaredSourceReads ?
-                    (FileAccessPolicy.AllowReadAlways | FileAccessPolicy.ReportAccess) :
-                    // All directory enumerations are reported unless explicitly excluded
-                    (FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportDirectoryEnumerationAccess | FileAccessPolicy.ReportAccessIfNonexistent);
+                // All directory enumerations are reported unless explicitly excluded
+                var rootFileAccessPolicy = m_pip.AllowUndeclaredSourceReads
+                    ? (FileAccessPolicy.AllowReadAlways | FileAccessPolicy.ReportAccess)
+                    : (FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportDirectoryEnumerationAccess | FileAccessPolicy.ReportAccessIfNonexistent);
 
                 m_fileAccessManifest.AddScope(
                     AbsolutePath.Invalid,
@@ -3915,7 +3917,7 @@ namespace BuildXL.Processes
                     var accessesUnsorted = accessesUnsortedWrapper.Instance;
                     foreach (KeyValuePair<AbsolutePath, CompactSet<ReportedFileAccess>> entry in accessesByPath)
                     {
-                        bool? isDirectoryLocation = null;
+                        bool isDirectoryLocation = false;
                         bool hasEnumeration = false;
                         bool isProbe = true;
 
@@ -3939,18 +3941,15 @@ namespace BuildXL.Processes
                         bool isPathCandidateToBeOwnedByASharedOpaque = false;
                         foreach (var access in entry.Value)
                         {
-                            // Detours reports a directory probe with a trailing backslash.
-                            isDirectoryLocation =
-                                // If the path is available and ends with a trailing backlash, we know that represents
-                                // a directory
-                                ((isDirectoryLocation == null || isDirectoryLocation.Value) &&
-                                 access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase))
-                                ||
-                                // If FILE_ATTRIBUTE_DIRECTORY flag is present, that means detours understood the operation
-                                // as happening on a directory.
-                                // TODO: this flag is not properly propagated for all detours operations.
-                                access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
-                            
+                            // If isDirectoryLocation was not already set, try one of the methods below
+                            isDirectoryLocation |=
+                                // If the path is available and ends with a trailing backlash, we know that represents a directory
+                                   (access.Path != null && access.Path.EndsWith("\\", StringComparison.OrdinalIgnoreCase))
+                                // If FILE_ATTRIBUTE_DIRECTORY flag is present, that means detours understood the operation as happening on a directory. TODO: this flag is not properly propagated for all detours operations.
+                                || access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY)
+                                // The IsOpenedHandleDirectory function uses attributes that report symlink/junction for directories as directories rather than files. This one is the most reliable.
+                                || (m_sandboxConfig.ExplicitlyReportDirectoryProbes && access.IsOpenedHandleDirectory());
+
                             // To treat the paths as file probes, all accesses to the path must be the probe access.
                             isProbe &= access.RequestedAccess == RequestedAccess.Probe;
 
@@ -4033,7 +4032,7 @@ namespace BuildXL.Processes
                             observationFlags |= ObservationFlags.FileProbe;
                         }
 
-                        if (isDirectoryLocation != null && isDirectoryLocation.Value)
+                        if (isDirectoryLocation)
                         {
                             observationFlags |= ObservationFlags.DirectoryLocation;
                         }

@@ -48,6 +48,7 @@ namespace Tool.ExecutionLogSdk
                                                         shareMode: reportedFileAccess.ShareMode,
                                                         creationDisposition: reportedFileAccess.CreationDisposition,
                                                         flagsAndAttributes: reportedFileAccess.FlagsAndAttributes,
+                                                        openedFileOrDirectoryAttribute: reportedFileAccess.OpenedFileOrDirectoryAttributes,
                                                         manifestPath: reportedFileAccess.ManifestPath,
                                                         path: reportedFileAccess.GetPath(pathTable),
                                                         enumeratePattern: reportedFileAccess.EnumeratePattern);

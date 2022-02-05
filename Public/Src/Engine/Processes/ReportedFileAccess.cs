@@ -71,6 +71,10 @@ namespace BuildXL.Processes
         /// <summary>
         /// Computed attributes for this file or directory access.
         /// </summary>
+        /// <remarks>
+        /// This is separate from <see cref="FlagsAndAttributes"/>. This represents the attributes artifact that is opened/created by the operation.
+        /// <see cref="FlagsAndAttributes"/> represents the attributes applied to this operation.
+        /// </remarks>
         public readonly FlagsAndAttributes OpenedFileOrDirectoryAttributes;
 
         /// <summary>
@@ -226,7 +230,8 @@ namespace BuildXL.Processes
                 DesiredAccess, 
                 ShareMode, 
                 CreationDisposition, 
-                FlagsAndAttributes, 
+                FlagsAndAttributes,
+                OpenedFileOrDirectoryAttributes,
                 ManifestPath, 
                 Path, 
                 EnumeratePattern, 
@@ -248,6 +253,7 @@ namespace BuildXL.Processes
                 ShareMode,
                 CreationDisposition,
                 flagsAndAttributes,
+                OpenedFileOrDirectoryAttributes,
                 manifestPath,
                 path,
                 EnumeratePattern,
@@ -289,6 +295,7 @@ namespace BuildXL.Processes
                    ShareMode == other.ShareMode &&
                    CreationDisposition == other.CreationDisposition &&
                    FlagsAndAttributes == other.FlagsAndAttributes &&
+                   OpenedFileOrDirectoryAttributes == other.OpenedFileOrDirectoryAttributes &&
                    string.Equals(EnumeratePattern, other.EnumeratePattern, OperatingSystemHelper.PathComparison) &&
                    Method == other.Method;
         }
@@ -845,6 +852,7 @@ namespace BuildXL.Processes
             writer.Write((uint)ShareMode);
             writer.Write((uint)CreationDisposition);
             writer.Write((uint)FlagsAndAttributes);
+            writer.Write((uint)OpenedFileOrDirectoryAttributes);
 
             if (writePath != null)
             {
@@ -881,6 +889,7 @@ namespace BuildXL.Processes
                 shareMode: (ShareMode)reader.ReadUInt32(),
                 creationDisposition: (CreationDisposition)reader.ReadUInt32(),
                 flagsAndAttributes: (FlagsAndAttributes)reader.ReadUInt32(),
+                openedFileOrDirectoryAttribute: (FlagsAndAttributes)reader.ReadUInt32(),
                 manifestPath: readPath != null ? readPath(reader) : reader.ReadAbsolutePath(),
                 path: reader.ReadNullableString(),
                 enumeratePattern: reader.ReadNullableString(),
@@ -898,7 +907,7 @@ namespace BuildXL.Processes
         {
             unchecked
             {
-                return HashCodeHelper.Combine(
+                return HashCodeHelper.Combine(new int[] {
                     string.IsNullOrEmpty(Path) ? ManifestPath.GetHashCode() : OperatingSystemHelper.PathComparer.GetHashCode(Path),
                     string.IsNullOrEmpty(EnumeratePattern) ? 0 : OperatingSystemHelper.PathComparer.GetHashCode(EnumeratePattern),
                     Process != null ? (int)Process.ProcessId : 0,
@@ -909,7 +918,9 @@ namespace BuildXL.Processes
                     (int)DesiredAccess,
                     (int)ShareMode,
                     (int)CreationDisposition,
-                    (int)FlagsAndAttributes);
+                    (int)FlagsAndAttributes,
+                    (int)OpenedFileOrDirectoryAttributes
+                });
             }
         }
 

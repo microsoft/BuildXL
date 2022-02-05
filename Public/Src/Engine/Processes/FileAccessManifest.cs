@@ -36,6 +36,11 @@ namespace BuildXL.Processes
         private FileAccessManifestFlag m_fileAccessManifestFlag;
 
         /// <summary>
+        /// Extra file access manifest flags.
+        /// </summary>
+        private FileAccessManifestExtraFlag m_fileAccessManifestExtraFlag;
+
+        /// <summary>
         /// Name of semaphore for message count.
         /// </summary>
         private string m_messageCountSemaphoreName;
@@ -88,14 +93,19 @@ namespace BuildXL.Processes
             EnforceAccessPoliciesOnDirectoryCreation = false;
             IgnoreCreateProcessReport = false;
             ProbeDirectorySymlinkAsDirectory = false;
+            ExplicitlyReportDirectoryProbes = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
+
+        private bool GetExtraFlag(FileAccessManifestExtraFlag flag) => (m_fileAccessManifestExtraFlag & flag) != 0;
 
         /// <summary>
         /// Gets file access manifest flag.
         /// </summary>
         internal FileAccessManifestFlag Flag => m_fileAccessManifestFlag;
+
+        internal FileAccessManifestExtraFlag ExtraFlag => m_fileAccessManifestExtraFlag;
 
         private void SetFlag(FileAccessManifestFlag flag, bool value)
         {
@@ -106,6 +116,18 @@ namespace BuildXL.Processes
             else
             {
                 m_fileAccessManifestFlag &= ~flag;
+            }
+        }
+
+        private void SetExtraFlag(FileAccessManifestExtraFlag flag, bool value)
+        {
+            if (value)
+            {
+                m_fileAccessManifestExtraFlag |= flag;
+            }
+            else
+            {
+                m_fileAccessManifestExtraFlag &= ~flag;
             }
         }
 
@@ -414,6 +436,15 @@ namespace BuildXL.Processes
         {
             get => GetFlag(FileAccessManifestFlag.QBuildIntegrated);
             set => SetFlag(FileAccessManifestFlag.QBuildIntegrated, value);
+        }
+
+        /// <summary>
+        /// When enabled, directory accesses will be explcitily reported by detours.
+        /// </summary>
+        public bool ExplicitlyReportDirectoryProbes
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.ExplicitlyReportDirectoryProbes);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.ExplicitlyReportDirectoryProbes, value);
         }
 
         /// <summary>
@@ -787,6 +818,16 @@ namespace BuildXL.Processes
             writer.Write((uint)extraFlags);
         }
 
+        private static FileAccessManifestExtraFlag ReadExtraFlagsBlock(BinaryReader reader)
+        {
+#if DEBUG
+            CheckedCode.EnsureRead(reader, CheckedCode.ExtraFlags);
+#endif
+
+            return (FileAccessManifestExtraFlag)reader.ReadUInt32();
+        }
+
+
         private static void WritePipId(BinaryWriter writer, long pipId)
         {
 #if DEBUG
@@ -961,7 +1002,7 @@ namespace BuildXL.Processes
                 WriteTranslationPathStrings(writer, DirectoryTranslator);
                 WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
                 WriteFlagsBlock(writer, m_fileAccessManifestFlag);
-                WriteExtraFlagsBlock(writer, FileAccessManifestExtraFlag.None);
+                WriteExtraFlagsBlock(writer, m_fileAccessManifestExtraFlag);
                 WritePipId(writer, PipId);
                 WriteReportBlock(writer, setup);
                 WriteDllBlock(writer, setup);
@@ -1011,6 +1052,7 @@ namespace BuildXL.Processes
                 WriteTranslationPathStrings(writer, DirectoryTranslator);
                 WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
                 WriteFlagsBlock(writer, m_fileAccessManifestFlag);
+                WriteExtraFlagsBlock(writer, m_fileAccessManifestExtraFlag);
                 WritePipId(writer, PipId);
                 WriteChars(writer, m_messageCountSemaphoreName);
 
@@ -1036,6 +1078,7 @@ namespace BuildXL.Processes
                 DirectoryTranslator directoryTranslator = ReadTranslationPathStrings(reader);
                 string internalDetoursErrorNotificationFile = ReadErrorDumpLocation(reader);
                 FileAccessManifestFlag fileAccessManifestFlag = ReadFlagsBlock(reader);
+                FileAccessManifestExtraFlag fileAccessManifestExtraFlag = ReadExtraFlagsBlock(reader);
                 long pipId = ReadPipId(reader);
                 string messageCountSemaphoreName = ReadChars(reader);
 
@@ -1053,6 +1096,7 @@ namespace BuildXL.Processes
                     InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
                     PipId = pipId,
                     m_fileAccessManifestFlag = fileAccessManifestFlag,
+                    m_fileAccessManifestExtraFlag = fileAccessManifestExtraFlag,
                     m_sealedManifestTreeBlock = sealedManifestTreeBlock,
                     m_messageCountSemaphoreName = messageCountSemaphoreName
                 };
@@ -1150,9 +1194,10 @@ namespace BuildXL.Processes
 
         // CODESYNC: DataTypes.h
         [Flags]
-        private enum FileAccessManifestExtraFlag
+        internal enum FileAccessManifestExtraFlag
         {
-            None = 0,
+            NoneExtra = 0,
+            ExplicitlyReportDirectoryProbes = 0x1
         }
 
         private readonly struct FileAccessScope

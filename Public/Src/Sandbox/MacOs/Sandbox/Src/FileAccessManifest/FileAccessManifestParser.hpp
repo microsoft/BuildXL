@@ -44,14 +44,15 @@ public:
 
     bool init(const BYTE *payload, size_t payloadSize);
 
-    inline bool IsValid() const                         { return error_ == nullptr; }
-    inline bool HasErrors() const                       { return !IsValid(); }
-    inline const char* Error() const                    { return error_; }
-    inline PCManifestRecord GetManifestRootNode() const { return root_; }
-    inline PCManifestRecord GetUnixRootNode() const     { return root_->BucketCount > 0 ? root_->GetChildRecord(0) : root_; }
-    inline PCManifestPipId GetPipId() const             { return pipId_; }
-    inline FileAccessManifestFlag GetFamFlags() const   { return static_cast<FileAccessManifestFlag>(flags_->Flags); }
-    inline bool AllowChildProcessesToBreakAway() const  { return manifestChildProcessesToBreakAwayFromJob_->Count > 0; }
+    inline bool IsValid() const                                   { return error_ == nullptr; }
+    inline bool HasErrors() const                                 { return !IsValid(); }
+    inline const char* Error() const                              { return error_; }
+    inline PCManifestRecord GetManifestRootNode() const           { return root_; }
+    inline PCManifestRecord GetUnixRootNode() const               { return root_->BucketCount > 0 ? root_->GetChildRecord(0) : root_; }
+    inline PCManifestPipId GetPipId() const                       { return pipId_; }
+    inline FileAccessManifestFlag GetFamFlags() const             { return static_cast<FileAccessManifestFlag>(flags_->Flags); }
+    inline FileAccessManifestExtraFlag GetFamExtraFlags() const   { return static_cast<FileAccessManifestExtraFlag>(extraFlags_->ExtraFlags); }
+    inline bool AllowChildProcessesToBreakAway() const            { return manifestChildProcessesToBreakAwayFromJob_->Count > 0; }
     inline const char* GetReportsPath(int *length) const
     {
         *length = report_->Size;

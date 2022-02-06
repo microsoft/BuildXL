@@ -9,7 +9,7 @@ Most analysis modes require a pointer to an execution log from a prior BuildXL b
 The analyzer application has many different modes added by the BuildXL team as part of the core product as well as other consumers of BuildXL. See the help text for a full listing of the various analyzer modes: `bxlanalyzer.exe /help`. Specify the mode using the `/m:` option.
 
 ## Critical Path Analysis
-This analysis shows you the top 20 critical paths in the invoked build. It only considers the time something actually took to execute. So if some pips were from cache, their full non-cached execution time won't be reflected in the critical path. 
+This analysis shows you the top 20 critical paths in the invoked build. It considers the runtime duration of the pip including cache lookup, materialization, execution, and storing outputs to cache. So if some pips were from cache, their full non-cached execution time won't be reflected in the critical path. 
 
 `bxlAnalyzer.exe /m:criticalpath /xl:F:\src\buildxl\Out\Logs\20170227-121907\BuildXL.xlg /outputfile:criticalpath.txt`
 

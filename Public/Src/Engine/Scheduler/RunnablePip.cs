@@ -314,7 +314,6 @@ namespace BuildXL.Scheduler
         {
             OperationContext.Dispose();
             OperationContext = OperationContext.CreateUntracked(OperationContext.LoggingContext);
-            Performance.Completed();
         }
 
         /// <summary>

@@ -2984,6 +2984,7 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(runnablePip != null);
 
+            runnablePip.Performance.Completed();
             var pipLoggingContext = runnablePip.LoggingContext;
             var pip = runnablePip.Pip;
             string pipDescription = runnablePip.Description;
@@ -3797,9 +3798,6 @@ namespace BuildXL.Scheduler
             // Store the duration
             m_pipExecutionStepCounters.AddToCounter(runnablePip.Step, duration);
 
-            // Send an Executionlog event
-            runnablePip.LogExecutionStepPerformance(runnablePip.Step, startTime, duration);
-
             if (IsDistributedWorker)
             {
                 runnablePip.End();
@@ -3808,6 +3806,11 @@ namespace BuildXL.Scheduler
                 // Distributed workers do not traverse state machine
                 return;
             }
+
+            // Only orchestrator executes the following statements:
+
+            // Send an Executionlog event
+            runnablePip.LogExecutionStepPerformance(runnablePip.Step, startTime, duration);
 
             // Release the worker resources if we are done executing
             runnablePip.AcquiredResourceWorker?.ReleaseResources(runnablePip, nextStep);
@@ -4569,7 +4572,7 @@ namespace BuildXL.Scheduler
                                 operationContext,
                                 runnablePip.Description,
                                 executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
-                                (processRunnable.HistoricPerfData?.DurationInMs ?? 0) / 1000.0,
+                                (processRunnable.HistoricPerfData?.ExeDurationInMs ?? 0) / 1000.0,
                                 executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                 executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
                                 processRunnable.Weight,
@@ -5360,8 +5363,6 @@ namespace BuildXL.Scheduler
                 PipId pipId = new PipId(unchecked((uint)currentCriticalPathTailPipIdValue));
                 criticalPath.Add((criticalPathRuntimeInfo, pipId));
 
-                long exeDurationCriticalPathMs = criticalPathRuntimeInfo.ProcessExecuteTimeMs;
-
                 while (true)
                 {
                     criticalPathRuntimeInfo = null;
@@ -5378,8 +5379,6 @@ namespace BuildXL.Scheduler
                     if (criticalPathRuntimeInfo != null)
                     {
                         criticalPath.Add((criticalPathRuntimeInfo, pipId));
-
-                        exeDurationCriticalPathMs += criticalPathRuntimeInfo.ProcessExecuteTimeMs;
                     }
                     else
                     {
@@ -5402,6 +5401,10 @@ namespace BuildXL.Scheduler
                 detailedLog.AppendLine(I($"Fine-grained Duration (ms) for Each Pip on the Critical Path (from end to beginning)"));
 
                 int index = 0;
+                Func<long, double> toMin = (t) => Math.Round(t / (double)60000, 1);
+
+                long exeDurationCriticalPathMs = 0;
+                long pipDurationCriticalPathMs = 0;
 
                 foreach (var node in criticalPath)
                 {
@@ -5414,6 +5417,9 @@ namespace BuildXL.Scheduler
 
                     long pipDurationMs = performance.CalculatePipDurationMs(this);
                     long pipQueueDurationMs = performance.CalculateQueueDurationMs();
+
+                    pipDurationCriticalPathMs += pipDurationMs;
+                    exeDurationCriticalPathMs += runtimeInfo.ProcessExecuteTimeMs;
 
                     Logger.Log.CriticalPathPipRecord(m_executePhaseLoggingContext,
                         pipSemiStableHash: pip.SemiStableHash,
@@ -5442,7 +5448,7 @@ namespace BuildXL.Scheduler
                         completedTime = formatTime(completedTimeTs);
                     }
 
-                    summaryTable.AppendLine(I($"{pipDurationMs,16} | {runtimeInfo.ProcessExecuteTimeMs,15} | {pipQueueDurationMs,18} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
+                    summaryTable.AppendLine(I($"{toMin(pipDurationMs),16} | {toMin(runtimeInfo.ProcessExecuteTimeMs),15} | {toMin(pipQueueDurationMs),18} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
 
                     if (buildSummary != null)
                     {
@@ -5481,7 +5487,7 @@ namespace BuildXL.Scheduler
 
                 string hr = I($"{Environment.NewLine}======================================================================{Environment.NewLine}");
 
-                builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by Pip Duration (excluding ChooseWorker and Queue durations)"));
+                builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by Pip Duration"));
                 var topPipDurations =
                     (from a in m_runnablePipPerformance
                      let i = a.Value.CalculatePipDurationMs(this)
@@ -5525,7 +5531,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(hr);
 
                 builder.AppendLine("Critical path:");
-                builder.AppendLine(I($"{"Pip Duration(ms)",-16} | {"Exe Duration(ms)",-15}| {"Queue Duration(ms)",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
+                builder.AppendLine(I($"{"Pip Duration(min)",-16} | {"Exe Duration(min)",-15}| {"Queue Duration(min)",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
 
                 // Total critical path running time is a sum of all steps except ChooseWorker and MaterializeOutput (if it is done in background)
                 long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime(this)).Sum();
@@ -5536,7 +5542,7 @@ namespace BuildXL.Scheduler
 
                 long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup];
 
-                builder.AppendLine(I($"{totalCriticalPathRunningTime,16} | {exeDurationCriticalPathMs,15} | {totalOrchestratorQueueTime,18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
+                builder.AppendLine(I($"{toMin(pipDurationCriticalPathMs),16} | {toMin(exeDurationCriticalPathMs),15} | {toMin(totalOrchestratorQueueTime),18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
                 builder.AppendLine(summaryTable.ToString());
 
                 if (buildSummary != null)
@@ -5745,7 +5751,7 @@ namespace BuildXL.Scheduler
 
                     if (performanceInfo.ExeDuration.TotalMilliseconds != 0)
                     {
-                        stringBuilder.AppendLine(I($"\t\t  {"ExeDurationMs",-88}: {performanceInfo.ExeDuration.TotalMilliseconds,10}"));
+                        stringBuilder.AppendLine(I($"\t\t  {"ExeDurationMs",-88}: {(long)performanceInfo.ExeDuration.TotalMilliseconds,10}"));
                     }
                 }
 
@@ -5778,7 +5784,7 @@ namespace BuildXL.Scheduler
 
         private void UpdateCriticalPath(RunnablePip runnablePip, PipExecutionPerformance performance)
         {
-            var duration = runnablePip.RunningTime;
+            var totalDurationMs = (long)runnablePip.Performance.TotalDuration.TotalMilliseconds;
             var pip = runnablePip.Pip;
 
             if (pip.PipType.IsMetaPip())
@@ -5786,12 +5792,11 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            long durationMs = (long)duration.TotalMilliseconds;
-            long criticalChainMs = durationMs;
+            long criticalChainMs = totalDurationMs;
             foreach (var dependencyEdge in ScheduledGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
             {
                 var dependencyRuntimeInfo = GetPipRuntimeInfo(dependencyEdge.OtherNode);
-                criticalChainMs = Math.Max(criticalChainMs, durationMs + dependencyRuntimeInfo.CriticalPathDurationMs);
+                criticalChainMs = Math.Max(criticalChainMs, totalDurationMs + dependencyRuntimeInfo.CriticalPathDurationMs);
             }
 
             var pipRuntimeInfo = GetPipRuntimeInfo(pip.PipId);
@@ -5835,8 +5840,9 @@ namespace BuildXL.Scheduler
                 performance.ExecutionLevel == PipExecutionLevel.Executed &&
                 processPerf != null)
             {
-                
-                HistoricPerfDataTable[processRunnablePip] = new ProcessPipHistoricPerfData(processPerf);
+                long pipDurationMs = runnablePip.Performance.CalculatePipDurationMs(this);
+
+                HistoricPerfDataTable[processRunnablePip] = new ProcessPipHistoricPerfData(processPerf, pipDurationMs);
                 processRunnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
             }
 
@@ -6437,7 +6443,7 @@ namespace BuildXL.Scheduler
                                 uint historicalMilliseconds = 0;
                                 if (pipType == PipType.Process && HistoricPerfDataTable != null)
                                 {
-                                    historicalMilliseconds = HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].DurationInMs;
+                                    historicalMilliseconds = HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].RunDurationInMs;
                                 }
 
                                 if (historicalMilliseconds != 0)

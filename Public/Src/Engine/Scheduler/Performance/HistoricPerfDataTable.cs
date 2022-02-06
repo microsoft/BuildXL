@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The version for format of <see cref="HistoricPerfDataTable"/>
         /// </summary>
-        public const int FormatVersion = 3;
+        public const int FormatVersion = 5;
 
         private static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "Runtime", version: FormatVersion);
 
@@ -235,8 +235,8 @@ namespace BuildXL.Scheduler
 
             if (result.IsFound)
             {
-                uint oldMilliseconds = result.OldItem.Value.DurationInMs;
-                uint milliseconds = Math.Max(value.DurationInMs, 1);
+                uint oldMilliseconds = result.OldItem.Value.ExeDurationInMs;
+                uint milliseconds = Math.Max(value.ExeDurationInMs, 1);
 
                 var difference = milliseconds > oldMilliseconds ? milliseconds - oldMilliseconds : oldMilliseconds - milliseconds;
                 long relativeDeviation = (long)(difference * (100.0 / Math.Max(milliseconds, oldMilliseconds)));
@@ -251,7 +251,7 @@ namespace BuildXL.Scheduler
                     Interlocked.Increment(ref m_numRunningTimeAdded);
                 }
 
-                Tracing.Logger.Log.HistoricPerfDataAdded(m_loggingContext, semiStableHash, value.DurationInMs);
+                Tracing.Logger.Log.HistoricPerfDataAdded(m_loggingContext, semiStableHash, value.ExeDurationInMs);
             }
 
         }

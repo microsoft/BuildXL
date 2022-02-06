@@ -15,9 +15,11 @@ Factors limiting concurrency by build time: CPU:72%, Graph shape:0%, Disk:2%, Co
 ```
 
 ### Critical path
-This section shows the longest critical path of Pip operations during the build. Assuming sufficient parallelism, this would be the lower bound to what the build time could be.
+This section shows the longest critical path of total pip durations during the build. Total pip duration is calculated as the sum of pip and queue duration. We include queue durations when calculating the critical path to prevent any time gap between consecutive pips on the critical path. If we only use pip durations, there might be longer critical paths due to higher waiting time on the scheduler queues. Assuming sufficient parallelism, the pip duration (excluding queue duration) would be the lower bound to what the build time could be.
 
-The *Pip Duration* is how long BuildXL was processing the pip. This includes cache lookup and post-processing. This will be nonzero even if the pip was a cache hit, since it takes some time to process a cache hit.
+During schedule phase, we also assign priorities to pips based on the weight of their chain. When computing critical paths during schedule phase, we use historical pip duration (excluding queue duration) and the pips on the critical path get higher priorities. By doing so, BuildXL reduces the queue time for those pips.
+
+The *Pip Duration* is how long BuildXL was processing the pip. This includes hashing inputs, cache lookup, materialization, execution, and post-processing. This will be nonzero even if the pip was a cache hit, since it takes some time to process a cache hit.
 
 The *Exe Duration* is how long the external process was running. This will only be populated on cache misses. 
 

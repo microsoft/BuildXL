@@ -22,6 +22,8 @@ namespace BuildXL.Scheduler
 
         internal DateTime CompletedTime { get; private set; }
 
+        internal TimeSpan TotalDuration => CompletedTime - ScheduleTime;
+
         private DispatcherKind m_currentQueue;
 
         private DateTime m_queueEnterTime;

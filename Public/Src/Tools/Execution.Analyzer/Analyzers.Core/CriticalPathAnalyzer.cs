@@ -65,7 +65,8 @@ namespace BuildXL.Execution.Analyzer
         {
             public TimeSpan WallClockTime;
             public TimeSpan UserTime;
-            public TimeSpan KernalTime;
+            public TimeSpan KernelTime;
+            public TimeSpan ExeTime;
         }
 
         private readonly TextWriter m_writer;
@@ -217,7 +218,7 @@ namespace BuildXL.Execution.Analyzer
 
             var times = m_elapsedTimes[node.Value];
             m_topWallClockPriorityQueue.Add(node, times.WallClockTime);
-            m_topKernelTimePriorityQueue.Add(node, times.KernalTime);
+            m_topKernelTimePriorityQueue.Add(node, times.KernelTime);
             m_topUserTimePriorityQueue.Add(node, times.UserTime);
         }
 
@@ -228,7 +229,7 @@ namespace BuildXL.Execution.Analyzer
 
         private TimeSpan GetKernelTime(NodeId node)
         {
-            return m_elapsedTimes[node.Value].KernalTime;
+            return m_elapsedTimes[node.Value].KernelTime;
         }
 
         private TimeSpan GetUserTime(NodeId node)
@@ -242,7 +243,7 @@ namespace BuildXL.Execution.Analyzer
             if (data.IncludeInRunningTime)
             {
                 var times = m_elapsedTimes[data.PipId.Value];
-                times.WallClockTime = data.Duration > times.WallClockTime ? data.Duration : times.WallClockTime;
+                times.WallClockTime += data.Duration;
                 m_elapsedTimes[data.PipId.Value] = times;
             }
         }
@@ -256,8 +257,9 @@ namespace BuildXL.Execution.Analyzer
                 if (processPerformance != null)
                 {
                     var times = m_elapsedTimes[data.PipId.Value];
-                    times.KernalTime = processPerformance.KernelTime;
+                    times.KernelTime = processPerformance.KernelTime;
                     times.UserTime = processPerformance.UserTime;
+                    times.ExeTime = processPerformance.ProcessExecutionTime;
 
                     m_elapsedTimes[data.PipId.Value] = times;
                 }

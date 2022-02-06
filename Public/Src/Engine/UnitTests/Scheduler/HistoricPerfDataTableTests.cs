@@ -58,7 +58,7 @@ namespace Test.BuildXL.Scheduler
                     numberOfProcesses,
                     workerId,
                     0);
-                var data = new ProcessPipHistoricPerfData(performance);
+                var data = new ProcessPipHistoricPerfData(performance, (long)processExecutionTime.TotalMilliseconds);
                 data = data.Merge(data);
                 Analysis.IgnoreResult(data);
             }
@@ -112,7 +112,7 @@ namespace Test.BuildXL.Scheduler
                     s.NextBytes(buffer);
                     long semiStableHash = BitConverter.ToInt64(buffer, 0);
 
-                    int execTime = s.Next(MaxExecTime);
+                    var execTime = (uint)s.Next(MaxExecTime);
                     var processPipExecutionPerformance = new ProcessPipExecutionPerformance(
                         PipExecutionLevel.Executed,
                         DateTime.UtcNow,
@@ -128,7 +128,7 @@ namespace Test.BuildXL.Scheduler
                         workerId: 0,
                         suspendedDurationMs: 0);
 
-                    ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
+                    ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance, execTime);
                     table[semiStableHash] = runTimeData;
                 }
 
@@ -145,7 +145,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     s.NextBytes(buffer);
                     long semiStableHash = BitConverter.ToInt64(buffer, 0);
-                    XAssert.IsTrue(table[semiStableHash].DurationInMs >= (uint) s.Next(MaxExecTime));
+                    XAssert.IsTrue(table[semiStableHash].ExeDurationInMs >= (uint) s.Next(MaxExecTime));
                 }
             }
         }
@@ -154,6 +154,7 @@ namespace Test.BuildXL.Scheduler
         public void TimeToLive()
         {
             int execTime = 1;
+            uint runTime = 2;
             var processPipExecutionPerformance = new ProcessPipExecutionPerformance(
                 PipExecutionLevel.Executed,
                 DateTime.UtcNow,
@@ -169,7 +170,7 @@ namespace Test.BuildXL.Scheduler
                 workerId: 0,
                 suspendedDurationMs: 0);
 
-            ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
+            ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance, runTime);
             HistoricPerfDataTable table = new HistoricPerfDataTable(LoggingContext);
             var semiStableHashToKeep = 0;
             table[semiStableHashToKeep] = runTimeData;
@@ -187,8 +188,8 @@ namespace Test.BuildXL.Scheduler
 
             stream.Position = 0;
             table = HistoricPerfDataTable.Load(LoggingContext, stream);
-            XAssert.AreEqual(1u, table[semiStableHashToKeep].DurationInMs);
-            XAssert.AreEqual(0u, table[semiStableHashToDrop].DurationInMs);
+            XAssert.AreEqual(1u, table[semiStableHashToKeep].ExeDurationInMs);
+            XAssert.AreEqual(0u, table[semiStableHashToDrop].ExeDurationInMs);
         }
     }
 }

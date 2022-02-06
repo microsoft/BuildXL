@@ -33,9 +33,19 @@ namespace BuildXL.Scheduler
         public readonly ushort ProcessorsInPercents;
 
         /// <summary>
-        /// The average run duration
+        /// The average exe duration
         /// </summary>
-        public readonly uint DurationInMs;
+        public readonly uint ExeDurationInMs;
+
+        /// <summary>
+        /// The max exe duration observed
+        /// </summary>
+        public readonly uint MaxExeDurationInMs;
+
+        /// <summary>
+        /// The average pip run duration (execute, materializeinput, cachelookup, postprocess, start)
+        /// </summary>
+        public readonly uint RunDurationInMs;
 
         /// <summary>
         /// Peak memory usage counters
@@ -57,23 +67,27 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Construct a new runtime data based on collected performance data
         /// </summary>
-        public ProcessPipHistoricPerfData(ProcessPipExecutionPerformance executionPerformance)
+        public ProcessPipHistoricPerfData(ProcessPipExecutionPerformance executionPerformance, long runDurationInMs)
         {
             Contract.Requires(executionPerformance.ExecutionLevel == PipExecutionLevel.Executed);
 
             m_entryTimeToLive = DefaultTimeToLive;
             // Deduct the suspended duration from the process execution time.
-            DurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds - executionPerformance.SuspendedDurationMs));
+            ExeDurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds - executionPerformance.SuspendedDurationMs));
+            MaxExeDurationInMs = ExeDurationInMs;
+            RunDurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, runDurationInMs));
             // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
             MemoryCounters = executionPerformance.MemoryCounters;
             DiskIOInMB = (uint)Math.Min(uint.MaxValue, ByteSizeFormatter.ToMegabytes(executionPerformance.IO.GetAggregateIO().TransferCount));
             ProcessorsInPercents = executionPerformance.ProcessorsInPercents;
         }
 
-        private ProcessPipHistoricPerfData(byte timeToLive, uint durationInMs, ProcessMemoryCounters memoryCounters, ushort processorsInPercents, uint diskIOInMB)
+        private ProcessPipHistoricPerfData(byte timeToLive, uint exeDurationInMs, uint maxExeDurationInMs, uint runDurationInMs, ProcessMemoryCounters memoryCounters, ushort processorsInPercents, uint diskIOInMB)
         {
             m_entryTimeToLive = timeToLive;
-            DurationInMs = durationInMs;
+            ExeDurationInMs = exeDurationInMs;
+            MaxExeDurationInMs = maxExeDurationInMs;
+            RunDurationInMs = runDurationInMs;
             MemoryCounters = memoryCounters;
             ProcessorsInPercents = processorsInPercents;
             DiskIOInMB = diskIOInMB;
@@ -91,7 +105,9 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(writer != null);
             writer.Write(m_entryTimeToLive);
-            writer.Write(DurationInMs);
+            writer.Write(ExeDurationInMs);
+            writer.Write(MaxExeDurationInMs);
+            writer.Write(RunDurationInMs);
             MemoryCounters.Serialize(writer);
             writer.Write(ProcessorsInPercents);
             writer.Write(DiskIOInMB);
@@ -106,12 +122,22 @@ namespace BuildXL.Scheduler
             Contract.Requires(reader != null);
             byte timeToLive = reader.ReadByte();
             byte newTimeToLive = (byte)(timeToLive - 1);
+            uint exeDurationMs = reader.ReadUInt32();
+            uint maxExeDurationMs = reader.ReadUInt32();
+            uint runDurationMs = reader.ReadUInt32();
+            ProcessMemoryCounters memoryCounters = ProcessMemoryCounters.Deserialize(reader);
+            ushort processorsInPercents = reader.ReadUInt16();
+            uint diskIOInMB = reader.ReadUInt32();
+
             result = new ProcessPipHistoricPerfData(
                 newTimeToLive,
-                reader.ReadUInt32(),
-                ProcessMemoryCounters.Deserialize(reader),
-                reader.ReadUInt16(),
-                reader.ReadUInt32());
+                exeDurationMs,
+                maxExeDurationMs,
+                runDurationMs,
+                memoryCounters,
+                processorsInPercents,
+                diskIOInMB);
+
             return newTimeToLive > 0;
         }
 
@@ -126,7 +152,9 @@ namespace BuildXL.Scheduler
             {
                 return HashCodeHelper.Combine(
                     (int)m_entryTimeToLive,
-                    (int)DurationInMs,
+                    (int)ExeDurationInMs,
+                    (int)MaxExeDurationInMs,
+                    (int)RunDurationInMs,
                     MemoryCounters.GetHashCode(),
                     (int)ProcessorsInPercents,
                     (int)DiskIOInMB);
@@ -137,7 +165,9 @@ namespace BuildXL.Scheduler
         public bool Equals(ProcessPipHistoricPerfData other)
         {
             return m_entryTimeToLive == other.m_entryTimeToLive &&
-                    DurationInMs == other.DurationInMs &&
+                    ExeDurationInMs == other.ExeDurationInMs &&
+                    MaxExeDurationInMs == other.MaxExeDurationInMs &&
+                    RunDurationInMs == other.RunDurationInMs &&
                     MemoryCounters == other.MemoryCounters &&
                     ProcessorsInPercents == other.ProcessorsInPercents &&
                     DiskIOInMB == other.DiskIOInMB;
@@ -172,7 +202,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ProcessPipHistoricPerfData MakeFresh()
         {
-            return new ProcessPipHistoricPerfData(DefaultTimeToLive, DurationInMs, MemoryCounters, ProcessorsInPercents, DiskIOInMB);
+            return new ProcessPipHistoricPerfData(DefaultTimeToLive, ExeDurationInMs, MaxExeDurationInMs, RunDurationInMs, MemoryCounters, ProcessorsInPercents, DiskIOInMB);
         }
 
         /// <summary>
@@ -181,12 +211,14 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ProcessPipHistoricPerfData Merge(ProcessPipHistoricPerfData other)
         {
-            var durationResult = GetMergeResult(DurationInMs, other.DurationInMs);
+            var exeDurationResult = GetMergeResult(ExeDurationInMs, other.ExeDurationInMs);
+            var runDurationResult = GetMergeResult(RunDurationInMs, other.RunDurationInMs);
             var memoryCountersResult = Merge(MemoryCounters, other.MemoryCounters);
             var processorInPercentResult = GetMergeResult(ProcessorsInPercents, other.ProcessorsInPercents);
             var diskIOResult = GetMergeResult(DiskIOInMB, other.DiskIOInMB);
+            var maxDurationMs = Math.Max(MaxExeDurationInMs, other.MaxExeDurationInMs);
 
-            return new ProcessPipHistoricPerfData(DefaultTimeToLive, durationResult, memoryCountersResult, (ushort)processorInPercentResult, diskIOResult);
+            return new ProcessPipHistoricPerfData(DefaultTimeToLive, exeDurationResult, maxDurationMs, runDurationResult, memoryCountersResult, (ushort)processorInPercentResult, diskIOResult);
         }
 
         internal static uint GetMergeResult(uint oldData, uint newData)

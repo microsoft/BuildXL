@@ -118,7 +118,7 @@ namespace BuildXL.Execution.Analyzer
 
         private ObjectPool<WorkerAnalyzer> m_pool;
         private List<WorkerAnalyzer> m_analyzers = new List<WorkerAnalyzer>();
-        private ActionBlockSlim<Action> m_block = new ActionBlockSlim<Action>(12, a => a());
+        private ActionBlockSlim<Action> m_block = ActionBlockSlim.Create<Action>(12, a => a());
 
         private MutableDirectedGraph m_mutableGraph = new MutableDirectedGraph();
         private PipTable m_pipTable;

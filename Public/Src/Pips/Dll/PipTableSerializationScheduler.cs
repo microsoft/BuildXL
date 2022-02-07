@@ -40,7 +40,7 @@ namespace BuildXL.Pips
             maxDegreeOfParallelism = maxDegreeOfParallelism == -1 ? Environment.ProcessorCount : maxDegreeOfParallelism;
             m_nonSerializedDebug = maxDegreeOfParallelism == 0 && debug;
 
-            m_serializationQueue = new ActionBlockSlim<QueueItem>(
+            m_serializationQueue = ActionBlockSlim.Create<QueueItem>(
                 m_nonSerializedDebug ? 1 : maxDegreeOfParallelism,
                 item => ProcessQueueItem(item));
 

@@ -966,6 +966,9 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? MaximumConcurrentPutAndPlaceFileOperations { get; set; }
 
+        [DataMember]
+        public bool? UseChannelBasedActionBlockSlimImplementation { get; set; }
+
         #region Metadata Storage
 
         [DataMember]

@@ -780,7 +780,7 @@ namespace BuildXL.Scheduler.Tracing
             public ConcurrentPipProcessor(PackedExecutionExporter exporter)
             {
                 m_exporter = exporter;
-                m_processingBlock = new ActionBlockSlim<ProcessFingerprintComputationEventData>(
+                m_processingBlock =  ActionBlockSlim.Create<ProcessFingerprintComputationEventData>(
                     degreeOfParallelism: -1, // default
                     processItemAction: ProcessFingerprintComputedCore);
             }

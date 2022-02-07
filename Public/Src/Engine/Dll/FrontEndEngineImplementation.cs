@@ -155,7 +155,7 @@ namespace BuildXL.Engine
                 directoryTranslator,
                 vfsCasRoot: configuration.Cache.VfsCasRoot);
 
-            m_localDiskContentStoreConcurrencyLimiter = ActionBlockSlim<MaterializeFileRequest>.CreateWithAsyncAction(
+            m_localDiskContentStoreConcurrencyLimiter = ActionBlockSlim.CreateWithAsyncAction<MaterializeFileRequest>(
                 Environment.ProcessorCount,
                 async request =>
                 {

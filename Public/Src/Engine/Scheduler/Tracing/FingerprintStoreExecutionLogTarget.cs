@@ -941,7 +941,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     // Initially we start each action block with a parallelism of 0 so they are in a paused state.
                     // Processing is started once the RuntimeCacheMissAnalyzer is available via its initialization task completing.
-                    m_actionBlocks[i] = new ActionBlockSlim<Action>(0, a => a());
+                    m_actionBlocks[i] = ActionBlockSlim.Create<Action>(0, a => a());
                 }
             }
 

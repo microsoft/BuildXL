@@ -26,7 +26,11 @@ export const dll = BuildXLSdk.library({
 
         // Don't need to add the dependency for .net 6
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild && qualifier.targetFramework !== 'net6.0', () => [
-            importFrom("Microsoft.Win32.Registry").pkg
+            importFrom("Microsoft.Win32.Registry").pkg,
+        ]),
+
+        ...addIfLazy(!BuildXLSdk.isDotNetCoreBuild || qualifier.targetFramework === "netstandard2.0", () => [
+            importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
         ]),
 
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
@@ -39,6 +43,7 @@ export const dll = BuildXLSdk.library({
         ...BuildXLSdk.tplPackages,
         importFrom("Newtonsoft.Json").pkg,
         ...BuildXLSdk.systemMemoryDeployment,
+        
     ],
     defineConstants: qualifier.configuration === "debug" ? ["DebugStringTable"] : [],
     internalsVisibleTo: [

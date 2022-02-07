@@ -4,33 +4,35 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Xunit;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
-using Xunit;
 
 namespace Test.BuildXL.Utilities
 {
     public class ActionBlockSlimTests
     {
-        [Fact]
-        public async Task WhenQueueIsFull()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ExceptionIsThrownWhenTheBlockIsFull(bool useChannelBasedImpl)
         {
-            var queue = new ActionQueue(degreeOfParallelism: 2, capacityLimit: 1);
             var tcs = new TaskCompletionSource<object>();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, n => tcs.Task, capacityLimit: 1, useChannelBasedImpl);
+            actionBlock.Post(42);
+            Assert.Equal(1, actionBlock.PendingWorkItems);
 
-            var t = queue.RunAsync(() => tcs.Task);
-            await Assert.ThrowsAsync<ActionBlockIsFullException>(() => queue.RunAsync(() => { }));
+            Assert.Throws<ActionBlockIsFullException>(() => actionBlock.Post(1));
+            Assert.Equal(1, actionBlock.PendingWorkItems);
 
             tcs.SetResult(null);
+            await WaitUntilAsync(() => actionBlock.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1)).WithTimeoutAsync(TimeSpan.FromSeconds(5));
             
-            await t;
+            Assert.Equal(0, actionBlock.PendingWorkItems);
 
-            // Even though the task 't' is done, it still possible that the internal counter in ActionBlock was not yet decremented.
-            // "waiting" until all the items are fully processed before calling 'RunAsync' to avoid 'ActionBlockIsFullException'.
-            await WaitUntilAsync(() => queue.PendingWorkItems == 0, TimeSpan.FromMilliseconds(1));
-
-            // should be fine now.
-            await queue.RunAsync(() => { });
+            // This should not fail!
+            actionBlock.Post(1);
         }
 
         internal static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan waitInterval)
@@ -46,29 +48,12 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [Fact]
-        public async Task ExceptionIsThrownWhenTheBlockIsFull()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CompletionTaskIsDoneWhenCompletedIsCalled(bool useChannelBasedImpl)
         {
-            var tcs = new TaskCompletionSource<object>();
-            var actionBlock = ActionBlockSlim<int>.CreateWithAsyncAction(42, n => tcs.Task, capacityLimit: 1);
-            actionBlock.Post(42);
-            Assert.Equal(1, actionBlock.PendingWorkItems);
-
-            Assert.Throws<ActionBlockIsFullException>(() => actionBlock.Post(1));
-            Assert.Equal(1, actionBlock.PendingWorkItems);
-
-            tcs.SetResult(null);
-            await Task.Delay(10);
-            Assert.Equal(0, actionBlock.PendingWorkItems);
-            
-            // This should not fail!
-            actionBlock.Post(1);
-        }
-
-        [Fact]
-        public async Task CompletionTaskIsDoneWhenCompletedIsCalled()
-        {
-            var actionBlock = new ActionBlockSlim<int>(42, n => { });
+            var actionBlock = ActionBlockSlim.Create<int>(42, n => { }, useChannelBasedImpl: useChannelBasedImpl);
             var task = actionBlock.CompletionAsync();
 
             Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
@@ -78,14 +63,28 @@ namespace Test.BuildXL.Utilities
 
             Assert.Equal(TaskStatus.RanToCompletion, task.Status);
         }
+        
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void CompletionTaskIsDoneWhenCompletedWith0ConcurrencyIsCalled(bool useChannelBasedImpl)
+        {
+            var actionBlock = ActionBlockSlim.Create<int>(0, n => { }, useChannelBasedImpl: useChannelBasedImpl);
+            var task = actionBlock.CompletionAsync();
 
-        [Fact]
-        public async Task AllTheElementsAreFinished()
+            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task AllTheElementsAreFinished(bool useChannelBasedImpl)
         {
             int count = 0;
-            var actionBlock = new ActionBlockSlim<int>(
+            var actionBlock = ActionBlockSlim.Create<int>(
                 42,
-                n => { Interlocked.Increment(ref count); Thread.Sleep(1); });
+                n => { Interlocked.Increment(ref count); Thread.Sleep(1); },
+                useChannelBasedImpl: useChannelBasedImpl);
 
             var task = actionBlock.CompletionAsync();
             actionBlock.Post(1);
@@ -97,14 +96,17 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(2, count);
         }
 
-        [Fact]
-        public async Task AllTheElementsAreProcessedBy1Thread()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task AllTheElementsAreProcessedBy1Thread(bool useChannelBasedImpl)
         {
             const int maxCount = 420;
             int count = 0;
-            var actionBlock = new ActionBlockSlim<int>(
+            var actionBlock = ActionBlockSlim.Create<int>(
                 1,
-                n => { Interlocked.Increment(ref count); });
+                n => { Interlocked.Increment(ref count); },
+                useChannelBasedImpl: useChannelBasedImpl);
 
             for (int i = 0; i < maxCount; i++)
             {
@@ -117,14 +119,17 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(maxCount, count);
         }
 
-        [Fact]
-        public async Task AllTheElementsAreProcessedBy2Thread()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task AllTheElementsAreProcessedBy2Thread(bool useChannelBasedImpl)
         {
             const int maxCount = 420;
             int count = 0;
-            var actionBlock = new ActionBlockSlim<int>(
+            var actionBlock = ActionBlockSlim.Create<int>(
                 2,
-                n => { Interlocked.Increment(ref count); });
+                n => { Interlocked.Increment(ref count); },
+                useChannelBasedImpl: useChannelBasedImpl);
 
             for (int i = 0; i < maxCount; i++)
             {
@@ -137,15 +142,17 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(maxCount, count);
         }
 
-        [Fact]
-        public async Task IncreaseConcurrency()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task IncreaseConcurrency(bool useChannelBasedImpl)
         {
             int count = 0;
 
-            var waitForFirstTwoItems = TaskSourceSlim.Create<object>();
+            var waitForFirstTwoItems = new TaskCompletionSource<object>();
             // Event that will hold first two workers.
             var mre = new ManualResetEventSlim(false);
-            var actionBlock = new ActionBlockSlim<int>(
+            var actionBlock = ActionBlockSlim.Create<int>(
                 2,
                 n =>
                 {
@@ -163,7 +170,8 @@ namespace Test.BuildXL.Utilities
                     }
 
                     Thread.Sleep(1);
-                });
+                },
+                useChannelBasedImpl: useChannelBasedImpl);
 
             // Schedule work
             actionBlock.Post(1);

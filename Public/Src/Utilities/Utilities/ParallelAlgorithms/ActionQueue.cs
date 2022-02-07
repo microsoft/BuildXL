@@ -28,7 +28,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <nodoc />
         public ActionQueue(int degreeOfParallelism, int? capacityLimit = null)
         {
-            m_actionBlock = ActionBlockSlim<Func<Task>>.CreateWithAsyncAction(degreeOfParallelism, f => f(), capacityLimit);
+            m_actionBlock = ActionBlockSlim.CreateWithAsyncAction<Func<Task>>(degreeOfParallelism, static f => f(), capacityLimit);
         }
 
         /// <summary>

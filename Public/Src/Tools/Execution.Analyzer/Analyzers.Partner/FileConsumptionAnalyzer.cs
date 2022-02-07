@@ -533,7 +533,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 m_analyzer = analyzer;
                 Name = name;
-                m_processingBlock = new ActionBlockSlim<ProcessFingerprintComputationEventData>(1, ProcessFingerprintComputedCore);
+                m_processingBlock = ActionBlockSlim.Create<ProcessFingerprintComputationEventData>(1, ProcessFingerprintComputedCore);
             }
 
             public void Complete()

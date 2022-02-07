@@ -51,7 +51,7 @@ namespace BuildXL.Cache.Host.Test
                 { root2.GetPathRoot(), store2 },
             };
 
-            var multiplexed = new MultiplexedContentStore(stores, preferredCacheDrive: root1.GetPathRoot(), tryAllSessions: true);
+            var multiplexed = new MultiplexedContentStore(stores, preferredCacheDrive: root1.GetPathRoot());
 
             var context = new Context(Logger);
             

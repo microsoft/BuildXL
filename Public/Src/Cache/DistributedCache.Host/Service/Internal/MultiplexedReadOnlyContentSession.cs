@@ -303,11 +303,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 yield return session;
             }
 
-            if (!Store.TryAllSessions)
-            {
-                yield break;
-            }
-
             foreach (var kvp in SessionsByCacheRoot)
             {
                 if (StringComparer.OrdinalIgnoreCase.Equals(kvp.Key, drive))

@@ -1060,10 +1060,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseBinManager { get; set; } = false;
 
-        [DataMember]
-        [Validation.Enum(typeof(MultiplexMode))]
-        public string MultiplexStoreMode { get; set; } = nameof(MultiplexMode.Unified);
-
         /// <summary>
         /// Indicates whether machine locations should use universal format (i.e. uri) which
         /// allows communication across machines of different platforms
@@ -1076,17 +1072,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool UseDomainName { get; set; }
-
-        public MultiplexMode GetMultiplexMode()
-        {
-            if (UseUniversalLocations)
-            {
-                // Universal locations don't distinguish cache paths, so just use unified multiplex mode
-                return MultiplexMode.Unified;
-            }
-
-            return (MultiplexMode)Enum.Parse(typeof(MultiplexMode), MultiplexStoreMode);
-        }
 
         #endregion
 
@@ -1359,59 +1344,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// Checkpoint manifest format: Json
         /// </summary>
         Proxy,
-    }
-
-    /// <summary>
-    /// Specifies which multiplexing cache topology to use multiplex between drives.
-    /// </summary>
-    public enum MultiplexMode
-    {
-        /// <summary>
-        /// Defines the legacy multiplexing mode with a single multiplexed store at the root
-        /// 
-        ///     MultiplexedContentStore
-        ///         DistributedContentStore (LLS Machine Location = D:\)
-        ///             FileSystemContentStore (D:\)
-        ///         DistributedContentStore (LLS Machine Location = K:\)
-        ///             FileSystemContentStore (K:\)
-        ///
-        ///     LLS settings = (PrimaryMachineLocation = D:\, AdditionalMachineLocations = [K:\])
-        /// </summary>
-        Legacy,
-
-        /// <summary>
-        /// Defines the transitioning multiplexing mode with root distributed store nesting multiplexed file system stores
-        /// but still maintaining LLS machine locations for all drives 
-        ///
-        ///     DistributedContentStore (LLS Machine Location = D:\)
-        ///         MultiplexedContentStore
-        ///             FileSystemContentStore (D:\)
-        ///             FileSystemContentStore (K:\)
-        ///
-        ///     LLS settings = (PrimaryMachineLocation = D:\, AdditionalMachineLocations = [K:\])
-        ///     
-        ///     Keeps same LLS settings so it continues to heartbeat to keep K:\ (secondary) drive alive
-        ///     During reconcile, content from K:\ drive will be added to D:\ (primary) machine location
-        ///     NOTE: GRPC content server does not care or know about machine locations, it will try to retrieve content from all drives.
-        /// </summary>
-        Transitional,
-
-        /// <summary>
-        /// Defines the transitioning multiplexing mode with root distributed store nesting multiplexed file system stores
-        /// with only a single lls machine location for the primary drive
-        ///
-        ///     DistributedContentStore (LLS Machine Location = D:\)
-        ///         MultiplexedContentStore
-        ///             FileSystemContentStore (D:\)
-        ///             FileSystemContentStore (K:\)
-        ///
-        ///     LLS settings = (PrimaryMachineLocation = D:\, AdditionalMachineLocations = [])
-        ///
-        ///     Finally, LLS settings only mention the single primary (D:\) machine location, and all content for the machine (on all drives) is
-        ///     now registered under that machine location after going through the Transitional state.
-        ///     NOTE: GRPC content server does not care or know about machine locations, it will try to retrieve content from all drives.
-        /// </summary>
-        Unified,
     }
 
     /// <nodoc />

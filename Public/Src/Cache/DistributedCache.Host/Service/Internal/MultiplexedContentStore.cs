@@ -31,11 +31,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public string PreferredCacheDrive { get; }
 
-        /// <summary>
-        /// Indicates whether to use all sessions rather than only the primary for session read operations
-        /// </summary>
-        public bool TryAllSessions { get; }
-
         private ContentStoreTracer StoreTracer { get; } = new ContentStoreTracer(nameof(MultiplexedContentStore));
 
         public IContentStore PreferredContentStore { get; }
@@ -43,7 +38,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <inheritdoc />
         protected override Tracer Tracer => StoreTracer;
 
-        public MultiplexedContentStore(Dictionary<string, IContentStore> drivesWithContentStore, string preferredCacheDrive, bool tryAllSessions)
+        public MultiplexedContentStore(Dictionary<string, IContentStore> drivesWithContentStore, string preferredCacheDrive)
         {
             Contract.Requires(!string.IsNullOrEmpty(preferredCacheDrive), "preferredCacheDrive should not be null or empty.");
             Contract.Requires(drivesWithContentStore?.Count > 0, "drivesWithContentStore should not be null or empty.");
@@ -51,7 +46,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             DrivesWithContentStore = drivesWithContentStore;
             PreferredCacheDrive = preferredCacheDrive;
             PreferredContentStore = drivesWithContentStore[preferredCacheDrive];
-            TryAllSessions = tryAllSessions;
         }
 
         /// <inheritdoc />

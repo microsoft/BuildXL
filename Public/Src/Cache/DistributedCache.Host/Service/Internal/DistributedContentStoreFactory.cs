@@ -243,13 +243,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobOperationLimitSpanSeconds, v => redisConfig.BlobOperationLimitSpan = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(_distributedSettings.UseSeparateConnectionForRedisBlobs, v => redisConfig.UseSeparateConnectionForRedisBlobs = v);
 
-            // Stop passing additional stores when fully transitioned to unified mode
-            // since all drives appear under the same machine id
-            if (_distributedSettings.GetMultiplexMode() != MultiplexMode.Unified)
-            {
-                redisConfig.AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray();
-            }
-
             ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisConfig.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
 
             // Redis-related configuration.
@@ -336,24 +329,12 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var coldStorage = Services.ColdStorage.InstanceOrDefault();
 
-            if (_distributedSettings.GetMultiplexMode() == MultiplexMode.Legacy)
-            {
-                var multiplexedStore =
+            var distributedStore =
+                CreateDistributedContentStore(OrderedResolvedCacheSettings[0], coldStorage, dls =>
                     CreateMultiplexedStore(settings =>
-                        CreateDistributedContentStore(settings, coldStorage, dls =>
-                            CreateFileSystemContentStore(settings, dls)));
-                result.topLevelStore = multiplexedStore;
-                result.primaryDistributedStore = (DistributedContentStore)multiplexedStore.PreferredContentStore;
-            }
-            else
-            {
-                var distributedStore =
-                    CreateDistributedContentStore(OrderedResolvedCacheSettings[0], coldStorage, dls =>
-                        CreateMultiplexedStore(settings =>
-                            CreateFileSystemContentStore(settings, dls, coldStorage)));
-                result.topLevelStore = distributedStore;
-                result.primaryDistributedStore = distributedStore;
-            }
+                        CreateFileSystemContentStore(settings, dls, coldStorage)));
+            result.topLevelStore = distributedStore;
+            result.primaryDistributedStore = distributedStore;
 
             return result;
         }
@@ -410,9 +391,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 throw new ArgumentException($"Preferred cache drive is missing, which can indicate an invalid configuration. Known drives={knownDrives}");
             }
 
-            return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive,
-                // None legacy mode attempts operation on all stores
-                tryAllSessions: distributedSettings.GetMultiplexMode() != MultiplexMode.Legacy);
+            return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
         }
 
         private static DistributedContentStoreSettings CreateDistributedStoreSettings(

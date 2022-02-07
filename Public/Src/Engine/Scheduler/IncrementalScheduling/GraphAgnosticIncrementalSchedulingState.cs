@@ -1594,17 +1594,19 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             pipGraphSequenceNumber = loadedGraphId != pipGraph.GraphId ? pipGraphSequenceNumber.Increment() : pipGraphSequenceNumber;
 
+            // configuration.Schedule is null in analysisMode and this boolean doesn't do anything in that case.
+            bool stopDirtyOnSuccceedFastPips = analysisModeOnly ? false : configuration.Schedule.StopDirtyOnSucceedFastPips;
             if (loadedGraphId == pipGraph.GraphId)
             {
                 // Loaded graph id matches the graph id of the current graph, which means that
                 // the dirty node tracker can be reused. Other states do not need to be changed.
                 Contract.Assert(dirtyNodeTrackerSerializedState != null);
-                dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DirectedGraph, dirtyNodeTrackerSerializedState, CreateDirtyNodeTrackerTraversal(pipGraph, configuration.Schedule.StopDirtyOnSucceedFastPips));
+                dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DirectedGraph, dirtyNodeTrackerSerializedState, CreateDirtyNodeTrackerTraversal(pipGraph, stopDirtyOnSuccceedFastPips));
             }
             else
             {
                 // Re-initialize dirty node tracker.
-                dirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false, configuration.Schedule.StopDirtyOnSucceedFastPips);
+                dirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false, stopDirtyOnSuccceedFastPips);
 
                 var processGraphChangeStopwatch = new StopwatchVar();
 
@@ -1659,7 +1661,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 indexToGraphLogs,
                 analysisModeOnly ? engineStateId : Guid.NewGuid(), // Renew if not analysis mode.
                 tempDirectoryCleaner,
-                configuration.Schedule.StopDirtyOnSucceedFastPips);
+                stopDirtyOnSuccceedFastPips);
 
             StateStats.LogStats(state, Tracing.Logger.Log.IncrementalSchedulingStateStatsAfterLoad);
 

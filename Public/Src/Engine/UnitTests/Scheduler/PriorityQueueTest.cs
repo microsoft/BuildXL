@@ -88,10 +88,10 @@ namespace Test.BuildXL.Scheduler
         public void ProcessItems()
         {
             var q = new PriorityQueue<int>();
-            q.Enqueue(3, 30);
-            q.Enqueue(1, 10);
-            q.Enqueue(2, 20);
-            q.Enqueue(2, 21);
+            q.Enqueue(30, 3);
+            q.Enqueue(10, 1);
+            q.Enqueue(20, 2);
+            q.Enqueue(21, 2);
             XAssert.AreEqual(4, q.Count);
 
             // The processing delegate will process 30 and 21. It skips 20 and stops processing after 21.
@@ -188,11 +188,11 @@ namespace Test.BuildXL.Scheduler
         public void ProcessItemsLock()
         {
             var q = new PriorityQueue<int>();
-            q.Enqueue(1, 10);
+            q.Enqueue(10, 1);
 
             q.ProcessItems((int priority, int item, out bool stopProcessing) =>
             {
-                VerifyExceptionThrown(() => q.Enqueue(2, 20));
+                VerifyExceptionThrown(() => q.Enqueue(20, 2));
                 VerifyExceptionThrown(() => q.ProcessItems((int pr, int it, out bool stopProc) => { stopProc = true;
                     return false; }));
                 stopProcessing = true;

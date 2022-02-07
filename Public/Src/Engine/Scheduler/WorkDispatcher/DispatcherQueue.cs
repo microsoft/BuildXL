@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -16,7 +17,13 @@ namespace BuildXL.Scheduler.WorkDispatcher
     /// </summary>
     public class DispatcherQueue : IDisposable
     {
+#if NET_COREAPP_60
+        private System.Collections.Generic.PriorityQueue<RunnablePip, int> m_queue = new System.Collections.Generic.PriorityQueue<RunnablePip, int>();
+        private object m_lock = new object();
+#else
         private PriorityQueue<RunnablePip> m_queue = new PriorityQueue<RunnablePip>();
+#endif
+        
         private readonly PipQueue m_pipQueue;
 
         private int m_numAcquiredSlots;
@@ -95,7 +102,15 @@ namespace BuildXL.Scheduler.WorkDispatcher
         {
             Contract.Requires(!IsDisposed);
 
-            m_queue.Enqueue(runnablePip.Priority, runnablePip);
+#if NET_COREAPP_60
+            lock (m_lock)
+            {
+                m_queue.Enqueue(runnablePip, runnablePip.Priority);
+            }
+#else
+            m_queue.Enqueue(runnablePip, runnablePip.Priority);
+#endif
+            
             Interlocked.Increment(ref m_numQueuedPips);
 
             if (runnablePip.PipType == PipType.Process)
@@ -145,7 +160,14 @@ namespace BuildXL.Scheduler.WorkDispatcher
             if (NumQueued != 0)
             {
                 Interlocked.Decrement(ref m_numQueuedPips);
+#if NET_COREAPP_60
+                lock (m_lock)
+                {
+                    runnablePip = m_queue.Dequeue();
+                }
+#else
                 runnablePip = m_queue.Dequeue();
+#endif
 
                 // A race is still possible in rare cases, so we check
                 // whether the returned item is not null.

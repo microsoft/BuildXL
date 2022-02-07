@@ -192,7 +192,7 @@ namespace BuildXL.Scheduler.WorkDispatcher
         /// <summary>
         /// Enqueue an item
         /// </summary>
-        public void Enqueue(int priority, T item)
+        public void Enqueue(T item, int priority)
         {
             Contract.Requires(priority >= 0);
 

@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -705,26 +706,34 @@ namespace BuildXL.Storage
                         // way of reading in the file as quickly as possible
                         ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>> itemsToInsert = new ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>>();
                         bool completeReadingFile = false;
+                        Exception deserializationHelperException = null;
                         Thread deserializationHelper = new Thread(() =>
                         {
-                            while (true)
+                            try
                             {
-                                KeyValuePair<FileIdAndVolumeId, Entry> item;
-                                if (itemsToInsert.TryDequeue(out item))
+                                while (true)
                                 {
-                                    bool added = loadedTable.m_entries.TryAdd(item.Key, item.Value);
-                                    Contract.Assume(added);
-                                }
-                                else
-                                {
-                                    if (completeReadingFile && !itemsToInsert.TryPeek(out item))
+                                    KeyValuePair<FileIdAndVolumeId, Entry> item;
+                                    if (itemsToInsert.TryDequeue(out item))
                                     {
-                                        break;
+                                        bool added = loadedTable.m_entries.TryAdd(item.Key, item.Value);
+                                        Contract.Assume(added);
                                     }
+                                    else
+                                    {
+                                        if (completeReadingFile && !itemsToInsert.TryPeek(out item))
+                                        {
+                                            break;
+                                        }
 
-                                    // The amount of sleep time for this thread doesn't noticeably change the end to end performance.
-                                    Thread.Sleep(5);
+                                        // The amount of sleep time for this thread doesn't noticeably change the end to end performance.
+                                        Thread.Sleep(5);
+                                    }
                                 }
+                            }
+                            catch (Exception ex)
+                            {
+                                deserializationHelperException = ex;
                             }
                         });
                         deserializationHelper.Name = "FileContentTable deserialization helper";
@@ -773,6 +782,13 @@ namespace BuildXL.Storage
 
                         completeReadingFile = true;
                         deserializationHelper.Join();
+
+                        // Allow exceptions within the deserializationHelper thread to be handled the same as main thread
+                        // exception handling.
+                        if (deserializationHelperException != null)
+                        {
+                            ExceptionDispatchInfo.Capture(deserializationHelperException).Throw();
+                        }
 
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.NumEntries, loadedTable.Count);
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);

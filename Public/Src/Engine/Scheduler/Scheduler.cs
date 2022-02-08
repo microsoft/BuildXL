@@ -333,8 +333,6 @@ namespace BuildXL.Scheduler
 
         private readonly HashSet<string> m_diskSpaceMonitoredDrives;
 
-        private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
-
         /// <summary>
         /// Top N Pip performance info for telemetry logging
         /// </summary>
@@ -850,7 +848,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Previous UTC time when the UpdateStatus logs where logged
         /// </summary>
-        private DateTime m_previousStatusLogTimeUTC;
+        private DateTime m_previousStatusLogTimeUtc;
 
         /// <summary>
         /// The fingerprint of the build engine.
@@ -1297,7 +1295,7 @@ namespace BuildXL.Scheduler
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
 
             m_loggingIntervalPeriodMs = GetLoggingPeriodInMsForExecution(configuration);
-            m_previousStatusLogTimeUTC = DateTime.UtcNow.AddMilliseconds(-1 * m_loggingIntervalPeriodMs); // Reducing by loggingIntervalPeriodMs to enable logging in the first call to UpdateStatus
+            m_previousStatusLogTimeUtc = DateTime.UtcNow.AddMilliseconds(-1 * m_loggingIntervalPeriodMs); // Reducing by loggingIntervalPeriodMs to enable logging in the first call to UpdateStatus
             m_pipTwoPhaseCache = pipTwoPhaseCache ?? new PipTwoPhaseCache(loggingContext, cache, context, m_semanticPathExpander);
             m_runnablePipPerformance = new ConcurrentDictionary<PipId, RunnablePipPerformanceInfo>();
 
@@ -1608,6 +1606,8 @@ namespace BuildXL.Scheduler
             // We want TimeToFirstPipExecuted to always have a value. Mark the end of the execute phase as when the first
             // pip was executed in case all pips were cache hits
             MarkPipStartExecuting();
+
+            m_schedulerDoneTimeUtc = DateTime.UtcNow;
 
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.AfterDrainingWhenDoneDuration))
             {
@@ -2300,10 +2300,10 @@ namespace BuildXL.Scheduler
             lock (m_statusLock)
             {
                 DateTime utcNow = DateTime.UtcNow;
-                bool isLoggingEnabled = !overwriteable || (utcNow > m_previousStatusLogTimeUTC.AddMilliseconds(m_loggingIntervalPeriodMs));
+                bool isLoggingEnabled = !overwriteable || (utcNow > m_previousStatusLogTimeUtc.AddMilliseconds(m_loggingIntervalPeriodMs));
                 if (isLoggingEnabled)
                 {
-                    m_previousStatusLogTimeUTC = utcNow;
+                    m_previousStatusLogTimeUtc = utcNow;
                 }
 
                 m_unresponsivenessFactor = ComputeUnresponsivenessFactor(expectedCallbackFrequency, m_statusLastCollected, DateTime.UtcNow);
@@ -2537,11 +2537,14 @@ namespace BuildXL.Scheduler
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
 
-                if (m_configuration.Distribution.FireForgetMaterializeOutput() && m_materializeOutputsQueued && !AnyPendingPipsExceptMaterializeOutputs())
+                if (m_configuration.Distribution.FireForgetMaterializeOutput() && 
+                    m_materializeOutputsQueued && 
+                    !AnyPendingPipsExceptMaterializeOutputs() &&
+                    m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true))
                 {
                     // There are no pips running anything except materializeOutputs.
                     Logger.Log.SchedulerCompleteExceptMaterializeOutputs(m_loggingContext);
-                    m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
+                    m_schedulerCompletionExceptMaterializeOutputsTimeUtc = DateTime.UtcNow;
                 }
 
             }
@@ -5633,6 +5636,14 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+                if (m_schedulerCompletionExceptMaterializeOutputsTimeUtc != default)
+                {
+                    long materializeOutputOverhangMs = (long)(m_schedulerDoneTimeUtc - m_schedulerCompletionExceptMaterializeOutputsTimeUtc).TotalMilliseconds;
+                    builder.AppendLine();
+                    builder.AppendLine(I($"{"MaterializeOutput Overhang (ms) on the Critical Path",-106}: {materializeOutputOverhangMs,10}"));
+                    statistics.Add("CriticalPath.MaterializeOutputOverhangMs", materializeOutputOverhangMs);
+                }
+
                 builder.AppendLine();
                 builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker,10}"));
                 statistics.Add("CriticalPath.ChooseWorkerDurationMs", totalChooseWorker);
@@ -7555,6 +7566,12 @@ namespace BuildXL.Scheduler
         private long m_maxExternalProcessesRan;
 
         private bool m_materializeOutputsQueued;
+
+        private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
+
+        private DateTime m_schedulerCompletionExceptMaterializeOutputsTimeUtc;
+
+        private DateTime m_schedulerDoneTimeUtc;
 
         /// <inheritdoc/>
         public void SetMaxExternalProcessRan()

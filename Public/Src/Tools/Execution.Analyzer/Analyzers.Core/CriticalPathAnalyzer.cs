@@ -5,9 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using BuildXL.Execution.Analyzer.Model;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -106,7 +109,22 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             Console.WriteLine("Starting analysis");
-            HashSet<NodeId> sourceNodes = new HashSet<NodeId>(CachedGraph.DirectedGraph.GetSourceNodes());
+            HashSet<NodeId> sourceNodes = new HashSet<NodeId>();
+            foreach (NodeId nodeId in CachedGraph.DirectedGraph.GetSourceNodes())
+            {
+                if (PipTable.GetPipType(nodeId.ToPipId()) == PipType.HashSourceFile)
+                {
+                    foreach(var edge in CachedGraph.DirectedGraph.GetOutgoingEdges(nodeId))
+                    {
+                        sourceNodes.Add(edge.OtherNode);
+                    }
+                } 
+                else
+                {
+                    sourceNodes.Add(nodeId);
+                }
+            }
+            
             NodeAndCriticalPath[] criticalPaths = new NodeAndCriticalPath[sourceNodes.Count];
 
             Console.WriteLine("Computing critical paths");

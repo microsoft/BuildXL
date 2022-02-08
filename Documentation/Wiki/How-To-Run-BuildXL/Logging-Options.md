@@ -2,7 +2,7 @@ By default, BuildXL will display informational, warning, and error logs to the c
 
 There are various options that can change file logging:
 
-# Warnings and errors
+# Warning and error log files
 ## /warninglog
 Routes all warnings to an additional log file. Warnings will still get logged to the primary log file.
 
@@ -34,6 +34,13 @@ Sets whether warnings are promoted to errors. `+` indicates warnings are set as 
 /warnAsError:909,2504
 /warnAsError-:42,867,5309
 ```
+
+# Warnings and Errors: filtering and selection
+Whether a process fails is determined by whether it exits with an exit code indicating success, and whether it produces all declared output files. The full standard output and standard error will be included in the error message for the failed process. Some processes emit output that is not relevant to the failure. In these cases it is useful to filter the stdout and stderr to only display a relevant portion of that output. This is configured in DScript on a per-process basis by setting the `errorregex` property. The `enableMultiLineErrorScanning` property controls how that regex is applied.
+
+Warnings are determined only by applying a regex to output streams. There is a corresponding `warnRegex` property which can be overridden to control this behavior. The default regex is defined in [Warning.cs](../../../Public/Src/Utilities/Utilities/Warning.cs)
+
+See [Transformer.Execute.dsc](../../../Public/Sdk/Public/Transformers/Transformer.Execute.dsc) for more details.
 
 # Log routing
 ## /customlog

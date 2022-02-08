@@ -2158,6 +2158,12 @@ namespace BuildXL.Scheduler
             {
                 { "Cpu Percent", data => data.CpuPercent },
                 { "Cpu Percent (WMI)", data => m_perfInfo.CpuWMIUsagePercentage },
+
+                { "ContextSwitches (WMI)", data => m_perfInfo.ContextSwitchesPerSec },
+                { "CpuQueueLength (WMI)", data => m_perfInfo.CpuQueueLength },
+                { "Threads (WMI)", data => m_perfInfo.Threads },
+                { "Processes (WMI)", data => m_perfInfo.Processes },
+
                 { "BuildXL Cpu Percent", data => m_perfInfo.ProcessCpuPercentage },
                 { "JobObject Cpu Percent", data => m_perfInfo.JobObjectCpu },
                 { "JobObject Processes", data => m_perfInfo.JobObjectProcesses },

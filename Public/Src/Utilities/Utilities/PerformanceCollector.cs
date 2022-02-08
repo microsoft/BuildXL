@@ -158,10 +158,14 @@ namespace BuildXL.Utilities
         }
 
         private volatile ManagementScope m_wmiScope;
-        private ManagementObjectSearcher m_modifiedPageSizeWMIQuery, m_cpuWMIQuery;
-        private ManagementOperationObserver m_modifiedPageSizeWMIWatcher, m_cpuWMIWatcher;
+        private ManagementObjectSearcher m_modifiedPageSizeWMIQuery, m_cpuWMIQuery, m_systemWMIQuery;
+        private ManagementOperationObserver m_modifiedPageSizeWMIWatcher, m_cpuWMIWatcher, m_systemWMIWatcher;
         private double? m_modifiedPagelistBytes = null;
         private double? m_machineCpuWMI = null;
+        private int? m_contextSwitchesPerSec = null;
+        private int? m_processes = null;
+        private int? m_cpuQueueLength = null;
+        private int? m_threads = null;
 
         private async Task InitializeWMIAsync()
         {
@@ -179,6 +183,11 @@ namespace BuildXL.Utilities
             m_cpuWMIQuery = new ManagementObjectSearcher(m_wmiScope, cpuQuery);
             m_cpuWMIWatcher = new ManagementOperationObserver();
             m_cpuWMIWatcher.ObjectReady += new ObjectReadyEventHandler(UpdateWMICpu);
+
+            ObjectQuery systemQuery = new ObjectQuery("SELECT * FROM Win32_PerfFormattedData_PerfOS_System");
+            m_systemWMIQuery = new ManagementObjectSearcher(m_wmiScope, systemQuery);
+            m_systemWMIWatcher = new ManagementOperationObserver();
+            m_systemWMIWatcher.ObjectReady += new ObjectReadyEventHandler(UpdateWMISystem);
         }
 
         /// <summary>
@@ -251,6 +260,7 @@ namespace BuildXL.Utilities
 
                     TryGetModifiedPagelistSizeAsync();
                     TryGetWMICpuAsync();
+                    TryGetWMISystemAsync();
                 }
                 else
                 {
@@ -304,7 +314,11 @@ namespace BuildXL.Utilities
                             machineCpuWMI: m_machineCpuWMI,
                             modifiedPagelistBytes: m_modifiedPagelistBytes,
                             jobObjectCpu: jobObjectCpu,
-                            jobObjectProcesses: jobObjectProcesses);
+                            jobObjectProcesses: jobObjectProcesses,
+                            contextSwitchesPerSec: m_contextSwitchesPerSec, 
+                            processes: m_processes, 
+                            cpuQueueLength: m_cpuQueueLength, 
+                            threads: m_threads);
                     }
                 }
 
@@ -358,11 +372,43 @@ namespace BuildXL.Utilities
 #pragma warning restore ERP022
         }
 
+        private void TryGetWMISystemAsync()
+        {
+            try
+            {
+                if (m_wmiScope?.IsConnected == true)
+                {
+                    m_systemWMIQuery.Get(m_systemWMIWatcher);
+                }
+            }
+#pragma warning disable ERP022 // It is OK for WMI to fail sometimes
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022
+        }
+
         private void UpdateWMICpu(object sender, ObjectReadyEventArgs obj)
         {
             try
             {
                 m_machineCpuWMI = 100 - Convert.ToUInt32(obj.NewObject["PercentIdleTime"]);
+            }
+#pragma warning disable ERP022 // It is OK for WMI to fail sometimes
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022
+        }
+
+        private void UpdateWMISystem(object sender, ObjectReadyEventArgs obj)
+        {
+            try
+            {
+                m_contextSwitchesPerSec = Convert.ToInt32(obj.NewObject["ContextSwitchesPersec"]);
+                m_processes = Convert.ToInt32(obj.NewObject["Processes"]);
+                m_threads = Convert.ToInt32(obj.NewObject["Threads"]);
+                m_cpuQueueLength = Convert.ToInt32(obj.NewObject["ProcessorQueueLength"]);
             }
 #pragma warning disable ERP022 // It is OK for WMI to fail sometimes
             catch (Exception)
@@ -829,6 +875,18 @@ namespace BuildXL.Utilities
             /// Effective RAM usage percentage = (TotalRam - Effective Available RAM) / TotalRAM
             /// </summary>
             public int? EffectiveRamUsagePercentage;
+
+            /// <nodoc/>
+            public int Threads;
+
+            /// <nodoc/>
+            public int ContextSwitchesPerSec;
+
+            /// <nodoc/>
+            public int Processes;
+
+            /// <nodoc/>
+            public int CpuQueueLength;
         }
 
         /// <summary>
@@ -921,6 +979,18 @@ namespace BuildXL.Utilities
             /// <nodoc />
             public readonly Aggregation JobObjectProcesses;
 
+            /// <nodoc />
+            public readonly Aggregation ContextSwitchesPerSec;
+
+            /// <nodoc />
+            public readonly Aggregation Processes;
+
+            /// <nodoc />
+            public readonly Aggregation CpuQueueLength;
+
+            /// <nodoc />
+            public readonly Aggregation Threads;
+
             /// <summary>
             /// Stats about disk usage. This is guarenteed to be in the same order as <see cref="GetDrives"/>
             /// </summary>
@@ -1005,6 +1075,11 @@ namespace BuildXL.Utilities
                 JobObjectCpu = new Aggregation();
                 JobObjectProcesses = new Aggregation();
 
+                Processes = new Aggregation();
+                Threads = new Aggregation();
+                CpuQueueLength = new Aggregation();
+                ContextSwitchesPerSec = new Aggregation();
+
                 List<Tuple<string, Aggregation>> aggs = new List<Tuple<string, Aggregation>>();
                 List<DiskStatistics> diskStats = new List<DiskStatistics>();
 
@@ -1032,7 +1107,6 @@ namespace BuildXL.Utilities
                 MachinePerfInfo perfInfo = default(MachinePerfInfo);
                 unchecked
                 {
-
                     using (var sbPool = Pools.GetStringBuilder())
                     using (var sbPool2 = Pools.GetStringBuilder())
                     {
@@ -1097,6 +1171,11 @@ namespace BuildXL.Utilities
                             perfInfo.MachineKbitsPerSecSent = MachineKbitsPerSecSent.Latest;
                             perfInfo.MachineKbitsPerSecReceived = MachineKbitsPerSecReceived.Latest;
                         }
+
+                        perfInfo.Threads = SafeConvert.ToInt32(Threads.Latest);
+                        perfInfo.ContextSwitchesPerSec = SafeConvert.ToInt32(ContextSwitchesPerSec.Latest);
+                        perfInfo.Processes = SafeConvert.ToInt32(Processes.Latest);
+                        perfInfo.CpuQueueLength = SafeConvert.ToInt32(CpuQueueLength.Latest);
 
                         int diskIndex = 0;
                         perfInfo.DiskAvailableSpaceGb = new int[DiskStats.Count];
@@ -1191,7 +1270,11 @@ namespace BuildXL.Utilities
                 double? modifiedPagelistBytes,
                 double? machineCpuWMI,
                 double? jobObjectCpu,
-                double? jobObjectProcesses)
+                double? jobObjectProcesses,
+                int? contextSwitchesPerSec,
+                int? processes,
+                int? cpuQueueLength,
+                int? threads)
             {
                 Interlocked.Increment(ref m_sampleCount);
 
@@ -1215,6 +1298,11 @@ namespace BuildXL.Utilities
 
                 JobObjectCpu.RegisterSample(jobObjectCpu);
                 JobObjectProcesses.RegisterSample(jobObjectProcesses);
+
+                ContextSwitchesPerSec.RegisterSample(contextSwitchesPerSec);
+                Threads.RegisterSample(threads);
+                Processes.RegisterSample(processes);
+                CpuQueueLength.RegisterSample(cpuQueueLength);
 
                 Contract.Assert(m_diskStats.Length == machineDiskStats.Length);
                 for (int i = 0; i < machineDiskStats.Length; i++)

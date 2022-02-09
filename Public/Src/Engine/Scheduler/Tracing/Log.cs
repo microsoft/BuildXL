@@ -1078,6 +1078,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void IncrementalBuildSharedCacheSavingsSummary(LoggingContext loggingContext, double relativeCacheRate, long remoteProcesses, string contentDownloaded);
 
         [GeneratedEvent(
+            (ushort)LogEventId.RemoteBuildSavingsSummary,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage),
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = EventConstants.PhasePrefix + "Cache misses run remotely: {runRemoteProcesses} of {cacheMisses}.")]
+        internal abstract void RemoteBuildSavingsSummary(LoggingContext loggingContext, long runRemoteProcesses, long cacheMisses);
+
+        [GeneratedEvent(
             (ushort)LogEventId.SchedulerDidNotConverge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

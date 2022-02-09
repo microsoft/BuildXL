@@ -135,6 +135,7 @@ namespace BuildXL.Scheduler.Tracing
         IncrementalBuildSharedCacheSavingsSummary = 1513,
         RemoteCacheHitsGreaterThanTotalCacheHits = 1514,
         SchedulerDidNotConverge = 1515,
+        RemoteBuildSavingsSummary = 1516,
 
         PipMaterializeDependenciesFailureUnrelatedToCache = 2102,
 

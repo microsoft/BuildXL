@@ -2937,6 +2937,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipReportedReady(LoggingContext loggingContext, int processId, string processName);
 
         [GeneratedEvent(
+           (ushort)LogEventId.ServicePipSlowInitialization,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.UserMessage,
+           EventTask = (ushort)Tasks.Scheduler,
+           Message = "[{pipDescription}] Service pip initialization is taking longer than expected.")]
+        internal abstract void ScheduleServicePipSlowInitialization(LoggingContext loggingContext, string pipDescription);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ServicePipShuttingDown,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -401,11 +401,15 @@ namespace Tool.ServicePipDaemon
             if (ApiClient != null)
             {
                 var process = Process.GetCurrentProcess();
-                m_logger.Verbose($"Reporting to BXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}')");
+                m_logger.Verbose($"Reporting to BuildXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}')");
                 var possibleResult = ApiClient.ReportServicePipIsReady(process.Id, process.ProcessName).GetAwaiter().GetResult();
                 if (!possibleResult.Succeeded)
                 {
                     m_logger.Error("Failed to notify BuildXL that the service is ready.");
+                }
+                else
+                {
+                    m_logger.Error("Successfully notified BuildXL that the service is ready.");
                 }
             }
         }

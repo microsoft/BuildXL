@@ -352,7 +352,7 @@ namespace BuildXL.Scheduler
             var serviceReadyCompletion = GetServiceReadyCompletionByProcessId(processId);
             // There was some weird slowness in ApiServer in processing the callback,
             // so we decided to go with a generous timeout value.
-            serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromMinutes(30)).ContinueWith(tsk =>
+            serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromHours(3)).ContinueWith(tsk =>
             {
                 // If tsk is not faulted, it means that a task returned by WithTimeoutAsync completed successfully, i.e., the completion
                 // result was set and no further action is needed.
@@ -361,6 +361,15 @@ namespace BuildXL.Scheduler
                     // Timeout (task tsk can get into a faulted state only because of a TimeoutException inside WithTimeoutAsync()).
                     // (need to check Exception instead of IsFaulted to avoid TaskUnobservedException)
                     serviceReadyCompletion.TrySetResult(false);
+                }
+            });
+
+            // A shorter timeout is used here to track delayed callbacks without failing the builds.
+            serviceReadyCompletion.Task.WithTimeoutAsync(TimeSpan.FromMinutes(30)).ContinueWith(tsk =>
+            {
+                if (tsk.Exception != null)
+                {
+                    Logger.Log.ScheduleServicePipSlowInitialization(m_executePhaseLoggingContext, servicePipDescription);
                 }
             });
 

@@ -228,10 +228,7 @@ namespace BuildXL.Processes.Internal
             int byteLen;
             if (asyncIOResult.Status == FileAsyncIOStatus.Failed)
             {
-                if (m_debugPipeReporter?.IsVerbose == true)
-                {
-                    m_debugPipeReporter?.Info($"Failed AsyncIO (state: {m_state}, error code: {asyncIOResult.Error})");
-                }
+                m_debugPipeReporter?.Info($"Failed AsyncIO (state: {m_state}, error code: {asyncIOResult.Error})");
 
                 // Treat failures as EOF.
                 // TODO: This is a bad thing to do, but is what the original AsyncStreamReader was doing.
@@ -246,7 +243,7 @@ namespace BuildXL.Processes.Internal
                             --m_numRetriesOnCancel;
                         }
 
-                        m_debugPipeReporter?.Info($"Retry pipe read: IOCompletionPort.GetQueuedCompletionStatus failed (state: {m_state}, error code: {NativeIOConstants.ErrorOperationAborted})");
+                        m_debugPipeReporter?.Debug($"Retry pipe read: IOCompletionPort.GetQueuedCompletionStatus failed (state: {m_state}, error code: {NativeIOConstants.ErrorOperationAborted})");
                         m_overlapped = m_file.ReadOverlapped(this, m_byteBufferPtr, m_byteBufferSize, fileOffset: 0);
                         return;
                     }
@@ -495,7 +492,8 @@ namespace BuildXL.Processes.Internal
             public enum VerbosityLevel : byte
             {
                 Error = 0,
-                Info = 1,
+                Debug = 1,
+                Info = 2,
             }
 
             private readonly Action<string> m_log;
@@ -509,7 +507,7 @@ namespace BuildXL.Processes.Internal
             /// <summary>
             /// Constructor.
             /// </summary>
-            public DebugReporter(Action<string> log, VerbosityLevel level = VerbosityLevel.Error)
+            public DebugReporter(Action<string> log, VerbosityLevel level = VerbosityLevel.Debug)
             {
                 Contract.Assert(log != null);
 
@@ -525,6 +523,17 @@ namespace BuildXL.Processes.Internal
                 if (m_level >= VerbosityLevel.Info)
                 {
                     m_log($"{nameof(AsyncPipeReader)} INFO: {message}");
+                }
+            }
+
+            /// <summary>
+            /// Log debug-level message.
+            /// </summary>
+            public void Debug(string message)
+            {
+                if (m_level >= VerbosityLevel.Debug)
+                {
+                    m_log($"{nameof(AsyncPipeReader)} DEBUG: {message}");
                 }
             }
 

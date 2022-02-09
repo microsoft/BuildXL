@@ -56,6 +56,9 @@ private:
     // Removes all descendants from the given node and builds the descendants collection using the given path as a prefix
     void RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNode* lastNode, std::vector<std::wstring>& descendants);
 
+    // Removes all descendants from the given node
+    void RemoveAllDescendants(TreeNode* node);
+
     // Debugging facility
     std::wstring ToDebugString(TreeNode* node = nullptr, std::wstring ident = L"");
 

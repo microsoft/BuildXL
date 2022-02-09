@@ -23,9 +23,7 @@ PathTree::PathTree()
 
 PathTree::~PathTree()
 {
-    std::vector<std::wstring> descendants;
-    RetrieveAndRemoveAllDescendants(L"", m_root, descendants);
-
+    RemoveAllDescendants(m_root);
     delete m_root;
 }
 
@@ -154,6 +152,18 @@ void PathTree::RetrieveAndRemoveAllDescendants(const std::wstring& path, TreeNod
     for (auto iter = nodesToDelete.begin(); iter != nodesToDelete.end(); iter++)
     {
         delete *iter;
+    }
+
+    node->children.clear();
+}
+
+void PathTree::RemoveAllDescendants(TreeNode* node)
+{
+    for (auto iter = node->children.begin(); iter != node->children.end(); iter++)
+    {
+        RemoveAllDescendants(iter->second);
+
+        delete iter->second;
     }
 
     node->children.clear();

@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 =======
 
+# 0.1.0-20220204.4 (Release [136160](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=136160) Released 2/10/2022
+-	Switch BuildXL.Tools.CredentialProvider to .NET6
+-	Limit rush tests concurrency
+-	Enable limiting resource stats for distributed builds
+-	Add configurable waiting time for remote worker attachment
+-	Include the drop name in the drop log filename
+-	Various bug and dependency fixes
+
 # 0.1.0-20220128.1 (Release [133425](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=133425)) Released 2/2/2022
 - Move sarif files under a single location
 - Add counter for time spent replaying outputs on remote cache hit

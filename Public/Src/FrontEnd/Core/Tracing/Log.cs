@@ -476,7 +476,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DownloadToolFailedDueToCacheError,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' will be downloaded again because there was a failure initializing the cache: {message}")]
@@ -592,7 +592,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DownloadPackageFailedDueToCacheError,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
             Message = "Package '{friendlyPackageName}' will be downloaded again because there was a failure initializing the cache: {message}")]

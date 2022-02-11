@@ -74,13 +74,13 @@ namespace BuildXL.FrontEnd.Core
 
                 // Getting the package content from the cache
                 var packageFromCache = await TryGetPackageFromCache(loggingContext, weakPackageFingerprint, package, packageTargetFolder, packageHash);
-                if (!packageFromCache.Succeeded || packageFromCache.Result.IsValid)
+                if (packageFromCache.Succeeded && packageFromCache.Result.IsValid)
                 {
-                    // Cache failure or package was successfully obtained from the cache.
+                    // Package was successfully obtained from the cache.
                     return packageFromCache;
                 }
 
-                // Cache miss
+                // Cache miss or cache retrieval failure
                 m_logger.PackageNotFoundInCacheAndStartedDownloading(loggingContext, package.Id, package.Version);
 
                 // Step: We couldn't retrieve the package from the cache, or some blobs were missing, generate the package with the given function
@@ -584,15 +584,16 @@ namespace BuildXL.FrontEnd.Core
                     if (!possibleEntry.Succeeded)
                     {
                         m_logger.DownloadToolFailedDueToCacheError(loggingContext, friendlyName, possibleEntry.Failure.Describe());
-                        return new FileDownloadFailure(friendlyName, url, targetFilePath, FailureType.GetFingerprintFromCache, possibleEntry.Failure);
                     }
-
-                    PipFingerprintEntry entry = possibleEntry.Result;
-                    if (entry != null && // Normal miss case
-                        entry.Kind == PipFingerprintEntryKind.FileDownload)
+                    else
                     {
-                        var fileDownloadDescriptor = (FileDownloadDescriptor)entry.Deserialize(FrontEndContext.CancellationToken, cacheQueryData);
-                        contentHash = fileDownloadDescriptor.Content.ToContentHash();
+                        PipFingerprintEntry entry = possibleEntry.Result;
+                        if (entry != null && // Normal miss case
+                            entry.Kind == PipFingerprintEntryKind.FileDownload)
+                        {
+                            var fileDownloadDescriptor = (FileDownloadDescriptor)entry.Deserialize(FrontEndContext.CancellationToken, cacheQueryData);
+                            contentHash = fileDownloadDescriptor.Content.ToContentHash();
+                        }
                     }
                 }
 
@@ -603,20 +604,23 @@ namespace BuildXL.FrontEnd.Core
                     if (!possiblyLoaded.Succeeded)
                     {
                         m_logger.DownloadToolFailedDueToCacheError(loggingContext, friendlyName, possiblyLoaded.Failure.Describe());
-                        return new FileDownloadFailure(friendlyName, url, targetFilePath, FailureType.LoadContentFromCache, possiblyLoaded.Failure);
                     }
-
-                    if (possiblyLoaded.Result.AllContentAvailable)
+                    else
                     {
-                        var possiblyPlaced = await cache.ArtifactContentCache.TryMaterializeAsync(PackageFileRealizationMode, expandedTargetLocation, contentHash.Value, FrontEndContext.CancellationToken);
-                        if (!possiblyPlaced.Succeeded)
-                        {
-                            m_logger.DownloadToolFailedDueToCacheError(loggingContext, friendlyName, possiblyPlaced.Failure.Describe());
-                            return new FileDownloadFailure(friendlyName, url, targetFilePath, FailureType.PlaceContentFromCache, possiblyPlaced.Failure);
-                        }
 
-                        m_logger.DownloadToolIsRetrievedFromCache(loggingContext, friendlyName, targetFilePath, contentHash.Value.ToString());
-                        return contentHash.Value;
+                        if (possiblyLoaded.Result.AllContentAvailable)
+                        {
+                            var possiblyPlaced = await cache.ArtifactContentCache.TryMaterializeAsync(PackageFileRealizationMode, expandedTargetLocation, contentHash.Value, FrontEndContext.CancellationToken);
+                            if (!possiblyPlaced.Succeeded)
+                            {
+                                m_logger.DownloadToolFailedDueToCacheError(loggingContext, friendlyName, possiblyPlaced.Failure.Describe());
+                            }
+                            else
+                            {
+                                m_logger.DownloadToolIsRetrievedFromCache(loggingContext, friendlyName, targetFilePath, contentHash.Value.ToString());
+                                return contentHash.Value;
+                            }
+                        }
                     }
                 }
 
@@ -627,7 +631,7 @@ namespace BuildXL.FrontEnd.Core
                 }
                 catch (BuildXLException e)
                 {
-                    m_logger.DownloadToolErrorDownloading(loggingContext, friendlyName, url, targetFilePath, e.Message);
+                    m_logger.DownloadToolErrorDownloading(loggingContext, friendlyName, url, targetFilePath, e.GetLogEventMessage());
                     return new FileDownloadFailure(friendlyName, url, targetFilePath, FailureType.Download, e);
                 }
 

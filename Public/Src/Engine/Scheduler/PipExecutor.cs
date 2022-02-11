@@ -38,6 +38,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
@@ -79,15 +80,15 @@ namespace BuildXL.Scheduler
 
         private static readonly ObjectPool<List<(AbsolutePath, FileMaterializationInfo)>> s_absolutePathFileMaterializationInfoTuppleListPool = Pools.CreateListPool<(AbsolutePath, FileMaterializationInfo)>();
 
-        private static readonly ObjectPool<Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>> s_fileArtifactPossibleFileMaterializationInfoTaskMapPool =
-            new ObjectPool<Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>>(
-                () => new Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>(),
-                map => { map.Clear(); return map; });
+        private static readonly ObjectPool<HashSet<FileArtifact>> s_fileArtifactStoreToCacheSet = Pools.CreateSetPool<FileArtifact>();
 
         private static readonly ObjectPool<OutputDirectoryEnumerationData> s_outputEnumerationDataPool =
             new ObjectPool<OutputDirectoryEnumerationData>(
                 () => new OutputDirectoryEnumerationData(),
                 data => { data.Clear(); return data; });
+
+        private static readonly ArrayPool<Possible<FileMaterializationInfo>?> s_materializationResultsPool = 
+            new ArrayPool<Possible<FileMaterializationInfo>?>(1024);
 
         /// <summary>
         /// Materializes pip's inputs.
@@ -4357,7 +4358,7 @@ namespace BuildXL.Scheduler
             using (var poolAbsolutePathFileArtifactWithAttributes = Pools.GetAbsolutePathFileArtifactWithAttributesMap())
             using (var poolFileList = Pools.GetFileArtifactWithAttributesList())
             using (var poolAbsolutePathFileMaterializationInfoTuppleList = s_absolutePathFileMaterializationInfoTuppleListPool.GetInstance())
-            using (var poolFileArtifactPossibleFileMaterializationInfoTaskMap = s_fileArtifactPossibleFileMaterializationInfoTaskMapPool.GetInstance())
+            using (var poolFileArtifactStoreToCacheSet = s_fileArtifactStoreToCacheSet.GetInstance())
             {
                 // Each dynamic output should map to which opaque directory they belong.
                 // Because we will store the hashes and paths of the dynamic outputs by preserving the ordering of process.DirectoryOutputs
@@ -4527,141 +4528,165 @@ namespace BuildXL.Scheduler
                 }
 
                 var outputHashPairs = poolAbsolutePathFileMaterializationInfoTuppleList.Instance;
-                var storeProcessOutputCompletionsByPath = poolFileArtifactPossibleFileMaterializationInfoTaskMap.Instance;
+                var fileArtifactStoreToCacheSet = poolFileArtifactStoreToCacheSet.Instance;
 
                 bool successfullyProcessedOutputs = true;
 
-                SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(EngineEnvironmentSettings.StoringOutputsToCacheConcurrency);
-                foreach (var output in allOutputs)
+                using (var materializationResultsPool = s_materializationResultsPool.GetInstance(allOutputs.Count))
                 {
-                    var outputData = allOutputData[output.Path];
+                    var materializationResults = materializationResultsPool.Instance;
 
-                    // For all cacheable outputs, start a task to store into the cache
-                    if (output.CanBeReferencedOrCached())
-                    {
-                        Task<Possible<FileMaterializationInfo>> storeCompletion;
-
-                        // Deduplicate output store operations so outputs are not stored to the cache concurrently.
-                        // (namely declared file outputs can also be under a dynamic directory as a dynamic output)
-                        if (!storeProcessOutputCompletionsByPath.TryGetValue(output.ToFileArtifact(), out storeCompletion))
+                    var storeOutputsQueue = ActionBlockSlim.CreateWithAsyncAction<(int, FileArtifactWithAttributes, FileOutputData)>(
+                        degreeOfParallelism: EngineEnvironmentSettings.StoringOutputsToCacheConcurrency,
+                        async ((int index, FileArtifactWithAttributes artifact, FileOutputData data) dataToStore) => 
                         {
-                            var contentToStore = output;
-                            // If there is a redirected output for this path, use that one, so we always cache redirected outputs instead of the original ones
-                            if (containerConfiguration.IsIsolationEnabled && allRedirectedOutputs.TryGetValue(output.Path, out var redirectedOutput))
+                            using (operationContext.StartAsyncOperation(PipExecutorCounter.SerializeAndStorePipOutputDuration))
                             {
-                                contentToStore = redirectedOutput;
+                                var result = await StoreCacheableProcessOutputAsync(
+                                                        environment,
+                                                        operationContext,
+                                                        process,
+                                                        dataToStore.artifact,
+                                                        dataToStore.data);
+
+                                // Observe it is fine to store this in a lock-free manner since we make sure same indexes are not updated concurrently
+                                materializationResults[dataToStore.index] = result;
                             }
+                        },
+                        useChannelBasedImpl: true,
+                        singleProducedConstrained: true,
+                        singleConsumerConstrained: false,
+                        cancellationToken: environment.Context.CancellationToken);
 
-                            storeCompletion = Task.Run(
-                                async () =>
+                    int outputIndex = 0;
+                    
+                    foreach (var output in allOutputs)
+                    {
+                        var outputData = allOutputData[output.Path];
+
+                        // For all cacheable outputs, start a task to store into the cache
+                        if (output.CanBeReferencedOrCached())
+                        {
+                            // Deduplicate output store operations so outputs are not stored to the cache concurrently.
+                            // (namely declared file outputs can also be under a dynamic directory as a dynamic output)
+                            // Observe that indexes in materializationResults representing duplicated outputs will be left unassigned (and therefore null)
+                            if (fileArtifactStoreToCacheSet.Add(output.ToFileArtifact()))
+                            {
+                                var contentToStore = output;
+                                // If there is a redirected output for this path, use that one, so we always cache redirected outputs instead of the original ones
+                                if (containerConfiguration.IsIsolationEnabled && allRedirectedOutputs.TryGetValue(output.Path, out var redirectedOutput))
                                 {
-                                    using (await concurrencySemaphore.AcquireAsync())
-                                    {
-                                        if (environment.Context.CancellationToken.IsCancellationRequested)
-                                        {
-                                            return environment.Context.CancellationToken.CreateFailure();
-                                        }
+                                    contentToStore = redirectedOutput;
+                                }
 
-                                        return await StoreCacheableProcessOutputAsync(
-                                                environment,
-                                                operationContext,
-                                                process,
-                                                contentToStore,
-                                                outputData);
-                                    }
-                                });
-
-                            storeProcessOutputCompletionsByPath[output.ToFileArtifact()] = storeCompletion;
+                                storeOutputsQueue.Post((outputIndex, contentToStore, outputData));
+                            }
                         }
-                    }
-                    else if (outputData.HasAllFlags(OutputFlags.DynamicFile))
-                    {
-                        // Do not attempt to store dynamic temporary files into cache. However, we store them as a part of metadata as files with AbsentFile hash,
-                        // so accesses could be properly reported to FileMonitoringViolationAnalyzer on cache replay.
-                        storeProcessOutputCompletionsByPath[output.ToFileArtifact()] = Task.FromResult(Possible.Create(FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile)));
-                    }
-                }
-
-                // We cannot enumerate over storeProcessOutputCompletionsByPath here
-                // because the order of such an enumeration is not deterministic.
-                foreach (var output in allOutputs)
-                {
-                    FileArtifact outputArtifact = output.ToFileArtifact();
-                    if (storeProcessOutputCompletionsByPath.TryGetValue(outputArtifact, out var storeProcessOutputTask))
-                    {
-                        // the task is now 'processed' => remove it, so we do not add duplicate entries to outputHashPairs
-                        storeProcessOutputCompletionsByPath.Remove(outputArtifact);
-                    }
-                    else
-                    {
-                        // there is no task for this artifact => we must have already processed it
-                        continue;
-                    }
-
-                    var outputData = allOutputData[outputArtifact.Path];
-
-                    Possible<FileMaterializationInfo> possiblyStoredOutputArtifactInfo;
-                    using (operationContext.StartOperation(PipExecutorCounter.SerializeAndStorePipOutputDuration))
-                    {
-                        possiblyStoredOutputArtifactInfo = await storeProcessOutputTask;
-                    }
-
-                    if (possiblyStoredOutputArtifactInfo.Succeeded)
-                    {
-                        FileMaterializationInfo outputArtifactInfo = possiblyStoredOutputArtifactInfo.Result;
-                        outputHashPairs.Add((outputArtifact.Path, outputArtifactInfo));
-
-                        // Sometimes standard error / standard out is a declared output. Other times it is an implicit output that we shouldn't report.
-                        // If it is a declared output, we notice that here and avoid trying to look at the file again below.
-                        // Generally we want to avoid looking at a file repeatedly to avoid seeing it in multiple states (perhaps even deleted).
-                        // TODO: Would be cleaner to always model console streams as outputs, but 'maybe present' (a generally useful status for outputs).
-                        if (outputData.HasAllFlags(OutputFlags.StandardOut))
+                        else if (outputData.HasAllFlags(OutputFlags.DynamicFile))
                         {
-                            standardOutputContentHash = outputArtifactInfo.Hash;
+                            // Do not attempt to store dynamic temporary files into cache. However, we store them as a part of metadata as files with AbsentFile hash,
+                            // so accesses could be properly reported to FileMonitoringViolationAnalyzer on cache replay.
+                            materializationResults[outputIndex] = Possible.Create(FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile));
                         }
 
-                        if (outputData.HasAllFlags(OutputFlags.StandardError))
-                        {
-                            standardErrorContentHash = outputArtifactInfo.Hash;
-                        }
+                        outputIndex++;
+                    }
 
-                        PipOutputOrigin origin;
-                        if (outputArtifactInfo.FileContentInfo.HasKnownLength)
-                        {
-                            totalOutputSize += outputArtifactInfo.Length;
-                            origin = PipOutputOrigin.Produced;
-                        }
-                        else
-                        {
-                            // Absent file
-                            origin = PipOutputOrigin.UpToDate;
-                        }
+                    // We are done posting items to the queue and we can wait for the overall completion
+                    // Consider that output registration could start processing items as they are ready, but
+                    // the loop below is not computational intensive and therefore doesn't seem justified
+                    storeOutputsQueue.Complete();
 
-                        if (!outputData.HasAnyFlag(OutputFlags.DeclaredFile | OutputFlags.DynamicFile))
+                    try 
+                    {
+                        await storeOutputsQueue.CompletionAsync();
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return false;
+                    }
+                    
+
+                    // We cannot enumerate over storeProcessOutputCompletionsByPath here
+                    // because the order of such an enumeration is not deterministic.
+                    outputIndex = 0;
+                    foreach (var output in allOutputs)
+                    {
+                        Possible<FileMaterializationInfo>? maybePossiblyStoredOutputArtifactInfo = materializationResults[outputIndex];
+                        
+                        // A null value here means this output is a duplicate. Just skip it.
+                        if (maybePossiblyStoredOutputArtifactInfo == null)
                         {
-                            // Only report output content if file is a 'real' pip output
-                            // i.e. declared or dynamic output (not just standard out/error)
+                            outputIndex++;
                             continue;
                         }
 
-                        processExecutionResult.ReportOutputContent(
-                            outputArtifact,
-                            outputArtifactInfo,
-                            origin);
-                    }
-                    else
-                    {
-                        if (!(possiblyStoredOutputArtifactInfo.Failure is CancellationFailure))
+                        var possiblyStoredOutputArtifactInfo = maybePossiblyStoredOutputArtifactInfo.Value;
+
+                        FileArtifact outputArtifact = output.ToFileArtifact();
+
+                        var outputData = allOutputData[outputArtifact.Path];
+
+                        if (possiblyStoredOutputArtifactInfo.Succeeded)
                         {
-                            // Storing output to cache failed. Log failure.
-                            Logger.Log.ProcessingPipOutputFileFailed(
-                                operationContext,
-                                description,
-                                outputArtifact.Path.ToString(pathTable),
-                                possiblyStoredOutputArtifactInfo.Failure.DescribeIncludingInnerFailures());
+                            FileMaterializationInfo outputArtifactInfo = possiblyStoredOutputArtifactInfo.Result;
+                            outputHashPairs.Add((outputArtifact.Path, outputArtifactInfo));
+
+                            // Sometimes standard error / standard out is a declared output. Other times it is an implicit output that we shouldn't report.
+                            // If it is a declared output, we notice that here and avoid trying to look at the file again below.
+                            // Generally we want to avoid looking at a file repeatedly to avoid seeing it in multiple states (perhaps even deleted).
+                            // TODO: Would be cleaner to always model console streams as outputs, but 'maybe present' (a generally useful status for outputs).
+                            if (outputData.HasAllFlags(OutputFlags.StandardOut))
+                            {
+                                standardOutputContentHash = outputArtifactInfo.Hash;
+                            }
+
+                            if (outputData.HasAllFlags(OutputFlags.StandardError))
+                            {
+                                standardErrorContentHash = outputArtifactInfo.Hash;
+                            }
+
+                            PipOutputOrigin origin;
+                            if (outputArtifactInfo.FileContentInfo.HasKnownLength)
+                            {
+                                totalOutputSize += outputArtifactInfo.Length;
+                                origin = PipOutputOrigin.Produced;
+                            }
+                            else
+                            {
+                                // Absent file
+                                origin = PipOutputOrigin.UpToDate;
+                            }
+
+                            if (!outputData.HasAnyFlag(OutputFlags.DeclaredFile | OutputFlags.DynamicFile))
+                            {
+                                // Only report output content if file is a 'real' pip output
+                                // i.e. declared or dynamic output (not just standard out/error)
+                                outputIndex++;
+                                continue;
+                            }
+
+                            processExecutionResult.ReportOutputContent(
+                                outputArtifact,
+                                outputArtifactInfo,
+                                origin);
+                        }
+                        else
+                        {
+                            if (!(possiblyStoredOutputArtifactInfo.Failure is CancellationFailure))
+                            {
+                                // Storing output to cache failed. Log failure.
+                                Logger.Log.ProcessingPipOutputFileFailed(
+                                    operationContext,
+                                    description,
+                                    outputArtifact.Path.ToString(pathTable),
+                                    possiblyStoredOutputArtifactInfo.Failure.DescribeIncludingInnerFailures());
+                            }
+
+                            successfullyProcessedOutputs = false;
                         }
 
-                        successfullyProcessedOutputs = false;
+                        outputIndex++;
                     }
                 }
 

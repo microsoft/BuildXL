@@ -47,26 +47,38 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// Please use this factory method only for CPU intensive (non-asynchronous) callbacks.
         /// If you need to control the concurrency for asynchronous operations, please use <see cref="CreateWithAsyncAction{T}"/> helper.
         /// </remarks>
-        public static ActionBlockSlim<T> Create<T>(int degreeOfParallelism, Action<T> processItemAction,
-            int? capacityLimit = null, bool? useChannelBasedImpl = null)
+        public static ActionBlockSlim<T> Create<T>(
+            int degreeOfParallelism, 
+            Action<T> processItemAction,
+            int? capacityLimit = null, 
+            bool? useChannelBasedImpl = null, 
+            bool? singleProducedConstrained = null, 
+            bool? singleConsumerConstrained = null, 
+            CancellationToken cancellationToken = default)
         {
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
 
             return (useChannelBasedImpl ?? UseChannelBaseImplementationByDefault)
                 ? (ActionBlockSlim<T>)new ActionBlockSlim<T>.ChannelBasedActionBlockSlim(degreeOfParallelism, processItemAction,
-                    capacityLimit)
+                    capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
                 : new ActionBlockSlim<T>.SemaphoreBasedActionBlockSlim(degreeOfParallelism, processItemAction, capacityLimit);
         }
 
         /// <nodoc />
-        public static ActionBlockSlim<T> CreateWithAsyncAction<T>(int degreeOfParallelism, Func<T, Task> processItemAction,
-            int? capacityLimit = null, bool? useChannelBasedImpl = null)
+        public static ActionBlockSlim<T> CreateWithAsyncAction<T>(
+            int degreeOfParallelism, 
+            Func<T, Task> processItemAction,
+            int? capacityLimit = null, 
+            bool? useChannelBasedImpl = null, 
+            bool? singleProducedConstrained = null, 
+            bool? singleConsumerConstrained = null,
+            CancellationToken cancellationToken = default)
         {
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;
 
             return (useChannelBasedImpl ?? UseChannelBaseImplementationByDefault)
                 ? (ActionBlockSlim<T>)new ActionBlockSlim<T>.ChannelBasedActionBlockSlim(degreeOfParallelism, processItemAction,
-                    capacityLimit)
+                    capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
                 : new ActionBlockSlim<T>.SemaphoreBasedActionBlockSlim(degreeOfParallelism, processItemAction, capacityLimit);
         }
     }
@@ -268,24 +280,33 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         internal sealed class ChannelBasedActionBlockSlim : ActionBlockSlim<T>
         {
             private readonly Channel<T> m_channel;
+            private readonly CancellationToken m_cancellationToken;
 
             /// <nodoc />
             internal ChannelBasedActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction,
-                int? capacityLimit = null)
-                : this(degreeOfParallelism, t =>
+                int? capacityLimit = null,
+                bool? singleProducedConstrained = null, 
+                bool? singleConsumerConstrained = null,
+                CancellationToken cancellationToken = default)
+                : this (degreeOfParallelism, t =>
                 {
                     processItemAction(t);
                     return Task.CompletedTask;
-                }, capacityLimit: capacityLimit)
+                }, capacityLimit: capacityLimit, singleProducedConstrained, singleConsumerConstrained, cancellationToken)
             {
             }
 
             /// <nodoc />
             internal ChannelBasedActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction,
-                int? capacityLimit = null)
+                int? capacityLimit = null,
+                bool? singleProducedConstrained = null, 
+                bool? singleConsumerConstrained = null,
+                CancellationToken cancellationToken = default)
             {
                 ProcessItemAction = processItemAction;
                 CapacityLimit = capacityLimit;
+
+                m_cancellationToken = cancellationToken;
                 
                 var options = capacityLimit != null
                     // Blocking the calls if the channel is full to handle 
@@ -295,8 +316,8 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
                 // The assumption is that the following options gives the best performance/throughput.
                 options.AllowSynchronousContinuations = false;
-                options.SingleReader = false;
-                options.SingleWriter = false;
+                options.SingleReader = singleConsumerConstrained ?? false;
+                options.SingleWriter = singleProducedConstrained ?? false;
 
                 m_channel = capacityLimit != null
                     ? Channel.CreateBounded<T>((BoundedChannelOptions)options)
@@ -354,7 +375,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     {
                         // Not using 'Reader.ReadAllAsync' because its not available in the version we use here.
                         // So we do what 'ReadAllAsync' does under the hood.
-                        while (await m_channel.Reader.WaitToReadAsync().ConfigureAwait(false))
+                        while (await m_channel.Reader.WaitToReadAsync(m_cancellationToken).ConfigureAwait(false))
                         {
                             while (m_channel.Reader.TryRead(out var item))
                             {

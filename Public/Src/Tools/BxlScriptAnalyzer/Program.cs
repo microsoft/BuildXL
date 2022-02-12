@@ -163,7 +163,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         private static IDisposable SetupEventListener(EventLevel level)
         {
-            var eventListener = new ConsoleEventListener(Events.Log, DateTime.UtcNow, true, true, true, false, level: level);
+            var eventListener = new ConsoleEventListener(Events.Log, DateTime.UtcNow, true, true, true, false, CancellationToken.None, level: level);
 
             var primarySource = global::bxlScriptAnalyzer.ETWLogger.Log;
             if (primarySource.ConstructionException != null)

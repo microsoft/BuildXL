@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL;
 using BuildXL.Storage;
@@ -131,7 +132,7 @@ namespace Tool.VerifyFileContentTable
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         private static EventListener ConfigureConsoleLogging(DateTime baseTime)
         {
-            return new ConsoleEventListener(Events.Log, baseTime, colorize: true, animateTaskbar: false, level: EventLevel.Informational, updatingConsole: false, useCustomPipDescription: false);
+            return new ConsoleEventListener(Events.Log, baseTime, colorize: true, animateTaskbar: false, updatingConsole: false, useCustomPipDescription: false, CancellationToken.None, level: EventLevel.Informational);
         }
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
 using BuildXL;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -36,7 +37,7 @@ namespace Test.BuildXL
 
                 using (var console = new MockConsole())
                 {
-                    using (var listener = new ConsoleEventListener(Events.Log, console, baseTime, false))
+                    using (var listener = new ConsoleEventListener(Events.Log, console, baseTime, false, CancellationToken.None))
                     {
                         listener.RegisterEventSource(TestEvents.Log);
 
@@ -72,7 +73,7 @@ namespace Test.BuildXL
 
             using (var console = new MockConsole())
             {
-                using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, true))
+                using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, true, CancellationToken.None))
                 {
                     listener.RegisterEventSource(TestEvents.Log);
 
@@ -90,7 +91,7 @@ namespace Test.BuildXL
             // now all messages should be 'displayed' as-is
             using (var console = new MockConsole())
             {
-                using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false))
+                using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, CancellationToken.None))
                 {
                     listener.RegisterEventSource(TestEvents.Log);
 
@@ -107,6 +108,44 @@ namespace Test.BuildXL
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
+        public void NoWarningsToConsoleForActiveCancellationToken(bool suppressWarning)
+        {
+            string warningMessage = "I'm a warning you want to ignore; it hurts.";
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken cancellationToken = cancellationTokenSource.Token;
+
+            // suppressWarning, else log the warnings
+            if (suppressWarning)
+            {
+                // cancel the token source
+                cancellationTokenSource.Cancel();
+            }
+
+            using (var console = new MockConsole())
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow,false, cancellationToken))
+            {
+                logWarning(listener);
+                if (suppressWarning)
+                {
+                    console.ValidateNoCall();
+                } 
+                else
+                {
+                    console.ValidateCall(MessageLevel.Warning, warningMessage);
+                }
+            }
+
+            void logWarning(ConsoleEventListener listener)
+            {
+                listener.RegisterEventSource(TestEvents.Log);
+                TestEvents.Log.WarningEvent(warningMessage);                
+            }
+        }
+
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
         public void NoWarningsToConsole(bool isFromWorker)
         {
             string warningMessage = "I'm a warning you want to ignore; it hurts.";
@@ -116,7 +155,7 @@ namespace Test.BuildXL
 
             // suppress the warning and check that it is not printed
             using (var console = new MockConsole())
-            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, warningMapper: warningManager.GetState))
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, CancellationToken.None, warningMapper: warningManager.GetState))
             {
                 logWarning(console, listener);
                 console.ValidateNoCall();
@@ -124,7 +163,7 @@ namespace Test.BuildXL
 
             // allow the warning
             using (var console = new MockConsole())
-            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false))
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, CancellationToken.None))
             {
                 logWarning(console, listener);
                 console.ValidateCall(MessageLevel.Warning, warningMessage);

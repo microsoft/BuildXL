@@ -1714,7 +1714,7 @@ namespace BuildXL.Scheduler.Artifacts
         private void PopulateFilesToHydrate(OperationContext operationContext, PipArtifactsState state, IEnumerable<AbsolutePath> readPaths)
         {
             IEnumerable<AbsolutePath> pathsToHydrate = Enumerable.Empty<AbsolutePath>();
-            
+
             if (state.Virtualize)
             {
                 // Hydrate explicit file dependencies
@@ -2204,18 +2204,12 @@ namespace BuildXL.Scheduler.Artifacts
                                 }
                                 else
                                 {
-                                    // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
-                                    if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
-                                        possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure))
-                                    {
-                                        Logger.Log.StorageCacheGetContentWarning(
-                                            operationContext,
-                                            pipDescription: pipInfo.Description,
-                                            contentHash: hash.ToHex(),
-                                            destinationPath: file.Path.ToString(pathTable),
-                                            errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
-                                    }
-
+                                    Logger.Log.StorageCacheGetContentWarning(
+                                        operationContext,
+                                        pipDescription: pipInfo.Description,
+                                        contentHash: hash.ToHex(),
+                                        destinationPath: file.Path.ToString(pathTable),
+                                        errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
                                     if (possiblyPlaced.Failure is FailToDeleteForMaterializationFailure)
@@ -3402,7 +3396,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 Logger.Log.StorageHashedSourceFile(operationContext, artifactFullPath, fileTrackedHash.Hash.ToHex());
                             }
 
-                             break;
+                            break;
                         case DiscoveredContentHashOrigin.Cached:
                             if (fileArtifact.IsSourceFile)
                             {
@@ -4255,7 +4249,7 @@ namespace BuildXL.Scheduler.Artifacts
                     m_failedDirectories.Add(directory);
                 }
             }
-            
+
             /// <summary>
             /// Sets virtualization info logged when file is materialized
             /// </summary>

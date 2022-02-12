@@ -424,6 +424,7 @@ namespace BuildXL
             using (var appLoggers = new AppLoggers(m_startTimeUtc, m_console, m_configuration.Logging, m_pathTable,
                    notWorker: m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker,
                    buildViewModel: m_buildViewModel,
+                   cancellationToken: m_cancellationSource.Token,
                    // TODO: Remove this once we can add timestamps for all logs by default
                    displayWarningErrorTime: m_configuration.InCloudBuild()))
             {
@@ -1359,7 +1360,7 @@ namespace BuildXL
             private readonly ILoggingConfiguration m_configuration;
             private readonly PathTable m_pathTable;
             private readonly DateTime m_baseTime;
-
+            private readonly CancellationToken m_cancellationToken;
             private readonly object m_lock = new object();
             private readonly List<BaseEventListener> m_listeners = new List<BaseEventListener>();
             private readonly Dictionary<AbsolutePath, TextWriterEventListener> m_listenersByPath = new Dictionary<AbsolutePath, TextWriterEventListener>();
@@ -1399,7 +1400,8 @@ namespace BuildXL
                 PathTable pathTable,
                 bool notWorker,
                 BuildViewModel buildViewModel,
-                bool displayWarningErrorTime)
+                bool displayWarningErrorTime,
+                CancellationToken cancellationToken)
             {
                 Contract.RequiresNotNull(console);
                 Contract.RequiresNotNull(configuration);
@@ -1408,6 +1410,7 @@ namespace BuildXL
                 m_baseTime = startTime;
                 m_configuration = configuration;
                 m_pathTable = pathTable;
+                m_cancellationToken = cancellationToken;
                 m_displayWarningErrorTime = displayWarningErrorTime;
 
                 LogPath = configuration.Log.ToString(pathTable);
@@ -1570,6 +1573,7 @@ namespace BuildXL
                     m_console,
                     m_baseTime,
                     m_configuration.UseCustomPipDescriptionOnConsole,
+                    m_cancellationToken,
                     m_configuration.LogsDirectory.IsValid ? m_configuration.LogsDirectory.ToString(m_pathTable) : null,
                     notWorker,
                     m_warningManager.GetState,

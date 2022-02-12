@@ -48,6 +48,7 @@ namespace BuildXL
         /// Whether the console output should be optimized for Azure devops output
         /// </summary>
         private readonly bool m_optimizeForAzureDevOps;
+        private readonly CancellationToken m_cancellationToken;
 
         /// <summary>
         /// This provides access to viewmodel data of the build for instance to get the list of running pips in fancy console mode.
@@ -96,6 +97,9 @@ namespace BuildXL
         /// If true, pip description string will be changed to (SemiStableHash, CustomerSuppliedPipDescription).
         /// If true but no custom description available, no changes will be made.
         /// </param>
+        /// <param name="cancellationToken">
+        /// CancellationToken
+        /// </param>
         /// <param name="maxStatusPips">
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
@@ -110,6 +114,7 @@ namespace BuildXL
             bool animateTaskbar,
             bool updatingConsole,
             bool useCustomPipDescription,
+            CancellationToken cancellationToken,
             bool notWorker = true,
             WarningMapper warningMapper = null,
             EventLevel level = EventLevel.Verbose,
@@ -123,6 +128,7 @@ namespace BuildXL
                 new StandardConsole(colorize, animateTaskbar, updatingConsole, pathTranslator),
                 baseTime,
                 useCustomPipDescription,
+                cancellationToken: cancellationToken,
                 notWorker: notWorker,
                 warningMapper: warningMapper,
                 level: level,
@@ -168,6 +174,9 @@ namespace BuildXL
         /// If true, pip description string will be changed to (SemiStableHash, CustomerSuppliedPipDescription).
         /// If true but no custom description available, no changes will be made.
         /// </param>
+        /// <param name="cancellationToken">
+        /// CancellationToken
+        /// </param>
         /// <param name="maxStatusPips">
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
@@ -179,6 +188,7 @@ namespace BuildXL
             IConsole console,
             DateTime baseTime,
             bool useCustomPipDescription,
+            CancellationToken cancellationToken,
             string logsDirectory = null,
             bool notWorker = true,
             WarningMapper warningMapper = null,
@@ -194,6 +204,7 @@ namespace BuildXL
 
             m_console = console;
             m_maxStatusPips = maxStatusPips;
+            m_cancellationToken = cancellationToken;
             m_logsDirectory = logsDirectory;
             m_notWorker = notWorker;
             m_optimizeForAzureDevOps = optimizeForAzureDevOps;
@@ -221,149 +232,149 @@ namespace BuildXL
             switch (eventData.EventId)
             {
                 case (int)SharedLogEventId.StartEngineRun:
-                    {
-                        m_console.ReportProgress((ulong)(m_notWorker ? 0 : 100), 100);
-                        break;
-                    }
+                {
+                    m_console.ReportProgress((ulong)(m_notWorker ? 0 : 100), 100);
+                    break;
+                }
 
                 case (int)SharedLogEventId.EndEngineRun:
-                    {
-                        m_console.ReportProgress(100, 100);
-                        break;
-                    }
+                {
+                    m_console.ReportProgress(100, 100);
+                    break;
+                }
 
                 case (int)SharedLogEventId.PipStatus:
                 case (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable:
+                {
+                    ReadOnlyCollection<object> payload = eventData.Payload;
+
+                    var pipsSucceeded = (long)payload[0];
+                    var pipsFailed = (long)payload[1];
+                    var pipsSkipped = (long)payload[2];
+                    var pipsRunning = (long)payload[3];
+                    var pipsReady = (long)payload[4];
+                    var pipsWaiting = (long)payload[5];
+                    var pipsWaitingOnSemaphore = (long)payload[6];
+                    var servicePipsRunning = (long)payload[7];
+                    string perfInfo = (string)payload[8];
+                    var pipsWaitingOnResources = (long)payload[9];
+                    var procsExecuting = (long)payload[10];
+                    var procsSucceeded = (long)payload[11];
+                    var procsFailed = (long)payload[12];
+                    var procsSkipped = (long)payload[13];
+                    var procsPending = (long)payload[14];
+                    var procsWaiting = (long)payload[15];
+                    var procsHit = (long)payload[16];
+                    var procsNotIgnored = (long)payload[17];
+                    var copyFileDone = (long)payload[20];
+                    var copyFileNotDone = (long)payload[21];
+                    var writeFileDone = (long)payload[22];
+                    var writeFileNotDone = (long)payload[23];
+                    var remoteProcs = (long)payload[24];
+                    long done = pipsSucceeded + pipsFailed + pipsSkipped;
+                    long total = done + pipsRunning + pipsWaiting + pipsReady;
+
+                    long procsDone = procsSucceeded + procsFailed + procsSkipped;
+                    long procsTotal = procsDone + procsPending + procsWaiting + procsExecuting;
+
+                    long filePipsDone = copyFileDone + writeFileDone;
+                    long filePipsTotal = filePipsDone + copyFileNotDone + writeFileNotDone;
+
+                    // For sake of simplicity, both pending & waiting processes are labeled as "waiting" in the console
+                    long pendingAndWaiting = procsPending + procsWaiting;
+
+                    using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
                     {
-                        ReadOnlyCollection<object> payload = eventData.Payload;
+                        StringBuilder sb = wrap.Instance;
 
-                        var pipsSucceeded = (long)payload[0];
-                        var pipsFailed = (long)payload[1];
-                        var pipsSkipped = (long)payload[2];
-                        var pipsRunning = (long)payload[3];
-                        var pipsReady = (long)payload[4];
-                        var pipsWaiting = (long)payload[5];
-                        var pipsWaitingOnSemaphore = (long)payload[6];
-                        var servicePipsRunning = (long)payload[7];
-                        string perfInfo = (string)payload[8];
-                        var pipsWaitingOnResources = (long)payload[9];
-                        var procsExecuting = (long)payload[10];
-                        var procsSucceeded = (long)payload[11];
-                        var procsFailed = (long)payload[12];
-                        var procsSkipped = (long)payload[13];
-                        var procsPending = (long)payload[14];
-                        var procsWaiting = (long)payload[15];
-                        var procsHit = (long)payload[16];
-                        var procsNotIgnored = (long)payload[17];
-                        var copyFileDone = (long)payload[20];
-                        var copyFileNotDone = (long)payload[21];
-                        var writeFileDone = (long)payload[22];
-                        var writeFileNotDone = (long)payload[23];
-                        var remoteProcs = (long)payload[24];
-                        long done = pipsSucceeded + pipsFailed + pipsSkipped;
-                        long total = done + pipsRunning + pipsWaiting + pipsReady;
+                        // Only show cache hits when this isn't a worker.
+                        sb.Append(m_notWorker ? @"{{9,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @" {{4,{0}}} done,");
 
-                        long procsDone = procsSucceeded + procsFailed + procsSkipped;
-                        long procsTotal = procsDone + procsPending + procsWaiting + procsExecuting;
-
-                        long filePipsDone = copyFileDone + writeFileDone;
-                        long filePipsTotal = filePipsDone + copyFileNotDone + writeFileNotDone;
-
-                        // For sake of simplicity, both pending & waiting processes are labeled as "waiting" in the console
-                        long pendingAndWaiting = procsPending + procsWaiting;
-
-                        using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
+                        if (pipsFailed > 0)
                         {
-                            StringBuilder sb = wrap.Instance;
+                            sb.Append(@" {{0,{0}}} succeeded, {{1,{0}}} failed,");
+                        }
 
-                            // Only show cache hits when this isn't a worker.
-                            sb.Append(m_notWorker ? @"{{9,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @" {{4,{0}}} done,");
+                        if (pipsSkipped > 0)
+                        {
+                            sb.Append(@" {{6,{0}}} skipped,");
+                        }
 
-                            if (pipsFailed > 0)
-                            {
-                                sb.Append(@" {{0,{0}}} succeeded, {{1,{0}}} failed,");
-                            }
+                        if (remoteProcs > 0)
+                        {
+                            sb.Append(@" {{8,{0}}} executing ({{14}} remote), {{2,{0}}} waiting]");
+                        }
+                        else
+                        {
+                            sb.Append(@" {{8,{0}}} executing, {{2,{0}}} waiting]");
+                        }
 
-                            if (pipsSkipped > 0)
-                            {
-                                sb.Append(@" {{6,{0}}} skipped,");
-                            }
+                        if (pipsWaitingOnSemaphore > 0)
+                        {
+                            sb.Append(@" ({{3,{0}}} on semaphores).");
+                        }
 
-                            if (remoteProcs > 0)
-                            {
-                                sb.Append(@" {{8,{0}}} executing ({{14}} remote), {{2,{0}}} waiting]");
-                            }
-                            else
-                            {
-                                sb.Append(@" {{8,{0}}} executing, {{2,{0}}} waiting]");
-                            }
+                        if (servicePipsRunning > 0)
+                        {
+                            sb.Append(@". Services: {{7}}.");
+                        }
 
-                            if (pipsWaitingOnSemaphore > 0)
-                            {
-                                sb.Append(@" ({{3,{0}}} on semaphores).");
-                            }
+                        if (filePipsTotal > 0)
+                        {
+                            sb.Append(@" Files:[{{12}}/{{13}}]");
+                        }
 
-                            if (servicePipsRunning > 0)
-                            {
-                                sb.Append(@". Services: {{7}}.");
-                            }
+                        string statusLine = sb.ToString();
+                        sb.Length = 0;
 
-                            if (filePipsTotal > 0)
-                            {
-                                sb.Append(@" Files:[{{12}}/{{13}}]");
-                            }
+                        var format = FinalizeFormatStringLayout(sb, statusLine, 0);
 
-                            string statusLine = sb.ToString();
-                            sb.Length = 0;
+                        sb.AppendFormat(
+                            CultureInfo.InvariantCulture,
+                            format,
+                            procsSucceeded,
+                            procsFailed,
+                            pendingAndWaiting,
+                            pipsWaitingOnSemaphore,
+                            procsDone,
+                            procsHit,
+                            procsSkipped,
+                            servicePipsRunning,
+                            procsExecuting,
+                            ComputePercentDone(procsDone, procsTotal, filePipsDone, filePipsTotal),
+                            done,
+                            total,
+                            filePipsDone,
+                            filePipsTotal,
+                            remoteProcs);
 
-                            var format = FinalizeFormatStringLayout(sb, statusLine, 0);
-
+                        if (pipsWaitingOnResources > 0)
+                        {
+                            sb.AppendLine();
                             sb.AppendFormat(
                                 CultureInfo.InvariantCulture,
-                                format,
-                                procsSucceeded,
-                                procsFailed,
-                                pendingAndWaiting,
-                                pipsWaitingOnSemaphore,
-                                procsDone,
-                                procsHit, 
-                                procsSkipped,
-                                servicePipsRunning,
-                                procsExecuting,
-                                ComputePercentDone(procsDone, procsTotal, filePipsDone, filePipsTotal),
-                                done,
-                                total,
-                                filePipsDone,
-                                filePipsTotal,
-                                remoteProcs);
-
-                            if (pipsWaitingOnResources > 0)
-                            {
-                                sb.AppendLine();
-                                sb.AppendFormat(
-                                    CultureInfo.InvariantCulture,
-                                    Strings.ConsoleListener_PipsResourceWaitingStatusLine,
-                                    pipsWaitingOnResources);
-                            }
-
-                            string standardStatus = sb.ToString();
-                            string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo);
-                            SendToConsole(eventData, "info", standardStatus, updatingStatus);
+                                Strings.ConsoleListener_PipsResourceWaitingStatusLine,
+                                pipsWaitingOnResources);
                         }
 
-                        if (m_notWorker)
-                        {
-                            m_console.ReportProgress((ulong)done, (ulong)total);
-                        }
-                        
-                        break;
+                        string standardStatus = sb.ToString();
+                        string updatingStatus = GetRunningPipsMessage(standardStatus, perfInfo);
+                        SendToConsole(eventData, "info", standardStatus, updatingStatus);
                     }
+
+                    if (m_notWorker)
+                    {
+                        m_console.ReportProgress((ulong)done, (ulong)total);
+                    }
+
+                    break;
+                }
 
                 default:
-                    {
-                        SendToConsole(eventData, "info", eventData.Message);
-                        break;
-                    }
+                {
+                    SendToConsole(eventData, "info", eventData.Message);
+                    break;
+                }
             }
         }
 
@@ -417,7 +428,7 @@ namespace BuildXL
             {
                 return;
             }
-            
+
 #pragma warning disable 618
             if (eventData.EventId == (int)SharedLogEventId.PipProcessError)
 #pragma warning restore 618
@@ -449,6 +460,12 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
         {
+            // Do not show any warnings in console on cancellation.
+            if (m_cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             // AzureDevOpsListener has alreday write the event to console, avoid duplication
             if (m_optimizeForAzureDevOps)
             {
@@ -687,6 +704,6 @@ namespace BuildXL
             }
         }
 
-#endregion
+        #endregion
     }
 }

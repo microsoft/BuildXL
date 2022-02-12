@@ -5417,7 +5417,7 @@ namespace BuildXL.Scheduler
                 detailedLog.AppendLine(I($"Fine-grained Duration (ms) for Each Pip on the Critical Path (from end to beginning)"));
 
                 int index = 0;
-                Func<long, double> toMin = (t) => Math.Round(t / (double)60000, 1);
+                Func<long, string> addMin = (duration) => $"{duration}ms ({Math.Round(duration / (double)60000, 1)}m)";
 
                 long exeDurationCriticalPathMs = 0;
                 long pipDurationCriticalPathMs = 0;
@@ -5464,7 +5464,7 @@ namespace BuildXL.Scheduler
                         completedTime = formatTime(completedTimeTs);
                     }
 
-                    summaryTable.AppendLine(I($"{toMin(pipDurationMs),16} | {toMin(runtimeInfo.ProcessExecuteTimeMs),15} | {toMin(pipQueueDurationMs),18} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
+                    summaryTable.AppendLine(I($"{addMin(pipDurationMs),16} | {addMin(runtimeInfo.ProcessExecuteTimeMs),15} | {addMin(pipQueueDurationMs),18} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
 
                     if (buildSummary != null)
                     {
@@ -5547,7 +5547,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(hr);
 
                 builder.AppendLine("Critical path:");
-                builder.AppendLine(I($"{"Pip Duration(min)",-16} | {"Exe Duration(min)",-15}| {"Queue Duration(min)",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
+                builder.AppendLine(I($"{"Pip Duration",-16} | {"Exe Duration",-15}| {"Queue Duration",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
 
                 // Total critical path running time is a sum of all steps except ChooseWorker and MaterializeOutput (if it is done in background)
                 long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime(this)).Sum();
@@ -5558,7 +5558,7 @@ namespace BuildXL.Scheduler
 
                 long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup];
 
-                builder.AppendLine(I($"{toMin(pipDurationCriticalPathMs),16} | {toMin(exeDurationCriticalPathMs),15} | {toMin(totalOrchestratorQueueTime),18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
+                builder.AppendLine(I($"{addMin(pipDurationCriticalPathMs),16} | {addMin(exeDurationCriticalPathMs),15} | {addMin(totalOrchestratorQueueTime),18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
                 builder.AppendLine(summaryTable.ToString());
 
                 if (buildSummary != null)

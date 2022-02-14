@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.Engine.Cache;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
+using BuildXL.Native.IO;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -20,19 +22,23 @@ namespace BuildXL.Execution.Analyzer
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public Analyzer InitializeCacheDumpAnalyzer(AnalysisInput analysisInput)
         {
-            string outputFile = null;
-            long? semistableHash = null;
+            string outputDir = null;
+            HashSet<long> semistableHashSet = new HashSet<long>();
             foreach (var opt in AnalyzerOptions)
             {
-                if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
+                if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
                    opt.Name.Equals("o", StringComparison.OrdinalIgnoreCase))
                 {
-                    outputFile = ParseSingletonPathOption(opt, outputFile);
+                    outputDir = ParseSingletonPathOption(opt, outputDir);
+                    if (!FileUtilities.DirectoryExistsNoFollow(outputDir))
+                    {
+                        FileUtilities.CreateDirectory(outputDir);
+                    }
                 }
                 else if (opt.Name.StartsWith("pip", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.StartsWith("p", StringComparison.OrdinalIgnoreCase))
                 {
-                    semistableHash = ParseSemistableHash(opt);
+                    semistableHashSet.Add(ParseSemistableHash(opt));
                 }
                 else
                 {
@@ -40,23 +46,19 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            if (semistableHash == null)
+            if (semistableHashSet.Count == 0)
             {
                 throw Error("pip parameter is required");
             }
 
-            return new CacheDumpAnalyzer(analysisInput)
-            {
-                OutputFile = outputFile,
-                TargetSemistableHash = semistableHash.Value,
-            };
+            return new CacheDumpAnalyzer(analysisInput, outputDir, semistableHashSet);
         }
 
         private static void WriteCacheDumpHelp(HelpWriter writer)
         {
             writer.WriteBanner("Cache Dump Analysis");
             writer.WriteModeOption(nameof(AnalysisMode.CacheDump), "EXPERIMENTAL. Dumps cache lookup information for a pip");
-            writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
+            writer.WriteOption("outputDir", "Required. The directory where to write the results", shortName: "o");
             writer.WriteOption("pip", "Required. The identifier for the pip. (i.e., pip semi-stable hash)", shortName: "p");
         }
     }
@@ -71,30 +73,35 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// The path to the output file
         /// </summary>
-        public string OutputFile;
+        private readonly string m_outputDir;
 
         public override bool CanHandleWorkerEvents => true;
 
-        public long TargetSemistableHash;
-        private StreamWriter m_writer;
+        private readonly HashSet<long> m_targetSemistableHashSet;
 
-        public CacheDumpAnalyzer(AnalysisInput input)
+        public CacheDumpAnalyzer(AnalysisInput input, string outputDir, HashSet<long> targetSemistableHashSet)
             : base(input)
         {
             m_model = new AnalysisModel(CachedGraph);
+            m_outputDir = outputDir;
+            m_targetSemistableHashSet = targetSemistableHashSet;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public override int Analyze()
         {
-            m_writer.Dispose();
             return 0;
         }
 
         public override void Prepare()
         {
-            m_writer = new StreamWriter(OutputFile);
+            foreach (var semistableHash in m_targetSemistableHashSet)
+            {
+                var formattedHash = Pip.FormatSemiStableHash(semistableHash);
+                string outputFile = GetOutputFileFromFormattedPipHash(formattedHash);
+                FileUtilities.DeleteFile(outputFile);
+            }
         }
 
         /// <inheritdoc />
@@ -107,22 +114,32 @@ namespace BuildXL.Execution.Analyzer
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
             var semistableHash = PipTable.GetPipSemiStableHash(data.PipId);
-            if (semistableHash != TargetSemistableHash)
+            if (!m_targetSemistableHashSet.Contains(semistableHash))
             {
                 return;
             }
 
-            var pipInfo = m_model.GetPipInfo(data.PipId);
-            pipInfo.SetFingerprintComputation(data, CurrentEventWorkerId);
-
-            m_writer.WriteLine(I($"Fingerprint kind: {data.Kind}"));
-            WriteWeakFingerprintData(pipInfo, m_writer);
-
-            foreach (var strongComputation in data.StrongFingerprintComputations)
+            var formattedHash = Pip.FormatSemiStableHash(semistableHash);
+            string outputFile = GetOutputFileFromFormattedPipHash(formattedHash);
+            using (var sw = new StreamWriter(outputFile, append: true))
             {
-                pipInfo.StrongFingerprintComputation = strongComputation;
-                WriteStrongFingerprintData(pipInfo, m_writer);
+                var pipInfo = m_model.GetPipInfo(data.PipId);
+                pipInfo.SetFingerprintComputation(data, CurrentEventWorkerId);
+
+                sw.WriteLine(I($"Fingerprint kind: {data.Kind}"));
+                WriteWeakFingerprintData(pipInfo, sw);
+
+                foreach (var strongComputation in data.StrongFingerprintComputations)
+                {
+                    pipInfo.StrongFingerprintComputation = strongComputation;
+                    WriteStrongFingerprintData(pipInfo, sw);
+                }
             }
+        }
+
+        private string GetOutputFileFromFormattedPipHash(string formattedHash)
+        {
+            return Path.Combine(m_outputDir, formattedHash + ".txt");
         }
 
         /// <inheritdoc />

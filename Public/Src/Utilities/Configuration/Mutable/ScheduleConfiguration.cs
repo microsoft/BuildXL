@@ -188,6 +188,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RemoteExecutionServiceUri = template.RemoteExecutionServiceUri;
 
             StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
+            CpuResourceAware = template.CpuResourceAware;
         }
 
         /// <inheritdoc />
@@ -470,5 +471,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public string RemoteExecutionServiceUri { get; set; }
+
+        /// <inheritdoc />
+        public bool CpuResourceAware { get; set; }
     }
 }

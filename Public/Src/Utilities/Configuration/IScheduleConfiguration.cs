@@ -509,5 +509,10 @@ namespace BuildXL.Utilities.Configuration
         /// This setting is only applicable when <see cref="EnableProcessRemoting"/> is true.
         /// </remarks>
         string RemoteExecutionServiceUri { get; }
+
+        /// <summary>
+        /// Whether Cpu resource determines the scheduling behavior
+        /// </summary>
+        bool CpuResourceAware { get; }
     }
 }

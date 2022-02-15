@@ -313,6 +313,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "converge",
                             sign => engineConfiguration.Converge = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "cpuResourceAware",
+                            sign => schedulingConfiguration.CpuResourceAware = sign),
                         OptionHandlerFactory.CreateOption(
                             "criticalCommitUtilizationPercentage",
                             opt => schedulingConfiguration.CriticalCommitUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),

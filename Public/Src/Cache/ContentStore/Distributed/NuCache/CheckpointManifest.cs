@@ -72,9 +72,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public void Add(ContentEntry entry)
         {
-            if (ContentByPath.TryAdd(entry))
+            lock (ContentByPath)
             {
-                AddCore(entry);
+                if (ContentByPath.TryAdd(entry))
+                {
+                    AddCore(entry);
+                }
             }
         }
 

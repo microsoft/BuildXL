@@ -190,7 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 incrementalCheckpointsPrefix + manifestFilePath.FileName,
                 garbageCollect: true).ThrowIfFailureAsync();
 
-            var manifestEntry = AddEntry(manifest, manifestFilePath.FileName, checkpointId);
+            AddEntry(manifest, manifestFilePath.FileName, checkpointId);
 
             // Add incremental suffix so consumer knows that the checkpoint is an incremental checkpoint
             checkpointId += IncrementalCheckpointIdSuffix;
@@ -199,7 +199,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (_checkpointObserver != null)
             {
-                AddEntry(manifest, manifestFilePath.FileName, checkpointId);
                 await _checkpointObserver.OnChangeCheckpointAsync(context, checkpointState, manifest).ThrowIfFailure();
             }
 

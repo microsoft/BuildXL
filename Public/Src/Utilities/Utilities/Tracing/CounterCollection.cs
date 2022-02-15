@@ -511,6 +511,15 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <summary>
+        /// Get the counter value.
+        /// </summary>
+        public long GetDifference(CounterCollection<TEnum> subtrahend, TEnum counterId)
+        {
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
+            return GetCounterValueInternal(counterIndex) - subtrahend.GetCounterValueInternal(counterIndex);
+        }
+
+        /// <summary>
         /// Creates a stopwatch for a counter based on counter ID, which will add an elapsed timespan to the counter when disposed.
         /// This call is valid only for counters that are of type Stopwatch
         /// </summary>

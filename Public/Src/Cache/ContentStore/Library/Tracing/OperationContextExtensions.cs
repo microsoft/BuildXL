@@ -213,6 +213,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             {
                 string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
+                traceableResult.SetDuration(duration);
 
                 // Marking the operation as critical failure only when it was not a cancellation.
                 if (_isCritical && !traceableResult.IsCancelled && !traceableResult.Succeeded)

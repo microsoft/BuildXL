@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Native.IO;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -323,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             try
             {
-                await context.PerformOperationAsync(
+                var result = await context.PerformOperationAsync(
                     Tracer,
                     async () =>
                     {
@@ -379,13 +380,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             }
                         }
 
-                        return BoolResult.Success;
+                        // Create a new result so duration is captured by PerformOperation.
+                        return Result.Success(input);
                     },
                     counters[ProcessEvents],
                     extraStartMessage: $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}",
                     extraEndMessage: _ => $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}, LocalDelay={DateTime.UtcNow - input.LocalEnqueueTime}",
-                    isCritical: true
-                    ).IgnoreFailure(); // The error is logged
+                    isCritical: true);
+
+                Tracer.TrackMetric(context, $"QueueSize_{input.ActionBlockIndex}", input.EventProcessingBlock?.InputCount ?? 0);
+                Tracer.TrackMetric(context, $"QueueDurationMs_{input.ActionBlockIndex}", result.DurationMs);
+                Tracer.TrackMetric(context, $"AllQueueSize", input.EventProcessingBlock?.InputCount ?? 0);
+                Tracer.TrackMetric(context, $"AllQueueDurationMs", result.DurationMs);
+
+                Tracer.TrackMetric(context, $"QueueProcessingDelaySec_{input.ActionBlockIndex}", (long)(EventQueueDelays[input.EventQueueDelayIndex]?.TotalSeconds ?? 0));
+                Tracer.TrackMetric(context, $"QueueLocalDelaySec_{input.ActionBlockIndex}", (long)(DateTime.UtcNow - input.LocalEnqueueTime).TotalSeconds);
+
+                // Use ticks so duration is large enough to be divided by _configuration.MaxEventProcessingConcurrency getting zeroed out
+                Tracer.TrackMetric(context, $"AllQueueNormalizedDurationTicks", result.Duration.Ticks / _configuration.MaxEventProcessingConcurrency);
+
+                // The error is logged
+                result.IgnoreFailure();
             }
             finally
             {

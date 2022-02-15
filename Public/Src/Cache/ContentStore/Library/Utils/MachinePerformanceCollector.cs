@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -46,33 +47,39 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <returns></returns>
         public string ToTracingString()
         {
-            var set = new StringBuilder();
-            set.AddMetric("CommitTotalMb", CommitTotalMb);
-            set.AddMetric("CpuUsagePercentage", CpuUsagePercentage);
-            set.AddMetric("MachineKbitsPerSecReceived", MachineKbitsPerSecReceived);
-            set.AddMetric("MachineKbitsPerSecSent", MachineKbitsPerSecSent);
-            set.AddMetric("ProcessCpuPercentage", ProcessCpuPercentage);
-            set.AddMetric("ProcessWorkingSetMB", ProcessWorkingSetMb);
-            set.AddMetric("GCTotalMemoryMb", (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6));
-            set.AddMetric("ProcessThreadCount", ProcessThreadCount);
+            List<string> parts = new List<string>();
+            CollectMetrics((metricName, value) => parts.Add($"{metricName}: {value}"));
+            return string.Join(", ", parts);
+        }
+
+        public delegate void AddMetric(string metricName, long value);
+
+        public void CollectMetrics(AddMetric addMetric)
+        {
+            addMetric("CommitTotalMb", CommitTotalMb);
+            addMetric("CpuUsagePercentage", CpuUsagePercentage);
+            addMetric("MachineKbitsPerSecReceived", MachineKbitsPerSecReceived);
+            addMetric("MachineKbitsPerSecSent", MachineKbitsPerSecSent);
+            addMetric("ProcessCpuPercentage", ProcessCpuPercentage);
+            addMetric("ProcessWorkingSetMB", ProcessWorkingSetMb);
+            addMetric("GCTotalMemoryMb", (long)Math.Ceiling(GC.GetTotalMemory(forceFullCollection: false) / 1e6));
+            addMetric("ProcessThreadCount", ProcessThreadCount);
 
             ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
-            set.AddMetric("ThreadPoolWorkerThreads", workerThreads);
-            set.AddMetric("ThreadPoolCompletionPortThreads", completionPortThreads);
+            addMetric("ThreadPoolWorkerThreads", workerThreads);
+            addMetric("ThreadPoolCompletionPortThreads", completionPortThreads);
 
             // We're interested only in two drives: D and K, and K drive is optional.
             addDriveStats(DriveD);
             addDriveStats(DriveK);
-
-            return set.ToString();
 
             void addDriveStats(PerformanceCollector.Aggregator.DiskStatistics? stats)
             {
                 if (stats != null)
                 {
                     var prefix = stats.Drive + "_";
-                    set.AddMetric(prefix + "QueueDepth", (long)stats.QueueDepth.Latest);
-                    set.AddMetric(prefix + "AvailableSpaceGb", (long)stats.AvailableSpaceGb.Latest);
+                    addMetric(prefix + "QueueDepth", (long)stats.QueueDepth.Latest);
+                    addMetric(prefix + "AvailableSpaceGb", (long)stats.AvailableSpaceGb.Latest);
                 }
             }
         }
@@ -112,28 +119,20 @@ namespace BuildXL.Cache.ContentStore.Utils
             var driveK = _perfStatsAggregator.DiskStats.FirstOrDefault(s => s.Drive == "K");
 
             return new PerformanceStatistics()
-                   {
-                       CommitTotalMb = commitUsedMb,
-                       CpuUsagePercentage = cpuUsagePercentage,
-                       MachineKbitsPerSecReceived = machineKbitsPerSecReceived,
-                       MachineKbitsPerSecSent = machineKbitsPerSecSent,
-                       ProcessCpuPercentage = processCpuPercentage,
-                       ProcessWorkingSetMb = processWorkingSetMb,
-                       GCTotalMemoryMb = gcTotalMemoryMB,
-                       ProcessThreadCount = processThreadCount,
-                       ThreadPoolWorkerThreads = threadPoolWorkerThreads,
-                       ThreadPoolCompletionPortThreads = threadPoolCompletionPortThreads,
-                       DriveD = driveD,
-                       DriveK = driveK,
-                   };
-        }
-
-        /// <summary>
-        /// Get machine performance statistics as string for tracing.
-        /// </summary>
-        public string GetMachinePerformanceStatisticsForTracing()
-        {
-            return GetMachinePerformanceStatistics().ToTracingString();
+            {
+                CommitTotalMb = commitUsedMb,
+                CpuUsagePercentage = cpuUsagePercentage,
+                MachineKbitsPerSecReceived = machineKbitsPerSecReceived,
+                MachineKbitsPerSecSent = machineKbitsPerSecSent,
+                ProcessCpuPercentage = processCpuPercentage,
+                ProcessWorkingSetMb = processWorkingSetMb,
+                GCTotalMemoryMb = gcTotalMemoryMB,
+                ProcessThreadCount = processThreadCount,
+                ThreadPoolWorkerThreads = threadPoolWorkerThreads,
+                ThreadPoolCompletionPortThreads = threadPoolCompletionPortThreads,
+                DriveD = driveD,
+                DriveK = driveK,
+            };
         }
     }
 
@@ -145,6 +144,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         public static StringBuilder AddMetric(this StringBuilder sb, string metricName, long value, bool first = false)
         {
+
             sb.Append($"{(!first ? ", " : "")}{metricName}: {value}");
             return sb;
         }

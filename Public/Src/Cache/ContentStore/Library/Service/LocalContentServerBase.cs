@@ -464,6 +464,14 @@ namespace BuildXL.Cache.ContentStore.Service
             Tracer.TrackMetric(context, $"MachinePerf_{nameof(machineStatistics.ThreadPoolWorkerThreads)}", machineStatistics.ThreadPoolWorkerThreads);
 
             Tracer.Info(context, "MachinePerformanceStatistics: " + machineStatistics.ToTracingString());
+
+            if (GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole) == "Master")
+            {
+                machineStatistics.CollectMetrics((name, value) =>
+                {
+                    context.TrackMetric(name, value, "CacheMasterPerfStats");
+                });
+            }
         }
 
         private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -133,6 +134,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             dbStats.SizeOnDiskMb = _fileSystem
                                 .EnumerateFiles(_checkpointStagingDirectory, EnumerateOptions.Recurse)
                                 .Sum(fileInfo => fileInfo.Length) * 1e-6;
+
+                            Tracer.TrackMetric(context, "CheckpointSize", (long)dbStats.SizeOnDiskMb);
                         }
                         catch (IOException e)
                         {
@@ -219,6 +222,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             //  - Then, we store the manifest into the DB.
             var currentManifest = DatabaseLoadManifest(context);
 
+            long uploadSize = 0;
+            long retainedSize = 0;
+
             var newManifest = new CheckpointManifest();
             await ParallelAlgorithms.WhenDoneAsync(
                 _configuration.IncrementalCheckpointDegreeOfParallelism,
@@ -242,6 +248,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             AddEntry(newManifest, relativePath, storageId);
                             attemptUpload = false;
 
+                            Interlocked.Add(ref retainedSize, _fileSystem.GetFileSize(file));
                             Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploadSkipped].Increment();
                         }
                     }
@@ -254,10 +261,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             incrementalCheckpointsPrefix + relativePath).ThrowIfFailureAsync();
                         AddEntry(newManifest, relativePath, storageId);
 
+                        Interlocked.Add(ref uploadSize, _fileSystem.GetFileSize(file));
                         Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesUploaded].Increment();
                     }
                 },
                 items: files.ToArray());
+
+            Tracer.TrackMetric(context, "CheckpointUploadSize", uploadSize);
+            Tracer.TrackMetric(context, "CheckpointRetainedSize", retainedSize);
 
             DatabaseWriteManifest(context, newManifest);
 

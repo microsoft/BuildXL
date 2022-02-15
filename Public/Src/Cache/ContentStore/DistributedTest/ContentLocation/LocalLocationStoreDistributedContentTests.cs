@@ -2630,6 +2630,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             ConfigureWithOneMaster();
 
+            const int RandomHashesCount = 1000;
             return RunTestAsync(
                 3,
                 async context =>
@@ -2638,6 +2639,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
                     var master = context.GetMaster();
+                    var worker = context.GetLocationStore(context.GetFirstWorkerIndex());
 
                     // Insert random file in session 0
                     var putResult0 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
@@ -2649,6 +2651,14 @@ namespace ContentStoreTest.Distributed.Sessions
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Local).ShouldBeSuccess();
                     masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Master should receive an event and add the content to local store");
+
+                    await master.LocalLocationStore.RegisterLocalLocationAsync(
+                        context,
+                        worker.LocalMachineId,
+                        Enumerable.Range(0, RandomHashesCount)
+                            .Select(i => new ContentHashWithSize(ContentHash.Random(), ThreadSafeRandom.Generator.Next(0, int.MaxValue) >> ThreadSafeRandom.Generator.Next(0, 30)))
+                            .ToList(),
+                        false).ShouldBeSuccess();
 
                     // Add time so worker machine is inactive
                     TestClock.UtcNow += _configurations[context.GetMasterIndex()].MachineActiveToExpiredInterval + TimeSpan.FromSeconds(1);
@@ -2667,7 +2677,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     await master.LocalLocationStore.Database.GarbageCollectAsync(context).ShouldBeSuccess();
 
-                    master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
+                    master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(RandomHashesCount + 1, "After GC, the entry with only a location from the expired machine should be collected");
                 });
         }
 

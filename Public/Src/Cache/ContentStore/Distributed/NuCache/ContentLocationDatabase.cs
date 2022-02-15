@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
@@ -62,6 +63,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public CounterCollection<ContentLocationDatabaseCounters> Counters { get; } = new CounterCollection<ContentLocationDatabaseCounters>();
+
+        private CounterCollection<ContentLocationDatabaseCounters> _lastCheckpointCountersSnapshot = new CounterCollection<ContentLocationDatabaseCounters>();
 
         private readonly Func<IReadOnlyList<MachineId>> _getInactiveMachines;
 
@@ -379,18 +382,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Counters for work done.
             long removedEntries = 0;
             long totalEntries = 0;
-            long uniqueContentSize = 0;
-            long totalContentCount = 0;
-            long totalContentSize = 0;
-            long uniqueContentCount = 0;
 
             // Tracking the difference between sequence of hashes for diagnostic purposes. We need to know how good short hashes are and how close are we to collisions. 
             ShortHash? lastHash = null;
             int maxHashFirstByteDifference = 0;
 
-            long[] totalSizeByLogSize = new long[64];
-            long[] uniqueSizeByLogSize = new long[totalSizeByLogSize.Length];
-            int[] countsByLogSize = new int[totalSizeByLogSize.Length];
+            ContentStatisticMatrix contentStatistics = new ContentStatisticMatrix();
 
             // Enumerate over all hashes...
             // NOTE: GC will query for the value itself and thereby get the value from the in memory cache if present.
@@ -410,21 +407,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 // Update counters.
                 int replicaCount = entry.Locations.Count;
-                uniqueContentCount++;
-                uniqueContentSize += entry.ContentSize;
-                totalContentSize += entry.ContentSize * replicaCount;
-                totalContentCount += replicaCount;
-
-                int logSize = (int)Math.Log(Math.Max(1, entry.ContentSize), 2);
-                countsByLogSize[logSize]++;
-                totalSizeByLogSize[logSize] += entry.ContentSize * replicaCount;
-                uniqueSizeByLogSize[logSize] += entry.ContentSize;
+                contentStatistics.Add(size: entry.ContentSize, entry.Locations.Count);
 
                 // Filter out inactive machines.
                 var filteredEntry = FilterInactiveMachines(entry);
 
                 // Decide if we ought to modify the entry.
-                if (filteredEntry.Locations.Count == 0 || filteredEntry.Locations.Count != entry.Locations.Count)
+                if (filteredEntry.Locations.Count == 0 || filteredEntry.Locations.Count != replicaCount)
                 {
                     // Use double-checked locking to usually avoid locking, but still
                     // be safe in case we are in a race to update content location data.
@@ -467,10 +456,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 lastHash = hash;
             }
 
-            Counters[ContentLocationDatabaseCounters.TotalNumberOfScannedEntries].Add(uniqueContentCount);
+            Counters[ContentLocationDatabaseCounters.TotalNumberOfScannedEntries].Add(contentStatistics.All.UniqueCount);
 
-            Tracer.Debug(context, $"Overall DB Stats: UniqueContentCount={uniqueContentCount}, UniqueContentSize={uniqueContentSize}, "
-                + $"TotalContentCount={totalContentCount}, TotalContentSize={totalContentSize}, MaxHashFirstByteDifference={maxHashFirstByteDifference}"
+            bool isComplete = !context.Token.IsCancellationRequested;
+
+            Tracer.Debug(context, $"Overall DB Stats: UniqueContentCount={contentStatistics.All.UniqueCount}, UniqueContentSize={contentStatistics.All.UniqueSize}, "
+                + $"TotalContentCount={contentStatistics.All.TotalCount}, TotalContentSize={contentStatistics.All.TotalSize}, MaxHashFirstByteDifference={maxHashFirstByteDifference}"
                 + $", UniqueContentAddedSize={Counters[ContentLocationDatabaseCounters.UniqueContentAddedSize].Value}"
                 + $", TotalNumberOfCreatedEntries={Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Value}"
                 + $", TotalContentAddedSize={Counters[ContentLocationDatabaseCounters.TotalContentAddedSize].Value}"
@@ -481,11 +472,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 + $", TotalContentRemovedCount={Counters[ContentLocationDatabaseCounters.TotalContentRemovedCount].Value}"
                 );
 
-            for (int logSize = 0; logSize < countsByLogSize.Length; logSize++)
+            for (int logSize = 0; logSize < ContentStatisticMatrix.SizeRows; logSize++)
             {
-                if (countsByLogSize[logSize] != 0)
+                var statistic = contentStatistics.GetSizeAggregate(logSize);
+                if (statistic.UniqueCount != 0)
                 {
-                    Tracer.Debug(context, $"DB Content Stat: Log2_Size={logSize}, Count={countsByLogSize[logSize]}, UniqueSize={uniqueSizeByLogSize[logSize]}, TotalSize={totalSizeByLogSize[logSize]}, IsComplete={!context.Token.IsCancellationRequested}");
+                    Tracer.Debug(context, $"DB Content Stat [AggSize]: Log2_Size={logSize}, {statistic}, IsComplete={isComplete}");
+                }
+
+                statistic = contentStatistics.GetSizeAggregate(logSize, maxLogReplicas: 2);
+                if (statistic.UniqueCount != 0)
+                {
+                    Tracer.Debug(context, $"DB Content Stat [AggSize,ReplicaMax:4]: Log2_Size={logSize}, {statistic}, IsComplete={isComplete}");
+                }
+            }
+
+            for (int logReplicas = 0; logReplicas < ContentStatisticMatrix.ReplicaColumns; logReplicas++)
+            {
+                var statistic = contentStatistics.GetReplicaAggregate(logReplicas);
+                if (statistic.UniqueCount != 0)
+                {
+                    Tracer.Debug(context, $"DB Content Stat [AggReplica]: Log2_Replicas={logReplicas}, {statistic}, IsComplete={isComplete}");
+                }
+
+                statistic = contentStatistics.GetReplicaAggregate(logReplicas, maxLogSize: 15);
+                if (statistic.UniqueCount != 0)
+                {
+                    Tracer.Debug(context, $"DB Content Stat [AggReplica,SizeMax:32k]: Log2_Replicas={logReplicas}, {statistic}, IsComplete={isComplete}");
                 }
             }
 
@@ -495,12 +508,86 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 totalEntries,
                 removedEntries,
                 Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value,
-                uniqueContentCount,
-                uniqueContentSize,
-                totalContentCount,
-                totalContentSize);
+                uniqueContentCount: contentStatistics.All.UniqueCount,
+                uniqueContentSize: contentStatistics.All.UniqueSize,
+                totalContentCount: contentStatistics.All.TotalCount,
+                totalContentSize: contentStatistics.All.TotalSize);
 
             return BoolResult.Success;
+        }
+
+        private class ContentStatisticMatrix
+        {
+            public const int ReplicaColumns = 16;
+            public const int SizeRows = 64;
+
+            public ContentStatistic All = new ContentStatistic();
+
+            public ContentStatistic[] Statistics = new ContentStatistic[SizeRows * ReplicaColumns];
+
+            public void Add(long size, int replicaCount)
+            {
+                All.Add(size, replicaCount);
+
+                int logSize = (int)Math.Log(Math.Max(1, size), 2);
+                int logReplicas = Math.Min(15, (int)Math.Log(Math.Max(1, replicaCount), 2));
+
+                ref ContentStatistic statistic = ref this[logSize: logSize, logReplicas: logReplicas];
+                statistic.Add(size, replicaCount);
+            }
+
+            public ref ContentStatistic this[int logSize, int logReplicas] => ref Statistics[(logSize * ReplicaColumns) + logReplicas];
+
+            public ContentStatistic GetSizeAggregate(int logSize, int maxLogReplicas = (ReplicaColumns - 1))
+            {
+                ContentStatistic result = new ContentStatistic();
+                for (int logReplicas = 0; logReplicas <= maxLogReplicas; logReplicas++)
+                {
+                    result.Add(this[logSize: logSize, logReplicas: logReplicas]);
+                }
+
+                return result;
+            }
+
+            public ContentStatistic GetReplicaAggregate(int logReplicas, int maxLogSize = (SizeRows - 1))
+            {
+                ContentStatistic result = new ContentStatistic();
+                for (int logSize = 0; logSize <= maxLogSize; logSize++)
+                {
+                    result.Add(this[logSize: logSize, logReplicas: logReplicas]);
+                }
+
+                return result;
+            }
+        }
+
+        private struct ContentStatistic
+        {
+            public long UniqueCount;
+            public long TotalCount;
+            public long TotalSize;
+            public long UniqueSize;
+
+            public void Add(long size, int replicaCount)
+            {
+                UniqueCount++;
+                TotalCount += replicaCount;
+                TotalSize += (size * replicaCount);
+                UniqueSize += size;
+            }
+
+            public void Add(ContentStatistic other)
+            {
+                UniqueCount += other.UniqueCount;
+                TotalCount += other.TotalCount;
+                TotalSize += other.TotalSize;
+                UniqueSize += other.UniqueSize;
+            }
+
+            public override string ToString()
+            {
+                return $"UniqueCount={UniqueCount}, UniqueSize={UniqueSize}, TotalCount={TotalCount}, TotalSize={TotalSize}";
+            }
         }
 
         /// <nodoc />
@@ -579,6 +666,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc/>
         public BoolResult SaveCheckpoint(OperationContext context, AbsolutePath checkpointDirectory)
         {
+            var snapshot = Counters.Snapshot();
+            Tracer.TrackMetric(context, "CreateLocationEntryCount", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries));
+            Tracer.TrackMetric(context, "CreateLocationEntryContentSize", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.UniqueContentAddedSize));
+            Tracer.TrackMetric(context, "DeleteLocationEntryCount", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries));
+            Tracer.TrackMetric(context, "DeleteLocationEntryContentSize", snapshot.GetDifference(_lastCheckpointCountersSnapshot, ContentLocationDatabaseCounters.UniqueContentRemovedSize));
+
+            _lastCheckpointCountersSnapshot = snapshot;
+
             using (Counters[ContentLocationDatabaseCounters.SaveCheckpoint].Start())
             {
                 return context.PerformOperation(Tracer,

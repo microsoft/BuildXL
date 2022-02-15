@@ -4532,6 +4532,18 @@ namespace BuildXL.Scheduler
 
                 bool successfullyProcessedOutputs = true;
 
+                // Files with the same filename have a higher chance to have the same content.
+                // When pushing same-content outputs to the cache concurrently, the cache may need extra work
+                // to detect the same content is being pushed and shortcut the push operation. Therefore,
+                // we assign to each file a weight based on how many other files with the same filename are being pushed
+                // and order by that. Therefore, we have higher chances to make pushes with the same content be farther away,
+                // and in that way mitigate concurrent same-content pushes.
+                var sortedOutputs = allOutputs
+                    .GroupBy(output => output.Path.GetName(pathTable))
+                    .SelectMany(group => group.Select((file, index) => (file, index)))
+                    .OrderBy(fileWithCount => fileWithCount.index)
+                    .Select(fileWithCount => fileWithCount.file);
+
                 using (var materializationResultsPool = s_materializationResultsPool.GetInstance(allOutputs.Count))
                 {
                     var materializationResults = materializationResultsPool.Instance;
@@ -4560,7 +4572,7 @@ namespace BuildXL.Scheduler
 
                     int outputIndex = 0;
                     
-                    foreach (var output in allOutputs)
+                    foreach (var output in sortedOutputs)
                     {
                         var outputData = allOutputData[output.Path];
 
@@ -4610,7 +4622,7 @@ namespace BuildXL.Scheduler
                     // We cannot enumerate over storeProcessOutputCompletionsByPath here
                     // because the order of such an enumeration is not deterministic.
                     outputIndex = 0;
-                    foreach (var output in allOutputs)
+                    foreach (var output in sortedOutputs)
                     {
                         Possible<FileMaterializationInfo>? maybePossiblyStoredOutputArtifactInfo = materializationResults[outputIndex];
                         

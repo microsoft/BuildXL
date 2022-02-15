@@ -409,7 +409,7 @@ namespace Tool.ServicePipDaemon
                 }
                 else
                 {
-                    m_logger.Error("Successfully notified BuildXL that the service is ready.");
+                    m_logger.Verbose("Successfully notified BuildXL that the service is ready.");
                 }
             }
         }

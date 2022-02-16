@@ -213,6 +213,7 @@ namespace BuildXL.Utilities.Authentication
             m_logger("[VssCredentialsFactory] Using interactive AAD authentication.");
             var result = await app.AcquireTokenInteractive(scopes)
                 .WithPrompt(Prompt.SelectAccount)
+                .WithUseEmbeddedWebView(false)
                 .ExecuteAsync();
             return result;
         }

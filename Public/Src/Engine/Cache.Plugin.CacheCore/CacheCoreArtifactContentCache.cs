@@ -353,12 +353,13 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         public async Task<Possible<Unit, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            StoreArtifactOptions options = default)
         {
             Possible<ContentHash, Failure> maybeStored = await Helpers.RetryOnFailureAsync(
                 async lastAttempt =>
                 {
-                    return await TryStoreAsync(fileRealizationModes, path);
+                    return await TryStoreAsync(fileRealizationModes, path, options);
                 });
 
             return maybeStored.Then<Unit>(
@@ -383,7 +384,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <inheritdoc />
         public async Task<Possible<ContentHash, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
-            ExpandedAbsolutePath path)
+            ExpandedAbsolutePath path,
+            StoreArtifactOptions options = default)
         {
             string expandedPath = GetExpandedPathForCache(path);
 
@@ -395,7 +397,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                             var result = await Helpers.RetryOnFailureAsync(
                                 async lastAttempt =>
                                 {
-                                    return await cache.AddToCasAsync(expandedPath, GetFileStateForRealizationMode(fileRealizationModes));
+                                    return await cache.AddToCasAsync(expandedPath, GetFileStateForRealizationMode(fileRealizationModes), urgencyHint: options.IsCacheEntryContent ? UrgencyHint.SkipRegisterContent : default);
                                 });
                             return result;
                         }),
@@ -407,7 +409,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         /// <inheritdoc />
         public async Task<Possible<Unit, Failure>> TryStoreAsync(
             Stream content,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            StoreArtifactOptions options = default)
         {
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
             Possible<CasHash, Failure> maybeStored = await PerformArtifactCacheOperationAsync(
@@ -428,7 +431,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                                         }
 
                                         attempted = true;
-                                        return await cache.AddToCasAsync(content, new CasHash(contentHash));
+                                        return await cache.AddToCasAsync(content, new CasHash(contentHash), urgencyHint: options.IsCacheEntryContent ? UrgencyHint.SkipRegisterContent : default);
                                     });
                                 return result;
                             }),

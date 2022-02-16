@@ -155,31 +155,31 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <inheritdoc />
         public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, CancellationToken cancellationToken)
         {
-            return this.m_innerCache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
+            return m_innerCache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
         }
 
         /// <inheritdoc />
         public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
-            return this.m_innerCache.TryOpenContentStreamAsync(contentHash);
+            return m_innerCache.TryOpenContentStreamAsync(contentHash);
         }
 
         /// <inheritdoc />
-        public Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash)
+        public Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, StoreArtifactOptions options)
         {
-            return this.m_innerCache.TryStoreAsync(fileRealizationModes, path, contentHash);
+            return m_innerCache.TryStoreAsync(fileRealizationModes, path, contentHash, options);
         }
 
         /// <inheritdoc />
-        public Task<Possible<ContentHash, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path)
+        public Task<Possible<ContentHash, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, StoreArtifactOptions options)
         {
-            return this.m_innerCache.TryStoreAsync(fileRealizationModes, path);
+            return m_innerCache.TryStoreAsync(fileRealizationModes, path, options);
         }
 
         /// <inheritdoc />
-        public Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash)
+        public Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash, StoreArtifactOptions options)
         {
-            return this.m_innerCache.TryStoreAsync(content, contentHash);
+            return m_innerCache.TryStoreAsync(content, contentHash, options);
         }
     }
 }

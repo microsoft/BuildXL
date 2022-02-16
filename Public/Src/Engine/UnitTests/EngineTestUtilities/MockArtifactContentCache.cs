@@ -511,7 +511,8 @@ namespace Test.BuildXL.EngineTestUtilities
         public async Task<Possible<Unit, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            StoreArtifactOptions options = default)
         {
             Possible<ContentHash, Failure> maybeStored = await TryStoreInternalAsync(
                 path,
@@ -523,7 +524,8 @@ namespace Test.BuildXL.EngineTestUtilities
         /// <inheritdoc />
         public Task<Possible<ContentHash, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
-            ExpandedAbsolutePath path)
+            ExpandedAbsolutePath path,
+            StoreArtifactOptions options = default)
         {
             return TryStoreInternalAsync(
                 path,
@@ -628,7 +630,7 @@ namespace Test.BuildXL.EngineTestUtilities
         }
 
         /// <inheritdoc />
-        public async Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash)
+        public async Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash, StoreArtifactOptions options = default)
         {
             Possible<ContentHash, Failure> maybeStored = await TryStoreInternalAsync(content, knownContentHash: null);
             return maybeStored.Then(hash => Unit.Void);

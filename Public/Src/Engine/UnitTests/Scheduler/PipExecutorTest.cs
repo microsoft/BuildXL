@@ -3519,12 +3519,21 @@ EXIT /b 3
             yield return GetOne();
         }
 
-        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint)
+        public Task<Possible<CacheEntry?, Failure>> TryGetCacheEntryAsync(
+            WeakContentFingerprint weakFingerprint,
+            ContentHash pathSetHash,
+            StrongContentFingerprint strongFingerprint)
         {
             return Task.FromResult(new Possible<CacheEntry?, Failure>(M_cacheEntry));
         }
 
-        public async Task<Possible<CacheEntryPublishResult, Failure>> TryPublishCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint, CacheEntry entry, CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew)
+        public async Task<Possible<CacheEntryPublishResult, Failure>> TryPublishCacheEntryAsync(
+            WeakContentFingerprint weakFingerprint,
+            ContentHash pathSetHash,
+            StrongContentFingerprint strongFingerprint,
+            CacheEntry entry,
+            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew,
+            PublishCacheEntryOptions options = default)
         {
             await FinishedTask;
 

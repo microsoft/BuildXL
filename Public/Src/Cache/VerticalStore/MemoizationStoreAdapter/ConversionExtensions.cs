@@ -24,6 +24,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             return ContentHashingUtilities.CreateFrom(hash.ToArray());
         }
 
+        public static ContentStore.Interfaces.Sessions.UrgencyHint ToMemoization(this Interfaces.UrgencyHint hint)
+        {
+            return (ContentStore.Interfaces.Sessions.UrgencyHint)hint;
+        }
+
         public static Fingerprint ToMemoization(in this WeakFingerprintHash weak)
         {
             return weak.FingerprintHash.RawHash;

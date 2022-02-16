@@ -25,9 +25,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         Low = int.MinValue / 2,
 
         /// <summary>
-        ///     Nominal urgency - the default urgency - middle of the total range
+        /// Indicates to Put calls that content should not be registered eagerly.
+        /// This is typically used with <see cref="RegisterAssociatedContent"/> in
+        /// AddOrGetContentHashList calls
+        /// </summary>
+        SkipRegisterContent = -1,
+
+        /// <summary>
+        /// Nominal urgency - the default urgency - middle of the total range
         /// </summary>
         Nominal = 0,
+
+        /// <summary>
+        /// Indicates to AddOrGetContentHashList that associated content should be
+        /// registered with the central content tracker. This is typically used alongsize
+        /// <see cref="SkipRegisterContent"/> when putting the content.
+        /// </summary>
+        RegisterAssociatedContent = 1,
 
         /// <summary>
         ///     High urgency - in the middle of the range between Nominal and Maximum

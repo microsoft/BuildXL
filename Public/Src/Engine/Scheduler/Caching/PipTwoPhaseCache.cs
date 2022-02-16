@@ -93,7 +93,7 @@ namespace BuildXL.Scheduler.Cache
         public virtual async Task<Possible<ContentHash>> TryStoreMetadataAsync(PipCacheDescriptorV2Metadata metadata)
         {
             BoxRef<long> metadataSize = new BoxRef<long>();
-            var result = await ArtifactContentCache.TrySerializeAndStoreContent(metadata.ToEntry(), metadataSize);
+            var result = await ArtifactContentCache.TrySerializeAndStoreContent(metadata.ToEntry(), metadataSize, StoreArtifactOptions.CacheEntryContent);
 
             if (result.Succeeded)
             {
@@ -134,7 +134,7 @@ namespace BuildXL.Scheduler.Cache
                 }
             }
 
-            return (await ArtifactContentCache.TryStoreAsync(pathSetBuffer, pathSetHash)).WithGenericFailure();
+            return (await ArtifactContentCache.TryStoreAsync(pathSetBuffer, pathSetHash, StoreArtifactOptions.CacheEntryContent)).WithGenericFailure();
         }
 
         /// <summary>
@@ -406,7 +406,8 @@ namespace BuildXL.Scheduler.Cache
                 pathSetHash,
                 strongFingerprint,
                 entry,
-                mode);
+                mode,
+                PublishCacheEntryOptions.PublishAssociatedContent);
 
             if (result.Succeeded)
             {

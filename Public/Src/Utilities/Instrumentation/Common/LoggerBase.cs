@@ -25,7 +25,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
 
-        private ConcurrentBag<ILogMessageObserver>? m_messageObservers;
+        private readonly object m_observersModifyLock = new object();
+        private ILogMessageObserver[]? m_messageObservers;
 
         private int m_errorCount;
 
@@ -98,11 +99,27 @@ namespace BuildXL.Utilities.Instrumentation.Common
         {
             // Adding an observer implies we want to inspect messages.
             InspectMessageEnabled = true;
-            m_messageObservers = m_messageObservers ?? new ConcurrentBag<ILogMessageObserver>();
 
-            if (observer != null && !m_messageObservers.Contains(observer))
+            lock (m_observersModifyLock)
             {
-                m_messageObservers.Add(observer);
+                m_messageObservers = m_messageObservers ?? Array.Empty<ILogMessageObserver>();
+
+                if (observer != null && !m_messageObservers.Contains(observer))
+                {
+                    m_messageObservers = m_messageObservers.Concat(new[] { observer }).ToArray();
+                }
+            }
+        }
+
+        /// <nodoc />
+        public void RemoveObserver(ILogMessageObserver observer)
+        {
+            lock (m_observersModifyLock)
+            {
+                if (observer != null && (m_messageObservers?.Contains(observer) == true))
+                {
+                    m_messageObservers = m_messageObservers.Where(o => o != observer).ToArray();
+                }
             }
         }
 

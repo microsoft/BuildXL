@@ -2,10 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -16,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using IMemoizationCacheSession = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.ICacheSession;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -27,6 +30,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// </remarks>
     public sealed class MemoizationStoreAdapterCache : ICache, IDisposable
     {
+        /// <summary>
+        /// For testing purposes only. Used to allow tests to wrap/override inner memoization cache session
+        /// </summary>
+        private static ConcurrentDictionary<string, Func<IMemoizationCacheSession, IMemoizationCacheSession>> WrapSessionTestHookByCacheId { get; } = new();
+
         private readonly BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache m_cache;
         private readonly ILogger m_logger;
         private readonly IAbsFileSystem m_fileSystem;
@@ -151,51 +159,41 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool StrictMetadataCasCoupling => false;
 
         /// <inheritdoc />
-        public async Task<Possible<ICacheSession, Failure>> CreateSessionAsync(string sessionId)
+        public Task<Possible<ICacheSession, Failure>> CreateSessionAsync(string sessionId)
         {
+            Contract.Requires(!string.IsNullOrWhiteSpace(sessionId));
+            return CreateSessionCoreAsync(sessionId, sessionId);
+        }
+
+        /// <inheritdoc />
+        public Task<Possible<ICacheSession, Failure>> CreateSessionAsync()
+        {
+            return CreateSessionCoreAsync("Anonymous", sessionId: null);
+        }
+
+        private async Task<Possible<ICacheSession, Failure>> CreateSessionCoreAsync(string sessionNameSuffix, string sessionId)
+        {
+            Contract.Requires(!string.IsNullOrWhiteSpace(sessionNameSuffix));
             Contract.Requires(!IsShutdown);
             Contract.Requires(!IsReadOnly);
-            Contract.Requires(!string.IsNullOrWhiteSpace(sessionId));
 
             var context = new Context(m_logger);
             var createSessionResult = m_cache.CreateSession(
                 context,
-                $"{CacheId}-{sessionId}",
+                $"{CacheId}-{sessionNameSuffix}",
                 m_implicitPin);
             if (createSessionResult.Succeeded)
             {
                 var innerCacheSession = createSessionResult.Session;
+                if (CacheId.IsValid && WrapSessionTestHookByCacheId.TryGetValue(CacheId.ToString(), out var wrapper))
+                {
+                    innerCacheSession = wrapper(innerCacheSession);
+                }
+
                 var startupResult = await innerCacheSession.StartupAsync(context);
                 if (startupResult.Succeeded)
                 {
                     return new MemoizationStoreAdapterCacheCacheSession(innerCacheSession, m_cache, CacheId, m_logger, sessionId, m_replaceExistingOnPlaceFile);
-                }
-                else
-                {
-                    return new CacheFailure(startupResult.ErrorMessage);
-                }
-            }
-            else
-            {
-                return new CacheFailure(createSessionResult.ErrorMessage);
-            }
-        }
-
-        /// <inheritdoc />
-        public async Task<Possible<ICacheSession, Failure>> CreateSessionAsync()
-        {
-            Contract.Requires(!IsShutdown);
-            Contract.Requires(!IsReadOnly);
-
-            var context = new Context(m_logger);
-            var createSessionResult = m_cache.CreateSession(context, $"{CacheId}-Anonymous", m_implicitPin);
-            if (createSessionResult.Succeeded)
-            {
-                var innerCacheSession = createSessionResult.Session;
-                var startupResult = await innerCacheSession.StartupAsync(context);
-                if (startupResult.Succeeded)
-                {
-                    return new MemoizationStoreAdapterCacheCacheSession(innerCacheSession, m_cache, CacheId, m_logger, null, m_replaceExistingOnPlaceFile);
                 }
                 else
                 {
@@ -296,6 +294,22 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             Contract.Requires(!IsShutdown);
 
             // No messages to return.
+        }
+
+        internal static async Task<T> WrapCacheForTestAsync<T>(
+            string cacheId,
+            Func<IMemoizationCacheSession, IMemoizationCacheSession> wrapper,
+            Func<Task<T>> runAsync)
+        {
+            try
+            {
+                WrapSessionTestHookByCacheId[cacheId] = wrapper;
+                return await runAsync();
+            }
+            finally
+            {
+                WrapSessionTestHookByCacheId.TryRemove(cacheId, out _);
+            }
         }
     }
 }

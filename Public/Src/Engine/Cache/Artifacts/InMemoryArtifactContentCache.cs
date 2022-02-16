@@ -272,7 +272,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         public async Task<Possible<Unit, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash)
+            ContentHash contentHash,
+            StoreArtifactOptions options = default)
         {
             Possible<ContentHash, Failure> maybeStored = await TryStoreInternalAsync(
                 path,
@@ -284,7 +285,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <inheritdoc />
         public Task<Possible<ContentHash, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
-            ExpandedAbsolutePath path)
+            ExpandedAbsolutePath path,
+            StoreArtifactOptions options = default)
         {
             return TryStoreInternalAsync(
                 path,
@@ -295,7 +297,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         private Task<Possible<ContentHash, Failure>> TryStoreInternalAsync(
             ExpandedAbsolutePath path,
             FileRealizationMode fileRealizationModes,
-            ContentHash? knownContentHash)
+            ContentHash? knownContentHash,
+            StoreArtifactOptions options = default)
         {
              return Task.Run<Possible<ContentHash, Failure>>(
                 () =>
@@ -364,7 +367,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
         /// <inheritdoc />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public async Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash)
+        public async Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash, StoreArtifactOptions options = default)
         {
             Possible<ContentHash, Failure> maybeStored = await TryStoreInternalAsync(content, knownContentHash: null);
             return maybeStored.Then(hash => Unit.Void);

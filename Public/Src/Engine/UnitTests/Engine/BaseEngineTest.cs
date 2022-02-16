@@ -298,11 +298,11 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
         /// <summary>
         /// Returns a cache initializer to a real instance of the cache
         /// </summary>
-        protected CacheInitializer GetRealCacheInitializerForTests()
+        protected CacheInitializer GetRealCacheInitializerForTests(string cacheId = null)
         {
             var tempDir = OperatingSystemHelper.IsUnixOS ? "/tmp/buildxl-temp" : TemporaryDirectory;
             string cacheDirectory = Path.Combine(tempDir, "cache");
-            AbsolutePath cacheConfigPath = WriteTestCacheConfigToDisk(cacheDirectory);
+            AbsolutePath cacheConfigPath = WriteTestCacheConfigToDisk(cacheDirectory, cacheId: cacheId);
 
             var translator = new RootTranslator();
             if (TryGetSubstSourceAndTarget(out var substSource, out var substTarget))
@@ -335,11 +335,11 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
         /// <summary>
         /// Writes a real cache configuration to disk an returns its location
         /// </summary>
-        protected AbsolutePath WriteTestCacheConfigToDisk(string cacheDirectory, string cacheConfigJson = null)
+        protected AbsolutePath WriteTestCacheConfigToDisk(string cacheDirectory, string cacheConfigJson = null, string cacheId = null)
         {
             if (cacheConfigJson == null)
             {
-                cacheConfigJson = GetTestCacheConfigContent(cacheDirectory);
+                cacheConfigJson = GetTestCacheConfigContent(cacheDirectory, cacheId: cacheId);
             }
 
             var cacheConfigPath = Path.Combine(TemporaryDirectory, "cache.config.json");
@@ -352,11 +352,12 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
         /// <summary>
         /// Provides a simple configuration for a real instance of the cache
         /// </summary>
-        private static string GetTestCacheConfigContent(string cacheDirectory)
+        private static string GetTestCacheConfigContent(string cacheDirectory, string cacheId = null)
         {
+            cacheId ??= "TestCache";
             return $@"{{
     ""MaxCacheSizeInMB"":  1024,
-    ""CacheId"":  ""TestCache"",
+    ""CacheId"":  ""{cacheId}"",
     ""Assembly"":  ""BuildXL.Cache.MemoizationStoreAdapter"",
     ""CacheLogPath"":  ""[BuildXLSelectedLogPath]"",
     ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory"",

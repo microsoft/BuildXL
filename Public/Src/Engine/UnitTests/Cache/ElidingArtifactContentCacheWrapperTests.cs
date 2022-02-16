@@ -128,32 +128,32 @@ namespace Test.BuildXL.Engine.Cache
                     m_hashLoadCounts.AddOrUpdate(hash, 1, (k, v) => v + 1);
                 }
 
-                return this.m_cache.TryLoadAvailableContentAsync(hashes, CancellationToken.None);
+                return m_cache.TryLoadAvailableContentAsync(hashes, CancellationToken.None);
             }
 
             public Task<Possible<Unit, Failure>> TryMaterializeAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, CancellationToken cancellationToken)
             {
-                return this.m_cache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
+                return m_cache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
             }
 
             public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
             {
-                return this.m_cache.TryOpenContentStreamAsync(contentHash);
+                return m_cache.TryOpenContentStreamAsync(contentHash);
             }
 
-            public Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash)
+            public Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, StoreArtifactOptions options = default)
             {
-                return this.m_cache.TryStoreAsync(fileRealizationModes, path, contentHash);
+                return m_cache.TryStoreAsync(fileRealizationModes, path, contentHash, options);
             }
 
-            public Task<Possible<ContentHash, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path)
+            public Task<Possible<ContentHash, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, StoreArtifactOptions options = default)
             {
-                return this.m_cache.TryStoreAsync(fileRealizationModes, path);
+                return m_cache.TryStoreAsync(fileRealizationModes, path, options);
             }
 
-            public Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash)
+            public Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash, StoreArtifactOptions options = default)
             {
-                return this.m_cache.TryStoreAsync(content, contentHash);
+                return m_cache.TryStoreAsync(content, contentHash, options);
             }
         }
     }

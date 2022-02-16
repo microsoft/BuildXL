@@ -74,7 +74,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         Task<Possible<Unit, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
             ExpandedAbsolutePath path,
-            ContentHash contentHash);
+            ContentHash contentHash,
+            StoreArtifactOptions options = default);
 
         /// <summary>
         /// Attempts to store content as found at the specified path. The specified path is always opened to compute its hash, which is returned on successful store.
@@ -82,7 +83,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         Task<Possible<ContentHash, Failure>> TryStoreAsync(
             FileRealizationMode fileRealizationModes,
-            ExpandedAbsolutePath path);
+            ExpandedAbsolutePath path,
+            StoreArtifactOptions options = default);
 
         /// <summary>
         /// Attempts to store content from the given stream. This may be a no-op if the cache already has the specified content, in
@@ -91,6 +93,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         Task<Possible<Unit, Failure>> TryStoreAsync(
             Stream content,
-            ContentHash contentHash);
+            ContentHash contentHash,
+            StoreArtifactOptions options = default);
     }
 }

@@ -84,7 +84,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     hash.Value.ToContentHash(),
                     new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                     fileState.ToMemoization(),
-                    CancellationToken.None);
+                    CancellationToken.None,
+                    urgencyHint.ToMemoization());
             }
             else
             {
@@ -93,7 +94,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     ContentHashingUtilities.HashInfo.HashType,
                     new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                     fileState.ToMemoization(),
-                    CancellationToken.None);
+                    CancellationToken.None,
+                    urgencyHint.ToMemoization());
             }
 
             if (result.Succeeded)
@@ -122,11 +124,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             PutResult result;
             if (hash.HasValue)
             {
-                result = await CacheSession.PutStreamAsync(new Context(Logger), hash.Value.ToContentHash(), filestream, CancellationToken.None);
+                result = await CacheSession.PutStreamAsync(new Context(Logger), hash.Value.ToContentHash(), filestream, CancellationToken.None, urgencyHint.ToMemoization());
             }
             else
             {
-                result = await CacheSession.PutStreamAsync(new Context(Logger), ContentHashingUtilities.HashInfo.HashType, filestream, CancellationToken.None);
+                result = await CacheSession.PutStreamAsync(new Context(Logger), ContentHashingUtilities.HashInfo.HashType, filestream, CancellationToken.None, urgencyHint.ToMemoization());
             }
 
             if (result.Succeeded)
@@ -154,7 +156,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     weak.ToMemoization(),
                     new Selector(casElement.ToMemoization(), hashElement.RawHash.ToByteArray())),
                 hashes.ToMemoization(),
-                CancellationToken.None);
+                CancellationToken.None,
+                urgencyHint.ToMemoization());
 
             var strong = new StrongFingerprint(weak, casElement, hashElement, CacheId);
             switch (addResult.Code)

@@ -145,7 +145,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             ContentHash pathSetHash,
             StrongContentFingerprint strongFingerprint,
             CacheEntry entry,
-            CacheEntryPublishMode publishMode = CacheEntryPublishMode.CreateNew)
+            CacheEntryPublishMode publishMode = CacheEntryPublishMode.CreateNew,
+            PublishCacheEntryOptions options = default)
         {
             // We can request semantics appropriate for CreateNewOrReplaceExisting via CacheDeterminism.SinglePhaseNonDeterministic
             // Note that conflict-rejections / failures may still occur.
@@ -163,7 +164,8 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                     weak: new WeakFingerprintHash(new Hash(weakFingerprint.Hash)),
                     casElement: new CasHash(new Hash(pathSetHash)),
                     hashElement: new Hash(strongFingerprint.Hash),
-                    hashes: adaptedHashes), 
+                    hashes: adaptedHashes,
+                    urgencyHint: options.ShouldPublishAssociatedContent ? UrgencyHint.RegisterAssociatedContent : UrgencyHint.SkipRegisterContent), 
                 nameof(TryPublishCacheEntryAsync));
 
             if (maybePublished.Succeeded)

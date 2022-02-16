@@ -28,7 +28,13 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
         }
 
         /// <inheritdoc />
-        public Task<Possible<CacheEntryPublishResult, Failure>> TryPublishCacheEntryAsync(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, StrongContentFingerprint strongFingerprint, CacheEntry entry, CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew)
+        public Task<Possible<CacheEntryPublishResult, Failure>> TryPublishCacheEntryAsync(
+            WeakContentFingerprint weakFingerprint,
+            ContentHash pathSetHash,
+            StrongContentFingerprint strongFingerprint,
+            CacheEntry entry,
+            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew,
+            PublishCacheEntryOptions options = default)
         {
             return Task.FromResult(new Possible<CacheEntryPublishResult, Failure>(CacheEntryPublishResult.CreatePublishedResult()));
         }

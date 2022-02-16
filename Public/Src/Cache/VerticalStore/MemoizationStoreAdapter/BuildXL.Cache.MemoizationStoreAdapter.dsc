@@ -31,6 +31,7 @@ namespace MemoizationStoreAdapter {
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStoreAdapter.Test",
+            "Test.BuildXL.Engine",
         ],
   });
 }

@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Engine;
 using BuildXL.Native.IO;
@@ -10,6 +11,7 @@ using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -57,6 +59,12 @@ namespace Test.BuildXL.Engine
             }
         }
 
+        // Disable this test because it creates its own cache setup
+        public override Task TestHintPropagation()
+        {
+            return Task.CompletedTask;
+        }
+
         public void OnMessage(Diagnostic diagnostic)
         {
             if (diagnostic.ErrorCode == (int)SharedLogEventId.TextLogEtwOnly)
@@ -67,6 +75,8 @@ namespace Test.BuildXL.Engine
 
         protected override void Dispose(bool disposing)
         {
+            Logger.Log.RemoveObserver(this);
+
             if (m_cacheInitializer != null)
             {
                 var closeResult = m_cacheInitializer.Close();

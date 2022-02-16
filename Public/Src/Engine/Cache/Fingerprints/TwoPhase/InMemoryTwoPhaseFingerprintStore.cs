@@ -88,7 +88,8 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
             ContentHash pathSetHash,
             StrongContentFingerprint strongFingerprint,
             CacheEntry entry,
-            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew)
+            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew,
+            PublishCacheEntryOptions options = default)
         {
             var newNode = new Node(pathSetHash, strongFingerprint, entry);
             var updatedNode = m_entries.AddOrUpdate(

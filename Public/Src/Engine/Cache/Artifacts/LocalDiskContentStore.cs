@@ -766,7 +766,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             ContentHash? knownContentHash = null,
             bool trackPath = true,
             bool? isReparsePoint = null,
-            bool isUndeclaredFileRewrite = false)
+            bool isUndeclaredFileRewrite = false,
+            bool isStoringCachedProcessOutput = false)
         {
             Contract.Requires(cache != null);
             Contract.Requires(path.IsValid);
@@ -788,6 +789,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                 isReparsePoint = possibleReparsePointType.Succeeded && FileUtilities.IsReparsePointActionable(possibleReparsePointType.Result);
             }
 
+            var storeOptions = isStoringCachedProcessOutput ? StoreArtifactOptions.CacheEntryContent : default;
+
             // If path is a reparse point, and the file realization mode is hard-link, then the cache will create
             // a hardlink to the final target of the reparse point. Thus, reparse point production works under the assumption
             // that the reparse point is not a dangling reparse point.
@@ -798,7 +801,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                 Possible<Unit, Failure> possiblyStored = await cache.TryStoreAsync(
                     fileRealizationModes,
                     expandedPath,
-                    knownContentHash.Value);
+                    knownContentHash.Value,
+                    storeOptions);
 
                 // TryStoreAsync possibly replaced the file (such as hardlinking out of the cache, if we already had identical content).
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
@@ -809,7 +813,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             {
                 Possible<ContentHash, Failure> possiblyStored = await cache.TryStoreAsync(
                     fileRealizationModes,
-                    expandedPath);
+                    expandedPath,
+                    storeOptions);
 
                 return await possiblyStored.ThenAsync(
                     contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isReparsePoint.Value, trackPath: trackPath, isUndeclaredFileRewrite: isUndeclaredFileRewrite));

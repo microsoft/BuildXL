@@ -52,7 +52,8 @@ namespace BuildXL.Engine.Cache.Fingerprints.TwoPhase
             ContentHash pathSetHash,
             StrongContentFingerprint strongFingerprint,
             CacheEntry entry,
-            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew);
+            CacheEntryPublishMode mode = CacheEntryPublishMode.CreateNew,
+            PublishCacheEntryOptions options = default);
     }
 
     /// <summary>

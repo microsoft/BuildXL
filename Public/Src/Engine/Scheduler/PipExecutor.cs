@@ -4559,7 +4559,8 @@ namespace BuildXL.Scheduler
                                                         operationContext,
                                                         process,
                                                         dataToStore.artifact,
-                                                        dataToStore.data);
+                                                        dataToStore.data,
+                                                        isProcessCacheable: true);
 
                                 // Observe it is fine to store this in a lock-free manner since we make sure same indexes are not updated concurrently
                                 materializationResults[dataToStore.index] = result;
@@ -4797,7 +4798,8 @@ namespace BuildXL.Scheduler
             OperationContext operationContext,
             Process process,
             FileArtifactWithAttributes output,
-            FileOutputData outputData)
+            FileOutputData outputData,
+            bool isProcessCacheable)
         {
             Contract.Assert(output.CanBeReferencedOrCached());
 
@@ -4859,7 +4861,7 @@ namespace BuildXL.Scheduler
                     && !isReparsePoint;
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
-                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isReparsePoint)
+                    ? await StoreProcessOutputToCacheAsync(operationContext, environment, process, outputArtifact, output.IsUndeclaredFileRewrite, isReparsePoint, isProcessCacheable: isProcessCacheable)
                     : await TrackPipOutputAsync(
                         operationContext,
                         process,
@@ -5273,7 +5275,8 @@ namespace BuildXL.Scheduler
             Process process,
             FileArtifact outputFileArtifact,
             bool isUndeclaredFileRewrite,
-            bool isReparsePoint = false)
+            bool isReparsePoint,
+            bool isProcessCacheable)
         {
             Contract.Requires(environment != null);
             Contract.Requires(process != null);
@@ -5287,7 +5290,8 @@ namespace BuildXL.Scheduler
                         outputFileArtifact.Path,
                         tryFlushPageCacheToFileSystem: environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
                         isReparsePoint: isReparsePoint,
-                        isUndeclaredFileRewrite: isUndeclaredFileRewrite);
+                        isUndeclaredFileRewrite: isUndeclaredFileRewrite,
+                        isStoringCachedProcessOutput: isProcessCacheable);
 
             if (!possiblyStored.Succeeded)
             {

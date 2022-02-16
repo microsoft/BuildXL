@@ -268,7 +268,8 @@ namespace BuildXL.Engine.Cache.Artifacts
         public static Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
             this IArtifactContentCache contentCache,
             T valueToSerialize,
-            BoxRef<long> contentSize = null)
+            BoxRef<long> contentSize = null,
+            StoreArtifactOptions options = default)
         {
             return BondExtensions.TrySerializeAndStoreContent(
                 valueToSerialize,
@@ -282,7 +283,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                     {
                         Possible<Unit, Failure> maybeStored = await contentCache.TryStoreAsync(
                             entryStream,
-                            contentHash: valueHash);
+                            contentHash: valueHash,
+                            options: options);
 
                         return maybeStored.WithGenericFailure();
                     }

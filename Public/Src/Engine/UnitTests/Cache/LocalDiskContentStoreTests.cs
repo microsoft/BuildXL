@@ -1059,9 +1059,9 @@ namespace Test.BuildXL.Engine.Cache
                 return ContentCache.TryMaterializeAsync(fileRealizationModes, path, contentHash, cancellationToken);
             }
 
-            public async Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash)
+            public async Task<Possible<Unit, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, ContentHash contentHash, StoreArtifactOptions options = default)
             {
-                var result = await ContentCache.TryStoreAsync(fileRealizationModes, path, contentHash);
+                var result = await ContentCache.TryStoreAsync(fileRealizationModes, path, contentHash, options);
 
                 ExpandedAbsolutePath originalContentPath;
                 if (fileRealizationModes == FileRealizationMode.HardLink && ContentPaths.TryGetValue(contentHash, out originalContentPath))
@@ -1074,14 +1074,14 @@ namespace Test.BuildXL.Engine.Cache
                 return result;
             }
 
-            public Task<Possible<ContentHash, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path)
+            public Task<Possible<ContentHash, Failure>> TryStoreAsync(FileRealizationMode fileRealizationModes, ExpandedAbsolutePath path, StoreArtifactOptions options = default)
             {
-                return ContentCache.TryStoreAsync(fileRealizationModes, path);
+                return ContentCache.TryStoreAsync(fileRealizationModes, path, options);
             }
 
-            public Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash)
+            public Task<Possible<Unit, Failure>> TryStoreAsync(Stream content, ContentHash contentHash, StoreArtifactOptions options = default)
             {
-                return ContentCache.TryStoreAsync(content, contentHash);
+                return ContentCache.TryStoreAsync(content, contentHash, options);
             }
 
             private class TestFileChangeTrackingSelector : FileChangeTrackingSelector

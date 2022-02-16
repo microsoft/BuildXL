@@ -3444,7 +3444,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "5.0.1"
+          "Version": "6.0.2"
         }
       }
     },

@@ -47,6 +47,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessPreserveOutputDirectorySkipMakeFilesPrivate = 54,
 
 #pragma warning disable 618
+        CancellationRequested = SharedLogEventId.CancellationRequested,
         PipProcessError = SharedLogEventId.PipProcessError,
         PipProcessWarning = SharedLogEventId.PipProcessWarning,
 #pragma warning restore 618

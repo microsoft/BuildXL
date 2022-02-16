@@ -142,6 +142,43 @@ namespace Test.BuildXL
             }
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void NoErrorLoggingForActiveCancellationToken(bool doNotSuppressErrorLogging)
+        {
+            string errorMessage = "I'm an error you want to ignore; it hurts.";
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken cancellationToken = cancellationTokenSource.Token;
+
+            // suppressError, else log the error
+            if (doNotSuppressErrorLogging)
+            {
+                // cancel the token source
+                cancellationTokenSource.Cancel();
+            }
+
+            using (var console = new MockConsole())
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, cancellationToken))
+            {
+                logError(listener);
+                if (doNotSuppressErrorLogging)
+                {
+                    console.ValidateNoCall();
+                }
+                else
+                {
+                    console.ValidateCall(MessageLevel.Error, errorMessage);
+                }
+            }
+
+            void logError(ConsoleEventListener listener)
+            {
+                listener.RegisterEventSource(TestEvents.Log);
+                TestEvents.Log.ErrorEvent(errorMessage);
+            }
+        }
+
 
         [Theory]
         [InlineData(true)]

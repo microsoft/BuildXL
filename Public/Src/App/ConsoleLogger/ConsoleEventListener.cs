@@ -421,6 +421,15 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnError(EventWrittenEventArgs eventData)
         {
+
+            //Ignore all errors except the cancellation requested error.
+#pragma warning disable 618
+            if (m_cancellationToken.IsCancellationRequested && (eventData.EventId != (int)SharedLogEventId.CancellationRequested))
+#pragma warning restore 618
+            {
+                return;
+            }
+
             Interlocked.Increment(ref m_errorsLogged);
 
             // AzureDevOpsListener has already written the event to console, avoid duplication

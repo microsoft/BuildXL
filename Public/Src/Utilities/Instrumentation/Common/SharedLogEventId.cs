@@ -20,7 +20,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         StartEngineRun = 87,
         EndEngineRun = 88,
         CacheMissAnalysis = 312,
-        
+
+        [Obsolete("Please use BuildXL.Processes.Tracing.LogEvent.CancellationRequested. This is only here to circumvent an inverse legacy dependency.")]
+        CancellationRequested = 470,
+
         [Obsolete("Please use BuildXL.Processes.Tracing.LogEvent.PipProcessError. This is only here to circumvent an inverse legacy dependency.")]
         PipProcessError = 64,
 

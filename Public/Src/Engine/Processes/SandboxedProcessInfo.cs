@@ -45,6 +45,15 @@ namespace BuildXL.Processes
             OperatingSystemHelper.IsMacOS   ?      256 * 1024 : short.MaxValue;
 
         /// <summary>
+        /// See <see cref="NumRetriesPipeReadOnCancel"/> for details. Having a high number of retry count has shown to mitigate the issue.
+        /// </summary>
+#if NET_COREAPP_60
+        public const int DefaultPipeReadRetryOnCancellationCount = 10_000;
+#else
+        public const int DefaultPipeReadRetryOnCancellationCount = 0;
+#endif
+
+        /// <summary>
         /// Make sure we always wait for a moment after the main process exits by default.
         /// </summary>
         /// <remarks>

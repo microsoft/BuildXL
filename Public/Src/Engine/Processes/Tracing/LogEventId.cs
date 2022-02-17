@@ -162,6 +162,10 @@ namespace BuildXL.Processes.Tracing
         PipProcessFinishedRemoteExecution = 12503,
         ExceptionOnFindOrStartAnyBuildDaemon = 12504,
         ExceptionOnGetAnyBuildRemoteProcessFactory = 12505,
+        InstallAnyBuildClient = 12506,
+        FailedDownloadingAnyBuildClient = 12507,
+        FailedInstallingAnyBuildClient = 12508,
+        FinishedInstallAnyBuild = 12509,
 
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,

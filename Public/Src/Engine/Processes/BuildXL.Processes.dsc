@@ -18,6 +18,7 @@ namespace Processes {
             ...addIf(BuildXLSdk.isFullFramework,
                 BuildXLSdk.NetFx.System.IO.Compression.dll,
                 BuildXLSdk.NetFx.System.Management.dll,
+                BuildXLSdk.NetFx.System.Net.Http.dll,
                 NetFx.Netstandard.dll
             ),
             ...addIf(BuildXLSdk.isDotNetCoreBuild,

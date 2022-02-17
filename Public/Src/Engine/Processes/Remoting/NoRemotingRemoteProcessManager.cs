@@ -28,6 +28,9 @@ namespace BuildXL.Processes.Remoting
         }
 
         /// <inheritdoc/>
+        public IRemoteProcessManagerInstaller? GetInstaller() => null;
+
+        /// <inheritdoc/>
         public Task InitAsync() => throw new BuildXLException(RemotingNotSupportedMessage);
     }
 }

@@ -4,6 +4,7 @@
 // #define FEATURE_ANYBUILD_PROCESS_REMOTING
 #if FEATURE_ANYBUILD_PROCESS_REMOTING
 
+using System;
 using System.Threading.Tasks;
 using AnyBuild;
 using BuildXL.Processes.Remoting.AnyBuild;
@@ -34,8 +35,15 @@ namespace BuildXL.Processes.Remoting
 
         private static async Task<IRemoteProcessPipResult> GetCompletionAsync(IRemoteProcess remoteProcess)
         {
-            IRemoteProcessResult anyBuildResult = await remoteProcess.Completion;
-            return AnyBuildRemoteProcessPipResult.FromAnyBuildResult(anyBuildResult);
+            try
+            {
+                IRemoteProcessResult anyBuildResult = await remoteProcess.Completion;
+                return AnyBuildRemoteProcessPipResult.FromAnyBuildResult(anyBuildResult);
+            }
+            catch (Exception e)
+            {
+                return new ErrorRemoteProcessPipResult(e.ToString());
+            }
         }
     }
 }

@@ -86,17 +86,29 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Extra arguments to be passed to AnyBuild daemon for process remoting.
         /// </summary>
+        /// <remarks>
+        /// Due to possibly complicated interaction with the batch/powershell scripts that call BuildXL, 
+        /// - the space separator can be replaced by double tilde,
+        /// - double quotes can be replaced by double exclamation mark. 
+        /// For example, '--NoCheckForUpdates --AnyBuildConfig "C:\path with space\foo.json"' can be written as '--NoCheckForUpdates~~--AnyBuildConfig~~!!C:\path~~with~~space\foo.json!!'.
+        /// </remarks>
         public static readonly Setting<string> AnyBuildExtraArgs = CreateSetting("BUILDXL_ANYBUILD_EXTRA_ARGS", value => value);
 
         /// <summary>
-        /// Service principal app id for starting AnyBuild daemon.
+        /// When true, force installation of AnyBuild client by removing existing installation.
         /// </summary>
-        public static readonly Setting<string> AnyBuildServicePrincipalAppId = CreateSetting("BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_APP_ID", value => value);
+        /// <remarks>
+        /// This setting is only applicable when BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR is unspecified.
+        /// </remarks>
+        public static readonly Setting<bool> AnyBuildForceInstall = CreateSetting("BUILDXL_ANYBUILD_FORCE_INSTALL", value => value == "1");
 
         /// <summary>
-        /// Environment variable where the service principal password for starting AnyBuild daemon is stored.
+        /// Source of AnyBuild client installation.
         /// </summary>
-        public static readonly Setting<string> AnyBuildServicePrincipalPwdEnv = CreateSetting("BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_PWD_ENV", value => value);
+        /// <remarks>
+        /// The source is an URI that can be suffixed with the installation ring specification, e.g., 'https://anybuild.azureedge.net/clientreleases?ring=Dogfood'.
+        /// </remarks>
+        public static readonly Setting<string> AnyBuildClientSource = CreateSetting("BUILDXL_ANYBUILD_SOURCE", value => value);
 
         /// <summary>
         /// Indicates whether the application should fail fast on null reference exceptions

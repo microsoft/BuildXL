@@ -6186,6 +6186,17 @@ namespace BuildXL.Scheduler
                     sidebandState: m_sidebandState,
                     serviceManager: m_serviceManager,
                     alienFileEnumerationCache: m_alienFileEnumerationCache);
+
+                if (m_scheduleConfiguration.EnableProcessRemoting)
+                {
+                    IRemoteProcessManagerInstaller installer = RemoteProcessManager.GetInstaller();
+
+                    if (installer != null && !installer.InstallAsync(m_schedulerCancellationTokenSource.Token).GetAwaiter().GetResult())
+                    {
+                        // Disable remoting when installation is unsuccessful.
+                        ((LocalWorkerWithRemoting)LocalWorker).DisableRemoting = true;
+                    }
+                }
             }
         }
 

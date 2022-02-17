@@ -1105,9 +1105,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_RemotingThresholdMultiplier" xml:space="preserve">
     <value>Multiplier for threshold before starting to remote process pips when /enableProcessRemoting is set to true. The threshold is obtained by multiplying /maxProc with this multiplier. Defaults to 1.5.</value>
   </data>
-  <data name="HelpText_DisplayHelp_RemoteExecutionServiceUri" xml:space="preserve">
-    <value>URI of cluster to use for remoting processes.  Applicable only when /enableProcessRemoting is set to true</value>
-  </data>
   <data name="HelpText_DisplayHelp_RunInSubst" xml:space="preserve">
     <value>Improves path stability across potentially heterogeneous machines by internally mapping a source path (typically the source of the repo to build) into a drive letter. If the source path is not explicitly provided with /substSource, the location of the main config file is used. Only effective on Windows, in other platforms the option is ignored. Useful for dev cache.</value>
   </data>

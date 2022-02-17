@@ -13,10 +13,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
 
         public bool IsInitialized { get; private set; }
 
-        public TestRemoteProcessManager(bool shouldRunLocally)
-        {
-            m_shouldRunLocally = shouldRunLocally;
-        }
+        public TestRemoteProcessManager(bool shouldRunLocally) => m_shouldRunLocally = shouldRunLocally;
 
         public async Task<IRemoteProcessPip> CreateAndStartAsync(RemoteProcessInfo processInfo, CancellationToken cancellationToken)
         {
@@ -34,5 +31,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             IsInitialized = true;
             return Task.CompletedTask;
         }
+
+        public IRemoteProcessManagerInstaller GetInstaller() => null;
     }
 }

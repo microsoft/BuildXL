@@ -409,6 +409,42 @@ namespace BuildXL.Processes.Tracing
         public abstract void ExceptionOnGetAnyBuildRemoteProcessFactory(LoggingContext context, string exception);
 
         [GeneratedEvent(
+            (int)LogEventId.InstallAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Installing AnyBuild client from '{source}' (ring: {ring})")]
+        public abstract void InstallAnyBuildClient(LoggingContext context, string source, string ring);
+
+        [GeneratedEvent(
+            (int)LogEventId.FailedDownloadingAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Failed downloading AnyBuild client: {message}")]
+        public abstract void FailedDownloadingAnyBuildClient(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.FailedInstallingAnyBuildClient,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Failed installing AnyBuild client: {message}")]
+        public abstract void FailedInstallingAnyBuildClient(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.FinishedInstallAnyBuild,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Finished installing AnyBuild client: {message}")]
+        public abstract void FinishedInstallAnyBuild(LoggingContext context, string message);
+
+        [GeneratedEvent(
             (int)LogEventId.LogMacKextFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

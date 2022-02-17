@@ -502,15 +502,6 @@ namespace BuildXL.Utilities.Configuration
         double RemotingThresholdMultiplier { get; }
 
         /// <summary>
-        /// URI of cluster to use for remoting processes.
-        /// </summary>
-        /// <remarks>
-        /// When unspecified, the service URI will be determined by AnyBuild client itself.
-        /// This setting is only applicable when <see cref="EnableProcessRemoting"/> is true.
-        /// </remarks>
-        string RemoteExecutionServiceUri { get; }
-
-        /// <summary>
         /// Whether Cpu resource determines the scheduling behavior
         /// </summary>
         bool CpuResourceAware { get; }

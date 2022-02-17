@@ -5,6 +5,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace BuildXL.Processes.Remoting
 {
     /// <summary>
@@ -33,5 +35,11 @@ namespace BuildXL.Processes.Remoting
         /// Checks if this process manager has been initialized.
         /// </summary>
         bool IsInitialized { get; }
+
+        /// <summary>
+        /// Returns an installer for this remote process manager.
+        /// </summary>
+        /// <returns>An instance of <see cref="IRemoteProcessManagerInstaller"/>.</returns>
+        IRemoteProcessManagerInstaller? GetInstaller();
     }
 }

@@ -185,7 +185,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessCanRunRemoteTags = new List<string>(template.ProcessCanRunRemoteTags);
             ProcessMustRunLocalTags = new List<string>(template.ProcessMustRunLocalTags);
             RemotingThresholdMultiplier = template.RemotingThresholdMultiplier;
-            RemoteExecutionServiceUri = template.RemoteExecutionServiceUri;
 
             StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
             CpuResourceAware = template.CpuResourceAware;
@@ -468,9 +467,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public double RemotingThresholdMultiplier { get; set; }
 
         private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? 2 * MaxProcesses;
-
-        /// <inheritdoc />
-        public string RemoteExecutionServiceUri { get; set; }
 
         /// <inheritdoc />
         public bool CpuResourceAware { get; set; }

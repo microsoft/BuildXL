@@ -62,9 +62,15 @@ namespace BuildXL.Processes.Remoting
                 useLocalEnvironment: false,
                 processInfo.Environments.ToList());
 
-            IRemoteProcess remoteCommand = await factory.CreateAndStartAsync(commandInfo, cancellationToken);
-
-            return new AnyBuildRemoteProcess(remoteCommand);
+            try
+            {
+                IRemoteProcess remoteCommand = await factory.CreateAndStartAsync(commandInfo, cancellationToken);
+                return new AnyBuildRemoteProcess(remoteCommand);
+            }
+            catch (Exception e)
+            {
+                return new ErrorRemoteProcessPip(e.ToString());
+            }
         }
 
         /// <inheritdoc/>
@@ -119,6 +125,9 @@ namespace BuildXL.Processes.Remoting
                         m_executionContext.CancellationToken,
                         logDirectory: logDir,
                         additionalAnyBuildParameters: extraParams,
+                        // TODO: Use available ports instead of the defaults. It may address the issue with /server-.
+                        // daemonPort: GetUnusedPort(),
+                        // shimPort: GetUnusedPort(),
                         inheritHandlesOnProcessCreation: false);
                 }
                 catch (Exception e)
@@ -166,47 +175,27 @@ namespace BuildXL.Processes.Remoting
                 $"--CacheDir {localCacheDir}",
             };
 
-            if (!string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildServicePrincipalAppId))
+            string extraArgs = EngineEnvironmentSettings.AnyBuildExtraArgs;
+            if (!string.IsNullOrEmpty(extraArgs))
             {
-                args.Add("--ClientApplicationId");
-                args.Add(EngineEnvironmentSettings.AnyBuildServicePrincipalAppId);
-
-                if (string.IsNullOrEmpty(EngineEnvironmentSettings.AnyBuildServicePrincipalPwdEnv))
-                {
-                    throw new BuildXLException($"Service principal password is required for starting AnyBuild daemon");
-                }
-
-                args.Add("--ClientSecretEnvironmentVariable");
-                args.Add(EngineEnvironmentSettings.AnyBuildServicePrincipalPwdEnv);
+                extraArgs = extraArgs.Replace("~~", " ").Replace("!!", "\"");
+                args.Add(extraArgs);
             }
-
-            if (!string.IsNullOrEmpty(m_configuration.Schedule.RemoteExecutionServiceUri))
-            {
-                try
-                {
-                    var uri = new Uri(m_configuration.Schedule.RemoteExecutionServiceUri);
-                    if (uri.IsLoopback)
-                    {
-                        args.Add("--Loopback");
-                        args.Add("--WaitForAgentForever");
-                    }
-                    else
-                    {
-                        args.Add($"--RemoteExecServiceUri {uri}");
-                    }
-                }
-                catch (UriFormatException e)
-                {
-                    throw new BuildXLException(
-                        $"Invalid {nameof(m_configuration.Schedule.RemoteExecutionServiceUri)}: {m_configuration.Schedule.RemoteExecutionServiceUri}",
-                        e);
-                }
-            }
-
-            args.Add(EngineEnvironmentSettings.AnyBuildExtraArgs ?? string.Empty);
 
             return string.Join(" ", args);
         }
+
+        /// <inheritdoc/>
+        public IRemoteProcessManagerInstaller? GetInstaller() => new AnyBuildInstaller(m_loggingContext);
+
+        // private static int GetUnusedPort()
+        // {
+        //     var listener = new TcpListener(IPAddress.Loopback, 0);
+        //     listener.Start();
+        //     int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        //     listener.Stop();
+        //     return port;
+        // }
 
         private record InitResult(AnyBuildClient AbClient, AnyBuildDaemonManager DaemonManager, IRemoteProcessFactory RemoteProcessFactory);
     }

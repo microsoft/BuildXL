@@ -1,3 +1,10 @@
+<#
+.SYNOPSIS
+
+Script for BuildXL self-hosting with specified PATs. This script is used to perform BuildXL self-hosting in Azure pipeline.
+
+#>
+
 [CmdletBinding(PositionalBinding=$false)]
 Param(
  [Parameter(mandatory=$true)]
@@ -9,19 +16,19 @@ Param(
  [Parameter(mandatory=$true)]
  [String]$MsEngGitPat,
 
+ [ValidateSet("LKG", "Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
+ [string]$Use = "LKG",
+ [ValidateSet("Release", "Debug")]
+ [string]$DeployConfig = "Debug",
+ [ValidateSet("net472", "net5.0", "net6.0", "win-x64", "osx-x64")]
+ [string]$DeployRuntime = "win-x64",
  [Parameter(Mandatory=$false)]
- [switch]$DeployDev = $false,
- [Parameter(Mandatory=$false)]
- [switch]$UseDev = $false,
- [Parameter(Mandatory=$false)]
+ [ValidateSet("Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
+ [string]$Deploy,
  [switch]$Minimal = $false,
- [Parameter(Mandatory=$false)]
- [switch]$Release = $false,
 
  [Parameter(Mandatory=$false)]
  [switch]$EnableProcessRemoting = $false,
- [Parameter(Mandatory=$false)]
- [string]$RemoteServiceUri = "https://westus2.anybuild-test.microsoft.com/clusters/07F427C5-7979-415C-B6D9-01BAD5118191",
  [Parameter(Mandatory=$false)]
  [string]$AnyBuildClientDir,
 
@@ -42,21 +49,15 @@ Param(
     ]
 }", "Process")
 
-$BxlCmdArgs = @()
+$BxlCmdArgs = @(
+    "-Use", $Use,
+    "-DeployConfig", $DeployConfig,
+    "-DeployRuntime", $DeployRuntime
+)
 
-if ($UseDev)
+if (-not [string]::IsNullOrEmpty($Deploy))
 {
-    $BxlCmdArgs += @("-Use", "Dev")
-}
-
-if ($DeployDev)
-{
-    $BxlCmdArgs += "-DeployDev"
-}
-
-if ($Release)
-{
-    $BxlCmdArgs += @("-DeployConfig", "Release")
+    $BxlCmdArgs += @("-Deploy", $Deploy)
 }
 
 if ($Minimal)
@@ -67,7 +68,6 @@ if ($Minimal)
 if ($EnableProcessRemoting)
 {
     $BxlCmdArgs += "-EnableProcessRemoting"
-    $BxlCmdArgs += @("-RemoteServiceUri", $RemoteServiceUri)
 }
 
 if (-not [string]::IsNullOrEmpty($AnyBuildClientDir))

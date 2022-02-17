@@ -1,3 +1,15 @@
+parameters:
+  # - name: AnyBuildSource
+  #   type: string
+  #   default: 'https://anybuildbxl1westus2.blob.core.windows.net/clientreleases'
+  #   default: 'https://anybuild.azureedge.net/clientreleases'
+  - name: BuildXLArguments
+    type: string
+    default: '/numRemoteAgentLeases:24 /remotingThresholdMultiplier:1.25 /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=*'
+  - name: AnyBuildArguments
+    type: string
+    default: '--NoCheckForUpdates'
+
 trigger: none
 
 pool:
@@ -5,12 +17,20 @@ pool:
 
 variables:
   NugetCredentialProviderPath: '$(Build.SourcesDirectory)\Public\Src\Tools\BuildXL.Tools.CredentialProvider\bin\Debug\netcoreapp2.1\win-x64'
-  Datacenter: 'westus2'
-  ClusterName: 'Bxl1'
-  RemoteUri: 'https://westus2.anybuild-test.microsoft.com/clusters/07F427C5-7979-415C-B6D9-01BAD5118191'
-  ClientContainerUrl: 'https://anybuild$(ClusterName)$(Datacenter).blob.core.windows.net/clientreleases'
-  BootstrapArgs: '-DeployDev /p:[Sdk.BuildXL]microsoftInternal=1'
-  RemotingArgs: '-UseDev -Minimal -EnableProcessRemoting -RemoteServiceUri $(RemoteUri) /p:BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_APP_ID=$(BuildXLPipelinesAppId) /p:BUILDXL_ANYBUILD_SERVICE_PRINCIPAL_PWD_ENV=AnyBuildServicePrincipalPwd /numRemoteAgentLeases:24 /remotingThresholdMultiplier:1.25 /p:[Sdk.BuildXL]microsoftInternal=1 /p:BUILDXL_FINGERPRINT_SALT=*'
+  # AnyBuild.json
+  # {
+  #  "DefaultClusterUri": "https://westus2.anybuild.microsoft.com/clusters/5cff1ffe-c438-4382-be19-140c0cd893ae",
+  #  "DefaultClusterName": "BuildXL1"
+  # }
+  # AnyBuild.json
+  # {
+  #  "DefaultClusterUri": "https://westus2.anybuild-test.microsoft.com/clusters/07F427C5-7979-415C-B6D9-01BAD5118191",
+  #  "DefaultClusterName": "Bxl1"
+  # }
+  CommonArgs: '-OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -NcPath $(NugetCredentialProviderPath) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode)'
+  BootstrapArgs: '-Minimal -Deploy Dev /p:[Sdk.BuildXL]microsoftInternal=1'
+  AnyBuildAuthArgs: '--ClientApplicationId~~$(BuildXLPipelinesAppId)~~--ClientSecretEnvironmentVariable~~AnyBuildServicePrincipalPasswd'
+  RemotingArgs: '-Use Dev -Minimal -EnableProcessRemoting /p:BUILDXL_ANYBUILD_EXTRA_ARGS=$(AnyBuildAuthArgs)~~${{ parameters.AnyBuildArguments }} ${{ parameters.BuildXLArguments }}' 
 
 steps:
 
@@ -39,9 +59,11 @@ steps:
     projects: '$(Build.SourcesDirectory)\Public\Src\Tools\BuildXL.Tools.CredentialProvider\BuildXL.Tools.CredentialProvider.csproj'
     arguments: '-r win-x64'
 
-- template: ./install-client.yml
-  parameters:
-    AnyBuildSource: $(ClientContainerUrl)
+- powershell: |
+    Remove-Item -Force -Recurse "$env:LOCALAPPDATA\Microsoft\AnyBuild" -ea SilentlyContinue
+  failOnStderr: true
+  displayName: 'Remove existing AnyBuild client'
+  continueOnError: false
 
 - task: BatchScript@1
   displayName: 'Kill existing BuildXL processes'
@@ -51,20 +73,20 @@ steps:
   condition: always()
 
 - task: PowerShell@2
-  displayName: 'Build BXL'
+  displayName: 'Build BXL (bootstrap)'
   inputs:
     targetType: filePath
     filePath: '$(Build.SourcesDirectory)\RunBxlWithPAT.ps1'
-    arguments: '-OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -NcPath $(NugetCredentialProviderPath) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) $(BootstrapArgs)'
+    arguments: '$(CommonArgs) $(BootstrapArgs)'
 
 - task: PowerShell@2
   displayName: 'Run BXL with remoting'
   inputs:
     targetType: filePath
     filePath: '$(Build.SourcesDirectory)\RunBxlWithPAT.ps1'
-    arguments: '-OneEsPat $(PAT-TseBuild-AzureDevOps-1esSharedAssets-Package-Read) -CbPat $(PAT-TseBuild-AzureDevOps-CloudBuild-Packaging-Read) -NcPath $(NugetCredentialProviderPath) -MsEngGitPat $(PAT-TseBuild-AzureDevOps-MsEng-ReadCode) $(RemotingArgs)'
+    arguments: '$(CommonArgs) $(RemotingArgs)'
   env:
-    AnyBuildServicePrincipalPwd: $(AzureApp-BuildXL-Pipelines)
+    AnyBuildServicePrincipalPasswd: $(AzureApp-BuildXL-Pipelines)
 
 - task: BatchScript@1
   displayName: 'Kill existing BuildXL processes'

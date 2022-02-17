@@ -152,9 +152,6 @@ param(
     [switch]$EnableProcessRemoting = $false,
 
     [Parameter(Mandatory=$false)]
-    [string]$RemoteServiceUri = "https://westus2.anybuild-test.microsoft.com/clusters/07F427C5-7979-415C-B6D9-01BAD5118191",
-
-    [Parameter(Mandatory=$false)]
     [string]$AnyBuildClientDir,
 
     [Parameter(ValueFromRemainingArguments=$true)]
@@ -219,6 +216,8 @@ $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]micro
 # - /ado option is present, so AzDevOps scenarios are kept unchanged. 
 # - this is not considered an internal build
 # We might decide to relax this once shared compilation gets enough mileage.
+# TODO: Enable shared compilation for -EnableProcessRemoting.
+#       Currently some builds failed to write outputs. Need more investigation.
 if ($UseManagedSharedCompilation -and 
         (($DominoArguments -like '*/ado*') -or (-not $isMicrosoftInternal) -or $EnableProcessRemoting)) {
     $UseManagedSharedCompilation = $false
@@ -324,10 +323,17 @@ if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArgum
 if ($EnableProcessRemoting) {
     # Unit tests are not supported for remoting because change journal is not enabled on agents
     # and all volumes in agents have the same serial.
-    $AdditionalBuildXLArguments += @("/server-", "/enableLazyOutputs-", "/exp:lazysodeletion-", "/enableProcessRemoting+", "/processCanRunRemoteTags:compile", "/processMustRunLocalTags:telemetry:xUnit;telemetry:xUnitUntracked;telemetry:QTest", "/remoteExecutionServiceUri:$RemoteServiceUri");
+    $AdditionalBuildXLArguments += @(
+        # TODO: Remove /server-
+        #       Currently needed because of the following exception:
+        #       Exception:System.Net.Internals.SocketExceptionFactory+ExtendedSocketException (10061): No connection could be made because the target machine actively refused it. [::ffff:127.0.0.1]:21337
+        "/server-",
+        "/enableProcessRemoting+",
+        "/processCanRunRemoteTags:compile",
+        "/processMustRunLocalTags:telemetry:xUnit;telemetry:xUnitUntracked;telemetry:QTest");
 
     if (-not [string]::IsNullOrEmpty($AnyBuildClientDir)) {
-        $AdditionalBuildXLArguments += " /p:BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR=$AnyBuildClientDir"
+        $AdditionalBuildXLArguments += " /p:BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR=`"$AnyBuildClientDir`""
     }
 }
 
@@ -727,11 +733,9 @@ if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
 [string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })
 [string[]]$DominoArguments = $AdditionalBuildXLArguments + $DominoArguments;
 
-if ($NoSubst) 
-{
+if ($NoSubst) {
     $bxlExitCode = Run-ProcessWithoutNormalizedPath $useDeployment.domino $DominoArguments;
-} else 
-{
+} else {
     $bxlExitCode = Run-ProcessWithNormalizedPath $useDeployment.dominoRunner $useDeployment.domino $DominoArguments;
 }
 $bxlSuccess = ($bxlExitCode -eq 0);

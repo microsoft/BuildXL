@@ -354,28 +354,6 @@ namespace BuildXL
                             "diag",
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
-                            "dumpFailedPips",
-                            opt => loggingConfiguration.DumpFailedPips = opt),
-                        OptionHandlerFactory.CreateOption(
-                            "dumpFailedPipsLogLimit",
-                            opt => loggingConfiguration.DumpFailedPipsLogLimit = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "dumpFailedPipsWithDynamicData",
-                            opt => loggingConfiguration.DumpFailedPipsWithDynamicData = opt),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "earlyWorkerRelease",
-                            sign => distributionConfiguration.EarlyWorkerRelease = sign),
-                        OptionHandlerFactory.CreateOption(
-                            "earlyWorkerReleaseMultiplier",
-                            opt =>
-                            distributionConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "enforceAccessPoliciesOnDirectoryCreation",
-                            sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "emitSpotlightIndexingWarning",
-                            sign => layoutConfiguration.EmitSpotlightIndexingWarning = sign),
-                        OptionHandlerFactory.CreateBoolOption(
                             "disableConHostSharing",
                             sign => engineConfiguration.DisableConHostSharing = sign),
                         OptionHandlerFactory.CreateBoolOption(
@@ -410,8 +388,27 @@ namespace BuildXL
                             "dbw",
                             opt => ParseServiceLocation(opt, distributionConfiguration.BuildWorkers)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "dumpFailedPips",
+                            opt => loggingConfiguration.DumpFailedPips = opt),
+                        OptionHandlerFactory.CreateOption(
+                            "dumpFailedPipsLogLimit",
+                            opt => loggingConfiguration.DumpFailedPipsLogLimit = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "dumpFailedPipsWithDynamicData",
+                            opt => loggingConfiguration.DumpFailedPipsWithDynamicData = opt),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "earlyWorkerRelease",
+                            sign => distributionConfiguration.EarlyWorkerRelease = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "earlyWorkerReleaseMultiplier",
+                            opt =>
+                            distributionConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
+                        OptionHandlerFactory.CreateBoolOption(
                             "elideMinimalGraphEnumerationAbsentPathProbes",
                             sign => cacheConfiguration.ElideMinimalGraphEnumerationAbsentPathProbes = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "emitSpotlightIndexingWarning",
+                            sign => layoutConfiguration.EmitSpotlightIndexingWarning = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
@@ -421,14 +418,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableHistoricCommitMemoryProjection",
                             sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
-                        OptionHandlerFactory.CreateOption(
-                            "hashType",
-                            option =>
-                            {
-                                var hashType = option.Value.FindHashTypeByName();
-                                ContentHashingUtilities.SetDefaultHashType(hashType);
-                                cacheConfiguration.UseDedupStore = hashType.IsValidDedup();
-                            }),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enforceAccessPoliciesOnDirectoryCreation",
+                            sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",
                             sign =>
@@ -557,6 +549,14 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "hardExitOnErrorInDetours",
                             sign => sandboxConfiguration.HardExitOnErrorInDetours = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "hashType",
+                            option =>
+                            {
+                                var hashType = option.Value.FindHashTypeByName();
+                                ContentHashingUtilities.SetDefaultHashType(hashType);
+                                cacheConfiguration.UseDedupStore = hashType.IsValidDedup();
+                            }),
 #if PLATFORM_OSX
                         OptionHandlerFactory.CreateOption(
                             "numberOfKextConnections", // TODO: deprecate and remove
@@ -912,9 +912,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "relatedActivityId",
                             opt => loggingConfiguration.RelatedActivityId = CommandLineUtilities.ParseStringOption(opt)),
-                        OptionHandlerFactory.CreateOption(
-                            "remoteExecutionServiceUri",
-                            opt =>  schedulingConfiguration.RemoteExecutionServiceUri = CommandLineUtilities.ParseStringOption(opt)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "remoteTelemetry",
                             (opt, sign) =>

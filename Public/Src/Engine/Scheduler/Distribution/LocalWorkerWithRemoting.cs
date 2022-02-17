@@ -47,6 +47,11 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public int TotalRemoteFallbackRetryLocally => Volatile.Read(ref m_totalRemoteFallbackRetryLocally);
 
+        /// <summary>
+        /// Disable remoting when unexpected scenario (e.g., failed installing AnyBuild) happens.
+        /// </summary>
+        public bool DisableRemoting { get; set; } = false;
+
         private StringTable StringTable => PipExecutionContext.StringTable;
 
         private readonly ISandboxConfiguration m_sandboxConfig;
@@ -92,7 +97,8 @@ namespace BuildXL.Scheduler.Distribution
             // When the process requires an admin privilege, then most likely it has to run in a VM hosted
             // by the local worker. Thus, the parallelism of running such process should be the same as running
             // the process on the local worker.
-            if (processRunnable.RunLocation == ProcessRunLocation.Local
+            if (DisableRemoting
+                || processRunnable.RunLocation == ProcessRunLocation.Local
                 || ProcessRequiresAdminPrivilege(processRunnable.Process)
                 || (ExistTags(m_processMustRunLocalTags) && HasTag(processRunnable.Process, m_processMustRunLocalTags))
                 || (ExistTags(m_processCanRunRemoteTags) && !HasTag(processRunnable.Process, m_processCanRunRemoteTags))

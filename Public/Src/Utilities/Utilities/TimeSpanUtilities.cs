@@ -46,5 +46,27 @@ namespace BuildXL.Utilities
         {
             return (long)timespan.TotalMilliseconds;
         }
+
+        /// <nodoc />
+        public static TimeSpan Max(this TimeSpan lhs, TimeSpan rhs)
+        {
+            if (lhs > rhs)
+            {
+                return lhs;
+            }
+
+            return rhs;
+        }
+
+        /// <nodoc />
+        public static TimeSpan Min(this TimeSpan lhs, TimeSpan rhs)
+        {
+            if (lhs > rhs)
+            {
+                return rhs;
+            }
+
+            return lhs;
+        }
     }
 }

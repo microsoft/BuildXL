@@ -135,17 +135,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         internal CheckpointManager CheckpointManager => _checkpointManager;
 
-        internal bool ForceClientRetries(out string reason)
+        internal bool ShouldRetry(out RetryReason retryReason, out string errorMessage)
         {
+            errorMessage = string.Empty;
+
             if (ShutdownStarted)
             {
-                reason = "The service is shutting down";
+                retryReason = RetryReason.ShutdownStarted;
                 return true;
             }
 
             if (_role == Role.Worker)
             {
-                reason = "Service is in worker mode";
+                retryReason = RetryReason.WorkerMode;
                 return true;
             }
 
@@ -153,17 +155,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             var now = _clock.UtcNow;
             if (!lastHeartbeat.IsRecent(now, _configuration.MasterLeaseStaleThreshold))
             {
-                reason = $"Service's last successful heartbeat was at `{lastHeartbeat}`, currently `{now}` is beyond staleness threshold `{_configuration.MasterLeaseStaleThreshold}`";
+                errorMessage = $"Service's last successful heartbeat was at `{lastHeartbeat}`, currently `{now}` is beyond staleness threshold `{_configuration.MasterLeaseStaleThreshold}`";
+                retryReason = RetryReason.StaleHeartbeat;
                 return true;
             }
 
             if (!_hasRestoredCheckpoint)
             {
-                reason = "Service has yet to restore a checkpoint";
+                retryReason = RetryReason.MissingCheckpoint;
                 return true;
             }
 
-            reason = string.Empty;
+            retryReason = RetryReason.Invalid;
             return false;
         }
 
@@ -210,7 +213,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            if (!ForceClientRetries(out _))
+            if (!ShouldRetry(out _, out _))
             {
                 // Stop logging
                 _eventStream.SetIsLogging(false);
@@ -277,12 +280,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             TRequest request,
             Func<OperationContext, Task<Result<TResponse>>> executeAsync)
         {
-            if (!request.Replaying && ForceClientRetries(out var reason))
+            if (!request.Replaying && ShouldRetry(out var retryReason, out var errorMessage))
             {
                 return new TResponse()
                 {
                     ShouldRetry = true,
-                    ErrorMessage = reason
+                    ErrorMessage = errorMessage,
+                    RetryReason = retryReason,
                 };
             }
 
@@ -323,10 +327,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             {
                 if (result.TryGetValue(out var response))
                 {
-                    if (ForceClientRetries(out reason))
+                    if (ShouldRetry(out retryReason, out errorMessage))
                     {
                         response.ShouldRetry = true;
-                        response.ErrorMessage = reason;
+                        response.ErrorMessage = errorMessage;
+                        response.RetryReason = retryReason;
                     }
                     else if (response.PersistRequest)
                     {
@@ -337,12 +342,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         }
                     }
                 }
-                else if (ForceClientRetries(out reason))
+                else if (ShouldRetry(out retryReason, out errorMessage))
                 {
                     return new TResponse()
                     {
                         ShouldRetry = true,
-                        ErrorMessage = reason,
+                        ErrorMessage = errorMessage,
+                        RetryReason = retryReason,
                         Diagnostics = !response.Succeeded ? response.Diagnostics : null,
                     };
                 }
@@ -561,7 +567,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                         }
                     }
 
-                    if (ForceClientRetries(out _))
+                    if (ShouldRetry(out _, out _))
                     {
                         continue;
                     }

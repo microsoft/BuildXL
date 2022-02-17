@@ -299,11 +299,17 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (redisConfig.AllContentMetadataStoreModeFlags.HasAnyFlag(ContentMetadataStoreModeFlags.Distributed))
             {
-                redisConfig.MetadataStore = new ClientContentMetadataStoreConfiguration()
+                var clientContentMetadataStoreConfiguration = new ClientContentMetadataStoreConfiguration()
                 {
                     AreBlobsSupported = _distributedSettings.ContentMetadataBlobsEnabled && redisConfig.AreBlobsSupported,
-                    OperationTimeout = _distributedSettings.ContentMetadataClientOperationTimeout,
                 };
+
+                ApplyIfNotNull(_distributedSettings.ContentMetadataClientOperationTimeout, v => clientContentMetadataStoreConfiguration.OperationTimeout = v);
+                ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMinimumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMinimumWaitTime = v);
+                ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryMaximumWaitTime, v => clientContentMetadataStoreConfiguration.RetryMaximumWaitTime = v);
+                ApplyIfNotNull(_distributedSettings.ContentMetadataClientRetryDelta, v => clientContentMetadataStoreConfiguration.RetryDelta = v);
+
+                redisConfig.MetadataStore = clientContentMetadataStoreConfiguration;
             }
 
             _arguments.Overrides.Override(redisConfig);

@@ -9,13 +9,17 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Grpc.Core;
+using Polly;
 
 #nullable enable
 
@@ -36,10 +40,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         private readonly IClientAccessor<IGlobalCacheService> _serviceClientFactory;
 
-        private readonly IRetryPolicy _retryPolicy;
-        private readonly IRetryPolicy _noRetryPolicy;
-
         private readonly ClientContentMetadataStoreConfiguration _configuration;
+
+        private readonly IClock _clock;
+
+        private readonly IRetryPolicy _retryPolicy;
 
         public ClientGlobalCacheStore(
             IClientAccessor<IGlobalCacheService> metadataServiceClientFactory,
@@ -47,15 +52,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         {
             _serviceClientFactory = metadataServiceClientFactory;
             _configuration = configuration;
-            _noRetryPolicy = RetryPolicyFactory.GetLinearPolicy(_ => false, 0, TimeSpan.Zero);
+            _clock = SystemClock.Instance;
+
             _retryPolicy = RetryPolicyFactory.GetExponentialPolicy(
                 _ => true,
                 // We use an absurdly high retry count because the actual operation timeout is controlled through
                 // PerformOperationAsync in ExecuteAsync.
                 1_000_000,
-                TimeSpan.FromMilliseconds(5),
-                TimeSpan.FromSeconds(5),
-                TimeSpan.FromMilliseconds(5));
+                _configuration.RetryMinimumWaitTime,
+                _configuration.RetryMaximumWaitTime,
+                _configuration.RetryDelta);
 
             LinkLifetime(_serviceClientFactory);
         }
@@ -65,36 +71,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             Func<OperationContext, CallOptions, IGlobalCacheService, Task<TResult>> executeAsync,
             Func<TResult, string?> extraEndMessage,
             string? extraStartMessage = null,
-            bool shouldRetry = true,
             [CallerMemberName] string caller = null!)
             where TResult : ResultBase
         {
             var attempt = -1;
             using var contextWithShutdown = TrackShutdown(originalContext);
             var context = contextWithShutdown.Context;
+            var callerAttempt = $"{caller}_Attempt";
 
             return await context.PerformOperationWithTimeoutAsync(
                 Tracer,
                 context =>
                 {
-
                     var callOptions = new CallOptions(
                         headers: new Metadata()
                         {
                             MetadataServiceSerializer.CreateContextIdHeaderEntry(context.TracingContext.TraceId)
                         },
-                        deadline: DateTime.UtcNow + _configuration.OperationTimeout,
+                        deadline: _clock.UtcNow + _configuration.OperationTimeout,
                         cancellationToken: context.Token);
 
-                    var policy = shouldRetry ? _retryPolicy : _noRetryPolicy;
-                    return policy.ExecuteAsync(async () =>
+                    return _retryPolicy.ExecuteAsync(async () =>
                     {
                         await Task.Yield();
 
                         attempt++;
 
                         var stopwatch = StopwatchSlim.Start();
-                        TimeSpan clientCreationTime = TimeSpan.Zero;
+                        var clientCreationTime = TimeSpan.Zero;
 
                         var result = await context.PerformOperationAsync(Tracer, () =>
                             {
@@ -107,9 +111,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
                             },
                             extraStartMessage: extraStartMessage,
                             extraEndMessage: r => $"Attempt=[{attempt}] ClientCreationTimeMs=[{clientCreationTime.TotalMilliseconds}] {extraEndMessage(r)}",
-                            caller: caller,
-                            traceErrorsOnly: true
-                        );
+                            caller: callerAttempt,
+                            traceErrorsOnly: true);
 
                         await Task.Yield();
 

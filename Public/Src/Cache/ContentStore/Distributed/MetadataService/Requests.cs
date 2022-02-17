@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -28,6 +29,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
     public static class ServiceRequestExtensions
     {
+        public class ClientMustRetryException : Exception
+        {
+            public ServiceResponseBase Response { get; }
+
+            public ClientMustRetryException(ServiceResponseBase response)
+                : base($"Target machine indicated that retry is needed. Reason=[{response.RetryReason}] ErrorMessage=[{response.ErrorMessage}]")
+            {
+                Contract.Requires(response is not null);
+                Response = response;
+            }
+        }
+
         public static Result<TResult> ToResult<TResponse, TResult>(this TResponse response, Func<TResponse, TResult> select, bool isNullAllowed = false)
             where TResponse : ServiceResponseBase
         {
@@ -38,10 +51,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
             where TResponse : ServiceResponseBase
             where TResult : ResultBase
         {
-            if (response.ShouldRetry)
+            if (response.ShouldRetry || response.RetryReason != RetryReason.Invalid)
             {
                 return new ErrorResult(
-                    exception: new ClientCanRetryException($"Target machine indicated that retry is needed."),
+                    exception: new ClientMustRetryException(response),
                     message: response.ErrorMessage).AsResult<TResult>();
             }
             else if (response.Succeeded)
@@ -82,6 +95,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         public BlockReference? BlockId { get; set; }
     }
 
+    public enum RetryReason
+    {
+        Invalid = 0,
+
+        ShutdownStarted = 1,
+        WorkerMode = 2,
+        StaleHeartbeat = 3,
+        MissingCheckpoint = 4,
+    }
+
     [ProtoContract]
     [ProtoInclude(10, typeof(GetContentLocationsResponse))]
     [ProtoInclude(11, typeof(RegisterContentLocationsResponse))]
@@ -106,6 +129,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
 
         [ProtoMember(3)]
         public bool ShouldRetry { get; set; }
+
+        [ProtoMember(4)]
+        public RetryReason RetryReason { get; set; } = RetryReason.Invalid;
 
         public bool PersistRequest { get; init; }
     }

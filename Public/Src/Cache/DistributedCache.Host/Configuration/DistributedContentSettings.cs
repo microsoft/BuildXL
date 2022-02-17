@@ -1193,7 +1193,16 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting ContentMetadataClientConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         [DataMember]
-        public TimeSpanSetting ContentMetadataClientOperationTimeout { get; set; } = TimeSpan.FromMinutes(15);
+        public TimeSpanSetting? ContentMetadataClientOperationTimeout { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? ContentMetadataClientRetryMinimumWaitTime { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? ContentMetadataClientRetryMaximumWaitTime { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? ContentMetadataClientRetryDelta { get; set; }
 
         [DataMember]
         public TimeSpanSetting ContentMetadataRedisMaximumKeyLifetime { get; set; } = TimeSpan.FromMinutes(120);

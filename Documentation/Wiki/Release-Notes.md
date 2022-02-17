@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 =======
 
+# 0.1.0-20220211.6 (Release [138769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=138769) Released 2/16/2022
+-	Improve performance of storing outputs in cache
+-	Add remotely run processes to the console.
+-	Detours improvements
+-	Increase service pip handshake timeout Increase service pip handshake timeout
+-	Add WMI counters to monitor CPU congestion
+-	Log MaterializeOutputOverhang duration for MetaBuild.
+-	Remove HashFile pip from source nodes in CriticalPathAnalyzer
+-	Explicitly report directory probes in detours
+-	Update critical path calculation and priority assignment
+
 # 0.1.0-20220204.4 (Release [136160](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=136160) Released 2/10/2022
 -	Switch BuildXL.Tools.CredentialProvider to .NET6
 -	Limit rush tests concurrency

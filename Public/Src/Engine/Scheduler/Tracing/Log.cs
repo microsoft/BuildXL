@@ -3617,7 +3617,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, Weight: {weight}, " +
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, MaxExpectedDurationSec: {maxExpectedDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, Weight: {weight}, " +
                 "DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
                 "ExpectedPeakWorkingSetMb: {expectedPeakWorkingSetMb}, PeakWorkingSetMb: {peakWorkingSetMb}, " +
                 "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
@@ -3642,7 +3642,8 @@ namespace BuildXL.Scheduler.Tracing
             int expectedAverageCommitSizeMb,
             int averageCommitSizeMb,
             int expectedDiskIOInMB,
-            int actualDiskIOInMB);
+            int actualDiskIOInMB,
+            double maxExpectedDurationSec);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,

@@ -74,7 +74,8 @@ namespace BuildXL.FrontEnd.Lage
 
             IEnumerable<string> commands = m_resolverSettings.Execute.Select(command => command.GetCommandName());
 
-            return $@"/C """"{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)} "" ""{string.Join(" ", commands)}""";
+            // Pass the 6th argument (lage location) as "undefined" string. This argument is used by Office implementation.
+            return $@"/C """"{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(m_context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(m_context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(m_context.PathTable, PathFormat.Script)} "" ""{string.Join(" ", commands)}"" ""undefined""";
         }
     }
 }

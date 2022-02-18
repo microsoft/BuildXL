@@ -6,8 +6,9 @@ import * as BxlConfig from './BuildXLConfigurationReader';
 import { serializeGraph } from "./GraphSerializer";
 import {JavaScriptGraph, ScriptCommands, JavaScriptProject} from './BuildGraph';
 
-if (process.argv.length < 5) {
-    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <list-of-targets>");
+// String value "undefined" can be passed in for the 6th argument. Office implementation will use this to pass the lage location.
+if (process.argv.length < 7) {
+    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <npm Location> <list-of-targets> <Lage Location>");
     process.exit(1);
 }
 
@@ -16,6 +17,7 @@ const repoFolder = process.argv[2];
 const outputGraphFile = process.argv[3];
 const npmLocation = process.argv[4];
 const targets : string = process.argv[5];
+const lageLocation = process.argv[6] === "undefined" ? undefined : process.argv[6];
 
 /**
  * Result output of `lage info`
@@ -80,7 +82,8 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
 
 
 try {
-    const script  = `${npmLocation} run lage --silent -- info ${targets} --reporter json`;
+    let script  = lageLocation === undefined ? `${npmLocation} run lage --silent --` : `${lageLocation}`;
+    script  = `${script} info ${targets} --reporter json`;
     console.log(`Starting lage export: ${script}`);
     const lageJson = execSync(script).toString();
  

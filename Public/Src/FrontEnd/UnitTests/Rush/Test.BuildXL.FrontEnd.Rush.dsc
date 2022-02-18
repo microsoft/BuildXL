@@ -19,8 +19,9 @@ namespace Test.Rush {
     // TODO: to enable this, we should use an older version of NodeJs for Linux
     const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64" && !BuildXLSdk.isHostOsLinux;
 
+    // TODO: enable Rush tests for non-internal builds when we address the perf issue that make them timeout
     @@public
-    export const dll = isRunningOnSupportedSystem && BuildXLSdk.test({
+    export const dll = isRunningOnSupportedSystem && BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.test({
         // QTest is not supporting opaque directories as part of the deployment
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         runTestArgs: {

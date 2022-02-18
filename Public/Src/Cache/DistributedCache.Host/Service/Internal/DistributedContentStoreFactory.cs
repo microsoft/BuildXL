@@ -754,6 +754,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryRegisterCheckpointTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.RegisterCheckpointTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryGetCheckpointStateTimeout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointStateTimeout = v);
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryFanout, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointContentFanOut = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistrySlotWaitTime, v => azureBlobStorageCheckpointRegistryConfiguration.SlotWaitTime = v);
+            ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryMaxNumSlots, v => azureBlobStorageCheckpointRegistryConfiguration.MaxNumSlots = v);
 
             ApplyIfNotNull(_distributedSettings.BlobCheckpointRegistryCheckpointLimit, v => azureBlobStorageCheckpointRegistryConfiguration.CheckpointLimit = v);
             azureBlobStorageCheckpointRegistryConfiguration.NewEpochEventStartCursorDelay = eventStoreConfiguration.NewEpochEventStartCursorDelay;
@@ -772,6 +774,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionFileName, v => azureBlobStorageMasterElectionMechanismConfiguration.FileName = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionLeaseExpiryTime, v => azureBlobStorageMasterElectionMechanismConfiguration.LeaseExpiryTime = v);
             ApplyIfNotNull(_distributedSettings.BlobMasterElectionStorageInteractionTimeout, v => azureBlobStorageMasterElectionMechanismConfiguration.StorageInteractionTimeout = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionSlotWaitTime, v => azureBlobStorageMasterElectionMechanismConfiguration.SlotWaitTime = v);
+            ApplyIfNotNull(_distributedSettings.BlobMasterElectionMaxNumSlots, v => azureBlobStorageMasterElectionMechanismConfiguration.MaxNumSlots = v);
 
             configuration.AzureBlobStorageMasterElectionMechanismConfiguration = azureBlobStorageMasterElectionMechanismConfiguration;
 
@@ -787,6 +791,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageFileName, v => blobClusterStateStorageConfiguration.FileName = v);
                 ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStorageInteractionTimeout, v => blobClusterStateStorageConfiguration.StorageInteractionTimeout = v);
                 ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageStandalone, v => blobClusterStateStorageConfiguration.Standalone = v);
+                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageSlotWaitTime, v => blobClusterStateStorageConfiguration.SlotWaitTime = v);
+                ApplyIfNotNull(_distributedSettings.BlobClusterStateStorageMaxNumSlots, v => blobClusterStateStorageConfiguration.MaxNumSlots = v);
 
                 var gcCfg = new ClusterStateRecomputeConfiguration();
                 ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => gcCfg.RecomputeFrequency = TimeSpan.FromMinutes(v));

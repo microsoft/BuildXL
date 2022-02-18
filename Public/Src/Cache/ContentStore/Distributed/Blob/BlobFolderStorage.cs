@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
@@ -34,6 +35,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         string FolderName { get; }
 
         TimeSpan StorageInteractionTimeout { get; }
+
+        TimeSpan SlotWaitTime { get; }
+
+        int MaxNumSlots { get; }
     }
 
     /// <summary>
@@ -145,6 +150,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Func<TState>? defaultValue = null)
             where TState : new()
         {
+            var attempt = 0;
+
             defaultValue ??= () => new TState();
             return context.PerformOperationAsync(Tracer,
                 async () =>
@@ -164,14 +171,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             return Result.Success((next.NextState, next.Result));
                         }
 
-                        var succeeded = await CompareUpdateStateAsync<TState>(context, fileName, next.NextState, currentState.ETag).ThrowIfFailureAsync();
+                        var succeeded = await CompareUpdateStateAsync<TState>(context, fileName, next.NextState, currentState.ETag, attempt).ThrowIfFailureAsync();
                         if (succeeded)
                         {
                             return Result.Success((next.NextState, next.Result));
                         }
+
+                        attempt++;
+
+                        var slots = Math.Min((1 << attempt) - 1, _configuration.MaxNumSlots);
+                        var delay = _configuration.SlotWaitTime.Multiply(ThreadSafeRandom.Uniform(0, slots));
+                        await Task.Delay(delay, context.Token);
                     }
                 },
-                traceOperationStarted: false);
+                traceOperationStarted: false,
+                extraEndMessage: _ => $"Attempts=[{attempt}]");
         }
 
         private string GetDisplayPath(BlobName fileName)
@@ -210,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             BlobName fileName,
             TState value)
         {
-            return await CompareUpdateStateAsync<TState>(context, fileName, value, etag: AlwaysEtag);
+            return await CompareUpdateStateAsync<TState>(context, fileName, value, etag: AlwaysEtag, attempt: 0);
         }
 
         private Task<Result<State<TState>>> ReadStateAsync<TState>(OperationContext context, BlobName fileName)
@@ -259,7 +273,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             BlobName fileName,
             TState value,
-            string? etag)
+            string? etag,
+            int attempt)
         {
             return context.PerformOperationWithTimeoutAsync(
                 Tracer,
@@ -308,7 +323,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 extraEndMessage: r =>
                 {
                     // We do not log the cluster state here because the file is too large and would spam the logs
-                    var msg = $"FileName=[{GetDisplayPath(fileName)}] ETag=[{etag ?? "null"}]";
+                    var msg = $"FileName=[{GetDisplayPath(fileName)}] ETag=[{etag ?? "null"}] Attempt=[{attempt}]";
                     if (!r.Succeeded)
                     {
                         return msg;

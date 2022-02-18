@@ -59,6 +59,12 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore
               .Select(s => s[Generator.Next(s.Length)]).ToArray());
         }
 
+        /// <nodoc />
+        public static int Uniform(int minValue, int maxValue)
+        {
+            return Generator.Next(minValue, maxValue);
+        }
+
         /// <summary>
         ///     Shuffle array in place.
         /// </summary>

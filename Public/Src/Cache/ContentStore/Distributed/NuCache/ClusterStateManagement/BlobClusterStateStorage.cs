@@ -33,6 +33,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool Standalone { get; set; } = false;
 
         public ClusterStateRecomputeConfiguration RecomputeConfiguration { get; set; } = new ClusterStateRecomputeConfiguration();
+
+        public TimeSpan SlotWaitTime { get; set; } = TimeSpan.FromMilliseconds(1);
+
+        public int MaxNumSlots { get; set; } = int.MaxValue;
     }
 
     public class BlobClusterStateStorage : StartupShutdownComponentBase, IClusterStateStorage, ISecondaryClusterStateStorage

@@ -1264,6 +1264,12 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpanSetting? BlobCheckpointRegistryGetCheckpointStateTimeout { get; set; }
 
         [DataMember]
+        public TimeSpanSetting? BlobCheckpointRegistrySlotWaitTime { get; set; }
+
+        [DataMember]
+        public int? BlobCheckpointRegistryMaxNumSlots { get; set; }
+
+        [DataMember]
         public int? BlobCheckpointRegistryFanout { get; set; }
 
         #endregion
@@ -1288,6 +1294,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpanSetting? BlobMasterElectionStorageInteractionTimeout { get; set; }
 
+        [DataMember]
+        public TimeSpanSetting? BlobMasterElectionSlotWaitTime { get; set; }
+
+        [DataMember]
+        public int? BlobMasterElectionMaxNumSlots { get; set; }
+
         #endregion
 
         #region Azure Blob Storage-based Cluster State
@@ -1303,6 +1315,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool? BlobClusterStateStorageStandalone { get; set; }
+
+        [DataMember]
+        public TimeSpanSetting? BlobClusterStateStorageSlotWaitTime { get; set; }
+
+        [DataMember]
+        public int? BlobClusterStateStorageMaxNumSlots { get; set; }
 
         #endregion
     }

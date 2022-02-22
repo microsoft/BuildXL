@@ -1978,16 +1978,29 @@ namespace BuildXL.Scheduler
             // Verify counters for different types of cache misses sum to pips executed due to cache misses
             IEnumerable<PipExecutorCounter> cacheMissTypes = PipExecutor.GetListOfCacheMissTypes();
             long cacheMissSum = 0;
-            foreach (var missType in cacheMissTypes)
-            {
-                cacheMissSum += PipExecutionCounters.GetCounterValue(missType);
+            using (var pooledStringBuilder = Pools.GetStringBuilder()) {
+                var sb = pooledStringBuilder.Instance;
+                foreach (var missType in cacheMissTypes)
+                {
+                    var counterValue = PipExecutionCounters.GetCounterValue(missType);
+                    cacheMissSum += counterValue;
+
+                    var frontierPipCounterValue = PipExecutionCounters.GetCounterValue(missType.ToFrontierPipCacheMissCounter());
+                    if (frontierPipCounterValue > counterValue)
+                    {
+                        sb.Append($"{(sb.Length == 0 ? "" : ", ")}['{missType}' : {counterValue} != {frontierPipCounterValue}]");
+                    }
+                }
+
+                if (sb.Length > 0)
+                {
+                    BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"Cache miss counters for frontier pips have unexpected values: {sb.ToString()}.");
+                }
             }
 
             long processPipsExecutedDueToCacheMiss = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsExecutedDueToCacheMiss);
             long processPipsSkippedExecutionDueToCacheOnly = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsSkippedExecutionDueToCacheOnly);
-            // The orchestrator keeps track of total cache miss counter across workers but not for individual miss reasons,
-            // so don't check the sum for distributed builds
-            if (!IsDistributedBuild && (processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly) != cacheMissSum)
+            if ((processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly) != cacheMissSum)
             {
                 BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " +
                     "ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");
@@ -3287,10 +3300,10 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    // Determine the uncacheability impact. There are 3 cases here:
                     if (pipType == PipType.Process)
                     {
                         ProcessPipExecutionPerformance processPerformanceResult = result.PerformanceInfo as ProcessPipExecutionPerformance;
+                        // Determine the uncacheability impact. There are 3 cases here:
                         if (processPerformanceResult != null)
                         {
                             // 1. The pip ran and had uncacheable file accesses. We set the flag that it is UncacheableImpacted
@@ -3311,19 +3324,30 @@ namespace BuildXL.Scheduler
                             // depended on an uncacheable pip. But if the uncacheable process was deterministic, this pip may
                             // have actually been a cache hit. In that case we reset the flag
                             pipRuntimeInfo.IsUncacheableImpacted = false;
-                        }
-                    }
 
-                    // Now increment the counters for uncacheability
-                    if (pipRuntimeInfo.IsUncacheableImpacted && pipType == PipType.Process)
-                    {
-                        PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipsUncacheableImpacted);
-                        PipExecutionCounters.AddToCounter(
-                            PipExecutorCounter.ProcessPipsUncacheableImpactedDurationMs,
-                            (long)(result.PerformanceInfo.ExecutionStop - result.PerformanceInfo.ExecutionStart).TotalMilliseconds);
-                        Logger.Log.ProcessDescendantOfUncacheable(
-                            m_executePhaseLoggingContext,
-                            pipDescription: pipDescription);
+                            // Similar logic applies to IsMissingContentImpacted.
+                            pipRuntimeInfo.IsMissingContentImpacted = false;
+                        }
+
+                        // Now increment the counters for uncacheability
+                        if (pipRuntimeInfo.IsUncacheableImpacted)
+                        {
+                            PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipsUncacheableImpacted);
+                            PipExecutionCounters.AddToCounter(
+                                PipExecutorCounter.ProcessPipsUncacheableImpactedDurationMs,
+                                (long)(result.PerformanceInfo.ExecutionStop - result.PerformanceInfo.ExecutionStart).TotalMilliseconds);
+                            Logger.Log.ProcessDescendantOfUncacheable(
+                                m_executePhaseLoggingContext,
+                                pipDescription: pipDescription);
+                        }
+
+                        if (pipRuntimeInfo.IsMissingContentImpacted)
+                        {
+                            PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessPipMissingContentImpacted);
+                            PipExecutionCounters.AddToCounter(
+                                PipExecutorCounter.ProcessPipMissingContentImpactedDurationMs,
+                                (long)(result.PerformanceInfo.ExecutionStop - result.PerformanceInfo.ExecutionStart).TotalMilliseconds);
+                        }
                     }
                 }
 
@@ -3401,6 +3425,25 @@ namespace BuildXL.Scheduler
                 if (pipRuntimeInfo.IsUncacheableImpacted)
                 {
                     dependentPipRuntimeInfo.IsUncacheableImpacted = true;
+                }
+
+                if (pipRuntimeInfo.IsMissingContentImpacted)
+                {
+                    dependentPipRuntimeInfo.IsMissingContentImpacted = true;
+                }
+
+                if (pipRuntimeInfo.IsFrontierMissCandidate)
+                {
+                    // if the current pip is a process pip that was executed, its dependents cannot be frontier pips
+                    if (runnablePip.PipType == PipType.Process && result.Status == PipResultStatus.Succeeded )
+                    {
+                        dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
+                    }
+                }
+                else
+                {
+                    // if the current pip is not a frontier miss candidate, its dependents cannot be candidates
+                    dependentPipRuntimeInfo.IsFrontierMissCandidate = false;
                 }
 
                 if (!succeeded || result.Status == PipResultStatus.Skipped || shouldSkipDownstreamPipsDueToSucccessFast)
@@ -4372,6 +4415,26 @@ namespace BuildXL.Scheduler
 
                     processRunnable.SetCacheableProcess(cacheableProcess);
                     processRunnable.SetCacheResult(cacheResult);
+
+                    if (!IsDistributedWorker && !cacheResult.CanRunFromCache)
+                    {
+                        // It's a cache miss, update the counters.
+                        Contract.Assert(cacheResult.CacheMissType != PipCacheMissType.Invalid, $"Must have valid cache miss reason");
+                        environment.Counters.IncrementCounter((PipExecutorCounter)cacheResult.CacheMissType);
+
+                        var pipRunTimeInfo = GetPipRuntimeInfo(pipId);
+                        if (pipRunTimeInfo.IsFrontierMissCandidate)
+                        {
+                            environment.Counters.IncrementCounter(((PipExecutorCounter)cacheResult.CacheMissType).ToFrontierPipCacheMissCounter());
+                        }
+
+                        if (cacheResult.CacheMissType == PipCacheMissType.MissForProcessMetadata
+                            || cacheResult.CacheMissType == PipCacheMissType.MissForProcessMetadataFromHistoricMetadata
+                            || cacheResult.CacheMissType == PipCacheMissType.MissForProcessOutputContent)
+                        {
+                            pipRunTimeInfo.IsMissingContentImpacted = true;
+                        }
+                    }
 
                     using (operationContext.StartOperation(PipExecutorCounter.ReportRemoteMetadataAndPathSetDuration))
                     {

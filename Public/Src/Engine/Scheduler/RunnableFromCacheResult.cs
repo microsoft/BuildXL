@@ -44,6 +44,11 @@ namespace BuildXL.Scheduler
         public readonly IReadOnlySet<AbsolutePath> AllowedUndeclaredReads;
 
         /// <summary>
+        /// Cache miss reason
+        /// </summary>
+        public readonly PipCacheMissType CacheMissType;
+
+        /// <summary>
         /// Fields which are specific to a usable cache hit.
         /// </summary>
         public sealed class CacheHitData
@@ -153,24 +158,32 @@ namespace BuildXL.Scheduler
             WeakContentFingerprint weakFingerprint,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
-            CacheHitData cacheHitData)
+            CacheHitData cacheHitData,
+            PipCacheMissType cacheMissType)
         {
             WeakFingerprint = weakFingerprint;
             DynamicObservations = dynamicObservations;
             AllowedUndeclaredReads = allowedUndeclaredSourceReads;
             m_cacheHit = cacheHitData; // Maybe null for a miss.
+            CacheMissType = cacheMissType;
         }
 
         /// <summary>
         /// Creates a result for a miss (or unusable descriptor)
         /// </summary>
-        public static RunnableFromCacheResult CreateForMiss(WeakContentFingerprint weakFingerprint)
+        public static RunnableFromCacheResult CreateForMiss(WeakContentFingerprint weakFingerprint, PipCacheMissType cacheMissType)
         {
+            if (cacheMissType == PipCacheMissType.Hit)
+            {
+                Contract.Assert(false, $"Unexpected cache miss type: '{cacheMissType}'");
+            }
+
             return new RunnableFromCacheResult(
                 weakFingerprint,
                 dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty,
                 allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(),
-                null);
+                null,
+                cacheMissType);
         }
 
         /// <summary>
@@ -187,7 +200,8 @@ namespace BuildXL.Scheduler
                 weakFingerprint,
                 dynamicObservations,
                 allowedUndeclaredSourceReads,
-                cacheHitData);
+                cacheHitData,
+                PipCacheMissType.Hit);
         }
 
         /// <summary>

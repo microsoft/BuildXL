@@ -229,5 +229,16 @@ namespace BuildXL.Pips
         /// Whether the pip is impacted by uncacheability
         /// </summary>
         public bool IsUncacheableImpacted { get; set; }
+
+        /// <summary>
+        /// Whether the pip is a frontier miss candidate.
+        /// All pips start as candidates.
+        /// </summary>
+        public bool IsFrontierMissCandidate { get; set; } = true;
+
+        /// <summary>
+        /// Whether the pip is potentially impacted by a cache miss caused by missing content.
+        /// </summary>
+        public bool IsMissingContentImpacted { get; set; }
     }
 }

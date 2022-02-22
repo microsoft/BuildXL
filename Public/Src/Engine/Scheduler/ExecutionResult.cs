@@ -58,6 +58,7 @@ namespace BuildXL.Scheduler
         private int m_exitCode;
         private RetryInfo m_retryInfo;
         private IReadOnlySet<AbsolutePath> m_createdDirectories;
+        private PipCacheMissType? m_cacheMissType;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -276,6 +277,24 @@ namespace BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Gets the pip cache miss type
+        /// </summary>
+        public PipCacheMissType? CacheMissType
+        {
+            get
+            {
+                EnsureSealed();
+                return m_cacheMissType;
+            }
+
+            set
+            {
+                EnsureUnsealed();
+                m_cacheMissType = value;
+            }
+        }
+
         #region Reported State
 
         /// <summary>
@@ -436,6 +455,7 @@ namespace BuildXL.Scheduler
             bool hasUserRetries,
             int exitCode,
             IReadOnlySet<AbsolutePath> createdDirectories,
+            PipCacheMissType? cacheMissType,
             RetryInfo pipRetryInfo = null)
         {
             var processExecutionResult =
@@ -463,7 +483,8 @@ namespace BuildXL.Scheduler
                     m_hasUserRetries = hasUserRetries,
                     m_retryInfo = pipRetryInfo,
                     m_createdDirectories = createdDirectories,
-                    m_exitCode = exitCode
+                    m_exitCode = exitCode,
+                    m_cacheMissType = cacheMissType
                 };
             return processExecutionResult;
         }
@@ -505,6 +526,7 @@ namespace BuildXL.Scheduler
                 HasUserRetries,
                 ExitCode,
                 CreatedDirectories,
+                PipCacheMissType.Hit,
                 RetryInfo);
         }
 
@@ -537,6 +559,7 @@ namespace BuildXL.Scheduler
                 HasUserRetries,
                 ExitCode,
                 CreatedDirectories,
+                CacheMissType,
                 RetryInfo);
         }
 
@@ -550,6 +573,8 @@ namespace BuildXL.Scheduler
             EnsureUnsealed();
 
             WeakFingerprint = cacheResult.WeakFingerprint;
+            CacheMissType = cacheResult.CacheMissType;
+
             if (cacheResult.CanRunFromCache)
             {
                 var cacheHitData = cacheResult.GetCacheHitData();

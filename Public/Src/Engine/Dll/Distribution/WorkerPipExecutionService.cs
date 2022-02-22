@@ -375,8 +375,9 @@ namespace BuildXL.Engine.Distribution
                             PendingBuildRequests[pipIdStepTuple] = null;
 
                             // Set the cache miss result with fingerprint so ExecuteProcess step can use it
+                            // We don't know the miss reason here, but we don't really need it, so set it to Invalid.
                             var fingerprint = pipBuildRequest.Fingerprint.ToFingerprint();
-                            processRunnable.SetCacheResult(RunnableFromCacheResult.CreateForMiss(new WeakContentFingerprint(fingerprint)));
+                            processRunnable.SetCacheResult(RunnableFromCacheResult.CreateForMiss(new WeakContentFingerprint(fingerprint), PipCacheMissType.Invalid));
 
                             processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
                                 peakWorkingSetMb: pipBuildRequest.ExpectedPeakWorkingSetMb,

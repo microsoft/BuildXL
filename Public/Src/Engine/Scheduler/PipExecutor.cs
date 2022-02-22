@@ -2201,7 +2201,7 @@ namespace BuildXL.Scheduler
                     else
                     {
                         Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, $"Must have valid cache miss reason");
-                        processRunnable.Environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
+                        
 
                         Logger.Log.ScheduleProcessPipCacheMiss(
                             processRunnable.OperationContext,
@@ -2801,9 +2801,8 @@ namespace BuildXL.Scheduler
                     environment,
                     refLocality,
                     maybeUsableProcessingResult,
-                    cacheResultWeakFingerprint);
-
-
+                    cacheResultWeakFingerprint,
+                    pipCacheMiss.Value.CacheMissType);
 
                 return runnableFromCacheResult;
             }
@@ -2899,7 +2898,8 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             PublishedEntryRefLocality? refLocality,
             ObservedInputProcessingResult? observedInputProcessingResult,
-            WeakContentFingerprint weakFingerprint)
+            WeakContentFingerprint weakFingerprint,
+            PipCacheMissType cacheMissType)
         {
             if (cacheHitData != null)
             {
@@ -2930,7 +2930,7 @@ namespace BuildXL.Scheduler
                     cacheHitData: cacheHitData);
             }
 
-            return RunnableFromCacheResult.CreateForMiss(weakFingerprint);
+            return RunnableFromCacheResult.CreateForMiss(weakFingerprint, cacheMissType);
         }
 
         /// <summary>
@@ -2951,10 +2951,11 @@ namespace BuildXL.Scheduler
         {
             Contract.Assert(!executionResult.Result.IndicatesFailure());
             Contract.Assert(executionResult.WeakFingerprint.HasValue);
+            Contract.Assert(executionResult.CacheMissType.HasValue);
 
             if (executionResult.PipCacheDescriptorV2Metadata == null || executionResult.TwoPhaseCachingInfo == null)
             {
-                return RunnableFromCacheResult.CreateForMiss(executionResult.WeakFingerprint.Value);
+                return RunnableFromCacheResult.CreateForMiss(executionResult.WeakFingerprint.Value, executionResult.CacheMissType.Value);
             }
 
             var cacheHitData = TryCreatePipCacheDescriptorFromMetadata(
@@ -2975,7 +2976,7 @@ namespace BuildXL.Scheduler
                     dynamicObservations: executionResult.DynamicObservations,
                     allowedUndeclaredSourceReads: executionResult.AllowedUndeclaredReads,
                     cacheHitData: cacheHitData)
-                : RunnableFromCacheResult.CreateForMiss(executionResult.TwoPhaseCachingInfo.WeakFingerprint);
+                : RunnableFromCacheResult.CreateForMiss(executionResult.TwoPhaseCachingInfo.WeakFingerprint, executionResult.CacheMissType.Value);
         }
 
         private static async Task<RunnableFromCacheResult.CacheHitData> TryConvertToRunnableFromCacheResultAsync(
@@ -5221,7 +5222,8 @@ namespace BuildXL.Scheduler
                 environment,
                 PublishedEntryRefLocality.Converged,
                 null, // Don't pass observedInputProcessingResult since this function doesn't rely on the part of the output dependent on that.
-                cachingInfo.WeakFingerprint);
+                cachingInfo.WeakFingerprint,
+                PipCacheMissType.Hit);
 
             if (!TryGetCacheHitExecutionResult(operationContext, environment, process, runnableFromCacheResult, out var convergedExecutionResult))
             {
@@ -5368,6 +5370,7 @@ namespace BuildXL.Scheduler
         public static IEnumerable<PipExecutorCounter> GetListOfCacheMissTypes()
         {
             // All mutually exclusive counters for cache miss reasons
+            // Note: frontier variants of the counters should not be included in this list
             return new PipExecutorCounter[]
             {
                 PipExecutorCounter.CacheMissesForDescriptorsDueToWeakFingerprints,

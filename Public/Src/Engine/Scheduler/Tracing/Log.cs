@@ -450,7 +450,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Depends on pip a pip which had file monitoring violations that made it uncacheable.")]
+            Message = "[{pipDescription}] Depends on a pip which had file monitoring violations that made it uncacheable.")]
         internal abstract void ProcessDescendantOfUncacheable(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(

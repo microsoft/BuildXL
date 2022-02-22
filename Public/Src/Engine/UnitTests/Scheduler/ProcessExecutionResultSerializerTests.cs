@@ -94,7 +94,8 @@ namespace Test.BuildXL.Scheduler
                     CreateSourceFile().Path
                 },
                 hasUserRetries: true,
-                exitCode: 0);
+                exitCode: 0,
+                cacheMissType: PipCacheMissType.Hit);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -106,10 +107,14 @@ namespace Test.BuildXL.Scheduler
             {
                 serializer.Serialize(writer, processExecutionResult, preservePathCasing: false);
 
+                var position = stream.Position;
                 stream.Position = 0;
 
                 deserializedProcessExecutionResult = serializer.Deserialize(reader,
                     processExecutionResult.PerformanceInformation.WorkerId);
+
+                // make sure we read the same amount of content from the stream we wrote there
+                XAssert.AreEqual(position, stream.Position);
             }
 
             // Ensure successful pip result is changed to not materialized.
@@ -154,7 +159,8 @@ namespace Test.BuildXL.Scheduler
                 r => r.HasUserRetries,
                 r => r.CreatedDirectories,
                 r => r.RetryInfo,
-                r => r.ExitCode
+                r => r.ExitCode,
+                r => r.CacheMissType
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)

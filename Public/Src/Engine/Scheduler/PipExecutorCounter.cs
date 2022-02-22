@@ -161,6 +161,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         ProcessPipsUncacheableImpactedDurationMs,
 
+        /// <summary>
+        /// The amount of time it took to execute process pips included in <see cref="ProcessPipMissingContentImpacted"/>.
+        /// </summary>
+        ProcessPipMissingContentImpactedDurationMs,
+
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         CheckProcessRunnableFromCacheChapter1DetermineStrongFingerprintDuration,
@@ -365,7 +370,7 @@ namespace BuildXL.Scheduler
         CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
 
         /// <summary>
-        /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artifial cache miss injection.
+        /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artificial cache miss injection.
         /// </summary>
         CacheMissesForDescriptorsDueToArtificialMissOptions,
 
@@ -402,6 +407,71 @@ namespace BuildXL.Scheduler
 
         #endregion components of ProcessPipsExecutedDueToCacheMiss
 
+        #region cache miss counters for frontier pips
+
+        /// <summary>
+        /// Number of times a process pip cache descriptor was not usable due to mismatched strong fingerprints.
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForDescriptorsDueToStrongFingerprints"/>
+        /// </summary>
+        CacheMissesForDescriptorsDueToStrongFingerprints_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip cache entry was not found (no prior execution information).
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForDescriptorsDueToWeakFingerprints"/>
+        /// </summary>
+        CacheMissesForDescriptorsDueToWeakFingerprints_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip cache entry was not found using augmented weak fingerprint (no prior execution information).
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForDescriptorsDueToAugmentedWeakFingerprints"/>
+        /// </summary>
+        CacheMissesForDescriptorsDueToAugmentedWeakFingerprints_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artificial cache miss injection.
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForDescriptorsDueToArtificialMissOptions"/>
+        /// </summary>
+        CacheMissesForDescriptorsDueToArtificialMissOptions_Frontier,
+
+        /// <summary>
+        /// Numter of times strong fingerprint match was found but the corresponding <see cref="BuildXL.Engine.Cache.Fingerprints.CacheEntry"/> was not retrievable
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForCacheEntry"/>
+        /// </summary>
+        CacheMissesForCacheEntry_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip cache descriptor was found, but was invalid
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesDueToInvalidDescriptors"/>
+        /// </summary>
+        CacheMissesDueToInvalidDescriptors_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip cache descriptor was found but the metadata was not retrievable
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForProcessMetadata"/>
+        /// </summary>
+        CacheMissesForProcessMetadata_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip cache descriptor was found from historicmetadatacache
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForProcessMetadataFromHistoricMetadata"/>
+        /// </summary>
+        CacheMissesForProcessMetadataFromHistoricMetadata_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip cache descriptor was found, but the referenced output content was not available when needed.
+        /// The cache descriptor has been counted as a part of <see cref="CacheHitsForProcessPipDescriptors"/>.
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForProcessOutputContent"/>
+        /// </summary>
+        CacheMissesForProcessOutputContent_Frontier,
+
+        /// <summary>
+        /// Number of times a process pip was a miss due to being configured to always miss on cache lookup.
+        /// The counter covers only frontier pips, i.e., it covers only a subset of pips covered by <see cref="CacheMissesForProcessConfiguredUncacheable"/>
+        /// </summary>
+        CacheMissesForProcessConfiguredUncacheable_Frontier,
+
+        #endregion
+
         /// <summary>
         /// Aggregate size in bytes of content downloaded from a remote (shared) cache.
         /// </summary>
@@ -431,6 +501,13 @@ namespace BuildXL.Scheduler
         /// also changed.
         /// </summary>
         ProcessPipsUncacheableImpacted,
+
+        /// <summary>
+        /// Number of pips that are potentially impacted by cache misses caused by missing content. Includes pips that were 
+        /// cache misses due to missing content as well as the downstream pips that were executed due to a cache miss (executed
+        /// downstream pips are included regardless of their cache miss type).
+        /// </summary>
+        ProcessPipMissingContentImpacted,
 
         /// <summary>
         /// How many times the SandboxedProcess failed with PreparationFailure

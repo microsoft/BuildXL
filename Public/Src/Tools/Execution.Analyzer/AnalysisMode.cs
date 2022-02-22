@@ -55,6 +55,7 @@ namespace BuildXL.Execution.Analyzer
         PipExecutionPerformance,
         ProcessRunScript,
         ProcessDetouringStatus,
+        ReportedProcesses,
         RequiredDependencies,
         ScheduledInputsOutputs,
         Simulate,

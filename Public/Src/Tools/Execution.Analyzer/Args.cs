@@ -343,6 +343,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.ProcessDetouringStatus:
                     m_analyzer = InitializeProcessDetouringStatusAnalyzer();
                     break;
+                case AnalysisMode.ReportedProcesses:
+                    m_analyzer = InitializeReportedProcessesAnalyzer();
+                    break;
                 case AnalysisMode.ProcessRunScript:
                     m_analyzer = InitializeProcessRunScriptAnalyzer();
                     break;
@@ -568,6 +571,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteProcessDetouringHelp(writer);
+
+            writer.WriteLine("");
+            WriteReportedProcessesHelp(writer);
 
             writer.WriteLine("");
             WritePipExecutionPerformanceAnalyzerHelp(writer);

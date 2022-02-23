@@ -329,8 +329,7 @@ if ($EnableProcessRemoting) {
         #       Exception:System.Net.Internals.SocketExceptionFactory+ExtendedSocketException (10061): No connection could be made because the target machine actively refused it. [::ffff:127.0.0.1]:21337
         "/server-",
         "/enableProcessRemoting+",
-        "/processCanRunRemoteTags:compile",
-        "/processMustRunLocalTags:telemetry:xUnit;telemetry:xUnitUntracked;telemetry:QTest");
+        "/processCanRunRemoteTags:compile;cacheTest");
 
     if (-not [string]::IsNullOrEmpty($AnyBuildClientDir)) {
         $AdditionalBuildXLArguments += " /p:BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR=`"$AnyBuildClientDir`""

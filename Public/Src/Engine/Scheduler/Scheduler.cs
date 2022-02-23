@@ -1785,6 +1785,10 @@ namespace BuildXL.Scheduler
 
                 int processPipsStartOrShutdownService = m_serviceManager.TotalServicePipsCompleted + m_serviceManager.TotalServiceShutdownPipsCompleted;
 
+                PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunRemoteProcesses, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunRemote : 0);
+                PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunLocallyProcessesOnRemotingWorker, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunLocally : 0);
+                PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRemoteFallbackRetries, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRemoteFallbackRetryLocally : 0);
+
                 // Overall caching summary
                 if (m_numProcessPipsCompleted > 0)
                 {
@@ -1962,10 +1966,6 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForHit, cacheLookupPerfInfosForHits.Min(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Min(a => a?.NumPathSetsDownloaded) ?? -1);
-
-            PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunRemoteProcesses, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunRemote : 0);
-            PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRunLocallyProcessesOnRemotingWorker, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRunLocally : 0);
-            PipExecutionCounters.AddToCounter(PipExecutorCounter.TotalRemoteFallbackRetries, localWorkerWithRemoting != null ? localWorkerWithRemoting.TotalRemoteFallbackRetryLocally : 0);
 
             var currentTime = DateTime.UtcNow;
             var earlyReleaseSavingDurationMs = Workers.Where(a => a.WorkerEarlyReleasedTime != null).Select(a => (currentTime - a.WorkerEarlyReleasedTime.Value).TotalMilliseconds).Sum();

@@ -487,6 +487,7 @@ export function cacheTest(args: TestArguments) : TestResult {
                     environmentVariables: Environment.hasVariable(envVarNamePrefix + redisConnectionStringEnvVarName) ? [ {name: redisConnectionStringEnvVarName, value: Environment.getStringValue(envVarNamePrefix + redisConnectionStringEnvVarName)}] : []
                 }
             },
+            tags: [ "cacheTest" ]
         },
     }, args);
 

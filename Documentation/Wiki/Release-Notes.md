@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 =======
 
+# 0.1.0-20220218.5 (Release [141436](https://dev.azure.com/mseng/domino/_releaseProgress?_a=release-pipeline-progress&releaseId=141436) Released 2/24/2022
+-	Add milliseconds to CriticalPath table logging
+-	Globally skip logging specific warnings when CtrlC cancellation token is signaled
+-	Add option in cache dump analyzer to process multiple pips in single invocation
+-	Sort outputs to mitigate same-content concurrent pushes
+-	Add experimental CPU resource awareness option to scheduler
+-	Enable high pipe read retry count for Net6
+-	Disable embedded webview for interactive authentication
+-	Update Lage graph builder tool to accept a lage location parameter
+
 # 0.1.0-20220211.6 (Release [138769](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=138769) Released 2/16/2022
 -	Improve performance of storing outputs in cache
 -	Add remotely run processes to the console.

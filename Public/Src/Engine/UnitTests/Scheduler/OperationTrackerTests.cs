@@ -61,6 +61,16 @@ namespace Test.BuildXL.Utilities
             }
         }
 
+        [Theory]
+        [InlineData("C:\\dir\\", "C:\\\\dir\\\\")]
+        [InlineData("{configuration:\"debug\"}", "{configuration:\\\"debug\\\"}")]
+        [InlineData("{configuration:'debug'}", "{configuration:\'debug\'}")]
+        public void TestSanitizeForJSON(string oldValue, string expectValue)
+        {
+            var sanitizedDescription = OperationTracker.SanitizeForJSON(oldValue);
+            XAssert.AreEqual(expectValue, sanitizedDescription);
+        }
+
         private static void For(int count, Action<int> action, bool parallel)
         {
             if (parallel)

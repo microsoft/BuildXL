@@ -21,6 +21,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
+using Newtonsoft.Json;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Tracing
@@ -468,12 +469,12 @@ namespace BuildXL.Scheduler.Tracing
                         builder.Append(I($"'duration': '{operationDuration}', "));
                         if (operation.PipId.IsValid)
                         {
-                            builder.Append(I($"'pip': '{m_host.GetDescription(operation.PipId) ?? string.Empty}', "));
+                            builder.Append(I($"'pip': '{SanitizeForJSON(m_host.GetDescription(operation.PipId))}', "));
                         }
 
                         if (operation.Artifact.IsValid)
                         {
-                            builder.Append(I($"'artifact': '{m_host.GetDescription(operation.Artifact) ?? string.Empty}', "));
+                            builder.Append(I($"'artifact': '{SanitizeForJSON(m_host.GetDescription(operation.Artifact))}', "));
                         }
 
                         builder.Append(I($"'details': '{operation.Operation?.Details ?? string.Empty}' }}"));
@@ -484,6 +485,17 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             builder.Append("}");
+        }
+
+        internal static string SanitizeForJSON(string description)
+        {
+            if (description == null)
+            {
+                return string.Empty;
+            }
+
+            string descriptionJsonString = JsonConvert.ToString(description);
+            return descriptionJsonString.Substring(1, descriptionJsonString.Length - 2);
         }
 
         internal struct CapturedOperationInfo

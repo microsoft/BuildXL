@@ -26,7 +26,8 @@ namespace Processes {
                     runtime: [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))
                     ]
-                })
+                }),
+                importFrom("System.IO.Pipelines").pkg
             ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Pips").dll,

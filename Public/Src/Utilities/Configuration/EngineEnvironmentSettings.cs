@@ -376,6 +376,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> SandboxNumRetriesPipeReadOnCancel = CreateSetting("BuildXLSandboxNumRetriesPipeReadOnCancel", value => ParseInt32(value));
 
         /// <summary>
+        /// Kind of async pipe reader for file reporting and injector.
+        /// </summary>
+        /// <remarks>
+        /// Accepted values include Default, Stream, Pipeline.
+        /// </remarks>
+        public static readonly Setting<string> SandboxAsyncPipeReaderKind = CreateSetting<string>("BuildXLAsyncPipeReaderKind", value => value);
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

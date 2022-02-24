@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -23,7 +24,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Windows.Memory;
 using static BuildXL.Utilities.OperatingSystemHelper;
@@ -65,7 +65,7 @@ namespace BuildXL.Processes
         private SandboxedProcessOutputBuilder m_error;
         private SandboxedProcessOutputBuilder m_output;
         private SandboxedProcessReports m_reports;
-        private AsyncPipeReader m_reportReader;
+        private IAsyncPipeReader m_reportReader;
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess> m_survivingChildProcesses;
         private readonly uint m_timeoutMins;
@@ -466,24 +466,38 @@ namespace BuildXL.Processes
             SafeFileHandle childHandle = null;
             DetouredProcess detouredProcess = m_detouredProcess;
 
+            bool useNonDefaultPipeReader = PipeReaderFactory.GetKind() != PipeReaderFactory.Kind.Default;
+
             using (m_reportReaderSemaphore.AcquireSemaphore())
             {
-                SafeFileHandle reportHandle;
+                NamedPipeServerStream pipeStream = null;
+                SafeFileHandle reportHandle = null;
+
                 try
                 {
-                    Pipes.CreateInheritablePipe(
-                        Pipes.PipeInheritance.InheritWrite,
-                        Pipes.PipeFlags.ReadSideAsync,
-                        readHandle: out reportHandle,
-                        writeHandle: out childHandle);
+                    if (useNonDefaultPipeReader)
+                    {
+                        pipeStream = Pipes.CreateNamedPipeServerStream(
+                            PipeDirection.In,
+                            PipeOptions.Asynchronous,
+                            PipeOptions.None,
+                            out childHandle);
+                    }
+                    else
+                    {
+                        Pipes.CreateInheritablePipe(
+                            Pipes.PipeInheritance.InheritWrite,
+                            Pipes.PipeFlags.ReadSideAsync,
+                            readHandle: out reportHandle,
+                            writeHandle: out childHandle);
+                    }
 
-                    var setup =
-                        new FileAccessSetup
-                        {
-                            ReportPath = "#" + childHandle.DangerousGetHandle().ToInt64(),
-                            DllNameX64 = s_binaryPaths.DllNameX64,
-                            DllNameX86 = s_binaryPaths.DllNameX86,
-                        };
+                    var setup = new FileAccessSetup
+                    {
+                        ReportPath = "#" + childHandle.DangerousGetHandle().ToInt64(),
+                        DllNameX64 = s_binaryPaths.DllNameX64,
+                        DllNameX86 = s_binaryPaths.DllNameX86,
+                    };
 
                     bool debugFlagsMatch = true;
                     ArraySegment<byte> manifestBytes = new ArraySegment<byte>();
@@ -541,19 +555,32 @@ namespace BuildXL.Processes
                     }
                 }
 
-                var reportFile = AsyncFileFactory.CreateAsyncFile(
-                    reportHandle,
-                    FileDesiredAccess.GenericRead,
-                    ownsHandle: true,
-                    kind: FileKind.Pipe);
-                StreamDataReceived reportLineReceivedCallback = m_reports == null ? (StreamDataReceived)null : ReportLineReceived;
-                m_reportReader = new AsyncPipeReader(
-                    reportFile,
-                    reportLineReceivedCallback,
-                    reportEncoding,
-                    m_bufferSize,
-                    numOfRetriesOnCancel: m_numRetriesPipeReadOnCancel,
-                    debugPipeReporter: new AsyncPipeReader.DebugReporter(errorMsg => DebugPipeConnection($"ReportReader: {errorMsg}")));
+                StreamDataReceived reportLineReceivedCallback = m_reports == null ? null : ReportLineReceived;
+
+                if (useNonDefaultPipeReader)
+                {
+                    m_reportReader = PipeReaderFactory.CreateNonDefaultPipeReader(
+                        pipeStream,
+                        message => reportLineReceivedCallback(message),
+                        reportEncoding,
+                        m_bufferSize);
+                }
+                else
+                {
+                    var reportFile = AsyncFileFactory.CreateAsyncFile(
+                        reportHandle,
+                        FileDesiredAccess.GenericRead,
+                        ownsHandle: true,
+                        kind: FileKind.Pipe);
+                    m_reportReader = new AsyncPipeReader(
+                        reportFile,
+                        reportLineReceivedCallback,
+                        reportEncoding,
+                        m_bufferSize,
+                        numOfRetriesOnCancel: m_numRetriesPipeReadOnCancel,
+                        debugPipeReporter: new AsyncPipeReader.DebugReporter(errorMsg => DebugPipeConnection($"ReportReader: {errorMsg}")));
+                }
+
                 m_reportReader.BeginReadLine();
             }
 
@@ -607,10 +634,7 @@ namespace BuildXL.Processes
             {
                 if (m_reportReader != null)
                 {
-                    if (!cancel)
-                    {
-                        await m_reportReader.WaitUntilEofAsync();
-                    }
+                    await m_reportReader.CompletionAsync(!cancel);
 
                     m_reportReader.Dispose();
                     m_reportReader = null;

@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -161,6 +162,67 @@ namespace BuildXL.Processes.Internal
             {
                 SetInheritable(writeHandle);
             }
+        }
+                        
+        /// <summary>
+        /// Creates an instance of <see cref="NamedPipeServerStream"/> and immediately connects a client to it.
+        /// </summary>
+        /// <param name="serverDirection">Server direction.</param>
+        /// <param name="serverOptions">Server options.</param>
+        /// <param name="clientOptions">Client options.</param>
+        /// <param name="clientHandle">Output client handle.</param>
+        /// <returns>An instance of <see cref="NamedPipeServerStream"/>.</returns>
+        public static NamedPipeServerStream CreateNamedPipeServerStream(
+            PipeDirection serverDirection,
+            PipeOptions serverOptions,
+            PipeOptions clientOptions,
+            out SafeFileHandle clientHandle)
+        {
+            string pipeName = @"BuildXL-" + Guid.NewGuid().ToString("N");
+            var pipeServerStream = new NamedPipeServerStream(
+                pipeName,
+                serverDirection,
+                maxNumberOfServerInstances: 1,
+                transmissionMode: PipeTransmissionMode.Byte,
+                options: serverOptions,
+                inBufferSize: PipeBufferSize,
+                outBufferSize: PipeBufferSize);
+
+            FileDesiredAccess clientDesiredAccess = FileDesiredAccess.None;
+
+            if ((PipeDirection.In & serverDirection) != 0)
+            {
+                clientDesiredAccess |= FileDesiredAccess.GenericWrite;
+            }
+
+            if ((PipeDirection.Out & serverDirection) != 0)
+            {
+                clientDesiredAccess |= FileDesiredAccess.GenericRead;
+            }
+
+            FileFlagsAndAttributes clientFlags = clientOptions == PipeOptions.Asynchronous
+                ? FileFlagsAndAttributes.FileFlagOverlapped
+                : 0;
+
+            OpenFileResult openClientHandle = FileUtilities.TryCreateOrOpenFile(
+                    @"\\.\pipe\" + pipeName,
+                    clientDesiredAccess,
+                    FileShare.None,
+                    FileMode.Open,
+                    clientFlags | FileFlagsAndAttributes.SecurityAnonymous,
+                    out clientHandle);
+
+            if (!openClientHandle.Succeeded)
+            {
+                throw openClientHandle.CreateExceptionForError();
+            }
+
+            // Client should be made inheritable.
+            SetInheritable(clientHandle);
+
+            pipeServerStream.WaitForConnection();
+
+            return pipeServerStream;
         }
 
         private static void SetInheritable(SafeHandle handle)

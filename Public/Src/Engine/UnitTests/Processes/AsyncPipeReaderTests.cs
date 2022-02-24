@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -304,6 +305,47 @@ namespace Test.BuildXL.Processes
             XAssert.IsTrue(
                 debugMessages.Last().Contains($"error code: {NativeIOConstants.ErrorBrokenPipe}")
                 || debugMessages.Last().Contains($"error code: {NativeIOConstants.ErrorHandleEof}"));
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task TestStreamPipeReaderAsync()
+        {
+            using NamedPipeServerStream pipeStream = Pipes.CreateNamedPipeServerStream(
+                PipeDirection.In,
+                PipeOptions.Asynchronous,
+                PipeOptions.None,
+                out SafeFileHandle clientHandle);
+            var messages = new List<string>();
+            using var reader = new StreamAsyncPipeReader(
+                pipeStream,
+                msg =>
+                {
+                    messages.Add(msg);
+                    return true;
+                },
+                Encoding.Unicode,
+                SandboxedProcessInfo.BufferSize);
+            reader.BeginReadLine();
+
+            const string Content = nameof(TestStreamPipeReaderAsync);
+            Task readTask = Task.Run(async () =>
+            {
+                await reader.CompletionAsync(true);
+            });
+
+            Task writeTask = Task.Run(() =>
+            {
+                XAssert.IsTrue(TryWrite(clientHandle, Content, out int _));
+                clientHandle.Dispose();
+            });
+
+            await Task.WhenAll(readTask, writeTask);
+
+            // Contents:
+            // 0. Content string
+            // 1. null
+            XAssert.AreEqual(2, messages.Count);
+            XAssert.AreEqual(Content, messages[0]);
         }
 
         private static bool TryWrite(SafeFileHandle handle, string content, out int error)

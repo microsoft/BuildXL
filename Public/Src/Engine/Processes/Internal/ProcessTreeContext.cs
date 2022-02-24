@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -14,6 +15,7 @@ using BuildXL.Native.Streams;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
@@ -39,7 +41,7 @@ namespace BuildXL.Processes
     internal sealed class ProcessTreeContext : IDisposable
     {
         private const int BufferSize = 4096;
-        private AsyncPipeReader m_injectionRequestReader;
+        private IAsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
 
         private readonly LoggingContext m_loggingContext;
@@ -62,31 +64,56 @@ namespace BuildXL.Processes
             SafeFileHandle childHandle = null;
 
             m_loggingContext = loggingContext;
+            NamedPipeServerStream serverStream = null;
+
+            bool useNonDefaultPipeReader = PipeReaderFactory.GetKind() != PipeReaderFactory.Kind.Default;
 
             // This object will be the server for the tree. CreateSourceFile the pipe server.
             try
             {
-                SafeFileHandle injectorHandle;
+                SafeFileHandle injectorHandle = null;
 
-                // Create a pipe for the requests
-                Pipes.CreateInheritablePipe(Pipes.PipeInheritance.InheritWrite, Pipes.PipeFlags.ReadSideAsync, out injectorHandle, out childHandle);
+                if (useNonDefaultPipeReader)
+                {
+                    serverStream = Pipes.CreateNamedPipeServerStream(
+                        PipeDirection.In,
+                        PipeOptions.Asynchronous,
+                        PipeOptions.None,
+                        out childHandle);
+                }
+                else
+                {
+                    // Create a pipe for the requests
+                    Pipes.CreateInheritablePipe(Pipes.PipeInheritance.InheritWrite, Pipes.PipeFlags.ReadSideAsync, out injectorHandle, out childHandle);
+                }
 
                 // Create the injector. This will duplicate the handles.
                 Injector = ProcessUtilities.CreateProcessInjector(payloadGuid, childHandle, reportPipe, dllNameX86, dllNameX64, payload);
 
-                // Create the request reader. We don't start listening until requested
-                var injectionRequestFile = AsyncFileFactory.CreateAsyncFile(
-                    injectorHandle,
-                    FileDesiredAccess.GenericRead,
-                    ownsHandle: true,
-                    kind: FileKind.Pipe);
-                m_injectionRequestReader = new AsyncPipeReader(
-                    injectionRequestFile,
-                    InjectCallback,
-                    Encoding.Unicode,
-                    BufferSize,
-                    numOfRetriesOnCancel: numRetriesPipeReadOnCancel,
-                    debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
+                if (useNonDefaultPipeReader)
+                {
+                    m_injectionRequestReader = PipeReaderFactory.CreateNonDefaultPipeReader(
+                        serverStream,
+                        InjectCallback,
+                        Encoding.Unicode,
+                        BufferSize);
+                }
+                else
+                {
+                    // Create the request reader. We don't start listening until requested
+                    var injectionRequestFile = AsyncFileFactory.CreateAsyncFile(
+                        injectorHandle,
+                        FileDesiredAccess.GenericRead,
+                        ownsHandle: true,
+                        kind: FileKind.Pipe);
+                    m_injectionRequestReader = new AsyncPipeReader(
+                        injectionRequestFile,
+                        InjectCallback,
+                        Encoding.Unicode,
+                        BufferSize,
+                        numOfRetriesOnCancel: numRetriesPipeReadOnCancel,
+                        debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
+                }
             }
             catch (Exception exception)
             {
@@ -128,7 +155,7 @@ namespace BuildXL.Processes
             // Wait until reader is done
             if (m_injectionRequestReader != null)
             {
-                await m_injectionRequestReader.WaitUntilEofAsync();
+                await m_injectionRequestReader.CompletionAsync(true);
             }
         }
 

@@ -18,7 +18,7 @@ namespace BuildXL.Processes.Internal
 {
     internal delegate bool StreamDataReceived(string data);
 
-    internal sealed unsafe class AsyncPipeReader : IDisposable, IIOCompletionTarget
+    internal sealed unsafe class AsyncPipeReader : IAsyncPipeReader, IIOCompletionTarget
     {
         private readonly object m_lock = new ();
         private State m_state = State.Initialized;
@@ -165,7 +165,7 @@ namespace BuildXL.Processes.Internal
         /// <summary>
         /// User calls BeginRead to start the asynchronous read
         /// </summary>
-        internal void BeginReadLine()
+        public void BeginReadLine()
         {
             lock (m_lock)
             {
@@ -480,6 +480,9 @@ namespace BuildXL.Processes.Internal
                     });
             }
         }
+
+        /// <inheritdoc/>
+        public Task CompletionAsync(bool waitForEof) => waitForEof ? WaitUntilEofAsync() : Task.CompletedTask;
 
         /// <summary>
         /// Debug reporter for <see cref="AsyncPipeReader"/>.

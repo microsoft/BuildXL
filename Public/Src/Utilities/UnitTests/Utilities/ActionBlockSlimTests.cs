@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 using Xunit;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Utilities
 {
     public class ActionBlockSlimTests
     {
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public async Task ExceptionIsThrownWhenTheBlockIsFull(bool useChannelBasedImpl)

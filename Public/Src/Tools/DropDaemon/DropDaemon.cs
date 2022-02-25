@@ -757,7 +757,8 @@ namespace Tool.DropDaemon
                     m_bsiMetadataExtractor = new BsiMetadataExtractor(DropServiceConfig.BsiFileLocation);
                 }
 
-                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(FullyQualifiedDropName(dropConfig));
+                // TODO: Consume custom package name and versions through drop config
+                var metadata = m_bsiMetadataExtractor.ProduceSbomMetadata(BuildEnvironmentName.BuildXL, FullyQualifiedDropName(dropConfig), "1.0");
                 
                 // Create a temporary directory to be the root path of SBOM generation 
                 // We should create a different directory for each drop, so we use the drop name as part of the path.

@@ -44,6 +44,15 @@ config({{
             kind: 'DScript', 
         }}
     ],
+    mounts: [
+        {{
+            name: a`LocalLow`,
+            path: p`Out/Ignore`,
+            trackSourceFileChanges: false,
+            isWritable: true,
+            isReadable: true,
+        }},
+    ],
 }});")
                .AddSpec("package.dsc", @"
 import * as downloads from 'download';

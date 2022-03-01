@@ -279,7 +279,8 @@ namespace BuildXL.Engine
             if (EngineEnvironmentSettings.GrpcVerbosityEnabled)
             {
                 var fileLogger = new BuildXL.Cache.ContentStore.Logging.FileLog(configuration.Logging.RpcLog.ToString(context.PathTable) + ".grpc");
-                logger = new BuildXL.Cache.ContentStore.Logging.Logger(true, fileLogger);
+                // Using async logging to avoid making IO work synchronously on a hot path.
+                logger = new BuildXL.Cache.ContentStore.Logging.Logger(synchronous: false, fileLogger);
                 grpcVerbosity = (GrpcEnvironmentOptions.GrpcVerbosity?)EngineEnvironmentSettings.GrpcVerbosityLevel.Value ?? GrpcEnvironmentOptions.GrpcVerbosity.Error;
                 var grpcTraceString = EngineEnvironmentSettings.GrpcTraceList.Value ?? "all";
                 grpcTrace = grpcTraceString.Split(',').ToList();

@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -119,8 +118,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                         stringBuilder.AppendFormat("{0}={1}", info.ContentHash.ToShortString(), machines.Count);
 
                         string extra = machines.Count > MaxMachines ? ", ..." : string.Empty;
-                        stringBuilder.AppendFormat(" ({0}{1})", machines.Take(MaxMachines).Select(m => m.ToString()), extra);
+                        stringBuilder.AppendFormat(" ({0}{1})", string.Join(", ", machines.Take(MaxMachines).Select(m => m.ToString())), extra);
                     }
+
+                    return stringBuilder.ToString();
                 }
             }
 

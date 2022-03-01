@@ -1102,10 +1102,6 @@ namespace BuildXL.Engine.Distribution
             {
                 var perfInfo = executionResult.CacheLookupPerfInfo;
                 runnable.Performance.SetCacheLookupPerfInfo(perfInfo);
-                if (perfInfo.CacheMissType != PipCacheMissType.Invalid)
-                {
-                    environment.Counters.IncrementCounter((PipExecutorCounter)perfInfo.CacheMissType);
-                }
             }
 
             if (executionResult.Result == PipResultStatus.Failed)

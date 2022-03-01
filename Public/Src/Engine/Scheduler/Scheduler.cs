@@ -2003,7 +2003,7 @@ namespace BuildXL.Scheduler
             if ((processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly) != cacheMissSum)
             {
                 BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " +
-                    "ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");
+                    $"ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");
             }
 
             // Log details about pips skipped under /CacheOnly mode only if pips were actually skipped.

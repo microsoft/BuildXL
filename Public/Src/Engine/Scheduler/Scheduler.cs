@@ -2574,6 +2574,13 @@ namespace BuildXL.Scheduler
                     m_schedulerCompletionExceptMaterializeOutputsTimeUtc = DateTime.UtcNow;
                 }
 
+                // For the case when FireForgetMaterializeOutput is not enabled,
+                // where there is no active pips, then set the scheduler completion task so that
+                // workers can get disconnected.
+                if (!m_drainThread.IsAlive)
+                {
+                    m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
+                }
             }
         }
 

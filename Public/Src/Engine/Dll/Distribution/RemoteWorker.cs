@@ -475,7 +475,7 @@ namespace BuildXL.Engine.Distribution
             };
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.Elapsed < EngineEnvironmentSettings.WorkerAttachTimeout)
+            while (sw.Elapsed < EngineEnvironmentSettings.WorkerAttachTimeout && !m_schedulerCompletion.IsCompleted)
             {
                 WorkerNodeStatus status = Status;
                 if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)

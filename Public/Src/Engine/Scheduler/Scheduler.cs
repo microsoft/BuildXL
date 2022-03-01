@@ -5544,7 +5544,7 @@ namespace BuildXL.Scheduler
                         completedTime = formatTime(completedTimeTs);
                     }
 
-                    summaryTable.AppendLine(I($"{addMin(pipDurationMs),16} | {addMin(runtimeInfo.ProcessExecuteTimeMs),15} | {addMin(pipQueueDurationMs),18} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
+                    summaryTable.AppendLine(I($"{addMin(pipDurationMs),20} | {addMin(runtimeInfo.ProcessExecuteTimeMs),20} | {addMin(pipQueueDurationMs),20} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
 
                     if (buildSummary != null)
                     {
@@ -5627,7 +5627,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(hr);
 
                 builder.AppendLine("Critical path:");
-                builder.AppendLine(I($"{"Pip Duration",-16} | {"Exe Duration",-15}| {"Queue Duration",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
+                builder.AppendLine(I($"{"Pip Duration",-20} | {"Exe Duration",-20}| {"Queue Duration",-20} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
 
                 // Total critical path running time is a sum of all steps except ChooseWorker and MaterializeOutput (if it is done in background)
                 long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime(this)).Sum();
@@ -5638,7 +5638,7 @@ namespace BuildXL.Scheduler
 
                 long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup];
 
-                builder.AppendLine(I($"{addMin(pipDurationCriticalPathMs),16} | {addMin(exeDurationCriticalPathMs),15} | {addMin(totalOrchestratorQueueTime),18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
+                builder.AppendLine(I($"{addMin(pipDurationCriticalPathMs),20} | {addMin(exeDurationCriticalPathMs),20} | {addMin(totalOrchestratorQueueTime),20} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
                 builder.AppendLine(summaryTable.ToString());
 
                 if (buildSummary != null)

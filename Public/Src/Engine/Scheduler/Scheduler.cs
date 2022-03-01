@@ -1833,9 +1833,10 @@ namespace BuildXL.Scheduler
 
                     var runRemoteProcesses = PipExecutionCounters.GetCounterValue(PipExecutorCounter.TotalRunRemoteProcesses);
                     var runRemoteFallback = PipExecutionCounters.GetCounterValue(PipExecutorCounter.TotalRemoteFallbackRetries);
-                    if (runRemoteProcesses - runRemoteFallback > 0)
+                    long pipsActuallyRemoted = runRemoteProcesses - runRemoteFallback;
+                    if (pipsActuallyRemoted > 0)
                     {
-                        Logger.Log.RemoteBuildSavingsSummary(loggingContext, runRemoteProcesses, cacheMisses: totalProcessesNotIgnoredOrService - m_numProcessPipsSatisfiedFromCache);
+                        Logger.Log.RemoteBuildSavingsSummary(loggingContext, pipsActuallyRemoted, cacheMisses: totalProcessesNotIgnoredOrService - m_numProcessPipsSatisfiedFromCache);
                     }
 
                     if (m_configuration.Engine.Converge && cacheRate < 1 && m_configuration.Logging.ExecutionLog.IsValid)
